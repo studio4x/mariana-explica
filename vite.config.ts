@@ -6,8 +6,10 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
+const base = process.env.VITE_BASE_URL || "/"
+
 export default defineConfig({
-  base: "./",
+  base,
   plugins: [react()],
   resolve: {
     alias: {
