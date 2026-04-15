@@ -6,7 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
+  type MutableRefObject,
   type ReactNode,
+  type SetStateAction,
 } from "react"
 import { supabase } from "@/integrations/supabase"
 import type { Session, User } from "@supabase/supabase-js"
@@ -53,6 +56,31 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
   }
 }
 
+async function refreshProfileState(
+  userId: string,
+  requestId: number,
+  options: {
+    mountedRef: MutableRefObject<boolean>
+    requestIdRef: MutableRefObject<number>
+    setProfile: Dispatch<SetStateAction<UserProfile | null>>
+    setLoading: Dispatch<SetStateAction<boolean>>
+    silent?: boolean
+  },
+) {
+  if (!options.silent) {
+    options.setLoading(true)
+  }
+
+  const userProfile = await fetchProfile(userId)
+
+  if (requestId !== options.requestIdRef.current || !options.mountedRef.current) {
+    return
+  }
+
+  options.setProfile(userProfile)
+  options.setLoading(false)
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
@@ -61,7 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
 
-  const syncSession = async (nextSession: Session | null, refreshProfile: boolean) => {
+  const syncSession = async (
+    nextSession: Session | null,
+    shouldRefreshProfile: boolean,
+  ) => {
     if (!mountedRef.current) {
       return
     }
@@ -77,24 +108,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (!refreshProfile) {
+    if (!shouldRefreshProfile) {
       setLoading(false)
       return
     }
 
-    setLoading(true)
-    const userProfile = await fetchProfile(nextSession.user.id)
-
-    if (requestId !== requestIdRef.current) {
-      return
-    }
-
-    if (!mountedRef.current) {
-      return
-    }
-
-    setProfile(userProfile)
-    setLoading(false)
+    await refreshProfileState(nextSession.user.id, requestId, {
+      mountedRef,
+      requestIdRef,
+      setProfile,
+      setLoading,
+    })
   }
 
   useEffect(() => {
@@ -138,6 +162,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!session?.user) {
+      return
+    }
+
+    const refreshSessionProfile = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return
+      }
+
+      const requestId = ++requestIdRef.current
+      void refreshProfileState(session.user.id, requestId, {
+        mountedRef,
+        requestIdRef,
+        setProfile,
+        setLoading,
+        silent: true,
+      })
+    }
+
+    window.addEventListener("focus", refreshSessionProfile)
+    document.addEventListener("visibilitychange", refreshSessionProfile)
+
+    return () => {
+      window.removeEventListener("focus", refreshSessionProfile)
+      document.removeEventListener("visibilitychange", refreshSessionProfile)
+    }
+  }, [session])
+
   const signOut = async () => {
     try {
       await supabase.auth.signOut()
@@ -156,7 +209,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       loading,
       isAuthenticated: Boolean(session && profile && profile.status === "active"),
-      isAdmin: Boolean(profile?.is_admin === true && profile.status === "active"),
+      isAdmin: Boolean(
+        profile?.is_admin === true &&
+          profile?.role === "admin" &&
+          profile.status === "active",
+      ),
       signOut,
     }),
     [user, profile, session, loading],

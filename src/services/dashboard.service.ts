@@ -34,7 +34,7 @@ async function fetchProductsByIds(productIds: string[]) {
 export async function fetchMyAccessGrants() {
   const { data, error } = await supabase
     .from("access_grants")
-    .select("id,product_id,source_order_id,granted_at,expires_at,status")
+    .select("id,product_id,source_order_id,granted_at,expires_at,revoked_at,status")
     .eq("status", "active")
     .order("granted_at", { ascending: false })
 
@@ -42,7 +42,29 @@ export async function fetchMyAccessGrants() {
     throw error
   }
 
-  return (data ?? []) as AccessGrantSummary[]
+  const now = Date.now()
+  const grants = ((data ?? []) as Array<AccessGrantSummary & { revoked_at: string | null }>)
+    .filter((grant) => {
+      if (grant.revoked_at) {
+        return false
+      }
+
+      if (!grant.expires_at) {
+        return true
+      }
+
+      return new Date(grant.expires_at).getTime() > now
+    })
+    .map((grant) => ({
+      id: grant.id,
+      product_id: grant.product_id,
+      source_order_id: grant.source_order_id,
+      granted_at: grant.granted_at,
+      expires_at: grant.expires_at,
+      status: grant.status,
+    }))
+
+  return grants
 }
 
 export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
@@ -108,11 +130,14 @@ export async function fetchModuleAssets(moduleIds: string[]) {
 }
 
 export async function fetchDashboardProductContent(productId: string) {
-  const [products, modules] = await Promise.all([
-    fetchProductsByIds([productId]),
-    fetchProductModules(productId),
-  ])
-  const product = products[0] ?? null
+  const products = await fetchMyProducts()
+  const product = products.find((entry) => entry.id === productId) ?? null
+
+  if (!product) {
+    return { product: null, modules: [], assets: [] }
+  }
+
+  const modules = await fetchProductModules(productId)
   const assets = await fetchModuleAssets(modules.map((module) => module.id))
 
   return { product, modules, assets }
@@ -226,20 +251,15 @@ export async function fetchSupportTicketMessages(ticketId: string) {
 }
 
 export async function createSupportTicket(input: { subject: string; message: string }) {
-  const { data, error } = await supabase
-    .from("support_tickets")
-    .insert({
-      subject: input.subject.trim(),
-      message: input.message.trim(),
-    })
-    .select("id,subject,message,status,priority,assigned_admin_id,last_reply_at,created_at,updated_at")
-    .single()
+  const { data, error } = await supabase.functions.invoke("create-support-ticket", {
+    body: input,
+  })
 
   if (error) {
     throw error
   }
 
-  return data as SupportTicketSummary
+  return (data as { success: true; ticket: SupportTicketSummary }).ticket
 }
 
 export async function replySupportTicket(input: {

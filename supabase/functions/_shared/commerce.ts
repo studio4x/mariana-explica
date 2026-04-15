@@ -215,10 +215,12 @@ export async function ensureActiveGrant(
 ) {
   const { data: existingGrant, error: lookupError } = await client
     .from("access_grants")
-    .select("id,user_id,product_id,status,source_type,source_order_id")
+    .select("id,user_id,product_id,status,source_type,source_order_id,expires_at,revoked_at")
     .eq("user_id", params.userId)
     .eq("product_id", params.productId)
     .eq("status", "active")
+    .is("revoked_at", null)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .maybeSingle()
 
   if (lookupError) {
@@ -240,7 +242,7 @@ export async function ensureActiveGrant(
       notes: params.notes ?? null,
       granted_at: new Date().toISOString(),
     })
-    .select("id,user_id,product_id,status,source_type,source_order_id")
+    .select("id,user_id,product_id,status,source_type,source_order_id,expires_at,revoked_at")
     .single()
 
   if (error) {
@@ -259,10 +261,12 @@ export async function findActiveGrantForProduct(
 ) {
   const { data, error } = await client
     .from("access_grants")
-    .select("id,user_id,product_id,status,source_type,source_order_id,granted_at,expires_at")
+    .select("id,user_id,product_id,status,source_type,source_order_id,granted_at,expires_at,revoked_at")
     .eq("user_id", params.userId)
     .eq("product_id", params.productId)
     .eq("status", "active")
+    .is("revoked_at", null)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .maybeSingle()
 
   if (error) {

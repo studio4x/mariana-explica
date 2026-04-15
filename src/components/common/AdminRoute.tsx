@@ -24,7 +24,11 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to={ROUTES.LOGIN} replace />
   }
 
-  if (profile?.status !== "active" || profile?.is_admin !== true) {
+  if (
+    profile.status !== "active" ||
+    profile.is_admin !== true ||
+    profile.role !== "admin"
+  ) {
     return <Navigate to={ROUTES.HOME} replace />
   }
 

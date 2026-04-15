@@ -92,6 +92,17 @@ export async function verifyStripeWebhookSignature(
   }
 
   const { timestamp, signature } = parseStripeSignature(signatureHeader)
+  const timestampSeconds = Number(timestamp)
+  if (!Number.isFinite(timestampSeconds)) {
+    throw badRequest("Timestamp da assinatura do Stripe invalido")
+  }
+
+  const toleranceInSeconds = 300
+  const nowInSeconds = Math.floor(Date.now() / 1000)
+  if (Math.abs(nowInSeconds - timestampSeconds) > toleranceInSeconds) {
+    throw unauthorized("Assinatura do Stripe fora da janela de seguranca")
+  }
+
   const expected = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`)
 
   if (!constantTimeEquals(expected, signature)) {

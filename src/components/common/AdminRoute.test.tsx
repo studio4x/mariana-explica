@@ -13,7 +13,7 @@ describe("AdminRoute", () => {
   it("renders children for an active admin", () => {
     mockUseAuth.mockReturnValue({
       session: { access_token: "token" },
-      profile: { status: "active", is_admin: true },
+      profile: { status: "active", is_admin: true, role: "admin" },
       loading: false,
     })
 
@@ -38,7 +38,33 @@ describe("AdminRoute", () => {
   it("redirects non-admin users to home", () => {
     mockUseAuth.mockReturnValue({
       session: { access_token: "token" },
-      profile: { status: "active", is_admin: false },
+      profile: { status: "active", is_admin: false, role: "student" },
+      loading: false,
+    })
+
+    render(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <Routes>
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <div>Painel admin</div>
+              </AdminRoute>
+            }
+          />
+          <Route path="/" element={<div>Home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText("Home")).toBeInTheDocument()
+  })
+
+  it("redirects inconsistent admin flags to home", () => {
+    mockUseAuth.mockReturnValue({
+      session: { access_token: "token" },
+      profile: { status: "active", is_admin: true, role: "student" },
       loading: false,
     })
 

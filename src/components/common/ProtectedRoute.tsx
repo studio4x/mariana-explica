@@ -11,20 +11,18 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation()
 
   if (loading) {
-    return <div className="p-8 text-center">Carregando sessão...</div>
+    return <div className="p-8 text-center">Carregando sessao...</div>
   }
 
   if (!session) {
-    return (
-      <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
-    )
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
   if (!profile) {
     return <Navigate to={ROUTES.LOGIN} replace />
   }
 
-  if (profile?.status !== "active") {
+  if (profile.status !== "active") {
     return <Navigate to={ROUTES.HOME} replace />
   }
 

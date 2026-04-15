@@ -42,6 +42,8 @@ async function hasPaidAccess(
     .eq("user_id", userId)
     .eq("product_id", productId)
     .eq("status", "active")
+    .is("revoked_at", null)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .maybeSingle()
 
   if (error) {
@@ -126,8 +128,7 @@ Deno.serve(async (req) => {
     const moduleAllowsPublicAccess = module.access_type === "public" || module.is_preview
     const activeContext = optionalContext ? await requireActiveUser(req) : null
     const userHasPaidAccess = Boolean(
-      activeContext &&
-      (product.product_type === "free" || (await hasPaidAccess(client, activeContext.user.id, product.id))),
+      activeContext && (await hasPaidAccess(client, activeContext.user.id, product.id)),
     )
 
     const canAccess =
