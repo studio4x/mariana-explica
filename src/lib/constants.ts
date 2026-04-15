@@ -7,10 +7,20 @@ export const ROUTES = {
   HOME: "/",
   PRODUCTS: "/produtos",
   PRODUCT: "/produto",
+  CHECKOUT: "/checkout",
   LOGIN: "/login",
   REGISTER: "/register",
   DASHBOARD: "/dashboard",
+  DASHBOARD_PRODUCTS: "/dashboard/produtos",
+  DASHBOARD_PRODUCT: "/dashboard/produto",
+  DASHBOARD_DOWNLOADS: "/dashboard/downloads",
+  DASHBOARD_NOTIFICATIONS: "/dashboard/notificacoes",
+  DASHBOARD_SUPPORT: "/dashboard/suporte",
+  DASHBOARD_PROFILE: "/dashboard/perfil",
   ADMIN: "/admin",
+  ADMIN_USERS: "/admin/usuarios",
+  ADMIN_PRODUCTS: "/admin/produtos",
+  ADMIN_ORDERS: "/admin/pedidos",
 } as const
 
 // API

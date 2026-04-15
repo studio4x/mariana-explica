@@ -7,20 +7,24 @@ interface AdminRouteProps {
 }
 
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { isAuthenticated, isAdmin, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
     return <div className="p-8 text-center">Validando acesso administrativo...</div>
   }
 
-  if (!isAuthenticated) {
+  if (!session) {
     return (
       <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
     )
   }
 
-  if (!isAdmin) {
+  if (!profile) {
+    return <Navigate to={ROUTES.LOGIN} replace />
+  }
+
+  if (profile?.status !== "active" || profile?.is_admin !== true) {
     return <Navigate to={ROUTES.HOME} replace />
   }
 
