@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "Mariana Explica",
+  "short_name": "Mariana",
+  "description": "Plataforma de venda e entrega de conteúdos educacionais digitais.",
+  "lang": "pt-PT",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#242742",
+  "background_color": "#f8fbfd",
+  "icons": [
+    {
+      "src": "/icon-app.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
