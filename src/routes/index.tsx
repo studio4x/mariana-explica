@@ -19,105 +19,110 @@ import {
 import { Admin, AdminOrders, AdminProducts, AdminUsers } from "@/pages/admin"
 import { ProtectedRoute, AdminRoute } from "@/components/common"
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      element: <PublicLayout />,
+      children: [
+        {
+          index: true,
+          element: <Home />,
+        },
+        {
+          path: "produtos",
+          element: <Products />,
+        },
+        {
+          path: "produto/:slug",
+          element: <Product />,
+        },
+        {
+          path: "checkout",
+          element: <Checkout />,
+        },
+      ],
+    },
+    {
+      path: "/",
+      element: <AuthLayout />,
+      children: [
+        {
+          path: "login",
+          element: <Login />,
+        },
+        {
+          path: "register",
+          element: <Register />,
+        },
+      ],
+    },
+    {
+      path: "/dashboard",
+      element: (
+        <ProtectedRoute>
+          <DashboardLayout />
+        </ProtectedRoute>
+      ),
+      children: [
+        {
+          index: true,
+          element: <Dashboard />,
+        },
+        {
+          path: "produtos",
+          element: <DashboardProducts />,
+        },
+        {
+          path: "produto/:id",
+          element: <DashboardProductDetail />,
+        },
+        {
+          path: "downloads",
+          element: <DashboardDownloads />,
+        },
+        {
+          path: "notificacoes",
+          element: <DashboardNotifications />,
+        },
+        {
+          path: "suporte",
+          element: <DashboardSupport />,
+        },
+        {
+          path: "perfil",
+          element: <DashboardProfile />,
+        },
+      ],
+    },
+    {
+      path: "/admin",
+      element: (
+        <AdminRoute>
+          <AdminLayout />
+        </AdminRoute>
+      ),
+      children: [
+        {
+          index: true,
+          element: <Admin />,
+        },
+        {
+          path: "usuarios",
+          element: <AdminUsers />,
+        },
+        {
+          path: "produtos",
+          element: <AdminProducts />,
+        },
+        {
+          path: "pedidos",
+          element: <AdminOrders />,
+        },
+      ],
+    },
+  ],
   {
-    path: "/",
-    element: <PublicLayout />,
-    children: [
-      {
-        index: true,
-        element: <Home />,
-      },
-      {
-        path: "produtos",
-        element: <Products />,
-      },
-      {
-        path: "produto/:slug",
-        element: <Product />,
-      },
-      {
-        path: "checkout",
-        element: <Checkout />,
-      },
-    ],
+    basename: import.meta.env.VITE_BASE_URL || "/",
   },
-  {
-    path: "/",
-    element: <AuthLayout />,
-    children: [
-      {
-        path: "login",
-        element: <Login />,
-      },
-      {
-        path: "register",
-        element: <Register />,
-      },
-    ],
-  },
-  {
-    path: "/dashboard",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        index: true,
-        element: <Dashboard />,
-      },
-      {
-        path: "produtos",
-        element: <DashboardProducts />,
-      },
-      {
-        path: "produto/:id",
-        element: <DashboardProductDetail />,
-      },
-      {
-        path: "downloads",
-        element: <DashboardDownloads />,
-      },
-      {
-        path: "notificacoes",
-        element: <DashboardNotifications />,
-      },
-      {
-        path: "suporte",
-        element: <DashboardSupport />,
-      },
-      {
-        path: "perfil",
-        element: <DashboardProfile />,
-      },
-    ],
-  },
-  {
-    path: "/admin",
-    element: (
-      <AdminRoute>
-        <AdminLayout />
-      </AdminRoute>
-    ),
-    children: [
-      {
-        index: true,
-        element: <Admin />,
-      },
-      {
-        path: "usuarios",
-        element: <AdminUsers />,
-      },
-      {
-        path: "produtos",
-        element: <AdminProducts />,
-      },
-      {
-        path: "pedidos",
-        element: <AdminOrders />,
-      },
-    ],
-  },
-])
+)
