@@ -27,13 +27,13 @@ export function Products() {
   })
 
   return (
-    <div className="space-y-8">
+    <div className="container space-y-8 py-10 md:py-12">
       <PageHeader
-        title="Catálogo de produtos"
-        description="Produtos publicados e prontos para compra."
+        title="Catalogo de produtos"
+        description="Explora materiais publicados, compara com rapidez e encontra o produto certo para o teu momento de estudo."
       />
 
-      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="rounded-[1.75rem] border bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -41,21 +41,21 @@ export function Products() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por nome, descrição ou tipo..."
+              placeholder="Pesquisar por tema, produto ou descricao..."
               className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </div>
-          <Button variant="outline" asChild>
-            <Link to={ROUTES.HOME}>Voltar para a home</Link>
+          <Button variant="outline" asChild className="rounded-full">
+            <Link to={ROUTES.HOME}>Voltar a home</Link>
           </Button>
         </div>
       </div>
 
-      {isLoading ? <LoadingState message="Carregando catálogo..." /> : null}
+      {isLoading ? <LoadingState message="A carregar catalogo..." /> : null}
       {isError ? (
         <ErrorState
-          title="Falha ao carregar catálogo"
-          message={error instanceof Error ? error.message : "Tente novamente em instantes."}
+          title="Falha ao carregar o catalogo"
+          message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
           onRetry={() => void refetch()}
         />
       ) : null}
@@ -64,8 +64,8 @@ export function Products() {
           title="Nenhum produto encontrado"
           message={
             search.trim()
-              ? "Tente outro termo de busca ou limpe o filtro."
-              : "Ainda não há produtos publicados para exibir."
+              ? "Experimenta outro termo de pesquisa ou limpa o filtro."
+              : "Ainda nao ha produtos publicados para mostrar."
           }
         />
       ) : null}
@@ -90,4 +90,3 @@ export function Products() {
     </div>
   )
 }
-

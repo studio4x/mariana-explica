@@ -1,6 +1,7 @@
-// Constants da aplicação
+// Application constants
 export const APP_NAME = "Mariana Explica"
-export const APP_DESCRIPTION = "Plataforma de venda e entrega de conteúdos educacionais digitais"
+export const APP_DESCRIPTION =
+  "Plataforma educacional digital com conteudos organizados, compra simples e acesso seguro."
 
 // Routes
 export const ROUTES = {

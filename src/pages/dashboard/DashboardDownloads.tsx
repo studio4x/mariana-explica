@@ -8,14 +8,14 @@ export function DashboardDownloads() {
   const assetAccess = useRequestAssetAccess()
 
   if (isLoading) {
-    return <LoadingState message="Carregando downloads..." />
+    return <LoadingState message="A carregar downloads..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar os downloads"
-        message={error instanceof Error ? error.message : "Tente novamente em instantes."}
+        title="Nao foi possivel carregar os downloads"
+        message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
     )
@@ -25,8 +25,8 @@ export function DashboardDownloads() {
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Nenhum download disponível"
-        message="Apenas arquivos com download permitido aparecem nesta central."
+        title="Ainda sem downloads disponiveis"
+        message="Quando houver materiais para descarregar, eles ficam reunidos nesta central."
       />
     )
   }
@@ -35,7 +35,7 @@ export function DashboardDownloads() {
     <div className="space-y-6">
       <PageHeader
         title="Downloads"
-        description="Arquivos disponíveis para a sua conta."
+        description="Todos os ficheiros disponiveis na tua conta, num unico lugar para ser facil encontrar."
       />
 
       <div className="space-y-4">
@@ -43,13 +43,20 @@ export function DashboardDownloads() {
           <div key={asset.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-950">{asset.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <h2 className="font-display text-2xl font-bold text-slate-950">{asset.title}</h2>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
                   {product?.title} · {module?.title}
                 </p>
               </div>
-              <Button onClick={() => void assetAccess.mutateAsync(asset.id).then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))}>
-                {assetAccess.isPending ? "Gerando acesso..." : "Baixar arquivo"}
+              <Button
+                className="rounded-full"
+                onClick={() =>
+                  void assetAccess
+                    .mutateAsync(asset.id)
+                    .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                }
+              >
+                {assetAccess.isPending ? "A preparar..." : "Descarregar"}
               </Button>
             </div>
           </div>

@@ -6,6 +6,12 @@ import { Button } from "@/components/ui"
 import { useDashboardProductContent, useRequestAssetAccess } from "@/hooks/useDashboard"
 import type { ModuleAssetSummary } from "@/types/app.types"
 
+function getModuleLabel(accessType: string, isPreview: boolean) {
+  if (isPreview || accessType === "public") return "Preview"
+  if (accessType === "registered") return "Disponivel"
+  return "Incluido"
+}
+
 function getModuleTone(accessType: string, isPreview: boolean): "info" | "warning" | "success" {
   if (isPreview || accessType === "public") return "info"
   if (accessType === "registered") return "warning"
@@ -32,14 +38,14 @@ export function DashboardProductDetail() {
   }
 
   if (isLoading) {
-    return <LoadingState message="Carregando conteúdo do produto..." />
+    return <LoadingState message="A carregar conteudo do produto..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar o produto"
-        message={error instanceof Error ? error.message : "Tente novamente em instantes."}
+        title="Nao foi possivel carregar este produto"
+        message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
     )
@@ -48,8 +54,8 @@ export function DashboardProductDetail() {
   if (!data?.product) {
     return (
       <EmptyState
-        title="Produto indisponível"
-        message="Esse item não está acessível para a sua conta."
+        title="Produto indisponivel"
+        message="Este item nao esta acessivel na tua conta neste momento."
       />
     )
   }
@@ -58,13 +64,22 @@ export function DashboardProductDetail() {
     <div className="space-y-6">
       <PageHeader
         title={data.product.title}
-        description={data.product.short_description ?? data.product.description ?? "Conteúdo do produto."}
+        description={data.product.short_description ?? data.product.description ?? "Conteudo do produto."}
         backTo="/dashboard/produtos"
       />
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Módulos</h2>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Modulos</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-600">
+                Escolhe um modulo para abrir os materiais associados e continuar o estudo.
+              </p>
+            </div>
+            <StatusBadge label={`${modules.length} modulos`} tone="neutral" />
+          </div>
+
           <div className="mt-5 space-y-3">
             {modules.map((module) => (
               <button
@@ -80,12 +95,12 @@ export function DashboardProductDetail() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-semibold">{module.title}</p>
                   <StatusBadge
-                    label={module.is_preview ? "Preview" : module.access_type}
+                    label={getModuleLabel(module.access_type, module.is_preview)}
                     tone={getModuleTone(module.access_type, module.is_preview)}
                   />
                 </div>
                 <p className={`mt-2 text-sm leading-6 ${selectedModuleIdSafe === module.id ? "text-white/80" : "text-slate-600"}`}>
-                  {module.description ?? "Módulo pronto para acesso seguro."}
+                  {module.description ?? "Conteudo organizado para ser visto passo a passo."}
                 </p>
               </button>
             ))}
@@ -97,22 +112,19 @@ export function DashboardProductDetail() {
             <>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">{selectedModule.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {selectedModule.description ?? "Selecione um asset para abrir o conteúdo."}
+                  <h2 className="font-display text-2xl font-bold text-slate-950">{selectedModule.title}</h2>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    {selectedModule.description ?? "Abre um dos materiais abaixo para continuares."}
                   </p>
                 </div>
-                <StatusBadge
-                  label={selectedModule.module_type}
-                  tone="neutral"
-                />
+                <StatusBadge label={selectedModule.module_type} tone="neutral" />
               </div>
 
               {selectedAssets.length === 0 ? (
                 <div className="mt-6">
                   <EmptyState
-                    title="Sem assets neste módulo"
-                    message="Quando houver material associado ao módulo, ele aparece aqui."
+                    title="Sem materiais neste modulo"
+                    message="Quando houver conteudo associado, ele aparece aqui."
                   />
                 </div>
               ) : (
@@ -122,12 +134,14 @@ export function DashboardProductDetail() {
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                           <p className="font-semibold text-slate-950">{asset.title}</p>
-                          <p className="mt-2 text-sm text-slate-600">
-                            Tipo: {asset.asset_type} · Download {asset.allow_download ? "permitido" : "restrito"}
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {asset.allow_download
+                              ? "Material disponivel para abrir e descarregar quando permitido."
+                              : "Material disponivel para consulta dentro do teu acesso."}
                           </p>
                         </div>
-                        <Button onClick={() => void handleOpenAsset(asset)} disabled={assetAccess.isPending}>
-                          {assetAccess.isPending ? "Gerando acesso..." : "Abrir conteúdo"}
+                        <Button onClick={() => void handleOpenAsset(asset)} disabled={assetAccess.isPending} className="rounded-full">
+                          {assetAccess.isPending ? "A abrir..." : "Abrir material"}
                         </Button>
                       </div>
                     </div>
@@ -137,8 +151,8 @@ export function DashboardProductDetail() {
             </>
           ) : (
             <EmptyState
-              title="Sem módulos disponíveis"
-              message="Os módulos publicados deste produto aparecem aqui."
+              title="Sem modulos disponiveis"
+              message="Os modulos publicados deste produto vao aparecer aqui."
             />
           )}
         </section>

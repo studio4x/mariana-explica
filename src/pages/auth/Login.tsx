@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui"
 import { ROUTES, APP_NAME } from "@/lib/constants"
@@ -44,16 +44,19 @@ export function Login() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Entrar em {APP_NAME}</h1>
-        <p className="text-sm text-muted-foreground">
-          Digite suas credenciais para acessar sua conta
+      <div className="space-y-3 text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Entrar</p>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
+          Continua o teu acesso na {APP_NAME}
+        </h1>
+        <p className="text-sm leading-7 text-muted-foreground">
+          Entra para abrir os teus produtos, downloads e notificacoes sem perder o contexto do estudo.
         </p>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium">
+          <label htmlFor="email" className="text-sm font-medium text-slate-700">
             Email
           </label>
           <input
@@ -62,13 +65,13 @@ export function Login() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="seu@email.com"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-12 w-full rounded-xl border border-input bg-slate-50 px-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium">
-            Senha
+          <label htmlFor="password" className="text-sm font-medium text-slate-700">
+            Palavra-passe
           </label>
           <input
             id="password"
@@ -76,21 +79,21 @@ export function Login() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="********"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-12 w-full rounded-xl border border-input bg-slate-50 px-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Entrando..." : "Entrar"}
+        <Button type="submit" className="w-full rounded-full" size="lg" disabled={loading}>
+          {loading ? "A entrar..." : "Entrar"}
         </Button>
       </form>
 
-      <div className="text-center text-sm">
-        Não tem uma conta?{' '}
-        <Link to={ROUTES.REGISTER} className="underline underline-offset-4 hover:text-primary">
-          Cadastre-se
+      <div className="text-center text-sm text-slate-600">
+        Ainda nao tens conta?{" "}
+        <Link to={ROUTES.REGISTER} className="font-semibold underline underline-offset-4 hover:text-primary">
+          Criar conta
         </Link>
       </div>
     </div>

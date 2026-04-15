@@ -1,29 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: light;
-  --background: 0 0% 100%;
-  --foreground: 224 71.4% 4.1%;
+  --background: 196 58% 96%;
+  --foreground: 230 32% 14%;
   --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 4.1%;
+  --card-foreground: 230 32% 14%;
   --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 4.1%;
-  --primary: 233 26% 20%;
+  --popover-foreground: 230 32% 14%;
+  --primary: 236 28% 21%;
   --primary-foreground: 0 0% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --secondary: 198 46% 90%;
+  --secondary-foreground: 230 32% 18%;
+  --muted: 197 36% 92%;
+  --muted-foreground: 217 14% 40%;
+  --accent: 194 60% 92%;
+  --accent-foreground: 230 32% 18%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 233 26% 20%;
-  --radius: 0.75rem;
+  --success: 152 48% 39%;
+  --success-foreground: 0 0% 98%;
+  --warning: 39 91% 51%;
+  --warning-foreground: 24 95% 17%;
+  --border: 201 28% 84%;
+  --input: 201 28% 84%;
+  --ring: 236 28% 21%;
+  --radius: 1rem;
   color: hsl(var(--foreground));
   background-color: hsl(var(--background));
   font-family: Inter, system-ui, sans-serif;
@@ -55,13 +61,21 @@
 html {
   line-height: 1.5;
   text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background: hsl(var(--background));
+  background:
+    radial-gradient(circle at top left, rgba(36, 39, 66, 0.08), transparent 28%),
+    linear-gradient(180deg, #f4fbfd 0%, #ecf7fb 52%, #ffffff 100%);
   color: hsl(var(--foreground));
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 * {
@@ -89,4 +103,20 @@ optgroup,
 select,
 textarea {
   font: inherit;
+}
+
+::selection {
+  background: rgba(36, 39, 66, 0.16);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Arvo", Georgia, serif;
+    letter-spacing: -0.02em;
+  }
 }

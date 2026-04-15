@@ -1,73 +1,171 @@
-import { Link } from "react-router-dom"
+import { useMemo, useState } from "react"
+import { Link, useLocation } from "react-router-dom"
+import { GraduationCap, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
 import { Button } from "@/components/ui"
-import { APP_NAME, ROUTES } from "@/lib/constants"
+import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
+import { cn } from "@/lib/cn"
 
 export function Navbar() {
+  const location = useLocation()
   const { isAuthenticated, isAdmin, signOut } = useAuth()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const navItems = useMemo(
+    () =>
+      [
+        { to: ROUTES.PRODUCTS, label: "Produtos" },
+        isAuthenticated ? { to: ROUTES.DASHBOARD, label: "Area do aluno" } : null,
+        isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
+      ].filter(Boolean) as Array<{ to: string; label: string }>,
+    [isAdmin, isAuthenticated],
+  )
+
+  const closeMenu = () => setMobileOpen(false)
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
-        <div className="mr-4 hidden md:flex">
-          <Link to={ROUTES.HOME} className="mr-6 flex items-center space-x-2">
-            <span className="hidden font-bold sm:inline-block">{APP_NAME}</span>
+    <nav className="sticky top-0 z-50 border-b border-white/60 bg-white/88 backdrop-blur supports-[backdrop-filter]:bg-white/75">
+      <div className="container flex items-center justify-between gap-4 py-3">
+        <div className="flex min-w-0 items-center gap-4">
+          <Link to={ROUTES.HOME} className="min-w-0" onClick={closeMenu}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                <GraduationCap className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
+                <p className="hidden text-xs text-slate-500 md:block">{APP_DESCRIPTION}</p>
+              </div>
+            </div>
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Link
-              to={ROUTES.PRODUCTS}
-              className="text-foreground/60 transition-colors hover:text-foreground/80"
-            >
-              Produtos
-            </Link>
-            {isAuthenticated ? (
+
+          <nav className="hidden items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 p-1.5 md:flex">
+            {navItems.map((item) => (
               <Link
-                to={ROUTES.DASHBOARD}
-                className="text-foreground/60 transition-colors hover:text-foreground/80"
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "rounded-full px-4 py-2 text-sm font-medium transition",
+                  location.pathname.startsWith(item.to)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+                )}
               >
-                Minha área
+                {item.label}
               </Link>
-            ) : null}
-            {isAdmin ? (
-              <Link
-                to={ROUTES.ADMIN}
-                className="text-foreground/60 transition-colors hover:text-foreground/80"
-              >
-                Admin
-              </Link>
-            ) : null}
+            ))}
           </nav>
         </div>
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div className="w-full flex-1 md:w-auto md:flex-none" />
-          <nav className="flex items-center space-x-2">
-            {!isAuthenticated ? (
-              <>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to={ROUTES.LOGIN}>Entrar</Link>
+
+        <div className="hidden items-center gap-2 md:flex">
+          {!isAuthenticated ? (
+            <>
+              <Button asChild variant="ghost" size="sm" className="rounded-full">
+                <Link to={ROUTES.LOGIN}>Entrar</Link>
+              </Button>
+              <Button asChild size="sm" className="rounded-full">
+                <Link to={ROUTES.REGISTER}>Criar conta</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              {isAdmin ? (
+                <Button asChild variant="outline" size="sm" className="rounded-full">
+                  <Link to={ROUTES.ADMIN}>
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Operacao
+                  </Link>
                 </Button>
-                <Button asChild size="sm">
-                  <Link to={ROUTES.REGISTER}>Criar conta</Link>
-                </Button>
-              </>
-            ) : (
-              <>
-                {isAdmin ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={ROUTES.ADMIN}>Painel admin</Link>
-                  </Button>
-                ) : null}
-                <Button asChild variant="ghost" size="sm">
-                  <Link to={ROUTES.DASHBOARD}>Dashboard</Link>
-                </Button>
-                <Button onClick={() => void signOut()} variant="secondary" size="sm">
-                  Sair
-                </Button>
-              </>
-            )}
-          </nav>
+              ) : null}
+              <Button asChild variant="ghost" size="sm" className="rounded-full">
+                <Link to={ROUTES.DASHBOARD}>
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  Continuar estudando
+                </Link>
+              </Button>
+              <Button onClick={() => void signOut()} variant="secondary" size="sm" className="rounded-full">
+                Sair
+              </Button>
+            </>
+          )}
         </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="rounded-full md:hidden"
+          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+          onClick={() => setMobileOpen((value) => !value)}
+        >
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
       </div>
+
+      {mobileOpen ? (
+        <div className="border-t border-slate-200/80 bg-white/95 md:hidden">
+          <div className="container space-y-5 py-5">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
+              <p className="font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Explicacoes claras, produtos organizados e acesso simples no mesmo lugar.
+              </p>
+            </div>
+
+            <nav className="grid gap-2">
+              {navItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={closeMenu}
+                  className={cn(
+                    "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                    location.pathname.startsWith(item.to)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-slate-200 bg-white text-slate-700",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="grid gap-3">
+              {!isAuthenticated ? (
+                <>
+                  <Button asChild className="w-full rounded-full">
+                    <Link to={ROUTES.REGISTER} onClick={closeMenu}>
+                      Criar conta
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full rounded-full">
+                    <Link to={ROUTES.LOGIN} onClick={closeMenu}>
+                      Entrar
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {isAdmin ? (
+                    <Button asChild variant="outline" className="w-full rounded-full">
+                      <Link to={ROUTES.ADMIN} onClick={closeMenu}>
+                        Painel admin
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild className="w-full rounded-full">
+                    <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
+                      Dashboard
+                    </Link>
+                  </Button>
+                  <Button onClick={() => void signOut()} variant="secondary" className="w-full rounded-full">
+                    Sair
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </nav>
   )
 }

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useSearchParams, Link } from "react-router-dom"
-import { ArrowRight, CheckCircle2, Lock, Shield, Sparkles } from "lucide-react"
+import { ArrowRight, CheckCircle2, Lock, ShieldCheck } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
@@ -63,20 +63,20 @@ export function Checkout() {
     return (
       <EmptyState
         title="Checkout sem produto"
-        message="Abra um produto e siga para o checkout para continuar a compra."
+        message="Abre um produto primeiro e segue para o checkout para continuar."
       />
     )
   }
 
   if (isLoading) {
-    return <LoadingState message="Preparando checkout..." />
+    return <LoadingState message="A preparar checkout..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível preparar o checkout"
-        message={error instanceof Error ? error.message : "Tente novamente em instantes."}
+        title="Nao foi possivel preparar o checkout"
+        message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
     )
@@ -85,8 +85,8 @@ export function Checkout() {
   if (!product) {
     return (
       <EmptyState
-        title="Produto não encontrado"
-        message="O item escolhido não está publicado ou não existe."
+        title="Produto nao encontrado"
+        message="O item escolhido nao esta publicado ou deixou de estar disponivel."
       />
     )
   }
@@ -94,27 +94,27 @@ export function Checkout() {
   const canPurchase = Boolean(session && profile?.status === "active")
 
   return (
-    <div className="space-y-8">
+    <div className="container space-y-8 py-10 md:py-12">
       <PageHeader
         title="Checkout"
-        description="Resumo do pedido e confirmação final."
+        description="Confirma o produto, valida os dados principais e segue para concluir a compra."
         backTo={`${ROUTES.PRODUCT}/${product.slug}`}
       />
 
-      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-6">
           <div className="rounded-[2rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-8 text-white shadow-xl">
             <p className="text-sm uppercase tracking-[0.24em] text-white/70">Resumo do produto</p>
-            <h2 className="mt-4 text-3xl font-semibold leading-tight md:text-5xl">{product.title}</h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-white/80 md:text-lg">
-              {product.short_description ?? product.description ?? "Produto digital pronto para ser liberado com segurança."}
+            <h2 className="mt-4 font-display text-3xl font-bold leading-tight md:text-5xl">{product.title}</h2>
+            <p className="mt-4 max-w-2xl text-base leading-8 text-white/82 md:text-lg">
+              {product.short_description ?? product.description ?? "Produto digital pronto para ser activado na tua conta."}
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
-                { icon: Shield, title: "RLS ativo" },
-                { icon: CheckCircle2, title: "Grant validado" },
-                { icon: Sparkles, title: "Pagamento seguro" },
+                { icon: ShieldCheck, title: "Fluxo claro" },
+                { icon: CheckCircle2, title: "Dados organizados" },
+                { icon: Lock, title: "Conta protegida" },
               ].map((item) => (
                 <div key={item.title} className="rounded-2xl bg-white/10 p-4 backdrop-blur">
                   <item.icon className="h-5 w-5" />
@@ -124,12 +124,12 @@ export function Checkout() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-900">O que você recebe</h3>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-              <li>• Acesso controlado pelo backend com `access_grants`.</li>
-              <li>• Conteúdo liberado conforme o status do pedido.</li>
-              <li>• Se houver cobrança, o Stripe é acionado apenas pelo servidor.</li>
+          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+            <h3 className="font-display text-2xl font-bold text-slate-900">O que acontece depois</h3>
+            <ul className="mt-5 space-y-3 text-sm leading-7 text-slate-600">
+              <li>• Concluis a compra sem sair do fluxo principal.</li>
+              <li>• O acesso fica associado a tua conta para consultares quando quiseres.</li>
+              <li>• Se o produto for gratuito, a activacao e ainda mais rapida.</li>
             </ul>
           </div>
         </div>
@@ -140,26 +140,26 @@ export function Checkout() {
             <p className="mt-3 text-3xl font-bold text-slate-950">
               {formatProductPrice(product.price_cents, product.currency)}
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
+            <p className="mt-3 text-sm leading-7 text-slate-600">
               {isFreeProduct(product)
-                ? "Produto gratuito: basta confirmar para gerar o grant de acesso."
-                : "Produto pago: a compra será concluída pelo backend antes do redirecionamento para a Stripe."}
+                ? "Este produto e gratuito. Basta confirmar para o adicionares a tua area."
+                : "Vais seguir para a conclusao da compra com um fluxo simples e seguro."}
             </p>
 
             {!canPurchase ? (
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-                Você precisa entrar com uma conta ativa para continuar.
+                Precisas de entrar com uma conta ativa para continuar a compra.
               </div>
             ) : null}
 
             <div className="mt-6 space-y-3">
               {canPurchase ? (
-                <Button className="w-full" size="lg" onClick={() => void handleCheckout()} disabled={submitting}>
-                  {submitting ? "Processando..." : isFreeProduct(product) ? "Confirmar acesso" : "Pagar agora"}
+                <Button className="w-full rounded-full" size="lg" onClick={() => void handleCheckout()} disabled={submitting}>
+                  {submitting ? "A processar..." : isFreeProduct(product) ? "Confirmar acesso" : "Continuar para pagamento"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
-                <Button asChild className="w-full" size="lg">
+                <Button asChild className="w-full rounded-full" size="lg">
                   <Link to={ROUTES.LOGIN} state={{ from: { pathname: location.pathname, search: location.search } }}>
                     Entrar para continuar
                     <Lock className="ml-2 h-4 w-4" />
@@ -167,7 +167,7 @@ export function Checkout() {
                 </Button>
               )}
 
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="outline" className="w-full rounded-full">
                 <Link to={`${ROUTES.PRODUCT}/${product.slug}`}>Voltar ao produto</Link>
               </Button>
             </div>

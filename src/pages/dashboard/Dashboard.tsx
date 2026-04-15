@@ -13,14 +13,14 @@ export function Dashboard() {
   const { data, isLoading, isError, error, refetch } = useDashboardOverview()
 
   if (isLoading) {
-    return <LoadingState message="Carregando o seu painel..." />
+    return <LoadingState message="A carregar o teu painel..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar o dashboard"
-        message={error instanceof Error ? error.message : "Tente novamente em instantes."}
+        title="Nao foi possivel carregar o dashboard"
+        message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
     )
@@ -32,24 +32,26 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Olá, ${profile?.full_name?.split(" ")[0] ?? "aluno"}`}
-        description="Aqui está um resumo rápido do seu acesso, das novidades e dos próximos passos."
+        title={`Ola, ${profile?.full_name?.split(" ")[0] ?? "aluno"}`}
+        description="Aqui tens um resumo rapido do teu acesso, das novidades mais recentes e dos proximos passos para continuar a estudar."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Produtos liberados</p>
+          <p className="text-sm font-medium text-slate-500">Produtos disponiveis</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que ja tens pronto para consultar.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Notificações recentes</p>
+          <p className="text-sm font-medium text-slate-500">Notificacoes recentes</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{notifications.length}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Mensagens, avisos e atualizacoes da tua conta.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
-          <p className="text-sm font-medium text-white/70">Estado da conta</p>
-          <p className="mt-3 text-3xl font-bold">Ativa</p>
-          <p className="mt-2 text-sm leading-6 text-white/80">
-            O acesso continua sempre validado pelo banco e pelos grants.
+          <p className="text-sm font-medium text-white/70">Conta</p>
+          <p className="mt-3 text-3xl font-bold">Pronta para estudar</p>
+          <p className="mt-2 text-sm leading-6 text-white/82">
+            Entra, abre os teus materiais e continua a partir do ponto onde paraste.
           </p>
         </div>
       </div>
@@ -58,10 +60,10 @@ export function Dashboard() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold text-slate-950">Meus produtos</h2>
-              <p className="mt-1 text-sm text-slate-600">Acessos ativos e mais recentes.</p>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Continua o teu estudo</h2>
+              <p className="mt-1 text-sm text-slate-600">Os acessos mais recentes ficam aqui para voltares sem perder tempo.</p>
             </div>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="rounded-full">
               <Link to={ROUTES.DASHBOARD_PRODUCTS}>Ver todos</Link>
             </Button>
           </div>
@@ -70,7 +72,7 @@ export function Dashboard() {
             <div className="mt-6">
               <EmptyState
                 title="Ainda sem produtos ativos"
-                message="Quando um grant for criado, os seus produtos aparecem aqui."
+                message="Assim que ativares um produto, ele aparece aqui para poderes comecar a estudar."
               />
             </div>
           ) : (
@@ -81,15 +83,15 @@ export function Dashboard() {
                     <div>
                       <h3 className="font-semibold text-slate-950">{product.title}</h3>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
-                        {product.short_description ?? product.description ?? "Conteúdo disponível para consumo."}
+                        {product.short_description ?? product.description ?? "Conteudo disponivel para consulta."}
                       </p>
                     </div>
-                    <StatusBadge label={product.product_type === "free" ? "Gratuito" : "Pago"} tone="info" />
+                    <StatusBadge label={product.product_type === "free" ? "Gratuito" : "Ativo"} tone="info" />
                   </div>
                   <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Liberado em {formatDate(product.granted_at)}
+                    Disponivel desde {formatDate(product.granted_at)}
                   </p>
-                  <Button asChild className="mt-4 w-full">
+                  <Button asChild className="mt-4 w-full rounded-full">
                     <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>Abrir produto</Link>
                   </Button>
                 </div>
@@ -102,29 +104,29 @@ export function Dashboard() {
           <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-slate-900" />
-              <h2 className="text-xl font-semibold text-slate-950">Atalhos rápidos</h2>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Atalhos rapidos</h2>
             </div>
             <div className="mt-5 grid gap-3">
-              <Button asChild variant="outline" className="justify-start">
+              <Button asChild variant="outline" className="justify-start rounded-full">
                 <Link to={ROUTES.DASHBOARD_PRODUCTS}>
                   <FolderOpen className="mr-2 h-4 w-4" />
-                  Abrir meus produtos
+                  Abrir os meus produtos
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="justify-start">
+              <Button asChild variant="outline" className="justify-start rounded-full">
                 <Link to={ROUTES.DASHBOARD_NOTIFICATIONS}>
                   <Bell className="mr-2 h-4 w-4" />
-                  Ver notificações
+                  Ver notificacoes
                 </Link>
               </Button>
             </div>
           </div>
 
           <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-950">Notificações recentes</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Novidades recentes</h2>
             {notifications.length === 0 ? (
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Assim que houver comunicação relevante, ela vai aparecer aqui.
+                Quando houver uma comunicacao importante, ela vai aparecer aqui.
               </p>
             ) : (
               <div className="mt-4 space-y-3">

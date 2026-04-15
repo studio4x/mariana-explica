@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useDeferredValue, useMemo, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -15,6 +15,8 @@ import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
 
 export function AdminOrders() {
+  const [query, setQuery] = useState("")
+  const deferredQuery = useDeferredValue(query)
   const ordersQuery = useAdminOrders()
   const usersQuery = useAdminUsers()
   const productsQuery = useAdminProducts()
@@ -36,14 +38,14 @@ export function AdminOrders() {
   )
 
   if (isLoading) {
-    return <LoadingState message="Carregando pedidos..." />
+    return <LoadingState message="A carregar pedidos..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar os pedidos"
-        message="Tente novamente em instantes."
+        title="Nao foi possivel carregar os pedidos"
+        message="Tenta novamente dentro de instantes."
         onRetry={() => {
           void ordersQuery.refetch()
           void usersQuery.refetch()
@@ -54,68 +56,119 @@ export function AdminOrders() {
   }
 
   const orders = ordersQuery.data ?? []
-  if (orders.length === 0) {
-    return <EmptyState title="Sem pedidos" message="Os pedidos registrados aparecem aqui." />
+  const filteredOrders = orders.filter((order) => {
+    const user = userMap.get(order.user_id)
+    const product = productMap.get(order.product_id)
+    const haystack = [
+      order.id,
+      order.status,
+      user?.full_name ?? "",
+      user?.email ?? "",
+      product?.title ?? "",
+    ]
+      .join(" ")
+      .toLowerCase()
+    return haystack.includes(deferredQuery.trim().toLowerCase())
+  })
+
+  if (filteredOrders.length === 0 && !query.trim()) {
+    return <EmptyState title="Sem pedidos" message="Os pedidos registados vao aparecer aqui." />
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Pedidos" description="Acompanhe a operação comercial e reprocessamentos." />
+      <PageHeader title="Pedidos" description="Acompanhamento comercial com reprocessamentos e acoes administrativas controladas." />
 
-      <div className="space-y-4">
-        {orders.map((order) => {
-          const user = userMap.get(order.user_id)
-          const product = productMap.get(order.product_id)
+      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Lista de pedidos</h2>
+            <p className="mt-1 text-sm text-slate-600">Pesquisa por pedido, utilizador, produto ou estado.</p>
+          </div>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Pesquisar..."
+            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:w-72"
+          />
+        </div>
 
-          return (
-            <div key={order.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-lg font-semibold text-slate-950">{product?.title ?? order.product_id}</h2>
-                    <StatusBadge
-                      label={order.status}
-                      tone={
-                        order.status === "paid"
-                          ? "success"
-                          : order.status === "pending"
-                            ? "warning"
-                            : order.status === "refunded"
-                              ? "danger"
-                              : "neutral"
-                      }
-                    />
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {user?.full_name ?? "Utilizador"} · {user?.email ?? order.user_id}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {formatProductPrice(order.final_price_cents, order.currency)}
-                  </p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Criado em {formatDateTime(order.created_at)}
-                  </p>
-                </div>
+        {filteredOrders.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState title="Nenhum pedido encontrado" message="Tenta outro termo de pesquisa." />
+          </div>
+        ) : (
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b text-slate-500">
+                <tr>
+                  <th className="py-3 pr-4 font-medium">Pedido</th>
+                  <th className="py-3 pr-4 font-medium">Cliente</th>
+                  <th className="py-3 pr-4 font-medium">Produto</th>
+                  <th className="py-3 pr-4 font-medium">Estado</th>
+                  <th className="py-3 pr-4 font-medium">Total</th>
+                  <th className="py-3 pr-4 font-medium">Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const user = userMap.get(order.user_id)
+                  const product = productMap.get(order.product_id)
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <Button variant="outline" onClick={() => void reconcile.mutateAsync(order.id)} disabled={reconcile.isPending}>
-                    Reconciliar
-                  </Button>
-                  <Button variant="outline" onClick={() => void markPaid.mutateAsync({ orderId: order.id })} disabled={markPaid.isPending}>
-                    Marcar pago
-                  </Button>
-                  <Button variant="outline" onClick={() => void markRefunded.mutateAsync({ orderId: order.id })} disabled={markRefunded.isPending}>
-                    Reembolsar
-                  </Button>
-                  <Button variant="outline" onClick={() => void markCancelled.mutateAsync({ orderId: order.id })} disabled={markCancelled.isPending}>
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                  return (
+                    <tr key={order.id} className="border-b last:border-b-0">
+                      <td className="py-4 pr-4">
+                        <p className="font-medium text-slate-900">{order.id.slice(0, 8)}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                          {formatDateTime(order.created_at)}
+                        </p>
+                      </td>
+                      <td className="py-4 pr-4">
+                        <p className="font-medium text-slate-900">{user?.full_name ?? "Utilizador"}</p>
+                        <p className="mt-1 text-slate-600">{user?.email ?? order.user_id}</p>
+                      </td>
+                      <td className="py-4 pr-4 text-slate-600">{product?.title ?? order.product_id}</td>
+                      <td className="py-4 pr-4">
+                        <StatusBadge
+                          label={order.status}
+                          tone={
+                            order.status === "paid"
+                              ? "success"
+                              : order.status === "pending"
+                                ? "warning"
+                                : order.status === "refunded"
+                                  ? "danger"
+                                  : "neutral"
+                          }
+                        />
+                      </td>
+                      <td className="py-4 pr-4 text-slate-600">
+                        {formatProductPrice(order.final_price_cents, order.currency)}
+                      </td>
+                      <td className="py-4 pr-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" className="rounded-full" onClick={() => void reconcile.mutateAsync(order.id)} disabled={reconcile.isPending}>
+                            Reconciliar
+                          </Button>
+                          <Button variant="outline" className="rounded-full" onClick={() => void markPaid.mutateAsync({ orderId: order.id })} disabled={markPaid.isPending}>
+                            Pago
+                          </Button>
+                          <Button variant="outline" className="rounded-full" onClick={() => void markRefunded.mutateAsync({ orderId: order.id })} disabled={markRefunded.isPending}>
+                            Reembolsar
+                          </Button>
+                          <Button variant="outline" className="rounded-full" onClick={() => void markCancelled.mutateAsync({ orderId: order.id })} disabled={markCancelled.isPending}>
+                            Cancelar
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

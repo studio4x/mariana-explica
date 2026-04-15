@@ -39,14 +39,14 @@ export function DashboardSupport() {
   }
 
   if (ticketsQuery.isLoading) {
-    return <LoadingState message="Carregando suporte..." />
+    return <LoadingState message="A carregar suporte..." />
   }
 
   if (ticketsQuery.isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar os tickets"
-        message={ticketsQuery.error instanceof Error ? ticketsQuery.error.message : "Tente novamente em instantes."}
+        title="Nao foi possivel carregar os tickets"
+        message={ticketsQuery.error instanceof Error ? ticketsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void ticketsQuery.refetch()}
       />
     )
@@ -56,12 +56,15 @@ export function DashboardSupport() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Suporte" description="Abra tickets e acompanhe o histórico das respostas." />
+      <PageHeader
+        title="Suporte"
+        description="Abre um pedido de ajuda, acompanha as respostas e mantem o historico do atendimento no mesmo lugar."
+      />
 
       <div className="grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
         <section className="space-y-6">
           <form onSubmit={handleCreateTicket} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Novo ticket</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Novo pedido de ajuda</h2>
             <div className="mt-5 space-y-4">
               <input
                 value={subject}
@@ -72,23 +75,23 @@ export function DashboardSupport() {
               <textarea
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
-                placeholder="Descreva o que precisa"
+                placeholder="Descreve o que precisas com o maximo de clareza."
                 rows={5}
                 className="w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
-              <Button type="submit" disabled={createTicket.isPending}>
-                {createTicket.isPending ? "Enviando..." : "Criar ticket"}
+              <Button type="submit" className="rounded-full" disabled={createTicket.isPending}>
+                {createTicket.isPending ? "A enviar..." : "Criar ticket"}
               </Button>
             </div>
           </form>
 
           <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Tickets</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Historico</h2>
             {tickets.length === 0 ? (
               <div className="mt-4">
                 <EmptyState
-                  title="Ainda sem tickets"
-                  message="Quando abrir um atendimento, ele aparece nesta lista."
+                  title="Ainda sem pedidos"
+                  message="Quando abrires um pedido de suporte, ele aparece aqui."
                 />
               </div>
             ) : (
@@ -120,19 +123,19 @@ export function DashboardSupport() {
           {selectedTicket ? (
             <>
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-lg font-semibold text-slate-950">{selectedTicket.subject}</h2>
+                <h2 className="font-display text-2xl font-bold text-slate-950">{selectedTicket.subject}</h2>
                 <StatusBadge label={selectedTicket.status} tone={selectedTicket.status === "closed" ? "danger" : "warning"} />
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{selectedTicket.message}</p>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{selectedTicket.message}</p>
 
               <div className="mt-6 space-y-3">
                 {messages.map((entry) => (
                   <div key={entry.id} className="rounded-2xl border bg-slate-50/70 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <StatusBadge label={entry.sender_role === "admin" ? "Suporte" : "Você"} tone={entry.sender_role === "admin" ? "info" : "neutral"} />
+                      <StatusBadge label={entry.sender_role === "admin" ? "Suporte" : "Tu"} tone={entry.sender_role === "admin" ? "info" : "neutral"} />
                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{formatDateTime(entry.created_at)}</p>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{entry.message}</p>
+                    <p className="mt-3 text-sm leading-7 text-slate-700">{entry.message}</p>
                   </div>
                 ))}
               </div>
@@ -142,18 +145,18 @@ export function DashboardSupport() {
                   value={reply}
                   onChange={(event) => setReply(event.target.value)}
                   rows={4}
-                  placeholder="Responder ticket"
+                  placeholder="Escreve a tua resposta"
                   className="w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
                 />
-                <Button type="submit" disabled={replyTicket.isPending}>
-                  {replyTicket.isPending ? "Enviando..." : "Responder"}
+                <Button type="submit" className="rounded-full" disabled={replyTicket.isPending}>
+                  {replyTicket.isPending ? "A enviar..." : "Responder"}
                 </Button>
               </form>
             </>
           ) : (
             <EmptyState
-              title="Selecione um ticket"
-              message="Escolha um ticket para ver o histórico de mensagens."
+              title="Seleciona um pedido"
+              message="Escolhe um ticket para ver o historico da conversa."
             />
           )}
         </section>
