@@ -1,0 +1,7 @@
+export { Dashboard } from "./Dashboard"
+export { DashboardDownloads } from "./DashboardDownloads"
+export { DashboardNotifications } from "./DashboardNotifications"
+export { DashboardProductDetail } from "./DashboardProductDetail"
+export { DashboardProducts } from "./DashboardProducts"
+export { DashboardProfile } from "./DashboardProfile"
+export { DashboardSupport } from "./DashboardSupport"
