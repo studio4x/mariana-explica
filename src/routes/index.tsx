@@ -5,7 +5,7 @@ import {
   AdminLayout,
   AuthLayout,
 } from "@/layouts"
-import { Home, Products, Product } from "@/pages/public"
+import { Home, Products, Product, Checkout } from "@/pages/public"
 import { Login, Register } from "@/pages/auth"
 import { Dashboard } from "@/pages/dashboard"
 import { Admin } from "@/pages/admin"
@@ -27,6 +27,10 @@ export const router = createBrowserRouter([
       {
         path: "produto/:slug",
         element: <Product />,
+      },
+      {
+        path: "checkout",
+        element: <Checkout />,
       },
     ],
   },

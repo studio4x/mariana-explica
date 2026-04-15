@@ -1,2 +1,3 @@
-export * from "./commerce"
+export * from "./checkout.service"
+export * from "./product.service"
 

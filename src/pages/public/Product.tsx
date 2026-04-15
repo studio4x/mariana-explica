@@ -1,109 +1,135 @@
-import { useParams, Link } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
+import { CheckCircle2, Shield, Sparkles, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui"
+import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader } from "@/components/common"
 import { ROUTES } from "@/lib/constants"
-
-// Placeholder data
-const productData = {
-  "curso-matematica-basica": {
-    id: "1",
-    title: "Curso de Matemática Básica",
-    description: "Aprenda os fundamentos da matemática de forma prática e divertida.",
-    price: "R$ 49,90",
-    fullDescription: "Este curso abrangente cobre todos os conceitos fundamentais da matemática básica, desde operações aritméticas até geometria elementar. Com aulas em vídeo, exercícios interativos e materiais complementares.",
-    features: [
-      "20 aulas em vídeo",
-      "Exercícios práticos",
-      "Materiais de apoio",
-      "Certificado de conclusão",
-      "Suporte por 6 meses"
-    ]
-  },
-  "ingles-iniciantes": {
-    id: "2",
-    title: "Inglês para Iniciantes",
-    description: "Domine o inglês básico com aulas interativas e exercícios práticos.",
-    price: "R$ 69,90",
-    fullDescription: "Curso completo para quem está começando a aprender inglês. Focamos na conversação prática e na construção de vocabulário essencial para o dia a dia.",
-    features: [
-      "30 aulas interativas",
-      "Conversação prática",
-      "Vocabulário essencial",
-      "Exercícios de pronúncia",
-      "Materiais complementares"
-    ]
-  },
-  "programacao-web": {
-    id: "3",
-    title: "Programação Web",
-    description: "Aprenda HTML, CSS e JavaScript do zero até criar seu primeiro site.",
-    price: "R$ 89,90",
-    fullDescription: "Da teoria à prática: aprenda a criar websites modernos e responsivos. Este curso é perfeito para iniciantes que querem entrar no mundo da programação web.",
-    features: [
-      "25 aulas práticas",
-      "Projetos reais",
-      "HTML5 e CSS3",
-      "JavaScript moderno",
-      "Frameworks introdutórios"
-    ]
-  }
-}
+import { usePublishedProductBySlug } from "@/hooks/useProducts"
+import { formatProductPrice } from "@/utils/currency"
 
 export function Product() {
   const { slug } = useParams<{ slug: string }>()
-  const product = slug ? productData[slug as keyof typeof productData] : null
+  const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
+
+  if (isLoading) {
+    return <LoadingState message="Carregando produto..." />
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Não foi possível abrir o produto"
+        message={error instanceof Error ? error.message : "Tente novamente em instantes."}
+        onRetry={() => void refetch()}
+      />
+    )
+  }
 
   if (!product) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Produto não encontrado"
-          description="O produto que você está procurando não existe."
-        />
-        <Button asChild>
-          <Link to={ROUTES.PRODUCTS}>Voltar aos produtos</Link>
-        </Button>
-      </div>
+      <EmptyState
+        title="Produto não encontrado"
+        message="O produto solicitado não está publicado ou não existe."
+      />
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title={product.title}
+        description={product.short_description ?? product.description ?? undefined}
         backTo={ROUTES.PRODUCTS}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4">
-          <p className="text-lg text-muted-foreground">
-            {product.description}
-          </p>
-          <p className="text-base">
-            {product.fullDescription}
-          </p>
+      <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <div className="overflow-hidden rounded-[2rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-8 text-white shadow-xl">
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
+                {product.product_type}
+              </span>
+              {product.is_featured ? (
+                <span className="rounded-full bg-amber-300/95 px-3 py-1 text-xs font-semibold text-amber-950">
+                  Destaque
+                </span>
+              ) : null}
+            </div>
+            <h2 className="mt-6 text-3xl font-semibold leading-tight md:text-5xl">
+              {product.title}
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/80 md:text-lg">
+              {product.description ?? product.short_description ?? "Produto digital publicado e pronto para compra."}
+            </p>
 
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">O que você vai aprender:</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {product.features.map((feature, index) => (
-                <li key={index}>{feature}</li>
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                { icon: Shield, title: "RLS ativo" },
+                { icon: CheckCircle2, title: "Acesso por grant" },
+                { icon: Sparkles, title: "Checkout seguro" },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+                  <item.icon className="h-5 w-5" />
+                  <p className="mt-3 text-sm font-semibold">{item.title}</p>
+                </div>
               ))}
-            </ul>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              {
+                title: "Entrega",
+                text: "Acesso controlado pelo backend com grant real.",
+              },
+              {
+                title: "Preço",
+                text: formatProductPrice(product.price_cents, product.currency),
+              },
+              {
+                title: "Afiliados",
+                text: product.allow_affiliate ? "Permitidos" : "Não disponíveis",
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border bg-white p-5 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{item.text}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6">
-          <div className="space-y-4">
-            <div className="text-center">
-              <span className="text-3xl font-bold">{product.price}</span>
-            </div>
-            <Button className="w-full" size="lg">
-              Comprar Agora
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Acesso imediato após a compra
+        <div className="space-y-4">
+          <div className="rounded-[2rem] border bg-white p-6 shadow-xl">
+            <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Checkout</p>
+            <p className="mt-3 text-3xl font-bold text-slate-950">
+              {formatProductPrice(product.price_cents, product.currency)}
             </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Selecione o botão abaixo para seguir para a rota dedicada de compra.
+            </p>
+
+            <div className="mt-6 space-y-3">
+              <Button asChild className="w-full" size="lg">
+                <Link to={`${ROUTES.CHECKOUT}?slug=${product.slug}`}>
+                  Ir para checkout
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full">
+                <Link to={ROUTES.PRODUCTS}>Voltar ao catálogo</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border bg-slate-50 p-6">
+            <h3 className="text-lg font-semibold text-slate-900">O que acontece depois?</h3>
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+              <li>• O checkout carrega o produto correto pelo slug.</li>
+              <li>• Produtos gratuitos liberam o acesso diretamente no backend.</li>
+              <li>• Produtos pagos usam a Edge Function de checkout antes de redirecionar para o Stripe.</li>
+            </ul>
           </div>
         </div>
       </div>
