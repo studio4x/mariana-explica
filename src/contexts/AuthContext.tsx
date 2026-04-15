@@ -36,17 +36,21 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id,full_name,email,role,is_admin,status")
-    .eq("id", userId)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,full_name,email,role,is_admin,status")
+      .eq("id", userId)
+      .single()
 
-  if (error || !data) {
+    if (error || !data) {
+      return null
+    }
+
+    return data as UserProfile
+  } catch {
     return null
   }
-
-  return data as UserProfile
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -95,16 +99,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function initializeAuth() {
-      const { data } = await supabase.auth.getSession()
-      if (!mountedRef.current) {
-        return
-      }
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!mountedRef.current) {
+          return
+        }
 
-      await syncSession(data.session, Boolean(data.session?.user))
+        await syncSession(data.session, Boolean(data.session?.user))
+      } catch {
+        if (mountedRef.current) {
+          setLoading(false)
+        }
+      }
     }
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, nextSession) => {
+      async (event: string, nextSession: Session | null) => {
         if (!mountedRef.current) {
           return
         }
@@ -128,7 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // Ignore sign-out failures when Supabase is unavailable.
+    }
     setProfile(null)
     setUser(null)
     setSession(null)

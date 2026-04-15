@@ -19,9 +19,9 @@ export interface ClaimFreeProductInput {
 }
 
 async function invokeFunction<TResponse>(name: string, body: unknown) {
-  const { data, error } = await supabase.functions.invoke<TResponse>(name, {
+  const { data, error } = (await supabase.functions.invoke(name, {
     body: body as never,
-  })
+  })) as { data: TResponse | null; error: Error | null }
 
   if (error) {
     throw error
