@@ -250,6 +250,54 @@ export async function ensureActiveGrant(
   return { grant: data, created: true }
 }
 
+export async function findActiveGrantForProduct(
+  client: SupabaseClient,
+  params: {
+    userId: string
+    productId: string
+  },
+) {
+  const { data, error } = await client
+    .from("access_grants")
+    .select("id,user_id,product_id,status,source_type,source_order_id,granted_at,expires_at")
+    .eq("user_id", params.userId)
+    .eq("product_id", params.productId)
+    .eq("status", "active")
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function revokeActiveGrantForOrder(
+  client: SupabaseClient,
+  params: {
+    orderId: string
+    reason?: string | null
+  },
+) {
+  const revokedAt = new Date().toISOString()
+  const { data, error } = await client
+    .from("access_grants")
+    .update({
+      status: "revoked",
+      revoked_at: revokedAt,
+      notes: params.reason ?? "Acesso revogado por atualização de pedido",
+    })
+    .eq("source_order_id", params.orderId)
+    .eq("status", "active")
+    .select("id,user_id,product_id,status,source_order_id")
+
+  if (error) {
+    throw error
+  }
+
+  return data ?? []
+}
+
 export async function createOrderWithItems(
   client: SupabaseClient,
   params: {
@@ -453,6 +501,37 @@ export async function markOrderFailed(
   return data as { id: string }
 }
 
+export async function updateOrderStatus(
+  client: SupabaseClient,
+  params: {
+    orderId: string
+    status: OrderRow["status"]
+    paymentReference?: string | null
+    paidAt?: string | null
+    refundedAt?: string | null
+  },
+) {
+  const { data, error } = await client
+    .from("orders")
+    .update({
+      status: params.status,
+      payment_reference: params.paymentReference ?? undefined,
+      paid_at: params.paidAt ?? undefined,
+      refunded_at: params.refundedAt ?? undefined,
+    })
+    .eq("id", params.orderId)
+    .select(
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,paid_at,refunded_at",
+    )
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as OrderRow
+}
+
 export async function findOrderForCheckoutSession(
   client: SupabaseClient,
   checkoutSessionId: string,
@@ -485,4 +564,3 @@ export function assertPaidProduct(product: ProductRow) {
     throw badRequest("Produto externo não usa checkout interno")
   }
 }
-

@@ -165,3 +165,27 @@ export async function createStripeCheckoutSession(params: StripeCheckoutSessionP
   }
 }
 
+export async function getStripeCheckoutSession(sessionId: string) {
+  const secret = getStripeSecret()
+  const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
+    headers: {
+      Authorization: `Bearer ${secret}`,
+    },
+  })
+
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Falha ao consultar sessÃ£o Stripe")
+  }
+
+  return payload as {
+    id: string
+    payment_intent: string | null
+    payment_status: "paid" | "unpaid" | "no_payment_required"
+    status: "open" | "complete" | "expired"
+    amount_total: number | null
+    currency: string | null
+    metadata?: Record<string, string | undefined>
+    client_reference_id?: string | null
+  }
+}

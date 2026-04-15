@@ -20,6 +20,10 @@ export function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
+  if (!profile) {
+    return <Navigate to={ROUTES.LOGIN} replace />
+  }
+
   if (profile?.status !== "active" || profile?.is_admin !== true) {
     return <Navigate to={ROUTES.HOME} replace />
   }

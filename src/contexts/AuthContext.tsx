@@ -122,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const shouldRefreshProfile =
           event === "INITIAL_SESSION" ||
           event === "SIGNED_IN" ||
+          event === "TOKEN_REFRESHED" ||
           event === "USER_UPDATED" ||
           event === "PASSWORD_RECOVERY"
 

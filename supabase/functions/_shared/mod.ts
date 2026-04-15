@@ -1,3 +1,4 @@
+export * from "./audit.ts"
 export * from "./auth.ts"
 export * from "./commerce.ts"
 export * from "./errors.ts"
@@ -6,4 +7,3 @@ export * from "./logger.ts"
 export * from "./payments.ts"
 export * from "./supabase.ts"
 export * from "./types.ts"
-

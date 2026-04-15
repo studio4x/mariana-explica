@@ -16,24 +16,30 @@ export function Navbar() {
           <nav className="flex items-center space-x-6 text-sm font-medium">
             <Link
               to={ROUTES.PRODUCTS}
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
+              className="text-foreground/60 transition-colors hover:text-foreground/80"
             >
               Produtos
             </Link>
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="transition-colors hover:text-foreground/80 text-foreground/60"
+                className="text-foreground/60 transition-colors hover:text-foreground/80"
               >
-                Minha Área
+                Minha área
+              </Link>
+            ) : null}
+            {isAdmin ? (
+              <Link
+                to={ROUTES.ADMIN}
+                className="text-foreground/60 transition-colors hover:text-foreground/80"
+              >
+                Admin
               </Link>
             ) : null}
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div className="w-full flex-1 md:w-auto md:flex-none">
-            {/* Mobile menu button could go here */}
-          </div>
+          <div className="w-full flex-1 md:w-auto md:flex-none" />
           <nav className="flex items-center space-x-2">
             {!isAuthenticated ? (
               <>
@@ -41,17 +47,20 @@ export function Navbar() {
                   <Link to={ROUTES.LOGIN}>Entrar</Link>
                 </Button>
                 <Button asChild size="sm">
-                  <Link to={ROUTES.REGISTER}>Cadastrar</Link>
+                  <Link to={ROUTES.REGISTER}>Criar conta</Link>
                 </Button>
               </>
             ) : (
               <>
                 {isAdmin ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link to={ROUTES.ADMIN}>Admin</Link>
+                    <Link to={ROUTES.ADMIN}>Painel admin</Link>
                   </Button>
                 ) : null}
-                <Button onClick={signOut} variant="secondary" size="sm">
+                <Button asChild variant="ghost" size="sm">
+                  <Link to={ROUTES.DASHBOARD}>Dashboard</Link>
+                </Button>
+                <Button onClick={() => void signOut()} variant="secondary" size="sm">
                   Sair
                 </Button>
               </>

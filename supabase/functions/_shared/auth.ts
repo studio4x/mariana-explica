@@ -60,6 +60,15 @@ export async function requireAuth(req: Request): Promise<AuthContext> {
   return { token, user, profile, serviceClient }
 }
 
+export async function getOptionalAuth(req: Request): Promise<AuthContext | null> {
+  const token = getBearerToken(req)
+  if (!token) {
+    return null
+  }
+
+  return await requireAuth(req)
+}
+
 export async function requireActiveUser(req: Request) {
   const context = await requireAuth(req)
 
@@ -79,4 +88,3 @@ export async function requireAdmin(req: Request) {
 
   return context
 }
-

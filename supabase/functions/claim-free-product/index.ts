@@ -3,9 +3,12 @@ import {
   calculateOrderTotals,
   createOrderWithItems,
   ensureActiveGrant,
+  extractRequestAuditContext,
+  findActiveGrantForProduct,
   getProductByIdentifier,
+  writeAuditLog,
 } from "../_shared/mod.ts"
-import { badRequest, internalError } from "../_shared/errors.ts"
+import { badRequest, internalError, unprocessable } from "../_shared/errors.ts"
 import {
   corsResponse,
   errorResponse,
@@ -48,6 +51,14 @@ Deno.serve(async (req) => {
       throw badRequest("Somente produtos gratuitos podem ser reivindicados aqui")
     }
 
+    const existingGrant = await findActiveGrantForProduct(context.serviceClient, {
+      userId: context.user.id,
+      productId: product.id,
+    })
+    if (existingGrant) {
+      throw unprocessable("VocÃª jÃ¡ ativou este produto")
+    }
+
     const totals = calculateOrderTotals(product.price_cents, 0)
     const order = await createOrderWithItems(context.serviceClient, {
       userId: context.user.id,
@@ -74,6 +85,21 @@ Deno.serve(async (req) => {
       grant_id: grant.grant.id,
     })
 
+    await writeAuditLog(
+      context.serviceClient,
+      context,
+      {
+        action: "product.free_claimed",
+        entityType: "order",
+        entityId: order.id,
+        metadata: {
+          product_id: product.id,
+          grant_id: grant.grant.id,
+        },
+        ...extractRequestAuditContext(req),
+      },
+    )
+
     return jsonResponse({
       success: true,
       request_id: requestId,
@@ -91,4 +117,3 @@ Deno.serve(async (req) => {
     return errorResponse(error, requestId)
   }
 })
-

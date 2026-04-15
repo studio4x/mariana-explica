@@ -1,13 +1,15 @@
 import {
   calculateAffiliateCommission,
   ensureActiveGrant,
+  extractRequestAuditContext,
   findOrderForCheckoutSession,
   markOrderFailed,
   recordAffiliateReferral,
   recordCouponUsage,
   updateOrderAfterPayment,
+  writeAuditLog,
 } from "../_shared/mod.ts"
-import { badRequest, internalError, notFound } from "../_shared/errors.ts"
+import { badRequest, conflict, internalError, notFound } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
@@ -21,6 +23,8 @@ interface StripeEvent {
       id: string
       status?: string
       payment_status?: string
+      amount_total?: number | null
+      currency?: string | null
       payment_intent?: string | null
       client_reference_id?: string | null
       metadata?: Record<string, string | undefined>
@@ -60,7 +64,7 @@ async function findOrderByReferenceOrSession(
   }
 }
 
-async function handleCheckoutCompleted(event: StripeEvent, requestId: string) {
+async function handleCheckoutCompleted(event: StripeEvent, requestId: string, req: Request) {
   const session = event.data.object
   const client = createServiceClient()
   const order = await findOrderByReferenceOrSession(
@@ -71,6 +75,16 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string) {
 
   if (order.status === "paid") {
     return { replayed: true, order_id: order.id }
+  }
+
+  if (session.amount_total !== undefined && session.amount_total !== null) {
+    if (session.amount_total !== order.final_price_cents) {
+      throw conflict("Total recebido da Stripe diverge do pedido interno")
+    }
+  }
+
+  if (session.currency && session.currency.toUpperCase() !== order.currency.toUpperCase()) {
+    throw conflict("Moeda recebida da Stripe diverge do pedido interno")
   }
 
   const paidAt = new Date().toISOString()
@@ -138,10 +152,26 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string) {
     grant_id: grant.grant.id,
   })
 
+  await writeAuditLog(
+    client,
+    null,
+    {
+      action: "payment.confirmed",
+      entityType: "order",
+      entityId: paidOrder.id,
+      metadata: {
+        grant_id: grant.grant.id,
+        payment_reference: paymentReference,
+        stripe_event_id: event.id,
+      },
+      ...extractRequestAuditContext(req),
+    },
+  )
+
   return { replayed: false, order_id: paidOrder.id, grant_id: grant.grant.id }
 }
 
-async function handleCheckoutFailed(event: StripeEvent) {
+async function handleCheckoutFailed(event: StripeEvent, req: Request) {
   const session = event.data.object
   const client = createServiceClient()
   const order = await findOrderByReferenceOrSession(
@@ -154,6 +184,21 @@ async function handleCheckoutFailed(event: StripeEvent) {
     orderId: order.id,
     paymentReference: session.payment_intent ?? session.id,
   })
+
+  await writeAuditLog(
+    client,
+    null,
+    {
+      action: "payment.failed",
+      entityType: "order",
+      entityId: failedOrder.id,
+      metadata: {
+        stripe_event_id: event.id,
+        payment_reference: session.payment_intent ?? session.id,
+      },
+      ...extractRequestAuditContext(req),
+    },
+  )
 
   return { order_id: failedOrder.id }
 }
@@ -175,12 +220,12 @@ Deno.serve(async (req) => {
     const event = JSON.parse(rawBody) as StripeEvent
 
     if (event.type === "checkout.session.completed") {
-      const result = await handleCheckoutCompleted(event, requestId)
+      const result = await handleCheckoutCompleted(event, requestId, req)
       return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
     }
 
     if (event.type === "checkout.session.expired") {
-      const result = await handleCheckoutFailed(event)
+      const result = await handleCheckoutFailed(event, req)
       return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
     }
 

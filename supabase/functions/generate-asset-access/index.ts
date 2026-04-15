@@ -7,7 +7,7 @@ import {
   readJsonBody,
 } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
-import { requireActiveUser } from "../_shared/auth.ts"
+import { getOptionalAuth, requireActiveUser } from "../_shared/auth.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 
 interface GenerateAssetAccessInput {
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       throw badRequest("Método não suportado")
     }
 
-    const context = await requireActiveUser(req)
+    const optionalContext = await getOptionalAuth(req)
     const body = await readJsonBody<GenerateAssetAccessInput>(req)
 
     if (!body.assetId) {
@@ -124,12 +124,15 @@ Deno.serve(async (req) => {
     }
 
     const moduleAllowsPublicAccess = module.access_type === "public" || module.is_preview
-    const userHasPaidAccess =
-      product.product_type === "free" || (await hasPaidAccess(client, context.user.id, product.id))
+    const activeContext = optionalContext ? await requireActiveUser(req) : null
+    const userHasPaidAccess = Boolean(
+      activeContext &&
+      (product.product_type === "free" || (await hasPaidAccess(client, activeContext.user.id, product.id))),
+    )
 
     const canAccess =
       moduleAllowsPublicAccess ||
-      (module.access_type === "registered" && context.profile.status === "active") ||
+      (module.access_type === "registered" && activeContext?.profile.status === "active") ||
       (module.access_type === "paid_only" && userHasPaidAccess)
 
     if (!canAccess) {
@@ -139,7 +142,7 @@ Deno.serve(async (req) => {
     if (asset.external_url) {
       logInfo("External asset access granted", {
         request_id: requestId,
-        user_id: context.user.id,
+        user_id: activeContext?.user.id ?? null,
         asset_id: asset.id,
         product_id: product.id,
       })
@@ -169,7 +172,7 @@ Deno.serve(async (req) => {
 
     logInfo("Signed asset access granted", {
       request_id: requestId,
-      user_id: context.user.id,
+      user_id: activeContext?.user.id ?? null,
       asset_id: asset.id,
       product_id: product.id,
     })

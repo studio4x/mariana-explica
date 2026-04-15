@@ -7,8 +7,16 @@ import {
 } from "@/layouts"
 import { Home, Products, Product, Checkout } from "@/pages/public"
 import { Login, Register } from "@/pages/auth"
-import { Dashboard } from "@/pages/dashboard"
-import { Admin } from "@/pages/admin"
+import {
+  Dashboard,
+  DashboardDownloads,
+  DashboardNotifications,
+  DashboardProductDetail,
+  DashboardProducts,
+  DashboardProfile,
+  DashboardSupport,
+} from "@/pages/dashboard"
+import { Admin, AdminOrders, AdminProducts, AdminUsers } from "@/pages/admin"
 import { ProtectedRoute, AdminRoute } from "@/components/common"
 
 export const router = createBrowserRouter([
@@ -60,6 +68,30 @@ export const router = createBrowserRouter([
         index: true,
         element: <Dashboard />,
       },
+      {
+        path: "produtos",
+        element: <DashboardProducts />,
+      },
+      {
+        path: "produto/:id",
+        element: <DashboardProductDetail />,
+      },
+      {
+        path: "downloads",
+        element: <DashboardDownloads />,
+      },
+      {
+        path: "notificacoes",
+        element: <DashboardNotifications />,
+      },
+      {
+        path: "suporte",
+        element: <DashboardSupport />,
+      },
+      {
+        path: "perfil",
+        element: <DashboardProfile />,
+      },
     ],
   },
   {
@@ -73,6 +105,18 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Admin />,
+      },
+      {
+        path: "usuarios",
+        element: <AdminUsers />,
+      },
+      {
+        path: "produtos",
+        element: <AdminProducts />,
+      },
+      {
+        path: "pedidos",
+        element: <AdminOrders />,
       },
     ],
   },

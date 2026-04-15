@@ -6,12 +6,15 @@ import {
   countCouponUsagesByUser,
   createOrderWithItems,
   ensureActiveGrant,
+  extractRequestAuditContext,
+  findActiveGrantForProduct,
   getAppBaseUrl,
   getProductByIdentifier,
   recordAffiliateReferral,
   recordCouponUsage,
   resolveAffiliateByCode,
   resolveCouponByCode,
+  writeAuditLog,
 } from "../_shared/mod.ts"
 import { badRequest, internalError, unprocessable } from "../_shared/errors.ts"
 import {
@@ -64,6 +67,14 @@ Deno.serve(async (req) => {
 
     const product = await getProductByIdentifier(context.serviceClient, identifier)
     assertPaidProduct(product)
+
+    const existingGrant = await findActiveGrantForProduct(context.serviceClient, {
+      userId: context.user.id,
+      productId: product.id,
+    })
+    if (existingGrant) {
+      throw unprocessable("VocÃª jÃ¡ possui acesso ativo a este produto")
+    }
 
     if (body.affiliateCode && !product.allow_affiliate) {
       throw unprocessable("Este produto não aceita afiliados")
@@ -145,6 +156,23 @@ Deno.serve(async (req) => {
         grant_id: grant.grant.id,
       })
 
+      await writeAuditLog(
+        context.serviceClient,
+        context,
+        {
+          action: "checkout.free_completed",
+          entityType: "order",
+          entityId: order.id,
+          metadata: {
+            product_id: product.id,
+            grant_id: grant.grant.id,
+            coupon_id: coupon?.id ?? null,
+            affiliate_id: affiliate?.id ?? null,
+          },
+          ...extractRequestAuditContext(req),
+        },
+      )
+
       return jsonResponse({
         success: true,
         request_id: requestId,
@@ -210,6 +238,24 @@ Deno.serve(async (req) => {
       order_id: order.id,
       checkout_session_id: session.id,
     })
+
+    await writeAuditLog(
+      context.serviceClient,
+      context,
+      {
+        action: "checkout.session_created",
+        entityType: "order",
+        entityId: order.id,
+        metadata: {
+          product_id: product.id,
+          checkout_session_id: session.id,
+          coupon_id: coupon?.id ?? null,
+          affiliate_id: affiliate?.id ?? null,
+          final_price_cents: totals.finalPriceCents,
+        },
+        ...extractRequestAuditContext(req),
+      },
+    )
 
     return jsonResponse({
       success: true,

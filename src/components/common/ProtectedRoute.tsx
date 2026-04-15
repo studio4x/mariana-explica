@@ -20,6 +20,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     )
   }
 
+  if (!profile) {
+    return <Navigate to={ROUTES.LOGIN} replace />
+  }
+
   if (profile?.status !== "active") {
     return <Navigate to={ROUTES.HOME} replace />
   }

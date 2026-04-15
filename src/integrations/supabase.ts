@@ -7,8 +7,12 @@ type QueryResponse<T> = Promise<{ data: T | null; error: Error | null }>
 interface NoopQueryBuilder {
   select(..._args: unknown[]): NoopQueryBuilder
   eq(..._args: unknown[]): NoopQueryBuilder
+  in(..._args: unknown[]): NoopQueryBuilder
   order(..._args: unknown[]): NoopQueryBuilder
   limit(..._args: unknown[]): NoopQueryBuilder
+  update(..._args: unknown[]): NoopQueryBuilder
+  insert(..._args: unknown[]): NoopQueryBuilder
+  delete(..._args: unknown[]): NoopQueryBuilder
   maybeSingle(): QueryResponse<unknown>
   single(): QueryResponse<unknown>
   then<TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
@@ -49,11 +53,27 @@ function createNoopQueryBuilder(): NoopQueryBuilder {
       void args
       return builder
     },
+    in(...args: unknown[]) {
+      void args
+      return builder
+    },
     order(...args: unknown[]) {
       void args
       return builder
     },
     limit(...args: unknown[]) {
+      void args
+      return builder
+    },
+    update(...args: unknown[]) {
+      void args
+      return builder
+    },
+    insert(...args: unknown[]) {
+      void args
+      return builder
+    },
+    delete(...args: unknown[]) {
       void args
       return builder
     },
