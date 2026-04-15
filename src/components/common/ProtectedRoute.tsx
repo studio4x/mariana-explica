@@ -7,17 +7,21 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
     return <div className="p-8 text-center">Carregando sessão...</div>
   }
 
-  if (!isAuthenticated) {
+  if (!session) {
     return (
       <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
     )
+  }
+
+  if (profile?.status !== "active") {
+    return <Navigate to={ROUTES.HOME} replace />
   }
 
   return <>{children}</>
