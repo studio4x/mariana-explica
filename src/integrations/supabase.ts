@@ -1,22 +1,67 @@
 import { createClient } from "@supabase/supabase-js"
+import type { Session } from "@supabase/supabase-js"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 
-function createNoopQueryBuilder() {
-  const builder = {
-    select() {
+type QueryResponse<T> = Promise<{ data: T | null; error: Error | null }>
+
+interface NoopQueryBuilder {
+  select(..._args: unknown[]): NoopQueryBuilder
+  eq(..._args: unknown[]): NoopQueryBuilder
+  order(..._args: unknown[]): NoopQueryBuilder
+  limit(..._args: unknown[]): NoopQueryBuilder
+  maybeSingle(): QueryResponse<unknown>
+  single(): QueryResponse<unknown>
+  then<TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
+    onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2>
+}
+
+type SupabaseLike = {
+  auth: {
+    getSession: () => Promise<{ data: { session: Session | null }; error: null }>
+    onAuthStateChange: (
+      callback: (event: string, session: Session | null) => void | Promise<void>,
+    ) => {
+      data: {
+        subscription: {
+          unsubscribe: () => void
+        }
+      }
+    }
+    signOut: () => Promise<{ error: null }>
+    signInWithPassword: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
+    signUp: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
+  }
+  from: (_table: string) => NoopQueryBuilder
+  functions: {
+    invoke: (name: string, options?: { body?: unknown }) => Promise<{ data: unknown; error: Error | null }>
+  }
+}
+
+function createNoopQueryBuilder(): NoopQueryBuilder {
+  const builder: NoopQueryBuilder = {
+    select(...args: unknown[]) {
+      void args
       return builder
     },
-    eq() {
+    eq(...args: unknown[]) {
+      void args
       return builder
     },
-    order() {
+    order(...args: unknown[]) {
+      void args
       return builder
     },
-    limit() {
+    limit(...args: unknown[]) {
+      void args
       return builder
     },
     maybeSingle: async () => ({ data: null, error: new Error("Supabase não configurado") }),
     single: async () => ({ data: null, error: new Error("Supabase não configurado") }),
+    then(onfulfilled, onrejected) {
+      return Promise.resolve({ data: [], error: null }).then(onfulfilled, onrejected)
+    },
   }
 
   return builder
@@ -55,7 +100,7 @@ function createNoopSupabaseClient() {
   }
 }
 
-export const supabase: any =
+export const supabase: SupabaseLike =
   SUPABASE_URL && SUPABASE_ANON_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY) as unknown as SupabaseLike)
     : createNoopSupabaseClient()

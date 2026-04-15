@@ -66,7 +66,7 @@ export async function fetchPublishedProductBySlug(slug: string): Promise<Product
     throw error
   }
 
-  return data ?? null
+  return (data ?? null) as ProductSummary | null
 }
 
 export async function fetchPublishedProductDetailsBySlug(slug: string): Promise<ProductDetails | null> {
@@ -82,7 +82,7 @@ export async function fetchPublishedProductDetailsBySlug(slug: string): Promise<
     throw error
   }
 
-  return data ?? null
+  return (data ?? null) as ProductDetails | null
 }
 
 export function isFreeProduct(product: Pick<ProductSummary, "product_type" | "price_cents">) {
