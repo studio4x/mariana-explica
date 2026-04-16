@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react"
-import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
+import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
@@ -13,6 +13,41 @@ import {
 } from "@/hooks/useAdmin"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
+
+function AdminOrdersSkeleton() {
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Pedidos"
+        description="Acompanhamento comercial com reprocessamentos e acoes administrativas controladas."
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
+            <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-3 h-10 w-16 animate-pulse rounded-2xl bg-slate-200" />
+          </div>
+        ))}
+      </div>
+
+      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="h-4 w-40 animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-3 h-7 w-56 animate-pulse rounded-full bg-slate-200" />
+          </div>
+          <div className="h-11 w-72 animate-pulse rounded-xl bg-slate-100" />
+        </div>
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
 
 export function AdminOrders() {
   const [query, setQuery] = useState("")
@@ -38,7 +73,7 @@ export function AdminOrders() {
   )
 
   if (isLoading) {
-    return <LoadingState message="A carregar pedidos..." />
+    return <AdminOrdersSkeleton />
   }
 
   if (isError) {

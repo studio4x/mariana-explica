@@ -1,5 +1,5 @@
 import { useDeferredValue, useState, type FormEvent } from "react"
-import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
+import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
@@ -10,6 +10,59 @@ import {
 } from "@/hooks/useAdmin"
 import type { AdminUserSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
+
+function AdminUsersSkeleton() {
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Utilizadores"
+        description="Criacao manual, alteracao de papel e controlo de estado com leitura operacional mais segura."
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
+            <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-3 h-10 w-16 animate-pulse rounded-2xl bg-slate-200" />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+          <div className="h-4 w-40 animate-pulse rounded-full bg-slate-200" />
+          <div className="mt-3 h-7 w-52 animate-pulse rounded-full bg-slate-200" />
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-11 animate-pulse rounded-xl bg-slate-100" />
+            ))}
+          </div>
+          <div className="mt-4 h-11 w-36 animate-pulse rounded-full bg-slate-200" />
+        </div>
+
+        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+          <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
+          <div className="mt-3 h-7 w-48 animate-pulse rounded-full bg-slate-200" />
+          <div className="mt-5 space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <div className="h-4 w-40 animate-pulse rounded-full bg-slate-200" />
+        <div className="mt-3 h-7 w-56 animate-pulse rounded-full bg-slate-200" />
+        <div className="mt-5 space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function AdminUsers() {
   const [fullName, setFullName] = useState("")
@@ -33,7 +86,7 @@ export function AdminUsers() {
   }
 
   if (usersQuery.isLoading) {
-    return <LoadingState message="A carregar utilizadores..." />
+    return <AdminUsersSkeleton />
   }
 
   if (usersQuery.isError) {
@@ -99,22 +152,6 @@ export function AdminUsers() {
             {createUser.isPending ? "A criar..." : "Criar utilizador"}
           </Button>
         </form>
-
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Governanca</p>
-          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Boas praticas</h2>
-          <div className="mt-5 grid gap-3">
-            {[
-              "Reve papeis com cuidado. Role e estado impactam acesso e operacao.",
-              "Bloqueio deve ser usado quando e preciso interromper acesso sem apagar o historico.",
-              "Criacao manual deve ser excecao; perfis sincronizados via auth continuam a ser o fluxo principal.",
-            ].map((item) => (
-              <div key={item} className="rounded-2xl bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
-                {item}
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -156,7 +193,7 @@ export function AdminUsers() {
                       <p className="font-medium text-slate-900">{user.full_name}</p>
                       <p className="mt-1 text-slate-600">{user.email}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                        Criado em {formatDateTime(user.created_at)}
+                        Criado em {formatDateTime(user.last_login_at)}
                       </p>
                     </td>
                     <td className="py-4 pr-4">
