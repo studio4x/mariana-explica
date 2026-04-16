@@ -54,18 +54,10 @@ async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
 }
 
 export async function fetchAdminUsers() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(
-      "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
-    )
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    throw error
-  }
-
-  return (data ?? []) as AdminUserSummary[]
+  const response = await invokeAdminFunction<{ success: true; users: AdminUserSummary[] }>("admin-users", {
+    action: "list",
+  })
+  return response.users ?? []
 }
 
 export async function fetchAdminProducts() {

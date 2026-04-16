@@ -107,6 +107,8 @@ export interface AdminUserSummary {
   id: string
   full_name: string
   email: string
+  email_verified: boolean
+  email_verified_at: string | null
   role: UserRole
   is_admin: boolean
   status: UserStatus

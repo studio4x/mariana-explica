@@ -16,11 +16,11 @@ function AdminUsersSkeleton() {
     <div className="space-y-6">
       <PageHeader
         title="Utilizadores"
-        description="Criacao manual, alteracao de papel e controlo de estado com leitura operacional mais segura."
+        description="Criacao manual, verificacao de email, alteracao de papel e exclusao segura via backend."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
+      <div className="grid gap-4 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
             <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
             <div className="mt-3 h-10 w-16 animate-pulse rounded-2xl bg-slate-200" />
@@ -113,10 +113,10 @@ export function AdminUsers() {
     <div className="space-y-6">
       <PageHeader
         title="Utilizadores"
-        description="Criacao manual, alteracao de papel e controlo de estado com leitura operacional mais segura."
+        description="Criacao manual, verificacao de email, alteracao de papel e exclusao segura via backend."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Total de utilizadores</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{users.length}</p>
@@ -128,6 +128,12 @@ export function AdminUsers() {
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Bloqueados</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{blockedCount}</p>
+        </div>
+        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-slate-500">Emails validados</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">
+            {users.filter((user) => user.email_verified).length}
+          </p>
         </div>
       </div>
 
@@ -181,6 +187,7 @@ export function AdminUsers() {
               <thead className="border-b text-slate-500">
                 <tr>
                   <th className="py-3 pr-4 font-medium">Utilizador</th>
+                  <th className="py-3 pr-4 font-medium">Email</th>
                   <th className="py-3 pr-4 font-medium">Governanca</th>
                   <th className="py-3 pr-4 font-medium">Ultimo login</th>
                   <th className="py-3 pr-4 font-medium">Acao</th>
@@ -193,8 +200,21 @@ export function AdminUsers() {
                       <p className="font-medium text-slate-900">{user.full_name}</p>
                       <p className="mt-1 text-slate-600">{user.email}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                        Criado em {formatDateTime(user.last_login_at)}
+                        Criado em {formatDateTime(user.created_at)}
                       </p>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="space-y-2">
+                        <StatusBadge
+                          label={user.email_verified ? "Validado" : "Pendente"}
+                          tone={user.email_verified ? "success" : "warning"}
+                        />
+                        <p className="text-xs text-slate-500">
+                          {user.email_verified_at
+                            ? `Validado em ${formatDateTime(user.email_verified_at)}`
+                            : "Ainda nao confirmou o email"}
+                        </p>
+                      </div>
                     </td>
                     <td className="py-4 pr-4">
                       <div className="grid gap-3 md:max-w-[220px]">
@@ -235,13 +255,17 @@ export function AdminUsers() {
                         variant="outline"
                         className="rounded-full"
                         onClick={() => {
-                          if (window.confirm(`Desativar ${user.full_name}?`)) {
+                          if (
+                            window.confirm(
+                              `Excluir ${user.full_name}?\n\nA conta sera desativada de forma reversivel e o utilizador deixara de ter acesso privado.`,
+                            )
+                          ) {
                             void deleteUser.mutateAsync(user.id)
                           }
                         }}
                         disabled={deleteUser.isPending}
                       >
-                        Desativar
+                        Excluir
                       </Button>
                     </td>
                   </tr>
