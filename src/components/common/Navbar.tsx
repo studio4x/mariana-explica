@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { GraduationCap, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
+import { ArrowRight, GraduationCap, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
 import { Button } from "@/components/ui"
 import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
@@ -39,7 +39,7 @@ export function Navbar() {
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 p-1.5 md:flex">
+          <nav className="hidden items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 p-1.5 lg:flex">
             {navItems.map((item) => (
               <Link
                 key={item.to}
@@ -57,14 +57,20 @@ export function Navbar() {
           </nav>
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           {!isAuthenticated ? (
             <>
+              <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 xl:inline-flex">
+                Exames nacionais e materiais digitais
+              </div>
               <Button asChild variant="ghost" size="sm" className="rounded-full">
                 <Link to={ROUTES.LOGIN}>Entrar</Link>
               </Button>
               <Button asChild size="sm" className="rounded-full">
-                <Link to={ROUTES.REGISTER}>Criar conta</Link>
+                <Link to={ROUTES.PRODUCTS}>
+                  Ver catalogo
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </>
           ) : (
@@ -107,7 +113,7 @@ export function Navbar() {
             <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
               <p className="font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Explicacoes claras, produtos organizados e acesso simples no mesmo lugar.
+                Materiais claros para exames nacionais, compra simples e area do aluno organizada.
               </p>
             </div>
 
@@ -133,8 +139,8 @@ export function Navbar() {
               {!isAuthenticated ? (
                 <>
                   <Button asChild className="w-full rounded-full">
-                    <Link to={ROUTES.REGISTER} onClick={closeMenu}>
-                      Criar conta
+                    <Link to={ROUTES.PRODUCTS} onClick={closeMenu}>
+                      Ver catalogo
                     </Link>
                   </Button>
                   <Button asChild variant="outline" className="w-full rounded-full">

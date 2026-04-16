@@ -1,10 +1,16 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useParams } from "react-router-dom"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useDashboardProductContent, useRequestAssetAccess } from "@/hooks/useDashboard"
 import type { ModuleAssetSummary } from "@/types/app.types"
+import {
+  getAssetActionLabel,
+  getAssetTypeLabel,
+  getModuleTypeLabel,
+  getProductNarrative,
+} from "@/lib/product-presentation"
 
 function getModuleLabel(accessType: string, isPreview: boolean) {
   if (isPreview || accessType === "public") return "Preview"
@@ -27,10 +33,7 @@ export function DashboardProductDetail() {
   const modules = data?.modules ?? []
   const selectedModuleIdSafe = selectedModuleId ?? modules[0]?.id ?? null
   const selectedModule = modules.find((module) => module.id === selectedModuleIdSafe) ?? null
-  const selectedAssets = useMemo(
-    () => (data?.assets ?? []).filter((asset) => asset.module_id === selectedModuleIdSafe),
-    [data?.assets, selectedModuleIdSafe],
-  )
+  const selectedAssets = (data?.assets ?? []).filter((asset) => asset.module_id === selectedModuleIdSafe)
 
   const handleOpenAsset = async (asset: ModuleAssetSummary) => {
     const result = await assetAccess.mutateAsync(asset.id)
@@ -60,6 +63,8 @@ export function DashboardProductDetail() {
     )
   }
 
+  const narrative = getProductNarrative(data.product)
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -67,6 +72,30 @@ export function DashboardProductDetail() {
         description={data.product.short_description ?? data.product.description ?? "Conteudo do produto."}
         backTo="/dashboard/produtos"
       />
+
+      <section className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-white/65">{narrative.familyLabel}</p>
+            <h2 className="mt-3 font-display text-3xl font-bold">{data.product.title}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">{narrative.accessLabel}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl bg-white/10 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/65">Modulos</p>
+              <p className="mt-3 text-2xl font-bold">{modules.length}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/65">Materiais</p>
+              <p className="mt-3 text-2xl font-bold">{data.assets?.length ?? 0}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/65">Foco</p>
+              <p className="mt-3 text-sm leading-6 text-white/82">Continuar com clareza, sem perder o contexto.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -93,7 +122,12 @@ export function DashboardProductDetail() {
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold">{module.title}</p>
+                  <div>
+                    <p className="font-semibold">{module.title}</p>
+                    <p className={`mt-1 text-xs uppercase tracking-[0.18em] ${selectedModuleIdSafe === module.id ? "text-white/65" : "text-slate-500"}`}>
+                      {getModuleTypeLabel(module.module_type)}
+                    </p>
+                  </div>
                   <StatusBadge
                     label={getModuleLabel(module.access_type, module.is_preview)}
                     tone={getModuleTone(module.access_type, module.is_preview)}
@@ -117,7 +151,7 @@ export function DashboardProductDetail() {
                     {selectedModule.description ?? "Abre um dos materiais abaixo para continuares."}
                   </p>
                 </div>
-                <StatusBadge label={selectedModule.module_type} tone="neutral" />
+                <StatusBadge label={getModuleTypeLabel(selectedModule.module_type)} tone="neutral" />
               </div>
 
               {selectedAssets.length === 0 ? (
@@ -133,7 +167,10 @@ export function DashboardProductDetail() {
                     <div key={asset.id} className="rounded-2xl border bg-slate-50/70 p-4">
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <p className="font-semibold text-slate-950">{asset.title}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-950">{asset.title}</p>
+                            <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
+                          </div>
                           <p className="mt-2 text-sm leading-6 text-slate-600">
                             {asset.allow_download
                               ? "Material disponivel para abrir e descarregar quando permitido."
@@ -141,7 +178,7 @@ export function DashboardProductDetail() {
                           </p>
                         </div>
                         <Button onClick={() => void handleOpenAsset(asset)} disabled={assetAccess.isPending} className="rounded-full">
-                          {assetAccess.isPending ? "A abrir..." : "Abrir material"}
+                          {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
                         </Button>
                       </div>
                     </div>

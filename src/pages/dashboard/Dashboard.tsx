@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { Bell, FolderOpen, Sparkles } from "lucide-react"
+import { ArrowRight, Bell, FolderOpen, Sparkles } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useDashboardOverview } from "@/hooks/useDashboard"
 import { ROUTES } from "@/lib/constants"
 import { formatDate } from "@/utils/date"
+import { getDashboardProductNote } from "@/lib/product-presentation"
 
 export function Dashboard() {
   const { profile } = useAuth()
@@ -28,6 +29,7 @@ export function Dashboard() {
 
   const products = data?.products ?? []
   const notifications = data?.recentNotifications ?? []
+  const nextProduct = products[0] ?? null
 
   return (
     <div className="space-y-6">
@@ -40,18 +42,18 @@ export function Dashboard() {
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Produtos disponiveis</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que ja tens pronto para consultar.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que ja tens pronto para consultar no teu painel.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Notificacoes recentes</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{notifications.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Mensagens, avisos e atualizacoes da tua conta.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Mensagens, avisos e atualizacoes ligadas ao teu acesso.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Conta</p>
           <p className="mt-3 text-3xl font-bold">Pronta para estudar</p>
           <p className="mt-2 text-sm leading-6 text-white/82">
-            Entra, abre os teus materiais e continua a partir do ponto onde paraste.
+            O objetivo aqui e simples: abrir, encontrar o que interessa e continuar sem te perderes.
           </p>
         </div>
       </div>
@@ -68,36 +70,54 @@ export function Dashboard() {
             </Button>
           </div>
 
-          {products.length === 0 ? (
+          {nextProduct ? (
+            <div className="mt-6 rounded-[1.75rem] bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white">
+              <p className="text-xs uppercase tracking-[0.22em] text-white/65">Continua daqui</p>
+              <h3 className="mt-3 font-display text-3xl font-bold">{nextProduct.title}</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">{getDashboardProductNote(nextProduct)}</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <StatusBadge label="Ultimo acesso" tone="info" />
+                <span className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/75">
+                  Disponivel desde {formatDate(nextProduct.granted_at)}
+                </span>
+              </div>
+              <Button asChild variant="secondary" className="mt-6 rounded-full bg-white text-slate-950 hover:bg-white/90">
+                <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${nextProduct.id}`}>
+                  Abrir produto
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          ) : (
             <div className="mt-6">
               <EmptyState
                 title="Ainda sem produtos ativos"
                 message="Assim que ativares um produto, ele aparece aqui para poderes comecar a estudar."
               />
             </div>
-          ) : (
+          )}
+
+          {products.length > 1 ? (
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {products.slice(0, 4).map((product) => (
+              {products.slice(1, 5).map((product) => (
                 <div key={product.id} className="rounded-2xl border bg-slate-50/70 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-semibold text-slate-950">{product.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
-                        {product.short_description ?? product.description ?? "Conteudo disponivel para consulta."}
-                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{getDashboardProductNote(product)}</p>
                     </div>
-                    <StatusBadge label={product.product_type === "free" ? "Gratuito" : "Ativo"} tone="info" />
+                    <StatusBadge label="Disponivel" tone="success" />
                   </div>
                   <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">
                     Disponivel desde {formatDate(product.granted_at)}
                   </p>
-                  <Button asChild className="mt-4 w-full rounded-full">
+                  <Button asChild className="mt-4 w-full rounded-full" variant="outline">
                     <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>Abrir produto</Link>
                   </Button>
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </section>
 
         <section className="space-y-4">

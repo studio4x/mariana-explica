@@ -1,4 +1,12 @@
-import { LayoutDashboard, Package, ShoppingCart, Users } from "lucide-react"
+import {
+  LayoutDashboard,
+  LifeBuoy,
+  Package,
+  Percent,
+  ShoppingCart,
+  TicketPercent,
+  Users,
+} from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 import { Navbar, StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
@@ -9,6 +17,12 @@ const items = [
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Produtos", icon: Package },
   { to: ROUTES.ADMIN_ORDERS, label: "Pedidos", icon: ShoppingCart },
+]
+
+const futureModules = [
+  { label: "Afiliados", icon: Percent },
+  { label: "Cupons", icon: TicketPercent },
+  { label: "Suporte", icon: LifeBuoy },
 ]
 
 export function AdminLayout() {
@@ -25,7 +39,10 @@ export function AdminLayout() {
               Gestao direta da operacao com contexto claro, acoes controladas e leitura rapida dos dados importantes.
             </p>
           </div>
-          <StatusBadge label="Ambiente protegido" tone="info" />
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusBadge label="Ambiente protegido" tone="info" />
+            <StatusBadge label="Backend auditado" tone="success" />
+          </div>
         </div>
       </div>
 
@@ -51,7 +68,7 @@ export function AdminLayout() {
           ))}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="hidden rounded-[1.75rem] border bg-white p-4 shadow-sm lg:block">
             <p className="px-3 pb-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
               Modulos principais
@@ -76,6 +93,18 @@ export function AdminLayout() {
                 </NavLink>
               ))}
             </nav>
+
+            <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Camada seguinte</p>
+              <div className="mt-3 grid gap-2">
+                {futureModules.map((item) => (
+                  <div key={item.label} className="flex items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+            </div>
           </aside>
 
           <main className="min-w-0">
