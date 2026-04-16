@@ -20,12 +20,12 @@ const items = [
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Produtos", icon: Package },
   { to: ROUTES.ADMIN_ORDERS, label: "Pedidos", icon: ShoppingCart },
+  { to: ROUTES.ADMIN_SUPPORT, label: "Suporte", icon: LifeBuoy },
 ]
 
 const futureModules = [
   { label: "Afiliados", icon: Percent },
   { label: "Cupons", icon: TicketPercent },
-  { label: "Suporte", icon: LifeBuoy },
 ]
 
 export function AdminLayout() {

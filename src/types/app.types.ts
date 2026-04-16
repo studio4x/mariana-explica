@@ -133,3 +133,7 @@ export interface AdminDashboardMetrics {
   totalPaidOrders: number
   revenueCents: number
 }
+
+export interface AdminSupportTicketSummary extends SupportTicketSummary {
+  user_id: string
+}

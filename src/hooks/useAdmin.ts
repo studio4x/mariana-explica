@@ -7,12 +7,15 @@ import {
   fetchAdminDashboardMetrics,
   fetchAdminOrders,
   fetchAdminProducts,
+  fetchAdminSupportTicketMessages,
+  fetchAdminSupportTickets,
   fetchAdminUsers,
   markAdminOrderCancelled,
   markAdminOrderPaid,
   markAdminOrderRefunded,
   publishAdminProduct,
   reconcileAdminOrder,
+  replyAdminSupportTicket,
   updateAdminProduct,
   updateAdminUser,
 } from "@/services"
@@ -42,6 +45,21 @@ export function useAdminOrders() {
   return useQuery({
     queryKey: ["admin", "orders"],
     queryFn: fetchAdminOrders,
+  })
+}
+
+export function useAdminSupportTickets() {
+  return useQuery({
+    queryKey: ["admin", "support", "tickets"],
+    queryFn: fetchAdminSupportTickets,
+  })
+}
+
+export function useAdminSupportTicketMessages(ticketId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "support", "messages", ticketId],
+    queryFn: () => fetchAdminSupportTicketMessages(ticketId ?? ""),
+    enabled: Boolean(ticketId),
   })
 }
 
@@ -119,4 +137,9 @@ export function useMarkAdminOrderCancelled() {
 export function useReconcileAdminOrder() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: reconcileAdminOrder, onSuccess: invalidate })
+}
+
+export function useReplyAdminSupportTicket() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: replyAdminSupportTicket, onSuccess: invalidate })
 }

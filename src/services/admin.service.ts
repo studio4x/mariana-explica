@@ -4,7 +4,9 @@ import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminDashboardMetrics,
   AdminOrderSummary,
+  AdminSupportTicketSummary,
   AdminUserSummary,
+  SupportTicketMessage,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
 
@@ -89,6 +91,33 @@ export async function fetchAdminOrders() {
   }
 
   return (data ?? []) as AdminOrderSummary[]
+}
+
+export async function fetchAdminSupportTickets() {
+  const { data, error } = await supabase
+    .from("support_tickets")
+    .select("id,user_id,subject,message,status,priority,assigned_admin_id,last_reply_at,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminSupportTicketSummary[]
+}
+
+export async function fetchAdminSupportTicketMessages(ticketId: string) {
+  const { data, error } = await supabase
+    .from("support_ticket_messages")
+    .select("id,ticket_id,sender_user_id,sender_role,message,created_at")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as SupportTicketMessage[]
 }
 
 export async function fetchAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {
@@ -212,4 +241,13 @@ export function markAdminOrderCancelled(orderId: string, reason?: string | null)
 
 export function reconcileAdminOrder(orderId: string) {
   return invokeAdminFunction("reconcile-orders", { orderId })
+}
+
+export function replyAdminSupportTicket(input: {
+  ticketId: string
+  message: string
+  status?: AdminSupportTicketSummary["status"]
+  priority?: AdminSupportTicketSummary["priority"]
+}) {
+  return invokeAdminFunction<{ success: true; message: SupportTicketMessage }>("support-ticket-reply", input)
 }

@@ -23,6 +23,7 @@ export const ROUTES = {
   ADMIN_USERS: "/admin/usuarios",
   ADMIN_PRODUCTS: "/admin/produtos",
   ADMIN_ORDERS: "/admin/pedidos",
+  ADMIN_SUPPORT: "/admin/suporte",
 } as const
 
 // API
