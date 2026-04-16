@@ -97,6 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
+  const profileRef = useRef<UserProfile | null>(null)
+
+  useEffect(() => {
+    profileRef.current = profile
+  }, [profile])
 
   const syncSession = async (
     nextSession: Session | null,
@@ -123,17 +128,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const keepCurrentProfile =
+      preserveCurrentOnFailure || Boolean(profileRef.current && profileRef.current.id === nextSession.user.id)
+
     try {
       await refreshProfileState(nextSession.user.id, requestId, {
         mountedRef,
         requestIdRef,
         setProfile,
         setLoading,
-        preserveCurrentOnFailure,
+        preserveCurrentOnFailure: keepCurrentProfile,
       })
     } catch {
       if (mountedRef.current && requestId === requestIdRef.current) {
-        if (!preserveCurrentOnFailure) {
+        if (!keepCurrentProfile) {
           setProfile(null)
         }
         setLoading(false)

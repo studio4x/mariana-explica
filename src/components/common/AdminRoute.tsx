@@ -25,7 +25,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
   }
 
   if (!profile) {
-    return <Navigate to={ROUTES.LOGIN} replace />
+    return <div className="p-8 text-center">Validando acesso administrativo...</div>
   }
 
   if (
