@@ -7,14 +7,14 @@ interface AdminRouteProps {
 }
 
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, isAdmin } = useAuth()
   const location = useLocation()
 
   if (loading && !session) {
     return <div className="p-8 text-center">Validando acesso administrativo...</div>
   }
 
-  if (loading && session) {
+  if (session && (loading || isAdmin)) {
     return <>{children}</>
   }
 
@@ -25,7 +25,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
   }
 
   if (!profile) {
-    return <div className="p-8 text-center">Validando acesso administrativo...</div>
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
   if (

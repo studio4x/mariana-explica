@@ -9,10 +9,12 @@ import {
   deleteAdminUser,
   fetchAdminAffiliateReferrals,
   fetchAdminAffiliates,
+  fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
   fetchAdminNotifications,
   fetchAdminOperations,
   fetchAdminOrders,
+  fetchAdminOrdersView,
   fetchAdminProducts,
   fetchAdminCoupons,
   fetchAdminCouponUsages,
@@ -51,6 +53,14 @@ export function useAdminDashboardMetrics() {
   })
 }
 
+export function useAdminDashboardOverview() {
+  return useQuery({
+    queryKey: ["admin", "overview"],
+    queryFn: fetchAdminDashboardOverview,
+    ...getAdminQueryOptions(),
+  })
+}
+
 export function useAdminUsers() {
   return useQuery({
     queryKey: ["admin", "users"],
@@ -71,6 +81,14 @@ export function useAdminOrders() {
   return useQuery({
     queryKey: ["admin", "orders"],
     queryFn: fetchAdminOrders,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminOrdersView() {
+  return useQuery({
+    queryKey: ["admin", "orders-view"],
+    queryFn: fetchAdminOrdersView,
     ...getAdminQueryOptions(),
   })
 }

@@ -1,16 +1,10 @@
-import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
 import {
-  useAdminNotifications,
-  useAdminOperations,
-  useAdminOrders,
-  useAdminProducts,
-  useAdminSupportTickets,
-  useAdminUsers,
+  useAdminDashboardOverview,
 } from "@/hooks/useAdmin"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
@@ -62,128 +56,74 @@ function AdminOverviewSkeleton() {
 }
 
 export function Admin() {
-  const usersQuery = useAdminUsers()
-  const ordersQuery = useAdminOrders()
-  const productsQuery = useAdminProducts()
-  const supportQuery = useAdminSupportTickets()
-  const notificationsQuery = useAdminNotifications()
-  const operationsQuery = useAdminOperations()
-  const metrics = useMemo(
-    () => ({
-      totalUsers: (usersQuery.data ?? []).length,
-      totalPublishedProducts: (productsQuery.data ?? []).filter((product) => product.status === "published").length,
-      totalPaidOrders: (ordersQuery.data ?? []).filter((order) => order.status === "paid").length,
-      revenueCents: (ordersQuery.data ?? [])
-        .filter((order) => order.status === "paid")
-        .reduce((sum, order) => sum + order.final_price_cents, 0),
-    }),
-    [ordersQuery.data, productsQuery.data, usersQuery.data],
-  )
+  const overviewQuery = useAdminDashboardOverview()
 
-  if (
-    usersQuery.isLoading ||
-    ordersQuery.isLoading ||
-    productsQuery.isLoading ||
-    supportQuery.isLoading ||
-    notificationsQuery.isLoading ||
-    operationsQuery.isLoading
-  ) {
+  if (overviewQuery.isLoading) {
     return <AdminOverviewSkeleton />
   }
 
-  if (
-    usersQuery.isError ||
-    ordersQuery.isError ||
-    productsQuery.isError ||
-    supportQuery.isError ||
-    notificationsQuery.isError ||
-    operationsQuery.isError
-  ) {
+  if (overviewQuery.isError) {
     return (
       <ErrorState
         title="Nao foi possivel carregar o admin"
         message={
-          (usersQuery.error instanceof Error && usersQuery.error.message) ||
-          (ordersQuery.error instanceof Error && ordersQuery.error.message) ||
-          (productsQuery.error instanceof Error && productsQuery.error.message) ||
-          (supportQuery.error instanceof Error && supportQuery.error.message) ||
-          (notificationsQuery.error instanceof Error && notificationsQuery.error.message) ||
-          (operationsQuery.error instanceof Error && operationsQuery.error.message) ||
-          "Tenta novamente dentro de instantes."
+          overviewQuery.error instanceof Error ? overviewQuery.error.message : "Tenta novamente dentro de instantes."
         }
         onRetry={() => {
-          void usersQuery.refetch()
-          void ordersQuery.refetch()
-          void productsQuery.refetch()
-          void supportQuery.refetch()
-          void notificationsQuery.refetch()
-          void operationsQuery.refetch()
+          void overviewQuery.refetch()
         }}
       />
     )
   }
 
-  const recentOrders = (ordersQuery.data ?? []).slice(0, 5)
-  const products = productsQuery.data ?? []
-  const supportTickets = supportQuery.data ?? []
-  const notifications = notificationsQuery.data ?? []
-  const operations = operationsQuery.data
+  const overview = overviewQuery.data
+  const metrics = overview?.metrics
+  const recentOrders = overview?.recentOrders ?? []
   const alerts: OperationalAlert[] = []
 
-  if (metrics.totalPaidOrders !== (ordersQuery.data ?? []).length) {
-    alerts.push({
-      title: "Pedidos pendentes ou com falha",
-      message: "Existem pedidos que ainda precisam de conferencia manual antes de reprocessamento.",
-      tone: "warning",
-      to: ROUTES.ADMIN_ORDERS,
-      cta: "Rever pedidos",
-    })
+  if (!overview || !metrics) {
+    return (
+      <EmptyState
+        title="Sem dados operacionais"
+        message="Assim que houver movimentacao, os indicadores vao aparecer aqui."
+      />
+    )
   }
 
-  if (supportTickets.some((ticket) => ticket.priority === "high" || ticket.status === "open")) {
+  if (overview.alerts.openSupportTickets > 0) {
     alerts.push({
       title: "Tickets de suporte a pedir resposta",
-      message: `${supportTickets.filter((ticket) => ticket.status !== "closed").length} ticket(s) em aberto com impacto direto na experiencia do aluno.`,
-      tone: "danger",
+      message: `${overview.alerts.openSupportTickets} ticket(s) em aberto com impacto direto na experiencia do aluno.`,
+      tone: overview.alerts.highPrioritySupportTickets > 0 ? "danger" : "warning",
       to: ROUTES.ADMIN_SUPPORT,
       cta: "Abrir suporte",
     })
   }
 
-  if (products.some((product) => product.status === "draft")) {
-    alerts.push({
-      title: "Produtos ainda em rascunho",
-      message: `${products.filter((product) => product.status === "draft").length} produto(s) ainda sem publicacao ativa na area comercial.`,
-      tone: "info",
-      to: ROUTES.ADMIN_PRODUCTS,
-      cta: "Gerir produtos",
-    })
-  }
-
-  if (notifications.some((notification) => notification.status === "unread")) {
+  if (overview.alerts.unreadNotifications > 0) {
     alerts.push({
       title: "Notificacoes recentes por rever",
-      message: `${notifications.filter((notification) => notification.status === "unread").length} notificacao(oes) ainda estao sem leitura na fila operacional.`,
+      message: `${overview.alerts.unreadNotifications} notificacao(oes) ainda estao sem leitura na fila operacional.`,
       tone: "neutral",
       to: ROUTES.ADMIN_NOTIFICATIONS,
       cta: "Abrir notificacoes",
     })
   }
 
-  if (operations && operations.failedEmails > 0) {
+  if (overview.alerts.failedEmails > 0) {
     alerts.push({
       title: "Emails com falha na fila",
-      message: `${operations.failedEmails} entrega(s) precisam de reprocessamento ou leitura do erro.`,
+      message: `${overview.alerts.failedEmails} entrega(s) precisam de reprocessamento ou leitura do erro.`,
       tone: "danger",
       to: ROUTES.ADMIN_OPERATIONS,
       cta: "Abrir operacoes",
     })
   }
 
-  if (operations && operations.failedJobs > 0) {
+  if (overview.alerts.failedJobs > 0) {
     alerts.push({
       title: "Jobs com falha recente",
-      message: `${operations.failedJobs} execucao(oes) falharam e merecem conferencia operacional.`,
+      message: `${overview.alerts.failedJobs} execucao(oes) falharam e merecem conferencia operacional.`,
       tone: "warning",
       to: ROUTES.ADMIN_OPERATIONS,
       cta: "Rever jobs",

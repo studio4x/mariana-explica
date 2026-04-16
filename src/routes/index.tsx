@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+import { lazy, Suspense, type ReactNode } from "react"
 import { createBrowserRouter } from "react-router-dom"
 import {
   PublicLayout,
@@ -5,30 +7,62 @@ import {
   AdminLayout,
   AuthLayout,
 } from "@/layouts"
-import { Home, Products, Product, Checkout } from "@/pages/public"
-import { AuthCallback, Login, Register } from "@/pages/auth"
-import {
-  Dashboard,
-  DashboardDownloads,
-  DashboardNotifications,
-  DashboardProductDetail,
-  DashboardProducts,
-  DashboardProfile,
-  DashboardSupport,
-} from "@/pages/dashboard"
-import {
-  Admin,
-  AdminAffiliates,
-  AdminCoupons,
-  AdminNotifications,
-  AdminOperations,
-  AdminOrders,
-  AdminPayments,
-  AdminProducts,
-  AdminSupport,
-  AdminUsers,
-} from "@/pages/admin"
 import { ProtectedRoute, AdminRoute } from "@/components/common"
+
+const Home = lazy(() => import("@/pages/public").then((module) => ({ default: module.Home })))
+const Products = lazy(() => import("@/pages/public").then((module) => ({ default: module.Products })))
+const Product = lazy(() => import("@/pages/public").then((module) => ({ default: module.Product })))
+const Checkout = lazy(() => import("@/pages/public").then((module) => ({ default: module.Checkout })))
+const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
+const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
+const AuthCallback = lazy(() => import("@/pages/auth").then((module) => ({ default: module.AuthCallback })))
+const Dashboard = lazy(() => import("@/pages/dashboard").then((module) => ({ default: module.Dashboard })))
+const DashboardDownloads = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardDownloads })),
+)
+const DashboardNotifications = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardNotifications })),
+)
+const DashboardProductDetail = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardProductDetail })),
+)
+const DashboardProducts = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardProducts })),
+)
+const DashboardProfile = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardProfile })),
+)
+const DashboardSupport = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardSupport })),
+)
+const Admin = lazy(() => import("@/pages/admin").then((module) => ({ default: module.Admin })))
+const AdminAffiliates = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminAffiliates })),
+)
+const AdminCoupons = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminCoupons })))
+const AdminNotifications = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminNotifications })),
+)
+const AdminOperations = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminOperations })),
+)
+const AdminOrders = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminOrders })))
+const AdminPayments = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminPayments })),
+)
+const AdminProducts = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminProducts })),
+)
+const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminSupport })))
+const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminUsers })))
+
+function withSuspense(node: ReactNode) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">A carregar...</div>}>
+      {node}
+    </Suspense>
+  )
+}
 
 export const router = createBrowserRouter(
   [
@@ -38,19 +72,19 @@ export const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: <Home />,
+          element: withSuspense(<Home />),
         },
         {
           path: "produtos",
-          element: <Products />,
+          element: withSuspense(<Products />),
         },
         {
           path: "produto/:slug",
-          element: <Product />,
+          element: withSuspense(<Product />),
         },
         {
           path: "checkout",
-          element: <Checkout />,
+          element: withSuspense(<Checkout />),
         },
       ],
     },
@@ -60,15 +94,15 @@ export const router = createBrowserRouter(
       children: [
         {
           path: "login",
-          element: <Login />,
+          element: withSuspense(<Login />),
         },
         {
           path: "register",
-          element: <Register />,
+          element: withSuspense(<Register />),
         },
         {
           path: "auth/callback",
-          element: <AuthCallback />,
+          element: withSuspense(<AuthCallback />),
         },
       ],
     },
@@ -82,31 +116,31 @@ export const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: <Dashboard />,
+          element: withSuspense(<Dashboard />),
         },
         {
           path: "produtos",
-          element: <DashboardProducts />,
+          element: withSuspense(<DashboardProducts />),
         },
         {
           path: "produto/:id",
-          element: <DashboardProductDetail />,
+          element: withSuspense(<DashboardProductDetail />),
         },
         {
           path: "downloads",
-          element: <DashboardDownloads />,
+          element: withSuspense(<DashboardDownloads />),
         },
         {
           path: "notificacoes",
-          element: <DashboardNotifications />,
+          element: withSuspense(<DashboardNotifications />),
         },
         {
           path: "suporte",
-          element: <DashboardSupport />,
+          element: withSuspense(<DashboardSupport />),
         },
         {
           path: "perfil",
-          element: <DashboardProfile />,
+          element: withSuspense(<DashboardProfile />),
         },
       ],
     },
@@ -120,43 +154,43 @@ export const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: <Admin />,
+          element: withSuspense(<Admin />),
         },
         {
           path: "operacoes",
-          element: <AdminOperations />,
+          element: withSuspense(<AdminOperations />),
         },
         {
           path: "usuarios",
-          element: <AdminUsers />,
+          element: withSuspense(<AdminUsers />),
         },
         {
           path: "notificacoes",
-          element: <AdminNotifications />,
+          element: withSuspense(<AdminNotifications />),
         },
         {
           path: "produtos",
-          element: <AdminProducts />,
+          element: withSuspense(<AdminProducts />),
         },
         {
           path: "pedidos",
-          element: <AdminOrders />,
+          element: withSuspense(<AdminOrders />),
         },
         {
           path: "suporte",
-          element: <AdminSupport />,
+          element: withSuspense(<AdminSupport />),
         },
         {
           path: "pagamentos",
-          element: <AdminPayments />,
+          element: withSuspense(<AdminPayments />),
         },
         {
           path: "afiliados",
-          element: <AdminAffiliates />,
+          element: withSuspense(<AdminAffiliates />),
         },
         {
           path: "cupons",
-          element: <AdminCoupons />,
+          element: withSuspense(<AdminCoupons />),
         },
       ],
     },

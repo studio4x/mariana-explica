@@ -18,9 +18,10 @@ import { cn } from "@/lib/cn"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
 import {
+  fetchAdminDashboardOverview,
   fetchAdminNotifications,
   fetchAdminOperations,
-  fetchAdminOrders,
+  fetchAdminOrdersView,
   fetchAdminProducts,
   fetchAdminSupportTickets,
   fetchAdminUsers,
@@ -44,6 +45,11 @@ export function AdminLayout() {
 
   useEffect(() => {
     void queryClient.prefetchQuery({
+      queryKey: ["admin", "overview"],
+      queryFn: fetchAdminDashboardOverview,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
       queryKey: ["admin", "users"],
       queryFn: fetchAdminUsers,
       staleTime: 60_000,
@@ -54,8 +60,8 @@ export function AdminLayout() {
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({
-      queryKey: ["admin", "orders"],
-      queryFn: fetchAdminOrders,
+      queryKey: ["admin", "orders-view"],
+      queryFn: fetchAdminOrdersView,
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({

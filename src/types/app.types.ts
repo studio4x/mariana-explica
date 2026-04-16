@@ -135,11 +135,31 @@ export interface AdminOrderSummary {
   created_at: string
 }
 
+export interface AdminOrderViewSummary extends AdminOrderSummary {
+  user_name: string | null
+  user_email: string | null
+  product_title: string | null
+}
+
 export interface AdminDashboardMetrics {
   totalUsers: number
   totalPublishedProducts: number
   totalPaidOrders: number
   revenueCents: number
+}
+
+export interface AdminDashboardOverview {
+  metrics: AdminDashboardMetrics
+  recentOrders: Array<
+    Pick<AdminOrderSummary, "id" | "status" | "currency" | "final_price_cents" | "created_at">
+  >
+  alerts: {
+    openSupportTickets: number
+    highPrioritySupportTickets: number
+    unreadNotifications: number
+    failedEmails: number
+    failedJobs: number
+  }
 }
 
 export interface AdminEmailDeliverySummary {

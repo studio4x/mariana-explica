@@ -1,11 +1,9 @@
-import { useDeferredValue, useMemo, useState } from "react"
+import { useDeferredValue, useState } from "react"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
-  useAdminOrders,
-  useAdminProducts,
-  useAdminUsers,
+  useAdminOrdersView,
   useMarkAdminOrderCancelled,
   useMarkAdminOrderPaid,
   useMarkAdminOrderRefunded,
@@ -52,25 +50,14 @@ function AdminOrdersSkeleton() {
 export function AdminOrders() {
   const [query, setQuery] = useState("")
   const deferredQuery = useDeferredValue(query)
-  const ordersQuery = useAdminOrders()
-  const usersQuery = useAdminUsers()
-  const productsQuery = useAdminProducts()
+  const ordersViewQuery = useAdminOrdersView()
   const markPaid = useMarkAdminOrderPaid()
   const markRefunded = useMarkAdminOrderRefunded()
   const markCancelled = useMarkAdminOrderCancelled()
   const reconcile = useReconcileAdminOrder()
 
-  const isLoading = ordersQuery.isLoading || usersQuery.isLoading || productsQuery.isLoading
-  const isError = ordersQuery.isError || usersQuery.isError || productsQuery.isError
-
-  const userMap = useMemo(
-    () => new Map((usersQuery.data ?? []).map((user) => [user.id, user])),
-    [usersQuery.data],
-  )
-  const productMap = useMemo(
-    () => new Map((productsQuery.data ?? []).map((product) => [product.id, product])),
-    [productsQuery.data],
-  )
+  const isLoading = ordersViewQuery.isLoading
+  const isError = ordersViewQuery.isError
 
   if (isLoading) {
     return <AdminOrdersSkeleton />
@@ -81,32 +68,26 @@ export function AdminOrders() {
       <ErrorState
         title="Nao foi possivel carregar os pedidos"
         message="Tenta novamente dentro de instantes."
-        onRetry={() => {
-          void ordersQuery.refetch()
-          void usersQuery.refetch()
-          void productsQuery.refetch()
-        }}
+        onRetry={() => void ordersViewQuery.refetch()}
       />
     )
   }
 
-  const orders = ordersQuery.data ?? []
+  const orders = ordersViewQuery.data?.orders ?? []
   const filteredOrders = orders.filter((order) => {
-    const user = userMap.get(order.user_id)
-    const product = productMap.get(order.product_id)
     const haystack = [
       order.id,
       order.status,
-      user?.full_name ?? "",
-      user?.email ?? "",
-      product?.title ?? "",
+      order.user_name ?? "",
+      order.user_email ?? "",
+      order.product_title ?? "",
     ]
       .join(" ")
       .toLowerCase()
     return haystack.includes(deferredQuery.trim().toLowerCase())
   })
-  const pendingCount = orders.filter((order) => order.status === "pending").length
-  const refundedCount = orders.filter((order) => order.status === "refunded").length
+  const pendingCount = ordersViewQuery.data?.summary.pendingCount ?? 0
+  const refundedCount = ordersViewQuery.data?.summary.refundedCount ?? 0
 
   if (filteredOrders.length === 0 && !query.trim()) {
     return <EmptyState title="Sem pedidos" message="Os pedidos registados vao aparecer aqui." />
@@ -164,9 +145,6 @@ export function AdminOrders() {
               </thead>
               <tbody>
                 {filteredOrders.map((order) => {
-                  const user = userMap.get(order.user_id)
-                  const product = productMap.get(order.product_id)
-
                   return (
                     <tr key={order.id} className="border-b last:border-b-0 align-top">
                       <td className="py-4 pr-4">
@@ -176,10 +154,10 @@ export function AdminOrders() {
                         </p>
                       </td>
                       <td className="py-4 pr-4">
-                        <p className="font-medium text-slate-900">{user?.full_name ?? "Utilizador"}</p>
-                        <p className="mt-1 text-slate-600">{user?.email ?? order.user_id}</p>
+                        <p className="font-medium text-slate-900">{order.user_name ?? "Utilizador"}</p>
+                        <p className="mt-1 text-slate-600">{order.user_email ?? order.user_id}</p>
                       </td>
-                      <td className="py-4 pr-4 text-slate-600">{product?.title ?? order.product_id}</td>
+                      <td className="py-4 pr-4 text-slate-600">{order.product_title ?? order.product_id}</td>
                       <td className="py-4 pr-4">
                         <StatusBadge
                           label={order.status}

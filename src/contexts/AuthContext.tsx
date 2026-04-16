@@ -37,6 +37,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+const PROFILE_CACHE_KEY = "mariana-explica:auth-profile"
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
   try {
@@ -54,6 +55,37 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
   } catch {
     return null
   }
+}
+
+function readCachedProfile(userId: string): UserProfile | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(PROFILE_CACHE_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const cached = JSON.parse(raw) as UserProfile
+    return cached?.id === userId ? cached : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedProfile(profile: UserProfile | null) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  if (!profile) {
+    window.sessionStorage.removeItem(PROFILE_CACHE_KEY)
+    return
+  }
+
+  window.sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile))
 }
 
 async function refreshProfileState(
@@ -101,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     profileRef.current = profile
+    writeCachedProfile(profile)
   }, [profile])
 
   const syncSession = async (
@@ -121,6 +154,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null)
       setLoading(false)
       return
+    }
+
+    const cachedProfile = readCachedProfile(nextSession.user.id)
+    if (cachedProfile) {
+      setProfile(cachedProfile)
     }
 
     if (!shouldRefreshProfile) {

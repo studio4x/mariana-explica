@@ -4,11 +4,13 @@ import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminAffiliateReferralSummary,
   AdminAffiliateSummary,
+  AdminDashboardOverview,
   AdminDashboardMetrics,
   AdminEmailDeliverySummary,
   AdminJobRunSummary,
   AdminNotificationSummary,
   AdminOperationsOverview,
+  AdminOrderViewSummary,
   AdminOrderSummary,
   AdminCouponSummary,
   AdminCouponUsageSummary,
@@ -91,6 +93,25 @@ export async function fetchAdminOrders() {
   }
 
   return (data ?? []) as AdminOrderSummary[]
+}
+
+export async function fetchAdminOrdersView() {
+  const response = await invokeAdminFunction<{
+    success: true
+    summary: {
+      totalOrders: number
+      pendingCount: number
+      refundedCount: number
+    }
+    orders: AdminOrderViewSummary[]
+  }>("admin-orders-view", {
+    action: "list",
+  })
+
+  return {
+    summary: response.summary,
+    orders: response.orders ?? [],
+  }
 }
 
 export async function fetchAdminSupportTickets() {
@@ -224,6 +245,23 @@ export async function fetchAdminOperations(): Promise<AdminOperationsOverview> {
     deliveredEmails: response.summary.deliveredEmails,
     emailDeliveries: response.emailDeliveries ?? [],
     jobRuns: response.jobRuns ?? [],
+  }
+}
+
+export async function fetchAdminDashboardOverview(): Promise<AdminDashboardOverview> {
+  const response = await invokeAdminFunction<{
+    success: true
+    metrics: AdminDashboardMetrics
+    recentOrders: AdminDashboardOverview["recentOrders"]
+    alerts: AdminDashboardOverview["alerts"]
+  }>("admin-dashboard", {
+    action: "overview",
+  })
+
+  return {
+    metrics: response.metrics,
+    recentOrders: response.recentOrders ?? [],
+    alerts: response.alerts,
   }
 }
 
