@@ -70,6 +70,8 @@ export function AdminUsers() {
   const [password, setPassword] = useState("")
   const [role, setRole] = useState<AdminUserSummary["role"]>("student")
   const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active")
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const deferredQuery = useDeferredValue(query)
   const usersQuery = useAdminUsers()
   const createUser = useCreateAdminUser()
@@ -78,11 +80,19 @@ export function AdminUsers() {
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    await createUser.mutateAsync({ fullName, email, password, role })
-    setFullName("")
-    setEmail("")
-    setPassword("")
-    setRole("student")
+    try {
+      await createUser.mutateAsync({ fullName, email, password, role })
+      setFullName("")
+      setEmail("")
+      setPassword("")
+      setRole("student")
+      setFeedback({ tone: "success", message: "Utilizador criado com sucesso." })
+    } catch (error) {
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel criar o utilizador.",
+      })
+    }
   }
 
   if (usersQuery.isLoading) {
@@ -101,11 +111,14 @@ export function AdminUsers() {
 
   const users = usersQuery.data ?? []
   const q = deferredQuery.trim().toLowerCase()
-  const filteredUsers = !q
-    ? users
-    : users.filter((user) =>
-        [user.full_name, user.email, user.role, user.status].join(" ").toLowerCase().includes(q),
-      )
+  const filteredUsers = users.filter((user) => {
+    const matchesStatus = statusFilter === "all" ? true : user.status === statusFilter
+    const matchesQuery = !q
+      ? true
+      : [user.full_name, user.email, user.role, user.status].join(" ").toLowerCase().includes(q)
+
+    return matchesStatus && matchesQuery
+  })
   const adminCount = users.filter((user) => user.role === "admin").length
   const blockedCount = users.filter((user) => user.status === "blocked").length
 
@@ -160,18 +173,41 @@ export function AdminUsers() {
         </form>
       </div>
 
+      {feedback ? (
+        <div
+          className={`rounded-[1.4rem] border px-5 py-4 text-sm shadow-sm ${
+            feedback.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-rose-200 bg-rose-50 text-rose-900"
+          }`}
+        >
+          {feedback.message}
+        </div>
+      ) : null}
+
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Lista de utilizadores</h2>
             <p className="mt-1 text-sm text-slate-600">Pesquisa rapida por nome, email, papel ou estado.</p>
           </div>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Pesquisar..."
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:w-72"
-          />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as "active" | "inactive" | "all")}
+              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="active">Ativos</option>
+              <option value="inactive">Excluidos/Inativos</option>
+              <option value="all">Todos</option>
+            </select>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Pesquisar..."
+              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:w-72"
+            />
+          </div>
         </div>
 
         {filteredUsers.length === 0 ? (
@@ -254,18 +290,41 @@ export function AdminUsers() {
                       <Button
                         variant="outline"
                         className="rounded-full"
-                        onClick={() => {
+                        onClick={async () => {
+                          if (user.status === "inactive") {
+                            setFeedback({
+                              tone: "error",
+                              message: `${user.full_name} ja esta excluido e sem acesso privado.`,
+                            })
+                            return
+                          }
+
                           if (
                             window.confirm(
                               `Excluir ${user.full_name}?\n\nA conta sera desativada de forma reversivel e o utilizador deixara de ter acesso privado.`,
                             )
                           ) {
-                            void deleteUser.mutateAsync(user.id)
+                            try {
+                              await deleteUser.mutateAsync(user.id)
+                              setFeedback({
+                                tone: "success",
+                                message: `${user.full_name} foi excluido com sucesso. O registo ficou como inativo.`,
+                              })
+                              setStatusFilter("active")
+                            } catch (error) {
+                              setFeedback({
+                                tone: "error",
+                                message:
+                                  error instanceof Error
+                                    ? error.message
+                                    : `Nao foi possivel excluir ${user.full_name}.`,
+                              })
+                            }
                           }
                         }}
                         disabled={deleteUser.isPending}
                       >
-                        Excluir
+                        {deleteUser.isPending ? "A excluir..." : user.status === "inactive" ? "Excluido" : "Excluir"}
                       </Button>
                     </td>
                   </tr>
