@@ -16,6 +16,9 @@ const Checkout = lazy(() => import("@/pages/public").then((module) => ({ default
 const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
 const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
 const AuthCallback = lazy(() => import("@/pages/auth").then((module) => ({ default: module.AuthCallback })))
+const ResetPassword = lazy(() =>
+  import("@/pages/auth").then((module) => ({ default: module.ResetPassword })),
+)
 const Dashboard = lazy(() => import("@/pages/dashboard").then((module) => ({ default: module.Dashboard })))
 const DashboardDownloads = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardDownloads })),
@@ -103,6 +106,10 @@ export const router = createBrowserRouter(
         {
           path: "auth/callback",
           element: withSuspense(<AuthCallback />),
+        },
+        {
+          path: "redefinir-senha",
+          element: withSuspense(<ResetPassword />),
         },
       ],
     },

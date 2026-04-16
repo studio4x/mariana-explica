@@ -15,12 +15,15 @@ export function Dashboard() {
   const { data, isLoading, isError, error, refetch } = useDashboardOverview()
   const downloadsQuery = useDownloads()
   const [authFlash] = useState<string | null>(() => {
-    const flash = window.sessionStorage.getItem("mariana-explica:auth-flash")
+    const flash =
+      window.sessionStorage.getItem("mariana-explica:auth-flash") ??
+      window.sessionStorage.getItem("mariana-explica:password-flash")
     if (!flash) {
       return null
     }
 
     window.sessionStorage.removeItem("mariana-explica:auth-flash")
+    window.sessionStorage.removeItem("mariana-explica:password-flash")
     return flash
   })
 

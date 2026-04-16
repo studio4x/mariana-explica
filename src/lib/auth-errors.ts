@@ -25,5 +25,13 @@ export function mapAuthErrorMessage(message: string) {
     return "O email informado nao e valido."
   }
 
+  if (normalized.includes("same password")) {
+    return "Escolhe uma palavra-passe diferente da atual."
+  }
+
+  if (normalized.includes("expired") || normalized.includes("invalid")) {
+    return "O link usado ja nao e valido. Pede um novo email e tenta novamente."
+  }
+
   return message
 }

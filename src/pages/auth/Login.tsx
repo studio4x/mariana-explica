@@ -14,6 +14,10 @@ export function Login() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -43,6 +47,37 @@ export function Login() {
     }
 
     navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
+  }
+
+  const handleOpenForgotPassword = () => {
+    setForgotPasswordEmail(email)
+    setForgotPasswordMessage(null)
+    setShowForgotPassword(true)
+  }
+
+  const handleSendRecovery = async () => {
+    if (!forgotPasswordEmail.trim()) {
+      setForgotPasswordMessage("Indica primeiro o teu email para receber o link de recuperacao.")
+      return
+    }
+
+    setForgotPasswordLoading(true)
+    setForgotPasswordMessage(null)
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail.trim(), {
+      redirectTo: `${window.location.origin}${ROUTES.RESET_PASSWORD}`,
+    })
+
+    setForgotPasswordLoading(false)
+
+    if (resetError) {
+      setForgotPasswordMessage(mapAuthErrorMessage(resetError.message))
+      return
+    }
+
+    setForgotPasswordMessage(
+      "Enviamos um email de recuperacao. Abre o link recebido para redefinires a tua palavra-passe com seguranca.",
+    )
   }
 
   return (
@@ -95,12 +130,78 @@ export function Login() {
         </Button>
       </form>
 
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={handleOpenForgotPassword}
+          className="text-sm font-semibold text-slate-700 underline underline-offset-4 transition hover:text-primary"
+        >
+          Esqueci a minha palavra-passe
+        </button>
+      </div>
+
       <div className="text-center text-sm text-slate-600">
         Ainda nao tens conta?{" "}
         <Link to={ROUTES.REGISTER} className="font-semibold underline underline-offset-4 hover:text-primary">
           Criar conta
         </Link>
       </div>
+
+      {showForgotPassword ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/70 bg-white p-6 shadow-2xl sm:p-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Recuperar acesso</p>
+            <h2 className="mt-3 font-display text-3xl font-bold text-slate-950">
+              Enviamos um link seguro para redefinires a tua palavra-passe
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              Confirma o email da tua conta. Se existir acesso associado, enviamos um link que te leva diretamente para a redefinicao.
+            </p>
+
+            <div className="mt-5 space-y-2">
+              <label htmlFor="forgotPasswordEmail" className="text-sm font-medium text-slate-700">
+                Email
+              </label>
+              <input
+                id="forgotPasswordEmail"
+                type="email"
+                autoComplete="email"
+                value={forgotPasswordEmail}
+                onChange={(event) => setForgotPasswordEmail(event.target.value)}
+                placeholder="seu@email.com"
+                className="flex h-12 w-full rounded-xl border border-input bg-slate-50 px-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+
+            {forgotPasswordMessage ? (
+              <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                {forgotPasswordMessage}
+              </p>
+            ) : null}
+
+            <div className="mt-6 space-y-3">
+              <Button
+                type="button"
+                className="w-full rounded-full"
+                size="lg"
+                disabled={forgotPasswordLoading}
+                onClick={() => void handleSendRecovery()}
+              >
+                {forgotPasswordLoading ? "A enviar..." : "Enviar link de recuperacao"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-full"
+                size="lg"
+                onClick={() => setShowForgotPassword(false)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

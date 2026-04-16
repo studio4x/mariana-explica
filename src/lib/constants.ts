@@ -12,6 +12,7 @@ export const ROUTES = {
   LOGIN: "/login",
   REGISTER: "/register",
   AUTH_CALLBACK: "/auth/callback",
+  RESET_PASSWORD: "/redefinir-senha",
   DASHBOARD: "/dashboard",
   DASHBOARD_PRODUCTS: "/dashboard/produtos",
   DASHBOARD_PRODUCT: "/dashboard/produto",
