@@ -10,6 +10,7 @@ import {
 import { NavLink, Outlet } from "react-router-dom"
 import { Navbar, StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
+import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
 
 const items = [
@@ -109,6 +110,9 @@ export function AdminLayout() {
 
           <main className="min-w-0">
             <Outlet />
+            <div className="mt-8 flex items-center justify-end px-1 pb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+              Build {BUILD_VERSION}
+            </div>
           </main>
         </div>
       </div>

@@ -393,3 +393,8 @@ Este projeto deve resultar em uma plataforma:
 - com área pública de conversão
 - com backend auditável
 - com documentação coerente com a implementação
+---
+
+## Versão da build
+
+Quando houver novos ajustes relevantes, a build exibida no admin deve ser atualizada automaticamente, preferencialmente usando o hash curto do commit atual ou outro identificador de build consistente. Não deixar o rodapé do admin com versão antiga após novos deploys.
