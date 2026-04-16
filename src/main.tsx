@@ -1,10 +1,12 @@
+/* eslint-disable react-refresh/only-export-components */
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { AuthProvider } from "@/contexts/AuthContext"
+import { BUILD_VERSION } from "@/lib/build"
 import App from "./App"
 import "./styles/globals.css"
 
-const APP_RUNTIME_VERSION = "2026-04-16.2"
+const APP_RUNTIME_VERSION = BUILD_VERSION
 
 async function clearStalePwaState() {
   if (!("serviceWorker" in navigator) && typeof caches === "undefined") {
