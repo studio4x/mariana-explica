@@ -26,6 +26,8 @@ export function DashboardProducts() {
 
   const products = data ?? []
   const freeProducts = products.filter((product) => product.product_type === "free").length
+  const totalModules = products.reduce((sum, product) => sum + product.module_count, 0)
+  const totalDownloads = products.reduce((sum, product) => sum + product.download_count, 0)
 
   if (products.length === 0) {
     return (
@@ -43,7 +45,7 @@ export function DashboardProducts() {
         description="Todos os conteudos disponiveis na tua conta, organizados para ser facil retomar o estudo."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Produtos ativos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
@@ -54,11 +56,16 @@ export function DashboardProducts() {
           <p className="mt-3 text-3xl font-bold text-slate-950">{freeProducts}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Produtos de entrada para consulta e rotina de estudo.</p>
         </div>
+        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-slate-500">Modulos organizados</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{totalModules}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Estrutura pronta para retomares sem perder contexto.</p>
+        </div>
         <div className="rounded-[1.75rem] border bg-slate-900 p-5 text-white shadow-sm">
-          <p className="text-sm font-medium text-white/70">Continuidade</p>
-          <p className="mt-3 text-3xl font-bold">Tudo num so lugar</p>
+          <p className="text-sm font-medium text-white/70">Downloads protegidos</p>
+          <p className="mt-3 text-3xl font-bold">{totalDownloads}</p>
           <p className="mt-2 text-sm leading-6 text-white/82">
-            Abre o produto certo, consulta os materiais e retoma sem depender de ficheiros soltos.
+            Acesso centralizado aos materiais que podem sair do painel com seguranca.
           </p>
         </div>
       </div>
@@ -81,6 +88,16 @@ export function DashboardProducts() {
             <div className="mt-5 rounded-2xl bg-slate-50/80 p-4 text-sm text-slate-700">
               <p>Disponivel desde {formatDate(product.granted_at)}</p>
               <p className="mt-2">Organizado para continuares sem perder o contexto do estudo.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <StatusBadge label={`${product.module_count} modulos`} tone="info" />
+                <StatusBadge label={`${product.asset_count} materiais`} tone="neutral" />
+                {product.preview_count > 0 ? (
+                  <StatusBadge label={`${product.preview_count} previews`} tone="warning" />
+                ) : null}
+                {product.download_count > 0 ? (
+                  <StatusBadge label={`${product.download_count} downloads`} tone="success" />
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-6 flex gap-3">

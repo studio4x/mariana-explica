@@ -16,7 +16,17 @@ import {
   DashboardProfile,
   DashboardSupport,
 } from "@/pages/dashboard"
-import { Admin, AdminOrders, AdminPayments, AdminProducts, AdminSupport, AdminUsers } from "@/pages/admin"
+import {
+  Admin,
+  AdminAffiliates,
+  AdminCoupons,
+  AdminNotifications,
+  AdminOrders,
+  AdminPayments,
+  AdminProducts,
+  AdminSupport,
+  AdminUsers,
+} from "@/pages/admin"
 import { ProtectedRoute, AdminRoute } from "@/components/common"
 
 export const router = createBrowserRouter(
@@ -112,6 +122,10 @@ export const router = createBrowserRouter(
           element: <AdminUsers />,
         },
         {
+          path: "notificacoes",
+          element: <AdminNotifications />,
+        },
+        {
           path: "produtos",
           element: <AdminProducts />,
         },
@@ -126,6 +140,14 @@ export const router = createBrowserRouter(
         {
           path: "pagamentos",
           element: <AdminPayments />,
+        },
+        {
+          path: "afiliados",
+          element: <AdminAffiliates />,
+        },
+        {
+          path: "cupons",
+          element: <AdminCoupons />,
         },
       ],
     },

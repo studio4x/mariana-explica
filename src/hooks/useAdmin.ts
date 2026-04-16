@@ -1,12 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   archiveAdminProduct,
+  createAdminAffiliate,
+  createAdminCoupon,
+  createAdminNotification,
   createAdminProduct,
   createAdminUser,
   deleteAdminUser,
+  fetchAdminAffiliateReferrals,
+  fetchAdminAffiliates,
   fetchAdminDashboardMetrics,
+  fetchAdminNotifications,
   fetchAdminOrders,
   fetchAdminProducts,
+  fetchAdminCoupons,
+  fetchAdminCouponUsages,
   fetchAdminSupportTicketMessages,
   fetchAdminSupportTickets,
   fetchAdminUsers,
@@ -16,6 +24,8 @@ import {
   publishAdminProduct,
   reconcileAdminOrder,
   replyAdminSupportTicket,
+  updateAdminAffiliate,
+  updateAdminCoupon,
   updateAdminProduct,
   updateAdminUser,
 } from "@/services"
@@ -45,6 +55,41 @@ export function useAdminOrders() {
   return useQuery({
     queryKey: ["admin", "orders"],
     queryFn: fetchAdminOrders,
+  })
+}
+
+export function useAdminNotifications() {
+  return useQuery({
+    queryKey: ["admin", "notifications"],
+    queryFn: fetchAdminNotifications,
+  })
+}
+
+export function useAdminAffiliates() {
+  return useQuery({
+    queryKey: ["admin", "affiliates"],
+    queryFn: fetchAdminAffiliates,
+  })
+}
+
+export function useAdminAffiliateReferrals() {
+  return useQuery({
+    queryKey: ["admin", "affiliate-referrals"],
+    queryFn: fetchAdminAffiliateReferrals,
+  })
+}
+
+export function useAdminCoupons() {
+  return useQuery({
+    queryKey: ["admin", "coupons"],
+    queryFn: fetchAdminCoupons,
+  })
+}
+
+export function useAdminCouponUsages() {
+  return useQuery({
+    queryKey: ["admin", "coupon-usages"],
+    queryFn: fetchAdminCouponUsages,
   })
 }
 
@@ -137,6 +182,31 @@ export function useMarkAdminOrderCancelled() {
 export function useReconcileAdminOrder() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: reconcileAdminOrder, onSuccess: invalidate })
+}
+
+export function useCreateAdminNotification() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminNotification, onSuccess: invalidate })
+}
+
+export function useCreateAdminAffiliate() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminAffiliate, onSuccess: invalidate })
+}
+
+export function useUpdateAdminAffiliate() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminAffiliate, onSuccess: invalidate })
+}
+
+export function useCreateAdminCoupon() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminCoupon, onSuccess: invalidate })
+}
+
+export function useUpdateAdminCoupon() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminCoupon, onSuccess: invalidate })
 }
 
 export function useReplyAdminSupportTicket() {

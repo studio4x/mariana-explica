@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, Bell, Download, FolderOpen, Sparkles } from "lucide-react"
+import { ArrowRight, Bell, Download, FolderOpen, LifeBuoy, Sparkles } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -30,8 +30,25 @@ export function Dashboard() {
 
   const products = data?.products ?? []
   const notifications = data?.recentNotifications ?? []
+  const unreadNotificationsCount = data?.unreadNotificationsCount ?? 0
+  const supportTickets = data?.supportTickets ?? []
   const downloads = downloadsQuery.data ?? []
   const nextProduct = products[0] ?? null
+  const openSupportTickets = supportTickets.filter((ticket) => ticket.status !== "closed").length
+  const attentionTicket = supportTickets.find(
+    (ticket) => ticket.priority === "high" || ticket.status === "open",
+  )
+  const continuitySteps = [
+    nextProduct
+      ? `Continuar ${nextProduct.title} com ${nextProduct.module_count} modulo${nextProduct.module_count === 1 ? "" : "s"} e ${nextProduct.asset_count} material${nextProduct.asset_count === 1 ? "" : "is"} disponive${nextProduct.asset_count === 1 ? "l" : "is"}.`
+      : null,
+    unreadNotificationsCount > 0
+      ? `Ler ${unreadNotificationsCount} notificacao${unreadNotificationsCount === 1 ? "" : "es"} ainda pendente${unreadNotificationsCount === 1 ? "" : "s"}.`
+      : null,
+    openSupportTickets > 0
+      ? `Acompanhar ${openSupportTickets} pedido${openSupportTickets === 1 ? "" : "s"} de suporte ainda em curso.`
+      : null,
+  ].filter((item): item is string => Boolean(item))
 
   return (
     <div className="space-y-6">
@@ -47,9 +64,9 @@ export function Dashboard() {
           <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que ja tens pronto para consultar no teu painel.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Notificacoes recentes</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{notifications.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Mensagens, avisos e atualizacoes ligadas ao teu acesso.</p>
+          <p className="text-sm font-medium text-slate-500">Notificacoes por ler</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{unreadNotificationsCount}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Avisos e atualizacoes que ainda merecem a tua atencao.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Downloads seguros</p>
@@ -57,10 +74,10 @@ export function Dashboard() {
           <p className="mt-2 text-sm leading-6 text-slate-600">Materiais protegidos prontos para abrir quando o grant permite.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
-          <p className="text-sm font-medium text-white/70">Conta</p>
-          <p className="mt-3 text-3xl font-bold">Pronta para estudar</p>
+          <p className="text-sm font-medium text-white/70">Suporte em curso</p>
+          <p className="mt-3 text-3xl font-bold">{openSupportTickets}</p>
           <p className="mt-2 text-sm leading-6 text-white/82">
-            O objetivo aqui e simples: abrir, encontrar o que interessa e continuar sem te perderes.
+            Mantem aqui a leitura das conversas em aberto para nao perderes respostas ou ajustes importantes.
           </p>
         </div>
       </div>
@@ -83,10 +100,16 @@ export function Dashboard() {
               <h3 className="mt-3 font-display text-3xl font-bold">{nextProduct.title}</h3>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">{getDashboardProductNote(nextProduct)}</p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <StatusBadge label="Ultimo acesso" tone="info" />
+                <StatusBadge label={`${nextProduct.module_count} modulos`} tone="info" />
+                <StatusBadge label={`${nextProduct.asset_count} materiais`} tone="success" />
                 <span className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/75">
                   Disponivel desde {formatDate(nextProduct.granted_at)}
                 </span>
+                {nextProduct.download_count > 0 ? (
+                  <span className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/75">
+                    {nextProduct.download_count} downloads protegidos
+                  </span>
+                ) : null}
               </div>
               <Button asChild variant="secondary" className="mt-6 rounded-full bg-white text-slate-950 hover:bg-white/90">
                 <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${nextProduct.id}`}>
@@ -114,6 +137,13 @@ export function Dashboard() {
                       <p className="mt-1 text-sm leading-6 text-slate-600">{getDashboardProductNote(product)}</p>
                     </div>
                     <StatusBadge label="Disponivel" tone="success" />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <StatusBadge label={`${product.module_count} modulos`} tone="info" />
+                    <StatusBadge label={`${product.asset_count} materiais`} tone="neutral" />
+                    {product.download_count > 0 ? (
+                      <StatusBadge label={`${product.download_count} downloads`} tone="success" />
+                    ) : null}
                   </div>
                   <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">
                     Disponivel desde {formatDate(product.granted_at)}
@@ -152,7 +182,39 @@ export function Dashboard() {
                   Ver notificacoes
                 </Link>
               </Button>
+              <Button asChild variant="outline" className="justify-start rounded-full">
+                <Link to={ROUTES.DASHBOARD_SUPPORT}>
+                  <LifeBuoy className="mr-2 h-4 w-4" />
+                  Acompanhar suporte
+                </Link>
+              </Button>
             </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+            <h2 className="font-display text-2xl font-bold text-slate-950">Proximos passos</h2>
+            {continuitySteps.length === 0 ? (
+              <p className="mt-4 text-sm leading-6 text-slate-600">
+                Assim que houver novos materiais, mensagens ou pedidos em curso, os proximos passos vao aparecer aqui.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {continuitySteps.map((step) => (
+                  <div key={step} className="rounded-2xl border bg-slate-50/70 p-4 text-sm leading-6 text-slate-700">
+                    {step}
+                  </div>
+                ))}
+              </div>
+            )}
+            {attentionTicket ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Suporte em destaque</p>
+                <p className="mt-2 font-medium text-slate-950">{attentionTicket.subject}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-700">
+                  Prioridade {attentionTicket.priority} com atualizacao em {formatDate(attentionTicket.updated_at)}.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">

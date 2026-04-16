@@ -7,6 +7,7 @@ import {
   TicketPercent,
   Users,
   CreditCard,
+  Bell,
 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 import { Navbar, StatusBadge } from "@/components/common"
@@ -17,15 +18,13 @@ import { ROUTES } from "@/lib/constants"
 const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
+  { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Produtos", icon: Package },
   { to: ROUTES.ADMIN_ORDERS, label: "Pedidos", icon: ShoppingCart },
   { to: ROUTES.ADMIN_SUPPORT, label: "Suporte", icon: LifeBuoy },
-]
-
-const futureModules = [
-  { label: "Afiliados", icon: Percent },
-  { label: "Cupons", icon: TicketPercent },
+  { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
+  { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
 ]
 
 export function AdminLayout() {
@@ -96,18 +95,6 @@ export function AdminLayout() {
                 </NavLink>
               ))}
             </nav>
-
-            <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Camada seguinte</p>
-              <div className="mt-3 grid gap-2">
-                {futureModules.map((item) => (
-                  <div key={item.label} className="flex items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            </div>
           </aside>
 
           <main className="min-w-0">

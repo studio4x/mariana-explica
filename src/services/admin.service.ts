@@ -2,8 +2,13 @@ import { supabase } from "@/integrations/supabase"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
+  AdminAffiliateReferralSummary,
+  AdminAffiliateSummary,
   AdminDashboardMetrics,
+  AdminNotificationSummary,
   AdminOrderSummary,
+  AdminCouponSummary,
+  AdminCouponUsageSummary,
   AdminSupportTicketSummary,
   AdminUserSummary,
   SupportTicketMessage,
@@ -104,6 +109,71 @@ export async function fetchAdminSupportTickets() {
   }
 
   return (data ?? []) as AdminSupportTicketSummary[]
+}
+
+export async function fetchAdminNotifications() {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id,user_id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminNotificationSummary[]
+}
+
+export async function fetchAdminAffiliates() {
+  const { data, error } = await supabase
+    .from("affiliates")
+    .select("id,user_id,affiliate_code,status,commission_type,commission_value,created_at,updated_at")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminAffiliateSummary[]
+}
+
+export async function fetchAdminAffiliateReferrals() {
+  const { data, error } = await supabase
+    .from("affiliate_referrals")
+    .select("id,affiliate_id,user_id,product_id,order_id,referral_code,status,commission_cents,tracked_at,converted_at,created_at")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminAffiliateReferralSummary[]
+}
+
+export async function fetchAdminCoupons() {
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("id,code,title,discount_type,discount_value,status,starts_at,expires_at,max_uses,max_uses_per_user,current_uses,minimum_order_cents,created_at,updated_at")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminCouponSummary[]
+}
+
+export async function fetchAdminCouponUsages() {
+  const { data, error } = await supabase
+    .from("coupon_usages")
+    .select("id,coupon_id,user_id,order_id,discount_cents,used_at")
+    .order("used_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminCouponUsageSummary[]
 }
 
 export async function fetchAdminSupportTicketMessages(ticketId: string) {
@@ -250,4 +320,82 @@ export function replyAdminSupportTicket(input: {
   priority?: AdminSupportTicketSummary["priority"]
 }) {
   return invokeAdminFunction<{ success: true; message: SupportTicketMessage }>("support-ticket-reply", input)
+}
+
+export function createAdminNotification(input: {
+  audience: "single" | "role" | "all"
+  userId?: string
+  role?: AdminUserSummary["role"]
+  status?: AdminUserSummary["status"]
+  type: AdminNotificationSummary["type"]
+  title: string
+  message: string
+  link?: string | null
+  sentViaEmail?: boolean
+  sentViaInApp?: boolean
+}) {
+  return invokeAdminFunction<{ success: true; inserted_count: number }>("admin-notifications", input)
+}
+
+export function createAdminAffiliate(input: {
+  userId: string
+  affiliateCode: string
+  commissionType: AdminAffiliateSummary["commission_type"]
+  commissionValue: number
+  status?: AdminAffiliateSummary["status"]
+}) {
+  return invokeAdminFunction<{ success: true; affiliate: AdminAffiliateSummary }>("admin-affiliates", {
+    action: "create",
+    ...input,
+  })
+}
+
+export function updateAdminAffiliate(input: {
+  affiliateId: string
+  affiliateCode?: string
+  commissionType?: AdminAffiliateSummary["commission_type"]
+  commissionValue?: number
+  status?: AdminAffiliateSummary["status"]
+}) {
+  return invokeAdminFunction<{ success: true; affiliate: AdminAffiliateSummary }>("admin-affiliates", {
+    action: "update",
+    ...input,
+  })
+}
+
+export function createAdminCoupon(input: {
+  code: string
+  title?: string | null
+  discountType: AdminCouponSummary["discount_type"]
+  discountValue: number
+  status?: AdminCouponSummary["status"]
+  startsAt?: string | null
+  expiresAt?: string | null
+  maxUses?: number | null
+  maxUsesPerUser?: number | null
+  minimumOrderCents?: number | null
+}) {
+  return invokeAdminFunction<{ success: true; coupon: AdminCouponSummary }>("admin-coupons", {
+    action: "create",
+    ...input,
+  })
+}
+
+export function updateAdminCoupon(input: {
+  couponId: string
+  code?: string
+  title?: string | null
+  discountType?: AdminCouponSummary["discount_type"]
+  discountValue?: number
+  status?: AdminCouponSummary["status"]
+  startsAt?: string | null
+  expiresAt?: string | null
+  maxUses?: number | null
+  maxUsesPerUser?: number | null
+  minimumOrderCents?: number | null
+}) {
+  return invokeAdminFunction<{ success: true; coupon: AdminCouponSummary }>("admin-coupons", {
+    action: "update",
+    ...input,
+  })
 }

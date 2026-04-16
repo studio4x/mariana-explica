@@ -16,6 +16,10 @@ export interface DashboardProductSummary extends ProductSummary {
   grant_id: string
   granted_at: string
   expires_at: string | null
+  module_count: number
+  asset_count: number
+  preview_count: number
+  download_count: number
 }
 
 export interface ProductModuleSummary {
@@ -83,6 +87,8 @@ export interface SupportTicketMessage {
 export interface DashboardOverviewData {
   products: DashboardProductSummary[]
   recentNotifications: NotificationItem[]
+  unreadNotificationsCount: number
+  supportTickets: SupportTicketSummary[]
 }
 
 export interface ProfilePreferences {
@@ -136,4 +142,59 @@ export interface AdminDashboardMetrics {
 
 export interface AdminSupportTicketSummary extends SupportTicketSummary {
   user_id: string
+}
+
+export interface AdminNotificationSummary extends NotificationItem {
+  user_id: string
+}
+
+export interface AdminAffiliateSummary {
+  id: string
+  user_id: string
+  affiliate_code: string
+  status: "active" | "inactive" | "blocked"
+  commission_type: "percentage" | "fixed"
+  commission_value: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminAffiliateReferralSummary {
+  id: string
+  affiliate_id: string
+  user_id: string | null
+  product_id: string | null
+  order_id: string | null
+  referral_code: string
+  status: "tracked" | "converted" | "cancelled" | "invalid"
+  commission_cents: number
+  tracked_at: string
+  converted_at: string | null
+  created_at: string
+}
+
+export interface AdminCouponSummary {
+  id: string
+  code: string
+  title: string | null
+  discount_type: "percentage" | "fixed"
+  discount_value: number
+  status: "active" | "inactive" | "expired"
+  starts_at: string | null
+  expires_at: string | null
+  max_uses: number | null
+  max_uses_per_user: number | null
+  current_uses: number
+  minimum_order_cents: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminCouponUsageSummary {
+  id: string
+  coupon_id: string
+  user_id: string
+  order_id: string
+  discount_cents: number
+  used_at: string
 }

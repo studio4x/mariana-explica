@@ -32,6 +32,39 @@ async function fetchProductsByIds(productIds: string[]) {
   return (data ?? []) as ProductSummary[]
 }
 
+async function fetchModulesByProductIds(productIds: string[]) {
+  if (productIds.length === 0) {
+    return [] as ProductModuleSummary[]
+  }
+
+  const { data, error } = await supabase
+    .from("product_modules")
+    .select("id,product_id,title,description,module_type,access_type,sort_order,is_preview,status")
+    .in("product_id", productIds)
+    .order("sort_order", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ProductModuleSummary[]
+}
+
+async function fetchUnreadNotificationsCount() {
+  const response = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "unread")
+
+  const error = "error" in response ? response.error : null
+  if (error) {
+    throw error
+  }
+
+  const rawCount = "count" in response ? response.count : 0
+  return Number(rawCount ?? 0)
+}
+
 export async function fetchMyAccessGrants() {
   const { data, error } = await supabase
     .from("access_grants")
@@ -70,31 +103,59 @@ export async function fetchMyAccessGrants() {
 
 export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
   const grants = await fetchMyAccessGrants()
-  const products = await fetchProductsByIds(grants.map((grant) => grant.product_id))
+  const productIds = grants.map((grant) => grant.product_id)
+  const [products, modules] = await Promise.all([
+    fetchProductsByIds(productIds),
+    fetchModulesByProductIds(productIds),
+  ])
+  const assets = await fetchModuleAssets(modules.map((module) => module.id))
   const productMap = new Map(products.map((product) => [product.id, product]))
+  const modulesByProduct = new Map<string, ProductModuleSummary[]>()
+  const assetsByModule = new Map<string, ModuleAssetSummary[]>()
+
+  for (const module of modules) {
+    const list = modulesByProduct.get(module.product_id) ?? []
+    list.push(module)
+    modulesByProduct.set(module.product_id, list)
+  }
+
+  for (const asset of assets) {
+    const list = assetsByModule.get(asset.module_id) ?? []
+    list.push(asset)
+    assetsByModule.set(asset.module_id, list)
+  }
 
   return grants
     .map((grant) => {
       const product = productMap.get(grant.product_id)
       if (!product) return null
 
+      const productModules = modulesByProduct.get(product.id) ?? []
+      const productAssets = productModules.flatMap((module) => assetsByModule.get(module.id) ?? [])
+
       return {
         ...product,
         grant_id: grant.id,
         granted_at: grant.granted_at,
         expires_at: grant.expires_at,
+        module_count: productModules.length,
+        asset_count: productAssets.length,
+        preview_count: productModules.filter((module) => module.is_preview).length,
+        download_count: productAssets.filter((asset) => asset.allow_download).length,
       }
     })
     .filter((item): item is DashboardProductSummary => Boolean(item))
 }
 
 export async function fetchDashboardOverview(): Promise<DashboardOverviewData> {
-  const [products, recentNotifications] = await Promise.all([
+  const [products, recentNotifications, unreadNotificationsCount, supportTickets] = await Promise.all([
     fetchMyProducts(),
     fetchNotifications(4),
+    fetchUnreadNotificationsCount(),
+    fetchSupportTickets(),
   ])
 
-  return { products, recentNotifications }
+  return { products, recentNotifications, unreadNotificationsCount, supportTickets }
 }
 
 export async function fetchProductModules(productId: string) {

@@ -20,10 +20,13 @@ export const ROUTES = {
   DASHBOARD_PROFILE: "/dashboard/perfil",
   ADMIN: "/admin",
   ADMIN_PAYMENTS: "/admin/pagamentos",
+  ADMIN_NOTIFICATIONS: "/admin/notificacoes",
   ADMIN_USERS: "/admin/usuarios",
   ADMIN_PRODUCTS: "/admin/produtos",
   ADMIN_ORDERS: "/admin/pedidos",
   ADMIN_SUPPORT: "/admin/suporte",
+  ADMIN_AFFILIATES: "/admin/afiliados",
+  ADMIN_COUPONS: "/admin/cupons",
 } as const
 
 // API
