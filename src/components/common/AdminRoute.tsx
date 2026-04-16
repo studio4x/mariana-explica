@@ -10,8 +10,12 @@ export function AdminRoute({ children }: AdminRouteProps) {
   const { session, profile, loading } = useAuth()
   const location = useLocation()
 
-  if (loading) {
+  if (loading && !session) {
     return <div className="p-8 text-center">Validando acesso administrativo...</div>
+  }
+
+  if (loading && session) {
+    return <>{children}</>
   }
 
   if (!session) {
