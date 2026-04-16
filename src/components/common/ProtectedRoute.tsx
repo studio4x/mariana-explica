@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, isAdmin } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -20,6 +20,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!profile) {
     return <Navigate to={ROUTES.LOGIN} replace />
+  }
+
+  if (isAdmin) {
+    return <Navigate to={ROUTES.ADMIN} replace />
   }
 
   if (profile.status !== "active") {

@@ -15,7 +15,7 @@ export function Navbar() {
     () =>
       [
         { to: ROUTES.PRODUCTS, label: "Produtos" },
-        isAuthenticated ? { to: ROUTES.DASHBOARD, label: "Area do aluno" } : null,
+        isAuthenticated && !isAdmin ? { to: ROUTES.DASHBOARD, label: "Area do aluno" } : null,
         isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
       ].filter(Boolean) as Array<{ to: string; label: string }>,
     [isAdmin, isAuthenticated],
@@ -76,19 +76,20 @@ export function Navbar() {
           ) : (
             <>
               {isAdmin ? (
-                <Button asChild variant="outline" size="sm" className="rounded-full">
+                <Button asChild size="sm" className="rounded-full">
                   <Link to={ROUTES.ADMIN}>
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     Operacao
                   </Link>
                 </Button>
-              ) : null}
-              <Button asChild variant="ghost" size="sm" className="rounded-full">
-                <Link to={ROUTES.DASHBOARD}>
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Continuar estudando
-                </Link>
-              </Button>
+              ) : (
+                <Button asChild variant="ghost" size="sm" className="rounded-full">
+                  <Link to={ROUTES.DASHBOARD}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Continuar estudando
+                  </Link>
+                </Button>
+              )}
               <Button onClick={() => void signOut()} variant="secondary" size="sm" className="rounded-full">
                 Sair
               </Button>
@@ -152,17 +153,18 @@ export function Navbar() {
               ) : (
                 <>
                   {isAdmin ? (
-                    <Button asChild variant="outline" className="w-full rounded-full">
+                    <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.ADMIN} onClick={closeMenu}>
                         Painel admin
                       </Link>
                     </Button>
-                  ) : null}
-                  <Button asChild className="w-full rounded-full">
-                    <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
-                      Dashboard
-                    </Link>
-                  </Button>
+                  ) : (
+                    <Button asChild className="w-full rounded-full">
+                      <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
+                        Dashboard
+                      </Link>
+                    </Button>
+                  )}
                   <Button onClick={() => void signOut()} variant="secondary" className="w-full rounded-full">
                     Sair
                   </Button>

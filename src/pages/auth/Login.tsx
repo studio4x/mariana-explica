@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth"
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isAdmin } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -16,11 +16,13 @@ export function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(ROUTES.DASHBOARD, { replace: true })
+      navigate(isAdmin ? ROUTES.ADMIN : ROUTES.DASHBOARD, { replace: true })
     }
-  }, [isAuthenticated, navigate])
+  }, [isAdmin, isAuthenticated, navigate])
 
-  const redirectPath = (location.state as { from?: { pathname: string } })?.from?.pathname || ROUTES.DASHBOARD
+  const redirectPath =
+    (location.state as { from?: { pathname: string } })?.from?.pathname ||
+    (isAdmin ? ROUTES.ADMIN : ROUTES.DASHBOARD)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -39,7 +41,7 @@ export function Login() {
       return
     }
 
-    navigate(redirectPath, { replace: true })
+    navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
   }
 
   return (
