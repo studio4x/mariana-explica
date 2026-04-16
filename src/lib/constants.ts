@@ -11,6 +11,7 @@ export const ROUTES = {
   CHECKOUT: "/checkout",
   LOGIN: "/login",
   REGISTER: "/register",
+  AUTH_CALLBACK: "/auth/callback",
   DASHBOARD: "/dashboard",
   DASHBOARD_PRODUCTS: "/dashboard/produtos",
   DASHBOARD_PRODUCT: "/dashboard/produto",

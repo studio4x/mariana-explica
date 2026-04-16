@@ -6,7 +6,7 @@ import {
   AuthLayout,
 } from "@/layouts"
 import { Home, Products, Product, Checkout } from "@/pages/public"
-import { Login, Register } from "@/pages/auth"
+import { AuthCallback, Login, Register } from "@/pages/auth"
 import {
   Dashboard,
   DashboardDownloads,
@@ -64,6 +64,10 @@ export const router = createBrowserRouter(
         {
           path: "register",
           element: <Register />,
+        },
+        {
+          path: "auth/callback",
+          element: <AuthCallback />,
         },
       ],
     },

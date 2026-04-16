@@ -64,6 +64,7 @@ export function Login() {
           <input
             id="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="seu@email.com"
@@ -78,6 +79,7 @@ export function Login() {
           <input
             id="password"
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="********"

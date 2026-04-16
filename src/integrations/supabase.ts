@@ -37,6 +37,8 @@ type SupabaseLike = {
     signOut: () => Promise<{ error: null }>
     signInWithPassword: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
     signUp: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
+    exchangeCodeForSession: (code: string) => Promise<{ data: unknown; error: Error | null }>
+    verifyOtp: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
   }
   from: (_table: string) => NoopQueryBuilder
   functions: {
@@ -81,8 +83,8 @@ function createNoopQueryBuilder(): NoopQueryBuilder {
       void args
       return builder
     },
-    maybeSingle: async () => ({ data: null, error: new Error("Supabase não configurado") }),
-    single: async () => ({ data: null, error: new Error("Supabase não configurado") }),
+    maybeSingle: async () => ({ data: null, error: new Error("Supabase nao configurado") }),
+    single: async () => ({ data: null, error: new Error("Supabase nao configurado") }),
     then(onfulfilled, onrejected) {
       return Promise.resolve({ data: [], error: null }).then(onfulfilled, onrejected)
     },
@@ -108,18 +110,26 @@ function createNoopSupabaseClient() {
       signOut: async () => ({ error: null }),
       signInWithPassword: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase não configurado"),
+        error: new Error("Supabase nao configurado"),
       }),
       signUp: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase não configurado"),
+        error: new Error("Supabase nao configurado"),
+      }),
+      exchangeCodeForSession: async () => ({
+        data: { session: null, user: null },
+        error: new Error("Supabase nao configurado"),
+      }),
+      verifyOtp: async () => ({
+        data: { session: null, user: null },
+        error: new Error("Supabase nao configurado"),
       }),
     },
     from: () => queryBuilder,
     functions: {
       invoke: async () => ({
         data: null,
-        error: new Error("Supabase não configurado"),
+        error: new Error("Supabase nao configurado"),
       }),
     },
   }
