@@ -9,6 +9,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vite.dev/config/
 const base = process.env.VITE_BASE_URL || "/"
 const buildVersion = (() => {
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)
+  }
+
   try {
     return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim()
   } catch {
