@@ -32,10 +32,22 @@ import {
   updateAdminUser,
 } from "@/services"
 
+const ADMIN_QUERY_STALE_TIME = 60_000
+const ADMIN_QUERY_GC_TIME = 15 * 60_000
+
+function getAdminQueryOptions() {
+  return {
+    staleTime: ADMIN_QUERY_STALE_TIME,
+    gcTime: ADMIN_QUERY_GC_TIME,
+    refetchOnMount: false as const,
+  }
+}
+
 export function useAdminDashboardMetrics() {
   return useQuery({
     queryKey: ["admin", "metrics"],
     queryFn: fetchAdminDashboardMetrics,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -43,6 +55,7 @@ export function useAdminUsers() {
   return useQuery({
     queryKey: ["admin", "users"],
     queryFn: fetchAdminUsers,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -50,6 +63,7 @@ export function useAdminProducts() {
   return useQuery({
     queryKey: ["admin", "products"],
     queryFn: fetchAdminProducts,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -57,6 +71,7 @@ export function useAdminOrders() {
   return useQuery({
     queryKey: ["admin", "orders"],
     queryFn: fetchAdminOrders,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -64,6 +79,7 @@ export function useAdminNotifications() {
   return useQuery({
     queryKey: ["admin", "notifications"],
     queryFn: fetchAdminNotifications,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -71,6 +87,7 @@ export function useAdminOperations() {
   return useQuery({
     queryKey: ["admin", "operations"],
     queryFn: fetchAdminOperations,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -78,6 +95,7 @@ export function useAdminAffiliates() {
   return useQuery({
     queryKey: ["admin", "affiliates"],
     queryFn: fetchAdminAffiliates,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -85,6 +103,7 @@ export function useAdminAffiliateReferrals() {
   return useQuery({
     queryKey: ["admin", "affiliate-referrals"],
     queryFn: fetchAdminAffiliateReferrals,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -92,6 +111,7 @@ export function useAdminCoupons() {
   return useQuery({
     queryKey: ["admin", "coupons"],
     queryFn: fetchAdminCoupons,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -99,6 +119,7 @@ export function useAdminCouponUsages() {
   return useQuery({
     queryKey: ["admin", "coupon-usages"],
     queryFn: fetchAdminCouponUsages,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -106,6 +127,7 @@ export function useAdminSupportTickets() {
   return useQuery({
     queryKey: ["admin", "support", "tickets"],
     queryFn: fetchAdminSupportTickets,
+    ...getAdminQueryOptions(),
   })
 }
 
@@ -114,6 +136,7 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
     queryKey: ["admin", "support", "messages", ticketId],
     queryFn: () => fetchAdminSupportTicketMessages(ticketId ?? ""),
     enabled: Boolean(ticketId),
+    ...getAdminQueryOptions(),
   })
 }
 

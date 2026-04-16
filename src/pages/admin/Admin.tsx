@@ -1,15 +1,16 @@
+import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
 import {
-  useAdminDashboardMetrics,
   useAdminNotifications,
   useAdminOperations,
   useAdminOrders,
   useAdminProducts,
   useAdminSupportTickets,
+  useAdminUsers,
 } from "@/hooks/useAdmin"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
@@ -61,15 +62,26 @@ function AdminOverviewSkeleton() {
 }
 
 export function Admin() {
-  const metricsQuery = useAdminDashboardMetrics()
+  const usersQuery = useAdminUsers()
   const ordersQuery = useAdminOrders()
   const productsQuery = useAdminProducts()
   const supportQuery = useAdminSupportTickets()
   const notificationsQuery = useAdminNotifications()
   const operationsQuery = useAdminOperations()
+  const metrics = useMemo(
+    () => ({
+      totalUsers: (usersQuery.data ?? []).length,
+      totalPublishedProducts: (productsQuery.data ?? []).filter((product) => product.status === "published").length,
+      totalPaidOrders: (ordersQuery.data ?? []).filter((order) => order.status === "paid").length,
+      revenueCents: (ordersQuery.data ?? [])
+        .filter((order) => order.status === "paid")
+        .reduce((sum, order) => sum + order.final_price_cents, 0),
+    }),
+    [ordersQuery.data, productsQuery.data, usersQuery.data],
+  )
 
   if (
-    metricsQuery.isLoading ||
+    usersQuery.isLoading ||
     ordersQuery.isLoading ||
     productsQuery.isLoading ||
     supportQuery.isLoading ||
@@ -80,7 +92,7 @@ export function Admin() {
   }
 
   if (
-    metricsQuery.isError ||
+    usersQuery.isError ||
     ordersQuery.isError ||
     productsQuery.isError ||
     supportQuery.isError ||
@@ -91,7 +103,7 @@ export function Admin() {
       <ErrorState
         title="Nao foi possivel carregar o admin"
         message={
-          (metricsQuery.error instanceof Error && metricsQuery.error.message) ||
+          (usersQuery.error instanceof Error && usersQuery.error.message) ||
           (ordersQuery.error instanceof Error && ordersQuery.error.message) ||
           (productsQuery.error instanceof Error && productsQuery.error.message) ||
           (supportQuery.error instanceof Error && supportQuery.error.message) ||
@@ -100,24 +112,13 @@ export function Admin() {
           "Tenta novamente dentro de instantes."
         }
         onRetry={() => {
-          void metricsQuery.refetch()
+          void usersQuery.refetch()
           void ordersQuery.refetch()
           void productsQuery.refetch()
           void supportQuery.refetch()
           void notificationsQuery.refetch()
           void operationsQuery.refetch()
         }}
-      />
-    )
-  }
-
-  const metrics = metricsQuery.data
-
-  if (!metrics) {
-    return (
-      <EmptyState
-        title="Sem dados operacionais"
-        message="Assim que houver movimentacao, os indicadores vao aparecer aqui."
       />
     )
   }

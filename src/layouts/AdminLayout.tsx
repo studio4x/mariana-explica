@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   Activity,
   LayoutDashboard,
@@ -15,6 +17,14 @@ import { Navbar, StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
+import {
+  fetchAdminNotifications,
+  fetchAdminOperations,
+  fetchAdminOrders,
+  fetchAdminProducts,
+  fetchAdminSupportTickets,
+  fetchAdminUsers,
+} from "@/services"
 
 const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
@@ -30,6 +40,41 @@ const items = [
 ]
 
 export function AdminLayout() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "users"],
+      queryFn: fetchAdminUsers,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "products"],
+      queryFn: fetchAdminProducts,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "orders"],
+      queryFn: fetchAdminOrders,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "notifications"],
+      queryFn: fetchAdminNotifications,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "support", "tickets"],
+      queryFn: fetchAdminSupportTickets,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "operations"],
+      queryFn: fetchAdminOperations,
+      staleTime: 60_000,
+    })
+  }, [queryClient])
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_50%,#ffffff_100%)]">
       <Navbar />
