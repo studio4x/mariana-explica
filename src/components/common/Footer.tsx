@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
 import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
 
 export function Footer() {
+  const { isAdmin } = useAuth()
+
   return (
     <footer className="border-t border-white/60 bg-[linear-gradient(180deg,#f5fbfd_0%,#eef7fb_100%)]">
       <div className="container grid gap-8 py-12 lg:grid-cols-[1.1fr_0.9fr]">
@@ -28,7 +31,9 @@ export function Footer() {
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Conta</p>
             <div className="mt-4 grid gap-3 text-sm text-slate-600">
               <Link to={ROUTES.LOGIN} className="hover:text-slate-950">Entrar</Link>
-              <Link to={ROUTES.DASHBOARD} className="hover:text-slate-950">Area do aluno</Link>
+              {!isAdmin ? (
+                <Link to={ROUTES.DASHBOARD} className="hover:text-slate-950">Area do aluno</Link>
+              ) : null}
               <Link to={ROUTES.ADMIN} className="hover:text-slate-950">Admin</Link>
             </div>
           </div>
