@@ -8,7 +8,9 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  buildManualNotificationEmail,
   extractRequestAuditContext,
+  queueEmailDelivery,
   requireAdmin,
   writeAuditLog,
 } from "../_shared/mod.ts"
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
 
     let query = context.serviceClient
       .from("profiles")
-      .select("id,role,status")
+      .select("id,full_name,email,role,status")
 
     if (body.audience === "single") {
       if (!body.userId) {
@@ -90,12 +92,44 @@ Deno.serve(async (req) => {
       sent_via_in_app: body.sentViaInApp ?? true,
     }))
 
-    const { error: insertError } = await context.serviceClient
+    const { data: notifications, error: insertError } = await context.serviceClient
       .from("notifications")
       .insert(payload)
+      .select("id,user_id")
 
     if (insertError) {
       throw insertError
+    }
+
+    if (body.sentViaEmail) {
+      const notificationMap = new Map((notifications ?? []).map((notification) => [notification.user_id, notification.id]))
+
+      for (const recipient of recipients) {
+        if (!recipient.email) {
+          continue
+        }
+
+        const email = buildManualNotificationEmail({
+          fullName: recipient.full_name,
+          title: body.title.trim(),
+          message: body.message.trim(),
+          ctaUrl: body.link?.trim() || "/dashboard/notificacoes",
+        })
+
+        await queueEmailDelivery(context.serviceClient, {
+          userId: recipient.id,
+          notificationId: notificationMap.get(recipient.id) ?? null,
+          emailTo: recipient.email,
+          templateKey: "manual_notification",
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+          metadata: {
+            audience: body.audience,
+            type: body.type,
+          },
+        })
+      }
     }
 
     await writeAuditLog(context.serviceClient, context, {

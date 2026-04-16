@@ -8,7 +8,9 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  buildSupportTicketCreatedEmail,
   extractRequestAuditContext,
+  queueEmailDelivery,
   requireActiveUser,
   writeAuditLog,
 } from "../_shared/mod.ts"
@@ -51,6 +53,26 @@ Deno.serve(async (req) => {
 
     if (error) {
       throw error
+    }
+
+    if (context.profile.email) {
+      const email = buildSupportTicketCreatedEmail({
+        fullName: context.profile.full_name,
+        subject,
+        supportUrl: "/dashboard/suporte",
+      })
+
+      await queueEmailDelivery(context.serviceClient, {
+        userId: context.user.id,
+        emailTo: context.profile.email,
+        templateKey: "support_ticket_created",
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+        metadata: {
+          ticket_id: ticket.id,
+        },
+      })
     }
 
     await writeAuditLog(context.serviceClient, context, {

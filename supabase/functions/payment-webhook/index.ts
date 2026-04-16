@@ -1,9 +1,11 @@
 import {
+  buildPurchaseConfirmedEmail,
   calculateAffiliateCommission,
   ensureActiveGrant,
   extractRequestAuditContext,
   findOrderForCheckoutSession,
   markOrderFailed,
+  queueEmailDelivery,
   recordAffiliateReferral,
   recordCouponUsage,
   updateOrderAfterPayment,
@@ -134,16 +136,66 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
     }
   }
 
-  await client.from("notifications").insert({
-    user_id: paidOrder.user_id,
-    type: "transactional",
-    title: "Pagamento confirmado",
-    message: "Seu acesso foi liberado com sucesso.",
-    link: "/dashboard",
-    status: "unread",
-    sent_via_email: false,
-    sent_via_in_app: true,
-  })
+  const { data: profile, error: profileError } = await client
+    .from("profiles")
+    .select("id,full_name,email")
+    .eq("id", paidOrder.user_id)
+    .maybeSingle()
+
+  if (profileError) {
+    throw profileError
+  }
+
+  const { data: product, error: productError } = await client
+    .from("products")
+    .select("title")
+    .eq("id", paidOrder.product_id)
+    .maybeSingle()
+
+  if (productError) {
+    throw productError
+  }
+
+  const { data: notification, error: notificationError } = await client
+    .from("notifications")
+    .insert({
+      user_id: paidOrder.user_id,
+      type: "transactional",
+      title: "Pagamento confirmado",
+      message: "O teu acesso foi liberado com sucesso.",
+      link: "/dashboard",
+      status: "unread",
+      sent_via_email: Boolean(profile?.email),
+      sent_via_in_app: true,
+    })
+    .select("id")
+    .single()
+
+  if (notificationError) {
+    throw notificationError
+  }
+
+  if (profile?.email) {
+    const email = buildPurchaseConfirmedEmail({
+      fullName: profile.full_name,
+      productTitle: product?.title ?? "o teu produto",
+      dashboardUrl: "/dashboard",
+    })
+
+    await queueEmailDelivery(client, {
+      userId: paidOrder.user_id,
+      notificationId: notification.id,
+      emailTo: profile.email,
+      templateKey: "purchase_confirmed",
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      metadata: {
+        order_id: paidOrder.id,
+        product_id: paidOrder.product_id,
+      },
+    })
+  }
 
   logInfo("Payment confirmed", {
     request_id: requestId,

@@ -1,11 +1,13 @@
 import {
   assertPaidProduct,
+  buildFreeProductClaimedEmail,
   calculateOrderTotals,
   createOrderWithItems,
   ensureActiveGrant,
   extractRequestAuditContext,
   findActiveGrantForProduct,
   getProductByIdentifier,
+  queueEmailDelivery,
   writeAuditLog,
 } from "../_shared/mod.ts"
 import { badRequest, internalError, unprocessable } from "../_shared/errors.ts"
@@ -76,6 +78,47 @@ Deno.serve(async (req) => {
       sourceType: "free_claim",
       sourceOrderId: order.id,
     })
+
+    const { data: notification, error: notificationError } = await context.serviceClient
+      .from("notifications")
+      .insert({
+        user_id: context.user.id,
+        type: "transactional",
+        title: "Produto gratuito ativado",
+        message: `O produto "${product.title}" ja esta disponivel no teu dashboard.`,
+        link: "/dashboard/produtos",
+        status: "unread",
+        sent_via_email: Boolean(context.profile.email),
+        sent_via_in_app: true,
+      })
+      .select("id")
+      .single()
+
+    if (notificationError) {
+      throw notificationError
+    }
+
+    if (context.profile.email) {
+      const email = buildFreeProductClaimedEmail({
+        fullName: context.profile.full_name,
+        productTitle: product.title,
+        dashboardUrl: "/dashboard/produtos",
+      })
+
+      await queueEmailDelivery(context.serviceClient, {
+        userId: context.user.id,
+        notificationId: notification.id,
+        emailTo: context.profile.email,
+        templateKey: "free_product_claimed",
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+        metadata: {
+          order_id: order.id,
+          product_id: product.id,
+        },
+      })
+    }
 
     logInfo("Free product claimed", {
       request_id: requestId,

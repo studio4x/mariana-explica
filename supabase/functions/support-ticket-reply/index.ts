@@ -8,7 +8,9 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  buildSupportTicketRepliedEmail,
   extractRequestAuditContext,
+  queueEmailDelivery,
   requireActiveUser,
   writeAuditLog,
 } from "../_shared/mod.ts"
@@ -40,7 +42,7 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await context.serviceClient
       .from("support_tickets")
-      .select("id,user_id,status,priority")
+      .select("id,user_id,subject,status,priority")
       .eq("id", body.ticketId)
       .maybeSingle()
 
@@ -97,16 +99,53 @@ Deno.serve(async (req) => {
     }
 
     if (context.profile.is_admin) {
-      await context.serviceClient.from("notifications").insert({
+      const { data: userProfile, error: userProfileError } = await context.serviceClient
+        .from("profiles")
+        .select("id,full_name,email")
+        .eq("id", ticket.user_id)
+        .maybeSingle()
+
+      if (userProfileError) {
+        throw userProfileError
+      }
+
+      const { data: notification, error: notificationError } = await context.serviceClient.from("notifications").insert({
         user_id: ticket.user_id,
         type: "support",
-        title: "Suporte respondeu o seu ticket",
+        title: "O suporte respondeu ao teu ticket",
         message: body.message.trim().slice(0, 180),
         link: "/dashboard/suporte",
         status: "unread",
-        sent_via_email: false,
+        sent_via_email: Boolean(userProfile?.email),
         sent_via_in_app: true,
-      })
+      }).select("id").single()
+
+      if (notificationError) {
+        throw notificationError
+      }
+
+      if (userProfile?.email) {
+        const email = buildSupportTicketRepliedEmail({
+          fullName: userProfile.full_name,
+          subject: ticket.subject,
+          messagePreview: body.message.trim().slice(0, 180),
+          supportUrl: "/dashboard/suporte",
+        })
+
+        await queueEmailDelivery(context.serviceClient, {
+          userId: ticket.user_id,
+          notificationId: notification.id,
+          emailTo: userProfile.email,
+          templateKey: "support_ticket_replied",
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+          metadata: {
+            ticket_id: ticket.id,
+            message_id: message.id,
+          },
+        })
+      }
     }
 
     await writeAuditLog(context.serviceClient, context, {
