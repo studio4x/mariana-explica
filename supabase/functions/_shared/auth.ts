@@ -1,6 +1,6 @@
 import type { User } from "npm:@supabase/supabase-js@2"
 import { forbidden, notFound, unauthorized } from "./errors.ts"
-import { getBearerToken } from "./http.ts"
+import { getAccessToken } from "./http.ts"
 import { createServiceClient, createUserClient } from "./supabase.ts"
 
 export interface UserProfile {
@@ -38,7 +38,7 @@ async function fetchProfile(serviceClient: ReturnType<typeof createServiceClient
 }
 
 export async function requireAuth(req: Request): Promise<AuthContext> {
-  const token = getBearerToken(req)
+  const token = await getAccessToken(req)
   if (!token) {
     throw unauthorized("Token de acesso ausente")
   }
@@ -61,7 +61,7 @@ export async function requireAuth(req: Request): Promise<AuthContext> {
 }
 
 export async function getOptionalAuth(req: Request): Promise<AuthContext | null> {
-  const token = getBearerToken(req)
+  const token = await getAccessToken(req)
   if (!token) {
     return null
   }

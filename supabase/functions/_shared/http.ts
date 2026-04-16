@@ -73,6 +73,24 @@ export function getBearerToken(req: Request) {
   return token.trim()
 }
 
+export async function getAccessToken(req: Request) {
+  const headerToken = getBearerToken(req)
+  if (headerToken) {
+    return headerToken
+  }
+
+  try {
+    const body = (await req.clone().json()) as { access_token?: unknown } | null
+    if (body && typeof body.access_token === "string" && body.access_token.trim()) {
+      return body.access_token.trim()
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 export function getRequestId(req: Request) {
   return req.headers.get("x-request-id") || crypto.randomUUID()
 }

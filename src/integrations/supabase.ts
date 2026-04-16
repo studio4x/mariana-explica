@@ -24,6 +24,7 @@ interface NoopQueryBuilder {
 type SupabaseLike = {
   auth: {
     getSession: () => Promise<{ data: { session: Session | null }; error: null }>
+    refreshSession: () => Promise<{ data: { session: Session | null }; error: Error | null }>
     onAuthStateChange: (
       callback: (event: string, session: Session | null) => void | Promise<void>,
     ) => {
@@ -96,6 +97,7 @@ function createNoopSupabaseClient() {
   return {
     auth: {
       getSession: async () => ({ data: { session: null }, error: null }),
+      refreshSession: async () => ({ data: { session: null }, error: null }),
       onAuthStateChange: () => ({
         data: {
           subscription: {
