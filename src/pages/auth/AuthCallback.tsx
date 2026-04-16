@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import type { EmailOtpType } from "@supabase/supabase-js"
 import { Button } from "@/components/ui"
+import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
@@ -19,6 +20,22 @@ const supportedOtpTypes = new Set<EmailOtpType>([
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function getAuthCallbackParams(searchParams: URLSearchParams) {
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+
+  const read = (key: string) => searchParams.get(key) ?? hashParams.get(key)
+
+  return {
+    code: read("code"),
+    tokenHash: read("token_hash"),
+    type: read("type"),
+    accessToken: read("access_token"),
+    refreshToken: read("refresh_token"),
+    errorCode: read("error_code"),
+    errorDescription: read("error_description"),
+  }
 }
 
 async function waitForProfile(userId: string) {
@@ -69,19 +86,23 @@ export function AuthCallback() {
 
     handledRef.current = true
 
-    const code = searchParams.get("code")
-    const tokenHash = searchParams.get("token_hash")
-    const type = searchParams.get("type")
+    const { code, tokenHash, type, accessToken, refreshToken, errorDescription } = getAuthCallbackParams(searchParams)
 
     async function handleCallback() {
       setStatus("verifying")
       setError(null)
 
+      if (errorDescription) {
+        setStatus("error")
+        setError(mapAuthErrorMessage(errorDescription))
+        return
+      }
+
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
         if (exchangeError) {
           setStatus("error")
-          setError("O link de validacao e invalido ou expirou. Pede um novo acesso.")
+          setError(mapAuthErrorMessage(exchangeError.message))
         }
         return
       }
@@ -94,7 +115,20 @@ export function AuthCallback() {
 
         if (otpError) {
           setStatus("error")
-          setError("O link de validacao e invalido ou expirou. Pede um novo acesso.")
+          setError(mapAuthErrorMessage(otpError.message))
+        }
+        return
+      }
+
+      if (accessToken && refreshToken) {
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+
+        if (setSessionError) {
+          setStatus("error")
+          setError(mapAuthErrorMessage(setSessionError.message))
         }
         return
       }
@@ -144,6 +178,10 @@ export function AuthCallback() {
         return
       }
 
+      window.sessionStorage.setItem(
+        "mariana-explica:auth-flash",
+        "Email confirmado com sucesso. Ja tens acesso ativo ao teu painel.",
+      )
       navigatedRef.current = true
       navigate(
         resolvedProfile.is_admin && resolvedProfile.role === "admin"

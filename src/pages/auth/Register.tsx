@@ -1,14 +1,21 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui"
+import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES, APP_NAME } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 
+type SignUpResult = {
+  user?: {
+    email?: string | null
+  } | null
+}
+
 function buildAuthCallbackUrl() {
   const normalizedBase = (import.meta.env.VITE_BASE_URL || "/").replace(/\/$/, "")
   const callbackPath = `${normalizedBase}${ROUTES.AUTH_CALLBACK}`.replace(/\/{2,}/g, "/")
-  return `${window.location.origin}${callbackPath}?next=${encodeURIComponent(ROUTES.DASHBOARD)}`
+  return `${window.location.origin}${callbackPath}`
 }
 
 export function Register() {
@@ -23,10 +30,10 @@ export function Register() {
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !pendingVerificationEmail) {
       navigate(isAdmin ? ROUTES.ADMIN : ROUTES.DASHBOARD, { replace: true })
     }
-  }, [isAdmin, isAuthenticated, navigate])
+  }, [isAdmin, isAuthenticated, navigate, pendingVerificationEmail])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -39,7 +46,7 @@ export function Register() {
 
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -53,13 +60,16 @@ export function Register() {
     setLoading(false)
 
     if (error) {
-      setError(error.message)
+      setError(mapAuthErrorMessage(error.message))
       return
     }
 
-    setPendingVerificationEmail(email)
+    const signUpData = data as SignUpResult | null
+    setPendingVerificationEmail(signUpData?.user?.email ?? email)
     setPassword("")
     setConfirmPassword("")
+    setName("")
+    setEmail("")
   }
 
   return (

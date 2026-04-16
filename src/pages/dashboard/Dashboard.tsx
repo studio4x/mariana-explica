@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { ArrowRight, Bell, Download, FolderOpen, LifeBuoy, Sparkles } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
@@ -13,6 +14,15 @@ export function Dashboard() {
   const { profile } = useAuth()
   const { data, isLoading, isError, error, refetch } = useDashboardOverview()
   const downloadsQuery = useDownloads()
+  const [authFlash] = useState<string | null>(() => {
+    const flash = window.sessionStorage.getItem("mariana-explica:auth-flash")
+    if (!flash) {
+      return null
+    }
+
+    window.sessionStorage.removeItem("mariana-explica:auth-flash")
+    return flash
+  })
 
   if (isLoading) {
     return <LoadingState message="A carregar o teu painel..." />
@@ -56,6 +66,12 @@ export function Dashboard() {
         title={`Ola, ${profile?.full_name?.split(" ")[0] ?? "aluno"}`}
         description="Aqui tens um resumo rapido do teu acesso, das novidades mais recentes e dos proximos passos para continuar a estudar."
       />
+
+      {authFlash ? (
+        <div className="rounded-[1.4rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900 shadow-sm">
+          {authFlash}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">

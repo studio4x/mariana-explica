@@ -39,6 +39,7 @@ type SupabaseLike = {
     signUp: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
     exchangeCodeForSession: (code: string) => Promise<{ data: unknown; error: Error | null }>
     verifyOtp: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
+    setSession: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
   }
   from: (_table: string) => NoopQueryBuilder
   functions: {
@@ -121,6 +122,10 @@ function createNoopSupabaseClient() {
         error: new Error("Supabase nao configurado"),
       }),
       verifyOtp: async () => ({
+        data: { session: null, user: null },
+        error: new Error("Supabase nao configurado"),
+      }),
+      setSession: async () => ({
         data: { session: null, user: null },
         error: new Error("Supabase nao configurado"),
       }),

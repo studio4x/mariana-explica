@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui"
+import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES, APP_NAME } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
@@ -37,7 +38,7 @@ export function Login() {
     setLoading(false)
 
     if (error) {
-      setError(error.message)
+      setError(mapAuthErrorMessage(error.message))
       return
     }
 
