@@ -11,6 +11,7 @@ import {
   fetchAdminAffiliates,
   fetchAdminDashboardMetrics,
   fetchAdminNotifications,
+  fetchAdminOperations,
   fetchAdminOrders,
   fetchAdminProducts,
   fetchAdminCoupons,
@@ -23,6 +24,7 @@ import {
   markAdminOrderRefunded,
   publishAdminProduct,
   reconcileAdminOrder,
+  retryAdminEmailDelivery,
   replyAdminSupportTicket,
   updateAdminAffiliate,
   updateAdminCoupon,
@@ -62,6 +64,13 @@ export function useAdminNotifications() {
   return useQuery({
     queryKey: ["admin", "notifications"],
     queryFn: fetchAdminNotifications,
+  })
+}
+
+export function useAdminOperations() {
+  return useQuery({
+    queryKey: ["admin", "operations"],
+    queryFn: fetchAdminOperations,
   })
 }
 
@@ -130,6 +139,11 @@ export function useUpdateAdminUser() {
 export function useDeleteAdminUser() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminUser, onSuccess: invalidate })
+}
+
+export function useRetryAdminEmailDelivery() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: retryAdminEmailDelivery, onSuccess: invalidate })
 }
 
 export function useCreateAdminProduct() {

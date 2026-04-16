@@ -5,7 +5,10 @@ import type {
   AdminAffiliateReferralSummary,
   AdminAffiliateSummary,
   AdminDashboardMetrics,
+  AdminEmailDeliverySummary,
+  AdminJobRunSummary,
   AdminNotificationSummary,
+  AdminOperationsOverview,
   AdminOrderSummary,
   AdminCouponSummary,
   AdminCouponUsageSummary,
@@ -199,6 +202,31 @@ export async function fetchAdminDashboardMetrics(): Promise<AdminDashboardMetric
   }
 }
 
+export async function fetchAdminOperations(): Promise<AdminOperationsOverview> {
+  const response = await invokeAdminFunction<{
+    success: true
+    summary: {
+      queuedEmails: number
+      failedEmails: number
+      failedJobs: number
+      deliveredEmails: number
+    }
+    emailDeliveries: AdminEmailDeliverySummary[]
+    jobRuns: AdminJobRunSummary[]
+  }>("admin-operations", {
+    action: "list",
+  })
+
+  return {
+    queuedEmails: response.summary.queuedEmails,
+    failedEmails: response.summary.failedEmails,
+    failedJobs: response.summary.failedJobs,
+    deliveredEmails: response.summary.deliveredEmails,
+    emailDeliveries: response.emailDeliveries ?? [],
+    jobRuns: response.jobRuns ?? [],
+  }
+}
+
 export function createAdminUser(input: {
   fullName: string
   email: string
@@ -230,6 +258,16 @@ export function deleteAdminUser(userId: string) {
   return invokeAdminFunction<{ success: true; user: AdminUserSummary }>("admin-users", {
     action: "delete",
     userId,
+  })
+}
+
+export function retryAdminEmailDelivery(emailDeliveryId: string) {
+  return invokeAdminFunction<{
+    success: true
+    emailDelivery: AdminEmailDeliverySummary
+  }>("admin-operations", {
+    action: "retry_email",
+    emailDeliveryId,
   })
 }
 

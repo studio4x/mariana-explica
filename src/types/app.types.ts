@@ -142,6 +142,43 @@ export interface AdminDashboardMetrics {
   revenueCents: number
 }
 
+export interface AdminEmailDeliverySummary {
+  id: string
+  user_id: string | null
+  notification_id: string | null
+  email_to: string
+  template_key: string
+  provider: string | null
+  provider_message_id: string | null
+  subject: string | null
+  status: "queued" | "sent" | "failed" | "delivered" | "bounced"
+  error_message: string | null
+  sent_at: string | null
+  created_at: string
+}
+
+export interface AdminJobRunSummary {
+  id: string
+  job_name: string
+  status: "running" | "success" | "failed"
+  started_at: string
+  finished_at: string | null
+  payload: Record<string, unknown>
+  result: Record<string, unknown>
+  error_message: string | null
+  idempotency_key: string | null
+  created_at: string
+}
+
+export interface AdminOperationsOverview {
+  queuedEmails: number
+  failedEmails: number
+  failedJobs: number
+  deliveredEmails: number
+  emailDeliveries: AdminEmailDeliverySummary[]
+  jobRuns: AdminJobRunSummary[]
+}
+
 export interface AdminSupportTicketSummary extends SupportTicketSummary {
   user_id: string
 }

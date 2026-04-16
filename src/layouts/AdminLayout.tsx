@@ -1,4 +1,5 @@
 import {
+  Activity,
   LayoutDashboard,
   LifeBuoy,
   Package,
@@ -17,6 +18,7 @@ import { ROUTES } from "@/lib/constants"
 
 const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
+  { to: ROUTES.ADMIN_OPERATIONS, label: "Operacoes", icon: Activity },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },

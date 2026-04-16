@@ -6,6 +6,7 @@ import { ROUTES } from "@/lib/constants"
 import {
   useAdminDashboardMetrics,
   useAdminNotifications,
+  useAdminOperations,
   useAdminOrders,
   useAdminProducts,
   useAdminSupportTickets,
@@ -65,13 +66,15 @@ export function Admin() {
   const productsQuery = useAdminProducts()
   const supportQuery = useAdminSupportTickets()
   const notificationsQuery = useAdminNotifications()
+  const operationsQuery = useAdminOperations()
 
   if (
     metricsQuery.isLoading ||
     ordersQuery.isLoading ||
     productsQuery.isLoading ||
     supportQuery.isLoading ||
-    notificationsQuery.isLoading
+    notificationsQuery.isLoading ||
+    operationsQuery.isLoading
   ) {
     return <AdminOverviewSkeleton />
   }
@@ -81,7 +84,8 @@ export function Admin() {
     ordersQuery.isError ||
     productsQuery.isError ||
     supportQuery.isError ||
-    notificationsQuery.isError
+    notificationsQuery.isError ||
+    operationsQuery.isError
   ) {
     return (
       <ErrorState
@@ -92,6 +96,7 @@ export function Admin() {
           (productsQuery.error instanceof Error && productsQuery.error.message) ||
           (supportQuery.error instanceof Error && supportQuery.error.message) ||
           (notificationsQuery.error instanceof Error && notificationsQuery.error.message) ||
+          (operationsQuery.error instanceof Error && operationsQuery.error.message) ||
           "Tenta novamente dentro de instantes."
         }
         onRetry={() => {
@@ -100,6 +105,7 @@ export function Admin() {
           void productsQuery.refetch()
           void supportQuery.refetch()
           void notificationsQuery.refetch()
+          void operationsQuery.refetch()
         }}
       />
     )
@@ -120,6 +126,7 @@ export function Admin() {
   const products = productsQuery.data ?? []
   const supportTickets = supportQuery.data ?? []
   const notifications = notificationsQuery.data ?? []
+  const operations = operationsQuery.data
   const alerts: OperationalAlert[] = []
 
   if (metrics.totalPaidOrders !== (ordersQuery.data ?? []).length) {
@@ -162,6 +169,26 @@ export function Admin() {
     })
   }
 
+  if (operations && operations.failedEmails > 0) {
+    alerts.push({
+      title: "Emails com falha na fila",
+      message: `${operations.failedEmails} entrega(s) precisam de reprocessamento ou leitura do erro.`,
+      tone: "danger",
+      to: ROUTES.ADMIN_OPERATIONS,
+      cta: "Abrir operacoes",
+    })
+  }
+
+  if (operations && operations.failedJobs > 0) {
+    alerts.push({
+      title: "Jobs com falha recente",
+      message: `${operations.failedJobs} execucao(oes) falharam e merecem conferencia operacional.`,
+      tone: "warning",
+      to: ROUTES.ADMIN_OPERATIONS,
+      cta: "Rever jobs",
+    })
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -169,7 +196,7 @@ export function Admin() {
         description="Indicadores rapidos da operacao, contexto para tomada de decisao e os pedidos mais recentes para acompanhamento imediato."
         actions={
           <Button asChild variant="outline" className="rounded-full">
-            <Link to={ROUTES.ADMIN_PAYMENTS}>Pagamentos</Link>
+            <Link to={ROUTES.ADMIN_OPERATIONS}>Operacoes</Link>
           </Button>
         }
       />

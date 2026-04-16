@@ -21,6 +21,7 @@ import {
   AdminAffiliates,
   AdminCoupons,
   AdminNotifications,
+  AdminOperations,
   AdminOrders,
   AdminPayments,
   AdminProducts,
@@ -120,6 +121,10 @@ export const router = createBrowserRouter(
         {
           index: true,
           element: <Admin />,
+        },
+        {
+          path: "operacoes",
+          element: <AdminOperations />,
         },
         {
           path: "usuarios",
