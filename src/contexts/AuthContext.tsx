@@ -65,6 +65,7 @@ async function refreshProfileState(
     setProfile: Dispatch<SetStateAction<UserProfile | null>>
     setLoading: Dispatch<SetStateAction<boolean>>
     silent?: boolean
+    preserveCurrentOnFailure?: boolean
   },
 ) {
   const timeout = new Promise<null>((resolve) => {
@@ -81,7 +82,11 @@ async function refreshProfileState(
     return
   }
 
-  options.setProfile(userProfile)
+  if (userProfile) {
+    options.setProfile(userProfile)
+  } else if (!options.preserveCurrentOnFailure) {
+    options.setProfile(null)
+  }
   options.setLoading(false)
 }
 
@@ -96,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncSession = async (
     nextSession: Session | null,
     shouldRefreshProfile: boolean,
+    preserveCurrentOnFailure = false,
   ) => {
     if (!mountedRef.current) {
       return
@@ -123,10 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         requestIdRef,
         setProfile,
         setLoading,
+        preserveCurrentOnFailure,
       })
     } catch {
       if (mountedRef.current && requestId === requestIdRef.current) {
-        setProfile(null)
+        if (!preserveCurrentOnFailure) {
+          setProfile(null)
+        }
         setLoading(false)
       }
     }
@@ -157,11 +166,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const shouldRefreshProfile =
           event === "INITIAL_SESSION" ||
           event === "SIGNED_IN" ||
-          event === "TOKEN_REFRESHED" ||
           event === "USER_UPDATED" ||
           event === "PASSWORD_RECOVERY"
 
-        await syncSession(nextSession, shouldRefreshProfile)
+        const preserveCurrentOnFailure = event === "TOKEN_REFRESHED"
+
+        await syncSession(nextSession, shouldRefreshProfile, preserveCurrentOnFailure)
       },
     )
 
@@ -190,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile,
         setLoading,
         silent: true,
+        preserveCurrentOnFailure: true,
       })
     }
 
