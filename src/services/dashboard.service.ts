@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase"
+import { getFunctionAuthHeaders } from "@/services/supabase-auth"
 import type {
   AccessGrantSummary,
   DashboardOverviewData,
@@ -144,8 +145,10 @@ export async function fetchDashboardProductContent(productId: string) {
 }
 
 export async function requestAssetAccess(assetId: string) {
+  const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("generate-asset-access", {
     body: { assetId },
+    headers,
   })
 
   if (error) {
@@ -251,8 +254,10 @@ export async function fetchSupportTicketMessages(ticketId: string) {
 }
 
 export async function createSupportTicket(input: { subject: string; message: string }) {
+  const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("create-support-ticket", {
     body: input,
+    headers,
   })
 
   if (error) {
@@ -268,8 +273,10 @@ export async function replySupportTicket(input: {
   status?: SupportTicketSummary["status"]
   priority?: SupportTicketSummary["priority"]
 }) {
+  const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("support-ticket-reply", {
     body: input,
+    headers,
   })
 
   if (error) {

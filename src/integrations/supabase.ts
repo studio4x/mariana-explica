@@ -39,7 +39,10 @@ type SupabaseLike = {
   }
   from: (_table: string) => NoopQueryBuilder
   functions: {
-    invoke: (name: string, options?: { body?: unknown }) => Promise<{ data: unknown; error: Error | null }>
+    invoke: (
+      name: string,
+      options?: { body?: unknown; headers?: Record<string, string> },
+    ) => Promise<{ data: unknown; error: Error | null }>
   }
 }
 

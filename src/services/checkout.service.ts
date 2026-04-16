@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase"
+import { getFunctionAuthHeaders } from "@/services/supabase-auth"
 import type {
   ClaimFreeProductResponse,
   CreateCheckoutResponse,
@@ -19,8 +20,10 @@ export interface ClaimFreeProductInput {
 }
 
 async function invokeFunction<TResponse>(name: string, body: unknown) {
+  const headers = await getFunctionAuthHeaders()
   const { data, error } = (await supabase.functions.invoke(name, {
     body: body as never,
+    headers,
   })) as { data: TResponse | null; error: Error | null }
 
   if (error) {

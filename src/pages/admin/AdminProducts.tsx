@@ -24,6 +24,7 @@ export function AdminProducts() {
   const [productType, setProductType] = useState<"paid" | "free" | "hybrid" | "external_service">("paid")
   const [description, setDescription] = useState("")
   const [query, setQuery] = useState("")
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const deferredQuery = useDeferredValue(query)
   const productsQuery = useAdminProducts()
   const createProduct = useCreateAdminProduct()
@@ -32,22 +33,28 @@ export function AdminProducts() {
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    await createProduct.mutateAsync({
-      title,
-      slug,
-      productType,
-      priceCents: Number(priceCents),
-      description,
-      salesPageEnabled: true,
-      requiresAuth: true,
-      allowAffiliate: true,
-      isFeatured: false,
-    })
-    setTitle("")
-    setSlug("")
-    setPriceCents("0")
-    setDescription("")
-    setProductType("paid")
+    setSubmitError(null)
+
+    try {
+      await createProduct.mutateAsync({
+        title,
+        slug,
+        productType,
+        priceCents: Number(priceCents),
+        description,
+        salesPageEnabled: true,
+        requiresAuth: true,
+        allowAffiliate: true,
+        isFeatured: false,
+      })
+      setTitle("")
+      setSlug("")
+      setPriceCents("0")
+      setDescription("")
+      setProductType("paid")
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel criar o produto.")
+    }
   }
 
   if (productsQuery.isLoading) {
@@ -115,6 +122,11 @@ export function AdminProducts() {
           <Button type="submit" className="mt-4 rounded-full" disabled={createProduct.isPending}>
             {createProduct.isPending ? "A criar..." : "Criar produto"}
           </Button>
+          {submitError ? (
+            <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {submitError}
+            </p>
+          ) : null}
         </form>
 
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">

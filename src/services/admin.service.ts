@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase"
+import { getFunctionAuthHeaders } from "@/services/supabase-auth"
 import type {
   AdminDashboardMetrics,
   AdminOrderSummary,
@@ -7,7 +8,8 @@ import type {
 import type { ProductSummary } from "@/types/product.types"
 
 async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
-  const { data, error } = await supabase.functions.invoke(name, { body })
+  const headers = await getFunctionAuthHeaders()
+  const { data, error } = await supabase.functions.invoke(name, { body, headers })
   if (error) {
     throw error
   }
