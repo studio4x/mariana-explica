@@ -67,11 +67,15 @@ async function refreshProfileState(
     silent?: boolean
   },
 ) {
+  const timeout = new Promise<null>((resolve) => {
+    window.setTimeout(() => resolve(null), 8000)
+  })
+
   if (!options.silent) {
     options.setLoading(true)
   }
 
-  const userProfile = await fetchProfile(userId)
+  const userProfile = await Promise.race([fetchProfile(userId), timeout])
 
   if (requestId !== options.requestIdRef.current || !options.mountedRef.current) {
     return
@@ -113,12 +117,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    await refreshProfileState(nextSession.user.id, requestId, {
-      mountedRef,
-      requestIdRef,
-      setProfile,
-      setLoading,
-    })
+    try {
+      await refreshProfileState(nextSession.user.id, requestId, {
+        mountedRef,
+        requestIdRef,
+        setProfile,
+        setLoading,
+      })
+    } catch {
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setProfile(null)
+        setLoading(false)
+      }
+    }
   }
 
   useEffect(() => {

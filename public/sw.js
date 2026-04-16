@@ -1,4 +1,4 @@
-const CACHE_VERSION = "mariana-explica-pwa-v1";
+const CACHE_VERSION = "mariana-explica-pwa-v2";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const PRECACHE_URLS = ["/", "/offline.html", "/manifest.webmanifest", "/favicon.svg"];
