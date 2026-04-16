@@ -19,6 +19,7 @@ export const ROUTES = {
   DASHBOARD_SUPPORT: "/dashboard/suporte",
   DASHBOARD_PROFILE: "/dashboard/perfil",
   ADMIN: "/admin",
+  ADMIN_PAYMENTS: "/admin/pagamentos",
   ADMIN_USERS: "/admin/usuarios",
   ADMIN_PRODUCTS: "/admin/produtos",
   ADMIN_ORDERS: "/admin/pedidos",

@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, Bell, FolderOpen, Sparkles } from "lucide-react"
+import { ArrowRight, Bell, Download, FolderOpen, Sparkles } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
-import { useDashboardOverview } from "@/hooks/useDashboard"
+import { useDashboardOverview, useDownloads } from "@/hooks/useDashboard"
 import { ROUTES } from "@/lib/constants"
 import { formatDate } from "@/utils/date"
 import { getDashboardProductNote } from "@/lib/product-presentation"
@@ -12,6 +12,7 @@ import { getDashboardProductNote } from "@/lib/product-presentation"
 export function Dashboard() {
   const { profile } = useAuth()
   const { data, isLoading, isError, error, refetch } = useDashboardOverview()
+  const downloadsQuery = useDownloads()
 
   if (isLoading) {
     return <LoadingState message="A carregar o teu painel..." />
@@ -29,6 +30,7 @@ export function Dashboard() {
 
   const products = data?.products ?? []
   const notifications = data?.recentNotifications ?? []
+  const downloads = downloadsQuery.data ?? []
   const nextProduct = products[0] ?? null
 
   return (
@@ -38,7 +40,7 @@ export function Dashboard() {
         description="Aqui tens um resumo rapido do teu acesso, das novidades mais recentes e dos proximos passos para continuar a estudar."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Produtos disponiveis</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
@@ -48,6 +50,11 @@ export function Dashboard() {
           <p className="text-sm font-medium text-slate-500">Notificacoes recentes</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{notifications.length}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Mensagens, avisos e atualizacoes ligadas ao teu acesso.</p>
+        </div>
+        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-slate-500">Downloads seguros</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{downloads.length}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Materiais protegidos prontos para abrir quando o grant permite.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Conta</p>
@@ -131,6 +138,12 @@ export function Dashboard() {
                 <Link to={ROUTES.DASHBOARD_PRODUCTS}>
                   <FolderOpen className="mr-2 h-4 w-4" />
                   Abrir os meus produtos
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start rounded-full">
+                <Link to={ROUTES.DASHBOARD_DOWNLOADS}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Ver downloads protegidos
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start rounded-full">

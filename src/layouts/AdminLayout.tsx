@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   TicketPercent,
   Users,
+  CreditCard,
 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 import { Navbar, StatusBadge } from "@/components/common"
@@ -15,6 +16,7 @@ import { ROUTES } from "@/lib/constants"
 
 const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
+  { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Produtos", icon: Package },
   { to: ROUTES.ADMIN_ORDERS, label: "Pedidos", icon: ShoppingCart },

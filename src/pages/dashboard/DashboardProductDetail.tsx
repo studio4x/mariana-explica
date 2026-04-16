@@ -34,6 +34,7 @@ export function DashboardProductDetail() {
   const selectedModuleIdSafe = selectedModuleId ?? modules[0]?.id ?? null
   const selectedModule = modules.find((module) => module.id === selectedModuleIdSafe) ?? null
   const selectedAssets = (data?.assets ?? []).filter((asset) => asset.module_id === selectedModuleIdSafe)
+  const previewModules = modules.filter((module) => module.is_preview).length
 
   const handleOpenAsset = async (asset: ModuleAssetSummary) => {
     const result = await assetAccess.mutateAsync(asset.id)
@@ -79,6 +80,11 @@ export function DashboardProductDetail() {
             <p className="text-xs uppercase tracking-[0.22em] text-white/65">{narrative.familyLabel}</p>
             <h2 className="mt-3 font-display text-3xl font-bold">{data.product.title}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">{narrative.accessLabel}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <StatusBadge label="Grant ativo" tone="success" />
+              <StatusBadge label={`${previewModules} previews`} tone="info" />
+              <StatusBadge label={modules.length > 0 ? "Conteudo organizado" : "Sem modulos"} tone="neutral" />
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-white/10 p-4">
@@ -99,15 +105,15 @@ export function DashboardProductDetail() {
 
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Modulos</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                Escolhe um modulo para abrir os materiais associados e continuar o estudo.
-              </p>
-            </div>
-            <StatusBadge label={`${modules.length} modulos`} tone="neutral" />
-          </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-2xl font-bold text-slate-950">Modulos</h2>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    Escolhe um modulo para abrir os materiais associados e continuar o estudo.
+                  </p>
+                </div>
+                <StatusBadge label={`${modules.length} modulos`} tone="neutral" />
+              </div>
 
           <div className="mt-5 space-y-3">
             {modules.map((module) => (
