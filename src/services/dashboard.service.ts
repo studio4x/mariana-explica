@@ -180,9 +180,10 @@ export async function fetchModuleAssets(moduleIds: string[]) {
   const { data, error } = await supabase
     .from("module_assets")
     .select(
-      "id,module_id,asset_type,title,storage_bucket,storage_path,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
+      "id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
     )
     .in("module_id", moduleIds)
+    .order("sort_order", { ascending: true })
 
   if (error) {
     throw error

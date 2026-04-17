@@ -39,6 +39,7 @@ export interface ModuleAssetSummary {
   module_id: string
   asset_type: "pdf" | "video_file" | "video_embed" | "external_link"
   title: string
+  sort_order: number
   storage_bucket: string | null
   storage_path: string | null
   external_url: string | null

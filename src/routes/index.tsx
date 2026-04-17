@@ -56,6 +56,9 @@ const AdminPayments = lazy(() =>
 const AdminProducts = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminProducts })),
 )
+const AdminProductContent = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminProductContent })),
+)
 const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminSupport })))
 const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminUsers })))
 
@@ -178,6 +181,10 @@ export const router = createBrowserRouter(
         {
           path: "produtos",
           element: withSuspense(<AdminProducts />),
+        },
+        {
+          path: "produtos/:id/conteudo",
+          element: withSuspense(<AdminProductContent />),
         },
         {
           path: "pedidos",

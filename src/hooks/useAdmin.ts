@@ -6,7 +6,11 @@ import {
   createAdminNotification,
   createAdminProduct,
   createAdminUser,
+  createAdminModuleAsset,
+  createAdminProductModule,
   deleteAdminUser,
+  deleteAdminModuleAsset,
+  deleteAdminProductModule,
   fetchAdminAffiliateReferrals,
   fetchAdminAffiliates,
   fetchAdminDashboardOverview,
@@ -16,6 +20,8 @@ import {
   fetchAdminOrders,
   fetchAdminOrdersView,
   fetchAdminProducts,
+  fetchAdminModuleAssets,
+  fetchAdminProductModules,
   fetchAdminCoupons,
   fetchAdminCouponUsages,
   fetchAdminSupportTicketMessages,
@@ -31,6 +37,8 @@ import {
   updateAdminAffiliate,
   updateAdminCoupon,
   updateAdminProduct,
+  updateAdminModuleAsset,
+  updateAdminProductModule,
   updateAdminUser,
 } from "@/services"
 
@@ -73,6 +81,24 @@ export function useAdminProducts() {
   return useQuery({
     queryKey: ["admin", "products"],
     queryFn: fetchAdminProducts,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminProductModules(productId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "products", productId, "modules"],
+    queryFn: () => fetchAdminProductModules(productId ?? ""),
+    enabled: Boolean(productId),
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminModuleAssets(moduleId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "modules", moduleId, "assets"],
+    queryFn: () => fetchAdminModuleAssets(moduleId ?? ""),
+    enabled: Boolean(moduleId),
     ...getAdminQueryOptions(),
   })
 }
@@ -205,6 +231,36 @@ export function usePublishAdminProduct() {
 export function useArchiveAdminProduct() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: archiveAdminProduct, onSuccess: invalidate })
+}
+
+export function useCreateAdminProductModule() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminProductModule, onSuccess: invalidate })
+}
+
+export function useUpdateAdminProductModule() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminProductModule, onSuccess: invalidate })
+}
+
+export function useDeleteAdminProductModule() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: deleteAdminProductModule, onSuccess: invalidate })
+}
+
+export function useCreateAdminModuleAsset() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminModuleAsset, onSuccess: invalidate })
+}
+
+export function useUpdateAdminModuleAsset() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminModuleAsset, onSuccess: invalidate })
+}
+
+export function useDeleteAdminModuleAsset() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: deleteAdminModuleAsset, onSuccess: invalidate })
 }
 
 export function useMarkAdminOrderPaid() {

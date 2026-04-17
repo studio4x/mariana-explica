@@ -17,6 +17,8 @@ import type {
   AdminCouponUsageSummary,
   AdminSupportTicketSummary,
   AdminUserSummary,
+  ModuleAssetSummary,
+  ProductModuleSummary,
   SupportTicketMessage,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
@@ -122,6 +124,120 @@ export async function fetchAdminPaymentsStatus() {
   )
 
   return response.stripe
+}
+
+export async function fetchAdminProductModules(productId: string) {
+  const response = await invokeAdminFunction<{ success: true; modules: ProductModuleSummary[] }>("admin-content", {
+    action: "list_modules",
+    productId,
+  })
+
+  return response.modules ?? []
+}
+
+export async function createAdminProductModule(input: {
+  productId: string
+  title: string
+  description?: string | null
+  module_type?: ProductModuleSummary["module_type"]
+  access_type?: ProductModuleSummary["access_type"]
+  sort_order?: number
+  is_preview?: boolean
+  status?: ProductModuleSummary["status"]
+}) {
+  const response = await invokeAdminFunction<{ success: true; module: ProductModuleSummary }>("admin-content", {
+    action: "create_module",
+    ...input,
+  })
+
+  return response.module
+}
+
+export async function updateAdminProductModule(input: {
+  moduleId: string
+  title?: string
+  description?: string | null
+  module_type?: ProductModuleSummary["module_type"]
+  access_type?: ProductModuleSummary["access_type"]
+  sort_order?: number
+  is_preview?: boolean
+  status?: ProductModuleSummary["status"]
+}) {
+  const response = await invokeAdminFunction<{ success: true; module: ProductModuleSummary }>("admin-content", {
+    action: "update_module",
+    ...input,
+  })
+
+  return response.module
+}
+
+export async function deleteAdminProductModule(moduleId: string) {
+  await invokeAdminFunction<{ success: true }>("admin-content", {
+    action: "delete_module",
+    moduleId,
+  })
+}
+
+export async function fetchAdminModuleAssets(moduleId: string) {
+  const response = await invokeAdminFunction<{ success: true; assets: ModuleAssetSummary[] }>("admin-content", {
+    action: "list_assets",
+    moduleId,
+  })
+
+  return response.assets ?? []
+}
+
+export async function createAdminModuleAsset(input: {
+  moduleId: string
+  asset_type: ModuleAssetSummary["asset_type"]
+  title: string
+  sort_order_asset?: number
+  storage_bucket?: string | null
+  storage_path?: string | null
+  external_url?: string | null
+  mime_type?: string | null
+  file_size_bytes?: number | null
+  allow_download?: boolean
+  allow_stream?: boolean
+  watermark_enabled?: boolean
+  asset_status?: ModuleAssetSummary["status"]
+}) {
+  const response = await invokeAdminFunction<{ success: true; asset: ModuleAssetSummary }>("admin-content", {
+    action: "create_asset",
+    ...input,
+  })
+
+  return response.asset
+}
+
+export async function updateAdminModuleAsset(input: {
+  assetId: string
+  asset_type?: ModuleAssetSummary["asset_type"]
+  title?: string
+  sort_order_asset?: number
+  storage_bucket?: string | null
+  storage_path?: string | null
+  external_url?: string | null
+  mime_type?: string | null
+  file_size_bytes?: number | null
+  allow_download?: boolean
+  allow_stream?: boolean
+  watermark_enabled?: boolean
+  asset_status?: ModuleAssetSummary["status"]
+}) {
+  const response = await invokeAdminFunction<{ success: true; asset: ModuleAssetSummary }>("admin-content", {
+    action: "update_asset",
+    ...input,
+  })
+
+  return response.asset
+}
+
+export async function deleteAdminModuleAsset(assetId: string) {
+  await invokeAdminFunction<{ success: true }>("admin-content", {
+    action: "delete_asset",
+    assetId,
+  })
 }
 
 export async function fetchAdminSupportTickets() {

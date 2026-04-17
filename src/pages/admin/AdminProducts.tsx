@@ -1,4 +1,5 @@
 import { useDeferredValue, useState, type FormEvent } from "react"
+import { Link } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -8,6 +9,7 @@ import {
   useCreateAdminProduct,
   usePublishAdminProduct,
 } from "@/hooks/useAdmin"
+import { adminProductContentPath } from "@/lib/routes"
 import { formatProductPrice } from "@/utils/currency"
 
 const typeLabels: Record<string, string> = {
@@ -225,6 +227,9 @@ export function AdminProducts() {
                     </td>
                     <td className="py-4 pr-4">
                       <div className="grid gap-2 md:max-w-[180px]">
+                        <Button variant="outline" className="justify-start rounded-full" asChild>
+                          <Link to={adminProductContentPath(product.id)}>Conteudo</Link>
+                        </Button>
                         <Button variant="outline" className="justify-start rounded-full" onClick={() => void publishProduct.mutateAsync(product.id)} disabled={publishProduct.isPending || product.status === "published"}>
                           Publicar
                         </Button>
