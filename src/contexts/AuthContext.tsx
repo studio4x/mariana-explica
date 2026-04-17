@@ -34,6 +34,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   isAdmin: boolean
   signOut: () => Promise<void>
+  refreshSession: () => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -167,7 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const keepCurrentProfile =
-      preserveCurrentOnFailure || Boolean(profileRef.current && profileRef.current.id === nextSession.user.id)
+      preserveCurrentOnFailure ||
+      Boolean(cachedProfile) ||
+      Boolean(profileRef.current && profileRef.current.id === nextSession.user.id)
 
     try {
       await refreshProfileState(nextSession.user.id, requestId, {
@@ -270,6 +273,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
   }
 
+  const refreshSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession()
+      if (error) {
+        return false
+      }
+
+      await syncSession(data.session, Boolean(data.session?.user), true)
+      return Boolean(data.session?.user)
+    } catch {
+      return false
+    }
+  }
+
   const value = useMemo(
     () => ({
       user,
@@ -283,8 +300,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           profile.status === "active",
       ),
       signOut,
+      refreshSession,
     }),
-    [user, profile, session, loading],
+    [user, profile, session, loading, signOut, refreshSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

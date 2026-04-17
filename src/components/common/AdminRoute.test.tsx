@@ -86,4 +86,29 @@ describe("AdminRoute", () => {
 
     expect(screen.getByText("Home")).toBeInTheDocument()
   })
+
+  it("shows session recovery when profile is missing", () => {
+    mockUseAuth.mockReturnValue({
+      session: { access_token: "token" },
+      profile: null,
+      loading: false,
+    })
+
+    render(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <Routes>
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <div>Painel admin</div>
+              </AdminRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText("Sessao do admin precisa ser recarregada")).toBeInTheDocument()
+  })
 })

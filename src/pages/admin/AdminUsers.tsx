@@ -16,7 +16,7 @@ function AdminUsersSkeleton() {
     <div className="space-y-6">
       <PageHeader
         title="Utilizadores"
-        description="Criacao manual, verificacao de email, alteracao de papel e exclusao segura via backend."
+        description="Criacao manual, verificacao de email, alteracao de papel e exclusao permanente via backend."
       />
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -294,21 +294,21 @@ export function AdminUsers() {
                           if (user.status === "inactive") {
                             setFeedback({
                               tone: "error",
-                              message: `${user.full_name} ja esta excluido e sem acesso privado.`,
+                              message: `${user.full_name} ja esta excluido e sem login.`,
                             })
                             return
                           }
 
                           if (
                             window.confirm(
-                              `Excluir ${user.full_name}?\n\nA conta sera desativada de forma reversivel e o utilizador deixara de ter acesso privado.`,
+                              `Excluir ${user.full_name}?\n\nEsta acao e permanente: o utilizador sera removido do Supabase Auth e perdera o acesso (grants ativos serao revogados).`,
                             )
                           ) {
                             try {
                               await deleteUser.mutateAsync(user.id)
                               setFeedback({
                                 tone: "success",
-                                message: `${user.full_name} foi excluido com sucesso. O registo ficou como inativo.`,
+                                message: `${user.full_name} foi excluido com sucesso. A conta foi removida e o perfil ficou inativo/anonimizado.`,
                               })
                               setStatusFilter("active")
                             } catch (error) {

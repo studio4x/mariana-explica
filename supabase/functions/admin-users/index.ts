@@ -95,6 +95,12 @@ function buildAdminUserSummary(profile: ProfileRow, authUser?: AuthUserRow | nul
   }
 }
 
+function isAuthUserNotFoundError(error: unknown) {
+  if (!error) return false
+  const message = error instanceof Error ? error.message : String(error)
+  return message.toLowerCase().includes("user not found")
+}
+
 async function fetchAuthUsersMap(serviceClient: SupabaseClient) {
   const authUsers = new Map<string, AuthUserRow>()
   let page = 1
@@ -143,6 +149,22 @@ async function fetchProfileById(serviceClient: SupabaseClient, userId: string) {
   }
 
   return data as ProfileRow
+}
+
+async function fetchProfileMaybe(serviceClient: SupabaseClient, userId: string) {
+  const { data, error } = await serviceClient
+    .from("profiles")
+    .select(
+      "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
+    )
+    .eq("id", userId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? null) as ProfileRow | null
 }
 
 Deno.serve(async (req) => {
@@ -271,38 +293,95 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "delete") {
+      const previousProfile = await fetchProfileMaybe(context.serviceClient, body.userId)
+
+      const { error: deleteAuthError } = await context.serviceClient.auth.admin.deleteUser(body.userId)
+      const authDeleted = !deleteAuthError || isAuthUserNotFoundError(deleteAuthError)
+      if (deleteAuthError && !isAuthUserNotFoundError(deleteAuthError)) {
+        throw deleteAuthError
+      }
+
+      const nowIso = new Date().toISOString()
+      const deletedEmail = `deleted+${body.userId}@deleted.local`
+
+      const { error: revokeError } = await context.serviceClient
+        .from("access_grants")
+        .update({ status: "revoked", revoked_at: nowIso })
+        .eq("user_id", body.userId)
+        .eq("status", "active")
+
+      if (revokeError) {
+        throw revokeError
+      }
+
       const { data: profile, error } = await context.serviceClient
         .from("profiles")
-        .update({ status: "inactive" })
+        .update({
+          full_name: "[Excluido]",
+          email: deletedEmail,
+          role: "student",
+          is_admin: false,
+          status: "inactive",
+          phone: null,
+          last_login_at: null,
+          notifications_enabled: false,
+          marketing_consent: false,
+        })
         .eq("id", body.userId)
         .select(
           "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
         )
-        .single()
+        .maybeSingle()
 
       if (error) {
         throw error
       }
 
       await writeAuditLog(context.serviceClient, context, {
-        action: "admin.user_soft_deleted",
+        action: "admin.user_hard_deleted",
         entityType: "profile",
-        entityId: profile.id,
-        metadata: { email: profile.email },
+        entityId: body.userId,
+        metadata: {
+          previous_email: previousProfile?.email ?? null,
+          previous_status: previousProfile?.status ?? null,
+          auth_deleted: authDeleted,
+        },
         ...auditMeta,
       })
 
-      const { data: authUserData, error: authUserError } = await context.serviceClient.auth.admin.getUserById(
-        body.userId,
-      )
-      if (authUserError) {
-        throw authUserError
+      logInfo("Admin hard deleted user", {
+        request_id: requestId,
+        actor_user_id: context.user.id,
+        target_user_id: body.userId,
+        auth_deleted: authDeleted,
+      })
+
+      if (!profile) {
+        const fallbackProfile: ProfileRow = {
+          id: body.userId,
+          full_name: "[Excluido]",
+          email: deletedEmail,
+          role: "student",
+          is_admin: false,
+          status: "inactive",
+          phone: null,
+          last_login_at: null,
+          created_at: previousProfile?.created_at ?? nowIso,
+          notifications_enabled: false,
+          marketing_consent: false,
+        }
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          user: buildAdminUserSummary(fallbackProfile, null),
+        })
       }
 
       return jsonResponse({
         success: true,
         request_id: requestId,
-        user: buildAdminUserSummary(profile as ProfileRow, authUserData.user as AuthUserRow | null),
+        user: buildAdminUserSummary(profile as ProfileRow, null),
       })
     }
 

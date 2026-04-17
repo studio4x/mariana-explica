@@ -1,4 +1,5 @@
 export { AdminRoute } from "./AdminRoute"
+export { AdminSessionRecovery } from "./AdminSessionRecovery"
 export { Footer } from "./Footer"
 export { InstallPrompt } from "./InstallPrompt"
 export { Navbar } from "./Navbar"

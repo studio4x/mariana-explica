@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
+import { AdminSessionRecovery } from "./AdminSessionRecovery"
 
 interface AdminRouteProps {
   children: React.ReactNode
@@ -24,15 +25,11 @@ export function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
-  if (!profile) {
-    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
-  }
+  if (!profile || profile.status !== "active" || profile.is_admin !== true || profile.role !== "admin") {
+    if (!profile) {
+      return <AdminSessionRecovery />
+    }
 
-  if (
-    profile.status !== "active" ||
-    profile.is_admin !== true ||
-    profile.role !== "admin"
-  ) {
     return <Navigate to={ROUTES.HOME} replace />
   }
 
