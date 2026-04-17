@@ -257,3 +257,19 @@ export interface AdminCouponUsageSummary {
   discount_cents: number
   used_at: string
 }
+
+export interface AdminPaymentsStatus {
+  stripe: {
+    mode: "test" | "live"
+    test: {
+      secret_present: boolean
+      secret_valid: boolean
+      webhook_present: boolean
+    }
+    live: {
+      secret_present: boolean
+      secret_valid: boolean
+      webhook_present: boolean
+    }
+  }
+}

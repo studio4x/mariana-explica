@@ -12,6 +12,7 @@ import type {
   AdminOperationsOverview,
   AdminOrderViewSummary,
   AdminOrderSummary,
+  AdminPaymentsStatus,
   AdminCouponSummary,
   AdminCouponUsageSummary,
   AdminSupportTicketSummary,
@@ -112,6 +113,15 @@ export async function fetchAdminOrdersView() {
     summary: response.summary,
     orders: response.orders ?? [],
   }
+}
+
+export async function fetchAdminPaymentsStatus() {
+  const response = await invokeAdminFunction<{ success: true; stripe: AdminPaymentsStatus["stripe"] }>(
+    "admin-payments-status",
+    {},
+  )
+
+  return response.stripe
 }
 
 export async function fetchAdminSupportTickets() {
