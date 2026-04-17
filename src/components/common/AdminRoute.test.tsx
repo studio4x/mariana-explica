@@ -113,6 +113,33 @@ describe("AdminRoute", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText("A recarregar sessao administrativa...")).toBeInTheDocument()
+    expect(screen.getByText("A preparar o acesso administrativo...")).toBeInTheDocument()
+  })
+
+  it("keeps rendering admin while session refreshes in the background", () => {
+    mockUseAuth.mockReturnValue({
+      session: { access_token: "token" },
+      profile: { status: "active", is_admin: true, role: "admin" },
+      loading: true,
+      isAdmin: true,
+      refreshSession: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <Routes>
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <div>Painel admin</div>
+              </AdminRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText("Painel admin")).toBeInTheDocument()
   })
 })

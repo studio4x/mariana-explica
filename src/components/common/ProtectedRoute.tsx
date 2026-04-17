@@ -10,6 +10,18 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { session, profile, loading, isAdmin } = useAuth()
   const location = useLocation()
 
+  if (session && profile) {
+    if (isAdmin) {
+      return <Navigate to={ROUTES.ADMIN} replace />
+    }
+
+    if (profile.status !== "active") {
+      return <Navigate to={ROUTES.HOME} replace />
+    }
+
+    return <>{children}</>
+  }
+
   if (loading) {
     return <div className="p-8 text-center">Carregando sessao...</div>
   }
@@ -18,17 +30,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
-  if (!profile) {
-    return <Navigate to={ROUTES.LOGIN} replace />
-  }
-
-  if (isAdmin) {
-    return <Navigate to={ROUTES.ADMIN} replace />
-  }
-
-  if (profile.status !== "active") {
-    return <Navigate to={ROUTES.HOME} replace />
-  }
-
-  return <>{children}</>
+  return <div className="p-8 text-center">A preparar o teu acesso...</div>
 }

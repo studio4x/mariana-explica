@@ -60,4 +60,56 @@ describe("ProtectedRoute", () => {
 
     expect(screen.getByText("Login")).toBeInTheDocument()
   })
+
+  it("keeps the user on loading state when session exists but profile is not ready", () => {
+    mockUseAuth.mockReturnValue({
+      session: { access_token: "token" },
+      profile: null,
+      loading: false,
+      isAdmin: false,
+    })
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <div>Area protegida</div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText("A preparar o teu acesso...")).toBeInTheDocument()
+  })
+
+  it("keeps rendering when session and profile are valid during a background refresh", () => {
+    mockUseAuth.mockReturnValue({
+      session: { access_token: "token" },
+      profile: { status: "active" },
+      loading: true,
+      isAdmin: false,
+    })
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <div>Area protegida</div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText("Area protegida")).toBeInTheDocument()
+  })
 })

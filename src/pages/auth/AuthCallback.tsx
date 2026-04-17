@@ -22,6 +22,19 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+async function waitForSession() {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) {
+      return data.session
+    }
+
+    await sleep(300)
+  }
+
+  return null
+}
+
 function getAuthCallbackParams(searchParams: URLSearchParams) {
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
 
@@ -103,6 +116,13 @@ export function AuthCallback() {
         if (exchangeError) {
           setStatus("error")
           setError(mapAuthErrorMessage(exchangeError.message))
+          return
+        }
+
+        const resolvedSession = await waitForSession()
+        if (!resolvedSession) {
+          setStatus("error")
+          setError("A tua conta foi confirmada, mas a sessao nao ficou pronta. Tenta abrir novamente o link do email.")
         }
         return
       }
@@ -116,6 +136,13 @@ export function AuthCallback() {
         if (otpError) {
           setStatus("error")
           setError(mapAuthErrorMessage(otpError.message))
+          return
+        }
+
+        const resolvedSession = await waitForSession()
+        if (!resolvedSession) {
+          setStatus("error")
+          setError("A tua conta foi confirmada, mas a sessao nao ficou pronta. Tenta abrir novamente o link do email.")
         }
         return
       }
@@ -129,6 +156,13 @@ export function AuthCallback() {
         if (setSessionError) {
           setStatus("error")
           setError(mapAuthErrorMessage(setSessionError.message))
+          return
+        }
+
+        const resolvedSession = await waitForSession()
+        if (!resolvedSession) {
+          setStatus("error")
+          setError("A tua conta foi confirmada, mas a sessao nao ficou pronta. Tenta abrir novamente o link do email.")
         }
         return
       }
