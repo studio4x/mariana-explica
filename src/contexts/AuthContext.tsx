@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     writeCachedProfile(profile)
   }, [profile])
 
-  const syncSession = async (
+  const syncSession = useCallback(async (
     nextSession: Session | null,
     shouldRefreshProfile: boolean,
     preserveCurrentOnFailure = false,
@@ -188,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       }
     }
-  }
+  }, [setLoading, setProfile, setSession, setUser])
 
   useEffect(() => {
     async function initializeAuth() {
@@ -262,7 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       await supabase.auth.signOut()
     } catch {
@@ -271,9 +272,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
     setUser(null)
     setSession(null)
-  }
+  }, [])
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     try {
       const { data, error } = await supabase.auth.refreshSession()
       if (error) {
@@ -285,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return false
     }
-  }
+  }, [syncSession])
 
   const value = useMemo(
     () => ({

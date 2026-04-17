@@ -15,6 +15,7 @@ describe("AdminRoute", () => {
       session: { access_token: "token" },
       profile: { status: "active", is_admin: true, role: "admin" },
       loading: false,
+      refreshSession: vi.fn(),
     })
 
     render(
@@ -40,6 +41,7 @@ describe("AdminRoute", () => {
       session: { access_token: "token" },
       profile: { status: "active", is_admin: false, role: "student" },
       loading: false,
+      refreshSession: vi.fn(),
     })
 
     render(
@@ -66,6 +68,7 @@ describe("AdminRoute", () => {
       session: { access_token: "token" },
       profile: { status: "active", is_admin: true, role: "student" },
       loading: false,
+      refreshSession: vi.fn(),
     })
 
     render(
@@ -87,11 +90,12 @@ describe("AdminRoute", () => {
     expect(screen.getByText("Home")).toBeInTheDocument()
   })
 
-  it("shows session recovery when profile is missing", () => {
+  it("shows loading while recovering a missing profile", () => {
     mockUseAuth.mockReturnValue({
       session: { access_token: "token" },
       profile: null,
       loading: false,
+      refreshSession: vi.fn().mockResolvedValue(false),
     })
 
     render(
@@ -109,6 +113,6 @@ describe("AdminRoute", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText("Sessao do admin precisa ser recarregada")).toBeInTheDocument()
+    expect(screen.getByText("A recarregar sessao administrativa...")).toBeInTheDocument()
   })
 })
