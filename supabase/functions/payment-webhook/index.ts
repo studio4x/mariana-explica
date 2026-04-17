@@ -23,6 +23,7 @@ interface StripeEvent {
   data: {
     object: {
       id: string
+      livemode?: boolean
       status?: string
       payment_status?: string
       amount_total?: number | null
@@ -49,7 +50,7 @@ async function findOrderByReferenceOrSession(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id",
+        "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
       )
       .eq("id", reference)
       .maybeSingle()
@@ -74,6 +75,12 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
     session.id,
     session.metadata?.order_id ?? session.client_reference_id,
   )
+
+  const livemode = Boolean(session.livemode)
+  const expectedEnv = livemode ? "live" : "test"
+  if (order.payment_environment && order.payment_environment !== expectedEnv) {
+    throw conflict("Evento Stripe recebido de ambiente diferente do pedido interno")
+  }
 
   if (order.status === "paid") {
     return { replayed: true, order_id: order.id }
@@ -231,6 +238,12 @@ async function handleCheckoutFailed(event: StripeEvent, req: Request) {
     session.id,
     session.metadata?.order_id ?? session.client_reference_id,
   )
+
+  const livemode = Boolean(session.livemode)
+  const expectedEnv = livemode ? "live" : "test"
+  if (order.payment_environment && order.payment_environment !== expectedEnv) {
+    throw conflict("Evento Stripe recebido de ambiente diferente do pedido interno")
+  }
 
   const failedOrder = await markOrderFailed(client, {
     orderId: order.id,

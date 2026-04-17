@@ -53,6 +53,7 @@ export interface OrderRow {
   payment_provider: string | null
   payment_reference: string | null
   checkout_session_id: string | null
+  payment_environment: "test" | "live"
 }
 
 export interface OrderTotals {
@@ -313,6 +314,7 @@ export async function createOrderWithItems(
     paymentProvider?: string | null
     paymentReference?: string | null
     checkoutSessionId?: string | null
+    paymentEnvironment?: OrderRow["payment_environment"] | null
     status?: OrderRow["status"]
     paidAt?: string | null
   },
@@ -332,10 +334,11 @@ export async function createOrderWithItems(
       payment_provider: params.paymentProvider ?? null,
       payment_reference: params.paymentReference ?? null,
       checkout_session_id: params.checkoutSessionId ?? null,
+      payment_environment: params.paymentEnvironment ?? undefined,
       paid_at: params.paidAt ?? null,
     })
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
     )
     .single()
 
@@ -470,7 +473,7 @@ export async function updateOrderAfterPayment(
     })
     .eq("id", params.orderId)
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
     )
     .single()
 
@@ -525,7 +528,7 @@ export async function updateOrderStatus(
     })
     .eq("id", params.orderId)
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,paid_at,refunded_at",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at",
     )
     .single()
 
@@ -543,7 +546,7 @@ export async function findOrderForCheckoutSession(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
     )
     .eq("checkout_session_id", checkoutSessionId)
     .maybeSingle()

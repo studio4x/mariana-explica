@@ -25,7 +25,7 @@ import {
   readJsonBody,
 } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
-import { createStripeCheckoutSession } from "../_shared/payments.ts"
+import { createStripeCheckoutSession, getStripeEnvironment } from "../_shared/payments.ts"
 import { requireActiveUser } from "../_shared/auth.ts"
 
 interface CreateCheckoutInput {
@@ -191,8 +191,10 @@ Deno.serve(async (req) => {
       couponId: coupon?.id ?? null,
       affiliateId: affiliate?.id ?? null,
       paymentProvider: "stripe",
+      paymentEnvironment: getStripeEnvironment(),
     })
 
+    const stripeMode = getStripeEnvironment()
     const session = await createStripeCheckoutSession({
       success_url: body.successUrl ?? buildFallbackSuccessUrl(),
       cancel_url: body.cancelUrl ?? buildFallbackCancelUrl(product.slug),
@@ -201,6 +203,7 @@ Deno.serve(async (req) => {
         order_id: order.id,
         user_id: context.user.id,
         product_id: product.id,
+        payment_environment: stripeMode,
         coupon_id: coupon?.id ?? "",
         affiliate_id: affiliate?.id ?? "",
       },
@@ -217,7 +220,7 @@ Deno.serve(async (req) => {
           },
         },
       ],
-    })
+    }, { mode: stripeMode })
 
     const { error: updateError } = await context.serviceClient
       .from("orders")

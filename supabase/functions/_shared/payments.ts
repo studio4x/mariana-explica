@@ -1,5 +1,7 @@
 import { badRequest, unauthorized } from "./errors.ts"
 
+export type StripeEnvironment = "test" | "live"
+
 export interface StripeCheckoutLineItem {
   price_data: {
     currency: string
@@ -22,10 +24,45 @@ export interface StripeCheckoutSessionParams {
   customer_email?: string
 }
 
-function getStripeSecret() {
-  const secret = Deno.env.get("STRIPE_SECRET_KEY")
+export function getStripeEnvironment(): StripeEnvironment {
+  const explicit = Deno.env.get("STRIPE_MODE")?.trim().toLowerCase()
+  if (explicit === "test" || explicit === "live") {
+    return explicit
+  }
+
+  const legacySecret = Deno.env.get("STRIPE_SECRET_KEY")?.trim()
+  if (legacySecret?.startsWith("sk_live_")) {
+    return "live"
+  }
+  if (legacySecret?.startsWith("sk_test_")) {
+    return "test"
+  }
+
+  return "test"
+}
+
+function getStripeSecret(mode?: StripeEnvironment) {
+  const resolvedMode = mode ?? getStripeEnvironment()
+
+  const secret =
+    resolvedMode === "live"
+      ? (Deno.env.get("STRIPE_SECRET_KEY_LIVE") ?? Deno.env.get("STRIPE_SECRET_KEY"))
+      : (Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? Deno.env.get("STRIPE_SECRET_KEY"))
+
   if (!secret) {
     throw unauthorized("STRIPE_SECRET_KEY não configurada")
+  }
+
+  if (!secret.startsWith("sk_")) {
+    throw unauthorized("STRIPE_SECRET_KEY inválida")
+  }
+
+  if (resolvedMode === "live" && !secret.startsWith("sk_live_")) {
+    throw unauthorized("STRIPE_SECRET_KEY_LIVE não configurada")
+  }
+
+  if (resolvedMode === "test" && !secret.startsWith("sk_test_")) {
+    throw unauthorized("STRIPE_SECRET_KEY_TEST não configurada")
   }
 
   return secret
@@ -82,12 +119,16 @@ function constantTimeEquals(a: string, b: string) {
   return result === 0
 }
 
-export async function verifyStripeWebhookSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-) {
-  const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET")
-  if (!secret) {
+export async function verifyStripeWebhookSignature(rawBody: string, signatureHeader: string | null) {
+  const candidates = [
+    Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST"),
+    Deno.env.get("STRIPE_WEBHOOK_SECRET_LIVE"),
+    Deno.env.get("STRIPE_WEBHOOK_SECRET"),
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value))
+
+  if (candidates.length === 0) {
     throw unauthorized("STRIPE_WEBHOOK_SECRET não configurada")
   }
 
@@ -103,15 +144,21 @@ export async function verifyStripeWebhookSignature(
     throw unauthorized("Assinatura do Stripe fora da janela de seguranca")
   }
 
-  const expected = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`)
-
-  if (!constantTimeEquals(expected, signature)) {
-    throw unauthorized("Assinatura do Stripe inválida")
+  for (const secret of candidates) {
+    const expected = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`)
+    if (constantTimeEquals(expected, signature)) {
+      return
+    }
   }
+
+  throw unauthorized("Assinatura do Stripe inválida")
 }
 
-export async function createStripeCheckoutSession(params: StripeCheckoutSessionParams) {
-  const secret = getStripeSecret()
+export async function createStripeCheckoutSession(
+  params: StripeCheckoutSessionParams,
+  options?: { mode?: StripeEnvironment },
+) {
+  const secret = getStripeSecret(options?.mode)
   const form = new URLSearchParams()
 
   form.set("mode", params.mode ?? "payment")
@@ -176,8 +223,11 @@ export async function createStripeCheckoutSession(params: StripeCheckoutSessionP
   }
 }
 
-export async function getStripeCheckoutSession(sessionId: string) {
-  const secret = getStripeSecret()
+export async function getStripeCheckoutSession(
+  sessionId: string,
+  options?: { mode?: StripeEnvironment },
+) {
+  const secret = getStripeSecret(options?.mode)
   const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
     headers: {
       Authorization: `Bearer ${secret}`,
@@ -186,11 +236,12 @@ export async function getStripeCheckoutSession(sessionId: string) {
 
   const payload = await response.json()
   if (!response.ok) {
-    throw new Error(payload?.error?.message ?? "Falha ao consultar sessÃ£o Stripe")
+    throw new Error(payload?.error?.message ?? "Falha ao consultar sessão Stripe")
   }
 
   return payload as {
     id: string
+    livemode: boolean
     payment_intent: string | null
     payment_status: "paid" | "unpaid" | "no_payment_required"
     status: "open" | "complete" | "expired"
@@ -200,3 +251,4 @@ export async function getStripeCheckoutSession(sessionId: string) {
     client_reference_id?: string | null
   }
 }
+
