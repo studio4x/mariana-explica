@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState, type ChangeEvent, type FormEvent } from "react"
 import { useParams } from "react-router-dom"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -8,6 +8,7 @@ import {
   useAdminProductLessons,
   useCreateAdminModuleAsset,
   useDeleteAdminModuleAsset,
+  useUploadAdminModuleAssetFile,
   useUpdateAdminModuleAsset,
 } from "@/hooks/useAdmin"
 import type { ModuleAssetSummary } from "@/types/app.types"
@@ -19,6 +20,7 @@ export function CourseLessonMaterialsPanel() {
   const createAsset = useCreateAdminModuleAsset()
   const updateAsset = useUpdateAdminModuleAsset()
   const deleteAsset = useDeleteAdminModuleAsset()
+  const uploadAssetFile = useUploadAdminModuleAssetFile()
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState({
     title: "",
@@ -31,6 +33,8 @@ export function CourseLessonMaterialsPanel() {
     allow_stream: true,
     watermark_enabled: false,
     status: "active" as ModuleAssetSummary["status"],
+    mime_type: "",
+    file_size_bytes: null as number | null,
   })
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null)
   const [editingAsset, setEditingAsset] = useState<Partial<ModuleAssetSummary> & { source?: "storage" | "external" }>(
@@ -84,6 +88,8 @@ export function CourseLessonMaterialsPanel() {
         storage_bucket: draft.source === "storage" ? draft.storage_bucket.trim() || null : null,
         storage_path: draft.source === "storage" ? draft.storage_path.trim() || null : null,
         external_url: draft.source === "external" ? draft.external_url.trim() || null : null,
+        mime_type: draft.mime_type.trim() || null,
+        file_size_bytes: draft.file_size_bytes ?? null,
         allow_download: draft.allow_download,
         allow_stream: draft.allow_stream,
         watermark_enabled: draft.watermark_enabled,
@@ -101,9 +107,59 @@ export function CourseLessonMaterialsPanel() {
         allow_stream: true,
         watermark_enabled: false,
         status: "active",
+        mime_type: "",
+        file_size_bytes: null,
       })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar o material.")
+    }
+  }
+
+  const handleDraftFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    setError(null)
+    try {
+      const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
+      setDraft((prev) => ({
+        ...prev,
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        mime_type: upload.mime_type ?? "",
+        file_size_bytes: upload.file_size_bytes,
+        title: prev.title || upload.file_name.replace(/\.[^.]+$/, ""),
+      }))
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o ficheiro.")
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  const handleEditFileSelection = async (asset: ModuleAssetSummary, event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    setError(null)
+    try {
+      const upload = await uploadAssetFile.mutateAsync({
+        moduleId,
+        file,
+        replacePath: asset.storage_path,
+      })
+      setEditingAsset((prev) => ({
+        ...prev,
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        mime_type: upload.mime_type ?? "",
+        file_size_bytes: upload.file_size_bytes,
+        title: String(prev.title ?? asset.title) || upload.file_name.replace(/\.[^.]+$/, ""),
+      }))
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel substituir o ficheiro.")
+    } finally {
+      event.target.value = ""
     }
   }
 
@@ -168,18 +224,19 @@ export function CourseLessonMaterialsPanel() {
           </select>
           {draft.source === "storage" ? (
             <>
-              <input
-                value={draft.storage_bucket}
-                onChange={(event) => setDraft((prev) => ({ ...prev, storage_bucket: event.target.value }))}
-                placeholder="Bucket"
-                className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-              />
-              <input
-                value={draft.storage_path}
-                onChange={(event) => setDraft((prev) => ({ ...prev, storage_path: event.target.value }))}
-                placeholder="Path"
-                className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:col-span-2"
-              />
+              <div className="md:col-span-2 rounded-2xl border bg-slate-50 p-4">
+                <p className="text-sm font-medium text-slate-950">Ficheiro privado</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Faz upload para o storage privado do curso. O backend grava bucket e path automaticamente.
+                </p>
+                <input type="file" onChange={handleDraftFileSelection} className="mt-4 text-sm" />
+                {draft.storage_path ? (
+                  <div className="mt-4 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
+                    <p className="font-medium text-slate-950">{draft.storage_bucket}</p>
+                    <p className="mt-1 break-all text-slate-500">{draft.storage_path}</p>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
             <input
@@ -326,18 +383,14 @@ export function CourseLessonMaterialsPanel() {
                       </select>
                       {source === "storage" ? (
                         <>
-                          <input
-                            value={String(editingAsset.storage_bucket ?? "")}
-                            onChange={(event) => setEditingAsset((prev) => ({ ...prev, storage_bucket: event.target.value }))}
-                            placeholder="Bucket"
-                            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400"
-                          />
-                          <input
-                            value={String(editingAsset.storage_path ?? "")}
-                            onChange={(event) => setEditingAsset((prev) => ({ ...prev, storage_path: event.target.value }))}
-                            placeholder="Path"
-                            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400"
-                          />
+                          <div className="md:col-span-2 rounded-2xl border bg-slate-50 p-4">
+                            <p className="text-sm font-medium text-slate-950">Ficheiro privado</p>
+                            <input type="file" onChange={(event) => void handleEditFileSelection(asset, event)} className="mt-3 text-sm" />
+                            <div className="mt-4 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
+                              <p className="font-medium text-slate-950">{String(editingAsset.storage_bucket ?? asset.storage_bucket ?? "-")}</p>
+                              <p className="mt-1 break-all text-slate-500">{String(editingAsset.storage_path ?? asset.storage_path ?? "-")}</p>
+                            </div>
+                          </div>
                         </>
                       ) : (
                         <input

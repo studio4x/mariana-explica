@@ -9,6 +9,7 @@ import type {
   CourseModuleNavigationSummary,
   DashboardOverviewData,
   DashboardProductSummary,
+  DownloadableItem,
   LessonNoteSummary,
   LessonProgressSummary,
   ModuleAssetSummary,
@@ -230,6 +231,9 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
       const productModules = modulesByProduct.get(product.id) ?? []
       const productLessons = productModules.flatMap((module) => lessonsByModule.get(module.id) ?? [])
       const productAssets = productModules.flatMap((module) => assetsByModule.get(module.id) ?? [])
+      const modulePdfCount = productModules.filter(
+        (module) => Boolean(module.module_pdf_storage_path && module.module_pdf_file_name),
+      ).length
       const productProgress = progressByProduct.get(product.id) ?? []
       const completedLessons = productProgress.filter((item) => item.status === "completed").length
       const progressPercent =
@@ -242,9 +246,9 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
         expires_at: grant.expires_at,
         module_count: productModules.length,
         lesson_count: productLessons.length,
-        asset_count: productAssets.length,
+        asset_count: productAssets.length + modulePdfCount,
         preview_count: productModules.filter((module) => module.is_preview).length,
-        download_count: productAssets.filter((asset) => asset.allow_download).length,
+        download_count: productAssets.filter((asset) => asset.allow_download).length + modulePdfCount,
         completed_lessons: completedLessons,
         progress_percent: progressPercent,
       }
@@ -285,6 +289,53 @@ export async function fetchProductLessons(moduleIds: string[]) {
 export async function fetchModuleAssetsByModule(moduleId: string) {
   const assets = await fetchModuleAssets([moduleId])
   return assets.filter((asset) => asset.module_id === moduleId)
+}
+
+export async function requestModulePdfAccess(moduleId: string) {
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada")
+  }
+
+  const response = await fetch(
+    `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/generate-module-pdf-access`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: auth.headers.Authorization,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        moduleId,
+        access_token: auth.accessToken,
+      }),
+    },
+  )
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return data as {
+    success: true
+    mode: "signed_url"
+    url: string
+    expires_in_seconds: number
+    file_name: string
+  }
 }
 
 export async function fetchAccessibleLesson(lessonId: string) {
@@ -588,7 +639,7 @@ export async function requestAssetAccess(assetId: string) {
   }
 }
 
-export async function fetchDownloads() {
+export async function fetchDownloads(): Promise<DownloadableItem[]> {
   const products = await fetchMyProducts()
   const productIds = products.map((product) => product.id)
   const modules = await Promise.all(productIds.map((productId) => fetchProductModules(productId)))
@@ -597,18 +648,37 @@ export async function fetchDownloads() {
   const moduleMap = new Map(flatModules.map((module) => [module.id, module]))
   const productMap = new Map(products.map((product) => [product.id, product]))
 
-  return assets
+  const assetItems = assets
     .filter((asset) => asset.allow_download)
     .map((asset) => {
       const module = moduleMap.get(asset.module_id)
       const product = module ? productMap.get(module.product_id) : null
+      if (!module || !product) return null
+
       return {
+        kind: "asset" as const,
         asset,
         module,
         product,
       }
     })
-    .filter((item) => Boolean(item.module && item.product))
+    .filter((item): item is Extract<DownloadableItem, { kind: "asset" }> => Boolean(item))
+
+  const modulePdfItems = flatModules
+    .filter((module) => module.module_pdf_storage_path && module.module_pdf_file_name)
+    .map((module) => {
+      const product = productMap.get(module.product_id)
+      if (!product) return null
+
+      return {
+        kind: "module_pdf" as const,
+        module,
+        product,
+      }
+    })
+    .filter((item): item is Extract<DownloadableItem, { kind: "module_pdf" }> => Boolean(item))
+
+  return [...modulePdfItems, ...assetItems]
 }
 
 export async function fetchNotifications(limit?: number) {

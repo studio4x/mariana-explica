@@ -44,6 +44,8 @@ import {
   retryAdminEmailDelivery,
   revokeAdminCourseRelease,
   replyAdminSupportTicket,
+  uploadAdminModuleAssetFile,
+  uploadAdminModulePdf,
   updateAdminAffiliate,
   updateAdminCoupon,
   updateAdminProduct,
@@ -280,6 +282,16 @@ export function useDeleteAdminProduct() {
 export function useCreateAdminProductModule() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: createAdminProductModule, onSuccess: invalidate })
+}
+
+export function useUploadAdminModulePdf() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: uploadAdminModulePdf, onSuccess: invalidate })
+}
+
+export function useUploadAdminModuleAssetFile() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: uploadAdminModuleAssetFile, onSuccess: invalidate })
 }
 
 export function useUpdateAdminProductModule() {

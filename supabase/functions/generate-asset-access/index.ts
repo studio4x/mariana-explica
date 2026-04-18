@@ -9,6 +9,7 @@ import {
 import { logError, logInfo } from "../_shared/logger.ts"
 import { getOptionalAuth, requireActiveUser } from "../_shared/auth.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
+import { extractRequestAuditContext, writeAuditLog } from "../_shared/mod.ts"
 
 interface GenerateAssetAccessInput {
   assetId?: string
@@ -29,6 +30,15 @@ interface ProductRow {
   title: string
   product_type: "paid" | "free" | "hybrid" | "external_service"
   status: "draft" | "published" | "archived"
+}
+
+function sanitizeSegment(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
 }
 
 async function hasPaidAccess(
@@ -66,6 +76,7 @@ Deno.serve(async (req) => {
     }
 
     const optionalContext = await getOptionalAuth(req)
+    const auditMeta = extractRequestAuditContext(req)
     const body = await readJsonBody<GenerateAssetAccessInput>(req)
 
     if (!body.assetId) {
@@ -141,6 +152,21 @@ Deno.serve(async (req) => {
     }
 
     if (asset.external_url) {
+      if (optionalContext) {
+        await writeAuditLog(client, optionalContext, {
+          action: "student.asset_access_requested",
+          entityType: "module_asset",
+          entityId: asset.id,
+          metadata: {
+            asset_id: asset.id,
+            module_id: asset.module_id,
+            product_id: product.id,
+            mode: "external_url",
+          },
+          ...auditMeta,
+        })
+      }
+
       logInfo("External asset access granted", {
         request_id: requestId,
         user_id: activeContext?.user.id ?? null,
@@ -165,10 +191,32 @@ Deno.serve(async (req) => {
 
     const signed = await client.storage
       .from(asset.storage_bucket)
-      .createSignedUrl(asset.storage_path, 300)
+      .createSignedUrl(asset.storage_path, 300, {
+        download:
+          asset.allow_download && activeContext
+            ? sanitizeSegment(`${product.title}-${asset.title}-${activeContext.user.id.slice(0, 8)}`)
+            : undefined,
+      })
 
     if (signed.error || !signed.data?.signedUrl) {
       throw signed.error ?? forbidden("Não foi possível gerar acesso temporário")
+    }
+
+    if (activeContext) {
+      await writeAuditLog(client, activeContext, {
+        action: "student.asset_access_requested",
+        entityType: "module_asset",
+        entityId: asset.id,
+        metadata: {
+          asset_id: asset.id,
+          module_id: asset.module_id,
+          product_id: product.id,
+          mode: "signed_url",
+          allow_download: asset.allow_download,
+          storage_path: asset.storage_path,
+        },
+        ...auditMeta,
+      })
     }
 
     logInfo("Signed asset access granted", {

@@ -3,7 +3,7 @@ import { BookOpenCheck, Clock3, PlayCircle } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { useDashboardProductContent } from "@/hooks/useDashboard"
+import { useDashboardProductContent, useRequestModulePdfAccess } from "@/hooks/useDashboard"
 import {
   buildCoursePlayerEntries,
   createLessonProgressMap,
@@ -20,6 +20,7 @@ import {
 export function StudentCourseDetailsPage() {
   const { courseId } = useParams<{ courseId: string }>()
   const { data, isLoading, isError, error, refetch } = useDashboardProductContent(courseId)
+  const modulePdfAccess = useRequestModulePdfAccess()
 
   if (isLoading) {
     return <LoadingState message="A carregar detalhes do curso..." />
@@ -170,6 +171,29 @@ export function StudentCourseDetailsPage() {
                     <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-700">
                       {module.lock_reason}
                     </p>
+                  ) : null}
+                  {module.module_pdf_file_name && !module.is_locked ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+                      <div>
+                        <p className="font-medium text-slate-950">{module.module_pdf_file_name}</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          PDF base protegido, com acesso temporario emitido pelo backend.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={modulePdfAccess.isPending}
+                        onClick={() =>
+                          void modulePdfAccess
+                            .mutateAsync(module.id)
+                            .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                        }
+                      >
+                        {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF"}
+                      </Button>
+                    </div>
                   ) : null}
 
                   <div className="mt-4 space-y-2">

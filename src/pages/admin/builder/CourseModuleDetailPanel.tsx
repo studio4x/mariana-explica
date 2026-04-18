@@ -1,11 +1,12 @@
 import { Link, useParams } from "react-router-dom"
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState, type ChangeEvent, type FormEvent } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { PageHeader, StatusBadge } from "@/components/common"
 import {
   useAdminProductLessons,
   useAdminModuleAssets,
+  useUploadAdminModulePdf,
   useUpdateAdminProductModule,
 } from "@/hooks/useAdmin"
 import {
@@ -34,8 +35,10 @@ export function CourseModuleDetailPanel() {
   const lessonsQuery = useAdminProductLessons(moduleId)
   const assetsQuery = useAdminModuleAssets(moduleId)
   const updateModule = useUpdateAdminProductModule()
+  const uploadModulePdf = useUploadAdminModulePdf()
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductModuleSummary>>({})
+  const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null)
 
   if (!moduleId || !courseId) {
     return <EmptyState title="Modulo invalido" message="Seleciona um modulo valido na arvore lateral." />
@@ -113,6 +116,33 @@ export function CourseModuleDetailPanel() {
     }
   }
 
+  const handlePdfSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    setPendingPdfFile(file)
+    if (!file) return
+
+    setError(null)
+    try {
+      const upload = await uploadModulePdf.mutateAsync({
+        moduleId: module.id,
+        file,
+        replacePath: values.module_pdf_storage_path || null,
+      })
+
+      setForm((prev) => ({
+        ...prev,
+        module_pdf_storage_path: upload.path,
+        module_pdf_file_name: upload.file_name,
+        module_pdf_uploaded_at: upload.uploaded_at,
+      }))
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o PDF base.")
+    } finally {
+      event.target.value = ""
+      setPendingPdfFile(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -182,18 +212,46 @@ export function CourseModuleDetailPanel() {
             placeholder="Dias apos inscricao"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
-          <input
-            value={String(values.module_pdf_storage_path)}
-            onChange={(event) => setForm((prev) => ({ ...prev, module_pdf_storage_path: event.target.value }))}
-            placeholder="Path do PDF base"
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
-          <input
-            value={String(values.module_pdf_file_name)}
-            onChange={(event) => setForm((prev) => ({ ...prev, module_pdf_file_name: event.target.value }))}
-            placeholder="Nome do PDF"
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
+          <div className="md:col-span-2 rounded-2xl border bg-slate-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">PDF base do modulo</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Upload privado para o storage do curso. O aluno recebe acesso licenciado por URL assinada.
+                </p>
+              </div>
+              {values.module_pdf_file_name ? <StatusBadge label="PDF configurado" tone="success" /> : null}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <input type="file" accept="application/pdf" onChange={handlePdfSelection} className="text-sm" />
+              <Button type="button" variant="outline" className="rounded-full" disabled={uploadModulePdf.isPending || !pendingPdfFile}>
+                {uploadModulePdf.isPending ? "A enviar..." : "Seleciona um PDF"}
+              </Button>
+              {values.module_pdf_file_name ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      module_pdf_storage_path: null,
+                      module_pdf_file_name: null,
+                      module_pdf_uploaded_at: null,
+                    }))
+                  }
+                >
+                  Remover PDF
+                </Button>
+              ) : null}
+            </div>
+            {values.module_pdf_file_name ? (
+              <div className="mt-4 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
+                <p className="font-medium text-slate-950">{values.module_pdf_file_name}</p>
+                <p className="mt-1 break-all text-slate-500">{values.module_pdf_storage_path}</p>
+              </div>
+            ) : null}
+          </div>
           <textarea
             value={String(values.description)}
             onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}

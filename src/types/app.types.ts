@@ -69,6 +69,15 @@ export interface ModuleAssetSummary {
   status: "active" | "inactive"
 }
 
+export interface AdminStorageUploadResult {
+  bucket: string
+  path: string
+  file_name: string
+  mime_type: string | null
+  file_size_bytes: number | null
+  uploaded_at: string
+}
+
 export interface ProductLessonSummary {
   id: string
   module_id: string
@@ -261,6 +270,19 @@ export interface StudentCourseNavigationData {
   assessments: CourseAssessmentNavigationSummary[]
   progress: LessonProgressSummary[]
 }
+
+export type DownloadableItem =
+  | {
+      kind: "asset"
+      asset: ModuleAssetSummary
+      module: ProductModuleSummary
+      product: DashboardProductSummary
+    }
+  | {
+      kind: "module_pdf"
+      module: ProductModuleSummary
+      product: DashboardProductSummary
+    }
 
 export interface ProfilePreferences {
   id: string

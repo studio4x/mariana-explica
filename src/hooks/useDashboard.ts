@@ -17,6 +17,7 @@ import {
   markNotificationAsRead,
   replySupportTicket,
   requestAssetAccess,
+  requestModulePdfAccess,
   saveAssessmentAttemptDraft,
   saveLessonNote,
   submitAssessmentAttempt,
@@ -170,6 +171,12 @@ export function useUpdateProfilePreferences() {
 export function useRequestAssetAccess() {
   return useMutation({
     mutationFn: requestAssetAccess,
+  })
+}
+
+export function useRequestModulePdfAccess() {
+  return useMutation({
+    mutationFn: requestModulePdfAccess,
   })
 }
 

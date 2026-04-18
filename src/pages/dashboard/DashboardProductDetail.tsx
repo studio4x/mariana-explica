@@ -10,6 +10,7 @@ import {
   useLessonNote,
   useModuleAssets,
   useRequestAssetAccess,
+  useRequestModulePdfAccess,
   useSaveLessonNote,
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
@@ -45,6 +46,7 @@ export function DashboardProductDetail() {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const { data, isLoading, isError, error, refetch } = useDashboardProductContent(id)
   const assetAccess = useRequestAssetAccess()
+  const modulePdfAccess = useRequestModulePdfAccess()
   const saveLessonNote = useSaveLessonNote()
   const upsertLessonProgress = useUpsertLessonProgress()
 
@@ -363,6 +365,33 @@ export function DashboardProductDetail() {
                       />
                     ) : (
                       <>
+                        {selectedModule.module_pdf_file_name ? (
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-semibold text-slate-950">{selectedModule.module_pdf_file_name}</p>
+                                  <StatusBadge label="PDF base do modulo" tone="warning" />
+                                </div>
+                                <p className="mt-2 text-sm leading-6 text-slate-600">
+                                  Ficheiro protegido com URL temporaria emitida pelo backend.
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  void modulePdfAccess
+                                    .mutateAsync(selectedModule.id)
+                                    .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                                }
+                                disabled={modulePdfAccess.isPending}
+                                className="rounded-full"
+                              >
+                                {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                         {selectedAssets.map((asset) => (
                           <div key={asset.id} className="rounded-2xl border bg-slate-50/70 p-4">
                             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

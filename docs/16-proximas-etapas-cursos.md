@@ -128,6 +128,11 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - importacao de curso ajustada para criar `product_assessments` via backend, sem insert direto do cliente.
 - Validacoes executadas:
   - `npm run build`
+- Deploys executados nesta rodada:
+  - deploy das Edge Functions `admin-content`, `generate-asset-access`, `generate-module-pdf-access` e `admin-storage-upload` no projeto Supabase `gookhgufsxeplelpdaua`;
+  - verificacao remota das funcoes novas por resposta `401` sem header de autorizacao, confirmando endpoint publicado e protegido;
+  - deploy frontend na Vercel com producao pronta em `https://www.mariana-explica.pt`;
+  - verificacao HTTP do dominio publico com `200 OK`.
 - Deploys tentados nesta rodada:
   - deploy da Edge Function `admin-content` no Supabase;
   - deploy frontend na Vercel.
@@ -179,17 +184,28 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - gestor de materiais no admin;
   - Edge Function `generate-asset-access`;
   - acesso a materiais por signed URL.
+- Verificacao inicial desta rodada:
+  - o PDF base do modulo existia apenas como metadata manual (`storage_path` e nome) sem upload operacional no admin;
+  - os materiais do modulo tambem dependiam de bucket/path digitados manualmente, sem fluxo real de upload privado;
+  - o aluno conseguia abrir `module_assets` por signed URL, mas o PDF base do modulo nao aparecia no player nem na central de downloads;
+  - havia flag de `watermark_enabled` nos materiais, mas sem tratamento especifico para o PDF base do modulo.
 - O que falta para concluir:
-  - fluxo operacional de upload do PDF base;
-  - download licenciado por aluno para PDF base do modulo;
-  - uso consistente de storage privado;
-  - integracao clara no player e na area de downloads;
-  - cobertura de watermark e logs para acesso sensivel.
+  - tratamento de watermark visual sobre o binario do PDF base, caso essa exigencia passe a ser obrigatoria no payload entregue ao aluno.
 - Verificacao obrigatoria antes de iniciar:
   - confirmar se o PDF base hoje e apenas metadata ou se ja existe download licenciado real;
   - revisar buckets e regras de storage.
 - Criterio de conclusao:
   - materiais privados usam fluxo seguro e o PDF base gera acesso licenciado por aluno.
+- Entregue nesta rodada:
+  - Edge Function `admin-course-storage` para upload administrativo de PDF base e materiais do modulo em bucket privado;
+  - limpeza de ficheiros antigos no `admin-content` ao substituir ou remover PDF base e materiais privados;
+  - Edge Function `generate-module-pdf-access` para emitir URL assinada licenciada por aluno para o PDF base do modulo;
+  - auditoria de acesso para PDF base do modulo e para `module_assets` servidos por signed URL;
+  - builder do modulo atualizado com upload real do PDF base;
+  - gestor de materiais atualizado com upload real para assets privados do modulo;
+  - integracao do PDF base do modulo no detalhe do curso, no player da aula, na tela de detalhe do dashboard e na central de downloads.
+- Validacoes executadas:
+  - `npm run build`
 
 ### Etapa 5 — Limpeza final do legado e padronizacao de linguagem
 

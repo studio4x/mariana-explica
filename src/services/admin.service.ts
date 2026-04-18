@@ -16,6 +16,7 @@ import type {
   AdminCouponSummary,
   AdminCouponUsageSummary,
   AdminCourseReleaseSummary,
+  AdminStorageUploadResult,
   ProductLessonSummary,
   AdminSupportTicketSummary,
   AdminUserSummary,
@@ -64,6 +65,99 @@ async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
   }
 
   return data as TResponse
+}
+
+async function requireFreshAuth() {
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada")
+  }
+
+  return auth
+}
+
+export async function uploadAdminModulePdf(input: {
+  moduleId: string
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "module_pdf")
+  formData.append("moduleId", input.moduleId)
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+}
+
+export async function uploadAdminModuleAssetFile(input: {
+  moduleId: string
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "module_asset")
+  formData.append("moduleId", input.moduleId)
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; upload: AdminStorageUploadResult }).upload
 }
 
 export async function fetchAdminUsers() {

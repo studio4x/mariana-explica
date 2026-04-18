@@ -9,6 +9,7 @@ import {
   useLessonNote,
   useModuleAssets,
   useRequestAssetAccess,
+  useRequestModulePdfAccess,
   useSaveLessonNote,
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
@@ -31,6 +32,7 @@ export function StudentLessonPage() {
   const saveLessonNote = useSaveLessonNote()
   const progressMutation = useUpsertLessonProgress()
   const assetAccess = useRequestAssetAccess()
+  const modulePdfAccess = useRequestModulePdfAccess()
   const [noteText, setNoteText] = useState("")
 
   useEffect(() => {
@@ -116,6 +118,11 @@ export function StudentLessonPage() {
     window.open(result.url, "_blank", "noopener,noreferrer")
   }
 
+  const handleModulePdfOpen = async () => {
+    const result = await modulePdfAccess.mutateAsync(module.id)
+    window.open(result.url, "_blank", "noopener,noreferrer")
+  }
+
   return (
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -188,10 +195,37 @@ export function StudentLessonPage() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <h2 className="font-display text-2xl font-bold text-slate-950">Materiais da aula</h2>
           <div className="mt-4 space-y-3">
+            {module.module_pdf_file_name ? (
+              <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-950">{module.module_pdf_file_name}</p>
+                      <StatusBadge label="PDF base do modulo" tone="warning" />
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Acesso licenciado por aluno com URL temporaria e auditavel.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="rounded-full"
+                    onClick={() => void handleModulePdfOpen()}
+                    disabled={modulePdfAccess.isPending}
+                  >
+                    {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF base"}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {assets.length === 0 ? (
               <EmptyState
                 title="Sem materiais adicionais"
-                message="Quando houver PDFs, links ou videos de apoio, eles aparecem aqui."
+                message={
+                  module.module_pdf_file_name
+                    ? "O PDF base do modulo ja esta disponivel acima."
+                    : "Quando houver PDFs, links ou videos de apoio, eles aparecem aqui."
+                }
               />
             ) : (
               assets.map((asset) => (

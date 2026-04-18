@@ -2,12 +2,13 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { useDownloads, useRequestAssetAccess } from "@/hooks/useDashboard"
+import { useDownloads, useRequestAssetAccess, useRequestModulePdfAccess } from "@/hooks/useDashboard"
 
 export function DashboardDownloads() {
   const { data, isLoading, isError, error, refetch } = useDownloads()
   const productsQuery = useMyProducts()
   const assetAccess = useRequestAssetAccess()
+  const modulePdfAccess = useRequestModulePdfAccess()
 
   if (isLoading) {
     return <LoadingState message="A carregar downloads..." />
@@ -67,29 +68,47 @@ export function DashboardDownloads() {
       </div>
 
       <div className="space-y-4">
-        {items.map(({ asset, module, product }) => (
-          <div key={asset.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        {items.map((item) => (
+          <div key={item.kind === "asset" ? item.asset.id : `module-pdf-${item.module.id}`} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="font-display text-2xl font-bold text-slate-950">{asset.title}</h2>
+                <h2 className="font-display text-2xl font-bold text-slate-950">
+                  {item.kind === "asset" ? item.asset.title : item.module.module_pdf_file_name}
+                </h2>
                 <p className="mt-2 text-sm leading-7 text-slate-600">
-                  {product?.title} · {module?.title}
+                  {item.product.title} · {item.module.title}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <StatusBadge label={asset.allow_download ? "Descarregavel" : "Consulta"} tone={asset.allow_download ? "success" : "info"} />
-                  {asset.watermark_enabled ? <StatusBadge label="Marca d'agua" tone="neutral" /> : null}
-                  {asset.allow_stream ? <StatusBadge label="Streaming" tone="neutral" /> : null}
+                  <StatusBadge
+                    label={
+                      item.kind === "asset"
+                        ? item.asset.allow_download
+                          ? "Descarregavel"
+                          : "Consulta"
+                        : "PDF base"
+                    }
+                    tone={item.kind === "asset" ? (item.asset.allow_download ? "success" : "info") : "warning"}
+                  />
+                  {item.kind === "asset" && item.asset.watermark_enabled ? <StatusBadge label="Marca d'agua" tone="neutral" /> : null}
+                  {item.kind === "asset" && item.asset.allow_stream ? <StatusBadge label="Streaming" tone="neutral" /> : null}
+                  {item.kind === "module_pdf" ? <StatusBadge label="URL licenciada" tone="neutral" /> : null}
                 </div>
               </div>
               <Button
                 className="rounded-full"
                 onClick={() =>
-                  void assetAccess
-                    .mutateAsync(asset.id)
-                    .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                  void (
+                    item.kind === "asset"
+                      ? assetAccess
+                          .mutateAsync(item.asset.id)
+                          .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                      : modulePdfAccess
+                          .mutateAsync(item.module.id)
+                          .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                  )
                 }
               >
-                {assetAccess.isPending ? "A preparar..." : "Descarregar"}
+                {assetAccess.isPending || modulePdfAccess.isPending ? "A preparar..." : "Descarregar"}
               </Button>
             </div>
           </div>

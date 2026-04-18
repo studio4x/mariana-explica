@@ -217,6 +217,23 @@ function validateAssetSource(body: Body) {
   }
 }
 
+async function removeStorageObjectIfPresent(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  bucket: string | null | undefined,
+  path: string | null | undefined,
+) {
+  if (!bucket || !path) return
+
+  const { error } = await serviceClient.storage.from(bucket).remove([path])
+  if (error) {
+    logError("Admin content storage cleanup failed", {
+      bucket,
+      path,
+      error: String(error),
+    })
+  }
+}
+
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
 
@@ -288,6 +305,14 @@ Deno.serve(async (req) => {
 
     if (body.action === "update_module") {
       const moduleId = requireUuid(body.moduleId, "moduleId")
+      const { data: existingModule, error: existingModuleError } = await serviceClient
+        .from("product_modules")
+        .select("id,module_pdf_storage_path")
+        .eq("id", moduleId)
+        .maybeSingle()
+
+      if (existingModuleError) throw existingModuleError
+      if (!existingModule) throw badRequest("Modulo nao encontrado")
 
       const payload: Record<string, unknown> = {}
       if (body.title !== undefined) payload.title = normalizeNullableText(body.title)
@@ -323,13 +348,43 @@ Deno.serve(async (req) => {
 
       if (error) throw error
 
+      if (
+        existingModule.module_pdf_storage_path &&
+        data.module_pdf_storage_path !== existingModule.module_pdf_storage_path
+      ) {
+        await removeStorageObjectIfPresent(serviceClient, "course-assets-private", existingModule.module_pdf_storage_path)
+      }
+
       return jsonResponse({ success: true, request_id: requestId, module: data })
     }
 
     if (body.action === "delete_module") {
       const moduleId = requireUuid(body.moduleId, "moduleId")
+      const { data: existingModule, error: existingModuleError } = await serviceClient
+        .from("product_modules")
+        .select("id,module_pdf_storage_path")
+        .eq("id", moduleId)
+        .maybeSingle()
+      if (existingModuleError) throw existingModuleError
+
+      const { data: existingAssets, error: existingAssetsError } = await serviceClient
+        .from("module_assets")
+        .select("id,storage_bucket,storage_path")
+        .eq("module_id", moduleId)
+
+      if (existingAssetsError) throw existingAssetsError
+
       const { error } = await serviceClient.from("product_modules").delete().eq("id", moduleId)
       if (error) throw error
+
+      await removeStorageObjectIfPresent(
+        serviceClient,
+        "course-assets-private",
+        existingModule?.module_pdf_storage_path,
+      )
+      for (const asset of existingAssets ?? []) {
+        await removeStorageObjectIfPresent(serviceClient, asset.storage_bucket, asset.storage_path)
+      }
       return jsonResponse({ success: true, request_id: requestId })
     }
 
@@ -617,6 +672,14 @@ Deno.serve(async (req) => {
 
     if (body.action === "update_asset") {
       const assetId = requireUuid(body.assetId, "assetId")
+      const { data: existingAsset, error: existingAssetError } = await serviceClient
+        .from("module_assets")
+        .select("id,storage_bucket,storage_path")
+        .eq("id", assetId)
+        .maybeSingle()
+
+      if (existingAssetError) throw existingAssetError
+      if (!existingAsset) throw badRequest("Material nao encontrado")
 
       const payload: Record<string, unknown> = {}
       if (body.title !== undefined) payload.title = normalizeNullableText(body.title)
@@ -644,13 +707,39 @@ Deno.serve(async (req) => {
         .single()
 
       if (error) throw error
+      if (
+        existingAsset.storage_bucket &&
+        existingAsset.storage_path &&
+        (
+          data.storage_bucket !== existingAsset.storage_bucket ||
+          data.storage_path !== existingAsset.storage_path
+        )
+      ) {
+        await removeStorageObjectIfPresent(
+          serviceClient,
+          existingAsset.storage_bucket,
+          existingAsset.storage_path,
+        )
+      }
       return jsonResponse({ success: true, request_id: requestId, asset: data })
     }
 
     if (body.action === "delete_asset") {
       const assetId = requireUuid(body.assetId, "assetId")
+      const { data: existingAsset, error: existingAssetError } = await serviceClient
+        .from("module_assets")
+        .select("id,storage_bucket,storage_path")
+        .eq("id", assetId)
+        .maybeSingle()
+
+      if (existingAssetError) throw existingAssetError
       const { error } = await serviceClient.from("module_assets").delete().eq("id", assetId)
       if (error) throw error
+      await removeStorageObjectIfPresent(
+        serviceClient,
+        existingAsset?.storage_bucket,
+        existingAsset?.storage_path,
+      )
       return jsonResponse({ success: true, request_id: requestId })
     }
 
