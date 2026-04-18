@@ -97,7 +97,6 @@ async function refreshProfileState(
     mountedRef: MutableRefObject<boolean>
     requestIdRef: MutableRefObject<number>
     setProfile: Dispatch<SetStateAction<UserProfile | null>>
-    setLoading: Dispatch<SetStateAction<boolean>>
     silent?: boolean
     preserveCurrentOnFailure?: boolean
   },
@@ -105,10 +104,6 @@ async function refreshProfileState(
   const timeout = new Promise<null>((resolve) => {
     window.setTimeout(() => resolve(null), 8000)
   })
-
-  if (!options.silent) {
-    options.setLoading(true)
-  }
 
   const userProfile = await Promise.race([fetchProfile(userId), timeout])
 
@@ -121,7 +116,6 @@ async function refreshProfileState(
   } else if (!options.preserveCurrentOnFailure) {
     options.setProfile(null)
   }
-  options.setLoading(false)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -163,8 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(cachedProfile)
     }
 
+    // `loading` representa apenas o bootstrap inicial da sessao.
+    // Se a sessao ja existe, a app pode sair do spinner global e
+    // aguardar o profile nos guards sem travar a navegacao inteira.
+    setLoading(false)
+
     if (!shouldRefreshProfile) {
-      setLoading(false)
       return
     }
 
@@ -178,20 +176,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         mountedRef,
         requestIdRef,
         setProfile,
-        setLoading,
         preserveCurrentOnFailure: keepCurrentProfile,
       })
     } catch {
-      if (mountedRef.current && requestId === requestIdRef.current) {
+      if (
+        mountedRef.current &&
+        requestId === requestIdRef.current &&
+        !keepCurrentProfile
+      ) {
         if (!keepCurrentProfile) {
           setProfile(null)
         }
-        setLoading(false)
       }
     }
   }, [setLoading, setProfile, setSession, setUser])
 
   useEffect(() => {
+    mountedRef.current = true
+
     async function initializeAuth() {
       try {
         const { data } = await supabase.auth.getSession()
@@ -231,7 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mountedRef.current = false
       listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [syncSession])
 
   useEffect(() => {
     if (!session?.user) {
@@ -248,7 +250,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         mountedRef,
         requestIdRef,
         setProfile,
-        setLoading,
         silent: true,
         preserveCurrentOnFailure: true,
       })
