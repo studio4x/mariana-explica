@@ -19,6 +19,7 @@ type ProductStatus = "draft" | "published" | "archived"
 interface ProductPayload {
   slug: string
   title: string
+  coverImageUrl?: string | null
   shortDescription?: string | null
   description?: string | null
   productType: ProductType
@@ -43,12 +44,14 @@ type AdminProductsInput =
   | ({ action: "update"; productId: string } & Partial<ProductPayload> & { status?: ProductStatus })
   | { action: "publish"; productId: string }
   | { action: "archive"; productId: string }
+  | { action: "delete"; productId: string }
 
 function mapPayload(payload: Partial<ProductPayload>) {
   const updates: Record<string, unknown> = {}
 
   if (payload.slug !== undefined) updates.slug = payload.slug.trim()
   if (payload.title !== undefined) updates.title = payload.title.trim()
+  if (payload.coverImageUrl !== undefined) updates.cover_image_url = payload.coverImageUrl
   if (payload.shortDescription !== undefined) updates.short_description = payload.shortDescription
   if (payload.description !== undefined) updates.description = payload.description
   if (payload.productType !== undefined) updates.product_type = payload.productType
@@ -151,6 +154,54 @@ Deno.serve(async (req) => {
       })
 
       return jsonResponse({ success: true, request_id: requestId, product: data })
+    }
+
+    if (body.action === "delete") {
+      const { count: ordersCount, error: ordersError } = await context.serviceClient
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", body.productId)
+
+      if (ordersError) {
+        throw ordersError
+      }
+
+      if ((ordersCount ?? 0) > 0) {
+        throw badRequest("Nao e possivel excluir curso com pedidos vinculados")
+      }
+
+      const { data: existingProduct, error: lookupError } = await context.serviceClient
+        .from("products")
+        .select("id,title")
+        .eq("id", body.productId)
+        .maybeSingle()
+
+      if (lookupError) {
+        throw lookupError
+      }
+
+      if (!existingProduct) {
+        throw badRequest("Curso nao encontrado")
+      }
+
+      const { error: deleteError } = await context.serviceClient
+        .from("products")
+        .delete()
+        .eq("id", body.productId)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.product_deleted",
+        entityType: "product",
+        entityId: body.productId,
+        metadata: { title: existingProduct.title },
+        ...auditMeta,
+      })
+
+      return jsonResponse({ success: true, request_id: requestId, productId: body.productId })
     }
 
     const updates = mapPayload(body)

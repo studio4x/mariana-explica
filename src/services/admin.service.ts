@@ -577,6 +577,7 @@ export function retryAdminEmailDelivery(emailDeliveryId: string) {
 export function createAdminProduct(input: {
   slug: string
   title: string
+  coverImageUrl?: string | null
   shortDescription?: string | null
   description?: string | null
   productType: ProductSummary["product_type"]
@@ -605,6 +606,7 @@ export function updateAdminProduct(input: {
   productId: string
   slug?: string
   title?: string
+  coverImageUrl?: string | null
   shortDescription?: string | null
   description?: string | null
   productType?: ProductSummary["product_type"]
@@ -640,6 +642,13 @@ export function publishAdminProduct(productId: string) {
 export function archiveAdminProduct(productId: string) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "archive",
+    productId,
+  })
+}
+
+export function deleteAdminProduct(productId: string) {
+  return invokeAdminFunction<{ success: true; productId: string }>("admin-products", {
+    action: "delete",
     productId,
   })
 }

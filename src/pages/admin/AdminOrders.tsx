@@ -116,7 +116,7 @@ export function AdminOrders() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Lista de pedidos</h2>
-            <p className="mt-1 text-sm text-slate-600">Pesquisa por pedido, utilizador, produto ou estado.</p>
+            <p className="mt-1 text-sm text-slate-600">Pesquisa por pedido, utilizador, curso ou estado.</p>
           </div>
           <input
             value={query}
@@ -137,7 +137,7 @@ export function AdminOrders() {
                 <tr>
                   <th className="py-3 pr-4 font-medium">Pedido</th>
                   <th className="py-3 pr-4 font-medium">Cliente</th>
-                  <th className="py-3 pr-4 font-medium">Produto</th>
+                  <th className="py-3 pr-4 font-medium">Curso</th>
                   <th className="py-3 pr-4 font-medium">Estado</th>
                   <th className="py-3 pr-4 font-medium">Total</th>
                   <th className="py-3 pr-4 font-medium">Acoes</th>

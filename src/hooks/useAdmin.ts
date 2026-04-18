@@ -7,6 +7,7 @@ import {
   createAdminNotification,
   createAdminProduct,
   createAdminUser,
+  deleteAdminProduct,
   createAdminModuleAsset,
   createAdminProductLesson,
   createAdminProductModule,
@@ -266,6 +267,11 @@ export function usePublishAdminProduct() {
 export function useArchiveAdminProduct() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: archiveAdminProduct, onSuccess: invalidate })
+}
+
+export function useDeleteAdminProduct() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: deleteAdminProduct, onSuccess: invalidate })
 }
 
 export function useCreateAdminProductModule() {
