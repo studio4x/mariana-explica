@@ -4,8 +4,12 @@ import type {
   AccessGrantSummary,
   DashboardOverviewData,
   DashboardProductSummary,
+  LessonNoteSummary,
+  LessonProgressSummary,
   ModuleAssetSummary,
   NotificationItem,
+  ProductAssessmentSummary,
+  ProductLessonSummary,
   ProductModuleSummary,
   ProfilePreferences,
   SupportTicketMessage,
@@ -21,7 +25,7 @@ async function fetchProductsByIds(productIds: string[]) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
     )
     .in("id", productIds)
 
@@ -39,8 +43,9 @@ async function fetchModulesByProductIds(productIds: string[]) {
 
   const { data, error } = await supabase
     .from("product_modules")
-    .select("id,product_id,title,description,module_type,access_type,sort_order,is_preview,status")
+    .select("id,product_id,title,description,module_type,access_type,sort_order,position,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_file_name,module_pdf_uploaded_at,status")
     .in("product_id", productIds)
+    .order("position", { ascending: true })
     .order("sort_order", { ascending: true })
 
   if (error) {
@@ -48,6 +53,45 @@ async function fetchModulesByProductIds(productIds: string[]) {
   }
 
   return (data ?? []) as ProductModuleSummary[]
+}
+
+async function fetchLessonsByModuleIds(moduleIds: string[]) {
+  if (moduleIds.length === 0) {
+    return [] as ProductLessonSummary[]
+  }
+
+  const { data, error } = await supabase
+    .from("product_lessons")
+    .select(
+      "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status",
+    )
+    .in("module_id", moduleIds)
+    .order("position", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ProductLessonSummary[]
+}
+
+async function fetchLessonProgressByProductIds(productIds: string[]) {
+  if (productIds.length === 0) {
+    return [] as LessonProgressSummary[]
+  }
+
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .select(
+      "id,user_id,lesson_id,product_id,module_id,status,progress_percent,started_at,completed_at,last_accessed_at",
+    )
+    .in("product_id", productIds)
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as LessonProgressSummary[]
 }
 
 async function fetchUnreadNotificationsCount() {
@@ -63,6 +107,35 @@ async function fetchUnreadNotificationsCount() {
 
   const rawCount = "count" in response ? response.count : 0
   return Number(rawCount ?? 0)
+}
+
+async function requireCurrentUserId() {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession()
+
+  if (error) {
+    throw error
+  }
+
+  if (!session?.user) {
+    throw new Error("Sessao expirada")
+  }
+
+  return session.user.id
+}
+
+function mutableTable(table: string) {
+  return (supabase as unknown as {
+    from: (name: string) => {
+      upsert: (...args: unknown[]) => {
+        select: (...args: unknown[]) => {
+          single: () => Promise<{ data: unknown; error: unknown }>
+        }
+      }
+    }
+  }).from(table)
 }
 
 export async function fetchMyAccessGrants() {
@@ -108,10 +181,16 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
     fetchProductsByIds(productIds),
     fetchModulesByProductIds(productIds),
   ])
-  const assets = await fetchModuleAssets(modules.map((module) => module.id))
+  const [lessons, assets, progress] = await Promise.all([
+    fetchLessonsByModuleIds(modules.map((module) => module.id)),
+    fetchModuleAssets(modules.map((module) => module.id)),
+    fetchLessonProgressByProductIds(productIds),
+  ])
   const productMap = new Map(products.map((product) => [product.id, product]))
   const modulesByProduct = new Map<string, ProductModuleSummary[]>()
   const assetsByModule = new Map<string, ModuleAssetSummary[]>()
+  const lessonsByModule = new Map<string, ProductLessonSummary[]>()
+  const progressByProduct = new Map<string, LessonProgressSummary[]>()
 
   for (const module of modules) {
     const list = modulesByProduct.get(module.product_id) ?? []
@@ -125,13 +204,30 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
     assetsByModule.set(asset.module_id, list)
   }
 
+  for (const lesson of lessons) {
+    const list = lessonsByModule.get(lesson.module_id) ?? []
+    list.push(lesson)
+    lessonsByModule.set(lesson.module_id, list)
+  }
+
+  for (const item of progress) {
+    const list = progressByProduct.get(item.product_id) ?? []
+    list.push(item)
+    progressByProduct.set(item.product_id, list)
+  }
+
   return grants
     .map((grant) => {
       const product = productMap.get(grant.product_id)
       if (!product) return null
 
       const productModules = modulesByProduct.get(product.id) ?? []
+      const productLessons = productModules.flatMap((module) => lessonsByModule.get(module.id) ?? [])
       const productAssets = productModules.flatMap((module) => assetsByModule.get(module.id) ?? [])
+      const productProgress = progressByProduct.get(product.id) ?? []
+      const completedLessons = productProgress.filter((item) => item.status === "completed").length
+      const progressPercent =
+        productLessons.length > 0 ? Math.round((completedLessons / productLessons.length) * 100) : 0
 
       return {
         ...product,
@@ -139,9 +235,12 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
         granted_at: grant.granted_at,
         expires_at: grant.expires_at,
         module_count: productModules.length,
+        lesson_count: productLessons.length,
         asset_count: productAssets.length,
         preview_count: productModules.filter((module) => module.is_preview).length,
         download_count: productAssets.filter((asset) => asset.allow_download).length,
+        completed_lessons: completedLessons,
+        progress_percent: progressPercent,
       }
     })
     .filter((item): item is DashboardProductSummary => Boolean(item))
@@ -161,8 +260,9 @@ export async function fetchDashboardOverview(): Promise<DashboardOverviewData> {
 export async function fetchProductModules(productId: string) {
   const { data, error } = await supabase
     .from("product_modules")
-    .select("id,product_id,title,description,module_type,access_type,sort_order,is_preview,status")
+    .select("id,product_id,title,description,module_type,access_type,sort_order,position,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_file_name,module_pdf_uploaded_at,status")
     .eq("product_id", productId)
+    .order("position", { ascending: true })
     .order("sort_order", { ascending: true })
 
   if (error) {
@@ -170,6 +270,112 @@ export async function fetchProductModules(productId: string) {
   }
 
   return (data ?? []) as ProductModuleSummary[]
+}
+
+export async function fetchProductLessons(moduleIds: string[]) {
+  return fetchLessonsByModuleIds(moduleIds)
+}
+
+export async function fetchLessonProgress(productId: string) {
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .select(
+      "id,user_id,lesson_id,product_id,module_id,status,progress_percent,started_at,completed_at,last_accessed_at",
+    )
+    .eq("product_id", productId)
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as LessonProgressSummary[]
+}
+
+export async function fetchProductAssessments(productId: string) {
+  const { data, error } = await supabase
+    .from("product_assessments")
+    .select(
+      "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
+    )
+    .eq("product_id", productId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ProductAssessmentSummary[]
+}
+
+export async function fetchLessonNotes(lessonId: string) {
+  const { data, error } = await supabase
+    .from("lesson_notes")
+    .select("id,user_id,lesson_id,note_text,created_at,updated_at")
+    .eq("lesson_id", lessonId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? null) as LessonNoteSummary | null
+}
+
+export async function saveLessonNote(input: { lessonId: string; noteText: string }) {
+  const userId = await requireCurrentUserId()
+  const { data, error } = await mutableTable("lesson_notes")
+    .upsert(
+      {
+        user_id: userId,
+        lesson_id: input.lessonId,
+        note_text: input.noteText,
+      },
+      { onConflict: "user_id,lesson_id" },
+    )
+    .select("id,user_id,lesson_id,note_text,created_at,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as LessonNoteSummary
+}
+
+export async function upsertLessonProgress(input: {
+  lessonId: string
+  productId: string
+  moduleId: string
+  status: LessonProgressSummary["status"]
+  progressPercent: number
+}) {
+  const userId = await requireCurrentUserId()
+  const { data, error } = await mutableTable("lesson_progress")
+    .upsert(
+      {
+        user_id: userId,
+        lesson_id: input.lessonId,
+        product_id: input.productId,
+        module_id: input.moduleId,
+        status: input.status,
+        progress_percent: input.progressPercent,
+        started_at: input.status !== "not_started" ? new Date().toISOString() : null,
+        completed_at: input.status === "completed" ? new Date().toISOString() : null,
+        last_accessed_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,lesson_id" },
+    )
+    .select(
+      "id,user_id,lesson_id,product_id,module_id,status,progress_percent,started_at,completed_at,last_accessed_at",
+    )
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as LessonProgressSummary
 }
 
 export async function fetchModuleAssets(moduleIds: string[]) {
@@ -197,13 +403,19 @@ export async function fetchDashboardProductContent(productId: string) {
   const product = products.find((entry) => entry.id === productId) ?? null
 
   if (!product) {
-    return { product: null, modules: [], assets: [] }
+    return { product: null, modules: [], lessons: [], assets: [], assessments: [], progress: [] }
   }
 
   const modules = await fetchProductModules(productId)
-  const assets = await fetchModuleAssets(modules.map((module) => module.id))
+  const moduleIds = modules.map((module) => module.id)
+  const [lessons, assets, assessments, progress] = await Promise.all([
+    fetchProductLessons(moduleIds),
+    fetchModuleAssets(moduleIds),
+    fetchProductAssessments(productId),
+    fetchLessonProgress(productId),
+  ])
 
-  return { product, modules, assets }
+  return { product, modules, lessons, assets, assessments, progress }
 }
 
 export async function requestAssetAccess(assetId: string) {

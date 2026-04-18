@@ -15,9 +15,11 @@ import type {
   AdminPaymentsStatus,
   AdminCouponSummary,
   AdminCouponUsageSummary,
+  ProductLessonSummary,
   AdminSupportTicketSummary,
   AdminUserSummary,
   ModuleAssetSummary,
+  ProductAssessmentSummary,
   ProductModuleSummary,
   SupportTicketMessage,
 } from "@/types/app.types"
@@ -72,7 +74,7 @@ export async function fetchAdminProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
     )
     .order("updated_at", { ascending: false })
 
@@ -141,8 +143,16 @@ export async function createAdminProductModule(input: {
   description?: string | null
   module_type?: ProductModuleSummary["module_type"]
   access_type?: ProductModuleSummary["access_type"]
+  position?: number
   sort_order?: number
   is_preview?: boolean
+  is_required?: boolean
+  starts_at?: string | null
+  ends_at?: string | null
+  release_days_after_enrollment?: number | null
+  module_pdf_storage_path?: string | null
+  module_pdf_file_name?: string | null
+  module_pdf_uploaded_at?: string | null
   status?: ProductModuleSummary["status"]
 }) {
   const response = await invokeAdminFunction<{ success: true; module: ProductModuleSummary }>("admin-content", {
@@ -159,8 +169,16 @@ export async function updateAdminProductModule(input: {
   description?: string | null
   module_type?: ProductModuleSummary["module_type"]
   access_type?: ProductModuleSummary["access_type"]
+  position?: number
   sort_order?: number
   is_preview?: boolean
+  is_required?: boolean
+  starts_at?: string | null
+  ends_at?: string | null
+  release_days_after_enrollment?: number | null
+  module_pdf_storage_path?: string | null
+  module_pdf_file_name?: string | null
+  module_pdf_uploaded_at?: string | null
   status?: ProductModuleSummary["status"]
 }) {
   const response = await invokeAdminFunction<{ success: true; module: ProductModuleSummary }>("admin-content", {
@@ -238,6 +256,82 @@ export async function deleteAdminModuleAsset(assetId: string) {
     action: "delete_asset",
     assetId,
   })
+}
+
+export async function fetchAdminProductLessons(moduleId: string) {
+  const response = await invokeAdminFunction<{ success: true; lessons: ProductLessonSummary[] }>("admin-content", {
+    action: "list_lessons",
+    moduleId,
+  })
+
+  return response.lessons ?? []
+}
+
+export async function createAdminProductLesson(input: {
+  moduleId: string
+  title: string
+  description?: string | null
+  position?: number
+  is_required?: boolean
+  lesson_type?: ProductLessonSummary["lesson_type"]
+  youtube_url?: string | null
+  text_content?: string | null
+  estimated_minutes?: number
+  starts_at?: string | null
+  ends_at?: string | null
+  status?: ProductLessonSummary["status"]
+}) {
+  const response = await invokeAdminFunction<{ success: true; lesson: ProductLessonSummary }>("admin-content", {
+    action: "create_lesson",
+    ...input,
+  })
+
+  return response.lesson
+}
+
+export async function updateAdminProductLesson(input: {
+  lessonId: string
+  title?: string
+  description?: string | null
+  position?: number
+  is_required?: boolean
+  lesson_type?: ProductLessonSummary["lesson_type"]
+  youtube_url?: string | null
+  text_content?: string | null
+  estimated_minutes?: number
+  starts_at?: string | null
+  ends_at?: string | null
+  status?: ProductLessonSummary["status"]
+}) {
+  const response = await invokeAdminFunction<{ success: true; lesson: ProductLessonSummary }>("admin-content", {
+    action: "update_lesson",
+    ...input,
+  })
+
+  return response.lesson
+}
+
+export async function deleteAdminProductLesson(lessonId: string) {
+  await invokeAdminFunction<{ success: true }>("admin-content", {
+    action: "delete_lesson",
+    lessonId,
+  })
+}
+
+export async function fetchAdminProductAssessments(productId: string) {
+  const { data, error } = await supabase
+    .from("product_assessments")
+    .select(
+      "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
+    )
+    .eq("product_id", productId)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ProductAssessmentSummary[]
 }
 
 export async function fetchAdminSupportTickets() {
@@ -448,6 +542,13 @@ export function createAdminProduct(input: {
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
+  launchDate?: string | null
+  isPublic?: boolean
+  creatorId?: string | null
+  creatorCommissionPercent?: number | null
+  workloadMinutes?: number
+  hasLinearProgression?: boolean
+  quizTypeSettings?: Record<string, boolean>
 }) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "create",
@@ -470,6 +571,13 @@ export function updateAdminProduct(input: {
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
+  launchDate?: string | null
+  isPublic?: boolean
+  creatorId?: string | null
+  creatorCommissionPercent?: number | null
+  workloadMinutes?: number
+  hasLinearProgression?: boolean
+  quizTypeSettings?: Record<string, boolean>
 }) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "update",

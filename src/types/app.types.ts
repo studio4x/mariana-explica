@@ -17,9 +17,12 @@ export interface DashboardProductSummary extends ProductSummary {
   granted_at: string
   expires_at: string | null
   module_count: number
+  lesson_count: number
   asset_count: number
   preview_count: number
   download_count: number
+  completed_lessons: number
+  progress_percent: number
 }
 
 export interface ProductModuleSummary {
@@ -30,7 +33,15 @@ export interface ProductModuleSummary {
   module_type: "pdf" | "video" | "external_link" | "mixed"
   access_type: "public" | "registered" | "paid_only"
   sort_order: number
+  position: number
   is_preview: boolean
+  is_required: boolean
+  starts_at: string | null
+  ends_at: string | null
+  release_days_after_enrollment: number | null
+  module_pdf_storage_path: string | null
+  module_pdf_file_name: string | null
+  module_pdf_uploaded_at: string | null
   status: "draft" | "published" | "archived"
 }
 
@@ -49,6 +60,62 @@ export interface ModuleAssetSummary {
   allow_stream: boolean
   watermark_enabled: boolean
   status: "active" | "inactive"
+}
+
+export interface ProductLessonSummary {
+  id: string
+  module_id: string
+  title: string
+  description: string | null
+  position: number
+  is_required: boolean
+  lesson_type: "video" | "text" | "hybrid"
+  youtube_url: string | null
+  text_content: string | null
+  estimated_minutes: number
+  starts_at: string | null
+  ends_at: string | null
+  status: "draft" | "published" | "archived"
+}
+
+export interface ProductAssessmentSummary {
+  id: string
+  product_id: string
+  module_id: string | null
+  assessment_type: "module" | "final"
+  title: string
+  description: string | null
+  is_required: boolean
+  passing_score: number
+  max_attempts: number | null
+  estimated_minutes: number
+  is_active: boolean
+  builder_payload: Record<string, unknown>
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LessonProgressSummary {
+  id: string
+  user_id: string
+  lesson_id: string
+  product_id: string
+  module_id: string
+  status: "not_started" | "in_progress" | "completed"
+  progress_percent: number
+  started_at: string | null
+  completed_at: string | null
+  last_accessed_at: string | null
+}
+
+export interface LessonNoteSummary {
+  id: string
+  user_id: string
+  lesson_id: string
+  note_text: string
+  created_at: string
+  updated_at: string
 }
 
 export interface NotificationItem {

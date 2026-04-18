@@ -29,6 +29,13 @@ interface ProductPayload {
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
+  launchDate?: string | null
+  isPublic?: boolean
+  creatorId?: string | null
+  creatorCommissionPercent?: number | null
+  workloadMinutes?: number
+  hasLinearProgression?: boolean
+  quizTypeSettings?: Record<string, boolean>
 }
 
 type AdminProductsInput =
@@ -52,6 +59,17 @@ function mapPayload(payload: Partial<ProductPayload>) {
   if (payload.isFeatured !== undefined) updates.is_featured = payload.isFeatured
   if (payload.allowAffiliate !== undefined) updates.allow_affiliate = payload.allowAffiliate
   if (payload.sortOrder !== undefined) updates.sort_order = payload.sortOrder
+  if (payload.launchDate !== undefined) updates.launch_date = payload.launchDate
+  if (payload.isPublic !== undefined) updates.is_public = payload.isPublic
+  if (payload.creatorId !== undefined) updates.creator_id = payload.creatorId
+  if (payload.creatorCommissionPercent !== undefined) {
+    updates.creator_commission_percent = payload.creatorCommissionPercent
+  }
+  if (payload.workloadMinutes !== undefined) updates.workload_minutes = payload.workloadMinutes
+  if (payload.hasLinearProgression !== undefined) {
+    updates.has_linear_progression = payload.hasLinearProgression
+  }
+  if (payload.quizTypeSettings !== undefined) updates.quiz_type_settings = payload.quizTypeSettings
 
   return updates
 }

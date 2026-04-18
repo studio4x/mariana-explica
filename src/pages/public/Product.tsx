@@ -50,6 +50,11 @@ export function Product() {
     { icon: PlayCircle, title: "Para quem e", text: narrative.audience },
     { icon: ShieldCheck, title: "Como acedes", text: narrative.accessLabel },
   ]
+  const courseSignals = [
+    product.workload_minutes > 0 ? `${product.workload_minutes} minutos estimados de estudo` : "Carga organizada por modulos e aulas",
+    product.launch_date ? `Lancamento previsto para ${new Date(product.launch_date).toLocaleDateString("pt-PT")}` : "Ativacao imediata depois da confirmacao",
+    product.has_linear_progression ? "Jornada pensada para seguir em ordem" : "Podes retomar os blocos conforme o teu ritmo",
+  ]
 
   return (
     <div className="container space-y-8 py-10 md:py-12">
@@ -123,6 +128,17 @@ export function Product() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+            <h3 className="font-display text-2xl font-bold text-slate-950">Estrutura deste curso</h3>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {courseSignals.map((signal) => (
+                <div key={signal} className="rounded-2xl bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
+                  {signal}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

@@ -12,6 +12,13 @@ export interface ProductSummary {
   price_cents: number
   currency: string
   cover_image_url: string | null
+  launch_date: string | null
+  is_public: boolean
+  creator_id: string | null
+  creator_commission_percent: number | null
+  workload_minutes: number
+  has_linear_progression: boolean
+  quiz_type_settings: Record<string, boolean>
   sales_page_enabled: boolean
   requires_auth: boolean
   is_featured: boolean

@@ -4,6 +4,7 @@ import {
   fetchDashboardOverview,
   fetchDashboardProductContent,
   fetchDownloads,
+  fetchLessonNotes,
   fetchMyProducts,
   fetchNotifications,
   fetchProfilePreferences,
@@ -12,6 +13,8 @@ import {
   markNotificationAsRead,
   replySupportTicket,
   requestAssetAccess,
+  saveLessonNote,
+  upsertLessonProgress,
   updateProfilePreferences,
 } from "@/services"
 
@@ -34,6 +37,14 @@ export function useDashboardProductContent(productId: string | undefined) {
     queryKey: ["dashboard", "product", productId],
     queryFn: () => fetchDashboardProductContent(productId ?? ""),
     enabled: Boolean(productId),
+  })
+}
+
+export function useLessonNote(lessonId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "lesson", lessonId, "note"],
+    queryFn: () => fetchLessonNotes(lessonId ?? ""),
+    enabled: Boolean(lessonId),
   })
 }
 
@@ -121,5 +132,29 @@ export function useUpdateProfilePreferences() {
 export function useRequestAssetAccess() {
   return useMutation({
     mutationFn: requestAssetAccess,
+  })
+}
+
+export function useSaveLessonNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: saveLessonNote,
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", variables.lessonId, "note"] })
+    },
+  })
+}
+
+export function useUpsertLessonProgress() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: upsertLessonProgress,
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "product", variables.productId] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "products"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
+    },
   })
 }

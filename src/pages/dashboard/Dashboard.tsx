@@ -53,7 +53,7 @@ export function Dashboard() {
   )
   const continuitySteps = [
     nextProduct
-      ? `Continuar ${nextProduct.title} com ${nextProduct.module_count} modulo${nextProduct.module_count === 1 ? "" : "s"} e ${nextProduct.asset_count} material${nextProduct.asset_count === 1 ? "" : "is"} disponive${nextProduct.asset_count === 1 ? "l" : "is"}.`
+      ? `Continuar ${nextProduct.title} com ${nextProduct.module_count} modulo${nextProduct.module_count === 1 ? "" : "s"}, ${nextProduct.lesson_count} aula${nextProduct.lesson_count === 1 ? "" : "s"} e ${nextProduct.progress_percent}% de progresso.`
       : null,
     unreadNotificationsCount > 0
       ? `Ler ${unreadNotificationsCount} notificacao${unreadNotificationsCount === 1 ? "" : "es"} ainda pendente${unreadNotificationsCount === 1 ? "" : "s"}.`
@@ -120,15 +120,28 @@ export function Dashboard() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">{getDashboardProductNote(nextProduct)}</p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <StatusBadge label={`${nextProduct.module_count} modulos`} tone="info" />
+                <StatusBadge label={`${nextProduct.lesson_count} aulas`} tone="warning" />
                 <StatusBadge label={`${nextProduct.asset_count} materiais`} tone="success" />
                 <span className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/75">
                   Disponivel desde {formatDate(nextProduct.granted_at)}
+                </span>
+                <span className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/75">
+                  {nextProduct.progress_percent}% concluido
                 </span>
                 {nextProduct.download_count > 0 ? (
                   <span className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/75">
                     {nextProduct.download_count} downloads protegidos
                   </span>
                 ) : null}
+              </div>
+              <div className="mt-5">
+                <div className="flex items-center justify-between text-xs uppercase tracking-[0.18em] text-white/65">
+                  <span>Progresso do curso</span>
+                  <span>{nextProduct.completed_lessons}/{nextProduct.lesson_count}</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full rounded-full bg-white" style={{ width: `${nextProduct.progress_percent}%` }} />
+                </div>
               </div>
               <Button asChild variant="secondary" className="mt-6 rounded-full bg-white text-slate-950 hover:bg-white/90">
                 <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${nextProduct.id}`}>

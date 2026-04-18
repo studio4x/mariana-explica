@@ -9,6 +9,10 @@ type Action =
   | "create_module"
   | "update_module"
   | "delete_module"
+  | "list_lessons"
+  | "create_lesson"
+  | "update_lesson"
+  | "delete_lesson"
   | "list_assets"
   | "create_asset"
   | "update_asset"
@@ -20,6 +24,8 @@ type ModuleStatus = "draft" | "published" | "archived"
 
 type AssetType = "pdf" | "video_file" | "video_embed" | "external_link"
 type AssetStatus = "active" | "inactive"
+type LessonType = "video" | "text" | "hybrid"
+type LessonStatus = "draft" | "published" | "archived"
 
 interface Body {
   action: Action
@@ -27,14 +33,29 @@ interface Body {
   productId?: string
   moduleId?: string
   assetId?: string
+  lessonId?: string
 
   title?: string
   description?: string | null
   module_type?: ModuleType
   access_type?: AccessType
+  position?: number
   sort_order?: number
   is_preview?: boolean
+  is_required?: boolean
+  starts_at?: string | null
+  ends_at?: string | null
+  release_days_after_enrollment?: number | null
+  module_pdf_storage_path?: string | null
+  module_pdf_file_name?: string | null
+  module_pdf_uploaded_at?: string | null
   status?: ModuleStatus
+
+  lesson_type?: LessonType
+  youtube_url?: string | null
+  text_content?: string | null
+  estimated_minutes?: number
+  lesson_status?: LessonStatus
 
   asset_type?: AssetType
   sort_order_asset?: number
@@ -63,6 +84,39 @@ function normalizeNullableText(value: unknown) {
   const text = String(value).trim()
   return text.length ? text : null
 }
+
+function normalizeNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) {
+    throw badRequest("Valor numérico inválido")
+  }
+
+  return numberValue
+}
+
+function normalizeNullableTimestamp(value: unknown) {
+  const text = normalizeNullableText(value)
+  if (!text) {
+    return null
+  }
+
+  const parsed = new Date(text)
+  if (Number.isNaN(parsed.getTime())) {
+    throw badRequest("Data/hora inválida")
+  }
+
+  return parsed.toISOString()
+}
+
+const moduleSelect =
+  "id,product_id,title,description,module_type,access_type,position,sort_order,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_file_name,module_pdf_uploaded_at,status,created_at,updated_at"
+
+const lessonSelect =
+  "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
 
 function validateAssetSource(body: Body) {
   const externalUrl = normalizeNullableText(body.external_url)
@@ -107,8 +161,9 @@ Deno.serve(async (req) => {
       const productId = requireUuid(body.productId, "productId")
       const { data, error } = await serviceClient
         .from("product_modules")
-        .select("id,product_id,title,description,module_type,access_type,sort_order,is_preview,status,created_at,updated_at")
+        .select(moduleSelect)
         .eq("product_id", productId)
+        .order("position", { ascending: true })
         .order("sort_order", { ascending: true })
 
       if (error) throw error
@@ -119,7 +174,7 @@ Deno.serve(async (req) => {
     if (body.action === "create_module") {
       const productId = requireUuid(body.productId, "productId")
       const title = normalizeNullableText(body.title)
-      if (!title) throw badRequest("title é obrigatório")
+      if (!title) throw badRequest("title e obrigatorio")
 
       const { data, error } = await serviceClient
         .from("product_modules")
@@ -129,11 +184,19 @@ Deno.serve(async (req) => {
           description: normalizeNullableText(body.description),
           module_type: body.module_type ?? "pdf",
           access_type: body.access_type ?? "paid_only",
+          position: Number.isFinite(body.position) ? body.position : Number.isFinite(body.sort_order) ? body.sort_order : 0,
           sort_order: Number.isFinite(body.sort_order) ? body.sort_order : 0,
           is_preview: Boolean(body.is_preview),
+          is_required: body.is_required !== undefined ? Boolean(body.is_required) : true,
+          starts_at: normalizeNullableTimestamp(body.starts_at),
+          ends_at: normalizeNullableTimestamp(body.ends_at),
+          release_days_after_enrollment: normalizeNullableNumber(body.release_days_after_enrollment),
+          module_pdf_storage_path: normalizeNullableText(body.module_pdf_storage_path),
+          module_pdf_file_name: normalizeNullableText(body.module_pdf_file_name),
+          module_pdf_uploaded_at: normalizeNullableTimestamp(body.module_pdf_uploaded_at),
           status: body.status ?? "published",
         })
-        .select("id,product_id,title,description,module_type,access_type,sort_order,is_preview,status")
+        .select(moduleSelect)
         .single()
 
       if (error) throw error
@@ -150,15 +213,31 @@ Deno.serve(async (req) => {
       if (body.description !== undefined) payload.description = normalizeNullableText(body.description)
       if (body.module_type !== undefined) payload.module_type = body.module_type
       if (body.access_type !== undefined) payload.access_type = body.access_type
+      if (body.position !== undefined) payload.position = body.position
       if (body.sort_order !== undefined) payload.sort_order = body.sort_order
       if (body.is_preview !== undefined) payload.is_preview = Boolean(body.is_preview)
+      if (body.is_required !== undefined) payload.is_required = Boolean(body.is_required)
+      if (body.starts_at !== undefined) payload.starts_at = normalizeNullableTimestamp(body.starts_at)
+      if (body.ends_at !== undefined) payload.ends_at = normalizeNullableTimestamp(body.ends_at)
+      if (body.release_days_after_enrollment !== undefined) {
+        payload.release_days_after_enrollment = normalizeNullableNumber(body.release_days_after_enrollment)
+      }
+      if (body.module_pdf_storage_path !== undefined) {
+        payload.module_pdf_storage_path = normalizeNullableText(body.module_pdf_storage_path)
+      }
+      if (body.module_pdf_file_name !== undefined) {
+        payload.module_pdf_file_name = normalizeNullableText(body.module_pdf_file_name)
+      }
+      if (body.module_pdf_uploaded_at !== undefined) {
+        payload.module_pdf_uploaded_at = normalizeNullableTimestamp(body.module_pdf_uploaded_at)
+      }
       if (body.status !== undefined) payload.status = body.status
 
       const { data, error } = await serviceClient
         .from("product_modules")
         .update(payload)
         .eq("id", moduleId)
-        .select("id,product_id,title,description,module_type,access_type,sort_order,is_preview,status")
+        .select(moduleSelect)
         .single()
 
       if (error) throw error
@@ -169,6 +248,82 @@ Deno.serve(async (req) => {
     if (body.action === "delete_module") {
       const moduleId = requireUuid(body.moduleId, "moduleId")
       const { error } = await serviceClient.from("product_modules").delete().eq("id", moduleId)
+      if (error) throw error
+      return jsonResponse({ success: true, request_id: requestId })
+    }
+
+    if (body.action === "list_lessons") {
+      const moduleId = requireUuid(body.moduleId, "moduleId")
+      const { data, error } = await serviceClient
+        .from("product_lessons")
+        .select(lessonSelect)
+        .eq("module_id", moduleId)
+        .order("position", { ascending: true })
+
+      if (error) throw error
+      return jsonResponse({ success: true, request_id: requestId, lessons: data ?? [] })
+    }
+
+    if (body.action === "create_lesson") {
+      const moduleId = requireUuid(body.moduleId, "moduleId")
+      const title = normalizeNullableText(body.title)
+      if (!title) throw badRequest("title é obrigatório")
+
+      const { data, error } = await serviceClient
+        .from("product_lessons")
+        .insert({
+          module_id: moduleId,
+          title,
+          description: normalizeNullableText(body.description),
+          position: Number.isFinite(body.position) ? body.position : 0,
+          is_required: body.is_required !== undefined ? Boolean(body.is_required) : true,
+          lesson_type: body.lesson_type ?? "text",
+          youtube_url: normalizeNullableText(body.youtube_url),
+          text_content: normalizeNullableText(body.text_content),
+          estimated_minutes: Number.isFinite(body.estimated_minutes) ? body.estimated_minutes : 0,
+          starts_at: normalizeNullableTimestamp(body.starts_at),
+          ends_at: normalizeNullableTimestamp(body.ends_at),
+          status: body.lesson_status ?? "published",
+        })
+        .select(lessonSelect)
+        .single()
+
+      if (error) throw error
+
+      logInfo("Admin lesson created", { request_id: requestId, user_id: context.user.id, lesson_id: data.id })
+      return jsonResponse({ success: true, request_id: requestId, lesson: data })
+    }
+
+    if (body.action === "update_lesson") {
+      const lessonId = requireUuid(body.lessonId, "lessonId")
+
+      const payload: Record<string, unknown> = {}
+      if (body.title !== undefined) payload.title = normalizeNullableText(body.title)
+      if (body.description !== undefined) payload.description = normalizeNullableText(body.description)
+      if (body.position !== undefined) payload.position = body.position
+      if (body.is_required !== undefined) payload.is_required = Boolean(body.is_required)
+      if (body.lesson_type !== undefined) payload.lesson_type = body.lesson_type
+      if (body.youtube_url !== undefined) payload.youtube_url = normalizeNullableText(body.youtube_url)
+      if (body.text_content !== undefined) payload.text_content = normalizeNullableText(body.text_content)
+      if (body.estimated_minutes !== undefined) payload.estimated_minutes = body.estimated_minutes
+      if (body.starts_at !== undefined) payload.starts_at = normalizeNullableTimestamp(body.starts_at)
+      if (body.ends_at !== undefined) payload.ends_at = normalizeNullableTimestamp(body.ends_at)
+      if (body.lesson_status !== undefined) payload.status = body.lesson_status
+
+      const { data, error } = await serviceClient
+        .from("product_lessons")
+        .update(payload)
+        .eq("id", lessonId)
+        .select(lessonSelect)
+        .single()
+
+      if (error) throw error
+      return jsonResponse({ success: true, request_id: requestId, lesson: data })
+    }
+
+    if (body.action === "delete_lesson") {
+      const lessonId = requireUuid(body.lessonId, "lessonId")
+      const { error } = await serviceClient.from("product_lessons").delete().eq("id", lessonId)
       if (error) throw error
       return jsonResponse({ success: true, request_id: requestId })
     }
@@ -261,4 +416,3 @@ Deno.serve(async (req) => {
     return errorResponse(error, requestId)
   }
 })
-

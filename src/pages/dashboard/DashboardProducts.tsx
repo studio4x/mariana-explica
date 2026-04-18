@@ -28,6 +28,8 @@ export function DashboardProducts() {
   const freeProducts = products.filter((product) => product.product_type === "free").length
   const totalModules = products.reduce((sum, product) => sum + product.module_count, 0)
   const totalDownloads = products.reduce((sum, product) => sum + product.download_count, 0)
+  const totalLessons = products.reduce((sum, product) => sum + product.lesson_count, 0)
+  const completedLessons = products.reduce((sum, product) => sum + product.completed_lessons, 0)
 
   if (products.length === 0) {
     return (
@@ -62,10 +64,10 @@ export function DashboardProducts() {
           <p className="mt-2 text-sm leading-6 text-slate-600">Estrutura pronta para retomares sem perder contexto.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-slate-900 p-5 text-white shadow-sm">
-          <p className="text-sm font-medium text-white/70">Downloads protegidos</p>
-          <p className="mt-3 text-3xl font-bold">{totalDownloads}</p>
+          <p className="text-sm font-medium text-white/70">Progresso acumulado</p>
+          <p className="mt-3 text-3xl font-bold">{completedLessons}</p>
           <p className="mt-2 text-sm leading-6 text-white/82">
-            Acesso centralizado aos materiais que podem sair do painel com seguranca.
+            Aulas concluidas em {totalLessons} no total, com {totalDownloads} downloads protegidos liberados.
           </p>
         </div>
       </div>
@@ -90,6 +92,7 @@ export function DashboardProducts() {
               <p className="mt-2">Organizado para continuares sem perder o contexto do estudo.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <StatusBadge label={`${product.module_count} modulos`} tone="info" />
+                <StatusBadge label={`${product.lesson_count} aulas`} tone="warning" />
                 <StatusBadge label={`${product.asset_count} materiais`} tone="neutral" />
                 {product.preview_count > 0 ? (
                   <StatusBadge label={`${product.preview_count} previews`} tone="warning" />
@@ -97,6 +100,18 @@ export function DashboardProducts() {
                 {product.download_count > 0 ? (
                   <StatusBadge label={`${product.download_count} downloads`} tone="success" />
                 ) : null}
+              </div>
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-500">
+                  <span>Progresso</span>
+                  <span>{product.progress_percent}%</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full rounded-full bg-slate-900" style={{ width: `${product.progress_percent}%` }} />
+                </div>
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
+                  {product.completed_lessons} de {product.lesson_count} aulas concluidas
+                </p>
               </div>
             </div>
 

@@ -1,634 +1,592 @@
-# Especificação do Módulo de Curso
+# Especificacao do Modulo de Curso
 
 ## 1. Objetivo
 
-Este documento descreve a estrutura completa do módulo de cursos da plataforma, cobrindo construção administrativa, visão do aluno, controle de acesso, avaliações, materiais, conteúdo interativo e vendas.
+Este documento descreve a estrutura real do modulo de cursos da plataforma Genflix, com foco em:
 
-A intenção é permitir que esta arquitetura seja reutilizada em outro projeto sem depender do contexto visual ou comercial específico da GenFlix.
+- paginas publicas de catalogo e venda;
+- builder administrativo do curso;
+- visualizador do curso pelo aluno;
+- fluxo de checkout, webhook e liberacao automatica;
+- regras de acesso, progresso e quizzes.
 
-## 2. Escopo Funcional
+O texto abaixo reflete a estrutura atualmente exposta no app, nos forms e nas rotas do codigo.
 
-O módulo de curso é responsável por:
+## 2. Mapa de Paginas
 
-- Cadastro e publicação de cursos.
-- Organização de módulos e aulas.
-- Construção de conteúdo em blocos.
-- Gestão de avaliações por módulo e avaliação final.
-- Controle de liberação por aluno, grupo, compra e agenda.
-- Player do aluno com progresso, bloqueios e navegação.
-- Catálogo público e página pública de venda do curso.
-- Checkout e matrícula automática.
-- Relatórios e rastreabilidade mínima de vendas.
-- Exportação/importação de conteúdo quando aplicável.
+### Publico
 
-O módulo não deve concentrar lógica de identidade visual, autenticação global, gateway de pagamento específico ou regras editoriais do produto. Essas partes devem ser acopladas por configuração, serviços e adapters.
-
-## 3. Papéis e Permissões
-
-### Admin
-
-Pode gerenciar todo o catálogo acadêmico e comercial:
-
-- Criar, editar, publicar, arquivar e ordenar cursos.
-- Criar e editar módulos, aulas, avaliações e materiais.
-- Definir preço, slug, imagem pública, data de lançamento e visibilidade pública.
-- Definir tipos de quiz disponíveis por curso.
-- Liberar cursos manualmente para alunos e grupos.
-- Configurar gateway de pagamento.
-- Visualizar usuários, roles, formulários e relatórios administrativos.
-
-### Criador
-
-Pode acessar apenas áreas ligadas aos cursos vinculados a ele:
-
-- Visualizar relatórios de vendas dos próprios cursos.
-- Atualizar dados do próprio perfil.
-
-Na v1, o criador não edita o builder completo do curso.
+```text
+/                      -> Home publica
+/cursos                -> Catalogo de cursos
+/cursos/:slug          -> Pagina publica de venda do curso
+/login                 -> Login
+/criar-conta           -> Cadastro
+/recuperar-senha       -> Recuperacao
+/redefinir-senha       -> Reset
+```
 
 ### Aluno
 
-Pode:
+```text
+/aluno
+/aluno/dashboard
+/aluno/cursos
+/aluno/cursos/:courseId
+/aluno/cursos/:courseId/player
+/aluno/cursos/:courseId/player/aulas/:lessonId
+/aluno/cursos/:courseId/player/avaliacoes/:assessmentId
+```
 
-- Navegar no site público.
-- Comprar ou se matricular em cursos gratuitos.
-- Acessar cursos liberados.
-- Consumir aulas, materiais e avaliações.
-- Acompanhar progresso.
+### Admin
 
-## 4. Modelo de Domínio
+```text
+/admin/cursos
+/admin/cursos/:courseId/builder
+/admin/cursos/:courseId/builder/settings
+/admin/cursos/:courseId/builder/releases
+/admin/cursos/:courseId/builder/assessments
+/admin/cursos/:courseId/builder/assessments/final
+/admin/cursos/:courseId/builder/modulos/:moduleId
+/admin/cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId
+/admin/cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId/materiais
+/admin/cursos/:courseId/builder/modulos/:moduleId/avaliacoes/:assessmentId
+/admin/cursos/:courseId/builder/modulos/:moduleId/avaliacoes/nova
+```
+
+### Vendas e API
+
+```text
+POST /api/checkout/asaas/start
+POST /api/webhooks/asaas
+```
+
+## 3. Estrutura do Curso
+
+O curso e o centro academico e comercial do sistema. Os dados atuais do modelo estao em `src/types/content.ts` e os forms em `src/features/admin/content/schemas.ts`.
 
 ### Course
 
-Representa o produto educacional e comercial.
-
 Campos principais:
 
-- `id`: UUID.
-- `title`: título interno e público.
-- `description`: descrição base.
-- `status`: `draft`, `published` ou `archived`.
-- `display_order`: ordenação administrativa.
-- `thumbnail_url`: imagem de capa.
-- `slug`: URL pública amigável.
-- `launch_date`: data de lançamento usada em relatórios e páginas públicas.
-- `price_cents`: preço em centavos.
-- `currency`: moeda, padrão `BRL`.
-- `is_public`: controla aparição no catálogo público.
-- `workload_minutes`: carga horária total.
-- `has_linear_progression`: ativa bloqueio sequencial.
-- `quiz_type_settings`: tipos de quiz permitidos no curso.
-- `created_by`: usuário criador/admin responsável pela criação.
-- `created_at` e `updated_at`.
+- `id`
+- `title`
+- `description`
+- `status` com `draft`, `published` e `archived`
+- `display_order`
+- `thumbnail_url`
+- `slug`
+- `launch_date`
+- `price_cents`
+- `currency`
+- `is_public`
+- `creator_id`
+- `creator_commission_percent`
+- `workload_minutes`
+- `has_linear_progression`
+- `quiz_type_settings`
+- `created_by`
+- `created_at`
+- `updated_at`
 
 Regras:
 
-- Curso só aparece no catálogo se `status = published` e `is_public = true`.
-- Curso gratuito usa `price_cents = 0`.
-- Curso pago exige checkout antes da liberação.
-- `slug` deve ser único quando usado em rota pública.
-- Catálogo e detalhes públicos devem consultar o banco como visitante/anon, mesmo quando houver usuário logado, para não misturar regras públicas com RLS de cursos liberados do aluno.
+- curso aparece no catalogo somente quando `status = published` e `is_public = true`;
+- `price_cents = 0` representa curso gratuito;
+- `slug` e usado nas paginas publicas de venda;
+- `quiz_type_settings` define quais tipos de quiz o curso permite;
+- `has_linear_progression` liga o bloqueio sequencial de aulas;
+- `creator_id` e `creator_commission_percent` alimentam o fluxo de comissao.
 
 ### CourseModule
 
-Agrupa aulas e avaliações de módulo.
-
 Campos principais:
 
-- `id`: UUID.
-- `course_id`: curso pai.
-- `title`: título do módulo.
-- `description`: descrição opcional.
-- `position`: posição dentro do curso.
-- `is_required`: se conta como obrigatório.
-- `starts_at`: início absoluto de liberação.
-- `ends_at`: expiração absoluta.
-- `release_days_after_enrollment`: liberação relativa após inscrição/liberação do aluno.
-- `module_pdf_storage_path`: PDF-base do módulo.
-- `module_pdf_file_name`: nome original do PDF.
-- `module_pdf_uploaded_at`: data de upload.
-- `created_at` e `updated_at`.
+- `id`
+- `course_id`
+- `title`
+- `description`
+- `position`
+- `is_required`
+- `starts_at`
+- `ends_at`
+- `release_days_after_enrollment`
+- `module_pdf_storage_path`
+- `module_pdf_file_name`
+- `module_pdf_uploaded_at`
+- `created_at`
+- `updated_at`
 
 Regras:
 
-- Módulo fora da janela de liberação bloqueia todas as aulas do módulo.
-- Se houver `release_days_after_enrollment`, a liberação depende da data de matrícula/liberação do curso.
-- Se data absoluta e dias após inscrição estiverem preenchidos, as regras são cumulativas.
-- O PDF do módulo é opcional; se existir, pode ser personalizado com marca d'água do aluno.
+- modulo pode ser liberado por data absoluta, por dias apos a inscricao, ou por ambos;
+- se `starts_at` e `release_days_after_enrollment` existirem juntos, as duas regras valem ao mesmo tempo;
+- `module_pdf_*` guardam o PDF base do modulo;
+- o PDF do modulo pode ser baixado no player do aluno e receber versao licenciada.
 
 ### Lesson
 
-Representa uma unidade de consumo do aluno.
-
 Campos principais:
 
-- `id`: UUID.
-- `module_id`: módulo pai.
-- `title`: título da aula.
-- `description`: descrição curta.
-- `position`: posição dentro do módulo.
-- `is_required`: se conta para conclusão.
-- `lesson_type`: `video`, `text` ou `hybrid`.
-- `youtube_url`: vídeo externo quando aplicável.
-- `text_content`: HTML serializado com blocos estruturados.
-- `estimated_minutes`: carga horária estimada.
-- `starts_at`: início absoluto de liberação.
-- `ends_at`: expiração absoluta.
-- `created_at` e `updated_at`.
+- `id`
+- `module_id`
+- `title`
+- `description`
+- `position`
+- `is_required`
+- `lesson_type` com `video`, `text` e `hybrid`
+- `youtube_url`
+- `text_content`
+- `estimated_minutes`
+- `starts_at`
+- `ends_at`
+- `created_at`
+- `updated_at`
 
 Regras:
 
-- Aula só é acessível se o curso, módulo e aula estiverem liberados.
-- Em curso com progressão linear, aulas futuras dependem da conclusão das anteriores.
-- Conteúdo textual e blocos interativos são persistidos em `text_content`.
+- `video` usa apenas video como conteudo principal;
+- `text` usa blocos serializados em `text_content`;
+- `hybrid` combina video e blocos;
+- aula pode ter liberacao programada e expiracao propria;
+- `text_content` e montado a partir de blocos do editor.
 
-### Assessment
-
-Representa quiz ou avaliação.
+### Assessments
 
 Campos principais:
 
-- `id`: UUID.
-- `course_id`: curso pai.
-- `module_id`: opcional para quiz de módulo.
-- `type`: `module` ou `final`.
-- `title`, `description`, `position`.
-- `passing_score`, `max_attempts`, `grading_mode`.
+- `id`
+- `course_id`
+- `module_id`
+- `assessment_type` com `module` ou `final`
+- `title`
+- `description`
+- `is_required`
+- `passing_score`
+- `max_attempts`
+- `estimated_minutes`
+- `is_active`
+- `created_by`
+- `created_at`
+- `updated_at`
 
-Tipos de questão suportados:
+Tipos de pergunta suportados no builder atual:
 
-- `single_choice`.
-- `essay_ai`.
-- `case_study_ai`.
-- `case_study_single_choice`.
-- `drag_drop_labeling`.
-- `fill_in_the_blanks`.
-- `image_hotspot`.
-- `coloring`.
-
-Regras:
-
-- Tipos gamificados podem ser limitados globalmente e por curso.
-- Em v1, alguns tipos gamificados ficam fora de estudos de caso.
-- Avaliação vinculada a módulo segue a liberação do módulo.
+- `single_choice`
+- `essay_ai`
+- `case_study_ai`
+- `case_study_single_choice`
+- `drag_drop_labeling`
+- `fill_in_the_blanks`
+- `image_hotspot`
+- `coloring`
 
 ### CourseRelease
 
-Representa a autorização de acesso do aluno ao curso.
+Representa a liberacao de acesso do aluno ou de um grupo.
 
 Campos principais:
 
-- `course_id`.
-- `user_id` ou `group_id`.
-- `release_type`: `user` ou `group`.
-- `starts_at` e `ends_at`.
-- `is_active`.
-- `release_source`: `purchase`, `free_enrollment`, `admin`, `group` ou `integration`.
-- `release_status`: status operacional da liberação.
-- `source_system`: origem externa ou interna.
-- `external_reference_id`: referência do checkout ou integração.
-- `managed_by_integration`.
-- `revoked_at`.
+- `course_id`
+- `release_type` com `user` ou `group`
+- `user_id`
+- `group_id`
+- `starts_at`
+- `ends_at`
+- `is_active`
+- `source_system`
+- `release_source` com `purchase`, `free_enrollment`, `admin`, `group` ou `integration`
+- `release_status`
+- `external_reference_id`
+- `managed_by_integration`
+- `last_synced_at`
+- `revoked_at`
+- `revoked_reason`
+- `created_by`
+- `created_at`
 
-Regras:
+### CourseReview
 
-- Acesso do aluno depende de uma liberação ativa.
-- Compra aprovada cria liberação individual.
-- Liberação administrativa pode existir sem compra.
-- Cancelamento antes de pagamento não libera acesso.
-- Reversão de compra paga deve ser tratada explicitamente por regra de negócio do gateway.
+As reviews publicas do curso ficam em tabelas de reviews reutilizaveis, com leitura publica apenas para itens aprovados.
 
-## 5. Construção no Admin
+## 4. Builder Administrativo
 
-### Entrada Principal
+O builder atual e acessado por `/admin/cursos/:courseId/builder` e usa a arvore do curso carregada por `fetchAdminCourseTree`.
 
-O admin acessa uma lista de cursos com busca, filtros, status e ações rápidas.
+### Estrutura lateral
 
-Fluxo esperado:
+O painel lateral do builder trabalha com esta hierarquia:
 
-1. Criar curso.
-2. Configurar dados acadêmicos e comerciais.
-3. Criar módulos.
-4. Criar aulas dentro dos módulos.
-5. Adicionar conteúdo, materiais e avaliações.
-6. Testar no visualizador.
-7. Publicar.
+- visao geral do curso;
+- configuracoes do curso;
+- liberacoes;
+- gerenciamento de avaliacoes;
+- modulos;
+- aulas;
+- avaliacoes de modulo;
+- avaliacao final.
 
-### Builder do Curso
+O componente de arvore e o `CourseTreeDnd`, com drag and drop para ordenar o curso e abrir os itens de edicao.
 
-O builder deve ter navegação lateral com árvore:
+### Visao Geral
 
-- Visão geral do curso.
-- Módulos.
-- Aulas.
-- Quizzes de módulo.
-- Quiz final.
+Arquivo: `src/pages/admin/builder/course-overview-panel.tsx`
 
-Cada item abre um painel de edição contextual.
+O painel exibe:
 
-### Configurações do Curso
+- total de modulos;
+- total de aulas;
+- duracao estimada;
+- mapa do curso;
+- botoes para analisar com IA;
+- botoes para editar modulo, remover modulo, abrir revisoes de IA.
 
-Campos mínimos:
+Da visao geral o admin consegue:
 
-- Título.
-- Descrição.
-- Status.
-- Imagem de capa.
-- Slug público.
-- Data de lançamento.
-- Preço.
-- Moeda.
-- Visibilidade pública.
-- Carga horária.
-- Progressão linear.
-- Tipos de quiz disponíveis.
+- criar novo modulo;
+- editar modulo existente;
+- excluir modulo;
+- abrir a configuracao do curso;
+- abrir liberacoes;
+- abrir avaliacoes;
+- importar/exportar conteudo.
 
-Regras:
+### Configuracoes do Curso
 
-- Tipos de quiz desativados globalmente não aparecem no curso.
-- Um tipo desativado no curso não deve aparecer como card de criação no builder.
-- Alterações comerciais devem refletir na página pública de curso.
-- Em plataformas independentes, o editor de curso não deve exigir campos de mapeamento externo, como `external_course_mappings`; integrações devem ficar isoladas em adapters opcionais.
+Arquivo: `src/pages/admin/builder/course-settings-panel.tsx`
 
-### Módulos
+Campos editaveis:
 
-Campos mínimos:
+- titulo;
+- descricao;
+- status;
+- thumbnail;
+- slug;
+- launch_date;
+- price_cents;
+- currency;
+- is_public;
+- creator_id;
+- creator_commission_percent;
+- has_linear_progression;
+- quiz_type_settings.
 
-- Título.
-- Descrição.
-- Obrigatoriedade.
-- Ordem.
-- Liberação imediata ou data de início.
-- Expiração opcional.
-- Liberação após X dias da inscrição.
-- PDF-base do módulo.
+Regras da tela:
+
+- o curso pode ser publicado, mantido em rascunho ou arquivado;
+- o curso pode ficar publico ou privado no catalogo;
+- a tela mostra tipos de quiz visiveis globalmente e habilitados por curso;
+- o builder respeita o que esta desativado globalmente;
+- o criador vinculado ve relatorios e comissoes, mas nao edita o builder completo na v1;
+- existe acao administrativa para resetar progresso do curso.
+
+### Modulos
+
+Arquivo: `src/pages/admin/builder/module-editor-panel.tsx`
+
+Campos do modulo:
+
+- titulo;
+- descricao;
+- obrigatoriedade;
+- liberacao por data;
+- expiracao;
+- dias apos inscricao;
+- PDF base do modulo.
 
 Comportamentos:
 
-- Reordenação por posição.
-- Upload, troca e remoção de PDF.
-- Visualização do nome do arquivo enviado.
-- Mensagens claras para regras cumulativas de agenda.
+- criar modulo novo;
+- editar modulo existente;
+- excluir modulo;
+- subir ou remover PDF do modulo;
+- analisar modulo com IA;
+- visualizar historico de revisoes e ajustes aplicados.
 
 ### Aulas
 
-Campos mínimos:
+Arquivo: `src/pages/admin/builder/lesson-editor-panel.tsx`
 
-- Título.
-- Descrição curta.
-- Tipo de aula.
-- URL de vídeo.
-- Conteúdo textual/blocos.
-- Carga horária estimada.
-- Obrigatoriedade.
-- Liberação programada.
-- Expiração opcional.
+Campos da aula:
 
-Tipos de aula:
+- titulo;
+- descricao curta;
+- tipo de aula;
+- URL do YouTube;
+- conteudo textual;
+- carga horaria estimada;
+- obrigatoriedade;
+- liberacao programada;
+- expiracao;
+- blocos de conteudo.
 
-- `video`: usa vídeo como conteúdo principal.
-- `text`: usa blocos textuais e interativos.
-- `hybrid`: combina vídeo e blocos.
+Blocos suportados no editor:
 
-### Blocos de Conteúdo
+- `rich-text`
+- `table`
+- `image-hotspots`
 
-Os blocos são serializados dentro de `lessons.text_content` para preservar a ordem entre textos, tabelas e interações.
+Regras da aula:
 
-Tipos:
+- o editor salva `text_content` como HTML serializado a partir dos blocos;
+- `image-hotspots` tem editor proprio;
+- a aula pode ter botoes e arquivos no rodape do player do aluno;
+- a tela permite abrir a pagina de materiais e botoes da aula;
+- existe visualizacao de solicitacoes de audio/moderacao quando a aula e textual ou hybrid.
 
-- `rich-text`: HTML rico básico.
-- `table`: tabela estruturada.
-- `image-hotspots`: imagem com pontos clicáveis que abrem modal.
+### Materiais e botoes da aula
 
-Formato recomendado para blocos especiais:
+Os botoes do rodape do aluno usam:
 
-```html
-<div data-lms-block="image-hotspots" data-lms-payload="..."></div>
+- `button_templates`
+- `lesson_footer_actions`
+
+Regras:
+
+- template define visual;
+- acao da aula define arquivo ou URL;
+- arquivo privado e servido por signed URL;
+- URL externa abre em nova aba com seguranca.
+
+### Avaliacoes
+
+Arquivos:
+
+- `src/pages/admin/builder/course-assessments-panel.tsx`
+- `src/pages/admin/builder/assessment-builder-panel.tsx`
+
+O fluxo atual tem:
+
+- avaliacao final do curso;
+- quizzes por modulo;
+- importacao/exportacao de conteudo da avaliacao;
+- criacao de novo quiz de modulo em `.../avaliacoes/nova`;
+- edicao de quiz por `assessmentId`;
+- edicao da avaliacao final em `assessments/final`.
+
+O builder de avaliacao suporta:
+
+- perguntas avulsas;
+- estudos de caso;
+- perguntas gamificadas;
+- perguntas com IA;
+- questoes de alternativa;
+- importacao via JSON;
+- remocao de questoes, opcoes e estudos de caso;
+- configuracao de score minimo, tentativas e duracao.
+
+### Liberacoes
+
+Arquivo: `src/pages/admin/admin-course-releases-page.tsx`
+
+A tela administra:
+
+- liberacoes por aluno;
+- liberacoes por grupo;
+- status da liberacao;
+- origem da liberacao;
+- periodo de validade.
+
+## 5. Visualizador do Aluno
+
+O aluno consome o curso em duas etapas:
+
+1. pagina de detalhes do curso;
+2. player interno do curso.
+
+### Dashboard e lista de cursos
+
+Arquivos:
+
+- `src/pages/student/student-dashboard-page.tsx`
+- `src/pages/student/student-courses-page.tsx`
+
+Essas paginas mostram:
+
+- cursos liberados;
+- progresso geral;
+- estados de andamento;
+- curso concluido;
+- curso bloqueado;
+- curso expirado.
+
+### Pagina interna do curso
+
+Arquivo: `src/pages/student/student-course-details-page.tsx`
+
+Exibe:
+
+- hero do curso;
+- capa;
+- titulo;
+- carga horaria;
+- total de modulos;
+- botao principal para iniciar ou continuar;
+- barra de progresso;
+- descricao do curso;
+- grade curricular;
+- reviews publicas;
+- bloco de anotacoes do aluno.
+
+Cada modulo mostra:
+
+- titulo;
+- descricao;
+- estado de desbloqueio;
+- lista de aulas;
+- quizzes do modulo;
+- PDF do modulo para download.
+
+Regras:
+
+- o estado do modulo pode ser bloqueado, bloqueado por agenda, em andamento ou concluido;
+- o quiz do modulo fica travado ate concluir as aulas exigidas;
+- o aluno pode marcar aula como concluida;
+- o aluno pode ver suas anotaes por aula;
+- o aluno pode abrir a aula no player a partir da grade curricular.
+
+### Player do curso
+
+Arquivo: `src/pages/student/student-course-player-layout.tsx`
+
+O layout do player tem:
+
+- sidebar com curso, modulos, aulas e avaliacoes;
+- area principal com a pagina atual;
+- header com progresso e botao de sair do player;
+- navegao entre aulas e avaliacoes.
+
+Estados exibidos na sidebar:
+
+- aula concluida;
+- aula ativa;
+- modulo bloqueado;
+- quiz aprovado;
+- quiz com tentativas esgotadas;
+- prova final.
+
+### Pagina da aula
+
+Arquivo: `src/pages/student/student-lesson-page.tsx`
+
+Exibe:
+
+- titulo da aula;
+- descricao;
+- video do YouTube quando houver;
+- conteudo textual renderizado por blocos;
+- player de audio da aula;
+- botoes e recursos de rodape;
+- painel de notas do aluno;
+- botao de concluir aula;
+- navegao anterior e proximo;
+- download do PDF do modulo;
+- acesso a materiais privados por signed URL.
+
+Blocos renderizados pelo aluno:
+
+- rich text;
+- tabela;
+- hotspots de imagem.
+
+### Pagina da avaliacao
+
+Arquivo: `src/pages/student/student-assessment-execution-page.tsx`
+
+Exibe:
+
+- pergunta atual;
+- progresso da avaliacao;
+- estudo de caso quando aplicavel;
+- quiz final ou quiz de modulo;
+- resposta discursiva com avaliacao por IA;
+- hotspot, coloring, drag and drop, lacunas e multipla escolha;
+- resultado final com aprovacao ou reprovao;
+- pedido de nova tentativa quando as tentativas acabarem.
+
+## 6. Estrutura da Pagina Publica de Venda
+
+Arquivo: `src/pages/public/public-course-details-page.tsx`
+
+A pagina publica do curso e a pagina de venda principal. Ela exibe:
+
+- titulo do curso;
+- descricao;
+- sobre o curso;
+- o que voce vai aprender;
+- conteudo programatico por modulo;
+- mentor ou instrutor;
+- preco;
+- preview visual;
+- CTA de compra;
+- reviews publicas;
+- features de estudo.
+
+### Catalogo publico
+
+Arquivo: `src/pages/public/public-courses-page.tsx`
+
+Exibe:
+
+- cards de curso;
+- busca;
+- filtros por categoria;
+- paginacao;
+- blocos institucionais e de features.
+
+### CTA e compra
+
+Comportamento atual da pagina de venda:
+
+- se o curso ja tiver liberacao, o CTA pode levar direto para o curso;
+- se o curso for gratuito, a liberacao e direta;
+- se o curso for pago, o CTA inicia checkout;
+- o checkout e iniciado com `startCourseCheckout(courseId, access_token)` usando a sessao do usuario;
+- a pagina contem nome e email do comprador como parte do formulario visual, mas o fluxo ativo de abertura do checkout depende da sessao autenticada.
+
+## 7. Fluxo de Vendas
+
+### 7.1 Inicio do checkout
+
+Endpoint:
+
+```text
+POST /api/checkout/asaas/start
 ```
 
-Observação de migração:
-
-- A implementação atual pode conter um nome histórico de atributo, como `data-hcm-block`.
-- Em novo projeto, recomenda-se trocar para um prefixo neutro, como `data-lms-block`, mantendo parser compatível durante migração.
-
-### Bloco Image Hotspots de Aula
-
-Finalidade:
-
-- Complementar conteúdo de aula.
-- Não possui nota, tentativa ou progresso próprio.
-
-Conteúdo:
-
-- Imagem base em bucket privado.
-- Lista de hotspots pontuais.
-- Cada hotspot possui `id`, `x`, `y`, `title` e `body_html`.
-
-Editor:
-
-- Upload de imagem.
-- Clique na imagem para criar ponto.
-- Arraste para reposicionar.
-- Lista lateral de hotspots.
-- Edição de título e corpo HTML.
-
-Player:
-
-- Renderiza imagem.
-- Mostra marcadores.
-- Ao clicar, abre card/modal próximo ao hotspot.
-- Um hotspot aberto por vez.
-
-### Materiais e Botões da Aula
-
-Cada aula pode ter ações de rodapé.
-
-Tipos:
-
-- Arquivo enviado.
-- URL externa.
-
-Entidades:
-
-- `button_templates`: define padrão visual, nome, ícone, variante, tema e status.
-- `lesson_footer_actions`: vincula aula a template e destino real.
-
-Regras:
-
-- Template controla visual e rótulo padrão.
-- Item da aula controla comportamento.
-- Arquivos devem ser servidos por signed URL.
-- URLs externas devem abrir em nova aba com segurança.
-
-### PDF do Módulo
-
-O admin pode subir um PDF-base por módulo.
-
-No aluno:
-
-- Se houver PDF-base, gerar cópia licenciada/personalizada.
-- Se não houver PDF-base, usar fallback de exportação do conteúdo.
-
-Marca d'água recomendada:
-
-- Nome do aluno.
-- E-mail.
-- ID interno curto.
-- Código de emissão/licença.
-
-## 6. Avaliações e Quizzes
-
-### Configuração Global
-
-O admin pode ativar/desativar tipos de quiz globalmente.
-
-Regra:
-
-- Tipo desativado globalmente não aparece nas configurações do curso nem no builder.
-
-### Configuração por Curso
-
-Cada curso pode ativar/desativar os tipos permitidos globalmente.
-
-Regra:
-
-- Builder só mostra cards habilitados globalmente e no curso.
-
-### Tipos Principais
-
-`single_choice`:
-
-- Questão objetiva simples.
-- Correção automática.
-
-`drag_drop_labeling`:
-
-- Imagem com áreas e banco de respostas.
-- Aluno arrasta rótulos para slots.
-
-`fill_in_the_blanks`:
-
-- Texto com lacunas.
-- Aluno preenche campos.
-
-`image_hotspot`:
-
-- Imagem com hotspots retangulares.
-- Modalidade `single_attempt` ou `find_all`.
-- Pode ter feedback por hotspot e clique fora.
-
-`coloring`:
-
-- Modo legado por pontos/retângulos.
-- Modo recomendado por SVG com regiões.
-- Correção por `region_id` ou ponto e cor selecionada.
-
-### Correção
-
-Modos:
-
-- `partial_by_item`: pontuação proporcional.
-- `all_or_nothing`: só pontua com todos os itens corretos.
-
-Regras:
-
-- Payload do aluno deve ser validado no backend.
-- O backend é fonte da pontuação.
-- O player pode mostrar feedback, mas não define nota final sozinho.
-
-## 7. Visão do Aluno
-
-### Catálogo Público
-
-Lista cursos publicados e públicos.
-
-Exibe:
-
-- Capa.
-- Título.
-- Categoria ou área.
-- Resumo.
-- Preço.
-- CTA de inscrição ou compra.
-
-Regra:
-
-- Usuário logado pode navegar no site público sem redirecionamento automático para painel.
-
-### Página Pública do Curso
-
-Exibe:
-
-- Hero do curso.
-- Descrição.
-- O que o aluno vai aprender.
-- Conteúdo programático.
-- Instrutor/criador quando aplicável.
-- Preço.
-- Botão de compra ou acesso.
-
-Comportamentos:
-
-- Se aluno já tem liberação, CTA leva ao curso.
-- Se curso é gratuito, CTA pode liberar acesso diretamente.
-- Se curso é pago, CTA inicia checkout.
-
-### Dashboard do Aluno
-
-Exibe cursos liberados para o aluno.
-
-Estados:
-
-- Não iniciado.
-- Em andamento.
-- Concluído.
-- Bloqueado por agenda.
-- Expirado.
-
-### Página Interna do Curso
-
-Exibe:
-
-- Progresso geral.
-- Módulos.
-- Aulas.
-- Quizzes.
-- Estados de bloqueio.
-
-Regras:
-
-- Módulo bloqueado bloqueia suas aulas.
-- Aula bloqueada por agenda permanece bloqueada mesmo se o módulo estiver livre.
-- Progressão linear bloqueia próximas aulas até concluir anteriores.
-
-### Player da Aula
-
-Elementos:
-
-- Sidebar com curso, módulos, aulas e quizzes.
-- Área principal de conteúdo.
-- Vídeo quando existir.
-- Blocos de conteúdo.
-- Botões de rodapé da aula.
-- Botão de conclusão.
-- Navegação anterior/próxima.
-
-Comportamentos:
-
-- Concluir aula grava `lesson_progress`.
-- Player respeita bloqueios vindos das RPCs de acesso.
-- Conteúdos privados usam signed URL.
-- Quizzes são acessados dentro do fluxo do curso.
-
-## 8. Regras de Acesso
-
-O acesso efetivo do aluno depende da combinação:
-
-- Curso publicado.
-- Curso liberado para o aluno ou grupo.
-- Release ativo e dentro da validade.
-- Módulo dentro da janela de liberação.
-- Liberação relativa do módulo atendida.
-- Aula dentro da janela de liberação.
-- Progressão linear atendida.
-
-Regra operacional:
-
-- A condição mais restritiva vence.
-- Um curso liberado não ignora agenda de módulo/aula.
-- Uma aula liberada não ignora módulo bloqueado.
-- Acesso direto por URL deve consultar as mesmas regras do player.
-
-RPCs recomendadas:
-
-- `get_student_course_status`.
-- `get_student_course_modules_progress`.
-- `get_student_unlocked_lessons_progress`.
-- `get_student_course_assessments`.
-
-## 9. Vendas, Checkout e Matrícula Automática
-
-### Configuração Comercial do Curso
-
-Campos mínimos no curso:
-
-- `price_cents`.
-- `currency`.
-- `is_public`.
-- `slug`.
-- `launch_date`.
-
-Regras:
-
-- `price_cents = 0` representa curso gratuito.
-- Curso gratuito pode gerar liberação direta.
-- Curso pago exige checkout aprovado.
-
-### Gateway de Pagamento
-
-O gateway atual é Asaas, mas a arquitetura deve tratar o gateway como adapter.
-
-Configuração administrativa:
-
-- Gateway ativo.
-- Ambiente `sandbox` ou `production`.
-- URL de webhook.
-- Checklist de variáveis necessárias.
-
-Variáveis recomendadas:
-
-- `ASAAS_ACCESS_TOKEN_SANDBOX`.
-- `ASAAS_ACCESS_TOKEN_PRODUCTION`.
-- `ASAAS_ACCESS_TOKEN`.
-- `ASAAS_WEBHOOK_SECRET`.
-- `SUPABASE_SERVICE_ROLE_KEY`.
-- `VITE_SUPABASE_URL`.
-- `VITE_SUPABASE_ANON_KEY`.
-
-### Tabelas de Comércio
-
-`payment_gateway_settings`:
-
-- Define gateway ativo, ambiente e metadados.
-- Deve sempre ter o registro singleton `id = 1`.
-
-`commerce_checkout_sessions`:
-
-- Guarda a sessão de checkout.
-- Vincula curso, usuário, comprador e referência externa.
-- Status: `created`, `active`, `paid`, `canceled`, `expired`, `failed`.
-- Deve aceitar migração idempotente para bancos que já tenham uma versão parcial da tabela, garantindo colunas como `external_checkout_id`, `external_payment_id`, `gateway_environment`, `checkout_url` e `released_at`.
-
-`commerce_events`:
-
-- Guarda eventos recebidos do gateway.
-- Permite idempotência.
-- Status: `received`, `processed`, `ignored`, `failed`.
-- Deve aceitar migração idempotente para bancos parciais, garantindo `external_event_id`, `external_checkout_id`, `external_payment_id`, `gateway_environment`, `status` e `received_at`.
-
-### Fluxo de Curso Gratuito
-
-1. Aluno autenticado clica em acessar/inscrever.
-2. API valida curso publicado e público.
-3. Sistema cria `course_releases` com origem `free_enrollment` ou `purchase` gratuita.
-4. API retorna URL interna do curso.
-
-### Fluxo de Curso Pago
-
-1. Aluno autenticado clica em comprar.
-2. Frontend chama `POST /api/checkout/asaas/start`.
-3. API valida token do usuário.
-4. API carrega perfil e curso.
-5. API cria sessão local em `commerce_checkout_sessions`.
-6. API cria checkout no Asaas.
-7. API salva `checkout_url`.
-8. Frontend redireciona aluno para checkout hospedado.
-9. Asaas chama webhook.
-10. Webhook persiste evento idempotente.
-11. Em pagamento confirmado, webhook cria `course_releases`.
-12. Aluno acessa o curso.
-
-### Webhook
+Passos do fluxo:
+
+1. frontend envia `Authorization: Bearer <access_token>`;
+2. backend valida a sessao com Supabase;
+3. backend carrega o curso;
+4. se o curso for gratuito, cria liberacao direta;
+5. se o curso for pago, cria checkout no Asaas;
+6. backend registra a sessao em `commerce_checkout_sessions`;
+7. backend devolve `checkoutUrl`;
+8. frontend redireciona o aluno para o checkout hospedado.
+
+### 7.2 Gateway de pagamento
+
+O gateway atual e Asaas, tratado como adapter.
+
+Configuracao esperada:
+
+- ambiente `sandbox` ou `production`;
+- `payment_gateway_settings` como registro singleton;
+- webhook configurado;
+- chaves do ambiente corretas.
+
+Variaveis relacionadas ao fluxo:
+
+- `ASAAS_ACCESS_TOKEN_SANDBOX`
+- `ASAAS_ACCESS_TOKEN_PRODUCTION`
+- `ASAAS_ACCESS_TOKEN`
+- `ASAAS_WEBHOOK_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+### 7.3 Webhook
 
 Endpoint:
 
@@ -636,157 +594,182 @@ Endpoint:
 POST /api/webhooks/asaas
 ```
 
+Eventos tratados:
+
+- pagamento confirmado;
+- checkout cancelado;
+- checkout expirado;
+- reembolso;
+- chargeback.
+
 Regras:
 
-- Validar segredo quando configurado.
-- Ignorar eventos duplicados.
-- Persistir payload bruto.
-- Processar apenas eventos reconhecidos.
-- Não confiar em dados enviados pelo frontend para liberar acesso.
+- o webhook deduplica eventos;
+- eventos brutos sao salvos em `commerce_events`;
+- pagamento confirmado cria ou reativa `course_releases`;
+- cancelamento e expiracao atualizam a sessao;
+- reembolso e chargeback revogam a liberacao gerenciada;
+- o webhook tambem aciona a logica de comissao do criador.
 
-Eventos mínimos:
+### 7.4 Curso gratuito
 
-- Pagamento confirmado: libera curso.
-- Checkout cancelado: marca sessão como cancelada se ainda não paga.
-- Checkout expirado: marca sessão como expirada se ainda não paga.
+Fluxo:
 
-Extensões recomendadas:
+1. aluno autenticado clica em acessar;
+2. backend valida curso publicado e publico;
+3. backend cria `course_releases` com origem `free_enrollment`;
+4. frontend navega para o curso.
 
-- Reembolso confirmado revoga liberação gerenciada pelo gateway.
-- Chargeback bloqueia acesso e sinaliza revisão administrativa.
-- Compra de curso já liberado redireciona para o curso sem novo checkout.
+### 7.5 Curso pago
+
+Fluxo:
+
+1. aluno autenticado clica em comprar;
+2. frontend chama `POST /api/checkout/asaas/start`;
+3. backend valida usuario e curso;
+4. backend cria sessao de checkout;
+5. Asaas devolve a sessao do checkout;
+6. webhook confirma o pagamento;
+7. `course_releases` e criado ou atualizado;
+8. aluno passa a acessar o curso.
+
+### 7.6 Comissao do criador
+
+Se houver criador vinculado e percentual configurado:
+
+- a venda paga gera comissao;
+- a comissao nasce pendente;
+- a comissao pode ficar elegivel para repasse apos o prazo configurado;
+- cancelamento, estorno ou chargeback cancelam ou revertem a comissao.
+
+## 8. Regras de Acesso
+
+O acesso do aluno e sempre derivado da combinacao de regras:
+
+- curso publicado;
+- curso liberado para o aluno ou grupo;
+- liberacao ativa;
+- periodo valido;
+- modulo dentro da janela de liberacao;
+- aula dentro da janela de liberacao;
+- progressao linear atendida;
+- quiz liberado conforme conclusao das aulas exigidas.
+
+Regra principal:
+
+- a condicao mais restritiva vence.
+
+Isso significa que:
+
+- curso liberado nao ignora agenda de modulo;
+- aula liberada nao ignora modulo bloqueado;
+- URL direta deve consultar as mesmas regras do player.
+
+## 9. Conteudo e Quizzes
+
+### Configuracao global e por curso
+
+O admin pode ativar ou desativar tipos de quiz globalmente e por curso.
+
+Regra:
+
+- tipo desativado globalmente nao aparece no builder do curso;
+- tipo desativado no curso nao aparece como card de criacao;
+- `case_study` depende de tipos internos estarem ativos.
+
+### Correcoes
+
+O backend e a fonte da pontuacao final.
+
+O player:
+
+- exibe feedback;
+- nao decide nota sozinho;
+- valida resposta antes de enviar.
 
 ## 10. Storage e Arquivos
 
-Buckets recomendados:
+Buckets usados ou esperados:
 
-- `materials`: materiais legados ou gerais.
-- `module-pdfs`: PDFs-base de módulo.
-- `lesson-footer-assets`: arquivos dos botões de aula.
-- `lesson-content-assets`: imagens de blocos interativos.
+- `module-pdfs`
+- `lesson-footer-assets`
+- `lesson-content-assets`
+- `materials`
 
 Regras:
 
-- Buckets privados para conteúdo de curso.
-- Admin pode fazer upload e gerenciar.
-- Aluno acessa via signed URL.
-- URLs assinadas não devem ser persistidas como fonte definitiva.
+- conteudo privado usa signed URL;
+- o aluno nao deve receber URL publica permanente como fonte definitiva;
+- PDFs do modulo podem ser personalizados para o aluno;
+- arquivos de aula e materiais seguem o mesmo padrao de assinatura.
 
-## 11. APIs e Serviços
+## 11. APIs e Servicos do Modulo
 
 ### Admin Content API
 
-Responsável por:
+Responsavel por:
 
-- CRUD de cursos.
-- CRUD de módulos.
-- CRUD de aulas.
-- Upload e remoção de assets.
-- Geração de signed URLs.
-- Importação/exportação.
+- CRUD de cursos;
+- CRUD de modulos;
+- CRUD de aulas;
+- upload e remocao de assets;
+- importacao e exportacao de conteudo;
+- gerenciamento de PDF base;
+- gerenciamento de botoes da aula.
 
 ### Student Course API
 
-Responsável por:
+Responsavel por:
 
-- Listar cursos liberados.
-- Carregar curso com progresso.
-- Carregar status de jornada.
-- Marcar aula como concluída.
+- carregar curso liberado;
+- carregar progresso;
+- carregar status da jornada;
+- marcar aula como concluida;
+- consultar modulos e aulas liberadas.
 
-### Checkout API
+### Reviews API
 
-Responsável por:
+Responsavel por:
 
-- Iniciar checkout.
-- Liberar cursos gratuitos.
-- Criar sessão de checkout paga.
-- Retornar URL hospedada.
+- listar reviews aprovados;
+- publicar ou atualizar review do usuario;
+- registrar voto util / nao util;
+- carregar estatisticas agregadas.
 
-### Webhook API
-
-Responsável por:
-
-- Receber eventos do gateway.
-- Deduplicar eventos.
-- Atualizar sessão.
-- Criar ou alterar liberação.
-
-## 12. Segurança
-
-Regras mínimas:
-
-- Operações administrativas exigem role `admin`.
-- Criador só acessa dados dos cursos vinculados.
-- Aluno só acessa cursos liberados.
-- Checkout exige usuário autenticado.
-- Webhook usa service role no backend.
-- Chaves privadas nunca vão para frontend.
-- Arquivos privados usam signed URL.
-- RLS deve permitir leitura pública apenas de cursos publicados e públicos.
-
-## 13. Estados e UX
-
-Estados de curso:
-
-- Rascunho.
-- Publicado.
-- Arquivado.
-
-Estados de acesso:
-
-- Liberado.
-- Bloqueado por compra.
-- Bloqueado por agenda.
-- Bloqueado por sequência.
-- Expirado.
-
-Estados de checkout:
-
-- Criado.
-- Ativo.
-- Pago.
-- Cancelado.
-- Expirado.
-- Falhou.
-
-UX recomendada:
-
-- Diferenciar bloqueio por agenda de bloqueio sequencial.
-- Mostrar curso comprado imediatamente após confirmação.
-- Em pagamento pendente, informar que acesso depende da confirmação.
-- Em aulas com materiais, mostrar botões simples no rodapé.
-
-## 14. Estrutura de Código Recomendada
+## 12. Estrutura de Codigo Recomendada
 
 ```text
 src/
-  types/
-    content.ts
-  features/
-    admin/
-      content/
-        api.ts
-        schemas.ts
-        content-blocks.ts
-        content-blocks-renderer.tsx
-    student/
-      courses/
-        api.ts
-      assessments/
   pages/
-    admin/
-      admin-courses-page.tsx
-      builder/
-      admin-payment-settings-page.tsx
     public/
       public-courses-page.tsx
       public-course-details-page.tsx
     student/
       student-dashboard-page.tsx
+      student-courses-page.tsx
       student-course-details-page.tsx
       student-course-player-layout.tsx
       student-lesson-page.tsx
+      student-assessment-execution-page.tsx
+    admin/
+      admin-courses-page.tsx
+      builder/
+        course-overview-panel.tsx
+        course-settings-panel.tsx
+        module-editor-panel.tsx
+        lesson-editor-panel.tsx
+        lesson-materials-panel.tsx
+        course-assessments-panel.tsx
+        assessment-builder-panel.tsx
+  features/
+    admin/
+      content/
+    student/
+      courses/
+      assessments/
+    public/
+      courses/
+    reviews/
 api/
   checkout/
     asaas/
@@ -797,78 +780,39 @@ supabase/
   migrations/
 ```
 
-## 15. Migrations Necessárias
-
-Para reutilizar o módulo, separar migrations por domínio:
-
-- Base acadêmica: cursos, módulos, aulas e materiais.
-- Liberação de curso: releases por usuário/grupo.
-- Progresso: progresso de aula, curso e bloqueio sequencial.
-- Avaliações: assessments, questions, attempts e submissions.
-- PDF e botões de aula: PDF de módulo, templates e ações de rodapé.
-- Agenda: datas absolutas e liberação relativa.
-- Tipos de quiz: configuração global e por curso.
-- Blocos interativos: bucket de assets de aula.
-- Comércio: campos comerciais do curso, gateway, checkout sessions e eventos.
-
-## 16. Critérios de Aceite
+## 13. Critarios de Aceite
 
 Admin:
 
-- Criar curso completo com módulo, aula, conteúdo e avaliação.
-- Publicar curso e visualizar no catálogo.
-- Configurar preço, slug e visibilidade.
-- Configurar gateway e visualizar webhook.
-- Vincular materiais e botões de aula.
-- Configurar agendas de módulo/aula.
+- criar curso completo;
+- configurar capa, slug, preco e visibilidade;
+- criar modulo, aula e avaliacao;
+- importar e exportar conteudo;
+- configurar liberacoes;
+- publicar o curso.
 
 Aluno:
 
-- Comprar curso pago e receber acesso após webhook.
-- Entrar em curso gratuito sem pagamento.
-- Consumir aula no player.
-- Marcar aula como concluída.
-- Ver bloqueios corretos.
-- Resolver quizzes.
-- Baixar materiais permitidos.
+- ver curso liberado na lista;
+- abrir pagina interna do curso;
+- assistir aula;
+- baixar PDF do modulo;
+- acessar recursos da aula;
+- concluir aula;
+- responder quiz;
+- ver bloqueios corretos.
 
-Comércio:
+Vendas:
 
-- Checkout criado com usuário autenticado.
-- Webhook processa evento uma vez.
-- Pagamento confirmado cria liberação.
-- Cancelamento/expiração não libera curso.
-- Eventos ficam auditáveis.
+- checkout gratuito cria liberacao sem pagamento;
+- checkout pago cria sessao e depende do webhook;
+- pagamento confirmado libera o curso;
+- cancelamento, expiracao, reembolso e chargeback sao refletidos no acesso.
 
-Segurança:
+Seguranca:
 
-- Aluno sem liberação não acessa player por URL direta.
-- Arquivos privados não ficam públicos.
-- Chaves do gateway não aparecem no frontend.
-- Admin e aluno respeitam roles.
+- aluno sem liberacao nao acessa por URL direta;
+- arquivos privados nao ficam publicos;
+- frontend nao depende de chave privada;
+- webhook usa service role no backend.
 
-## 17. Checklist para Reutilizar em Outro Projeto
-
-1. Copiar tipos de domínio de curso, módulo, aula, avaliações e releases.
-2. Aplicar migrations em ordem por domínio.
-3. Criar buckets privados de conteúdo.
-4. Configurar RLS para admin, aluno, criador e leitura pública de catálogo.
-5. Implementar builder administrativo.
-6. Implementar player do aluno consultando RPCs de acesso.
-7. Implementar catálogo público.
-8. Implementar adapter de pagamento.
-9. Implementar webhook idempotente.
-10. Validar fluxo gratuito e pago.
-11. Adaptar identidade visual.
-12. Renomear atributos legados de bloco para prefixo neutro do novo produto.
-
-## 18. Decisões Arquiteturais
-
-- Curso é o centro acadêmico e comercial.
-- O acesso é sempre derivado de releases, não apenas de compra.
-- Pagamento cria release; release libera curso.
-- Agenda e progressão são camadas adicionais sobre a liberação.
-- Conteúdo de aula usa blocos serializados para preservar ordem e flexibilidade.
-- Quizzes são parte do domínio acadêmico, mas respeitam configurações globais e por curso.
-- Gateway de pagamento deve ser substituível por adapter.
-- Player do aluno nunca deve confiar apenas em estado local para liberar conteúdo.
