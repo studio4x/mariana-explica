@@ -14,6 +14,7 @@ import {
 } from "react"
 import { supabase } from "@/integrations/supabase"
 import type { Session, User } from "@supabase/supabase-js"
+import { SUPABASE_URL } from "@/lib/constants"
 
 export type UserRole = "student" | "affiliate" | "admin"
 export type UserStatus = "active" | "inactive" | "blocked" | "pending_review"
@@ -40,6 +41,53 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 const PROFILE_CACHE_KEY = "mariana-explica:auth-profile"
+
+function getSupabaseStorageKey() {
+  if (!SUPABASE_URL) {
+    return null
+  }
+
+  try {
+    const hostname = new URL(SUPABASE_URL).hostname
+    const projectRef = hostname.split(".")[0]
+    return projectRef ? `sb-${projectRef}-auth-token` : null
+  } catch {
+    return null
+  }
+}
+
+function readStoredSession(): Session | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  const storageKey = getSupabaseStorageKey()
+  if (!storageKey) {
+    return null
+  }
+
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw) as Session
+    const expiresAt = typeof parsed?.expires_at === "number" ? parsed.expires_at : null
+
+    if (!parsed?.access_token || !parsed?.user?.id) {
+      return null
+    }
+
+    if (expiresAt && expiresAt * 1000 <= Date.now()) {
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
   try {
@@ -119,13 +167,18 @@ async function refreshProfileState(
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const optimisticSession = useMemo(() => readStoredSession(), [])
+  const optimisticProfile = useMemo(
+    () => (optimisticSession ? readCachedProfile(optimisticSession.user.id) : null),
+    [optimisticSession],
+  )
+  const [session, setSession] = useState<Session | null>(optimisticSession)
+  const [user, setUser] = useState<User | null>(optimisticSession?.user ?? null)
+  const [profile, setProfile] = useState<UserProfile | null>(optimisticProfile)
+  const [loading, setLoading] = useState(!optimisticSession)
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
-  const profileRef = useRef<UserProfile | null>(null)
+  const profileRef = useRef<UserProfile | null>(optimisticProfile)
 
   useEffect(() => {
     profileRef.current = profile
