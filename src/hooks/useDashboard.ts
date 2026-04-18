@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   createSupportTicket,
+  fetchAccessibleAssessment,
+  fetchAccessibleLesson,
   fetchAssessmentAttemptState,
   fetchDashboardOverview,
   fetchDashboardProductContent,
   fetchDownloads,
   fetchLessonNotes,
+  fetchModuleAssetsByModule,
   fetchMyProducts,
   fetchNotifications,
   fetchProfilePreferences,
@@ -48,6 +51,30 @@ export function useLessonNote(lessonId: string | undefined) {
     queryKey: ["dashboard", "lesson", lessonId, "note"],
     queryFn: () => fetchLessonNotes(lessonId ?? ""),
     enabled: Boolean(lessonId),
+  })
+}
+
+export function useAccessibleLesson(lessonId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "lesson", lessonId, "content"],
+    queryFn: () => fetchAccessibleLesson(lessonId ?? ""),
+    enabled: Boolean(lessonId),
+  })
+}
+
+export function useAccessibleAssessment(assessmentId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "assessment", assessmentId, "content"],
+    queryFn: () => fetchAccessibleAssessment(assessmentId ?? ""),
+    enabled: Boolean(assessmentId),
+  })
+}
+
+export function useModuleAssets(moduleId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "module", moduleId, "assets"],
+    queryFn: () => fetchModuleAssetsByModule(moduleId ?? ""),
+    enabled: Boolean(moduleId),
   })
 }
 

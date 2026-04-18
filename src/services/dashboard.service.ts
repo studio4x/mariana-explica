@@ -4,6 +4,9 @@ import { getFreshFunctionAuthContext, getFunctionAuthHeaders } from "@/services/
 import type {
   AccessGrantSummary,
   AssessmentAttemptState,
+  CourseAssessmentNavigationSummary,
+  CourseLessonNavigationSummary,
+  CourseModuleNavigationSummary,
   DashboardOverviewData,
   DashboardProductSummary,
   LessonNoteSummary,
@@ -14,6 +17,7 @@ import type {
   ProductLessonSummary,
   ProductModuleSummary,
   ProfilePreferences,
+  StudentCourseNavigationData,
   SupportTicketMessage,
   SupportTicketSummary,
 } from "@/types/app.types"
@@ -278,6 +282,27 @@ export async function fetchProductLessons(moduleIds: string[]) {
   return fetchLessonsByModuleIds(moduleIds)
 }
 
+export async function fetchModuleAssetsByModule(moduleId: string) {
+  const assets = await fetchModuleAssets([moduleId])
+  return assets.filter((asset) => asset.module_id === moduleId)
+}
+
+export async function fetchAccessibleLesson(lessonId: string) {
+  const { data, error } = await supabase
+    .from("product_lessons")
+    .select(
+      "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status",
+    )
+    .eq("id", lessonId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? null) as ProductLessonSummary | null
+}
+
 export async function fetchLessonProgress(productId: string) {
   const { data, error } = await supabase
     .from("lesson_progress")
@@ -308,6 +333,23 @@ export async function fetchProductAssessments(productId: string) {
   }
 
   return (data ?? []) as ProductAssessmentSummary[]
+}
+
+export async function fetchAccessibleAssessment(assessmentId: string) {
+  const { data, error } = await supabase
+    .from("product_assessments")
+    .select(
+      "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
+    )
+    .eq("id", assessmentId)
+    .eq("is_active", true)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? null) as ProductAssessmentSummary | null
 }
 
 async function invokeStudentAssessmentFunction<TResponse>(body: unknown) {
@@ -469,23 +511,59 @@ export async function fetchModuleAssets(moduleIds: string[]) {
 }
 
 export async function fetchDashboardProductContent(productId: string) {
-  const products = await fetchMyProducts()
-  const product = products.find((entry) => entry.id === productId) ?? null
-
-  if (!product) {
-    return { product: null, modules: [], lessons: [], assets: [], assessments: [], progress: [] }
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada")
   }
 
-  const modules = await fetchProductModules(productId)
-  const moduleIds = modules.map((module) => module.id)
-  const [lessons, assets, assessments, progress] = await Promise.all([
-    fetchProductLessons(moduleIds),
-    fetchModuleAssets(moduleIds),
-    fetchProductAssessments(productId),
-    fetchLessonProgress(productId),
-  ])
+  const response = await fetch(
+    `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/student-course-navigation`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: auth.headers.Authorization,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        productId,
+        access_token: auth.accessToken,
+      }),
+    },
+  )
 
-  return { product, modules, lessons, assets, assessments, progress }
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  const payload = data as {
+    success: true
+    product: DashboardProductSummary | null
+    modules: CourseModuleNavigationSummary[]
+    lessons: CourseLessonNavigationSummary[]
+    assessments: CourseAssessmentNavigationSummary[]
+    progress: StudentCourseNavigationData["progress"]
+  }
+
+  return {
+    product: payload.product,
+    modules: payload.modules ?? [],
+    lessons: payload.lessons ?? [],
+    assessments: payload.assessments ?? [],
+    progress: payload.progress ?? [],
+  } satisfies StudentCourseNavigationData
 }
 
 export async function requestAssetAccess(assetId: string) {

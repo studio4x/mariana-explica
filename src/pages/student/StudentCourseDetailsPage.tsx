@@ -13,6 +13,7 @@ import {
 import { getModuleTypeLabel } from "@/lib/product-presentation"
 import {
   studentCourseLessonPath,
+  studentCourseAssessmentPath,
   studentCoursePlayerPath,
 } from "@/lib/routes"
 
@@ -49,6 +50,9 @@ export function StudentCourseDetailsPage() {
   const progressPercent =
     data.lessons.length > 0 ? Math.round((completedLessons / data.lessons.length) * 100) : 0
   const playerEntries = buildCoursePlayerEntries(data.modules, data.lessons, data.assessments)
+  const firstUnlockedEntry = playerEntries.find((entry) => !entry.isLocked) ?? null
+  const lockedLessonsCount = data.lessons.filter((lesson) => lesson.is_locked).length
+  const lockedAssessmentsCount = data.assessments.filter((assessment) => assessment.is_locked).length
   const assessmentsByModule = new Map(
     data.modules.map((module) => [
       module.id,
@@ -78,10 +82,19 @@ export function StudentCourseDetailsPage() {
               <StatusBadge label={`${data.modules.length} modulos`} tone="info" />
               <StatusBadge label={`${data.lessons.length} aulas`} tone="warning" />
               <StatusBadge label={`${data.assessments.length} avaliacoes`} tone="success" />
+              {data.product.has_linear_progression ? <StatusBadge label="Trilha sequencial" tone="warning" /> : null}
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild className="rounded-full bg-white text-slate-950 hover:bg-white/90">
-                <Link to={nextLesson ? studentCourseLessonPath(data.product.id, nextLesson.id) : studentCoursePlayerPath(data.product.id)}>
+                <Link
+                  to={
+                    nextLesson
+                      ? studentCourseLessonPath(data.product.id, nextLesson.id)
+                      : firstUnlockedEntry?.type === "assessment"
+                        ? studentCourseAssessmentPath(data.product.id, firstUnlockedEntry.id)
+                        : studentCoursePlayerPath(data.product.id)
+                  }
+                >
                   {progressPercent > 0 ? "Continuar no player" : "Iniciar curso"}
                   <PlayCircle className="ml-2 h-4 w-4" />
                 </Link>
@@ -92,7 +105,7 @@ export function StudentCourseDetailsPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-1">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
             <div className="rounded-[1.5rem] bg-white/10 p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-white/65">Progresso geral</p>
               <p className="mt-3 text-3xl font-bold">{progressPercent}%</p>
@@ -109,6 +122,11 @@ export function StudentCourseDetailsPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-white/65">Player LMS</p>
               <p className="mt-3 text-3xl font-bold">{playerEntries.length}</p>
               <p className="mt-2 text-sm text-white/80">Itens navegaveis entre aulas e avaliacoes.</p>
+            </div>
+            <div className="rounded-[1.5rem] bg-white/10 p-5 md:col-span-2 xl:col-span-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/65">Bloqueios atuais</p>
+              <p className="mt-3 text-3xl font-bold">{lockedLessonsCount + lockedAssessmentsCount}</p>
+              <p className="mt-2 text-sm text-white/80">Itens ainda dependentes da tua progressao.</p>
             </div>
           </div>
         </div>
@@ -145,8 +163,14 @@ export function StudentCourseDetailsPage() {
                       <StatusBadge label={getModuleTypeLabel(module.module_type)} tone="info" />
                       {module.is_required ? <StatusBadge label="Obrigatorio" tone="success" /> : null}
                       {module.module_pdf_file_name ? <StatusBadge label="PDF base" tone="warning" /> : null}
+                      {module.is_locked ? <StatusBadge label="Bloqueado" tone="warning" /> : null}
                     </div>
                   </div>
+                  {module.is_locked && module.lock_reason ? (
+                    <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-700">
+                      {module.lock_reason}
+                    </p>
+                  ) : null}
 
                   <div className="mt-4 space-y-2">
                     {moduleLessons.map((lesson) => {
@@ -158,10 +182,16 @@ export function StudentCourseDetailsPage() {
                             <p className="mt-1 text-sm text-slate-600">
                               {lesson.description ?? "Aula pronta para estudo dentro do player."}
                             </p>
+                            {lesson.is_locked && lesson.lock_reason ? (
+                              <p className="mt-2 text-sm text-amber-700">{lesson.lock_reason}</p>
+                            ) : null}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <StatusBadge label={`${lesson.estimated_minutes} min`} tone="neutral" />
-                            <StatusBadge label={lessonState.label} tone={lessonState.tone} />
+                            <StatusBadge
+                              label={lesson.is_locked ? "Bloqueada" : lessonState.label}
+                              tone={lesson.is_locked ? "warning" : lessonState.tone}
+                            />
                           </div>
                         </div>
                       )
@@ -173,10 +203,37 @@ export function StudentCourseDetailsPage() {
                           <p className="mt-1 text-sm text-slate-600">
                             {assessment.description ?? "Avaliacao ligada a este modulo."}
                           </p>
+                          {assessment.is_locked && assessment.lock_reason ? (
+                            <p className="mt-2 text-sm text-amber-700">{assessment.lock_reason}</p>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <StatusBadge label="Quiz do modulo" tone="warning" />
-                          <StatusBadge label={`Minimo ${assessment.passing_score}%`} tone="info" />
+                          <StatusBadge
+                            label={assessment.is_locked ? "Quiz bloqueado" : "Quiz do modulo"}
+                            tone="warning"
+                          />
+                          <StatusBadge
+                            label={
+                              assessment.progress_state === "passed"
+                                ? "Aprovado"
+                                : assessment.progress_state === "pending_review"
+                                  ? "Em revisao"
+                                  : assessment.progress_state === "failed"
+                                    ? "Reprovado"
+                                    : assessment.is_locked
+                                      ? "Bloqueado"
+                                      : `Minimo ${assessment.passing_score}%`
+                            }
+                            tone={
+                              assessment.progress_state === "passed"
+                                ? "success"
+                                : assessment.progress_state === "failed"
+                                  ? "danger"
+                                  : assessment.progress_state === "pending_review" || assessment.is_locked
+                                    ? "warning"
+                                    : "info"
+                            }
+                          />
                         </div>
                       </div>
                     ))}
@@ -212,8 +269,8 @@ export function StudentCourseDetailsPage() {
               </div>
             ) : (
               <EmptyState
-                title="Sem aulas publicadas"
-                message="Quando o curso tiver conteudo publicado, o proximo passo aparece aqui."
+                title="Sem proximo passo desbloqueado"
+                message="Conclui os itens anteriores para libertar a proxima aula ou avaliacao desta trilha."
               />
             )}
           </div>
@@ -226,7 +283,7 @@ export function StudentCourseDetailsPage() {
               </div>
               <div className="rounded-2xl border bg-slate-50/80 p-4">
                 {data.product.has_linear_progression
-                  ? "Este curso usa progressao linear, por isso o player organiza a ordem de estudo de forma sequencial."
+                  ? "Este curso usa progressao linear, por isso aulas e quizzes futuros ficam visiveis, mas bloqueados ate concluirem os requisitos anteriores."
                   : "Este curso permite navegacao mais livre, sempre respeitando acesso e disponibilidade do conteudo."}
               </div>
               <div className="rounded-2xl border bg-slate-50/80 p-4">

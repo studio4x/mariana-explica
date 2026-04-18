@@ -1,11 +1,13 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
 import { FileText, PlayCircle, StickyNote } from "lucide-react"
 import { useEffect, useState } from "react"
-import { EmptyState } from "@/components/feedback"
+import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { StatusBadge } from "@/components/common"
 import {
+  useAccessibleLesson,
   useLessonNote,
+  useModuleAssets,
   useRequestAssetAccess,
   useSaveLessonNote,
   useUpsertLessonProgress,
@@ -21,10 +23,11 @@ import type { StudentCoursePlayerContext } from "./StudentCoursePlayerLayout"
 export function StudentLessonPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
   const context = useOutletContext<StudentCoursePlayerContext>()
-  const lesson = context.lessons.find((item) => item.id === lessonId) ?? null
-  const module = lesson ? context.modules.find((item) => item.id === lesson.module_id) ?? null : null
-  const assets = module ? context.assets.filter((asset) => asset.module_id === module.id) : []
-  const noteQuery = useLessonNote(lesson?.id)
+  const lessonSummary = context.lessons.find((item) => item.id === lessonId) ?? null
+  const module = lessonSummary ? context.modules.find((item) => item.id === lessonSummary.module_id) ?? null : null
+  const lessonQuery = useAccessibleLesson(lessonSummary && !lessonSummary.is_locked ? lessonSummary.id : undefined)
+  const assetsQuery = useModuleAssets(module && !module.is_locked ? module.id : undefined)
+  const noteQuery = useLessonNote(lessonSummary?.id)
   const saveLessonNote = useSaveLessonNote()
   const progressMutation = useUpsertLessonProgress()
   const assetAccess = useRequestAssetAccess()
@@ -32,9 +35,9 @@ export function StudentLessonPage() {
 
   useEffect(() => {
     setNoteText(noteQuery.data?.note_text ?? "")
-  }, [lesson?.id, noteQuery.data?.note_text])
+  }, [lessonSummary?.id, noteQuery.data?.note_text])
 
-  if (!lesson || !module) {
+  if (!lessonSummary || !module) {
     return (
       <EmptyState
         title="Aula nao encontrada"
@@ -43,15 +46,59 @@ export function StudentLessonPage() {
     )
   }
 
+  if (lessonSummary.is_locked || module.is_locked) {
+    return (
+      <EmptyState
+        title="Aula bloqueada"
+        message={lessonSummary.lock_reason ?? module.lock_reason ?? "Conclui os requisitos anteriores para libertar esta aula."}
+      />
+    )
+  }
+
+  if (lessonQuery.isLoading || assetsQuery.isLoading) {
+    return <LoadingState message="A preparar o conteudo da aula..." />
+  }
+
+  if (lessonQuery.isError || assetsQuery.isError) {
+    return (
+      <ErrorState
+        title="Nao foi possivel abrir esta aula"
+        message={
+          lessonQuery.error instanceof Error
+            ? lessonQuery.error.message
+            : assetsQuery.error instanceof Error
+              ? assetsQuery.error.message
+              : "Tenta novamente dentro de instantes."
+        }
+        onRetry={() => {
+          void lessonQuery.refetch()
+          void assetsQuery.refetch()
+        }}
+      />
+    )
+  }
+
+  const lesson = lessonQuery.data
+  const assets = assetsQuery.data ?? []
+
+  if (!lesson) {
+    return (
+      <EmptyState
+        title="Conteudo indisponivel"
+        message="O backend nao libertou o conteudo completo desta aula para a tua sessao."
+      />
+    )
+  }
+
   const entries = buildCoursePlayerEntries(context.modules, context.lessons, context.assessments)
-  const currentIndex = entries.findIndex((entry) => entry.type === "lesson" && entry.id === lesson.id)
-  const previousEntry = currentIndex > 0 ? entries[currentIndex - 1] : null
-  const nextEntry = currentIndex >= 0 ? entries[currentIndex + 1] ?? null : null
+  const unlockedEntries = entries.filter((entry) => !entry.isLocked)
+  const currentIndex = unlockedEntries.findIndex((entry) => entry.type === "lesson" && entry.id === lesson.id)
+  const previousEntry = currentIndex > 0 ? unlockedEntries[currentIndex - 1] : null
+  const nextEntry = currentIndex >= 0 ? unlockedEntries[currentIndex + 1] ?? null : null
   const currentNote = noteText
 
   const handleSaveNote = async () => {
     await saveLessonNote.mutateAsync({ lessonId: lesson.id, noteText: currentNote })
-    setNoteText("")
   }
 
   const handleProgress = async (status: "in_progress" | "completed") => {

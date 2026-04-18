@@ -5,13 +5,15 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
+  useAccessibleLesson,
   useDashboardProductContent,
   useLessonNote,
+  useModuleAssets,
   useRequestAssetAccess,
   useSaveLessonNote,
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
-import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
+import type { ModuleAssetSummary } from "@/types/app.types"
 import {
   getAssetActionLabel,
   getAssetTypeLabel,
@@ -53,15 +55,20 @@ export function DashboardProductDetail() {
   const selectedModule = modules.find((module) => module.id === selectedModuleIdSafe) ?? null
   const selectedModuleLessons = lessons.filter((lesson) => lesson.module_id === selectedModuleIdSafe)
   const selectedLessonIdSafe = selectedLessonId ?? selectedModuleLessons[0]?.id ?? null
-  const selectedLesson =
+  const selectedLessonSummary =
     selectedModuleLessons.find((lesson) => lesson.id === selectedLessonIdSafe) ??
     selectedModuleLessons[0] ??
     null
-  const selectedAssets = (data?.assets ?? []).filter((asset) => asset.module_id === selectedModuleIdSafe)
+  const selectedLessonQuery = useAccessibleLesson(
+    selectedLessonSummary && !selectedLessonSummary.is_locked ? selectedLessonSummary.id : undefined,
+  )
+  const selectedAssetsQuery = useModuleAssets(
+    selectedModule && !selectedModule.is_locked ? selectedModule.id : undefined,
+  )
   const selectedAssessments = (data?.assessments ?? []).filter(
     (assessment) => assessment.module_id === selectedModuleIdSafe || assessment.assessment_type === "final",
   )
-  const noteQuery = useLessonNote(selectedLesson?.id)
+  const noteQuery = useLessonNote(selectedLessonSummary?.id)
   const [noteState, setNoteState] = useState<{ lessonId: string | null; text: string }>({
     lessonId: null,
     text: "",
@@ -82,12 +89,16 @@ export function DashboardProductDetail() {
   }
 
   const handleSaveNote = async () => {
-    if (!selectedLesson) return
-    const currentNote = noteState.lessonId === selectedLesson.id ? noteState.text : noteQuery.data?.note_text ?? ""
-    await saveLessonNote.mutateAsync({ lessonId: selectedLesson.id, noteText: currentNote })
+    if (!selectedLessonSummary) return
+    const currentNote =
+      noteState.lessonId === selectedLessonSummary.id ? noteState.text : noteQuery.data?.note_text ?? ""
+    await saveLessonNote.mutateAsync({ lessonId: selectedLessonSummary.id, noteText: currentNote })
   }
 
-  const handleLessonProgress = async (lesson: ProductLessonSummary, status: "in_progress" | "completed") => {
+  const handleLessonProgress = async (
+    lesson: { id: string; module_id: string },
+    status: "in_progress" | "completed",
+  ) => {
     if (!id) return
     await upsertLessonProgress.mutateAsync({
       lessonId: lesson.id,
@@ -123,6 +134,9 @@ export function DashboardProductDetail() {
 
   const currentLessonId = selectedLessonIdSafe
   const noteDraft = noteState.lessonId === currentLessonId ? noteState.text : noteQuery.data?.note_text ?? ""
+  const selectedLesson = selectedLessonQuery.data ?? null
+  const selectedAssets = selectedAssetsQuery.data ?? []
+  const selectedLessonBlocked = Boolean(selectedLessonSummary?.is_locked || selectedModule?.is_locked)
 
   return (
     <div className="space-y-6">
@@ -228,52 +242,84 @@ export function DashboardProductDetail() {
         </section>
 
         <section className="space-y-4">
-          {selectedModule && selectedLesson ? (
+          {selectedModule && selectedLessonSummary ? (
             <>
               <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{selectedModule.title}</p>
-                    <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{selectedLesson.title}</h2>
+                    <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{selectedLessonSummary.title}</h2>
                     <p className="mt-2 text-sm leading-7 text-slate-600">
-                      {selectedLesson.description ?? "Aula pronta para leitura, visualizacao e continuidade do estudo."}
+                      {selectedLessonSummary.description ?? "Aula pronta para leitura, visualizacao e continuidade do estudo."}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <StatusBadge label={selectedLesson.lesson_type === "video" ? "Video" : selectedLesson.lesson_type === "text" ? "Texto" : "Hibrida"} tone="info" />
-                    <StatusBadge label={`${selectedLesson.estimated_minutes} min`} tone="warning" />
+                    <StatusBadge label={selectedLessonSummary.lesson_type === "video" ? "Video" : selectedLessonSummary.lesson_type === "text" ? "Texto" : "Hibrida"} tone="info" />
+                    <StatusBadge label={`${selectedLessonSummary.estimated_minutes} min`} tone="warning" />
+                    {selectedLessonSummary.is_locked ? <StatusBadge label="Bloqueada" tone="warning" /> : null}
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  {selectedLesson.youtube_url ? (
-                    <div className="rounded-2xl border bg-slate-50/80 p-4">
-                      <div className="flex items-center gap-2 text-slate-900">
-                        <PlayCircle className="h-4 w-4" />
-                        <p className="font-medium">Video principal</p>
-                      </div>
-                      <p className="mt-3 break-all text-sm leading-6 text-slate-600">{selectedLesson.youtube_url}</p>
+                {selectedLessonBlocked ? (
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-slate-700">
+                    {selectedLessonSummary.lock_reason ?? selectedModule.lock_reason ?? "Conclui os itens anteriores para libertar esta aula."}
+                  </div>
+                ) : selectedLessonQuery.isLoading ? (
+                  <div className="mt-5">
+                    <LoadingState message="A preparar o conteudo da aula..." />
+                  </div>
+                ) : selectedLessonQuery.isError ? (
+                  <div className="mt-5">
+                    <ErrorState
+                      title="Nao foi possivel abrir esta aula"
+                      message={
+                        selectedLessonQuery.error instanceof Error
+                          ? selectedLessonQuery.error.message
+                          : "Tenta novamente dentro de instantes."
+                      }
+                      onRetry={() => void selectedLessonQuery.refetch()}
+                    />
+                  </div>
+                ) : selectedLesson ? (
+                  <>
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      {selectedLesson.youtube_url ? (
+                        <div className="rounded-2xl border bg-slate-50/80 p-4">
+                          <div className="flex items-center gap-2 text-slate-900">
+                            <PlayCircle className="h-4 w-4" />
+                            <p className="font-medium">Video principal</p>
+                          </div>
+                          <p className="mt-3 break-all text-sm leading-6 text-slate-600">{selectedLesson.youtube_url}</p>
+                        </div>
+                      ) : null}
+                      {selectedLesson.text_content ? (
+                        <div className="rounded-2xl border bg-slate-50/80 p-4">
+                          <div className="flex items-center gap-2 text-slate-900">
+                            <FileText className="h-4 w-4" />
+                            <p className="font-medium">Conteudo textual</p>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-slate-600 line-clamp-6">{selectedLesson.text_content}</p>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                  {selectedLesson.text_content ? (
-                    <div className="rounded-2xl border bg-slate-50/80 p-4">
-                      <div className="flex items-center gap-2 text-slate-900">
-                        <FileText className="h-4 w-4" />
-                        <p className="font-medium">Conteudo textual</p>
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-slate-600 line-clamp-6">{selectedLesson.text_content}</p>
-                    </div>
-                  ) : null}
-                </div>
 
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Button type="button" className="rounded-full" onClick={() => void handleLessonProgress(selectedLesson, "in_progress")} disabled={upsertLessonProgress.isPending}>
-                    Marcar em progresso
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleLessonProgress(selectedLesson, "completed")} disabled={upsertLessonProgress.isPending}>
-                    Concluir aula
-                  </Button>
-                </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Button type="button" className="rounded-full" onClick={() => void handleLessonProgress(selectedLessonSummary, "in_progress")} disabled={upsertLessonProgress.isPending}>
+                        Marcar em progresso
+                      </Button>
+                      <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleLessonProgress(selectedLessonSummary, "completed")} disabled={upsertLessonProgress.isPending}>
+                        Concluir aula
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-5">
+                    <EmptyState
+                      title="Conteudo indisponivel"
+                      message="O backend nao libertou o conteudo completo desta aula para a tua sessao."
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -293,8 +339,9 @@ export function DashboardProductDetail() {
                     rows={9}
                     placeholder="Guarda aqui os pontos importantes desta aula."
                     className="mt-4 w-full rounded-2xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400"
+                    disabled={selectedLessonBlocked}
                   />
-                  <Button type="button" className="mt-4 rounded-full" onClick={() => void handleSaveNote()} disabled={saveLessonNote.isPending || noteQuery.isLoading}>
+                  <Button type="button" className="mt-4 rounded-full" onClick={() => void handleSaveNote()} disabled={selectedLessonBlocked || saveLessonNote.isPending || noteQuery.isLoading}>
                     {saveLessonNote.isPending ? "A guardar..." : "Guardar notas"}
                   </Button>
                 </div>
@@ -302,30 +349,50 @@ export function DashboardProductDetail() {
                 <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
                   <h3 className="font-display text-xl font-bold text-slate-950">Materiais e avaliacoes</h3>
                   <div className="mt-4 space-y-3">
-                    {selectedAssets.map((asset) => (
-                      <div key={asset.id} className="rounded-2xl border bg-slate-50/70 p-4">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-semibold text-slate-950">{asset.title}</p>
-                              <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
+                    {selectedAssetsQuery.isLoading ? (
+                      <LoadingState message="A carregar materiais do modulo..." />
+                    ) : selectedAssetsQuery.isError ? (
+                      <ErrorState
+                        title="Nao foi possivel carregar os materiais"
+                        message={
+                          selectedAssetsQuery.error instanceof Error
+                            ? selectedAssetsQuery.error.message
+                            : "Tenta novamente dentro de instantes."
+                        }
+                        onRetry={() => void selectedAssetsQuery.refetch()}
+                      />
+                    ) : (
+                      <>
+                        {selectedAssets.map((asset) => (
+                          <div key={asset.id} className="rounded-2xl border bg-slate-50/70 p-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-semibold text-slate-950">{asset.title}</p>
+                                  <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
+                                </div>
+                                <p className="mt-2 text-sm leading-6 text-slate-600">Material protegido do modulo atual.</p>
+                              </div>
+                              <Button type="button" onClick={() => void handleOpenAsset(asset)} disabled={assetAccess.isPending} className="rounded-full">
+                                {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
+                              </Button>
                             </div>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">Material protegido do modulo atual.</p>
                           </div>
-                          <Button type="button" onClick={() => void handleOpenAsset(asset)} disabled={assetAccess.isPending} className="rounded-full">
-                            {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {selectedAssets.length === 0 ? <EmptyState title="Sem materiais neste modulo" message="Quando houver ficheiros ou links liberados, eles aparecem aqui." /> : null}
+                        ))}
+                        {selectedAssets.length === 0 ? <EmptyState title="Sem materiais neste modulo" message="Quando houver ficheiros ou links liberados, eles aparecem aqui." /> : null}
+                      </>
+                    )}
                     {selectedAssessments.map((assessment) => (
                       <div key={assessment.id} className="rounded-2xl border bg-white p-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-slate-950">{assessment.title}</p>
                           <StatusBadge label={assessment.assessment_type === "final" ? "Avaliacao final" : "Quiz do modulo"} tone="warning" />
+                          {assessment.is_locked ? <StatusBadge label="Bloqueada" tone="warning" /> : null}
                         </div>
                         <p className="mt-2 text-sm leading-6 text-slate-600">{assessment.description ?? "Avaliacao disponivel neste curso."}</p>
+                        {assessment.is_locked && assessment.lock_reason ? (
+                          <p className="mt-2 text-sm text-amber-700">{assessment.lock_reason}</p>
+                        ) : null}
                       </div>
                     ))}
                   </div>

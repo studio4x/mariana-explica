@@ -5,6 +5,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { StatusBadge } from "@/components/common"
 import {
+  useAccessibleAssessment,
   useAssessmentAttemptState,
   useSaveAssessmentAttemptDraft,
   useSubmitAssessmentAttempt,
@@ -59,17 +60,20 @@ function getAttemptSummary(value: Record<string, unknown> | undefined) {
 export function StudentAssessmentExecutionPage() {
   const { assessmentId } = useParams<{ assessmentId: string }>()
   const context = useOutletContext<StudentCoursePlayerContext>()
-  const assessment = context.assessments.find((item) => item.id === assessmentId) ?? null
+  const assessmentSummary = context.assessments.find((item) => item.id === assessmentId) ?? null
   const [answers, setAnswers] = useState<Record<string, AssessmentDraftAnswerValue>>({})
   const [previewRequested, setPreviewRequested] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
-  const attemptStateQuery = useAssessmentAttemptState(assessment?.id)
+  const assessmentQuery = useAccessibleAssessment(
+    assessmentSummary && !assessmentSummary.is_locked ? assessmentSummary.id : undefined,
+  )
+  const attemptStateQuery = useAssessmentAttemptState(assessmentQuery.data?.id)
   const saveDraft = useSaveAssessmentAttemptDraft()
   const submitAttempt = useSubmitAssessmentAttempt()
   const hydratedAttemptIdRef = useRef<string | null>(null)
   const lastSavedSignatureRef = useRef<string>("{}")
 
-  if (!assessment) {
+  if (!assessmentSummary) {
     return (
       <EmptyState
         title="Avaliacao nao encontrada"
@@ -78,13 +82,52 @@ export function StudentAssessmentExecutionPage() {
     )
   }
 
+  if (assessmentSummary.is_locked) {
+    return (
+      <EmptyState
+        title="Avaliacao bloqueada"
+        message={assessmentSummary.lock_reason ?? "Conclui os requisitos anteriores para libertar esta avaliacao."}
+      />
+    )
+  }
+
+  if (assessmentQuery.isLoading) {
+    return <LoadingState message="A preparar a avaliacao..." />
+  }
+
+  if (assessmentQuery.isError) {
+    return (
+      <ErrorState
+        title="Nao foi possivel abrir esta avaliacao"
+        message={
+          assessmentQuery.error instanceof Error
+            ? assessmentQuery.error.message
+            : "Tenta novamente dentro de instantes."
+        }
+        onRetry={() => void assessmentQuery.refetch()}
+      />
+    )
+  }
+
+  const assessment = assessmentQuery.data
+
+  if (!assessment) {
+    return (
+      <EmptyState
+        title="Conteudo indisponivel"
+        message="O backend nao libertou o payload completo desta avaliacao para a tua sessao."
+      />
+    )
+  }
+
   const module = assessment.module_id
     ? context.modules.find((item) => item.id === assessment.module_id) ?? null
     : null
   const entries = buildCoursePlayerEntries(context.modules, context.lessons, context.assessments)
-  const currentIndex = entries.findIndex((entry) => entry.type === "assessment" && entry.id === assessment.id)
-  const previousEntry = currentIndex > 0 ? entries[currentIndex - 1] : null
-  const nextEntry = currentIndex >= 0 ? entries[currentIndex + 1] ?? null : null
+  const unlockedEntries = entries.filter((entry) => !entry.isLocked)
+  const currentIndex = unlockedEntries.findIndex((entry) => entry.type === "assessment" && entry.id === assessment.id)
+  const previousEntry = currentIndex > 0 ? unlockedEntries[currentIndex - 1] : null
+  const nextEntry = currentIndex >= 0 ? unlockedEntries[currentIndex + 1] ?? null : null
   const questions = useMemo(
     () => normalizeAssessmentQuestions(assessment.builder_payload),
     [assessment.builder_payload],
@@ -201,7 +244,7 @@ export function StudentAssessmentExecutionPage() {
             Esta tela agora consome o `builder_payload` para renderizar as perguntas no player. A submissao oficial continua dependente do backend para preservar tentativas, score e validacao segura.
           </p>
           <p className="mt-3 text-sm leading-7 text-slate-700">
-            O resultado abaixo funciona como rascunho local da experiencia do LMS. Quando a API de tentativas estiver pronta, ela substitui apenas a confirmacao final sem quebrar esta navegacao.
+            O resultado local abaixo funciona como apoio visual do player, enquanto a tentativa oficial segue a ser persistida, validada e decidida pelo backend.
           </p>
         </div>
       </section>

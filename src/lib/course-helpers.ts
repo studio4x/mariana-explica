@@ -40,6 +40,7 @@ export interface CoursePlayerEntry {
   type: "lesson" | "assessment"
   moduleId: string | null
   title: string
+  isLocked: boolean
 }
 
 export function createLessonProgressMap(progress: LessonProgressSummary[]) {
@@ -58,8 +59,10 @@ export function getLessonProgressState(
 
 export function buildCoursePlayerEntries(
   modules: ProductModuleSummary[],
-  lessons: ProductLessonSummary[],
-  assessments: ProductAssessmentSummary[],
+  lessons: Array<Pick<ProductLessonSummary, "id" | "module_id" | "title"> & { is_locked?: boolean }>,
+  assessments: Array<
+    Pick<ProductAssessmentSummary, "id" | "module_id" | "assessment_type" | "title"> & { is_locked?: boolean }
+  >,
 ) {
   const entries: CoursePlayerEntry[] = []
 
@@ -75,6 +78,7 @@ export function buildCoursePlayerEntries(
         type: "lesson",
         moduleId: module.id,
         title: lesson.title,
+        isLocked: lesson.is_locked ?? false,
       })
     }
 
@@ -84,6 +88,7 @@ export function buildCoursePlayerEntries(
         type: "assessment",
         moduleId: module.id,
         title: assessment.title,
+        isLocked: assessment.is_locked ?? false,
       })
     }
   }
@@ -94,17 +99,26 @@ export function buildCoursePlayerEntries(
       type: "assessment",
       moduleId: null,
       title: assessment.title,
+      isLocked: assessment.is_locked ?? false,
     })
   }
 
   return entries
 }
 
-export function findNextLesson(
-  lessons: ProductLessonSummary[],
+export function findNextLesson<T extends { id: string; is_locked?: boolean }>(
+  lessons: T[],
   progressMap: Map<string, LessonProgressSummary>,
 ) {
-  return lessons.find((lesson) => progressMap.get(lesson.id)?.status !== "completed") ?? lessons[0] ?? null
+  const unlockedLessons = lessons.filter((lesson) =>
+    lesson.is_locked === false || typeof lesson.is_locked === "undefined",
+  )
+
+  return (
+    unlockedLessons.find((lesson) => progressMap.get(lesson.id)?.status !== "completed") ??
+    unlockedLessons[0] ??
+    null
+  )
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

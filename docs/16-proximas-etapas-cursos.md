@@ -140,22 +140,36 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 3 — Progressao linear e bloqueios pedagogicos reais
 
-- Status: `parcial`
+- Status: `concluida`
 - O que ja existe:
   - campo `has_linear_progression` no curso;
   - funcoes SQL de acesso a modulo e aula;
   - comunicacao dessa regra em telas publicas, admin e detalhe do aluno.
+- Verificacao inicial desta rodada:
+  - as funcoes SQL de acesso ainda aplicavam grant e agenda, mas nao exigiam conclusao real da trilha anterior;
+  - o player do aluno misturava navegacao e conteudo completo, o que ocultava itens bloqueados via RLS em vez de mostra-los como bloqueados;
+  - a pagina de aula ainda dependia de contexto antigo com conteudo completo e materiais, sem separacao segura entre resumo e payload protegido.
 - O que falta para concluir:
-  - bloquear navegacao para aulas futuras quando progressao linear estiver ativa;
-  - fazer quizzes de modulo dependerem da conclusao das aulas do modulo quando aplicavel;
-  - bloquear avaliacao final conforme fluxo completo;
-  - sinalizar visualmente itens bloqueados no player;
-  - garantir que backend e banco reforcem a mesma regra.
+  - validar o fluxo completo em producao com aluno real, incluindo desbloqueio sequencial apos concluir aulas e quizzes.
 - Verificacao obrigatoria antes de iniciar:
   - confirmar se `can_access_product_lesson` e `can_access_product_module` ja aplicam sequencia real ou apenas grant e agenda;
   - revisar o player do aluno para saber se a navegacao ainda permite pular ordem.
 - Criterio de conclusao:
   - o aluno nao consegue furar a ordem quando a progressao linear estiver ativa.
+- Entregue nesta rodada:
+  - migration `0011_linear_progression_guards.sql` com reforco de progressao linear no banco para modulos, aulas e avaliacoes;
+  - nova Edge Function `student-course-navigation` para devolver trilha navegavel com itens desbloqueados e bloqueados sem expor conteudo protegido;
+  - player do aluno atualizado para exibir bloqueios pedagogicos em modulos, aulas e quizzes;
+  - paginas de aula e avaliacao separadas entre resumo navegavel e consulta protegida do conteudo completo;
+  - navegacao do player ajustada para sugerir apenas o proximo item efetivamente desbloqueado.
+- Validacoes executadas:
+  - `npm run build`
+  - verificacao remota das migrations com `npx supabase migration list --linked`
+  - verificacao do dominio publico `https://www.mariana-explica.pt` com `200 OK`
+- Deploys executados:
+  - deploy da Edge Function `student-course-navigation` no projeto Supabase `gookhgufsxeplelpdaua`
+  - `supabase db push --linked --include-all` com aplicacao da migration `0011_linear_progression_guards.sql`
+  - deploy frontend na Vercel com producao pronta em `https://www.mariana-explica.pt`
 
 ### Etapa 4 — PDF base do modulo e materiais protegidos
 

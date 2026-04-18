@@ -45,6 +45,13 @@ export interface ProductModuleSummary {
   status: "draft" | "published" | "archived"
 }
 
+export interface CourseModuleNavigationSummary extends ProductModuleSummary {
+  is_locked: boolean
+  lock_reason: string | null
+  lesson_count: number
+  assessment_count: number
+}
+
 export interface ModuleAssetSummary {
   id: string
   module_id: string
@@ -78,6 +85,24 @@ export interface ProductLessonSummary {
   status: "draft" | "published" | "archived"
 }
 
+export interface CourseLessonNavigationSummary {
+  id: string
+  module_id: string
+  title: string
+  description: string | null
+  position: number
+  is_required: boolean
+  lesson_type: "video" | "text" | "hybrid"
+  estimated_minutes: number
+  starts_at: string | null
+  ends_at: string | null
+  status: "draft" | "published" | "archived"
+  is_locked: boolean
+  lock_reason: string | null
+  progress_state: LessonProgressSummary["status"]
+  progress_percent: number
+}
+
 export interface ProductAssessmentSummary {
   id: string
   product_id: string
@@ -94,6 +119,25 @@ export interface ProductAssessmentSummary {
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+export interface CourseAssessmentNavigationSummary {
+  id: string
+  product_id: string
+  module_id: string | null
+  assessment_type: "module" | "final"
+  title: string
+  description: string | null
+  is_required: boolean
+  passing_score: number
+  max_attempts: number | null
+  estimated_minutes: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  is_locked: boolean
+  lock_reason: string | null
+  progress_state: "locked" | "available" | "passed" | "pending_review" | "failed"
 }
 
 export interface AdminAssessmentMutationInput {
@@ -208,6 +252,14 @@ export interface DashboardOverviewData {
   recentNotifications: NotificationItem[]
   unreadNotificationsCount: number
   supportTickets: SupportTicketSummary[]
+}
+
+export interface StudentCourseNavigationData {
+  product: DashboardProductSummary | null
+  modules: CourseModuleNavigationSummary[]
+  lessons: CourseLessonNavigationSummary[]
+  assessments: CourseAssessmentNavigationSummary[]
+  progress: LessonProgressSummary[]
 }
 
 export interface ProfilePreferences {
