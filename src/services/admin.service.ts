@@ -20,6 +20,8 @@ import type {
   AdminSupportTicketSummary,
   AdminUserSummary,
   ModuleAssetSummary,
+  AdminAssessmentMutationInput,
+  AdminAssessmentUpdateInput,
   ProductAssessmentSummary,
   ProductModuleSummary,
   SupportTicketMessage,
@@ -320,19 +322,67 @@ export async function deleteAdminProductLesson(lessonId: string) {
 }
 
 export async function fetchAdminProductAssessments(productId: string) {
-  const { data, error } = await supabase
-    .from("product_assessments")
-    .select(
-      "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
-    )
-    .eq("product_id", productId)
-    .order("created_at", { ascending: true })
+  const response = await invokeAdminFunction<{ success: true; assessments: ProductAssessmentSummary[] }>(
+    "admin-content",
+    {
+      action: "list_assessments",
+      productId,
+    },
+  )
 
-  if (error) {
-    throw error
-  }
+  return response.assessments ?? []
+}
 
-  return (data ?? []) as ProductAssessmentSummary[]
+export async function createAdminProductAssessment(input: AdminAssessmentMutationInput) {
+  const response = await invokeAdminFunction<{ success: true; assessment: ProductAssessmentSummary }>(
+    "admin-content",
+    {
+      action: "create_assessment",
+      productId: input.productId,
+      moduleId: input.moduleId ?? null,
+      assessment_type: input.assessmentType,
+      title: input.title,
+      description: input.description ?? null,
+      is_required: input.isRequired,
+      passing_score: input.passingScore,
+      max_attempts: input.maxAttempts ?? null,
+      estimated_minutes: input.estimatedMinutes,
+      is_active: input.isActive,
+      builder_payload: input.builderPayload ?? {},
+    },
+  )
+
+  return response.assessment
+}
+
+export async function updateAdminProductAssessment(input: AdminAssessmentUpdateInput) {
+  const response = await invokeAdminFunction<{ success: true; assessment: ProductAssessmentSummary }>(
+    "admin-content",
+    {
+      action: "update_assessment",
+      assessmentId: input.assessmentId,
+      productId: input.productId,
+      moduleId: input.moduleId,
+      assessment_type: input.assessmentType,
+      title: input.title,
+      description: input.description,
+      is_required: input.isRequired,
+      passing_score: input.passingScore,
+      max_attempts: input.maxAttempts,
+      estimated_minutes: input.estimatedMinutes,
+      is_active: input.isActive,
+      builder_payload: input.builderPayload,
+    },
+  )
+
+  return response.assessment
+}
+
+export async function deleteAdminProductAssessment(assessmentId: string) {
+  await invokeAdminFunction<{ success: true }>("admin-content", {
+    action: "delete_assessment",
+    assessmentId,
+  })
 }
 
 export async function fetchAdminCourseReleases(productId: string) {

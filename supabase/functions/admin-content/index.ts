@@ -1,4 +1,4 @@
-import { requireAdmin } from "../_shared/auth.ts"
+import { extractRequestAuditContext, requireAdmin, writeAuditLog } from "../_shared/mod.ts"
 import { badRequest } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
@@ -13,6 +13,10 @@ type Action =
   | "create_lesson"
   | "update_lesson"
   | "delete_lesson"
+  | "list_assessments"
+  | "create_assessment"
+  | "update_assessment"
+  | "delete_assessment"
   | "list_assets"
   | "create_asset"
   | "update_asset"
@@ -26,6 +30,7 @@ type AssetType = "pdf" | "video_file" | "video_embed" | "external_link"
 type AssetStatus = "active" | "inactive"
 type LessonType = "video" | "text" | "hybrid"
 type LessonStatus = "draft" | "published" | "archived"
+type AssessmentType = "module" | "final"
 
 interface Body {
   action: Action
@@ -34,6 +39,7 @@ interface Body {
   moduleId?: string
   assetId?: string
   lessonId?: string
+  assessmentId?: string
 
   title?: string
   description?: string | null
@@ -56,6 +62,12 @@ interface Body {
   text_content?: string | null
   estimated_minutes?: number
   lesson_status?: LessonStatus
+
+  assessment_type?: AssessmentType
+  passing_score?: number
+  max_attempts?: number | null
+  is_active?: boolean
+  builder_payload?: Record<string, unknown> | null
 
   asset_type?: AssetType
   sort_order_asset?: number
@@ -118,6 +130,74 @@ const moduleSelect =
 const lessonSelect =
   "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
 
+const assessmentSelect =
+  "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at"
+
+function normalizeAssessmentType(value: unknown): AssessmentType {
+  if (value === "module" || value === "final") return value
+  throw badRequest("assessment_type invalido")
+}
+
+function normalizeBuilderPayload(value: unknown) {
+  if (value === null || value === undefined) {
+    return {}
+  }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw badRequest("builder_payload invalido")
+  }
+
+  return value as Record<string, unknown>
+}
+
+function normalizeNullablePositiveInteger(value: unknown, label: string) {
+  const parsed = normalizeNullableNumber(value)
+  if (parsed === null) return null
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw badRequest(`${label} invalido`)
+  }
+  return parsed
+}
+
+function normalizeScore(value: unknown) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    throw badRequest("passing_score invalido")
+  }
+  return parsed
+}
+
+async function ensureProductExists(serviceClient: ReturnType<typeof createServiceClient>, productId: string) {
+  const { data, error } = await serviceClient
+    .from("products")
+    .select("id,title")
+    .eq("id", productId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) throw badRequest("Curso nao encontrado")
+  return data
+}
+
+async function ensureModuleBelongsToProduct(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  moduleId: string,
+  productId: string,
+) {
+  const { data, error } = await serviceClient
+    .from("product_modules")
+    .select("id,product_id,title")
+    .eq("id", moduleId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data || data.product_id !== productId) {
+    throw badRequest("Modulo nao encontrado para este curso")
+  }
+
+  return data
+}
+
 function validateAssetSource(body: Body) {
   const externalUrl = normalizeNullableText(body.external_url)
   const bucket = normalizeNullableText(body.storage_bucket)
@@ -152,6 +232,7 @@ Deno.serve(async (req) => {
     const context = await requireAdmin(req)
     const body = await readJsonBody<Body>(req)
     const serviceClient = createServiceClient()
+    const auditMeta = extractRequestAuditContext(req)
 
     if (!body.action) {
       throw badRequest("action é obrigatório")
@@ -326,6 +407,169 @@ Deno.serve(async (req) => {
       const { error } = await serviceClient.from("product_lessons").delete().eq("id", lessonId)
       if (error) throw error
       return jsonResponse({ success: true, request_id: requestId })
+    }
+
+    if (body.action === "list_assessments") {
+      const productId = requireUuid(body.productId, "productId")
+      const { data, error } = await serviceClient
+        .from("product_assessments")
+        .select(assessmentSelect)
+        .eq("product_id", productId)
+        .order("created_at", { ascending: true })
+
+      if (error) throw error
+      return jsonResponse({ success: true, request_id: requestId, assessments: data ?? [] })
+    }
+
+    if (body.action === "create_assessment") {
+      const productId = requireUuid(body.productId, "productId")
+      const title = normalizeNullableText(body.title)
+      if (!title) throw badRequest("title e obrigatorio")
+
+      await ensureProductExists(serviceClient, productId)
+      const assessmentType = normalizeAssessmentType(body.assessment_type ?? "module")
+      const moduleId =
+        assessmentType === "module"
+          ? requireUuid(body.moduleId, "moduleId")
+          : null
+
+      if (moduleId) {
+        await ensureModuleBelongsToProduct(serviceClient, moduleId, productId)
+      }
+
+      const { data, error } = await serviceClient
+        .from("product_assessments")
+        .insert({
+          product_id: productId,
+          module_id: moduleId,
+          assessment_type: assessmentType,
+          title,
+          description: normalizeNullableText(body.description),
+          is_required: body.is_required !== undefined ? Boolean(body.is_required) : true,
+          passing_score:
+            body.passing_score !== undefined ? normalizeScore(body.passing_score) : 70,
+          max_attempts: normalizeNullablePositiveInteger(body.max_attempts, "max_attempts"),
+          estimated_minutes:
+            body.estimated_minutes !== undefined && Number.isFinite(body.estimated_minutes)
+              ? body.estimated_minutes
+              : 15,
+          is_active: body.is_active !== undefined ? Boolean(body.is_active) : true,
+          builder_payload: normalizeBuilderPayload(body.builder_payload),
+          created_by: context.user.id,
+        })
+        .select(assessmentSelect)
+        .single()
+
+      if (error) throw error
+
+      await writeAuditLog(serviceClient, context, {
+        action: "admin.assessment_created",
+        entityType: "product_assessment",
+        entityId: data.id,
+        metadata: {
+          product_id: productId,
+          module_id: moduleId,
+          assessment_type: assessmentType,
+          title,
+        },
+        ...auditMeta,
+      })
+
+      return jsonResponse({ success: true, request_id: requestId, assessment: data })
+    }
+
+    if (body.action === "update_assessment") {
+      const assessmentId = requireUuid(body.assessmentId, "assessmentId")
+      const { data: existingAssessment, error: existingError } = await serviceClient
+        .from("product_assessments")
+        .select("id,product_id,module_id,assessment_type,title")
+        .eq("id", assessmentId)
+        .maybeSingle()
+
+      if (existingError) throw existingError
+      if (!existingAssessment) throw badRequest("Avaliacao nao encontrada")
+
+      const payload: Record<string, unknown> = {}
+      const nextAssessmentType =
+        body.assessment_type !== undefined
+          ? normalizeAssessmentType(body.assessment_type)
+          : existingAssessment.assessment_type
+
+      if (body.title !== undefined) {
+        const title = normalizeNullableText(body.title)
+        if (!title) throw badRequest("title e obrigatorio")
+        payload.title = title
+      }
+      if (body.description !== undefined) payload.description = normalizeNullableText(body.description)
+      if (body.is_required !== undefined) payload.is_required = Boolean(body.is_required)
+      if (body.passing_score !== undefined) payload.passing_score = normalizeScore(body.passing_score)
+      if (body.max_attempts !== undefined) {
+        payload.max_attempts = normalizeNullablePositiveInteger(body.max_attempts, "max_attempts")
+      }
+      if (body.estimated_minutes !== undefined) payload.estimated_minutes = body.estimated_minutes
+      if (body.is_active !== undefined) payload.is_active = Boolean(body.is_active)
+      if (body.builder_payload !== undefined) payload.builder_payload = normalizeBuilderPayload(body.builder_payload)
+      if (body.assessment_type !== undefined) payload.assessment_type = nextAssessmentType
+
+      if (nextAssessmentType === "module") {
+        const moduleId = body.moduleId !== undefined ? requireUuid(body.moduleId, "moduleId") : existingAssessment.module_id
+        if (!moduleId) throw badRequest("moduleId e obrigatorio para quiz de modulo")
+        await ensureModuleBelongsToProduct(serviceClient, moduleId, existingAssessment.product_id)
+        payload.module_id = moduleId
+      } else {
+        payload.module_id = null
+      }
+
+      const { data, error } = await serviceClient
+        .from("product_assessments")
+        .update(payload)
+        .eq("id", assessmentId)
+        .select(assessmentSelect)
+        .single()
+
+      if (error) throw error
+
+      await writeAuditLog(serviceClient, context, {
+        action: "admin.assessment_updated",
+        entityType: "product_assessment",
+        entityId: data.id,
+        metadata: payload,
+        ...auditMeta,
+      })
+
+      return jsonResponse({ success: true, request_id: requestId, assessment: data })
+    }
+
+    if (body.action === "delete_assessment") {
+      const assessmentId = requireUuid(body.assessmentId, "assessmentId")
+      const { data: existingAssessment, error: existingError } = await serviceClient
+        .from("product_assessments")
+        .select("id,title,product_id")
+        .eq("id", assessmentId)
+        .maybeSingle()
+
+      if (existingError) throw existingError
+      if (!existingAssessment) throw badRequest("Avaliacao nao encontrada")
+
+      const { error } = await serviceClient
+        .from("product_assessments")
+        .delete()
+        .eq("id", assessmentId)
+
+      if (error) throw error
+
+      await writeAuditLog(serviceClient, context, {
+        action: "admin.assessment_deleted",
+        entityType: "product_assessment",
+        entityId: assessmentId,
+        metadata: {
+          product_id: existingAssessment.product_id,
+          title: existingAssessment.title,
+        },
+        ...auditMeta,
+      })
+
+      return jsonResponse({ success: true, request_id: requestId, assessmentId })
     }
 
     if (body.action === "list_assets") {

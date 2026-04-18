@@ -31,7 +31,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 3. Classificar a etapa como `pendente`, `parcial` ou `concluida`.
 4. Se estiver `parcial`, registrar o que ja existe e terminar apenas o que falta.
 5. Se estiver `concluida`, marcar neste documento e nao reimplementar.
-6. Implementar, validar e fazer os deploys necessarios.
+6. Implementar, validar e fazer obrigatoriamente os deploys necessarios ao concluir a etapa, seguindo a ordem segura definida em `docs/14-deploy.md`.
 7. Atualizar este documento ao final da etapa.
 8. Perguntar explicitamente se podemos seguir para a proxima etapa.
 
@@ -105,19 +105,40 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - rota dedicada por avaliacao;
   - leitura e interpretacao do `builder_payload`;
   - configuracoes do curso para tipos de quiz.
+- Verificacao inicial desta rodada:
+  - nao havia mutations reais no frontend para criar, atualizar ou excluir `product_assessments` via backend dedicado;
+  - a listagem de avaliacoes no builder era principalmente leitura e resumo operacional;
+  - a rota profunda da avaliacao mostrava metadados e payload, mas nao permitia edicao completa;
+  - a importacao de curso ainda inseria `product_assessments` diretamente pelo cliente.
 - O que falta para concluir:
-  - criar avaliacao final e quizzes de modulo pelo builder;
-  - editar perguntas, alternativas, gabarito, nota minima e tentativas;
-  - ordenar perguntas;
-  - importar e exportar JSON da avaliacao;
-  - excluir avaliacao com seguranca;
-  - refletir tudo em backend dedicado, sem depender de edicao manual de payload.
+  - concluir os deploys obrigatorios desta etapa no Supabase e na Vercel apos regularizar credenciais/permissoes do ambiente.
 - Verificacao obrigatoria antes de iniciar:
   - procurar mutations reais para criar e atualizar `product_assessments`;
   - verificar se ainda existem apenas telas de resumo;
   - revisar se o builder legado ainda concentra partes desse fluxo.
 - Criterio de conclusao:
   - o admin consegue criar e editar quizzes pelo builder sem manipular payload bruto.
+- Entregue nesta rodada:
+  - Edge Function `admin-content` ampliada com `list_assessments`, `create_assessment`, `update_assessment` e `delete_assessment`;
+  - validacao de admin, consistencia entre curso/modulo e auditoria para mutacoes de avaliacao;
+  - leitura de avaliacoes no frontend migrada para a Edge Function dedicada;
+  - mutations React Query para criar, editar e excluir avaliacoes;
+  - painel `/builder/assessments` transformado em workspace operacional para criar avaliacao final e quizzes de modulo;
+  - importacao e exportacao JSON de avaliacao no builder;
+  - editor real de perguntas com tipos, alternativas, gabarito, pontuacao, tentativas e ordenacao;
+  - rota profunda de avaliacao reaproveitando o mesmo editor operacional;
+  - importacao de curso ajustada para criar `product_assessments` via backend, sem insert direto do cliente.
+- Validacoes executadas:
+  - `npm run build`
+- Deploys tentados nesta rodada:
+  - deploy da Edge Function `admin-content` no Supabase;
+  - deploy frontend na Vercel.
+- Bloqueios reais de deploy:
+  - Vercel nao conseguiu recuperar as configuracoes do projeto atual a partir da `.vercel`, exigindo relink/autenticacao valida.
+- Atualizacao posterior de deploy:
+  - deploy da Edge Function `admin-content` confirmado no projeto Supabase `gookhgufsxeplelpdaua` com token de acesso valido;
+  - a verificacao remota da rota `functions/v1/admin-content` voltou com execucao no `supabase-edge-runtime`, confirmando funcao publicada;
+  - o frontend na Vercel continua pendente por falta de credencial/sessao valida para deploy.
 
 ### Etapa 3 — Progressao linear e bloqueios pedagogicos reais
 
@@ -205,5 +226,6 @@ Ao finalizar qualquer etapa:
 1. atualizar o `Status`;
 2. registrar o que foi encontrado na verificacao inicial;
 3. resumir o que foi entregue;
-4. informar validacoes e deploys executados;
-5. perguntar se podemos seguir para a proxima etapa.
+4. executar obrigatoriamente os deploys necessarios da etapa concluida antes de encerrar o trabalho;
+5. informar validacoes e deploys executados;
+6. perguntar se podemos seguir para a proxima etapa.

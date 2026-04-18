@@ -96,6 +96,24 @@ export interface ProductAssessmentSummary {
   updated_at: string
 }
 
+export interface AdminAssessmentMutationInput {
+  productId: string
+  moduleId?: string | null
+  assessmentType: ProductAssessmentSummary["assessment_type"]
+  title: string
+  description?: string | null
+  isRequired?: boolean
+  passingScore?: number
+  maxAttempts?: number | null
+  estimatedMinutes?: number
+  isActive?: boolean
+  builderPayload?: Record<string, unknown>
+}
+
+export interface AdminAssessmentUpdateInput extends Partial<AdminAssessmentMutationInput> {
+  assessmentId: string
+}
+
 export interface AssessmentAttemptSummary {
   id: string
   user_id: string

@@ -25,9 +25,9 @@ import {
   useDeleteAdminProduct,
   useUpdateAdminProduct,
 } from "@/hooks/useAdmin"
-import { supabase } from "@/integrations/supabase"
 import { adminCourseBuilderPath } from "@/lib/routes"
 import {
+  createAdminProductAssessment,
   createAdminModuleAsset,
   createAdminProductLesson,
   createAdminProductModule,
@@ -472,24 +472,20 @@ export function AdminProducts() {
     }
 
     if (importedStructure.assessments.length > 0) {
-      const { error } = await supabase.from("product_assessments").insert(
-        importedStructure.assessments.map((assessment) => ({
-          product_id: courseId,
-          module_id: assessment.module_id ? moduleIdMap.get(assessment.module_id) ?? null : null,
-          assessment_type: assessment.assessment_type,
+      for (const assessment of importedStructure.assessments) {
+        await createAdminProductAssessment({
+          productId: courseId,
+          moduleId: assessment.module_id ? moduleIdMap.get(assessment.module_id) ?? null : null,
+          assessmentType: assessment.assessment_type,
           title: assessment.title,
           description: assessment.description,
-          is_required: assessment.is_required,
-          passing_score: assessment.passing_score,
-          max_attempts: assessment.max_attempts,
-          estimated_minutes: assessment.estimated_minutes,
-          is_active: assessment.is_active,
-          builder_payload: assessment.builder_payload,
-        })),
-      )
-
-      if (error) {
-        throw error
+          isRequired: assessment.is_required,
+          passingScore: assessment.passing_score,
+          maxAttempts: assessment.max_attempts,
+          estimatedMinutes: assessment.estimated_minutes,
+          isActive: assessment.is_active,
+          builderPayload: assessment.builder_payload,
+        })
       }
     }
   }

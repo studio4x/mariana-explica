@@ -9,10 +9,12 @@ import {
   createAdminUser,
   deleteAdminProduct,
   createAdminModuleAsset,
+  createAdminProductAssessment,
   createAdminProductLesson,
   createAdminProductModule,
   deleteAdminUser,
   deleteAdminModuleAsset,
+  deleteAdminProductAssessment,
   deleteAdminProductLesson,
   deleteAdminProductModule,
   fetchAdminAffiliateReferrals,
@@ -46,6 +48,7 @@ import {
   updateAdminCoupon,
   updateAdminProduct,
   updateAdminModuleAsset,
+  updateAdminProductAssessment,
   updateAdminProductLesson,
   updateAdminProductModule,
   updateAdminUser,
@@ -294,6 +297,11 @@ export function useCreateAdminModuleAsset() {
   return useMutation({ mutationFn: createAdminModuleAsset, onSuccess: invalidate })
 }
 
+export function useCreateAdminProductAssessment() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminProductAssessment, onSuccess: invalidate })
+}
+
 export function useCreateAdminProductLesson() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: createAdminProductLesson, onSuccess: invalidate })
@@ -309,6 +317,11 @@ export function useUpdateAdminProductLesson() {
   return useMutation({ mutationFn: updateAdminProductLesson, onSuccess: invalidate })
 }
 
+export function useUpdateAdminProductAssessment() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminProductAssessment, onSuccess: invalidate })
+}
+
 export function useDeleteAdminModuleAsset() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminModuleAsset, onSuccess: invalidate })
@@ -317,6 +330,11 @@ export function useDeleteAdminModuleAsset() {
 export function useDeleteAdminProductLesson() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminProductLesson, onSuccess: invalidate })
+}
+
+export function useDeleteAdminProductAssessment() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: deleteAdminProductAssessment, onSuccess: invalidate })
 }
 
 export function useMarkAdminOrderPaid() {
