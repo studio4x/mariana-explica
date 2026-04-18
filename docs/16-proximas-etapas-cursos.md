@@ -99,7 +99,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 2 — Builder completo de avaliacoes no admin
 
-- Status: `parcial`
+- Status: `concluida`
 - O que ja existe:
   - painel de resumo de avaliacoes;
   - rota dedicada por avaliacao;
@@ -110,8 +110,6 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - a listagem de avaliacoes no builder era principalmente leitura e resumo operacional;
   - a rota profunda da avaliacao mostrava metadados e payload, mas nao permitia edicao completa;
   - a importacao de curso ainda inseria `product_assessments` diretamente pelo cliente.
-- O que falta para concluir:
-  - concluir os deploys obrigatorios desta etapa no Supabase e na Vercel apos regularizar credenciais/permissoes do ambiente.
 - Verificacao obrigatoria antes de iniciar:
   - procurar mutations reais para criar e atualizar `product_assessments`;
   - verificar se ainda existem apenas telas de resumo;
@@ -133,12 +131,12 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 - Deploys tentados nesta rodada:
   - deploy da Edge Function `admin-content` no Supabase;
   - deploy frontend na Vercel.
-- Bloqueios reais de deploy:
-  - Vercel nao conseguiu recuperar as configuracoes do projeto atual a partir da `.vercel`, exigindo relink/autenticacao valida.
 - Atualizacao posterior de deploy:
   - deploy da Edge Function `admin-content` confirmado no projeto Supabase `gookhgufsxeplelpdaua` com token de acesso valido;
   - a verificacao remota da rota `functions/v1/admin-content` voltou com execucao no `supabase-edge-runtime`, confirmando funcao publicada;
-  - o frontend na Vercel continua pendente por falta de credencial/sessao valida para deploy.
+  - deploy frontend confirmado na Vercel com alias ativo em `https://www.mariana-explica.pt`;
+  - verificacao HTTP do dominio publico retornou `200 OK`;
+  - codigo da etapa publicado em GitHub no commit `842ed3c`.
 
 ### Etapa 3 — Progressao linear e bloqueios pedagogicos reais
 
