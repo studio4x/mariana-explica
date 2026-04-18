@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense, type ReactNode } from "react"
-import { createBrowserRouter } from "react-router-dom"
+import { Navigate, createBrowserRouter, useParams } from "react-router-dom"
 import {
   PublicLayout,
   DashboardLayout,
@@ -19,18 +19,29 @@ const AuthCallback = lazy(() => import("@/pages/auth").then((module) => ({ defau
 const ResetPassword = lazy(() =>
   import("@/pages/auth").then((module) => ({ default: module.ResetPassword })),
 )
-const Dashboard = lazy(() => import("@/pages/dashboard").then((module) => ({ default: module.Dashboard })))
+const StudentDashboardPage = lazy(() =>
+  import("@/pages/student").then((module) => ({ default: module.StudentDashboardPage })),
+)
 const DashboardDownloads = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardDownloads })),
 )
 const DashboardNotifications = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardNotifications })),
 )
-const DashboardProductDetail = lazy(() =>
-  import("@/pages/dashboard").then((module) => ({ default: module.DashboardProductDetail })),
+const StudentCoursesPage = lazy(() =>
+  import("@/pages/student").then((module) => ({ default: module.StudentCoursesPage })),
 )
-const DashboardProducts = lazy(() =>
-  import("@/pages/dashboard").then((module) => ({ default: module.DashboardProducts })),
+const StudentCourseDetailsPage = lazy(() =>
+  import("@/pages/student").then((module) => ({ default: module.StudentCourseDetailsPage })),
+)
+const StudentCoursePlayerLayout = lazy(() =>
+  import("@/pages/student").then((module) => ({ default: module.StudentCoursePlayerLayout })),
+)
+const StudentLessonPage = lazy(() =>
+  import("@/pages/student").then((module) => ({ default: module.StudentLessonPage })),
+)
+const StudentAssessmentExecutionPage = lazy(() =>
+  import("@/pages/student").then((module) => ({ default: module.StudentAssessmentExecutionPage })),
 )
 const DashboardProfile = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardProfile })),
@@ -56,8 +67,50 @@ const AdminPayments = lazy(() =>
 const AdminProducts = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminProducts })),
 )
-const AdminProductContent = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminProductContent })),
+const AdminCourseBuilderLayout = lazy(() =>
+  import("@/pages/admin/builder/AdminCourseBuilderLayout").then((module) => ({
+    default: module.AdminCourseBuilderLayout,
+  })),
+)
+const CourseOverviewPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseOverviewPanel").then((module) => ({
+    default: module.CourseOverviewPanel,
+  })),
+)
+const CourseSettingsPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseSettingsPanel").then((module) => ({
+    default: module.CourseSettingsPanel,
+  })),
+)
+const CourseReleasesPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseReleasesPanel").then((module) => ({
+    default: module.CourseReleasesPanel,
+  })),
+)
+const CourseAssessmentsPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseAssessmentsPanel").then((module) => ({
+    default: module.CourseAssessmentsPanel,
+  })),
+)
+const CourseModuleDetailPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseModuleDetailPanel").then((module) => ({
+    default: module.CourseModuleDetailPanel,
+  })),
+)
+const CourseLessonDetailPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseLessonDetailPanel").then((module) => ({
+    default: module.CourseLessonDetailPanel,
+  })),
+)
+const CourseLessonMaterialsPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseLessonMaterialsPanel").then((module) => ({
+    default: module.CourseLessonMaterialsPanel,
+  })),
+)
+const CourseModuleAssessmentDetailPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseModuleAssessmentDetailPanel").then((module) => ({
+    default: module.CourseModuleAssessmentDetailPanel,
+  })),
 )
 const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminSupport })))
 const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminUsers })))
@@ -68,6 +121,21 @@ function withSuspense(node: ReactNode) {
       {node}
     </Suspense>
   )
+}
+
+function LegacyPublicCourseRedirect() {
+  const { slug } = useParams<{ slug: string }>()
+  return <Navigate to={`/cursos/${slug}`} replace />
+}
+
+function LegacyStudentCourseRedirect() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/aluno/cursos/${id}`} replace />
+}
+
+function LegacyAdminBuilderRedirect() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/admin/cursos/${id}/builder`} replace />
 }
 
 export const router = createBrowserRouter(
@@ -81,16 +149,24 @@ export const router = createBrowserRouter(
           element: withSuspense(<Home />),
         },
         {
-          path: "produtos",
+          path: "cursos",
           element: withSuspense(<Products />),
         },
         {
-          path: "produto/:slug",
+          path: "cursos/:slug",
           element: withSuspense(<Product />),
         },
         {
           path: "checkout",
           element: withSuspense(<Checkout />),
+        },
+        {
+          path: "produtos",
+          element: <Navigate to="/cursos" replace />,
+        },
+        {
+          path: "produto/:slug",
+          element: <LegacyPublicCourseRedirect />,
         },
       ],
     },
@@ -107,8 +183,16 @@ export const router = createBrowserRouter(
           element: withSuspense(<Register />),
         },
         {
+          path: "criar-conta",
+          element: withSuspense(<Register />),
+        },
+        {
           path: "auth/callback",
           element: withSuspense(<AuthCallback />),
+        },
+        {
+          path: "recuperar-senha",
+          element: withSuspense(<Login />),
         },
         {
           path: "redefinir-senha",
@@ -117,7 +201,7 @@ export const router = createBrowserRouter(
       ],
     },
     {
-      path: "/dashboard",
+      path: "/aluno",
       element: (
         <ProtectedRoute>
           <DashboardLayout />
@@ -126,15 +210,33 @@ export const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: withSuspense(<Dashboard />),
+          element: withSuspense(<StudentDashboardPage />),
         },
         {
-          path: "produtos",
-          element: withSuspense(<DashboardProducts />),
+          path: "dashboard",
+          element: withSuspense(<StudentDashboardPage />),
         },
         {
-          path: "produto/:id",
-          element: withSuspense(<DashboardProductDetail />),
+          path: "cursos",
+          element: withSuspense(<StudentCoursesPage />),
+        },
+        {
+          path: "cursos/:courseId",
+          element: withSuspense(<StudentCourseDetailsPage />),
+        },
+        {
+          path: "cursos/:courseId/player",
+          element: withSuspense(<StudentCoursePlayerLayout />),
+          children: [
+            {
+              path: "aulas/:lessonId",
+              element: withSuspense(<StudentLessonPage />),
+            },
+            {
+              path: "avaliacoes/:assessmentId",
+              element: withSuspense(<StudentAssessmentExecutionPage />),
+            },
+          ],
         },
         {
           path: "downloads",
@@ -153,6 +255,34 @@ export const router = createBrowserRouter(
           element: withSuspense(<DashboardProfile />),
         },
       ],
+    },
+    {
+      path: "/dashboard",
+      element: <Navigate to="/aluno/dashboard" replace />,
+    },
+    {
+      path: "/dashboard/produtos",
+      element: <Navigate to="/aluno/cursos" replace />,
+    },
+    {
+      path: "/dashboard/produto/:id",
+      element: <LegacyStudentCourseRedirect />,
+    },
+    {
+      path: "/dashboard/downloads",
+      element: <Navigate to="/aluno/downloads" replace />,
+    },
+    {
+      path: "/dashboard/notificacoes",
+      element: <Navigate to="/aluno/notificacoes" replace />,
+    },
+    {
+      path: "/dashboard/suporte",
+      element: <Navigate to="/aluno/suporte" replace />,
+    },
+    {
+      path: "/dashboard/perfil",
+      element: <Navigate to="/aluno/perfil" replace />,
     },
     {
       path: "/admin",
@@ -179,12 +309,74 @@ export const router = createBrowserRouter(
           element: withSuspense(<AdminNotifications />),
         },
         {
-          path: "produtos",
+          path: "cursos",
           element: withSuspense(<AdminProducts />),
         },
         {
-          path: "produtos/:id/conteudo",
-          element: withSuspense(<AdminProductContent />),
+          path: "cursos/:courseId/builder",
+          element: withSuspense(<AdminCourseBuilderLayout />),
+          children: [
+            {
+              index: true,
+              element: withSuspense(<CourseOverviewPanel />),
+            },
+            {
+              path: "settings",
+              element: withSuspense(<CourseSettingsPanel />),
+            },
+            {
+              path: "releases",
+              element: withSuspense(<CourseReleasesPanel />),
+            },
+            {
+              path: "assessments",
+              element: withSuspense(<CourseAssessmentsPanel />),
+            },
+            {
+              path: "assessments/final",
+              element: withSuspense(<CourseAssessmentsPanel />),
+            },
+          ],
+        },
+        {
+          path: "cursos/:courseId/builder/modulos/:moduleId",
+          element: withSuspense(<AdminCourseBuilderLayout />),
+          children: [
+            {
+              index: true,
+              element: withSuspense(<CourseModuleDetailPanel />),
+            },
+          ],
+        },
+        {
+          path: "cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId",
+          element: withSuspense(<AdminCourseBuilderLayout />),
+          children: [
+            {
+              index: true,
+              element: withSuspense(<CourseLessonDetailPanel />),
+            },
+          ],
+        },
+        {
+          path: "cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId/materiais",
+          element: withSuspense(<AdminCourseBuilderLayout />),
+          children: [
+            {
+              index: true,
+              element: withSuspense(<CourseLessonMaterialsPanel />),
+            },
+          ],
+        },
+        {
+          path: "cursos/:courseId/builder/modulos/:moduleId/avaliacoes/:assessmentId",
+          element: withSuspense(<AdminCourseBuilderLayout />),
+          children: [
+            {
+              index: true,
+              element: withSuspense(<CourseModuleAssessmentDetailPanel />),
+            },
+          ],
         },
         {
           path: "pedidos",
@@ -205,6 +397,14 @@ export const router = createBrowserRouter(
         {
           path: "cupons",
           element: withSuspense(<AdminCoupons />),
+        },
+        {
+          path: "produtos",
+          element: <Navigate to="/admin/cursos" replace />,
+        },
+        {
+          path: "produtos/:id/conteudo",
+          element: <LegacyAdminBuilderRedirect />,
         },
       ],
     },

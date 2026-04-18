@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth"
 
 const items = [
   { to: ROUTES.DASHBOARD, label: "Inicio", icon: Home },
-  { to: ROUTES.DASHBOARD_PRODUCTS, label: "Meus produtos", icon: FolderOpen },
+  { to: ROUTES.DASHBOARD_PRODUCTS, label: "Meus cursos", icon: FolderOpen },
   { to: ROUTES.DASHBOARD_DOWNLOADS, label: "Downloads", icon: Download },
   { to: ROUTES.DASHBOARD_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.DASHBOARD_SUPPORT, label: "Suporte", icon: LifeBuoy },
@@ -35,7 +35,7 @@ export function DashboardLayout() {
           <div className="grid gap-3 sm:grid-cols-3">
             <Link to={ROUTES.DASHBOARD_PRODUCTS} className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <p className="font-semibold text-slate-900">Continuar estudo</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">Produtos e modulos</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">Cursos e modulos</p>
             </Link>
             <Link to={ROUTES.DASHBOARD_NOTIFICATIONS} className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <p className="font-semibold text-slate-900">Ver novidades</p>
@@ -103,7 +103,7 @@ export function DashboardLayout() {
             <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Foco do dashboard</p>
               <p className="mt-3 text-sm leading-7 text-slate-700">
-                Menos distracao, mais continuidade. Os teus produtos, downloads e suporte ficam juntos para facilitar o estudo.
+                Menos distracao, mais continuidade. Os teus cursos, downloads e suporte ficam juntos para facilitar o estudo.
               </p>
             </div>
           </aside>

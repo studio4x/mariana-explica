@@ -21,13 +21,13 @@ export function Product() {
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
 
   if (isLoading) {
-    return <LoadingState message="A carregar produto..." />
+    return <LoadingState message="A carregar curso..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir este produto"
+        title="Nao foi possivel abrir este curso"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -37,8 +37,8 @@ export function Product() {
   if (!product) {
     return (
       <EmptyState
-        title="Produto nao encontrado"
-        message="O produto pedido nao esta publicado ou deixou de estar disponivel."
+        title="Curso nao encontrado"
+        message="O curso pedido nao esta publicado ou deixou de estar disponivel."
       />
     )
   }

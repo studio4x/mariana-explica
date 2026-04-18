@@ -14,7 +14,7 @@ export function Navbar() {
   const navItems = useMemo(
     () =>
       [
-        { to: ROUTES.PRODUCTS, label: "Produtos" },
+        { to: ROUTES.COURSES, label: "Cursos" },
         isAuthenticated && !isAdmin ? { to: ROUTES.DASHBOARD, label: "Area do aluno" } : null,
         isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
       ].filter(Boolean) as Array<{ to: string; label: string }>,
@@ -67,8 +67,8 @@ export function Navbar() {
                 <Link to={ROUTES.LOGIN}>Entrar</Link>
               </Button>
               <Button asChild size="sm" className="rounded-full">
-                <Link to={ROUTES.PRODUCTS}>
-                  Ver catalogo
+                <Link to={ROUTES.COURSES}>
+                  Ver cursos
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -114,7 +114,7 @@ export function Navbar() {
             <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
               <p className="font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Materiais claros para exames nacionais, compra simples e area do aluno organizada.
+                Cursos e materiais claros para exames nacionais, compra simples e area do aluno organizada.
               </p>
             </div>
 
@@ -140,8 +140,8 @@ export function Navbar() {
               {!isAuthenticated ? (
                 <>
                   <Button asChild className="w-full rounded-full">
-                    <Link to={ROUTES.PRODUCTS} onClick={closeMenu}>
-                      Ver catalogo
+                    <Link to={ROUTES.COURSES} onClick={closeMenu}>
+                      Ver cursos
                     </Link>
                   </Button>
                   <Button asChild variant="outline" className="w-full rounded-full">
@@ -161,7 +161,7 @@ export function Navbar() {
                   ) : (
                     <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
-                        Dashboard
+                        Area do aluno
                       </Link>
                     </Button>
                   )}

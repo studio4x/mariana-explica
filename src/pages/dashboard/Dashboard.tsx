@@ -78,7 +78,7 @@ export function Dashboard() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Produtos disponiveis</p>
+          <p className="text-sm font-medium text-slate-500">Cursos disponiveis</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que ja tens pronto para consultar no teu painel.</p>
         </div>
@@ -145,7 +145,7 @@ export function Dashboard() {
               </div>
               <Button asChild variant="secondary" className="mt-6 rounded-full bg-white text-slate-950 hover:bg-white/90">
                 <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${nextProduct.id}`}>
-                  Abrir produto
+                  Abrir curso
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -153,8 +153,8 @@ export function Dashboard() {
           ) : (
             <div className="mt-6">
               <EmptyState
-                title="Ainda sem produtos ativos"
-                message="Assim que ativares um produto, ele aparece aqui para poderes comecar a estudar."
+                title="Ainda sem cursos ativos"
+                message="Assim que ativares um curso, ele aparece aqui para poderes comecar a estudar."
               />
             </div>
           )}
@@ -181,7 +181,7 @@ export function Dashboard() {
                     Disponivel desde {formatDate(product.granted_at)}
                   </p>
                   <Button asChild className="mt-4 w-full rounded-full" variant="outline">
-                    <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>Abrir produto</Link>
+                    <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>Abrir curso</Link>
                   </Button>
                 </div>
               ))}
@@ -199,7 +199,7 @@ export function Dashboard() {
               <Button asChild variant="outline" className="justify-start rounded-full">
                 <Link to={ROUTES.DASHBOARD_PRODUCTS}>
                   <FolderOpen className="mr-2 h-4 w-4" />
-                  Abrir os meus produtos
+                  Abrir os meus cursos
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start rounded-full">

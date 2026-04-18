@@ -7,6 +7,7 @@ import { ProductCard } from "@/components/product"
 import { ROUTES } from "@/lib/constants"
 import { usePublishedProducts } from "@/hooks/useProducts"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
+import { publicCoursePath } from "@/lib/routes"
 
 type QuickFilter = "all" | "packs" | "sebentas" | "free" | "services"
 
@@ -58,10 +59,10 @@ export function Products() {
             </div>
             <div className="space-y-3">
               <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                Encontra o produto certo para o teu momento de estudo.
+                Encontra o curso certo para o teu momento de estudo.
               </h1>
               <p className="max-w-3xl text-base leading-8 text-slate-600">
-                Aqui o foco nao e mostrar uma lista fria. A ideia e ajudar-te a perceber rapidamente se precisas de um pack, uma sebenta, um material gratuito ou um apoio mais acompanhado.
+                Aqui o foco nao e mostrar uma lista fria. A ideia e ajudar-te a perceber rapidamente se precisas de um curso, um pack, um material gratuito ou um apoio mais acompanhado.
               </p>
             </div>
           </div>
@@ -96,7 +97,7 @@ export function Products() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Pesquisar por tema, produto ou descricao..."
+              placeholder="Pesquisar por tema, curso ou descricao..."
               className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </div>
@@ -121,11 +122,11 @@ export function Products() {
       ) : null}
       {!isLoading && !isError && filteredProducts.length === 0 ? (
         <EmptyState
-          title="Nenhum produto encontrado"
+          title="Nenhum curso encontrado"
           message={
             search.trim()
               ? "Experimenta outro termo de pesquisa ou limpa o filtro."
-              : "Ainda nao ha produtos publicados para mostrar."
+              : "Ainda nao ha cursos publicados para mostrar."
           }
         />
       ) : null}
@@ -135,7 +136,7 @@ export function Products() {
           <ProductCard
             key={product.id}
             product={product}
-            actionTo={`/produto/${product.slug}`}
+            actionTo={publicCoursePath(product.slug)}
             actionLabel="Ver detalhes"
             compact
           />
@@ -144,7 +145,7 @@ export function Products() {
 
       {!isLoading && !isError ? (
         <p className="text-sm text-muted-foreground">
-          {filteredProducts.length} produto{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
+          {filteredProducts.length} curso{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
           {quickFilter !== "all" ? ` Filtro ativo: ${filterLabels[quickFilter].toLowerCase()}.` : ""}
         </p>
       ) : null}

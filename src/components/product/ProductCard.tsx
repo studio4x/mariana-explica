@@ -8,6 +8,7 @@ import {
   getProductNarrative,
   getProductTypeLabel,
 } from "@/lib/product-presentation"
+import { publicCoursePath } from "@/lib/routes"
 
 interface ProductCardProps {
   product: ProductSummary
@@ -121,7 +122,7 @@ export function ProductCard({
             </Button>
           ) : (
             <Button asChild variant="outline" className="rounded-full">
-              <Link to={`/produto/${product.slug}`}>
+              <Link to={publicCoursePath(product.slug)}>
                 <LockKeyhole className="mr-2 h-4 w-4" />
                 Detalhes
               </Link>

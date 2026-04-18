@@ -54,7 +54,7 @@ export function DashboardDownloads() {
           <p className="mt-3 text-3xl font-bold text-slate-950">{items.length}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Produtos ativos</p>
+          <p className="text-sm font-medium text-slate-500">Cursos ativos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-slate-900 p-5 text-white shadow-sm">

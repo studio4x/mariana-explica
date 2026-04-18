@@ -326,6 +326,21 @@ export interface AdminCouponUsageSummary {
   used_at: string
 }
 
+export interface AdminCourseReleaseSummary {
+  id: string
+  user_id: string
+  product_id: string
+  source_type: "purchase" | "free_claim" | "admin_grant" | "manual_adjustment"
+  source_order_id: string | null
+  status: "active" | "revoked" | "expired"
+  granted_at: string
+  revoked_at: string | null
+  expires_at: string | null
+  notes: string | null
+  profile_name: string | null
+  profile_email: string | null
+}
+
 export interface AdminPaymentsStatus {
   stripe: {
     mode: "test" | "live"

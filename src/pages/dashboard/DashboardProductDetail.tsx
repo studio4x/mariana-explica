@@ -115,7 +115,7 @@ export function DashboardProductDetail() {
   if (!data?.product) {
     return (
       <EmptyState
-        title="Produto indisponivel"
+        title="Curso indisponivel"
         message="Este item nao esta acessivel na tua conta neste momento."
       />
     )
@@ -128,8 +128,8 @@ export function DashboardProductDetail() {
     <div className="space-y-6">
       <PageHeader
         title={data.product.title}
-        description={data.product.short_description ?? data.product.description ?? "Conteudo do produto."}
-        backTo="/dashboard/produtos"
+        description={data.product.short_description ?? data.product.description ?? "Conteudo do curso."}
+        backTo="/aluno/cursos"
       />
 
       <section className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">

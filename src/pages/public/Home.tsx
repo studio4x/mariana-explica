@@ -17,6 +17,7 @@ import { ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
 import { ROUTES, APP_NAME } from "@/lib/constants"
 import { useFeaturedProducts } from "@/hooks/useProducts"
+import { publicCoursePath } from "@/lib/routes"
 
 const benefits = [
   {
@@ -26,12 +27,12 @@ const benefits = [
   },
   {
     title: "Compra curta e previsivel",
-    text: "Do produto ao checkout, o caminho foi desenhado para reduzir duvidas e passos desnecessarios.",
+    text: "Do curso ao checkout, o caminho foi desenhado para reduzir duvidas e passos desnecessarios.",
     icon: Sparkles,
   },
   {
     title: "Acesso organizado na conta",
-    text: "Os produtos ficam reunidos numa area do aluno simples, preparada para continuar o estudo.",
+    text: "Os cursos ficam reunidos numa area do aluno simples, preparada para continuar o estudo.",
     icon: ShieldCheck,
   },
 ]
@@ -39,7 +40,7 @@ const benefits = [
 const offerTracks = [
   {
     title: "Packs completos",
-    text: "Para quem prefere resolver varios temas num so produto, com menos dispersao.",
+    text: "Para quem prefere resolver varios temas num so curso, com menos dispersao.",
     icon: Layers3,
   },
   {
@@ -68,8 +69,8 @@ const trustPoints = [
 const studyFlow = [
   {
     step: "1",
-    title: "Escolhe o produto certo",
-    text: "Entras no catalogo, comparas rapidamente e percebes para quem serve cada material.",
+    title: "Escolhe o curso certo",
+    text: "Entras no catalogo, comparas rapidamente e percebes para quem serve cada curso.",
   },
   {
     step: "2",
@@ -86,7 +87,7 @@ const studyFlow = [
 const reassuranceCards = [
   {
     title: "Compra simples",
-    text: "Checkout direto, leitura clara do produto e proximos passos bem definidos.",
+    text: "Checkout direto, leitura clara do curso e proximos passos bem definidos.",
   },
   {
     title: "Area do aluno organizada",
@@ -125,7 +126,7 @@ export function Home() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="rounded-full">
                 <Link to={ROUTES.PRODUCTS}>
-                  Explorar produtos
+                  Explorar cursos
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -163,7 +164,7 @@ export function Home() {
                 <div className="rounded-2xl bg-white/12 p-4 backdrop-blur">
                   <CheckCircle2 className="h-5 w-5" />
                   <p className="mt-3 text-sm font-semibold">Acesso centralizado</p>
-                  <p className="mt-2 text-sm text-white/75">Produtos, modulos, downloads e suporte reunidos no mesmo painel.</p>
+                  <p className="mt-2 text-sm text-white/75">Cursos, modulos, downloads e suporte reunidos no mesmo painel.</p>
                 </div>
               </div>
             </div>
@@ -179,7 +180,7 @@ export function Home() {
               Escolhe a forma de estudar que faz mais sentido para o teu momento.
             </h2>
             <p className="max-w-2xl text-base leading-8 text-slate-600">
-              A plataforma foi desenhada para acomodar produtos diferentes sem parecer um catalogo confuso. Em vez de uma lista fria, o objetivo e ajudar-te a encontrar o formato certo mais depressa.
+              A plataforma foi desenhada para acomodar cursos diferentes sem parecer um catalogo confuso. Em vez de uma lista fria, o objetivo e ajudar-te a encontrar o formato certo mais depressa.
             </p>
           </div>
 
@@ -199,23 +200,23 @@ export function Home() {
         <div className="mx-auto max-w-6xl space-y-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Produtos em destaque</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Cursos em destaque</p>
               <h2 className="font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-                Comeca pelo produto que melhor responde ao teu objetivo.
+                Comeca pelo curso que melhor responde ao teu objetivo.
               </h2>
               <p className="max-w-2xl text-slate-600">
-                Produtos publicados com copy mais clara, diferenciacao por formato e um caminho curto entre descoberta, compra e acesso.
+                Cursos publicados com copy mais clara, diferenciacao por formato e um caminho curto entre descoberta, compra e acesso.
               </p>
             </div>
             <Button variant="outline" asChild className="hidden rounded-full md:inline-flex">
-              <Link to={ROUTES.PRODUCTS}>Ver catalogo completo</Link>
+              <Link to={ROUTES.COURSES}>Ver catalogo completo</Link>
             </Button>
           </div>
 
-          {isLoading ? <LoadingState message="A carregar produtos em destaque..." /> : null}
+          {isLoading ? <LoadingState message="A carregar cursos em destaque..." /> : null}
           {isError ? (
             <ErrorState
-              title="Nao foi possivel carregar os produtos"
+              title="Nao foi possivel carregar os cursos"
               message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
               onRetry={() => void refetch()}
             />
@@ -228,7 +229,7 @@ export function Home() {
                   key={product.id}
                   product={product}
                   actionLabel="Ver detalhes"
-                  actionTo={`/produto/${product.slug}`}
+                  actionTo={publicCoursePath(product.slug)}
                 />
               ))}
             </div>
@@ -249,8 +250,8 @@ export function Home() {
                 },
                 {
                   title: "Comecar pelos gratuitos",
-                  text: "Boa forma de conhecer a experiencia antes de comprar outros produtos.",
-                  to: ROUTES.PRODUCTS,
+                  text: "Boa forma de conhecer a experiencia antes de comprar outros cursos.",
+                  to: ROUTES.COURSES,
                 },
                 {
                   title: "Entrar na area do aluno",
@@ -281,7 +282,7 @@ export function Home() {
               Do interesse ao acesso, o percurso foi desenhado para ser simples.
             </h2>
             <p className="text-base leading-8 text-slate-600">
-              A logica da plataforma e comercial, mas a experiencia foi pensada com foco em clareza: perceber o produto, decidir com confianca e continuar a estudar sem friccao.
+              A logica da plataforma e comercial, mas a experiencia foi pensada com foco em clareza: perceber o curso, decidir com confianca e continuar a estudar sem friccao.
             </p>
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
@@ -335,7 +336,7 @@ export function Home() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" variant="secondary" className="rounded-full bg-white text-slate-950 hover:bg-white/90">
-                <Link to={ROUTES.PRODUCTS}>Explorar produtos</Link>
+                <Link to={ROUTES.COURSES}>Explorar cursos</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/15">
                 <Link to={ROUTES.REGISTER}>Criar conta</Link>

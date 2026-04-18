@@ -15,6 +15,7 @@ import type {
   AdminPaymentsStatus,
   AdminCouponSummary,
   AdminCouponUsageSummary,
+  AdminCourseReleaseSummary,
   ProductLessonSummary,
   AdminSupportTicketSummary,
   AdminUserSummary,
@@ -332,6 +333,50 @@ export async function fetchAdminProductAssessments(productId: string) {
   }
 
   return (data ?? []) as ProductAssessmentSummary[]
+}
+
+export async function fetchAdminCourseReleases(productId: string) {
+  const response = await invokeAdminFunction<{ success: true; releases: AdminCourseReleaseSummary[] }>(
+    "admin-course-releases",
+    {
+      action: "list",
+      productId,
+    },
+  )
+
+  return response.releases ?? []
+}
+
+export async function createAdminCourseRelease(input: {
+  productId: string
+  userId: string
+  expiresAt?: string | null
+  notes?: string | null
+}) {
+  const response = await invokeAdminFunction<{ success: true; release: AdminCourseReleaseSummary }>(
+    "admin-course-releases",
+    {
+      action: "create",
+      ...input,
+    },
+  )
+
+  return response.release
+}
+
+export async function revokeAdminCourseRelease(input: {
+  grantId: string
+  reason?: string | null
+}) {
+  const response = await invokeAdminFunction<{ success: true; release: AdminCourseReleaseSummary }>(
+    "admin-course-releases",
+    {
+      action: "revoke",
+      ...input,
+    },
+  )
+
+  return response.release
 }
 
 export async function fetchAdminSupportTickets() {

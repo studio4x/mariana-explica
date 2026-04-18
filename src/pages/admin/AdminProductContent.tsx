@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   CalendarClock,
@@ -26,6 +26,7 @@ import {
   useUpdateAdminProductLesson,
   useUpdateAdminProductModule,
 } from "@/hooks/useAdmin"
+import { publicCoursePath } from "@/lib/routes"
 import type {
   ModuleAssetSummary,
   ProductAssessmentSummary,
@@ -92,7 +93,7 @@ function getScheduleSummary(module: ProductModuleSummary) {
   if (module.release_days_after_enrollment !== null) {
     return `Abre ${module.release_days_after_enrollment} dia(s) apos a inscricao`
   }
-  return "Disponivel conforme grant e regras do produto"
+  return "Disponivel conforme grant e regras do curso"
 }
 
 function getAssessmentTone(assessment: ProductAssessmentSummary): "success" | "warning" | "neutral" {
@@ -102,16 +103,22 @@ function getAssessmentTone(assessment: ProductAssessmentSummary): "success" | "w
 }
 
 export function AdminProductContent() {
-  const { id } = useParams<{ id: string }>()
+  const { id, courseId, moduleId, lessonId } = useParams<{
+    id?: string
+    courseId?: string
+    moduleId?: string
+    lessonId?: string
+  }>()
+  const productId = id ?? courseId
   const navigate = useNavigate()
 
   const productsQuery = useAdminProducts()
-  const modulesQuery = useAdminProductModules(id)
+  const modulesQuery = useAdminProductModules(productId)
 
   const product = useMemo(() => {
     const list = productsQuery.data ?? []
-    return list.find((entry) => entry.id === id) ?? null
-  }, [productsQuery.data, id])
+    return list.find((entry) => entry.id === productId) ?? null
+  }, [productId, productsQuery.data])
 
   const modules = modulesQuery.data ?? []
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
@@ -120,7 +127,7 @@ export function AdminProductContent() {
 
   const assetsQuery = useAdminModuleAssets(selectedModuleIdSafe ?? undefined)
   const lessonsQuery = useAdminProductLessons(selectedModuleIdSafe ?? undefined)
-  const assessmentsQuery = useAdminProductAssessments(id)
+  const assessmentsQuery = useAdminProductAssessments(productId)
 
   const assets = assetsQuery.data ?? []
   const lessons = lessonsQuery.data ?? []
@@ -262,12 +269,24 @@ export function AdminProductContent() {
     }))
   }
 
+  useEffect(() => {
+    if (moduleId) {
+      setSelectedModuleId(moduleId)
+    }
+  }, [moduleId])
+
+  useEffect(() => {
+    if (lessonId) {
+      setEditingLessonId(lessonId)
+    }
+  }, [lessonId])
+
   const handleCreateModule = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setModuleSubmitError(null)
 
-    if (!id) {
-      setModuleSubmitError("Produto invalido.")
+    if (!productId) {
+      setModuleSubmitError("Curso invalido.")
       return
     }
 
@@ -279,7 +298,7 @@ export function AdminProductContent() {
 
     try {
       const created = await createModule.mutateAsync({
-        productId: id,
+        productId,
         title,
         description: moduleDraft.description.trim() || null,
         module_type: moduleDraft.module_type,
@@ -622,12 +641,12 @@ export function AdminProductContent() {
   }
 
   const handleSaveCourse = async () => {
-    if (!id) return
+    if (!productId) return
     setCourseSubmitError(null)
 
     try {
       await updateProduct.mutateAsync({
-        productId: id,
+        productId,
         title: courseForm.title.trim(),
         slug: courseForm.slug.trim(),
         shortDescription: courseForm.shortDescription.trim() || null,
@@ -672,8 +691,8 @@ export function AdminProductContent() {
   if (!id || !product) {
     return (
       <EmptyState
-        title="Produto nao encontrado"
-        message="Volta a lista de produtos e abre um item valido para continuar."
+        title="Curso nao encontrado"
+        message="Volta a lista de cursos e abre um item valido para continuar."
       />
     )
   }
@@ -682,14 +701,14 @@ export function AdminProductContent() {
     <div className="space-y-6">
       <PageHeader
         title={`Builder do curso: ${product.title}`}
-        description="Organiza o produto como curso, com modulos, aulas, materiais e regras de liberacao por etapa."
-        backTo="/admin/produtos"
+        description="Organiza o curso como trilha academica, com modulos, aulas, materiais e regras de liberacao por etapa."
+        backTo="/admin/cursos"
         actions={
           <Button
             type="button"
             variant="outline"
             className="rounded-full"
-            onClick={() => navigate(`/produto/${product.slug}`)}
+            onClick={() => navigate(publicCoursePath(product.slug))}
           >
             Ver pagina publica
           </Button>
@@ -700,7 +719,7 @@ export function AdminProductContent() {
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Modulos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{modules.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Base da trilha academica e comercial do produto.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Base da trilha academica e comercial do curso.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-900">

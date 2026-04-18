@@ -1,0 +1,6 @@
+export { StudentDashboardPage } from "./StudentDashboardPage"
+export { StudentCoursesPage } from "./StudentCoursesPage"
+export { StudentCourseDetailsPage } from "./StudentCourseDetailsPage"
+export { StudentCoursePlayerLayout } from "./StudentCoursePlayerLayout"
+export { StudentLessonPage } from "./StudentLessonPage"
+export { StudentAssessmentExecutionPage } from "./StudentAssessmentExecutionPage"

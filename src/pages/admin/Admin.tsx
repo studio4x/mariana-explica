@@ -149,7 +149,7 @@ export function Admin() {
           <p className="mt-2 text-sm leading-6 text-slate-600">Base total sincronizada com o sistema de autenticacao.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Produtos publicados</p>
+          <p className="text-sm font-medium text-slate-500">Cursos publicados</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.totalPublishedProducts}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Oferta publicada com visibilidade na area publica.</p>
         </div>

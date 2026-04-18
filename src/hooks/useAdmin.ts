@@ -3,6 +3,7 @@ import {
   archiveAdminProduct,
   createAdminAffiliate,
   createAdminCoupon,
+  createAdminCourseRelease,
   createAdminNotification,
   createAdminProduct,
   createAdminUser,
@@ -28,6 +29,7 @@ import {
   fetchAdminProductModules,
   fetchAdminCoupons,
   fetchAdminCouponUsages,
+  fetchAdminCourseReleases,
   fetchAdminSupportTicketMessages,
   fetchAdminSupportTickets,
   fetchAdminUsers,
@@ -37,6 +39,7 @@ import {
   publishAdminProduct,
   reconcileAdminOrder,
   retryAdminEmailDelivery,
+  revokeAdminCourseRelease,
   replyAdminSupportTicket,
   updateAdminAffiliate,
   updateAdminCoupon,
@@ -121,6 +124,15 @@ export function useAdminProductAssessments(productId: string | undefined) {
   return useQuery({
     queryKey: ["admin", "products", productId, "assessments"],
     queryFn: () => fetchAdminProductAssessments(productId ?? ""),
+    enabled: Boolean(productId),
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminCourseReleases(productId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "courses", productId, "releases"],
+    queryFn: () => fetchAdminCourseReleases(productId ?? ""),
     enabled: Boolean(productId),
     ...getAdminQueryOptions(),
   })
@@ -356,6 +368,16 @@ export function useCreateAdminCoupon() {
 export function useUpdateAdminCoupon() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminCoupon, onSuccess: invalidate })
+}
+
+export function useCreateAdminCourseRelease() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: createAdminCourseRelease, onSuccess: invalidate })
+}
+
+export function useRevokeAdminCourseRelease() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: revokeAdminCourseRelease, onSuccess: invalidate })
 }
 
 export function useReplyAdminSupportTicket() {

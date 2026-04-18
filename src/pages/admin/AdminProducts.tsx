@@ -23,8 +23,8 @@ function AdminProductsSkeleton() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Produtos"
-        description="Criacao, publicacao e arquivamento com leitura mais direta da operacao."
+        title="Cursos"
+        description="Catalogo academico com criacao, publicacao e acesso direto ao builder LMS."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -99,7 +99,7 @@ export function AdminProducts() {
       setDescription("")
       setProductType("paid")
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel criar o produto.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel criar o curso.")
     }
   }
 
@@ -110,7 +110,7 @@ export function AdminProducts() {
   if (productsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os produtos"
+        title="Nao foi possivel carregar os cursos"
         message={productsQuery.error instanceof Error ? productsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void productsQuery.refetch()}
       />
@@ -132,30 +132,28 @@ export function AdminProducts() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Produtos" description="Criacao, publicacao e arquivamento com leitura mais direta da operacao." />
-
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Total de produtos</p>
+          <p className="text-sm font-medium text-slate-500">Total de cursos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Publicados</p>
+          <p className="text-sm font-medium text-slate-500">Cursos publicados</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{publishedCount}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Rascunhos</p>
+          <p className="text-sm font-medium text-slate-500">Cursos em rascunho</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{draftCount}</p>
         </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <form onSubmit={handleCreate} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Criacao de produto</p>
-          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Novo produto</h2>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Criacao de curso</p>
+          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Novo curso</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Titulo" className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white" />
-            <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="slug-do-produto" className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white" />
+            <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="slug-do-curso" className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white" />
             <input value={priceCents} onChange={(event) => setPriceCents(event.target.value)} placeholder="Preco em cents" className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white" />
             <select value={productType} onChange={(event) => setProductType(event.target.value as typeof productType)} className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white">
               <option value="paid">Pago</option>
@@ -164,9 +162,9 @@ export function AdminProducts() {
               <option value="external_service">Servico externo</option>
             </select>
           </div>
-          <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descricao curta do produto" rows={4} className="mt-4 w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white" />
+          <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descricao curta do curso" rows={4} className="mt-4 w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white" />
           <Button type="submit" className="mt-4 rounded-full" disabled={createProduct.isPending}>
-            {createProduct.isPending ? "A criar..." : "Criar produto"}
+            {createProduct.isPending ? "A criar..." : "Criar curso"}
           </Button>
           {submitError ? (
             <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -179,8 +177,8 @@ export function AdminProducts() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Catalogo interno</h2>
-            <p className="mt-1 text-sm text-slate-600">Pesquisa rapida por titulo, slug ou estado.</p>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Catalogo de cursos</h2>
+            <p className="mt-1 text-sm text-slate-600">Pesquisa rapida por titulo, slug ou estado do curso.</p>
           </div>
           <input
             value={query}
@@ -192,14 +190,14 @@ export function AdminProducts() {
 
         {filteredProducts.length === 0 ? (
           <div className="mt-6">
-            <EmptyState title="Sem produtos" message="Os produtos publicados ou em rascunho vao aparecer aqui." />
+            <EmptyState title="Sem cursos" message="Os cursos publicados ou em rascunho vao aparecer aqui." />
           </div>
         ) : (
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b text-slate-500">
                 <tr>
-                  <th className="py-3 pr-4 font-medium">Produto</th>
+                  <th className="py-3 pr-4 font-medium">Curso</th>
                   <th className="py-3 pr-4 font-medium">Tipo</th>
                   <th className="py-3 pr-4 font-medium">Estado</th>
                   <th className="py-3 pr-4 font-medium">Preco</th>
@@ -228,7 +226,7 @@ export function AdminProducts() {
                     <td className="py-4 pr-4">
                       <div className="grid gap-2 md:max-w-[180px]">
                         <Button variant="outline" className="justify-start rounded-full" asChild>
-                          <Link to={adminProductContentPath(product.id)}>Conteudo</Link>
+                          <Link to={adminProductContentPath(product.id)}>Abrir builder</Link>
                         </Button>
                         <Button variant="outline" className="justify-start rounded-full" onClick={() => void publishProduct.mutateAsync(product.id)} disabled={publishProduct.isPending || product.status === "published"}>
                           Publicar

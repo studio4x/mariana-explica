@@ -62,8 +62,8 @@ export function Checkout() {
   if (!slug) {
     return (
       <EmptyState
-        title="Checkout sem produto"
-        message="Abre um produto primeiro e segue para o checkout para continuar."
+        title="Checkout sem curso"
+        message="Abre um curso primeiro e segue para o checkout para continuar."
       />
     )
   }
@@ -85,7 +85,7 @@ export function Checkout() {
   if (!product) {
     return (
       <EmptyState
-        title="Produto nao encontrado"
+        title="Curso nao encontrado"
         message="O item escolhido nao esta publicado ou deixou de estar disponivel."
       />
     )
@@ -97,17 +97,17 @@ export function Checkout() {
     <div className="container space-y-8 py-10 md:py-12">
       <PageHeader
         title="Checkout"
-        description="Confirma o produto, valida os dados principais e segue para concluir a compra."
-        backTo={`${ROUTES.PRODUCT}/${product.slug}`}
+        description="Confirma o curso, valida os dados principais e segue para concluir a compra."
+        backTo={`${ROUTES.COURSE}/${product.slug}`}
       />
 
       <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-6">
           <div className="rounded-[2rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-8 text-white shadow-xl">
-            <p className="text-sm uppercase tracking-[0.24em] text-white/70">Resumo do produto</p>
+            <p className="text-sm uppercase tracking-[0.24em] text-white/70">Resumo do curso</p>
             <h2 className="mt-4 font-display text-3xl font-bold leading-tight md:text-5xl">{product.title}</h2>
             <p className="mt-4 max-w-2xl text-base leading-8 text-white/82 md:text-lg">
-              {product.short_description ?? product.description ?? "Produto digital pronto para ser activado na tua conta."}
+              {product.short_description ?? product.description ?? "Curso digital pronto para ser activado na tua conta."}
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -129,7 +129,7 @@ export function Checkout() {
             <ul className="mt-5 space-y-3 text-sm leading-7 text-slate-600">
               <li>• Concluis a compra sem sair do fluxo principal.</li>
               <li>• O acesso fica associado a tua conta para consultares quando quiseres.</li>
-              <li>• Se o produto for gratuito, a activacao e ainda mais rapida.</li>
+              <li>• Se o curso for gratuito, a activacao e ainda mais rapida.</li>
             </ul>
           </div>
         </div>
@@ -142,7 +142,7 @@ export function Checkout() {
             </p>
             <p className="mt-3 text-sm leading-7 text-slate-600">
               {isFreeProduct(product)
-                ? "Este produto e gratuito. Basta confirmar para o adicionares a tua area."
+                ? "Este curso e gratuito. Basta confirmar para o adicionares a tua area."
                 : "Vais seguir para a conclusao da compra com um fluxo simples e seguro."}
             </p>
 
@@ -168,7 +168,7 @@ export function Checkout() {
               )}
 
               <Button asChild variant="outline" className="w-full rounded-full">
-                <Link to={`${ROUTES.PRODUCT}/${product.slug}`}>Voltar ao produto</Link>
+                <Link to={`${ROUTES.COURSE}/${product.slug}`}>Voltar ao curso</Link>
               </Button>
             </div>
           </div>

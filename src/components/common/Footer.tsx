@@ -14,7 +14,7 @@ export function Footer() {
             <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">{APP_DESCRIPTION}</p>
           </div>
           <p className="text-sm leading-7 text-slate-600">
-            Uma experiencia pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e confiavel aos materiais.
+            Uma experiencia pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e confiavel aos cursos e materiais.
           </p>
         </div>
 
@@ -23,7 +23,7 @@ export function Footer() {
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Explorar</p>
             <div className="mt-4 grid gap-3 text-sm text-slate-600">
               <Link to={ROUTES.HOME} className="hover:text-slate-950">Home</Link>
-              <Link to={ROUTES.PRODUCTS} className="hover:text-slate-950">Produtos</Link>
+              <Link to={ROUTES.COURSES} className="hover:text-slate-950">Cursos</Link>
               <Link to={ROUTES.REGISTER} className="hover:text-slate-950">Criar conta</Link>
             </div>
           </div>
