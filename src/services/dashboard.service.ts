@@ -1,7 +1,9 @@
 import { supabase } from "@/integrations/supabase"
-import { getFunctionAuthHeaders } from "@/services/supabase-auth"
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
+import { getFreshFunctionAuthContext, getFunctionAuthHeaders } from "@/services/supabase-auth"
 import type {
   AccessGrantSummary,
+  AssessmentAttemptState,
   DashboardOverviewData,
   DashboardProductSummary,
   LessonNoteSummary,
@@ -306,6 +308,74 @@ export async function fetchProductAssessments(productId: string) {
   }
 
   return (data ?? []) as ProductAssessmentSummary[]
+}
+
+async function invokeStudentAssessmentFunction<TResponse>(body: unknown) {
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada")
+  }
+
+  const response = await fetch(
+    `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/student-assessment-attempts`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: auth.headers.Authorization,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...(typeof body === "object" && body !== null ? body : {}),
+        access_token: auth.accessToken,
+      }),
+    },
+  )
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return data as TResponse
+}
+
+export async function fetchAssessmentAttemptState(assessmentId: string) {
+  return invokeStudentAssessmentFunction<AssessmentAttemptState & { success: true }>({
+    action: "get_state",
+    assessmentId,
+  })
+}
+
+export async function saveAssessmentAttemptDraft(input: {
+  attemptId: string
+  answersPayload: Record<string, unknown>
+}) {
+  return invokeStudentAssessmentFunction<AssessmentAttemptState & { success: true }>({
+    action: "save_draft",
+    ...input,
+  })
+}
+
+export async function submitAssessmentAttempt(input: {
+  attemptId: string
+  answersPayload: Record<string, unknown>
+}) {
+  return invokeStudentAssessmentFunction<AssessmentAttemptState & { success: true }>({
+    action: "submit",
+    ...input,
+  })
 }
 
 export async function fetchLessonNotes(lessonId: string) {

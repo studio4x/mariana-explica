@@ -1,9 +1,14 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { ClipboardCheck } from "lucide-react"
-import { EmptyState } from "@/components/feedback"
+import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { StatusBadge } from "@/components/common"
+import {
+  useAssessmentAttemptState,
+  useSaveAssessmentAttemptDraft,
+  useSubmitAssessmentAttempt,
+} from "@/hooks/useDashboard"
 import {
   buildCoursePlayerEntries,
   calculateAssessmentDraftResult,
@@ -26,12 +31,43 @@ const questionTypeLabels = {
   unknown: "Pergunta estruturada",
 } as const
 
+function normalizeAttemptAnswers(value: Record<string, unknown> | undefined) {
+  if (!value) return {} as Record<string, AssessmentDraftAnswerValue>
+
+  const entries: Array<[string, AssessmentDraftAnswerValue]> = []
+
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === "string") {
+      entries.push([key, raw])
+      continue
+    }
+
+    if (Array.isArray(raw)) {
+      const values = raw.filter((item): item is string => typeof item === "string")
+      entries.push([key, values])
+    }
+  }
+
+  return Object.fromEntries(entries)
+}
+
+function getAttemptSummary(value: Record<string, unknown> | undefined) {
+  if (!value || typeof value.summary !== "object" || !value.summary) return null
+  return value.summary as Record<string, unknown>
+}
+
 export function StudentAssessmentExecutionPage() {
   const { assessmentId } = useParams<{ assessmentId: string }>()
   const context = useOutletContext<StudentCoursePlayerContext>()
   const assessment = context.assessments.find((item) => item.id === assessmentId) ?? null
   const [answers, setAnswers] = useState<Record<string, AssessmentDraftAnswerValue>>({})
   const [previewRequested, setPreviewRequested] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const attemptStateQuery = useAssessmentAttemptState(assessment?.id)
+  const saveDraft = useSaveAssessmentAttemptDraft()
+  const submitAttempt = useSubmitAssessmentAttempt()
+  const hydratedAttemptIdRef = useRef<string | null>(null)
+  const lastSavedSignatureRef = useRef<string>("{}")
 
   if (!assessment) {
     return (
@@ -57,6 +93,48 @@ export function StudentAssessmentExecutionPage() {
     () => calculateAssessmentDraftResult(questions, answers),
     [answers, questions],
   )
+  const officialState = attemptStateQuery.data ?? null
+  const officialAttempt = officialState?.attempt ?? null
+  const attemptLocked = officialAttempt ? officialAttempt.status !== "in_progress" : true
+  const officialSummary = getAttemptSummary(officialAttempt?.result_payload)
+
+  useEffect(() => {
+    if (!officialAttempt) return
+    if (hydratedAttemptIdRef.current === officialAttempt.id) return
+
+    const normalizedAnswers = normalizeAttemptAnswers(officialAttempt.answers_payload)
+    setAnswers(normalizedAnswers)
+    lastSavedSignatureRef.current = JSON.stringify(normalizedAnswers)
+    hydratedAttemptIdRef.current = officialAttempt.id
+    setPreviewRequested(Boolean(officialAttempt.submitted_at))
+    setAutosaveStatus(officialAttempt.status === "in_progress" ? "saved" : "idle")
+  }, [officialAttempt])
+
+  const answersSignature = useMemo(() => JSON.stringify(answers), [answers])
+
+  useEffect(() => {
+    if (!officialAttempt || officialAttempt.status !== "in_progress") return
+    if (hydratedAttemptIdRef.current !== officialAttempt.id) return
+    if (answersSignature === lastSavedSignatureRef.current) return
+
+    const timeout = window.setTimeout(() => {
+      setAutosaveStatus("saving")
+      void saveDraft
+        .mutateAsync({
+          attemptId: officialAttempt.id,
+          answersPayload: answers,
+        })
+        .then(() => {
+          lastSavedSignatureRef.current = answersSignature
+          setAutosaveStatus("saved")
+        })
+        .catch(() => {
+          setAutosaveStatus("error")
+        })
+    }, 700)
+
+    return () => window.clearTimeout(timeout)
+  }, [answers, answersSignature, officialAttempt, saveDraft])
 
   const updateSingleAnswer = (questionId: string, value: string) => {
     setAnswers((current) => ({
@@ -77,6 +155,21 @@ export function StudentAssessmentExecutionPage() {
         [questionId]: nextValues,
       }
     })
+  }
+
+  const handleSubmitOfficialAttempt = async () => {
+    if (!officialAttempt) return
+
+    try {
+      await submitAttempt.mutateAsync({
+        attemptId: officialAttempt.id,
+        answersPayload: answers,
+      })
+      setPreviewRequested(true)
+      await attemptStateQuery.refetch()
+    } catch {
+      // The mutation already surfaces the backend error via its status and we show a generic message below.
+    }
   }
 
   return (
@@ -111,6 +204,172 @@ export function StudentAssessmentExecutionPage() {
             O resultado abaixo funciona como rascunho local da experiencia do LMS. Quando a API de tentativas estiver pronta, ela substitui apenas a confirmacao final sem quebrar esta navegacao.
           </p>
         </div>
+      </section>
+
+      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Tentativa oficial</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              O backend controla inicio, persistencia, limite de tentativas e resultado oficial desta avaliacao.
+            </p>
+          </div>
+          {officialState ? (
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge
+                label={
+                  officialAttempt
+                    ? `Tentativa ${officialAttempt.attempt_number}`
+                    : "Sem tentativa oficial"
+                }
+                tone="neutral"
+              />
+              <StatusBadge
+                label={
+                  officialState.remaining_attempts === null
+                    ? "Tentativas livres"
+                    : `${officialState.remaining_attempts} restantes`
+                }
+                tone="info"
+              />
+            </div>
+          ) : null}
+        </div>
+
+        {attemptStateQuery.isLoading ? (
+          <div className="mt-6">
+            <LoadingState message="A preparar a tentativa oficial..." />
+          </div>
+        ) : attemptStateQuery.isError ? (
+          <div className="mt-6">
+            <ErrorState
+              title="Nao foi possivel abrir a tentativa"
+              message={
+                attemptStateQuery.error instanceof Error
+                  ? attemptStateQuery.error.message
+                  : "Tenta novamente dentro de instantes."
+              }
+              onRetry={() => void attemptStateQuery.refetch()}
+            />
+          </div>
+        ) : officialAttempt ? (
+          <div className="mt-6 space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-[1.5rem] border bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Estado oficial</p>
+                <p className="mt-2 text-xl font-bold text-slate-950">
+                  {officialAttempt.status === "in_progress"
+                    ? "Em andamento"
+                    : officialAttempt.status === "passed"
+                      ? "Aprovada"
+                      : officialAttempt.status === "failed"
+                        ? "Reprovada"
+                        : officialAttempt.status === "pending_review"
+                          ? "Em revisao"
+                          : "Submetida"}
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] border bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Score oficial</p>
+                <p className="mt-2 text-xl font-bold text-slate-950">
+                  {officialAttempt.final_score_percent !== null
+                    ? `${officialAttempt.final_score_percent}%`
+                    : officialAttempt.auto_score_percent !== null
+                      ? `${officialAttempt.auto_score_percent}% auto`
+                      : "--"}
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] border bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Guardado</p>
+                <p className="mt-2 text-xl font-bold text-slate-950">
+                  {autosaveStatus === "saving"
+                    ? "A guardar"
+                    : autosaveStatus === "error"
+                      ? "Falhou"
+                      : "Sincronizado"}
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] border bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Submissao</p>
+                <p className="mt-2 text-xl font-bold text-slate-950">
+                  {officialAttempt.submitted_at ? "Enviada" : "Pendente"}
+                </p>
+              </div>
+            </div>
+
+            {submitAttempt.isError ? (
+              <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {submitAttempt.error instanceof Error
+                  ? submitAttempt.error.message
+                  : "Nao foi possivel submeter a tentativa oficial."}
+              </div>
+            ) : null}
+
+            {officialAttempt.status === "in_progress" ? (
+              <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-700">
+                O rascunho desta tentativa esta a ser persistido automaticamente no backend enquanto respondes.
+              </div>
+            ) : null}
+
+            {officialAttempt.status === "pending_review" ? (
+              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-700">
+                Esta tentativa entrou em revisao oficial porque existem respostas discursivas ou blocos que nao podem ser corrigidos apenas por gabarito automatico.
+              </div>
+            ) : null}
+
+            {officialSummary ? (
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-[1.5rem] border bg-white p-4">
+                  <p className="text-sm text-slate-500">Respondidas</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {String(officialSummary.answered_questions ?? "--")}/{String(officialSummary.total_questions ?? "--")}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] border bg-white p-4">
+                  <p className="text-sm text-slate-500">Autoavaliaveis</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {String(officialSummary.auto_gradable_questions ?? "--")}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] border bg-white p-4">
+                  <p className="text-sm text-slate-500">Em revisao</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {String(officialSummary.manual_review_questions ?? "--")}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] border bg-white p-4">
+                  <p className="text-sm text-slate-500">Corretas</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {String(officialSummary.correct_questions ?? "--")}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              {officialAttempt.status === "in_progress" ? (
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  onClick={() => void handleSubmitOfficialAttempt()}
+                  disabled={submitAttempt.isPending}
+                >
+                  {submitAttempt.isPending ? "A submeter..." : "Submeter tentativa oficial"}
+                </Button>
+              ) : null}
+              {!officialState?.can_start_new_attempt && officialAttempt.status !== "in_progress" ? (
+                <StatusBadge label="Limite de tentativas atingido" tone="warning" />
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6">
+            <EmptyState
+              title="Tentativa indisponivel"
+              message="Nao foi possivel abrir uma tentativa oficial para esta avaliacao."
+            />
+          </div>
+        )}
       </section>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -182,6 +441,7 @@ export function StudentAssessmentExecutionPage() {
                               name={question.id}
                               value={option.value}
                               checked={checked}
+                              disabled={attemptLocked}
                               onChange={(event) =>
                                 allowsMultiple
                                   ? updateMultiAnswer(question.id, option.value, event.target.checked)
@@ -197,6 +457,7 @@ export function StudentAssessmentExecutionPage() {
                   ) : (
                     <textarea
                       value={Array.isArray(currentAnswer) ? currentAnswer.join("\n") : String(currentAnswer ?? "")}
+                      disabled={attemptLocked}
                       onChange={(event) => updateSingleAnswer(question.id, event.target.value)}
                       rows={question.kind === "case_study_ai" ? 8 : 5}
                       placeholder="Escreve a tua resposta aqui"

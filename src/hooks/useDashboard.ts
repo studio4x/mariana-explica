@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   createSupportTicket,
+  fetchAssessmentAttemptState,
   fetchDashboardOverview,
   fetchDashboardProductContent,
   fetchDownloads,
@@ -13,7 +14,9 @@ import {
   markNotificationAsRead,
   replySupportTicket,
   requestAssetAccess,
+  saveAssessmentAttemptDraft,
   saveLessonNote,
+  submitAssessmentAttempt,
   upsertLessonProgress,
   updateProfilePreferences,
 } from "@/services"
@@ -45,6 +48,14 @@ export function useLessonNote(lessonId: string | undefined) {
     queryKey: ["dashboard", "lesson", lessonId, "note"],
     queryFn: () => fetchLessonNotes(lessonId ?? ""),
     enabled: Boolean(lessonId),
+  })
+}
+
+export function useAssessmentAttemptState(assessmentId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "assessment", assessmentId, "attempt"],
+    queryFn: () => fetchAssessmentAttemptState(assessmentId ?? ""),
+    enabled: Boolean(assessmentId),
   })
 }
 
@@ -142,6 +153,34 @@ export function useSaveLessonNote() {
     mutationFn: saveLessonNote,
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", variables.lessonId, "note"] })
+    },
+  })
+}
+
+export function useSaveAssessmentAttemptDraft() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: saveAssessmentAttemptDraft,
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["dashboard", "assessment", variables.attemptId],
+        exact: false,
+      })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "assessment"] })
+    },
+  })
+}
+
+export function useSubmitAssessmentAttempt() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: submitAssessmentAttempt,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "assessment"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "product"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
     },
   })
 }

@@ -96,6 +96,39 @@ export interface ProductAssessmentSummary {
   updated_at: string
 }
 
+export interface AssessmentAttemptSummary {
+  id: string
+  user_id: string
+  assessment_id: string
+  product_id: string
+  module_id: string | null
+  attempt_number: number
+  status: "in_progress" | "submitted" | "passed" | "failed" | "pending_review"
+  answers_payload: Record<string, unknown>
+  result_payload: Record<string, unknown>
+  auto_score_percent: number | null
+  final_score_percent: number | null
+  requires_manual_review: boolean
+  passed: boolean | null
+  started_at: string
+  last_saved_at: string
+  submitted_at: string | null
+  evaluated_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AssessmentAttemptState {
+  assessment: Pick<
+    ProductAssessmentSummary,
+    "id" | "title" | "assessment_type" | "passing_score" | "max_attempts"
+  >
+  attempt: AssessmentAttemptSummary | null
+  attempts_used: number
+  remaining_attempts: number | null
+  can_start_new_attempt: boolean
+}
+
 export interface LessonProgressSummary {
   id: string
   user_id: string
