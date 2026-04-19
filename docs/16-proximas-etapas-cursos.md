@@ -300,6 +300,52 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - deploy das Edge Functions `cron-process-email-deliveries`, `cron-retry-email-deliveries`, `cron-reconcile-orders` e `reconcile-orders`
   - verificacao remota dos endpoints cron por resposta `401 Cron secret invalido`, confirmando rotas publicadas e protegidas por segredo interno
 
+### Etapa 8 — Configuracoes pendentes no admin
+
+- Status: `concluida`
+- Base adicional desta etapa:
+  - `docs/09-admin.md`
+  - `docs/12-automacoes.md`
+- Verificacao inicial desta rodada:
+  - as pendencias de informacao ainda dependiam de memoria de conversa e nao tinham ponto unico no admin;
+  - o painel admin ja previa a secao `/admin/configuracoes` nos docs, mas ainda nao havia rota nem tela operacional correspondente;
+  - `site_config` ja existia com RLS de admin e permitia persistir configuracoes nao sensiveis sem migration nova.
+- Criterio de conclusao:
+  - o admin passa a ter uma pagina propria para registar informacoes operacionais ainda pendentes, sem armazenar segredos.
+- Entregue nesta rodada:
+  - nova rota `/admin/configuracoes` com navegacao dedicada no menu principal do admin;
+  - pagina administrativa para registar plataforma de scheduler, referencia operacional, notas de agendamento, provedor de email, remetente, reply-to, contato operacional e notas gerais;
+  - persistencia em `site_config` com leitura e escrita seguras para admins;
+  - aviso explicito de que secrets continuam fora da UI, apenas em provedores seguros.
+- Validacoes executadas:
+  - `npm run build`
+
+### Etapa 9 — Auditoria agendada de consistencia de acesso
+
+- Status: `concluida`
+- Base adicional desta etapa:
+  - `docs/05-backend-edge-functions.md`
+  - `docs/10-autenticacao-seguranca.md`
+  - `docs/12-automacoes.md`
+  - `docs/14-deploy.md`
+- Verificacao inicial desta rodada:
+  - a reconciliacao agendada de pedidos ja existia, mas ainda faltava a varredura cron de consistencia entre grants, pedidos, produtos e status de usuario;
+  - a documentacao previa `cron-audit-access-consistency` como job interno distinto;
+  - o sistema ja tinha dados suficientes em `access_grants`, `orders`, `products`, `profiles` e `job_runs` para fechar a auditoria sem mudar banco.
+- Criterio de conclusao:
+  - existe um cron interno que detecta divergencias de acesso, registra `job_runs` e corrige apenas os casos seguros.
+- Entregue nesta rodada:
+  - nova Edge Function `cron-audit-access-consistency`;
+  - varredura de grants ativos com deteccao de usuario bloqueado/inativo, produto arquivado e grant de compra ligado a pedido `failed`, `cancelled` ou `refunded`;
+  - revogacao automatica apenas dos grants ligados a pedidos inconsistentes que sejam seguros de corrigir;
+  - retorno resumido com alertas e correcoes para leitura operacional.
+- Validacoes executadas:
+  - `npm run build`
+- Deploys executados:
+  - deploy da Edge Function `cron-audit-access-consistency` no projeto Supabase `gookhgufsxeplelpdaua`
+  - deploy frontend na Vercel para publicar a nova rota `/admin/configuracoes`
+  - verificacao remota de `cron-audit-access-consistency` por resposta `401 Cron secret invalido`, confirmando endpoint ativo e protegido
+
 ## 6. Ordem recomendada a partir de agora
 
 1. Etapa 1 — Avaliacoes oficiais do aluno
@@ -309,6 +355,8 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 5. Etapa 5 — Limpeza final do legado e padronizacao de linguagem
 6. Etapa 6 — Varredura final por contratos de aceite
 7. Etapa 7 — Automacoes operacionais agendadas
+8. Etapa 8 — Configuracoes pendentes no admin
+9. Etapa 9 — Auditoria agendada de consistencia de acesso
 
 ## 7. Regra de manutencao deste documento
 

@@ -22,6 +22,7 @@ import {
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
   fetchAdminModulePdfWatermarkConfig,
+  fetchAdminPendingInfoConfig,
   fetchAdminNotifications,
   fetchAdminOperations,
   fetchAdminOrders,
@@ -51,6 +52,7 @@ import {
   updateAdminAffiliate,
   updateAdminCoupon,
   updateAdminModulePdfWatermarkConfig,
+  updateAdminPendingInfoConfig,
   updateAdminProduct,
   updateAdminModuleAsset,
   updateAdminProductAssessment,
@@ -90,6 +92,14 @@ export function useAdminModulePdfWatermarkConfig() {
   return useQuery({
     queryKey: ["admin", "module-pdf-watermark"],
     queryFn: fetchAdminModulePdfWatermarkConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminPendingInfoConfig() {
+  return useQuery({
+    queryKey: ["admin", "pending-info"],
+    queryFn: fetchAdminPendingInfoConfig,
     ...getAdminQueryOptions(),
   })
 }
@@ -425,6 +435,11 @@ export function useUpdateAdminCoupon() {
 export function useUpdateAdminModulePdfWatermarkConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminModulePdfWatermarkConfig, onSuccess: invalidate })
+}
+
+export function useUpdateAdminPendingInfoConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminPendingInfoConfig, onSuccess: invalidate })
 }
 
 export function useCreateAdminCourseRelease() {

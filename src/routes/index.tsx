@@ -64,6 +64,9 @@ const AdminOrders = lazy(() => import("@/pages/admin").then((module) => ({ defau
 const AdminPayments = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPayments })),
 )
+const AdminSettings = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminSettings })),
+)
 const AdminProducts = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminProducts })),
 )
@@ -389,6 +392,10 @@ export const router = createBrowserRouter(
         {
           path: "pagamentos",
           element: withSuspense(<AdminPayments />),
+        },
+        {
+          path: "configuracoes",
+          element: withSuspense(<AdminSettings />),
         },
         {
           path: "afiliados",

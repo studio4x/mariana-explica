@@ -17,6 +17,7 @@ import type {
   AdminCouponUsageSummary,
   AdminCourseReleaseSummary,
   AdminModulePdfWatermarkConfig,
+  AdminPendingInfoConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
   AdminSupportTicketSummary,
@@ -79,6 +80,7 @@ async function requireFreshAuth() {
 
 const MODULE_PDF_WATERMARK_KEY = "module_pdf_watermark"
 const DEFAULT_WATERMARK_SITE_NAME = "Mariana Explica"
+const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
 
 function normalizeModulePdfWatermarkConfig(
   row?: Partial<AdminModulePdfWatermarkConfig> | null,
@@ -100,6 +102,37 @@ function normalizeModulePdfWatermarkConfig(
       logo_path: logoPath,
     },
     description: row?.description ?? "Configuracao do watermark aplicado ao PDF base dos modulos.",
+    is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminPendingInfoConfig(
+  row?: Partial<AdminPendingInfoConfig> | null,
+): AdminPendingInfoConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const normalizeText = (key: string) => String(value[key] ?? "").trim()
+
+  return {
+    config_key: row?.config_key ?? ADMIN_PENDING_INFO_KEY,
+    config_value: {
+      scheduler_provider: normalizeText("scheduler_provider"),
+      scheduler_reference: normalizeText("scheduler_reference"),
+      scheduler_notes: String(value["scheduler_notes"] ?? "").trim(),
+      email_provider_name: normalizeText("email_provider_name"),
+      email_sender_name: normalizeText("email_sender_name"),
+      email_sender_address: normalizeText("email_sender_address"),
+      email_reply_to: normalizeText("email_reply_to"),
+      operations_contact: normalizeText("operations_contact"),
+      general_notes: String(value["general_notes"] ?? "").trim(),
+    },
+    description:
+      row?.description ??
+      "Informacoes operacionais ainda pendentes de definicao manual pelo admin. Nao armazenar segredos aqui.",
     is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
@@ -308,6 +341,20 @@ export async function fetchAdminModulePdfWatermarkConfig() {
   return normalizeModulePdfWatermarkConfig(data as Partial<AdminModulePdfWatermarkConfig> | null)
 }
 
+export async function fetchAdminPendingInfoConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", ADMIN_PENDING_INFO_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminPendingInfoConfig(data as Partial<AdminPendingInfoConfig> | null)
+}
+
 export async function updateAdminModulePdfWatermarkConfig(input: {
   siteName: string
   logoBucket?: string | null
@@ -350,6 +397,45 @@ export async function updateAdminModulePdfWatermarkConfig(input: {
   }
 
   return normalizeModulePdfWatermarkConfig(data as Partial<AdminModulePdfWatermarkConfig>)
+}
+
+export async function updateAdminPendingInfoConfig(
+  input: AdminPendingInfoConfig["config_value"],
+) {
+  const payload = normalizeAdminPendingInfoConfig({
+    config_key: ADMIN_PENDING_INFO_KEY,
+    config_value: input,
+    description:
+      "Informacoes operacionais ainda pendentes de definicao manual pelo admin. Nao armazenar segredos aqui.",
+    is_public: false,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<AdminPendingInfoConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: ADMIN_PENDING_INFO_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: false,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminPendingInfoConfig(data as Partial<AdminPendingInfoConfig>)
 }
 
 export async function fetchAdminProductModules(productId: string) {

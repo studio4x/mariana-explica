@@ -90,6 +90,24 @@ export interface AdminModulePdfWatermarkConfig {
   updated_at: string | null
 }
 
+export interface AdminPendingInfoConfig {
+  config_key: string
+  config_value: {
+    scheduler_provider: string
+    scheduler_reference: string
+    scheduler_notes: string
+    email_provider_name: string
+    email_sender_name: string
+    email_sender_address: string
+    email_reply_to: string
+    operations_contact: string
+    general_notes: string
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface ProductLessonSummary {
   id: string
   module_id: string
