@@ -269,6 +269,37 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - deploy no Supabase das Edge Functions `payment-webhook`, `admin-storage-upload` e `generate-module-pdf-access`
   - verificacao remota de `generate-module-pdf-access` e `payment-webhook` com resposta `401` sem autenticacao, confirmando endpoints ativos e protegidos
 
+### Etapa 7 — Automacoes operacionais agendadas
+
+- Status: `concluida`
+- Base adicional desta etapa:
+  - `docs/05-backend-edge-functions.md`
+  - `docs/12-automacoes.md`
+  - `docs/14-deploy.md`
+- Verificacao inicial desta rodada:
+  - o `docs/16` parava na etapa 6, apesar de ainda faltar continuidade operacional apos o fechamento do modulo de cursos;
+  - ja existiam operacoes manuais de reconciliacao e retry no admin, mas nao havia o bloco cron previsto nos docs canonicos;
+  - a fila `email_deliveries` e a tabela `job_runs` ja existiam e permitiam fechar a automacao sem alterar banco.
+- O que ja existia:
+  - Edge Function `reconcile-orders` para acao manual por admin;
+  - Edge Function `admin-operations` para requeue manual de e-mails;
+  - tabelas `email_deliveries`, `job_runs`, `audit_logs`, `orders` e `access_grants`.
+- Criterio de conclusao:
+  - o sistema passa a ter jobs internos agendaveis, autenticados por segredo proprio, com `job_runs` e foco em fila de e-mails e reconciliacao de pedidos.
+- Entregue nesta rodada:
+  - helper interno `_shared/cron.ts` com `CRON_SECRET`, inicio e finalizacao padronizada de `job_runs`;
+  - refactor de reconciliacao em `_shared/reconciliation.ts`, reaproveitado pela reconciliacao manual e pela agendada;
+  - Edge Function `cron-process-email-deliveries` para consumir lote de `email_deliveries` com status `queued`;
+  - Edge Function `cron-retry-email-deliveries` para recolocar falhas elegiveis na fila com limite por metadata;
+  - Edge Function `cron-reconcile-orders` para reconciliar em lote pedidos com `checkout_session_id`, garantindo correcoes idempotentes de status e grant;
+  - Edge Function `reconcile-orders` atualizada para usar o mesmo fluxo compartilhado da reconciliacao agendada.
+- Validacoes executadas:
+  - `npm run build`
+- Deploys executados:
+  - `supabase secrets set CRON_SECRET=...` no projeto `gookhgufsxeplelpdaua`
+  - deploy das Edge Functions `cron-process-email-deliveries`, `cron-retry-email-deliveries`, `cron-reconcile-orders` e `reconcile-orders`
+  - verificacao remota dos endpoints cron por resposta `401 Cron secret invalido`, confirmando rotas publicadas e protegidas por segredo interno
+
 ## 6. Ordem recomendada a partir de agora
 
 1. Etapa 1 — Avaliacoes oficiais do aluno
@@ -277,6 +308,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 4. Etapa 4 — PDF base do modulo e materiais protegidos
 5. Etapa 5 — Limpeza final do legado e padronizacao de linguagem
 6. Etapa 6 — Varredura final por contratos de aceite
+7. Etapa 7 — Automacoes operacionais agendadas
 
 ## 7. Regra de manutencao deste documento
 
