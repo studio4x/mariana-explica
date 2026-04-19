@@ -1,6 +1,6 @@
 import { Bell, Download, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { Navbar, StatusBadge } from "@/components/common"
+import { InstallPrompt, Navbar, StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
@@ -113,6 +113,7 @@ export function DashboardLayout() {
           </main>
         </div>
       </div>
+      <InstallPrompt />
     </div>
   )
 }

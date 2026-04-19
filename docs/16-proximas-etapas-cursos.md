@@ -396,6 +396,31 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 - O que falta para concluir:
   - configurar no Supabase o segredo real do provedor (`RESEND_API_KEY`, `POSTMARK_SERVER_TOKEN` ou `SENDGRID_API_KEY`) e definir remetente valido para envio em producao.
 
+### Etapa 12 — PWA instalado com fallback offline seguro
+
+- Status: `concluida`
+- Base adicional desta etapa:
+  - `docs/07-ui-ux.md`
+  - `docs/13-pwa.md`
+  - `docs/14-deploy.md`
+- Verificacao inicial desta rodada:
+  - o projeto ja tinha `manifest.webmanifest`, `sw.js`, `offline.html` e prompt customizado, mas ainda faltavam os icones raster minimos recomendados para instalacao mobile;
+  - o service worker cacheava assets do mesmo host de forma ampla demais para o contrato de seguranca do PWA;
+  - o prompt de instalacao aparecia sem memoria de rejeicao temporaria nem contexto claro de uso no dashboard.
+- Criterio de conclusao:
+  - o PWA oferece instalacao coerente no mobile, fallback offline simples e cache seguro sem prometer acesso offline a conteudos protegidos.
+- Entregue nesta rodada:
+  - icones PWA em `192x192`, `512x512` e `512x512 maskable` adicionados em `public/`;
+  - `manifest.webmanifest` atualizado para usar os icones raster adequados de instalacao;
+  - `index.html` reforcado com `apple-touch-icon` em PNG e metadata basica de compartilhamento;
+  - `sw.js` endurecido para priorizar apenas shell e assets estaticos seguros, evitando cache de rotas e pedidos sensiveis;
+  - prompt de instalacao ajustado para o dashboard do aluno, com opcao de dispensar temporariamente por 7 dias.
+- Validacoes executadas:
+  - `npm run build`
+- Deploys executados:
+  - deploy frontend na Vercel com publicacao da versao PWA em producao
+  - verificacao remota do dominio publico `https://www.mariana-explica.pt` com `200 OK`
+
 ## 6. Ordem recomendada a partir de agora
 
 1. Etapa 1 — Avaliacoes oficiais do aluno
@@ -409,6 +434,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 9. Etapa 9 — Auditoria agendada de consistencia de acesso
 10. Etapa 10 — Limpeza agendada de links expirados
 11. Etapa 11 — Integracao real de envio de e-mails transacionais
+12. Etapa 12 — PWA instalado com fallback offline seguro
 
 ## 7. Regra de manutencao deste documento
 
