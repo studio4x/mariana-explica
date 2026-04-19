@@ -16,6 +16,7 @@ import type {
   AdminCouponSummary,
   AdminCouponUsageSummary,
   AdminCourseReleaseSummary,
+  AdminModulePdfWatermarkConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
   AdminSupportTicketSummary,
@@ -76,6 +77,34 @@ async function requireFreshAuth() {
   return auth
 }
 
+const MODULE_PDF_WATERMARK_KEY = "module_pdf_watermark"
+const DEFAULT_WATERMARK_SITE_NAME = "Mariana Explica"
+
+function normalizeModulePdfWatermarkConfig(
+  row?: Partial<AdminModulePdfWatermarkConfig> | null,
+): AdminModulePdfWatermarkConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const siteName = String(value.site_name ?? DEFAULT_WATERMARK_SITE_NAME).trim() || DEFAULT_WATERMARK_SITE_NAME
+  const logoPath = String(value.logo_path ?? "").trim() || null
+  const logoBucket = logoPath ? String(value.logo_bucket ?? "course-assets-private").trim() || "course-assets-private" : null
+
+  return {
+    config_key: row?.config_key ?? MODULE_PDF_WATERMARK_KEY,
+    config_value: {
+      site_name: siteName,
+      logo_bucket: logoBucket,
+      logo_path: logoPath,
+    },
+    description: row?.description ?? "Configuracao do watermark aplicado ao PDF base dos modulos.",
+    is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
 export async function uploadAdminModulePdf(input: {
   moduleId: string
   file: File
@@ -127,6 +156,46 @@ export async function uploadAdminModuleAssetFile(input: {
   const formData = new FormData()
   formData.append("kind", "module_asset")
   formData.append("moduleId", input.moduleId)
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+}
+
+export async function uploadAdminWatermarkLogoFile(input: {
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "watermark_logo")
   formData.append("file", input.file)
   if (input.replacePath) {
     formData.append("replacePath", input.replacePath)
@@ -223,6 +292,64 @@ export async function fetchAdminPaymentsStatus() {
   )
 
   return response.stripe
+}
+
+export async function fetchAdminModulePdfWatermarkConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", MODULE_PDF_WATERMARK_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeModulePdfWatermarkConfig(data as Partial<AdminModulePdfWatermarkConfig> | null)
+}
+
+export async function updateAdminModulePdfWatermarkConfig(input: {
+  siteName: string
+  logoBucket?: string | null
+  logoPath?: string | null
+}) {
+  const payload = normalizeModulePdfWatermarkConfig({
+    config_key: MODULE_PDF_WATERMARK_KEY,
+    config_value: {
+      site_name: input.siteName,
+      logo_bucket: input.logoBucket ?? null,
+      logo_path: input.logoPath ?? null,
+    },
+    description: "Configuracao do watermark aplicado ao PDF base dos modulos.",
+    is_public: false,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<AdminModulePdfWatermarkConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: MODULE_PDF_WATERMARK_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: false,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeModulePdfWatermarkConfig(data as Partial<AdminModulePdfWatermarkConfig>)
 }
 
 export async function fetchAdminProductModules(productId: string) {

@@ -1,10 +1,14 @@
+import { useEffect, useState, type FormEvent } from "react"
 import { Link } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { ROUTES } from "@/lib/constants"
+import { APP_NAME, ROUTES } from "@/lib/constants"
 import {
   useAdminDashboardOverview,
+  useAdminModulePdfWatermarkConfig,
+  useUpdateAdminModulePdfWatermarkConfig,
+  useUploadAdminWatermarkLogoFile,
 } from "@/hooks/useAdmin"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
@@ -57,6 +61,21 @@ function AdminOverviewSkeleton() {
 
 export function Admin() {
   const overviewQuery = useAdminDashboardOverview()
+  const watermarkConfigQuery = useAdminModulePdfWatermarkConfig()
+  const updateWatermarkConfig = useUpdateAdminModulePdfWatermarkConfig()
+  const uploadWatermarkLogo = useUploadAdminWatermarkLogoFile()
+  const [siteName, setSiteName] = useState(APP_NAME)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [formMessage, setFormMessage] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!watermarkConfigQuery.data) {
+      return
+    }
+
+    setSiteName(watermarkConfigQuery.data.config_value.site_name || APP_NAME)
+  }, [watermarkConfigQuery.data])
 
   if (overviewQuery.isLoading) {
     return <AdminOverviewSkeleton />
@@ -130,6 +149,59 @@ export function Admin() {
     })
   }
 
+  const watermarkConfig = watermarkConfigQuery.data
+  const currentLogoPath = watermarkConfig?.config_value.logo_path ?? null
+
+  async function handleWatermarkSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormMessage(null)
+    setFormError(null)
+
+    try {
+      let logoBucket = watermarkConfig?.config_value.logo_bucket ?? null
+      let logoPath = watermarkConfig?.config_value.logo_path ?? null
+
+      if (logoFile) {
+        const upload = await uploadWatermarkLogo.mutateAsync({
+          file: logoFile,
+          replacePath: logoPath,
+        })
+        logoBucket = upload.bucket
+        logoPath = upload.path
+      }
+
+      await updateWatermarkConfig.mutateAsync({
+        siteName: siteName.trim() || APP_NAME,
+        logoBucket,
+        logoPath,
+      })
+
+      setLogoFile(null)
+      setFormMessage("Configuracao do watermark atualizada.")
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Nao foi possivel atualizar o watermark.")
+    }
+  }
+
+  async function handleRemoveLogo() {
+    setFormMessage(null)
+    setFormError(null)
+
+    try {
+      await updateWatermarkConfig.mutateAsync({
+        siteName: siteName.trim() || APP_NAME,
+        logoBucket: null,
+        logoPath: null,
+      })
+      setLogoFile(null)
+      setFormMessage("Logotipo removido da configuracao do watermark.")
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Nao foi possivel remover o logotipo.")
+    }
+  }
+
+  const isSavingWatermark = updateWatermarkConfig.isPending || uploadWatermarkLogo.isPending
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -164,6 +236,93 @@ export function Admin() {
           <p className="mt-2 text-sm leading-6 text-white/82">Leitura rapida do volume financeiro registado no sistema.</p>
         </div>
       </div>
+
+      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Watermark do PDF base</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+              O PDF base do modulo agora gera uma copia derivada com watermark visual. O nome do site entra como marca
+              provisoria, e o logotipo pode ser definido manualmente aqui para a sobreposicao futura.
+            </p>
+          </div>
+          <StatusBadge
+            label={watermarkConfig?.config_value.logo_path ? "Logo configurado" : "Texto provisório"}
+            tone={watermarkConfig?.config_value.logo_path ? "success" : "warning"}
+          />
+        </div>
+
+        <form className="mt-6 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]" onSubmit={(event) => void handleWatermarkSubmit(event)}>
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Nome do site usado no watermark</span>
+              <input
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400"
+                placeholder={APP_NAME}
+              />
+            </label>
+
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">Logotipo privado do watermark</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Aceita PNG ou JPG. O ficheiro fica em storage privado e entra apenas na copia derivada entregue ao aluno.
+              </p>
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                className="mt-4 block w-full text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+                onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
+              />
+              {logoFile ? (
+                <p className="mt-2 text-sm text-slate-600">Novo ficheiro selecionado: {logoFile.name}</p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Estado atual</p>
+            {watermarkConfigQuery.isLoading ? (
+              <p className="mt-4 text-sm text-slate-600">A carregar configuracao...</p>
+            ) : watermarkConfigQuery.isError ? (
+              <p className="mt-4 text-sm text-red-600">
+                {watermarkConfigQuery.error instanceof Error
+                  ? watermarkConfigQuery.error.message
+                  : "Nao foi possivel ler a configuracao atual."}
+              </p>
+            ) : (
+              <>
+                <p className="mt-4 text-sm text-slate-600">Texto atual: {watermarkConfig?.config_value.site_name ?? APP_NAME}</p>
+                <p className="mt-2 break-all text-sm text-slate-600">
+                  Logo atual: {currentLogoPath ?? "Nao configurado"}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Ultima atualizacao: {watermarkConfig?.updated_at ? formatDateTime(watermarkConfig.updated_at) : "Ainda nao guardado"}
+                </p>
+              </>
+            )}
+
+            {formError ? <p className="mt-4 text-sm text-red-600">{formError}</p> : null}
+            {formMessage ? <p className="mt-4 text-sm text-emerald-700">{formMessage}</p> : null}
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button type="submit" className="rounded-full" disabled={isSavingWatermark}>
+                {isSavingWatermark ? "A guardar..." : "Guardar watermark"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                disabled={isSavingWatermark || !currentLogoPath}
+                onClick={() => void handleRemoveLogo()}
+              >
+                Remover logotipo
+              </Button>
+            </div>
+          </div>
+        </form>
+      </section>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

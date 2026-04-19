@@ -1,14 +1,18 @@
 import {
   buildPurchaseConfirmedEmail,
   calculateAffiliateCommission,
+  cancelAffiliateReferralForOrder,
   ensureActiveGrant,
   extractRequestAuditContext,
   findOrderForCheckoutSession,
+  getStripeCharge,
   markOrderFailed,
   queueEmailDelivery,
   recordAffiliateReferral,
   recordCouponUsage,
+  revokeActiveGrantForOrder,
   updateOrderAfterPayment,
+  updateOrderStatus,
   writeAuditLog,
 } from "../_shared/mod.ts"
 import { badRequest, conflict, internalError, notFound } from "../_shared/errors.ts"
@@ -17,21 +21,28 @@ import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { verifyStripeWebhookSignature } from "../_shared/payments.ts"
 
+interface StripeEventObject {
+  id: string
+  livemode?: boolean
+  status?: string
+  payment_status?: string
+  amount_total?: number | null
+  currency?: string | null
+  payment_intent?: string | null
+  client_reference_id?: string | null
+  metadata?: Record<string, string | undefined>
+  refunded?: boolean
+  amount?: number | null
+  amount_refunded?: number | null
+  charge?: string | null
+  reason?: string | null
+}
+
 interface StripeEvent {
   id: string
   type: string
   data: {
-    object: {
-      id: string
-      livemode?: boolean
-      status?: string
-      payment_status?: string
-      amount_total?: number | null
-      currency?: string | null
-      payment_intent?: string | null
-      client_reference_id?: string | null
-      metadata?: Record<string, string | undefined>
-    }
+    object: StripeEventObject
   }
 }
 
@@ -44,7 +55,7 @@ async function findOrderByReferenceOrSession(
     return await findOrderForCheckoutSession(client, sessionId)
   } catch {
     if (!reference) {
-      throw notFound("Pedido não encontrado")
+      throw notFound("Pedido nao encontrado")
     }
 
     const { data, error } = await client
@@ -60,10 +71,43 @@ async function findOrderByReferenceOrSession(
     }
 
     if (!data) {
-      throw notFound("Pedido não encontrado")
+      throw notFound("Pedido nao encontrado")
     }
 
     return data
+  }
+}
+
+async function findOrderByPaymentReference(
+  client: ReturnType<typeof createServiceClient>,
+  paymentReference: string,
+) {
+  const { data, error } = await client
+    .from("orders")
+    .select(
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
+    )
+    .eq("payment_reference", paymentReference)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data) {
+    throw notFound("Pedido nao encontrado para a referencia de pagamento")
+  }
+
+  return data
+}
+
+function assertMatchingEnvironment(
+  order: { payment_environment: "test" | "live" | null | undefined },
+  livemode?: boolean,
+) {
+  const expectedEnv = livemode ? "live" : "test"
+  if (order.payment_environment && order.payment_environment !== expectedEnv) {
+    throw conflict("Evento Stripe recebido de ambiente diferente do pedido interno")
   }
 }
 
@@ -76,11 +120,7 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
     session.metadata?.order_id ?? session.client_reference_id,
   )
 
-  const livemode = Boolean(session.livemode)
-  const expectedEnv = livemode ? "live" : "test"
-  if (order.payment_environment && order.payment_environment !== expectedEnv) {
-    throw conflict("Evento Stripe recebido de ambiente diferente do pedido interno")
-  }
+  assertMatchingEnvironment(order, session.livemode)
 
   if (order.status === "paid") {
     return { replayed: true, order_id: order.id }
@@ -239,11 +279,7 @@ async function handleCheckoutFailed(event: StripeEvent, req: Request) {
     session.metadata?.order_id ?? session.client_reference_id,
   )
 
-  const livemode = Boolean(session.livemode)
-  const expectedEnv = livemode ? "live" : "test"
-  if (order.payment_environment && order.payment_environment !== expectedEnv) {
-    throw conflict("Evento Stripe recebido de ambiente diferente do pedido interno")
-  }
+  assertMatchingEnvironment(order, session.livemode)
 
   const failedOrder = await markOrderFailed(client, {
     orderId: order.id,
@@ -268,6 +304,130 @@ async function handleCheckoutFailed(event: StripeEvent, req: Request) {
   return { order_id: failedOrder.id }
 }
 
+async function handleOrderRevocation(params: {
+  event: StripeEvent
+  req: Request
+  paymentReference: string
+  livemode?: boolean
+  reason: string
+  action: "payment.refunded" | "payment.chargeback"
+  eventCategory: "refund" | "chargeback"
+}) {
+  const client = createServiceClient()
+  const order = await findOrderByPaymentReference(client, params.paymentReference)
+
+  assertMatchingEnvironment(order, params.livemode)
+
+  if (order.status === "refunded") {
+    return { replayed: true, order_id: order.id, revoked_grants: 0, cancelled_referrals: 0 }
+  }
+
+  const refundedOrder = await updateOrderStatus(client, {
+    orderId: order.id,
+    status: "refunded",
+    paymentReference: params.paymentReference,
+    refundedAt: new Date().toISOString(),
+  })
+
+  const revokedGrants = await revokeActiveGrantForOrder(client, {
+    orderId: refundedOrder.id,
+    reason: params.reason,
+  })
+
+  const cancelledReferrals = await cancelAffiliateReferralForOrder(client, {
+    orderId: refundedOrder.id,
+  })
+
+  await writeAuditLog(
+    client,
+    null,
+    {
+      action: params.action,
+      entityType: "order",
+      entityId: refundedOrder.id,
+      metadata: {
+        stripe_event_id: params.event.id,
+        payment_reference: params.paymentReference,
+        reason: params.reason,
+        revoked_grant_ids: revokedGrants.map((grant) => grant.id),
+        cancelled_referral_ids: cancelledReferrals.map((referral) => referral.id),
+        event_category: params.eventCategory,
+      },
+      ...extractRequestAuditContext(params.req),
+    },
+  )
+
+  logInfo("Payment access revoked", {
+    order_id: refundedOrder.id,
+    payment_reference: params.paymentReference,
+    event_type: params.event.type,
+    event_category: params.eventCategory,
+    revoked_grants: revokedGrants.length,
+    cancelled_referrals: cancelledReferrals.length,
+  })
+
+  return {
+    replayed: false,
+    order_id: refundedOrder.id,
+    revoked_grants: revokedGrants.length,
+    cancelled_referrals: cancelledReferrals.length,
+  }
+}
+
+async function handleChargeRefunded(event: StripeEvent, req: Request) {
+  const charge = event.data.object
+
+  const isFullyRefunded =
+    charge.refunded === true ||
+    (typeof charge.amount === "number" &&
+      typeof charge.amount_refunded === "number" &&
+      charge.amount > 0 &&
+      charge.amount_refunded >= charge.amount)
+
+  if (!isFullyRefunded || !charge.payment_intent) {
+    return {
+      ignored: true,
+      reason: !isFullyRefunded ? "partial_refund" : "missing_payment_intent",
+    }
+  }
+
+  return await handleOrderRevocation({
+    event,
+    req,
+    paymentReference: charge.payment_intent,
+    livemode: charge.livemode,
+    reason: "Acesso revogado automaticamente apos refund confirmado pela Stripe",
+    action: "payment.refunded",
+    eventCategory: "refund",
+  })
+}
+
+async function handleChargeDispute(event: StripeEvent, req: Request) {
+  const dispute = event.data.object
+  let paymentReference = dispute.payment_intent ?? null
+
+  if (!paymentReference && dispute.charge) {
+    const charge = await getStripeCharge(dispute.charge, {
+      mode: dispute.livemode ? "live" : "test",
+    })
+    paymentReference = charge.payment_intent
+  }
+
+  if (!paymentReference) {
+    return { ignored: true, reason: "missing_payment_intent" }
+  }
+
+  return await handleOrderRevocation({
+    event,
+    req,
+    paymentReference,
+    livemode: dispute.livemode,
+    reason: "Acesso revogado automaticamente apos chargeback/disputa Stripe",
+    action: "payment.chargeback",
+    eventCategory: "chargeback",
+  })
+}
+
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
 
@@ -277,7 +437,7 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method !== "POST") {
-      throw badRequest("Método não suportado")
+      throw badRequest("Metodo nao suportado")
     }
 
     const rawBody = await req.text()
@@ -294,13 +454,23 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
     }
 
+    if (event.type === "charge.refunded") {
+      const result = await handleChargeRefunded(event, req)
+      return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
+    }
+
+    if (event.type === "charge.dispute.created" || event.type === "charge.dispute.funds_withdrawn") {
+      const result = await handleChargeDispute(event, req)
+      return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
+    }
+
     logInfo("Webhook ignored", { request_id: requestId, event_type: event.type })
     return jsonResponse({ success: true, request_id: requestId, ignored: true, event_type: event.type })
   } catch (error) {
     logError("Webhook failed", { request_id: requestId, error: String(error) })
 
     if (error instanceof Error && error.message.includes("STRIPE_WEBHOOK_SECRET")) {
-      return errorResponse(internalError("Webhook Stripe não configurado"), requestId)
+      return errorResponse(internalError("Webhook Stripe nao configurado"), requestId)
     }
 
     return errorResponse(error, requestId)

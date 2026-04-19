@@ -252,3 +252,29 @@ export async function getStripeCheckoutSession(
   }
 }
 
+export async function getStripeCharge(
+  chargeId: string,
+  options?: { mode?: StripeEnvironment },
+) {
+  const secret = getStripeSecret(options?.mode)
+  const response = await fetch(`https://api.stripe.com/v1/charges/${chargeId}`, {
+    headers: {
+      Authorization: `Bearer ${secret}`,
+    },
+  })
+
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Falha ao consultar charge Stripe")
+  }
+
+  return payload as {
+    id: string
+    livemode: boolean
+    refunded: boolean
+    amount: number
+    amount_refunded: number
+    currency: string | null
+    payment_intent: string | null
+  }
+}

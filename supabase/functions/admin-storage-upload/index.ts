@@ -61,8 +61,7 @@ Deno.serve(async (req) => {
     const replacePath = String(formData.get("replacePath") ?? "").trim() || null
     const file = formData.get("file")
 
-    if (!moduleId) throw badRequest("moduleId e obrigatorio")
-    if (kind !== "module_pdf" && kind !== "module_asset") {
+    if (!["module_pdf", "module_asset", "watermark_logo"].includes(kind)) {
       throw badRequest("kind invalido")
     }
     if (!(file instanceof File)) {
@@ -72,24 +71,52 @@ Deno.serve(async (req) => {
       throw badRequest("O ficheiro enviado esta vazio")
     }
 
-    const { data: moduleRow, error: moduleError } = await context.serviceClient
-      .from("product_modules")
-      .select("id,product_id,title")
-      .eq("id", moduleId)
-      .maybeSingle()
-
-    if (moduleError) throw moduleError
-    if (!moduleRow) throw badRequest("Modulo nao encontrado")
-
     await ensureStorageBucket(context.serviceClient)
 
     const safeExtension = getFileExtension(file.name)
     const fileNameBase = sanitizeSegment(file.name.replace(/\.[^.]+$/, "")) || "arquivo"
     const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
-    const objectPath =
-      kind === "module_pdf"
-        ? `products/${moduleRow.product_id}/modules/${moduleId}/module-pdf/${timeStamp}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
-        : `products/${moduleRow.product_id}/modules/${moduleId}/assets/${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
+    let objectPath = ""
+    let auditAction = ""
+    let auditEntityType = ""
+    let auditEntityId = moduleId || context.user.id
+    let auditMetadata: Record<string, unknown> = {
+      bucket: COURSE_STORAGE_BUCKET,
+      file_name: file.name,
+      mime_type: file.type || null,
+      file_size_bytes: file.size,
+    }
+
+    if (kind === "watermark_logo") {
+      objectPath = `site-config/module-pdf-watermark/logo/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
+      auditAction = "admin.watermark_logo_uploaded"
+      auditEntityType = "site_config"
+      auditEntityId = "module_pdf_watermark"
+    } else {
+      if (!moduleId) throw badRequest("moduleId e obrigatorio")
+
+      const { data: moduleRow, error: moduleError } = await context.serviceClient
+        .from("product_modules")
+        .select("id,product_id,title")
+        .eq("id", moduleId)
+        .maybeSingle()
+
+      if (moduleError) throw moduleError
+      if (!moduleRow) throw badRequest("Modulo nao encontrado")
+
+      objectPath =
+        kind === "module_pdf"
+          ? `products/${moduleRow.product_id}/modules/${moduleId}/module-pdf/${timeStamp}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
+          : `products/${moduleRow.product_id}/modules/${moduleId}/assets/${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
+
+      auditAction = kind === "module_pdf" ? "admin.module_pdf_uploaded" : "admin.module_asset_uploaded"
+      auditEntityType = kind === "module_pdf" ? "product_module" : "module_asset_upload"
+      auditMetadata = {
+        ...auditMetadata,
+        module_id: moduleId,
+        product_id: moduleRow.product_id,
+      }
+    }
 
     const arrayBuffer = await file.arrayBuffer()
     const { error: uploadError } = await context.serviceClient.storage
@@ -116,17 +143,12 @@ Deno.serve(async (req) => {
     }
 
     await writeAuditLog(context.serviceClient, context, {
-      action: kind === "module_pdf" ? "admin.module_pdf_uploaded" : "admin.module_asset_uploaded",
-      entityType: kind === "module_pdf" ? "product_module" : "module_asset_upload",
-      entityId: moduleId,
+      action: auditAction,
+      entityType: auditEntityType,
+      entityId: auditEntityId,
       metadata: {
-        module_id: moduleId,
-        product_id: moduleRow.product_id,
-        bucket: COURSE_STORAGE_BUCKET,
+        ...auditMetadata,
         path: objectPath,
-        file_name: file.name,
-        mime_type: file.type || null,
-        file_size_bytes: file.size,
       },
       ...auditMeta,
     })

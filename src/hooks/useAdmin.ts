@@ -21,6 +21,7 @@ import {
   fetchAdminAffiliates,
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
+  fetchAdminModulePdfWatermarkConfig,
   fetchAdminNotifications,
   fetchAdminOperations,
   fetchAdminOrders,
@@ -46,8 +47,10 @@ import {
   replyAdminSupportTicket,
   uploadAdminModuleAssetFile,
   uploadAdminModulePdf,
+  uploadAdminWatermarkLogoFile,
   updateAdminAffiliate,
   updateAdminCoupon,
+  updateAdminModulePdfWatermarkConfig,
   updateAdminProduct,
   updateAdminModuleAsset,
   updateAdminProductAssessment,
@@ -79,6 +82,14 @@ export function useAdminDashboardOverview() {
   return useQuery({
     queryKey: ["admin", "overview"],
     queryFn: fetchAdminDashboardOverview,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminModulePdfWatermarkConfig() {
+  return useQuery({
+    queryKey: ["admin", "module-pdf-watermark"],
+    queryFn: fetchAdminModulePdfWatermarkConfig,
     ...getAdminQueryOptions(),
   })
 }
@@ -294,6 +305,11 @@ export function useUploadAdminModuleAssetFile() {
   return useMutation({ mutationFn: uploadAdminModuleAssetFile, onSuccess: invalidate })
 }
 
+export function useUploadAdminWatermarkLogoFile() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: uploadAdminWatermarkLogoFile, onSuccess: invalidate })
+}
+
 export function useUpdateAdminProductModule() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminProductModule, onSuccess: invalidate })
@@ -404,6 +420,11 @@ export function useCreateAdminCoupon() {
 export function useUpdateAdminCoupon() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminCoupon, onSuccess: invalidate })
+}
+
+export function useUpdateAdminModulePdfWatermarkConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminModulePdfWatermarkConfig, onSuccess: invalidate })
 }
 
 export function useCreateAdminCourseRelease() {

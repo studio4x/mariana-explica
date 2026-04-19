@@ -456,6 +456,28 @@ export async function recordAffiliateReferral(
   return { created: true }
 }
 
+export async function cancelAffiliateReferralForOrder(
+  client: SupabaseClient,
+  params: {
+    orderId: string
+  },
+) {
+  const { data, error } = await client
+    .from("affiliate_referrals")
+    .update({
+      status: "cancelled",
+    })
+    .eq("order_id", params.orderId)
+    .in("status", ["tracked", "converted"])
+    .select("id,affiliate_id,order_id,status")
+
+  if (error) {
+    throw error
+  }
+
+  return data ?? []
+}
+
 export async function updateOrderAfterPayment(
   client: SupabaseClient,
   params: {

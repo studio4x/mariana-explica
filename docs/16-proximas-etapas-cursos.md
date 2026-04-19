@@ -178,7 +178,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 4 — PDF base do modulo e materiais protegidos
 
-- Status: `parcial`
+- Status: `concluida`
 - O que ja existe:
   - campos de PDF base por modulo;
   - gestor de materiais no admin;
@@ -189,8 +189,6 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - os materiais do modulo tambem dependiam de bucket/path digitados manualmente, sem fluxo real de upload privado;
   - o aluno conseguia abrir `module_assets` por signed URL, mas o PDF base do modulo nao aparecia no player nem na central de downloads;
   - havia flag de `watermark_enabled` nos materiais, mas sem tratamento especifico para o PDF base do modulo.
-- O que falta para concluir:
-  - tratamento de watermark visual sobre o binario do PDF base, caso essa exigencia passe a ser obrigatoria no payload entregue ao aluno.
 - Verificacao obrigatoria antes de iniciar:
   - confirmar se o PDF base hoje e apenas metadata ou se ja existe download licenciado real;
   - revisar buckets e regras de storage.
@@ -199,13 +197,16 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 - Entregue nesta rodada:
   - Edge Function `admin-storage-upload` para upload administrativo de PDF base e materiais do modulo em bucket privado;
   - limpeza de ficheiros antigos no `admin-content` ao substituir ou remover PDF base e materiais privados;
-  - Edge Function `generate-module-pdf-access` para emitir URL assinada licenciada por aluno para o PDF base do modulo;
+  - Edge Function `generate-module-pdf-access` atualizada para gerar uma copia derivada do PDF base com watermark visual antes da URL assinada;
   - auditoria de acesso para PDF base do modulo e para `module_assets` servidos por signed URL;
   - builder do modulo atualizado com upload real do PDF base;
   - gestor de materiais atualizado com upload real para assets privados do modulo;
-  - integracao do PDF base do modulo no detalhe do curso, no player da aula, na tela de detalhe do dashboard e na central de downloads.
+  - integracao do PDF base do modulo no detalhe do curso, no player da aula, na tela de detalhe do dashboard e na central de downloads;
+  - configuracao administrativa no painel para definir manualmente o nome do site e o logotipo privado usados no watermark do PDF base.
 - Validacoes executadas:
   - `npm run build`
+  - deploy no Supabase das Edge Functions `admin-storage-upload` e `generate-module-pdf-access`
+  - verificacao remota de `generate-module-pdf-access` com resposta `401` sem autenticacao, confirmando endpoint ativo e protegido
 
 ### Etapa 5 — Limpeza final do legado e padronizacao de linguagem
 
@@ -229,7 +230,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 6 — Varredura final por contratos de aceite
 
-- Status: `parcial`
+- Status: `concluida`
 - Objetivo:
   - confrontar a implementacao com os contratos de aceite da spec e com os docs canonicos.
 - Entregas esperadas:
@@ -240,30 +241,33 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 - Criterio de conclusao:
   - o modulo de cursos fica com status claro de pronto, parcial ou bloqueado por item.
 - Verificacao inicial desta rodada:
-  - as etapas 1, 2, 3 e 5 estao fechadas; a etapa 4 segue conscientemente parcial por falta de watermark visual sobre o binario do PDF base;
+  - as etapas 1, 2, 3 e 5 ja estavam fechadas, e a etapa 4 ficou pronta nesta rodada com watermark visual aplicado sobre a copia derivada do PDF base;
   - o codigo atual ja cobre rotas, builder, player, checkout Stripe, webhook, grants, suporte, notificacoes, cupons, afiliados e pedidos administrativos, entao a varredura passou a ser de aceite e consistencia final;
-  - a leitura do codigo confirmou dois gaps reais para o modulo de cursos ficar plenamente pronto: watermark visual do PDF base ainda nao implementado e revogacao automatica por webhook para refund/chargeback ainda nao fechada no fluxo Stripe.
+  - a rodada foi usada para fechar os dois gaps finais que ainda restavam: watermark visual do PDF base e revogacao automatica por webhook para refund/chargeback.
 - Checklist desta rodada:
   - `admin`: `concluido`
     - criacao, edicao basica, importacao/exportacao, builder, modulos, aulas, avaliacoes, liberacoes, pedidos, suporte, cupons, afiliados e utilizadores existem com backend dedicado e auditoria nas acoes sensiveis principais.
   - `aluno`: `concluido`
     - dashboard, detalhe do curso, player, bloqueios pedagogicos, progresso, anotacoes, downloads protegidos, PDF base do modulo e tentativas oficiais de avaliacao estao operacionais.
-  - `compra`: `parcial`
+  - `compra`: `concluido`
     - checkout Stripe, webhook de confirmacao, claim de curso gratuito, grants e operacao administrativa de pedidos estao entregues;
-    - ainda falta revogacao automatica por webhook para refund/chargeback, hoje coberta apenas por operacao administrativa e reconciliacao manual.
-  - `seguranca`: `parcial`
+    - o webhook Stripe agora revoga grant e cancela referral convertido automaticamente quando recebe refund integral ou chargeback/disputa com retirada de fundos.
+  - `seguranca`: `concluido`
     - auth, admin backend, RLS, signed URL, grants via backend e score oficial de avaliacao estao entregues;
-    - ainda falta o watermark visual sobre o binario do PDF base do modulo, apesar do acesso licenciado e auditavel ja existir.
+    - o PDF base do modulo agora e entregue como copia derivada com watermark visual, mantendo acesso licenciado, auditavel e sem expor o binario original ao aluno.
 - Ajustes e consolidacoes desta rodada:
   - correcao do texto residual no player de avaliacao para refletir que a tentativa oficial ja e decidida pelo backend;
-  - correcao documental da Edge Function de upload da etapa 4 para `admin-storage-upload`, alinhando documento e codigo real.
+  - correcao documental da Edge Function de upload da etapa 4 para `admin-storage-upload`, alinhando documento e codigo real;
+  - configuracao operacional no admin para definir manualmente o nome do site e o logotipo do watermark;
+  - endurecimento do webhook Stripe para tratar `charge.refunded`, `charge.dispute.created` e `charge.dispute.funds_withdrawn` com revogacao automatica de acesso.
 - Lista curta de ajustes finais restantes:
-  - implementar watermark visual no PDF base do modulo antes da entrega final como `concluida`;
-  - automatizar no webhook Stripe a revogacao de acesso para refund/chargeback, sem depender de acao manual no admin.
+  - sem pendencias abertas no modulo de cursos dentro do escopo desta etapa.
 - Validacoes executadas:
   - leitura comparativa entre docs canonicos e implementacao atual de admin, aluno, compra e seguranca;
   - busca no codigo pelos fluxos criticos de checkout, webhook, grants, suporte, pedidos e player;
   - `npm run build`
+  - deploy no Supabase das Edge Functions `payment-webhook`, `admin-storage-upload` e `generate-module-pdf-access`
+  - verificacao remota de `generate-module-pdf-access` e `payment-webhook` com resposta `401` sem autenticacao, confirmando endpoints ativos e protegidos
 
 ## 6. Ordem recomendada a partir de agora
 

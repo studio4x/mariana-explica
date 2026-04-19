@@ -78,6 +78,18 @@ export interface AdminStorageUploadResult {
   uploaded_at: string
 }
 
+export interface AdminModulePdfWatermarkConfig {
+  config_key: string
+  config_value: {
+    site_name: string
+    logo_bucket: string | null
+    logo_path: string | null
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface ProductLessonSummary {
   id: string
   module_id: string
