@@ -1,6 +1,7 @@
 export * from "./audit.ts"
 export * from "./auth.ts"
 export * from "./commerce.ts"
+export * from "./cron.ts"
 export * from "./email.ts"
 export * from "./errors.ts"
 export * from "./http.ts"
