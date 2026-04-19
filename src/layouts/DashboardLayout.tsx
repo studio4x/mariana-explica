@@ -103,7 +103,7 @@ export function DashboardLayout() {
             <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Foco do dashboard</p>
               <p className="mt-3 text-sm leading-7 text-slate-700">
-                Menos distracao, mais continuidade. Os teus cursos, downloads e suporte ficam juntos para facilitar o estudo.
+                Menos distracao, mais continuidade. Os teus cursos, downloads e suporte ficam juntos para facilitar a rotina de estudo.
               </p>
             </div>
           </aside>

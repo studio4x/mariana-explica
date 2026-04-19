@@ -101,7 +101,7 @@ export function getProductFamilyLabel(product: ProductLike) {
     case "free":
       return "Material gratuito"
     default:
-      return product.product_type === "free" ? "Material gratuito" : "Produto digital"
+      return product.product_type === "free" ? "Curso gratuito" : "Curso digital"
   }
 }
 
@@ -122,13 +122,13 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         valueLine: "Uma opcao pensada para quem quer ganhar clareza e contexto logo desde o inicio.",
         audience: "Alunos que preferem uma solucao mais completa, com menos trocas entre materiais soltos.",
         receiveItems: [
-          "Materiais reunidos no mesmo produto para facilitar a consulta.",
+          "Materiais reunidos no mesmo curso para facilitar a consulta.",
           "Estrutura organizada por modulos e acessos no painel do aluno.",
           "Acesso simples para retomar o estudo sempre que precisares.",
         ],
         accessSteps: [
           "Abres o checkout, confirmas o pack e concluis a ativacao.",
-          "Depois da confirmacao, o produto aparece na tua area do aluno.",
+          "Depois da confirmacao, o curso aparece na tua area do aluno.",
           "Os modulos e materiais ficam organizados para continuares sem perder contexto.",
         ],
         faqs: [
@@ -157,17 +157,17 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         audience: "Alunos que querem compreender melhor a materia e estudar com menos ruido.",
         receiveItems: [
           "Conteudo organizado para leitura mais direta.",
-          "Apoio complementar associado ao produto, quando publicado.",
+          "Apoio complementar associado ao curso, quando publicado.",
           "Consulta simples na area do aluno, em qualquer momento.",
         ],
         accessSteps: [
-          "Confirmas o produto e segues para uma compra curta e objetiva.",
+          "Confirmas o curso e segues para uma compra curta e objetiva.",
           "Depois da confirmacao, o acesso fica ligado a tua conta.",
           "O material passa a estar disponivel no dashboard para continuares o estudo.",
         ],
         faqs: [
           {
-            question: "Este produto e indicado para revisao?",
+            question: "Este curso e indicado para revisao?",
             answer: "Sim. A estrutura foi pensada para tornar a consulta e a revisao mais praticas.",
           },
           {
@@ -184,18 +184,18 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         familyLabel: "Sebenta de Portugues",
         eyebrow: "Estudo mais orientado",
         benefit: "Ajuda a organizar os temas de Portugues com foco em leitura, interpretacao e revisao.",
-        cardSummary: "Produto pensado para transformar materia dispersa em estudo mais direto e facil de consultar.",
+        cardSummary: "Curso pensado para transformar materia dispersa em estudo mais direto e facil de consultar.",
         formatLabel: "Material digital de apoio para revisao e consulta",
         accessLabel: "Acesso organizado na conta para abrir os teus materiais num so lugar",
         valueLine: "Uma base clara para estudar com mais confianca e menos dispersao.",
         audience: "Alunos que querem rever conteudos de Portugues com uma estrutura mais limpa.",
         receiveItems: [
-          "Materiais de apoio reunidos num unico produto.",
+          "Materiais de apoio reunidos num unico curso.",
           "Consulta simples dentro da area do aluno.",
           "Organizacao por modulos e ficheiros sempre que aplicavel.",
         ],
         accessSteps: [
-          "Escolhes o produto e concluis a compra com um fluxo direto.",
+          "Escolhes o curso e concluis a compra com um fluxo direto.",
           "Apos confirmacao, o acesso fica ativo na tua conta.",
           "Abres os materiais no dashboard e retomas o estudo ao teu ritmo.",
         ],
@@ -206,7 +206,7 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
           },
           {
             question: "O acesso fica centralizado na minha conta?",
-            answer: "Sim. O produto aparece no dashboard com os respetivos modulos e materiais.",
+            answer: "Sim. O curso aparece no dashboard com os respetivos modulos e materiais.",
           },
         ],
         ctaLabel: "Comprar este material",
@@ -219,23 +219,23 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         eyebrow: "Entrada simples na plataforma",
         benefit: "Entrega uma base de apoio clara para comecar a estudar sem friccao.",
         cardSummary: "Boa porta de entrada para conhecer a plataforma e consultar material util desde logo.",
-        formatLabel: "Material de apoio digital com regras de acesso definidas por produto",
+        formatLabel: "Material de apoio digital com regras de acesso definidas por curso",
         accessLabel: "Ativacao simples na conta e consulta dentro da area do aluno",
         valueLine: "Ideal para quem quer comecar com um material acessivel e organizado.",
         audience: "Alunos que querem um ponto de partida simples, com consulta clara e rapida.",
         receiveItems: [
           "Material centralizado na tua conta para nao dependeres de ficheiros soltos.",
           "Experiencia de consulta simples na plataforma.",
-          "Regras de visualizacao e download definidas pelo produto associado.",
+          "Regras de visualizacao e download definidas pelo curso associado.",
         ],
         accessSteps: [
-          "Ativas o produto e ele passa a aparecer no teu painel.",
+          "Ativas o curso e ele passa a aparecer no teu painel.",
           "Consultas o material dentro da plataforma, com o acesso associado a tua conta.",
-          "Quando existirem regras adicionais de download, elas ficam refletidas no proprio produto.",
+          "Quando existirem regras adicionais de download, elas ficam refletidas no proprio curso.",
         ],
         faqs: [
           {
-            question: "Este produto exige compra paga?",
+            question: "Este curso exige compra paga?",
             answer: "Se estiver marcado como gratuito, a ativacao e simples e o acesso fica ligado a tua conta.",
           },
           {
@@ -243,7 +243,7 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
             answer: "Sim. O objetivo e concentrar o acesso no dashboard com regras claras por material.",
           },
         ],
-        ctaLabel: product.product_type === "free" ? "Ativar acesso gratuito" : "Abrir produto",
+        ctaLabel: product.product_type === "free" ? "Ativar acesso gratuito" : "Abrir curso",
         sidebarNote: "Uma forma simples de experimentar a plataforma com conteudo ja organizado.",
       }
     case "organizacao":
@@ -263,13 +263,13 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
           "Acesso concentrado num unico lugar, sem depender de envios manuais.",
         ],
         accessSteps: [
-          "Ativas o produto e ele fica disponivel na tua conta.",
+          "Ativas o curso e ele fica disponivel na tua conta.",
           "Abres os materiais no dashboard e consultas o que precisas.",
-          "Quando o produto permitir download, essa informacao aparece no proprio material.",
+          "Quando o curso permitir download, essa informacao aparece no proprio material.",
         ],
         faqs: [
           {
-            question: "Este produto serve para organizar o estudo?",
+            question: "Este curso serve para organizar o estudo?",
             answer: "Sim. Foi pensado para ajudar a dar mais clareza a rotina e aos proximos passos.",
           },
           {
@@ -277,7 +277,7 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
             answer: "Nao necessariamente. O objetivo e centralizar o acesso ao material na plataforma.",
           },
         ],
-        ctaLabel: product.product_type === "free" ? "Ativar acesso gratuito" : "Abrir produto",
+        ctaLabel: product.product_type === "free" ? "Ativar acesso gratuito" : "Abrir curso",
         sidebarNote: "Boa escolha para quem quer estudar com mais metodo e menos improviso.",
       }
     case "service":
@@ -303,7 +303,7 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         ],
         faqs: [
           {
-            question: "Este servico funciona como um produto digital comum?",
+            question: "Este servico funciona como um curso digital comum?",
             answer: "Nao exatamente. O objetivo e orientar o pedido e o seguimento de forma mais controlada.",
           },
           {
@@ -323,17 +323,17 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         cardSummary: "Material gratuito para quem quer comecar a estudar com uma experiencia organizada.",
         formatLabel: "Conteudo digital com ativacao simples",
         accessLabel: "Acesso associado a conta para continuares depois sem perder contexto",
-        valueLine: "Ideal para conhecer a plataforma com um primeiro produto claro e util.",
+        valueLine: "Ideal para conhecer a plataforma com um primeiro curso claro e util.",
         audience: "Alunos que querem experimentar a plataforma antes de avancar para outros materiais.",
         receiveItems: [
           "Acesso centralizado ao material na tua conta.",
-          "Consulta organizada e experiencia igual aos restantes produtos.",
+          "Consulta organizada e experiencia igual aos restantes cursos.",
           "Mais clareza sobre como a plataforma funciona desde o primeiro acesso.",
         ],
         accessSteps: [
-          "Ativas o produto com um fluxo simples e curto.",
+          "Ativas o curso com um fluxo simples e curto.",
           "O acesso fica ligado a tua conta para poderes voltar quando quiseres.",
-          "Se houver regras adicionais de download, elas aparecem de forma clara no proprio produto.",
+          "Se houver regras adicionais de download, elas aparecem de forma clara no proprio curso.",
         ],
         faqs: [
           {
@@ -351,15 +351,15 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
     default:
       return {
         typeLabel,
-        familyLabel: product.product_type === "free" ? "Material gratuito" : "Produto digital",
+        familyLabel: product.product_type === "free" ? "Curso gratuito" : "Curso digital",
         eyebrow: "Conteudo organizado",
         benefit: "Pensado para tornar o estudo mais claro, com acesso simples e menos dispersao.",
         cardSummary:
           product.short_description ??
           product.description ??
-          "Produto digital pronto para ser consultado com uma experiencia organizada.",
+          "Curso digital pronto para ser consultado com uma experiencia organizada.",
         formatLabel: "Material digital estruturado para consulta simples",
-        accessLabel: "Acesso centralizado na tua conta com organizacao por produto e modulos",
+        accessLabel: "Acesso centralizado na tua conta com organizacao por curso e modulos",
         valueLine: "Uma forma mais clara de comprar, aceder e retomar o estudo.",
         audience: "Alunos que valorizam materiais organizados e acesso previsivel.",
         receiveItems: [
@@ -368,13 +368,13 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
           "Estrutura organizada por modulos e materiais quando aplicavel.",
         ],
         accessSteps: [
-          "Escolhes o produto e confirmas se faz sentido para o teu momento.",
+          "Escolhes o curso e confirmas se faz sentido para o teu momento.",
           "Segues para o passo de ativacao ou compra com um fluxo curto.",
           "Depois da confirmacao, o acesso fica associado a tua conta.",
         ],
         faqs: [
           {
-            question: "Como acedo ao produto depois da ativacao?",
+            question: "Como acedo ao curso depois da ativacao?",
             answer: "O acesso fica ligado a tua conta e aparece no dashboard com os respetivos materiais.",
           },
           {
@@ -436,4 +436,3 @@ export function getAssetActionLabel(asset: ModuleAssetSummary) {
       return "Abrir material"
   }
 }
-

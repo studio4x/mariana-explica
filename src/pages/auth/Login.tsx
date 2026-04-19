@@ -88,7 +88,7 @@ export function Login() {
           Continua o teu acesso na {APP_NAME}
         </h1>
         <p className="text-sm leading-7 text-muted-foreground">
-          Entra para abrir os teus produtos, downloads e notificacoes sem perder o contexto do estudo.
+          Entra para abrir os teus cursos, downloads e notificacoes sem perder o contexto do estudo.
         </p>
       </div>
 

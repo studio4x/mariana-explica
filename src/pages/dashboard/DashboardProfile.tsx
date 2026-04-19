@@ -105,7 +105,7 @@ export function DashboardProfile() {
                 checked={formState.marketingConsent}
                 onChange={(event) => updateDraft({ marketingConsent: event.target.checked })}
               />
-              Aceitar comunicacoes sobre novos produtos e atualizacoes
+              Aceitar comunicacoes sobre novos cursos e atualizacoes
             </label>
           </div>
           <Button type="submit" className="mt-6 rounded-full" disabled={updateProfile.isPending}>

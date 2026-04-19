@@ -81,7 +81,7 @@ export function Register() {
             Abre a tua conta na {APP_NAME}
           </h1>
           <p className="text-sm leading-7 text-muted-foreground">
-            Cria a tua conta para comprar, receber acesso aos produtos e acompanhar tudo num unico lugar.
+            Cria a tua conta para comprar, receber acesso aos cursos e acompanhar tudo num unico lugar.
           </p>
         </div>
 

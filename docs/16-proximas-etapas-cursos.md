@@ -209,19 +209,23 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 5 — Limpeza final do legado e padronizacao de linguagem
 
-- Status: `parcial`
+- Status: `concluida`
 - O que ja existe:
   - rotas publicas, do aluno e do admin principais ja usam `cursos`;
   - o admin visivel foi ajustado para `cursos`.
-- O que falta para concluir:
-  - revisar telas residuais, textos, labels e mensagens ainda expostas com `produto`;
-  - identificar o que deve continuar como nome tecnico interno por compatibilidade;
-  - documentar explicitamente a decisao entre linguagem de dominio `curso` e nomes tecnicos legados no banco.
-- Verificacao obrigatoria antes de iniciar:
-  - rodar busca por `produto`, `produtos`, `product` em textos de UI;
-  - separar linguagem visivel de nomes internos de schema.
+- Verificacao inicial desta rodada:
+  - a busca por `produto`, `produtos` e `product` confirmou que o legado visivel restante estava concentrado em textos de autenticacao, perfil e principalmente nas narrativas publicas de apresentacao do curso;
+  - a busca tambem confirmou que `Product*`, `product_id`, services e nomes de schema continuam amplamente usados como nomes tecnicos internos e nao devem ser renomeados nesta etapa para evitar quebra de compatibilidade;
+  - a navegacao principal do dashboard e do admin ja estava padronizada em `cursos`, entao o ajuste restante era de linguagem exposta e de documentacao da decisao.
 - Criterio de conclusao:
   - a linguagem visivel ao usuario e ao admin fica consistente com `curso(s)`.
+- Entregue nesta rodada:
+  - textos residuais de login, registo e preferencias do aluno ajustados de `produto(s)` para `curso(s)`;
+  - narrativa publica de catalogo e detalhe padronizada para `curso`, `curso digital`, `curso gratuito` e `abrir curso` nos pontos expostos ao utilizador;
+  - decisao de dominio explicitada: `curso` fica como linguagem oficial de interface; `product`, `products`, `product_id` e tipos `Product*` permanecem apenas como legado tecnico interno em codigo, banco e contratos.
+- Validacoes executadas:
+  - busca por `produto`, `produtos`, `product` nas camadas visiveis de UI antes e depois da limpeza;
+  - `npm run build`
 
 ### Etapa 6 — Varredura final por contratos de aceite
 
