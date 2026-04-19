@@ -241,10 +241,10 @@ export function StudentAssessmentExecutionPage() {
             <p className="font-semibold text-slate-950">Execucao da avaliacao</p>
           </div>
           <p className="mt-3 text-sm leading-7 text-slate-700">
-            Esta tela agora consome o `builder_payload` para renderizar as perguntas no player. A submissao oficial continua dependente do backend para preservar tentativas, score e validacao segura.
+            Esta tela consome o `builder_payload` para renderizar as perguntas no player e usa tentativa oficial no backend para preservar tentativas, score e validacao segura.
           </p>
           <p className="mt-3 text-sm leading-7 text-slate-700">
-            O resultado local abaixo funciona como apoio visual do player, enquanto a tentativa oficial segue a ser persistida, validada e decidida pelo backend.
+            O resultado local abaixo funciona apenas como apoio visual do player. A tentativa oficial continua a ser persistida, validada e decidida pelo backend.
           </p>
         </div>
       </section>

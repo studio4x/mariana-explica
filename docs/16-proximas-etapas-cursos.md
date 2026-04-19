@@ -197,7 +197,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 - Criterio de conclusao:
   - materiais privados usam fluxo seguro e o PDF base gera acesso licenciado por aluno.
 - Entregue nesta rodada:
-  - Edge Function `admin-course-storage` para upload administrativo de PDF base e materiais do modulo em bucket privado;
+  - Edge Function `admin-storage-upload` para upload administrativo de PDF base e materiais do modulo em bucket privado;
   - limpeza de ficheiros antigos no `admin-content` ao substituir ou remover PDF base e materiais privados;
   - Edge Function `generate-module-pdf-access` para emitir URL assinada licenciada por aluno para o PDF base do modulo;
   - auditoria de acesso para PDF base do modulo e para `module_assets` servidos por signed URL;
@@ -229,7 +229,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 6 — Varredura final por contratos de aceite
 
-- Status: `pendente`
+- Status: `parcial`
 - Objetivo:
   - confrontar a implementacao com os contratos de aceite da spec e com os docs canonicos.
 - Entregas esperadas:
@@ -237,10 +237,33 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - registro do que esta concluido, parcial ou bloqueado;
   - lista curta de ajustes finais restantes;
   - nova rodada de validacao e deploy.
-- Verificacao obrigatoria antes de iniciar:
-  - confirmar que as etapas 1 a 5 foram fechadas ou conscientemente adiadas.
 - Criterio de conclusao:
   - o modulo de cursos fica com status claro de pronto, parcial ou bloqueado por item.
+- Verificacao inicial desta rodada:
+  - as etapas 1, 2, 3 e 5 estao fechadas; a etapa 4 segue conscientemente parcial por falta de watermark visual sobre o binario do PDF base;
+  - o codigo atual ja cobre rotas, builder, player, checkout Stripe, webhook, grants, suporte, notificacoes, cupons, afiliados e pedidos administrativos, entao a varredura passou a ser de aceite e consistencia final;
+  - a leitura do codigo confirmou dois gaps reais para o modulo de cursos ficar plenamente pronto: watermark visual do PDF base ainda nao implementado e revogacao automatica por webhook para refund/chargeback ainda nao fechada no fluxo Stripe.
+- Checklist desta rodada:
+  - `admin`: `concluido`
+    - criacao, edicao basica, importacao/exportacao, builder, modulos, aulas, avaliacoes, liberacoes, pedidos, suporte, cupons, afiliados e utilizadores existem com backend dedicado e auditoria nas acoes sensiveis principais.
+  - `aluno`: `concluido`
+    - dashboard, detalhe do curso, player, bloqueios pedagogicos, progresso, anotacoes, downloads protegidos, PDF base do modulo e tentativas oficiais de avaliacao estao operacionais.
+  - `compra`: `parcial`
+    - checkout Stripe, webhook de confirmacao, claim de curso gratuito, grants e operacao administrativa de pedidos estao entregues;
+    - ainda falta revogacao automatica por webhook para refund/chargeback, hoje coberta apenas por operacao administrativa e reconciliacao manual.
+  - `seguranca`: `parcial`
+    - auth, admin backend, RLS, signed URL, grants via backend e score oficial de avaliacao estao entregues;
+    - ainda falta o watermark visual sobre o binario do PDF base do modulo, apesar do acesso licenciado e auditavel ja existir.
+- Ajustes e consolidacoes desta rodada:
+  - correcao do texto residual no player de avaliacao para refletir que a tentativa oficial ja e decidida pelo backend;
+  - correcao documental da Edge Function de upload da etapa 4 para `admin-storage-upload`, alinhando documento e codigo real.
+- Lista curta de ajustes finais restantes:
+  - implementar watermark visual no PDF base do modulo antes da entrega final como `concluida`;
+  - automatizar no webhook Stripe a revogacao de acesso para refund/chargeback, sem depender de acao manual no admin.
+- Validacoes executadas:
+  - leitura comparativa entre docs canonicos e implementacao atual de admin, aluno, compra e seguranca;
+  - busca no codigo pelos fluxos criticos de checkout, webhook, grants, suporte, pedidos e player;
+  - `npm run build`
 
 ## 6. Ordem recomendada a partir de agora
 
