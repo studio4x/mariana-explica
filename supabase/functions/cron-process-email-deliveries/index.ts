@@ -1,7 +1,14 @@
 import { badRequest } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
-import { createServiceClient, finishJobRun, requireCronSecret, startJobRun } from "../_shared/mod.ts"
+import {
+  createServiceClient,
+  fetchEmailOperationalConfig,
+  finishJobRun,
+  requireCronSecret,
+  sendTransactionalEmail,
+  startJobRun,
+} from "../_shared/mod.ts"
 
 interface CronProcessEmailDeliveriesInput {
   batchSize?: number
@@ -78,6 +85,7 @@ Deno.serve(async (req) => {
       throw queuedError
     }
 
+    const emailConfig = await fetchEmailOperationalConfig(serviceClient)
     const processedIds: string[] = []
     const failedIds: string[] = []
 
@@ -112,27 +120,64 @@ Deno.serve(async (req) => {
         continue
       }
 
-      const { error: markSentError } = await serviceClient
-        .from("email_deliveries")
-        .update({
-          status: "sent",
-          provider: delivery.provider ?? "internal-cron",
-          provider_message_id: delivery.provider_message_id ?? crypto.randomUUID(),
-          error_message: null,
-          sent_at: new Date().toISOString(),
+      try {
+        const providerResult = await sendTransactionalEmail(emailConfig, {
+          emailTo: delivery.email_to,
+          subject: delivery.subject ?? "",
+          html: delivery.html_content,
+          text: delivery.text_content,
           metadata: {
-            ...currentMetadata,
-            process_attempts: previousAttempts + 1,
-            last_processed_at: new Date().toISOString(),
+            delivery_id: delivery.id,
+            template_key: delivery.template_key,
+            user_id: delivery.user_id,
+            notification_id: delivery.notification_id,
+            ...(currentMetadata ?? {}),
           },
         })
-        .eq("id", delivery.id)
 
-      if (markSentError) {
-        throw markSentError
+        const { error: markSentError } = await serviceClient
+          .from("email_deliveries")
+          .update({
+            status: "sent",
+            provider: providerResult.provider,
+            provider_message_id: providerResult.providerMessageId,
+            error_message: null,
+            sent_at: new Date().toISOString(),
+            metadata: {
+              ...currentMetadata,
+              process_attempts: previousAttempts + 1,
+              last_processed_at: new Date().toISOString(),
+              last_provider: providerResult.provider,
+            },
+          })
+          .eq("id", delivery.id)
+
+        if (markSentError) {
+          throw markSentError
+        }
+
+        processedIds.push(delivery.id)
+      } catch (deliveryError) {
+        const { error: markFailedError } = await serviceClient
+          .from("email_deliveries")
+          .update({
+            status: "failed",
+            error_message: deliveryError instanceof Error ? deliveryError.message : String(deliveryError),
+            metadata: {
+              ...currentMetadata,
+              process_attempts: previousAttempts + 1,
+              last_failed_at: new Date().toISOString(),
+              last_failed_source: "cron_process_email_deliveries",
+            },
+          })
+          .eq("id", delivery.id)
+
+        if (markFailedError) {
+          throw markFailedError
+        }
+
+        failedIds.push(delivery.id)
       }
-
-      processedIds.push(delivery.id)
     }
 
     const result = {

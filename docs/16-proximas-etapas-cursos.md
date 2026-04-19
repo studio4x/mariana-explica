@@ -346,6 +346,56 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - deploy frontend na Vercel para publicar a nova rota `/admin/configuracoes`
   - verificacao remota de `cron-audit-access-consistency` por resposta `401 Cron secret invalido`, confirmando endpoint ativo e protegido
 
+### Etapa 10 — Limpeza agendada de links expirados
+
+- Status: `concluida`
+- Base adicional desta etapa:
+  - `docs/05-backend-edge-functions.md`
+  - `docs/10-autenticacao-seguranca.md`
+  - `docs/12-automacoes.md`
+  - `docs/14-deploy.md`
+- Verificacao inicial desta rodada:
+  - os links assinados do storage expiram sozinhos, mas os PDFs derivados com watermark ficavam persistidos em `course-assets-private/derived-watermarks/module-pdfs`;
+  - esse material derivado e temporario e regeneravel, entao e o alvo seguro para housekeeping sem tocar no PDF base nem no historico comercial;
+  - ainda nao existia um cron dedicado para essa limpeza auditavel.
+- Criterio de conclusao:
+  - existe um cron interno que remove apenas PDFs derivados expirados, sem afetar grants, pedidos nem binarios base.
+- Entregue nesta rodada:
+  - nova Edge Function `cron-clean-expired-links`;
+  - varredura segura da arvore `derived-watermarks/module-pdfs` no bucket privado;
+  - limpeza por janela configuravel de retencao, com `job_runs`, `dry_run` opcional e retorno auditavel dos paths removidos.
+- Validacoes executadas:
+  - `npm run build`
+- Deploys executados:
+  - deploy da Edge Function `cron-clean-expired-links` no projeto Supabase `gookhgufsxeplelpdaua`
+  - verificacao remota de `cron-clean-expired-links` por resposta `401 Cron secret invalido`, confirmando endpoint ativo e protegido
+
+### Etapa 11 — Integracao real de envio de e-mails transacionais
+
+- Status: `parcial`
+- Base adicional desta etapa:
+  - `docs/05-backend-edge-functions.md`
+  - `docs/11-integracoes.md`
+  - `docs/12-automacoes.md`
+  - `docs/14-deploy.md`
+- Verificacao inicial desta rodada:
+  - o cron `cron-process-email-deliveries` ainda apenas marcava a fila como `sent`, sem chamar um provedor externo real;
+  - a nova pagina `/admin/configuracoes` ja permitia registar dados operacionais nao sensiveis do remetente e do provedor, mas os segredos de API continuam fora da UI;
+  - no projeto remoto ainda nao havia segredo de provedor de email configurado.
+- Criterio de conclusao:
+  - o processamento da fila usa um provedor transacional real no backend, com falha explicita e retry seguro quando faltar configuracao ou houver erro externo.
+- Entregue nesta rodada:
+  - `_shared/email.ts` expandido para ler configuracao operacional de email em `site_config`;
+  - suporte backend a provedores `Resend`, `Postmark` e `SendGrid`, sempre via Edge Function e sem segredo no frontend;
+  - `cron-process-email-deliveries` atualizado para enviar de facto ao provedor, gravando `provider`, `provider_message_id`, falha tecnica e metadata operacional por tentativa.
+- Validacoes executadas:
+  - `npm run build`
+- Deploys executados:
+  - deploy da Edge Function `cron-process-email-deliveries` no projeto Supabase `gookhgufsxeplelpdaua`
+  - verificacao remota de `cron-process-email-deliveries` por resposta `401 Cron secret invalido`, confirmando endpoint ativo e protegido
+- O que falta para concluir:
+  - configurar no Supabase o segredo real do provedor (`RESEND_API_KEY`, `POSTMARK_SERVER_TOKEN` ou `SENDGRID_API_KEY`) e definir remetente valido para envio em producao.
+
 ## 6. Ordem recomendada a partir de agora
 
 1. Etapa 1 — Avaliacoes oficiais do aluno
@@ -357,6 +407,8 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 7. Etapa 7 — Automacoes operacionais agendadas
 8. Etapa 8 — Configuracoes pendentes no admin
 9. Etapa 9 — Auditoria agendada de consistencia de acesso
+10. Etapa 10 — Limpeza agendada de links expirados
+11. Etapa 11 — Integracao real de envio de e-mails transacionais
 
 ## 7. Regra de manutencao deste documento
 

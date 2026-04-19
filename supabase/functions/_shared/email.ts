@@ -25,6 +25,33 @@ interface EmailQueueInput {
   metadata?: Record<string, unknown>
 }
 
+interface EmailOperationalConfig {
+  providerName: string
+  senderName: string | null
+  senderAddress: string | null
+  replyTo: string | null
+}
+
+interface EmailProviderRuntimeConfig extends EmailOperationalConfig {
+  providerKey: "resend" | "postmark" | "sendgrid"
+  apiKey: string
+}
+
+interface SendTransactionalEmailInput {
+  emailTo: string
+  subject: string
+  html: string | null
+  text: string | null
+  metadata?: Record<string, unknown>
+}
+
+interface SendTransactionalEmailResult {
+  provider: string
+  providerMessageId: string
+}
+
+const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
+
 interface EmailLayoutInput {
   eyebrow: string
   title: string
@@ -56,6 +83,217 @@ function normalizeUrl(url?: string | null) {
 
   const baseUrl = getAppBaseUrl().replace(/\/$/, "")
   return `${baseUrl}${url.startsWith("/") ? url : `/${url}`}`
+}
+
+function normalizeProviderName(value?: string | null) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+}
+
+function normalizeEmailOperationalConfig(value: unknown): EmailOperationalConfig {
+  const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
+  const normalizeText = (key: string) => String(input[key] ?? "").trim() || null
+
+  return {
+    providerName: normalizeProviderName(input.email_provider_name as string | undefined),
+    senderName: normalizeText("email_sender_name"),
+    senderAddress: normalizeText("email_sender_address"),
+    replyTo: normalizeText("email_reply_to"),
+  }
+}
+
+function resolveProviderRuntimeConfig(config: EmailOperationalConfig): EmailProviderRuntimeConfig {
+  const configuredProvider = normalizeProviderName(
+    Deno.env.get("EMAIL_PROVIDER") ||
+      Deno.env.get("EMAIL_PROVIDER_NAME") ||
+      config.providerName ||
+      Deno.env.get("RESEND_API_KEY") && "resend" ||
+      Deno.env.get("POSTMARK_SERVER_TOKEN") && "postmark" ||
+      Deno.env.get("SENDGRID_API_KEY") && "sendgrid" ||
+      "",
+  )
+
+  const senderAddress =
+    Deno.env.get("EMAIL_FROM_EMAIL")?.trim() ||
+    Deno.env.get("EMAIL_FROM_ADDRESS")?.trim() ||
+    config.senderAddress
+  const senderName = Deno.env.get("EMAIL_FROM_NAME")?.trim() || config.senderName
+  const replyTo = Deno.env.get("EMAIL_REPLY_TO")?.trim() || config.replyTo
+
+  if (!configuredProvider) {
+    throw new Error("EMAIL_PROVIDER nao configurado para envio transacional")
+  }
+
+  const providerKey = configuredProvider.includes("postmark")
+    ? "postmark"
+    : configuredProvider.includes("sendgrid")
+      ? "sendgrid"
+      : configuredProvider.includes("resend")
+        ? "resend"
+        : null
+
+  if (!providerKey) {
+    throw new Error(`Provedor de email nao suportado: ${configuredProvider}`)
+  }
+
+  const apiKey =
+    providerKey === "resend"
+      ? Deno.env.get("EMAIL_PROVIDER_API_KEY")?.trim() || Deno.env.get("RESEND_API_KEY")?.trim()
+      : providerKey === "postmark"
+        ? Deno.env.get("EMAIL_PROVIDER_API_KEY")?.trim() || Deno.env.get("POSTMARK_SERVER_TOKEN")?.trim()
+        : Deno.env.get("EMAIL_PROVIDER_API_KEY")?.trim() || Deno.env.get("SENDGRID_API_KEY")?.trim()
+
+  if (!apiKey) {
+    throw new Error(`${providerKey.toUpperCase()} API key nao configurada`)
+  }
+
+  if (!senderAddress) {
+    throw new Error("EMAIL_FROM_EMAIL nao configurado para envio transacional")
+  }
+
+  return {
+    providerKey,
+    providerName: configuredProvider,
+    apiKey,
+    senderName,
+    senderAddress,
+    replyTo,
+  }
+}
+
+function formatSenderAddress(config: EmailProviderRuntimeConfig) {
+  return config.senderName ? `${config.senderName} <${config.senderAddress}>` : config.senderAddress
+}
+
+async function sendWithResend(
+  config: EmailProviderRuntimeConfig,
+  input: SendTransactionalEmailInput,
+): Promise<SendTransactionalEmailResult> {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: formatSenderAddress(config),
+      to: [input.emailTo],
+      subject: input.subject,
+      html: input.html ?? undefined,
+      text: input.text ?? undefined,
+      reply_to: config.replyTo ?? undefined,
+      tags: Object.entries(input.metadata ?? {})
+        .filter(([, value]) => value !== null && value !== undefined)
+        .slice(0, 10)
+        .map(([name, value]) => ({ name, value: String(value) })),
+    }),
+  })
+
+  const data = await response.json().catch(() => null) as { id?: string; message?: string } | null
+  if (!response.ok || !data?.id) {
+    throw new Error(data?.message?.trim() || `Resend retornou ${response.status}`)
+  }
+
+  return {
+    provider: "resend",
+    providerMessageId: data.id,
+  }
+}
+
+async function sendWithPostmark(
+  config: EmailProviderRuntimeConfig,
+  input: SendTransactionalEmailInput,
+): Promise<SendTransactionalEmailResult> {
+  const response = await fetch("https://api.postmarkapp.com/email", {
+    method: "POST",
+    headers: {
+      "X-Postmark-Server-Token": config.apiKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      From: formatSenderAddress(config),
+      To: input.emailTo,
+      Subject: input.subject,
+      HtmlBody: input.html ?? undefined,
+      TextBody: input.text ?? undefined,
+      ReplyTo: config.replyTo ?? undefined,
+      Metadata: Object.fromEntries(
+        Object.entries(input.metadata ?? {})
+          .filter(([, value]) => value !== null && value !== undefined)
+          .slice(0, 16)
+          .map(([key, value]) => [key, String(value)]),
+      ),
+    }),
+  })
+
+  const data = await response.json().catch(() => null) as {
+    MessageID?: string
+    Message?: string
+    ErrorCode?: number
+  } | null
+
+  if (!response.ok || !data || data.ErrorCode) {
+    throw new Error(data?.Message?.trim() || `Postmark retornou ${response.status}`)
+  }
+
+  return {
+    provider: "postmark",
+    providerMessageId: data.MessageID ?? crypto.randomUUID(),
+  }
+}
+
+async function sendWithSendgrid(
+  config: EmailProviderRuntimeConfig,
+  input: SendTransactionalEmailInput,
+): Promise<SendTransactionalEmailResult> {
+  const content = []
+  if (input.text?.trim()) {
+    content.push({ type: "text/plain", value: input.text })
+  }
+  if (input.html?.trim()) {
+    content.push({ type: "text/html", value: input.html })
+  }
+
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      personalizations: [
+        {
+          to: [{ email: input.emailTo }],
+          custom_args: Object.fromEntries(
+            Object.entries(input.metadata ?? {})
+              .filter(([, value]) => value !== null && value !== undefined)
+              .slice(0, 16)
+              .map(([key, value]) => [key, String(value)]),
+          ),
+        },
+      ],
+      from: {
+        email: config.senderAddress,
+        name: config.senderName ?? undefined,
+      },
+      reply_to: config.replyTo ? { email: config.replyTo } : undefined,
+      subject: input.subject,
+      content,
+    }),
+  })
+
+  const errorText = await response.text().catch(() => "")
+  if (!response.ok) {
+    throw new Error(errorText.trim() || `SendGrid retornou ${response.status}`)
+  }
+
+  return {
+    provider: "sendgrid",
+    providerMessageId: response.headers.get("x-message-id")?.trim() || crypto.randomUUID(),
+  }
 }
 
 function renderEmailLayout(input: EmailLayoutInput): EmailContent {
@@ -255,6 +493,52 @@ export function buildManualNotificationEmail(input: {
     ...content,
     subject: `${input.title} | Mariana Explica`,
   }
+}
+
+export async function fetchEmailOperationalConfig(client: SupabaseClient) {
+  const { data, error } = await client
+    .from("site_config")
+    .select("config_value")
+    .eq("config_key", ADMIN_PENDING_INFO_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeEmailOperationalConfig(data?.config_value ?? null)
+}
+
+export async function sendTransactionalEmail(
+  config: EmailOperationalConfig,
+  input: SendTransactionalEmailInput,
+) {
+  const runtimeConfig = resolveProviderRuntimeConfig(config)
+  const normalizedInput = {
+    ...input,
+    emailTo: input.emailTo.trim().toLowerCase(),
+    subject: input.subject.trim(),
+    html: input.html?.trim() || null,
+    text: input.text?.trim() || null,
+  }
+
+  if (!normalizedInput.subject) {
+    throw new Error("Email sem assunto para envio transacional")
+  }
+
+  if (!normalizedInput.html && !normalizedInput.text) {
+    throw new Error("Email sem payload renderizavel para envio transacional")
+  }
+
+  if (runtimeConfig.providerKey === "resend") {
+    return await sendWithResend(runtimeConfig, normalizedInput)
+  }
+
+  if (runtimeConfig.providerKey === "postmark") {
+    return await sendWithPostmark(runtimeConfig, normalizedInput)
+  }
+
+  return await sendWithSendgrid(runtimeConfig, normalizedInput)
 }
 
 export async function queueEmailDelivery(client: SupabaseClient, input: EmailQueueInput) {
