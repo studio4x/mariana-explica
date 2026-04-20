@@ -1,7 +1,9 @@
+import { Link } from "react-router-dom"
 import { useEffect, useState, type FormEvent } from "react"
 import { Button } from "@/components/ui"
 import { useUpdateAdminProduct } from "@/hooks/useAdmin"
 import { PageHeader } from "@/components/common"
+import { adminCourseBuilderPath } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
 
 export function CourseSettingsPanel() {
@@ -75,6 +77,11 @@ export function CourseSettingsPanel() {
       <PageHeader
         title="Configuracoes do curso"
         description="Identidade publica, vendas, progressao linear e tipos de quiz disponiveis neste curso."
+        actions={
+          <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+            <Link to={adminCourseBuilderPath(product.id)}>Abrir construtor</Link>
+          </Button>
+        }
       />
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
