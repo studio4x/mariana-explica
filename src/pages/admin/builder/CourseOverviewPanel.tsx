@@ -1,15 +1,65 @@
-import { Link } from "react-router-dom"
+import { useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { EmptyState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { adminCourseModulePath } from "@/lib/routes"
+import { useCreateAdminProductModule } from "@/hooks/useAdmin"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
 
 export function CourseOverviewPanel() {
   const { courseId, product, modules, assessments } = useAdminCourseBuilderContext()
+  const navigate = useNavigate()
+  const createModule = useCreateAdminProductModule()
+  const [builderError, setBuilderError] = useState<string | null>(null)
+
+  const handleOpenCourseBuilder = async () => {
+    setBuilderError(null)
+
+    if (modules.length > 0) {
+      navigate(adminCourseModulePath(courseId, modules[0].id))
+      return
+    }
+
+    try {
+      const firstModule = await createModule.mutateAsync({
+        productId: courseId,
+        title: "Modulo 1",
+        description: null,
+        module_type: "mixed",
+        access_type: "paid_only",
+        position: 1,
+        sort_order: 1,
+        is_preview: false,
+        is_required: true,
+        status: "draft",
+      })
+
+      navigate(adminCourseModulePath(courseId, firstModule.id))
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel abrir o construtor do curso.")
+    }
+  }
 
   return (
     <div className="space-y-6">
+      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <PageHeader
+          title="Construtor do curso"
+          description="Entra diretamente no workspace onde editas modulos, aulas, materiais e quizzes do curso."
+          actions={
+            <Button type="button" className="rounded-full" onClick={() => void handleOpenCourseBuilder()} disabled={createModule.isPending}>
+              {createModule.isPending
+                ? "A preparar construtor..."
+                : modules.length > 0
+                  ? "Abrir construtor"
+                  : "Criar primeiro modulo e abrir construtor"}
+            </Button>
+          }
+        />
+        {builderError ? <p className="mt-4 text-sm text-rose-700">{builderError}</p> : null}
+      </section>
+
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Modulos</p>
@@ -39,10 +89,17 @@ export function CourseOverviewPanel() {
         />
 
         {modules.length === 0 ? (
-          <EmptyState
-            title="Sem modulos ainda"
-            message="Usa o workspace legado do modulo para comecar a estruturar aulas, materiais e agenda."
-          />
+          <div className="mt-6 space-y-4">
+            <EmptyState
+              title="Sem modulos ainda"
+              message="Cria o primeiro modulo para entrar no construtor e comecar a estruturar aulas, materiais e agenda."
+            />
+            <div className="flex justify-center">
+              <Button type="button" className="rounded-full" onClick={() => void handleOpenCourseBuilder()} disabled={createModule.isPending}>
+                {createModule.isPending ? "A criar modulo..." : "Criar primeiro modulo"}
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="mt-6 space-y-4">
             {modules.map((module, index) => (
