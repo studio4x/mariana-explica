@@ -1,13 +1,17 @@
+import { useQueries } from "@tanstack/react-query"
 import { Link, NavLink, Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom"
 import {
   BookOpen,
   ClipboardCheck,
   Cog,
   ExternalLink,
+  FileText,
   Layers3,
+  List,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  ShieldCheck,
   UsersRound,
 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -29,8 +33,10 @@ import {
   publicCoursePath,
 } from "@/lib/routes"
 import { BUILD_VERSION } from "@/lib/build"
+import { fetchAdminProductLessons } from "@/services"
 import type {
   ProductAssessmentSummary,
+  ProductLessonSummary,
   ProductModuleSummary,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
@@ -40,6 +46,8 @@ export interface AdminCourseBuilderContext {
   product: ProductSummary
   modules: ProductModuleSummary[]
   assessments: ProductAssessmentSummary[]
+  lessonsByModule: Record<string, ProductLessonSummary[]>
+  totalLessons: number
 }
 
 const builderNav = [
@@ -68,12 +76,33 @@ export function AdminCourseBuilderLayout() {
     return products.find((item) => item.id === courseId) ?? null
   }, [courseId, productsQuery.data])
 
-  if (productsQuery.isLoading || modulesQuery.isLoading || assessmentsQuery.isLoading) {
+  const modules = modulesQuery.data ?? []
+  const lessonQueries = useQueries({
+    queries: modules.map((module) => ({
+      queryKey: ["admin", "modules", module.id, "lessons"],
+      queryFn: () => fetchAdminProductLessons(module.id),
+      staleTime: 60_000,
+      enabled: Boolean(module.id),
+    })),
+  })
+
+  if (
+    productsQuery.isLoading ||
+    modulesQuery.isLoading ||
+    assessmentsQuery.isLoading ||
+    lessonQueries.some((query) => query.isLoading)
+  ) {
     return <LoadingState message="A carregar o builder do curso..." />
   }
 
-  const error = productsQuery.error ?? modulesQuery.error ?? assessmentsQuery.error
-  if (productsQuery.isError || modulesQuery.isError || assessmentsQuery.isError) {
+  const lessonError = lessonQueries.find((query) => query.isError)?.error
+  const error = productsQuery.error ?? modulesQuery.error ?? assessmentsQuery.error ?? lessonError
+  if (
+    productsQuery.isError ||
+    modulesQuery.isError ||
+    assessmentsQuery.isError ||
+    lessonQueries.some((query) => query.isError)
+  ) {
     return (
       <ErrorState
         title="Nao foi possivel abrir o builder"
@@ -96,8 +125,16 @@ export function AdminCourseBuilderLayout() {
     )
   }
 
-  const modules = modulesQuery.data ?? []
   const assessments = assessmentsQuery.data ?? []
+  const lessonsByModule = modules.reduce<Record<string, ProductLessonSummary[]>>((accumulator, module, index) => {
+    accumulator[module.id] = (lessonQueries[index]?.data as ProductLessonSummary[] | undefined) ?? []
+    return accumulator
+  }, {})
+  const totalLessons = Object.values(lessonsByModule).reduce(
+    (count, lessons) => count + lessons.length,
+    0,
+  )
+
   const handleCreateModule = async () => {
     if (!courseId) return
 
@@ -127,6 +164,8 @@ export function AdminCourseBuilderLayout() {
     product,
     modules,
     assessments,
+    lessonsByModule,
+    totalLessons,
   }
 
   return (
@@ -242,6 +281,7 @@ export function AdminCourseBuilderLayout() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <StatusBadge label={`${modules.length} modulos`} tone="info" />
                   <StatusBadge label={`${assessments.length} avaliacoes`} tone="warning" />
+                  <StatusBadge label={`${totalLessons} aulas`} tone="success" />
                 </div>
               ) : null}
             </div>
@@ -288,33 +328,82 @@ export function AdminCourseBuilderLayout() {
                       </div>
                     )
                   ) : (
-                    modules.map((module, index) => (
-                      <NavLink
-                        key={module.id}
-                        to={adminCourseModulePath(courseId, module.id)}
-                        title={module.title}
-                        className={({ isActive }) =>
-                          `block rounded-2xl border text-sm transition ${
-                            isSidebarOpen ? "px-3 py-3" : "px-2 py-3 text-center"
-                          } ${
-                            isActive
-                              ? "border-slate-900 bg-slate-900 text-white"
-                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                          }`
-                        }
-                      >
-                        {isSidebarOpen ? (
-                          <>
-                            <p className="text-[11px] uppercase tracking-[0.18em] opacity-70">
-                              Modulo {index + 1}
-                            </p>
-                            <p className="mt-1 font-medium">{module.title}</p>
-                          </>
-                        ) : (
-                          <span className="text-xs font-bold">{index + 1}</span>
-                        )}
-                      </NavLink>
-                    ))
+                    modules.map((module, index) => {
+                      const moduleLessons = lessonsByModule[module.id] ?? []
+                      const moduleAssessments = assessments.filter((assessment) => assessment.module_id === module.id)
+
+                      return (
+                        <div key={module.id} className="group pt-2">
+                          <NavLink
+                            to={adminCourseModulePath(courseId, module.id)}
+                            title={module.title}
+                            className={({ isActive }) =>
+                              `flex items-center rounded-xl transition ${
+                                isSidebarOpen ? "gap-2 px-2 py-2.5" : "justify-center px-2 py-3"
+                              } ${
+                                isActive
+                                  ? "bg-slate-100 text-slate-950"
+                                  : "text-slate-700 hover:bg-slate-100/70"
+                              }`
+                            }
+                          >
+                            {isSidebarOpen ? (
+                              <>
+                                <List className="h-4 w-4 shrink-0 text-slate-300" />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="w-5 text-center text-[10px] font-extrabold uppercase text-slate-400">
+                                      M{index + 1}
+                                    </span>
+                                    <span className="truncate text-sm font-bold">{module.title}</span>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <span className="text-xs font-bold">M{index + 1}</span>
+                            )}
+                          </NavLink>
+
+                          {isSidebarOpen ? (
+                            <div className="ml-9 mt-1 space-y-0.5 border-l-2 border-slate-100 pl-2">
+                              {moduleLessons.map((lesson) => (
+                                <NavLink
+                                  key={lesson.id}
+                                  to={`${adminCourseModulePath(courseId, module.id)}/aulas/${lesson.id}`}
+                                  className={({ isActive }) =>
+                                    `flex items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
+                                      isActive
+                                        ? "bg-slate-100 text-slate-950"
+                                        : "text-slate-700 hover:bg-slate-50"
+                                    }`
+                                  }
+                                >
+                                  <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                  <span className="truncate">{lesson.title}</span>
+                                </NavLink>
+                              ))}
+
+                              {moduleAssessments.map((assessment) => (
+                                <NavLink
+                                  key={assessment.id}
+                                  to={`${adminCourseModulePath(courseId, module.id)}/avaliacoes/${assessment.id}`}
+                                  className={({ isActive }) =>
+                                    `flex items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
+                                      isActive
+                                        ? "bg-amber-50 text-amber-700"
+                                        : "text-amber-700/90 hover:bg-amber-50/50"
+                                    }`
+                                  }
+                                >
+                                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                  <span className="truncate">Quiz: {assessment.title}</span>
+                                </NavLink>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })
                   )}
                 </div>
               </div>
@@ -326,12 +415,33 @@ export function AdminCourseBuilderLayout() {
 
             <div className="border-t border-slate-100 px-3 py-3">
               <div className="grid gap-2">
-                <Button asChild variant="outline" className={`rounded-2xl ${isSidebarOpen ? "" : "px-0"}`}>
-                  <Link to={adminCourseAssessmentsPath(courseId)}>
-                    <ClipboardCheck className="h-4 w-4 shrink-0" />
-                    {isSidebarOpen ? <span className="ml-2">Avaliacoes</span> : null}
-                  </Link>
-                </Button>
+                <NavLink
+                  to={adminCourseSettingsPath(courseId)}
+                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 ${
+                    isSidebarOpen ? "gap-2.5" : "justify-center"
+                  }`}
+                >
+                  <Cog className="h-4 w-4 shrink-0 text-slate-400" />
+                  {isSidebarOpen ? "Configuracoes do Curso" : null}
+                </NavLink>
+                <NavLink
+                  to={adminCourseReleasesPath(courseId)}
+                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 ${
+                    isSidebarOpen ? "gap-2.5" : "justify-center"
+                  }`}
+                >
+                  <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
+                  {isSidebarOpen ? "Atribuir a Alunos e Grupos" : null}
+                </NavLink>
+                <NavLink
+                  to={adminCourseAssessmentsPath(courseId)}
+                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 ${
+                    isSidebarOpen ? "gap-2.5" : "justify-center"
+                  }`}
+                >
+                  <ClipboardCheck className="h-4 w-4 shrink-0 text-slate-400" />
+                  {isSidebarOpen ? "Gerenciar Avaliacoes" : null}
+                </NavLink>
               </div>
             </div>
           </aside>
