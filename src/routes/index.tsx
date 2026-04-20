@@ -316,72 +316,6 @@ export const router = createBrowserRouter(
           element: withSuspense(<AdminProducts />),
         },
         {
-          path: "cursos/:courseId/builder",
-          element: withSuspense(<AdminCourseBuilderLayout />),
-          children: [
-            {
-              index: true,
-              element: withSuspense(<CourseOverviewPanel />),
-            },
-            {
-              path: "settings",
-              element: withSuspense(<CourseSettingsPanel />),
-            },
-            {
-              path: "releases",
-              element: withSuspense(<CourseReleasesPanel />),
-            },
-            {
-              path: "assessments",
-              element: withSuspense(<CourseAssessmentsPanel />),
-            },
-            {
-              path: "assessments/final",
-              element: withSuspense(<CourseAssessmentsPanel />),
-            },
-          ],
-        },
-        {
-          path: "cursos/:courseId/builder/modulos/:moduleId",
-          element: withSuspense(<AdminCourseBuilderLayout />),
-          children: [
-            {
-              index: true,
-              element: withSuspense(<CourseModuleDetailPanel />),
-            },
-          ],
-        },
-        {
-          path: "cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId",
-          element: withSuspense(<AdminCourseBuilderLayout />),
-          children: [
-            {
-              index: true,
-              element: withSuspense(<CourseLessonDetailPanel />),
-            },
-          ],
-        },
-        {
-          path: "cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId/materiais",
-          element: withSuspense(<AdminCourseBuilderLayout />),
-          children: [
-            {
-              index: true,
-              element: withSuspense(<CourseLessonMaterialsPanel />),
-            },
-          ],
-        },
-        {
-          path: "cursos/:courseId/builder/modulos/:moduleId/avaliacoes/:assessmentId",
-          element: withSuspense(<AdminCourseBuilderLayout />),
-          children: [
-            {
-              index: true,
-              element: withSuspense(<CourseModuleAssessmentDetailPanel />),
-            },
-          ],
-        },
-        {
           path: "pedidos",
           element: withSuspense(<AdminOrders />),
         },
@@ -412,6 +346,52 @@ export const router = createBrowserRouter(
         {
           path: "produtos/:id/conteudo",
           element: <LegacyAdminBuilderRedirect />,
+        },
+      ],
+    },
+    {
+      path: "/admin/cursos/:courseId/builder",
+      element: (
+        <AdminRoute>
+          {withSuspense(<AdminCourseBuilderLayout />)}
+        </AdminRoute>
+      ),
+      children: [
+        {
+          index: true,
+          element: withSuspense(<CourseOverviewPanel />),
+        },
+        {
+          path: "settings",
+          element: withSuspense(<CourseSettingsPanel />),
+        },
+        {
+          path: "releases",
+          element: withSuspense(<CourseReleasesPanel />),
+        },
+        {
+          path: "assessments",
+          element: withSuspense(<CourseAssessmentsPanel />),
+        },
+        {
+          path: "assessments/final",
+          element: withSuspense(<CourseAssessmentsPanel />),
+        },
+        {
+          path: "modulos/:moduleId",
+          element: withSuspense(<CourseModuleDetailPanel />),
+        },
+        {
+          path: "modulos/:moduleId/aulas/:lessonId",
+          element: withSuspense(<CourseLessonDetailPanel />),
+        },
+        {
+          path: "modulos/:moduleId/aulas/:lessonId/materiais",
+          element: withSuspense(<CourseLessonMaterialsPanel />),
+        },
+        {
+          path: "modulos/:moduleId/avaliacoes/:assessmentId",
+          element: withSuspense(<CourseModuleAssessmentDetailPanel />),
         },
       ],
     },
