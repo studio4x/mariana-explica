@@ -13,11 +13,12 @@ import {
   BookOpen,
   CheckCircle2,
   Clock3,
-  GripVertical,
+  ClipboardCheck,
   Pencil,
   Plus,
   Search,
   Sparkles,
+  UsersRound,
   Trash2,
 } from "lucide-react"
 import { EmptyState, ErrorState } from "@/components/feedback"
@@ -29,7 +30,11 @@ import {
   useDeleteAdminProduct,
   useUpdateAdminProduct,
 } from "@/hooks/useAdmin"
-import { adminCourseBuilderPath } from "@/lib/routes"
+import {
+  adminCourseAssessmentsPath,
+  adminCourseBuilderPath,
+  adminCourseReleasesPath,
+} from "@/lib/routes"
 import {
   createAdminProductAssessment,
   createAdminModuleAsset,
@@ -770,24 +775,25 @@ export function AdminProducts() {
                 onDragStart={() => setDraggingCourseId(course.id)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => void handleDropReorder(course.id)}
-                className={`group overflow-hidden rounded-[1.55rem] border bg-white transition hover:-translate-y-0.5 ${cardAccentClasses[course.status]}`}
+                className={`group relative flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm transition-all duration-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-2xl ${cardAccentClasses[course.status]}`}
               >
-                <div className="relative h-[18.5rem] overflow-hidden bg-slate-200">
-                  <div className="absolute left-4 top-4 z-10">
-                    <span className="inline-flex items-center rounded-md bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white shadow-sm">
+                <Link
+                  to={adminCourseBuilderPath(course.id)}
+                  className="relative block w-full overflow-hidden bg-slate-200"
+                  style={{ aspectRatio: "4 / 3" }}
+                >
+                  <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
+                  <div className="absolute left-4 top-4 z-20">
+                    <span className="inline-flex items-center rounded-full border border-emerald-400 bg-emerald-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white transition-all">
                       {statusLabels[course.status]}
                     </span>
-                  </div>
-                  <div className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-md bg-slate-950/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur">
-                    <GripVertical className="h-3.5 w-3.5" />
-                    Ordem {course.sort_order}
                   </div>
                   <div className="absolute inset-0">
                     {course.cover_image_url ? (
                       <img
                         src={course.cover_image_url}
                         alt={course.title}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-[linear-gradient(145deg,#1a91af_0%,#155d73_55%,#123845_100%)] text-white/85">
@@ -797,90 +803,89 @@ export function AdminProducts() {
                       </div>
                     )}
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(15,23,42,0)_0%,rgba(15,23,42,0.22)_34%,rgba(15,23,42,0.86)_100%)] px-4 pb-4 pt-20">
-                    <p className="font-display text-[2rem] font-bold leading-none text-sky-300 drop-shadow-[0_2px_12px_rgba(15,23,42,0.8)]">
+                  <div className="absolute inset-x-0 bottom-4 left-4 right-4 z-20">
+                    <p className="text-lg font-black leading-tight text-white transition-colors group-hover:text-blue-300">
                       {course.title}
                     </p>
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="inline-flex items-center gap-2 rounded-md bg-slate-950/78 px-3 py-2 text-sm font-semibold text-white shadow-lg">
-                        <Clock3 className="h-4 w-4 text-sky-400" />
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-slate-950/70 px-2.5 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-sm">
+                        <Clock3 className="h-3.5 w-3.5 text-blue-300" />
                         {formatWorkloadMinutes(course.workload_minutes)}
                       </div>
                     </div>
                   </div>
-                </div>
+                  <div className="absolute inset-0 z-30 flex items-center justify-center bg-blue-600/90 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Link
+                      to={adminCourseBuilderPath(course.id)}
+                      className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-6 font-extrabold text-blue-600 shadow-sm transition hover:bg-white"
+                    >
+                      Abrir Construtor
+                    </Link>
+                  </div>
+                </Link>
 
-                <div className="space-y-4 p-5">
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-3 py-1">{course.is_public ? "Publico" : "Privado"}</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">{typeLabels[course.product_type]}</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">{formatProductPrice(course.price_cents, course.currency)}</span>
+                <div className="space-y-4 p-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-blue-700">
+                      {course.is_public ? "Publico" : "Privado"}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-slate-500">
+                      {typeLabels[course.product_type]}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-slate-500">
+                      {formatProductPrice(course.price_cents, course.currency)}
+                    </span>
                   </div>
 
-                  <p className="min-h-[72px] text-[1.02rem] leading-8 text-slate-600">
+                  <p className="h-[40px] text-sm leading-relaxed text-slate-500 line-clamp-2">
                     {clampDescription(course.description ?? course.short_description)}
                   </p>
 
-                  <div className="grid grid-cols-[1.15fr_1.15fr_repeat(3,52px)] gap-2">
-                    <div className="rounded-[1rem] border border-slate-100 bg-slate-50 px-3 py-3 text-center shadow-sm">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Catalogo</p>
-                      <p className="mt-2 text-xs font-bold uppercase text-sky-700">
-                        {course.is_public ? "Publico" : "Privado"}
-                      </p>
-                    </div>
-                    <div className="rounded-[1rem] border border-slate-100 bg-slate-50 px-3 py-3 text-center shadow-sm">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Builder</p>
-                      <p className="mt-2 text-xs font-bold uppercase text-slate-700">LMS</p>
-                    </div>
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
+                    <Link
+                      to={adminCourseReleasesPath(course.id)}
+                      className="group/sub flex flex-1 flex-col items-center gap-1 rounded-2xl px-2.5 py-2 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
+                    >
+                      <UsersRound className="h-5 w-5 opacity-50 transition group-hover/sub:opacity-100" />
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">Alunos</span>
+                    </Link>
+                    <Link
+                      to={adminCourseAssessmentsPath(course.id)}
+                      className="group/sub flex flex-1 flex-col items-center gap-1 rounded-2xl px-2.5 py-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
+                    >
+                      <ClipboardCheck className="h-5 w-5 opacity-50 transition group-hover/sub:opacity-100" />
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">Avaliacoes</span>
+                    </Link>
                     <Button
                       type="button"
-                      variant="outline"
-                      className="h-[52px] rounded-[1rem] border-slate-100 bg-slate-50 px-0 text-sky-700 shadow-sm hover:bg-white"
+                      variant="ghost"
+                      className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-blue-50 hover:text-blue-600"
                       onClick={() => void handleExportCourse(course)}
                       disabled={exportingCourseId === course.id}
                       title="Exportar curso"
                     >
-                      <ArrowDownToLine className="h-4 w-4" />
+                      <ArrowDownToLine className="h-5 w-5" />
                     </Button>
                     <Button
                       type="button"
-                      variant="outline"
-                      className="h-[52px] rounded-[1rem] border-slate-100 bg-slate-50 px-0 text-slate-700 shadow-sm hover:bg-white"
+                      variant="ghost"
+                      className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-amber-50 hover:text-amber-600"
                       onClick={() => openEditEditor(course)}
                       title="Editar curso"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-5 w-5" />
                     </Button>
                     <Button
                       type="button"
-                      variant="outline"
-                      className="h-[52px] rounded-[1rem] border-slate-100 bg-slate-50 px-0 text-rose-600 shadow-sm hover:bg-white"
+                      variant="ghost"
+                      className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
                       onClick={() => void handleDeleteCourse(course)}
                       disabled={deleteCourse.isPending}
                       title="Excluir curso"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                     </Button>
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild variant="outline" className="h-11 flex-1 rounded-[1rem] border-slate-200 bg-white">
-                      <Link to={adminCourseBuilderPath(course.id)}>Abrir construtor</Link>
-                    </Button>
-                    <Button
-                      type="button"
-                      className="h-11 rounded-[1rem] bg-[linear-gradient(180deg,#1788a8_0%,#12596f_100%)] px-5 text-white hover:opacity-95"
-                      onClick={() => openEditEditor(course)}
-                    >
-                      Ajustar
-                    </Button>
-                  </div>
-
-                  {course.launch_date ? (
-                    <div className="rounded-[1rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                      Lancamento programado para {course.launch_date}.
-                    </div>
-                  ) : null}
                 </div>
               </article>
             ))}
