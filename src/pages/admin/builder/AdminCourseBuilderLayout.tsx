@@ -169,8 +169,8 @@ export function AdminCourseBuilderLayout() {
   }
 
   return (
-    <div className="-mx-4 -my-6 sm:-mx-6 lg:-mx-8">
-      <div className="relative flex min-h-[calc(100vh-9.5rem)] flex-col overflow-hidden border-y border-slate-200 bg-white lg:rounded-none">
+    <div className="min-h-screen w-full bg-slate-50">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-white">
         <header className="flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <Button variant="ghost" size="sm" asChild className="rounded-full">
