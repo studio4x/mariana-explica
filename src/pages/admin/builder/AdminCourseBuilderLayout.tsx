@@ -22,6 +22,8 @@ import { Button } from "@/components/ui"
 import { StatusBadge } from "@/components/common"
 import {
   useCreateAdminProductModule,
+  useCreateAdminProductAssessment,
+  useCreateAdminProductLesson,
   useAdminProductAssessments,
   useAdminProductModules,
   useAdminProducts,
@@ -29,11 +31,14 @@ import {
 import {
   adminCourseAssessmentsPath,
   adminCourseBuilderPath,
+  adminCourseLessonPath,
+  adminCourseModuleAssessmentPath,
   adminCourseModulePath,
   adminCourseReleasesPath,
   adminCourseSettingsPath,
   publicCoursePath,
 } from "@/lib/routes"
+import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import { BUILD_VERSION } from "@/lib/build"
 import { fetchAdminProductLessons } from "@/services"
 import type {
@@ -70,6 +75,8 @@ export function AdminCourseBuilderLayout() {
   const modulesQuery = useAdminProductModules(courseId)
   const assessmentsQuery = useAdminProductAssessments(courseId)
   const createModule = useCreateAdminProductModule()
+  const createLesson = useCreateAdminProductLesson()
+  const createAssessment = useCreateAdminProductAssessment()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [builderError, setBuilderError] = useState<string | null>(null)
 
@@ -161,6 +168,55 @@ export function AdminCourseBuilderLayout() {
       setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o modulo.")
     }
   }
+
+  const handleCreateLesson = async (module: ProductModuleSummary) => {
+    setBuilderError(null)
+    try {
+      const nextPosition = (lessonsByModule[module.id]?.length ?? 0) + 1
+      const createdLesson = await createLesson.mutateAsync({
+        moduleId: module.id,
+        title: `Aula ${nextPosition}`,
+        description: null,
+        position: nextPosition,
+        is_required: true,
+        lesson_type: "text",
+        youtube_url: null,
+        text_content: null,
+        estimated_minutes: 10,
+        starts_at: null,
+        ends_at: null,
+        status: "draft",
+      })
+
+      navigate(adminCourseLessonPath(courseId, module.id, createdLesson.id))
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar a aula.")
+    }
+  }
+
+  const handleCreateModuleAssessment = async (module: ProductModuleSummary) => {
+    setBuilderError(null)
+    try {
+      const createdAssessment = await createAssessment.mutateAsync({
+        productId: courseId,
+        moduleId: module.id,
+        assessmentType: "module",
+        title: `Quiz: ${module.title}`,
+        description: null,
+        isRequired: true,
+        passingScore: 70,
+        maxAttempts: null,
+        estimatedMinutes: 15,
+        isActive: true,
+        builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
+      })
+
+      navigate(adminCourseModuleAssessmentPath(courseId, module.id, createdAssessment.id))
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o quiz.")
+    }
+  }
+
   const context: AdminCourseBuilderContext = {
     courseId,
     product,
@@ -388,6 +444,27 @@ export function AdminCourseBuilderLayout() {
                                   <span className="truncate">Quiz: {assessment.title}</span>
                                 </NavLink>
                               ))}
+
+                              <div className="flex items-center gap-1 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCreateLesson(module)}
+                                  disabled={createLesson.isPending}
+                                  className="flex flex-1 items-center gap-1.5 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-500 transition hover:bg-blue-50 hover:text-blue-700"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  Aula
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCreateModuleAssessment(module)}
+                                  disabled={createAssessment.isPending}
+                                  className="flex flex-1 items-center gap-1.5 rounded-md bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-500 transition hover:bg-amber-50 hover:text-amber-700"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  Quiz
+                                </button>
+                              </div>
                             </div>
                           ) : null}
                         </div>
