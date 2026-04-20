@@ -22,12 +22,22 @@ const emptyForm: PendingInfoForm = {
   email_sender_name: "",
   email_sender_address: "",
   email_reply_to: "",
+  checkout_production_notes: "",
+  production_smoke_tests_notes: "",
+  pwa_mobile_validation_notes: "",
   operations_contact: "",
   general_notes: "",
 }
 
 function countFilledFields(form: PendingInfoForm) {
   return Object.values(form).filter((value) => value.trim().length > 0).length
+}
+
+type FinalChecklistItem = {
+  title: string
+  description: string
+  status: "done" | "pending"
+  detail: string
 }
 
 export function AdminSettings() {
@@ -50,6 +60,61 @@ export function AdminSettings() {
       filled,
       total: Object.keys(form).length,
     }
+  }, [form])
+
+  const finalChecklist = useMemo<FinalChecklistItem[]>(() => {
+    const schedulerConfigured = Boolean(form.scheduler_provider.trim() && form.scheduler_reference.trim())
+    const emailOperationalInfoReady = Boolean(
+      form.email_provider_name.trim() &&
+        form.email_sender_name.trim() &&
+        form.email_sender_address.trim(),
+    )
+    const checkoutValidated = Boolean(form.checkout_production_notes.trim())
+    const smokeTestsValidated = Boolean(form.production_smoke_tests_notes.trim())
+    const pwaValidated = Boolean(form.pwa_mobile_validation_notes.trim())
+
+    return [
+      {
+        title: "Scheduler externo dos cron jobs",
+        description: "Falta ligar um disparador real para os jobs internos com `CRON_SECRET`.",
+        status: schedulerConfigured ? "done" : "pending",
+        detail: schedulerConfigured
+          ? "Referencia operacional registada nesta pagina. Falta apenas executar a configuracao no provedor escolhido."
+          : "Ainda nao ha plataforma e referencia de scheduler registadas.",
+      },
+      {
+        title: "Email transacional em producao",
+        description: "O backend ja suporta Resend, Postmark e SendGrid, mas os segredos continuam fora da UI.",
+        status: emailOperationalInfoReady ? "done" : "pending",
+        detail: emailOperationalInfoReady
+          ? "Os dados operacionais do remetente ja estao registados. Ainda sera preciso configurar a API key no provedor seguro."
+          : "Ainda faltam provedor e remetente para fechar a entrega real de emails.",
+      },
+      {
+        title: "Checkout real em producao",
+        description: "O plano inicial pede validacao final com compra real e confirmacao de grant.",
+        status: checkoutValidated ? "done" : "pending",
+        detail: checkoutValidated
+          ? "Ja existe registo manual nesta pagina sobre a validacao do checkout real."
+          : "Ainda nao ha registo de compra real em producao nesta pagina.",
+      },
+      {
+        title: "Smoke tests finais",
+        description: "Consolida verificacoes finais de dominio, funcoes, grants, admin e fluxos principais.",
+        status: smokeTestsValidated ? "done" : "pending",
+        detail: smokeTestsValidated
+          ? "Ja existe nota de smoke tests finais registada nesta pagina."
+          : "Ainda nao ha nota consolidada de smoke tests finais nesta pagina.",
+      },
+      {
+        title: "Teste PWA em Android e iOS",
+        description: "O plano pede validacao real do modo instalado em dispositivos moveis.",
+        status: pwaValidated ? "done" : "pending",
+        detail: pwaValidated
+          ? "Ja existe registo manual desta validacao mobile."
+          : "Ainda falta validar instalacao e uso do PWA em Android/iOS reais.",
+      },
+    ]
   }, [form])
 
   if (pendingInfoQuery.isLoading) {
@@ -169,6 +234,31 @@ export function AdminSettings() {
       ],
     },
     {
+      title: "Validacoes finais de producao",
+      description:
+        "Regista aqui o que ja foi validado manualmente no fecho do plano inicial, incluindo compra real, smoke tests e uso do PWA em dispositivo.",
+      fields: [
+        {
+          key: "checkout_production_notes" as const,
+          label: "Compra real e grant em producao",
+          placeholder: "Regista data, pedido, resultado do checkout Stripe e confirmacao do grant",
+          multiline: true,
+        },
+        {
+          key: "production_smoke_tests_notes" as const,
+          label: "Smoke tests finais",
+          placeholder: "Anota validacoes finais de dominio, admin, funcoes, grants e downloads",
+          multiline: true,
+        },
+        {
+          key: "pwa_mobile_validation_notes" as const,
+          label: "Teste PWA Android/iOS",
+          placeholder: "Regista instalacao, standalone, offline fallback e observacoes por dispositivo",
+          multiline: true,
+        },
+      ],
+    },
+    {
       title: "Operacao",
       description:
         "Guarda os contactos e apontamentos que ainda dependem de definicao manual para fechar a operacao sem depender de memoria dispersa.",
@@ -227,9 +317,42 @@ export function AdminSettings() {
               : "border-rose-200 bg-rose-50 text-rose-900"
           }`}
         >
-          {feedback.message}
+      {feedback.message}
         </div>
       ) : null}
+
+      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Checklist final do plano</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+              Esta secao resume apenas o que ainda precisa de execucao externa, validacao manual ou dados teus para fechar o plano inicial.
+            </p>
+          </div>
+          <StatusBadge
+            label={`${finalChecklist.filter((item) => item.status === "done").length}/${finalChecklist.length} encaminhados`}
+            tone={finalChecklist.every((item) => item.status === "done") ? "success" : "warning"}
+          />
+        </div>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          {finalChecklist.map((item) => (
+            <article key={item.title} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-950">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                </div>
+                <StatusBadge
+                  label={item.status === "done" ? "Encaminhado" : "Pendente"}
+                  tone={item.status === "done" ? "success" : "warning"}
+                />
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-700">{item.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <form className="space-y-6" onSubmit={(event) => void handleSubmit(event)}>
         {blocks.map((block) => {

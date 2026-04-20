@@ -421,6 +421,44 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - deploy frontend na Vercel com publicacao da versao PWA em producao
   - verificacao remota do dominio publico `https://www.mariana-explica.pt` com `200 OK`
 
+### Etapa 13 — Deploy e estabilizacao final
+
+- Status: `parcial`
+- Base adicional desta etapa:
+  - `docs/12-automacoes.md`
+  - `docs/13-pwa.md`
+  - `docs/14-deploy.md`
+  - `docs/15-plano-de-implementacao.md`
+- Verificacao inicial desta rodada:
+  - a plataforma ja estava publicada com frontend em producao, migrations alinhadas e funcoes principais ativas no Supabase;
+  - o plano inicial ainda exigia separar o que ja esta validado em producao do que continua dependente de configuracao externa ou validacao manual final;
+  - as pendencias restantes deixaram de ser de desenvolvimento principal e passaram a ser de operacao, fornecedor e checklist final de release.
+- Criterio de conclusao:
+  - producao operando com smoke tests finais registados, scheduler externo ativo, email real configurado, checkout real validado e PWA testado em Android/iOS.
+- Entregue nesta rodada:
+  - checklist final do plano adicionado na pagina administrativa `/admin/configuracoes`;
+  - novos campos nessa pagina para registar validacao de compra real, smoke tests finais e verificacao mobile do PWA;
+  - nova bateria de confirmacao remota executada para separar o que ja esta fechado do que segue pendente.
+- Validacoes executadas:
+  - `npm run build`
+  - `curl -I https://www.mariana-explica.pt` com `200 OK`
+  - `curl -I https://www.mariana-explica.pt/admin/configuracoes` com `200 OK`
+  - `curl -I https://www.mariana-explica.pt/manifest.webmanifest` com `200 OK`
+  - `curl -I https://www.mariana-explica.pt/offline.html` com `200 OK`
+  - leitura remota do `manifest.webmanifest` confirmando icones `192x192`, `512x512` e `512x512 maskable`
+  - `npx supabase migration list --linked` confirmando `0001` a `0011` alinhadas em `Local` e `Remote`
+  - `npx supabase functions list` confirmando funcoes criticas e cron jobs em estado `ACTIVE`
+  - `npx supabase secrets list` confirmando `CRON_SECRET` e segredos Stripe ativos e ausencia atual de segredo de provedor de email
+- Deploys executados:
+  - deploy frontend na Vercel para publicar o checklist final em `/admin/configuracoes`
+  - verificacao remota do dominio publico apos deploy com `200 OK`
+- O que falta para concluir:
+  - configurar um scheduler externo real para chamar os cron jobs com `CRON_SECRET`;
+  - configurar segredo real do provedor de email e remetente de producao;
+  - validar uma compra real em producao, incluindo grant e pos-compra;
+  - validar instalacao e uso do PWA em Android e iOS reais;
+  - registar essas validacoes finais na pagina `/admin/configuracoes`.
+
 ## 6. Ordem recomendada a partir de agora
 
 1. Etapa 1 — Avaliacoes oficiais do aluno
@@ -435,6 +473,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 10. Etapa 10 — Limpeza agendada de links expirados
 11. Etapa 11 — Integracao real de envio de e-mails transacionais
 12. Etapa 12 — PWA instalado com fallback offline seguro
+13. Etapa 13 — Deploy e estabilizacao final
 
 ## 7. Regra de manutencao deste documento
 

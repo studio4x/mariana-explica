@@ -100,6 +100,9 @@ export interface AdminPendingInfoConfig {
     email_sender_name: string
     email_sender_address: string
     email_reply_to: string
+    checkout_production_notes: string
+    production_smoke_tests_notes: string
+    pwa_mobile_validation_notes: string
     operations_contact: string
     general_notes: string
   }
