@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardCheck,
   Cog,
+  Download,
   ExternalLink,
   FileText,
   Layers3,
@@ -12,6 +13,7 @@ import {
   PanelLeftOpen,
   Plus,
   ShieldCheck,
+  Sparkles,
   UsersRound,
 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -249,11 +251,11 @@ export function AdminCourseBuilderLayout() {
         <div className="flex flex-1 overflow-hidden">
           <aside
             className={`hidden shrink-0 border-r border-slate-200 bg-white transition-all duration-300 lg:flex lg:flex-col ${
-              isSidebarOpen ? "w-[288px]" : "w-[86px]"
+              isSidebarOpen ? "w-[252px]" : "w-[86px]"
             }`}
           >
-            <div className="border-b border-slate-100 px-4 py-4">
-              <div className={`flex items-center ${isSidebarOpen ? "justify-between gap-3" : "justify-center"}`}>
+            <div className="border-b border-slate-100 px-3 py-4">
+              <div className={`flex items-start ${isSidebarOpen ? "justify-between gap-3" : "justify-center"}`}>
                 {isSidebarOpen ? (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -277,49 +279,36 @@ export function AdminCourseBuilderLayout() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              {isSidebarOpen ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <StatusBadge label={`${modules.length} modulos`} tone="info" />
-                  <StatusBadge label={`${assessments.length} avaliacoes`} tone="warning" />
-                  <StatusBadge label={`${totalLessons} aulas`} tone="success" />
-                </div>
-              ) : null}
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-4">
-              <nav className="grid gap-1">
-                {builderNav.map((item) => (
-                  <NavLink
-                    key={item.key}
-                    to={item.to(courseId)}
-                    end={item.key === "overview"}
-                    title={item.label}
-                    className={({ isActive }) =>
-                      `flex items-center rounded-2xl text-sm font-medium transition ${
-                        isSidebarOpen ? "gap-3 px-4 py-3" : "justify-center px-0 py-3"
-                      } ${
-                        isActive
-                          ? "bg-slate-900 text-white shadow-sm"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                      }`
-                    }
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {isSidebarOpen ? item.label : null}
-                  </NavLink>
-                ))}
+              <nav className="grid gap-3">
+                <NavLink
+                  to={adminCourseBuilderPath(courseId)}
+                  end
+                  title="Visao Geral do Curso"
+                  className={({ isActive }) =>
+                    `flex items-center rounded-lg border text-sm font-semibold transition ${
+                      isSidebarOpen ? "gap-2.5 px-3 py-4" : "justify-center px-0 py-3"
+                    } ${
+                      isActive
+                        ? "border-blue-300 bg-blue-50 text-blue-700 shadow-sm"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`
+                  }
+                >
+                  <div className="rounded-md bg-blue-100 p-1.5 text-blue-700">
+                    <BookOpen className="h-4 w-4 shrink-0" />
+                  </div>
+                  {isSidebarOpen ? "Visao Geral do Curso" : null}
+                </NavLink>
               </nav>
 
-              <div className={`mt-5 rounded-[1.5rem] bg-slate-50 ${isSidebarOpen ? "p-4" : "p-3"}`}>
-                <div className={`flex items-center ${isSidebarOpen ? "gap-2" : "justify-center"}`}>
-                  <BookOpen className="h-4 w-4 text-slate-900" />
-                  {isSidebarOpen ? <p className="text-sm font-semibold text-slate-950">Arvore do curso</p> : null}
-                </div>
-
-                <div className="mt-4 space-y-2">
+              <div className={`mt-5 ${isSidebarOpen ? "" : "px-0"}`}>
+                <div className="space-y-2">
                   {modules.length === 0 ? (
                     isSidebarOpen ? (
-                      <p className="text-sm leading-6 text-slate-600">
+                      <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
                         Sem modulos ainda. Cria a estrutura pedagogica para comecar o builder.
                       </p>
                     ) : (
@@ -333,17 +322,17 @@ export function AdminCourseBuilderLayout() {
                       const moduleAssessments = assessments.filter((assessment) => assessment.module_id === module.id)
 
                       return (
-                        <div key={module.id} className="group pt-2">
+                        <div key={module.id} className="group pt-1">
                           <NavLink
                             to={adminCourseModulePath(courseId, module.id)}
                             title={module.title}
                             className={({ isActive }) =>
-                              `flex items-center rounded-xl transition ${
+                              `flex items-center rounded-lg transition ${
                                 isSidebarOpen ? "gap-2 px-2 py-2.5" : "justify-center px-2 py-3"
                               } ${
                                 isActive
-                                  ? "bg-slate-100 text-slate-950"
-                                  : "text-slate-700 hover:bg-slate-100/70"
+                                  ? "bg-slate-50 text-slate-950"
+                                  : "text-slate-700 hover:bg-slate-50"
                               }`
                             }
                           >
@@ -365,7 +354,7 @@ export function AdminCourseBuilderLayout() {
                           </NavLink>
 
                           {isSidebarOpen ? (
-                            <div className="ml-9 mt-1 space-y-0.5 border-l-2 border-slate-100 pl-2">
+                            <div className="ml-9 mt-1 space-y-1 border-l-2 border-slate-100 pl-3">
                               {moduleLessons.map((lesson) => (
                                 <NavLink
                                   key={lesson.id}
@@ -408,6 +397,22 @@ export function AdminCourseBuilderLayout() {
                 </div>
               </div>
 
+              <div className="pt-5">
+                <button
+                  type="button"
+                  onClick={() => void handleCreateModule()}
+                  disabled={createModule.isPending}
+                  className={`flex w-full items-center rounded-xl border border-dashed border-blue-300 bg-blue-50/40 text-sm font-black text-blue-700 transition hover:bg-blue-100 ${
+                    isSidebarOpen ? "gap-2 px-3 py-3" : "justify-center px-2 py-3"
+                  }`}
+                >
+                  <div className="rounded-md bg-[linear-gradient(180deg,#1788a8_0%,#12596f_100%)] p-1 text-white">
+                    <Plus className="h-3.5 w-3.5" />
+                  </div>
+                  {isSidebarOpen ? (createModule.isPending ? "A criar modulo..." : "Novo Modulo") : null}
+                </button>
+              </div>
+
               {builderError && isSidebarOpen ? (
                 <p className="mt-4 text-sm text-rose-700">{builderError}</p>
               ) : null}
@@ -417,7 +422,7 @@ export function AdminCourseBuilderLayout() {
               <div className="grid gap-2">
                 <NavLink
                   to={adminCourseSettingsPath(courseId)}
-                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 ${
+                  className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
                     isSidebarOpen ? "gap-2.5" : "justify-center"
                   }`}
                 >
@@ -426,7 +431,7 @@ export function AdminCourseBuilderLayout() {
                 </NavLink>
                 <NavLink
                   to={adminCourseReleasesPath(courseId)}
-                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 ${
+                  className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
                     isSidebarOpen ? "gap-2.5" : "justify-center"
                   }`}
                 >
@@ -435,13 +440,31 @@ export function AdminCourseBuilderLayout() {
                 </NavLink>
                 <NavLink
                   to={adminCourseAssessmentsPath(courseId)}
-                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 ${
+                  className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
                     isSidebarOpen ? "gap-2.5" : "justify-center"
                   }`}
                 >
                   <ClipboardCheck className="h-4 w-4 shrink-0 text-slate-400" />
                   {isSidebarOpen ? "Gerenciar Avaliacoes" : null}
                 </NavLink>
+                <button
+                  type="button"
+                  className={`flex items-center rounded-xl px-3 py-3 text-sm text-slate-600 transition hover:bg-slate-50 ${
+                    isSidebarOpen ? "gap-2.5" : "justify-center"
+                  }`}
+                >
+                  <Download className="h-4 w-4 shrink-0 text-slate-400" />
+                  {isSidebarOpen ? "Exportar Conteudo" : null}
+                </button>
+                <button
+                  type="button"
+                  className={`flex items-center rounded-xl border border-blue-200 bg-[linear-gradient(180deg,#1788a8_0%,#12596f_100%)] px-3 py-3 text-sm font-black text-white transition hover:opacity-95 ${
+                    isSidebarOpen ? "gap-2.5" : "justify-center"
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  {isSidebarOpen ? "Importar Conteudo (IA)" : null}
+                </button>
               </div>
             </div>
           </aside>
