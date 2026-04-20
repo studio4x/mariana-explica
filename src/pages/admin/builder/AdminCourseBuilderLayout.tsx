@@ -1,10 +1,21 @@
-import { Link, NavLink, Outlet, useOutletContext, useParams } from "react-router-dom"
-import { BookOpen, ClipboardCheck, Cog, Layers3, UsersRound } from "lucide-react"
-import { useMemo } from "react"
+import { Link, NavLink, Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom"
+import {
+  BookOpen,
+  ClipboardCheck,
+  Cog,
+  ExternalLink,
+  Layers3,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  UsersRound,
+} from "lucide-react"
+import { useMemo, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { StatusBadge } from "@/components/common"
 import {
+  useCreateAdminProductModule,
   useAdminProductAssessments,
   useAdminProductModules,
   useAdminProducts,
@@ -17,6 +28,7 @@ import {
   adminCourseSettingsPath,
   publicCoursePath,
 } from "@/lib/routes"
+import { BUILD_VERSION } from "@/lib/build"
 import type {
   ProductAssessmentSummary,
   ProductModuleSummary,
@@ -43,9 +55,13 @@ export function useAdminCourseBuilderContext() {
 
 export function AdminCourseBuilderLayout() {
   const { courseId } = useParams<{ courseId: string }>()
+  const navigate = useNavigate()
   const productsQuery = useAdminProducts()
   const modulesQuery = useAdminProductModules(courseId)
   const assessmentsQuery = useAdminProductAssessments(courseId)
+  const createModule = useCreateAdminProductModule()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [builderError, setBuilderError] = useState<string | null>(null)
 
   const product = useMemo(() => {
     const products = productsQuery.data ?? []
@@ -82,6 +98,30 @@ export function AdminCourseBuilderLayout() {
 
   const modules = modulesQuery.data ?? []
   const assessments = assessmentsQuery.data ?? []
+  const handleCreateModule = async () => {
+    if (!courseId) return
+
+    setBuilderError(null)
+    try {
+      const position = modules.length + 1
+      const createdModule = await createModule.mutateAsync({
+        productId: courseId,
+        title: `Modulo ${position}`,
+        description: null,
+        module_type: "mixed",
+        access_type: "paid_only",
+        position,
+        sort_order: position,
+        is_preview: false,
+        is_required: true,
+        status: "draft",
+      })
+
+      navigate(adminCourseModulePath(courseId, createdModule.id))
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o modulo.")
+    }
+  }
   const context: AdminCourseBuilderContext = {
     courseId,
     product,
@@ -90,52 +130,73 @@ export function AdminCourseBuilderLayout() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={`Builder do curso: ${product.title}`}
-        description="Ambiente de autoria com rotas dedicadas para visao geral, configuracoes, liberacoes, avaliacoes e estrutura pedagogica."
-        backTo="/admin/cursos"
-      />
-
-      <section className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#0f172a_0%,#1d4d8b_55%,#0f172a_100%)] p-6 text-white shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-white/60">Curso central</p>
-            <h2 className="mt-2 font-display text-3xl font-bold">{product.title}</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-white/80">
-              O mesmo objeto de curso alimenta catalogo publico, checkout, liberacao, builder e player do aluno.
-            </p>
+    <div className="-mx-4 -my-6 sm:-mx-6 lg:-mx-8">
+      <div className="relative flex min-h-[calc(100vh-9.5rem)] flex-col overflow-hidden border-y border-slate-200 bg-white lg:rounded-none">
+        <header className="flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button variant="ghost" size="sm" asChild className="rounded-full">
+              <Link to="/admin/cursos">Voltar</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => setIsSidebarOpen((value) => !value)}
+            >
+              {isSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-base font-semibold text-slate-950">{product.title}</p>
+                <StatusBadge
+                  label={
+                    product.status === "published"
+                      ? "Publicado"
+                      : product.status === "draft"
+                        ? "Rascunho"
+                        : "Arquivado"
+                  }
+                  tone={
+                    product.status === "published"
+                      ? "success"
+                      : product.status === "draft"
+                        ? "warning"
+                        : "danger"
+                  }
+                />
+              </div>
+              <p className="hidden text-xs uppercase tracking-[0.2em] text-slate-500 md:block">
+                Builder do curso
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge label={product.status === "published" ? "Publicado" : product.status === "draft" ? "Rascunho" : "Arquivado"} tone={product.status === "published" ? "success" : product.status === "draft" ? "warning" : "danger"} />
-            <StatusBadge label={`${modules.length} modulos`} tone="info" />
-            <StatusBadge label={`${assessments.length} avaliacoes`} tone="warning" />
-            <Button asChild variant="secondary" className="rounded-full bg-white text-slate-950 hover:bg-white/90">
+
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" className="hidden rounded-full sm:inline-flex">
+              <Link to={adminCourseSettingsPath(courseId)}>Configuracoes</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
               <Link to={publicCoursePath(product.slug)} target="_blank" rel="noreferrer">
-                Abrir venda publica
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Visualizar
               </Link>
             </Button>
           </div>
-        </div>
-      </section>
+        </header>
 
-      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="rounded-[1.75rem] border bg-white p-4 shadow-sm">
-          <p className="px-3 pb-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Builder LMS
-          </p>
-
-          <nav className="grid gap-1">
+        <div className="border-b border-slate-100 bg-white px-4 py-3 lg:hidden">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {builderNav.map((item) => (
               <NavLink
                 key={item.key}
                 to={item.to(courseId)}
                 end={item.key === "overview"}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                  `flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
                     isActive
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-700"
                   }`
                 }
               >
@@ -143,43 +204,150 @@ export function AdminCourseBuilderLayout() {
                 {item.label}
               </NavLink>
             ))}
-          </nav>
+          </div>
+        </div>
 
-          <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-slate-900" />
-              <p className="text-sm font-semibold text-slate-950">Arvore do curso</p>
+        <div className="flex flex-1 overflow-hidden">
+          <aside
+            className={`hidden shrink-0 border-r border-slate-200 bg-white transition-all duration-300 lg:flex lg:flex-col ${
+              isSidebarOpen ? "w-[288px]" : "w-[86px]"
+            }`}
+          >
+            <div className="border-b border-slate-100 px-4 py-4">
+              <div className={`flex items-center ${isSidebarOpen ? "justify-between gap-3" : "justify-center"}`}>
+                {isSidebarOpen ? (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                      Builder LMS
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Workspace de estrutura, conteudo e liberacao.
+                    </p>
+                  </div>
+                ) : (
+                  <BookOpen className="h-5 w-5 text-slate-600" />
+                )}
+                <Button
+                  type="button"
+                  size="icon"
+                  className="rounded-2xl"
+                  onClick={() => void handleCreateModule()}
+                  disabled={createModule.isPending}
+                  title="Criar modulo"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {isSidebarOpen ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <StatusBadge label={`${modules.length} modulos`} tone="info" />
+                  <StatusBadge label={`${assessments.length} avaliacoes`} tone="warning" />
+                </div>
+              ) : null}
             </div>
-            <div className="mt-4 space-y-2">
-              {modules.length === 0 ? (
-                <p className="text-sm leading-6 text-slate-600">
-                  Sem modulos ainda. Cria a estrutura pedagogica para comecar o builder.
-                </p>
-              ) : (
-                modules.map((module, index) => (
+
+            <div className="flex-1 overflow-y-auto px-3 py-4">
+              <nav className="grid gap-1">
+                {builderNav.map((item) => (
                   <NavLink
-                    key={module.id}
-                    to={adminCourseModulePath(courseId, module.id)}
+                    key={item.key}
+                    to={item.to(courseId)}
+                    end={item.key === "overview"}
+                    title={item.label}
                     className={({ isActive }) =>
-                      `block rounded-2xl border px-3 py-3 text-sm transition ${
+                      `flex items-center rounded-2xl text-sm font-medium transition ${
+                        isSidebarOpen ? "gap-3 px-4 py-3" : "justify-center px-0 py-3"
+                      } ${
                         isActive
-                          ? "border-slate-900 bg-slate-900 text-white"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`
                     }
                   >
-                    <p className="text-[11px] uppercase tracking-[0.18em] opacity-70">Modulo {index + 1}</p>
-                    <p className="mt-1 font-medium">{module.title}</p>
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {isSidebarOpen ? item.label : null}
                   </NavLink>
-                ))
-              )}
-            </div>
-          </div>
-        </aside>
+                ))}
+              </nav>
 
-        <main className="min-w-0">
-          <Outlet context={context} />
-        </main>
+              <div className={`mt-5 rounded-[1.5rem] bg-slate-50 ${isSidebarOpen ? "p-4" : "p-3"}`}>
+                <div className={`flex items-center ${isSidebarOpen ? "gap-2" : "justify-center"}`}>
+                  <BookOpen className="h-4 w-4 text-slate-900" />
+                  {isSidebarOpen ? <p className="text-sm font-semibold text-slate-950">Arvore do curso</p> : null}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {modules.length === 0 ? (
+                    isSidebarOpen ? (
+                      <p className="text-sm leading-6 text-slate-600">
+                        Sem modulos ainda. Cria a estrutura pedagogica para comecar o builder.
+                      </p>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-300 px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Vazio
+                      </div>
+                    )
+                  ) : (
+                    modules.map((module, index) => (
+                      <NavLink
+                        key={module.id}
+                        to={adminCourseModulePath(courseId, module.id)}
+                        title={module.title}
+                        className={({ isActive }) =>
+                          `block rounded-2xl border text-sm transition ${
+                            isSidebarOpen ? "px-3 py-3" : "px-2 py-3 text-center"
+                          } ${
+                            isActive
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                          }`
+                        }
+                      >
+                        {isSidebarOpen ? (
+                          <>
+                            <p className="text-[11px] uppercase tracking-[0.18em] opacity-70">
+                              Modulo {index + 1}
+                            </p>
+                            <p className="mt-1 font-medium">{module.title}</p>
+                          </>
+                        ) : (
+                          <span className="text-xs font-bold">{index + 1}</span>
+                        )}
+                      </NavLink>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {builderError && isSidebarOpen ? (
+                <p className="mt-4 text-sm text-rose-700">{builderError}</p>
+              ) : null}
+            </div>
+
+            <div className="border-t border-slate-100 px-3 py-3">
+              <div className="grid gap-2">
+                <Button asChild variant="outline" className={`rounded-2xl ${isSidebarOpen ? "" : "px-0"}`}>
+                  <Link to={adminCourseAssessmentsPath(courseId)}>
+                    <ClipboardCheck className="h-4 w-4 shrink-0" />
+                    {isSidebarOpen ? <span className="ml-2">Avaliacoes</span> : null}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </aside>
+
+          <main className="relative min-w-0 flex-1 overflow-y-auto bg-slate-50/60">
+            <div className="absolute inset-0 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[1680px] p-4 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+                <Outlet context={context} />
+              </div>
+            </div>
+          </main>
+        </div>
+
+        <div className="pointer-events-none absolute bottom-4 right-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+          Build {BUILD_VERSION}
+        </div>
       </div>
     </div>
   )
