@@ -9,15 +9,19 @@ import {
 import { Link, useNavigate } from "react-router-dom"
 import {
   ArrowDownToLine,
+  ArrowRight,
   BookOpen,
+  CheckCircle2,
+  Clock3,
   GripVertical,
   Pencil,
   Plus,
+  Search,
+  Sparkles,
   Trash2,
-  Upload,
 } from "lucide-react"
 import { EmptyState, ErrorState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAdminProducts,
@@ -83,17 +87,17 @@ const statusLabels: Record<ProductSummary["status"], string> = {
   archived: "Arquivado",
 }
 
-const statusTones: Record<ProductSummary["status"], "warning" | "success" | "danger"> = {
-  draft: "warning",
-  published: "success",
-  archived: "danger",
-}
-
 const typeLabels: Record<ProductSummary["product_type"], string> = {
   paid: "Pago",
   free: "Gratuito",
   hybrid: "Hibrido",
   external_service: "Servico externo",
+}
+
+const cardAccentClasses: Record<ProductSummary["status"], string> = {
+  draft: "border-sky-300 shadow-[0_18px_45px_rgba(14,165,233,0.08)]",
+  published: "border-emerald-300 shadow-[0_18px_45px_rgba(16,185,129,0.08)]",
+  archived: "border-slate-300 shadow-[0_18px_45px_rgba(15,23,42,0.06)]",
 }
 
 function formatWorkloadMinutes(minutes: number) {
@@ -104,6 +108,12 @@ function formatWorkloadMinutes(minutes: number) {
   if (hours === 0) return `${remainingMinutes} min`
   if (remainingMinutes === 0) return `${hours}h`
   return `${hours}h ${remainingMinutes}min`
+}
+
+function clampDescription(value: string | null | undefined) {
+  const text = value?.trim() || "Curso sem descricao detalhada definida."
+  if (text.length <= 108) return text
+  return `${text.slice(0, 105).trimEnd()}...`
 }
 
 function slugify(value: string) {
@@ -229,24 +239,37 @@ function normalizeImportedCourse(raw: unknown): {
 function AdminCoursesSkeleton() {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Cursos"
-        description="Catalogo academico central com criacao, edicao basica e entrada direta no construtor LMS."
-      />
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.06)]">
+        <div className="h-4 w-32 animate-pulse rounded-full bg-slate-100" />
+        <div className="mt-5 h-12 w-72 animate-pulse rounded-full bg-slate-100" />
+        <div className="mt-4 h-5 w-96 animate-pulse rounded-full bg-slate-100" />
+      </section>
 
       <div className="grid gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-            <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
-            <div className="mt-3 h-10 w-20 animate-pulse rounded-2xl bg-slate-200" />
+          <div key={index} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 animate-pulse rounded-[1.2rem] bg-slate-100" />
+              <div className="flex-1">
+                <div className="h-4 w-28 animate-pulse rounded-full bg-slate-100" />
+                <div className="mt-3 h-10 w-20 animate-pulse rounded-2xl bg-slate-100" />
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-52 animate-pulse rounded-[1.5rem] bg-slate-100" />
+            <div key={index} className="overflow-hidden rounded-[1.6rem] border border-slate-100 bg-slate-50">
+              <div className="h-72 animate-pulse bg-slate-100" />
+              <div className="space-y-4 p-5">
+                <div className="h-6 w-2/3 animate-pulse rounded-full bg-slate-100" />
+                <div className="h-4 w-full animate-pulse rounded-full bg-slate-100" />
+                <div className="h-4 w-4/5 animate-pulse rounded-full bg-slate-100" />
+              </div>
+            </div>
           ))}
         </div>
       </section>
@@ -610,70 +633,118 @@ export function AdminProducts() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Cursos"
-        description="Ponto inicial do admin para gerir o catalogo academico, editar dados basicos e abrir o construtor LMS."
-        actions={
-          <>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={handleImportFile}
-            />
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.06)]">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-700">Catalogo academico</p>
+            <div className="space-y-2">
+              <h1 className="font-display text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
+                Catalogo de Cursos
+              </h1>
+              <p className="max-w-3xl text-base leading-8 text-slate-600">
+                Gerencie seu curriculo, organize a ordem de exibicao e acompanhe rapidamente o status de cada treinamento.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Button
               type="button"
               variant="outline"
-              className="rounded-full"
+              className="h-12 rounded-2xl border-slate-200 bg-slate-50 px-5 text-slate-700 shadow-sm hover:bg-white"
               onClick={() => importInputRef.current?.click()}
             >
-              <Upload className="mr-2 h-4 w-4" />
-              Importar JSON
+              <Sparkles className="mr-2 h-4 w-4 text-sky-600" />
+              Importar estrutura
             </Button>
-            <Button type="button" className="rounded-full" onClick={() => openCreateEditor()}>
+            <Button
+              type="button"
+              className="h-12 rounded-2xl bg-[linear-gradient(180deg,#1788a8_0%,#12596f_100%)] px-6 text-white shadow-[0_18px_32px_rgba(18,89,111,0.28)] hover:opacity-95"
+              onClick={() => openCreateEditor()}
+            >
               <Plus className="mr-2 h-4 w-4" />
-              Novo curso
+              Adicionar novo curso
             </Button>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Total de cursos</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
+        <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-slate-50 text-slate-500">
+              <BookOpen className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Total</p>
+              <p className="mt-1 text-4xl font-bold text-slate-950">{products.length}</p>
+            </div>
+          </div>
         </div>
-        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Cursos publicados</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{publishedCount}</p>
+        <div className="rounded-[1.75rem] border border-emerald-200 bg-[linear-gradient(180deg,#f8fffb_0%,#f3fdf7_100%)] p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-500">Publicados</p>
+              <p className="mt-1 text-4xl font-bold text-slate-950">{publishedCount}</p>
+            </div>
+          </div>
         </div>
-        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Cursos em rascunho</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{draftCount}</p>
+        <div className="rounded-[1.75rem] border border-sky-300 bg-[linear-gradient(180deg,#fafdff_0%,#f1f9ff_100%)] p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-sky-100 text-sky-700">
+              <Clock3 className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Em rascunho</p>
+              <p className="mt-1 text-4xl font-bold text-slate-950">{draftCount}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Lista de cursos</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Ordem de exibicao dos cursos</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Cada curso mostra capa, estado, carga horaria, preco, visibilidade, ordem e acoes administrativas.
+              Recurso recolhido por padrao para nao ocupar a tela. Arraste os cards para reposicionar quando a pesquisa estiver vazia.
             </p>
           </div>
 
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Pesquisar por titulo, slug ou estado"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:w-80"
-            />
+            <div className="relative md:w-80">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Pesquisar por titulo, slug ou estado"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
             <StatusBadge
               label={deferredQuery.trim() ? "Drag and drop pausado" : "Drag and drop ativo"}
               tone={deferredQuery.trim() ? "warning" : "success"}
             />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-2xl border-sky-600 px-5 text-sky-700"
+              onClick={() => setQuery("")}
+            >
+              <ArrowRight className="mr-2 h-4 w-4" />
+              Organizar exibicao
+            </Button>
           </div>
         </div>
 
@@ -691,7 +762,7 @@ export function AdminProducts() {
             />
           </div>
         ) : (
-          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          <div className="mt-6 grid gap-5 xl:grid-cols-3">
             {filteredCourses.map((course) => (
               <article
                 key={course.id}
@@ -699,10 +770,19 @@ export function AdminProducts() {
                 onDragStart={() => setDraggingCourseId(course.id)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => void handleDropReorder(course.id)}
-                className="rounded-[1.5rem] border bg-slate-50/80 p-4 transition hover:border-slate-300"
+                className={`group overflow-hidden rounded-[1.7rem] border bg-white transition hover:-translate-y-0.5 ${cardAccentClasses[course.status]}`}
               >
-                <div className="flex gap-4">
-                  <div className="h-28 w-24 shrink-0 overflow-hidden rounded-[1.25rem] bg-slate-200">
+                <div className="relative h-72 overflow-hidden bg-slate-200">
+                  <div className="absolute left-4 top-4 z-10">
+                    <span className="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white shadow-sm">
+                      {statusLabels[course.status]}
+                    </span>
+                  </div>
+                  <div className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-slate-950/65 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
+                    <GripVertical className="h-3.5 w-3.5" />
+                    Ordem {course.sort_order}
+                  </div>
+                  <div className="absolute inset-0">
                     {course.cover_image_url ? (
                       <img
                         src={course.cover_image_url}
@@ -710,88 +790,105 @@ export function AdminProducts() {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,#dbeafe_0%,#bfdbfe_50%,#e2e8f0_100%)] text-slate-500">
-                        <BookOpen className="h-6 w-6" />
+                      <div className="flex h-full items-center justify-center bg-[linear-gradient(145deg,#1a91af_0%,#155d73_55%,#123845_100%)] text-white/85">
+                        <div className="rounded-[1.2rem] bg-white/95 px-12 py-6 shadow-[0_20px_40px_rgba(15,23,42,0.18)]">
+                          <BookOpen className="h-8 w-8 text-sky-700" />
+                        </div>
                       </div>
                     )}
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-lg font-semibold text-slate-950">{course.title}</p>
-                          <StatusBadge label={statusLabels[course.status]} tone={statusTones[course.status]} />
-                          <StatusBadge label={course.is_public ? "Publico" : "Privado"} tone={course.is_public ? "info" : "neutral"} />
-                        </div>
-                        <p className="mt-2 text-sm text-slate-600">/{course.slug}</p>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <GripVertical className="h-4 w-4" />
-                        <span className="text-xs uppercase tracking-[0.18em]">Ordem {course.sort_order}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border bg-white px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Carga horaria</p>
-                        <p className="mt-2 font-medium text-slate-950">{formatWorkloadMinutes(course.workload_minutes)}</p>
-                      </div>
-                      <div className="rounded-2xl border bg-white px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Preco</p>
-                        <p className="mt-2 font-medium text-slate-950">
-                          {formatProductPrice(course.price_cents, course.currency)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <StatusBadge label={typeLabels[course.product_type]} tone="neutral" />
-                      {course.launch_date ? (
-                        <StatusBadge label={`Lancamento ${course.launch_date}`} tone="warning" />
-                      ) : null}
-                    </div>
-
-                    <p className="mt-4 text-sm leading-7 text-slate-600">
-                      {course.description ?? "Curso sem descricao detalhada definida."}
-                    </p>
-
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => openEditEditor(course)}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar
-                      </Button>
-                      <Button asChild variant="outline" className="rounded-full">
-                        <Link to={adminCourseBuilderPath(course.id)}>Abrir construtor</Link>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => void handleExportCourse(course)}
-                        disabled={exportingCourseId === course.id}
-                      >
-                        <ArrowDownToLine className="mr-2 h-4 w-4" />
-                        {exportingCourseId === course.id ? "A exportar..." : "Exportar"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => void handleDeleteCourse(course)}
-                        disabled={deleteCourse.isPending}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir
-                      </Button>
+                  <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(15,23,42,0)_0%,rgba(15,23,42,0.78)_72%,rgba(15,23,42,0.92)_100%)] px-5 pb-5 pt-16">
+                    <p className="font-display text-3xl font-bold text-white">{course.title}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/85">
+                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+                        /{course.slug}
+                      </span>
+                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+                        {course.is_public ? "Publico" : "Privado"}
+                      </span>
+                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+                        {typeLabels[course.product_type]}
+                      </span>
                     </div>
                   </div>
+                </div>
+
+                <div className="space-y-5 p-5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Duracao</p>
+                      <p className="mt-2 font-semibold text-slate-950">{formatWorkloadMinutes(course.workload_minutes)}</p>
+                    </div>
+                    <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Preco</p>
+                      <p className="mt-2 font-semibold text-slate-950">
+                        {formatProductPrice(course.price_cents, course.currency)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="min-h-[84px] text-sm leading-8 text-slate-600">
+                    {clampDescription(course.description ?? course.short_description)}
+                  </p>
+
+                  <div className="grid grid-cols-[1.1fr_1.1fr_repeat(3,48px)] gap-2">
+                    <div className="rounded-[1.15rem] border border-slate-200 bg-slate-50 px-3 py-3 text-center">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Catalogo</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-950">{course.is_public ? "Publico" : "Privado"}</p>
+                    </div>
+                    <div className="rounded-[1.15rem] border border-slate-200 bg-slate-50 px-3 py-3 text-center">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Builder</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-950">LMS</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-[1rem] border-slate-200 px-0 text-sky-700"
+                      onClick={() => void handleExportCourse(course)}
+                      disabled={exportingCourseId === course.id}
+                      title="Exportar curso"
+                    >
+                      <ArrowDownToLine className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-[1rem] border-slate-200 px-0 text-slate-700"
+                      onClick={() => openEditEditor(course)}
+                      title="Editar curso"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-[1rem] border-slate-200 px-0 text-rose-600"
+                      onClick={() => void handleDeleteCourse(course)}
+                      disabled={deleteCourse.isPending}
+                      title="Excluir curso"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline" className="h-11 flex-1 rounded-[1rem] border-slate-200">
+                      <Link to={adminCourseBuilderPath(course.id)}>Abrir construtor</Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-11 rounded-[1rem] bg-slate-950 px-5 text-white hover:bg-slate-900"
+                      onClick={() => openEditEditor(course)}
+                    >
+                      Ajustar
+                    </Button>
+                  </div>
+
+                  {course.launch_date ? (
+                    <div className="rounded-[1rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      Lancamento programado para {course.launch_date}.
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ))}
