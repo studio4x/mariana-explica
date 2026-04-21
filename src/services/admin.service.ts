@@ -120,18 +120,10 @@ function normalizeAdminPendingInfoConfig(
   return {
     config_key: row?.config_key ?? ADMIN_PENDING_INFO_KEY,
     config_value: {
-      scheduler_provider: normalizeText("scheduler_provider"),
-      scheduler_reference: normalizeText("scheduler_reference"),
-      scheduler_notes: String(value["scheduler_notes"] ?? "").trim(),
       email_provider_name: normalizeText("email_provider_name"),
       email_sender_name: normalizeText("email_sender_name"),
       email_sender_address: normalizeText("email_sender_address"),
       email_reply_to: normalizeText("email_reply_to"),
-      checkout_production_notes: String(value["checkout_production_notes"] ?? "").trim(),
-      production_smoke_tests_notes: String(value["production_smoke_tests_notes"] ?? "").trim(),
-      pwa_mobile_validation_notes: String(value["pwa_mobile_validation_notes"] ?? "").trim(),
-      operations_contact: normalizeText("operations_contact"),
-      general_notes: String(value["general_notes"] ?? "").trim(),
     },
     description:
       row?.description ??

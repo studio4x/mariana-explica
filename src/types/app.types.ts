@@ -94,18 +94,10 @@ export interface AdminModulePdfWatermarkConfig {
 export interface AdminPendingInfoConfig {
   config_key: string
   config_value: {
-    scheduler_provider: string
-    scheduler_reference: string
-    scheduler_notes: string
     email_provider_name: string
     email_sender_name: string
     email_sender_address: string
     email_reply_to: string
-    checkout_production_notes: string
-    production_smoke_tests_notes: string
-    pwa_mobile_validation_notes: string
-    operations_contact: string
-    general_notes: string
   }
   description: string | null
   is_public: boolean
