@@ -104,6 +104,20 @@ export interface AdminPendingInfoConfig {
   updated_at: string | null
 }
 
+export interface AdminEmailStatus {
+  providerName: string | null
+  transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
+  senderNamePresent: boolean
+  senderAddressPresent: boolean
+  replyToPresent: boolean
+  smtpHostPresent: boolean
+  smtpPortPresent: boolean
+  smtpUserPresent: boolean
+  smtpPasswordPresent: boolean
+  ready: boolean
+  missing: string[]
+}
+
 export interface ProductLessonSummary {
   id: string
   module_id: string

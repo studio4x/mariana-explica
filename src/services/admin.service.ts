@@ -17,6 +17,7 @@ import type {
   AdminCouponUsageSummary,
   AdminCourseReleaseSummary,
   AdminModulePdfWatermarkConfig,
+  AdminEmailStatus,
   AdminPendingInfoConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
@@ -390,6 +391,11 @@ export async function fetchAdminPendingInfoConfig() {
   }
 
   return normalizeAdminPendingInfoConfig(data as Partial<AdminPendingInfoConfig> | null)
+}
+
+export async function fetchAdminEmailStatus() {
+  const response = await invokeAdminFunction<{ success: true; email: AdminEmailStatus }>("admin-email-status", {})
+  return response.email
 }
 
 export async function updateAdminModulePdfWatermarkConfig(input: {

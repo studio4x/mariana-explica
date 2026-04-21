@@ -21,6 +21,7 @@ import {
   fetchAdminAffiliates,
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
+  fetchAdminEmailStatus,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
   fetchAdminNotifications,
@@ -94,6 +95,14 @@ export function useAdminModulePdfWatermarkConfig() {
   return useQuery({
     queryKey: ["admin", "module-pdf-watermark"],
     queryFn: fetchAdminModulePdfWatermarkConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminEmailStatus() {
+  return useQuery({
+    queryKey: ["admin", "email-status"],
+    queryFn: fetchAdminEmailStatus,
     ...getAdminQueryOptions(),
   })
 }

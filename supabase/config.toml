@@ -4,6 +4,9 @@ verify_jwt = false
 [functions.admin-storage-upload]
 verify_jwt = false
 
+[functions.admin-email-status]
+verify_jwt = false
+
 [functions.admin-course-releases]
 verify_jwt = false
 

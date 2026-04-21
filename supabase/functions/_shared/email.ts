@@ -32,6 +32,20 @@ interface EmailOperationalConfig {
   replyTo: string | null
 }
 
+export interface EmailEnvironmentStatus {
+  providerName: string | null
+  transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
+  senderNamePresent: boolean
+  senderAddressPresent: boolean
+  replyToPresent: boolean
+  smtpHostPresent: boolean
+  smtpPortPresent: boolean
+  smtpUserPresent: boolean
+  smtpPasswordPresent: boolean
+  ready: boolean
+  missing: string[]
+}
+
 interface EmailProviderRuntimeConfig extends EmailOperationalConfig {
   providerKey: "resend" | "postmark" | "sendgrid" | "smtp"
   apiKey: string
@@ -194,6 +208,84 @@ function normalizeEmailOperationalConfig(value: unknown): EmailOperationalConfig
     senderName: normalizeText("email_sender_name"),
     senderAddress: normalizeText("email_sender_address"),
     replyTo: normalizeText("email_reply_to"),
+  }
+}
+
+function readEmailRuntimeConfigFromEnvironment(): EmailOperationalConfig {
+  const providerName = normalizeProviderName(
+    readEnvText("EMAIL_PROVIDER", "EMAIL_PROVIDER_NAME") ||
+      (readEnvText("EMAIL_SMTP_HOST", "SMTP_HOST") ? "smtp" : null) ||
+      (readEnvText("RESEND_API_KEY") ? "resend" : null) ||
+      (readEnvText("POSTMARK_SERVER_TOKEN") ? "postmark" : null) ||
+      (readEnvText("SENDGRID_API_KEY") ? "sendgrid" : null) ||
+      "",
+  )
+
+  return {
+    providerName,
+    senderName: readEnvText("EMAIL_FROM_NAME"),
+    senderAddress: readEnvText("EMAIL_FROM_EMAIL", "EMAIL_FROM_ADDRESS"),
+    replyTo: readEnvText("EMAIL_REPLY_TO"),
+  }
+}
+
+export function getEmailEnvironmentStatus(): EmailEnvironmentStatus {
+  const runtimeConfig = readEmailRuntimeConfigFromEnvironment()
+  const smtpHost = readEnvText("EMAIL_SMTP_HOST", "SMTP_HOST")
+  const smtpPort = readEnvText("EMAIL_SMTP_PORT", "SMTP_PORT")
+  const smtpUser = readEnvText("EMAIL_SMTP_USER", "SMTP_USER", "EMAIL_SMTP_USERNAME", "SMTP_USERNAME")
+  const smtpPassword = readEnvText("EMAIL_SMTP_PASSWORD", "SMTP_PASSWORD")
+  const transport = runtimeConfig.providerName.includes("smtp")
+    ? "smtp"
+    : runtimeConfig.providerName.includes("postmark")
+      ? "postmark"
+      : runtimeConfig.providerName.includes("sendgrid")
+        ? "sendgrid"
+        : runtimeConfig.providerName.includes("resend")
+          ? "resend"
+          : null
+
+  const missing = new Set<string>()
+
+  if (!runtimeConfig.providerName) {
+    missing.add("EMAIL_PROVIDER / EMAIL_PROVIDER_NAME")
+    if (!smtpHost) {
+      missing.add("EMAIL_SMTP_HOST / SMTP_HOST")
+    }
+    if (!smtpPort) {
+      missing.add("EMAIL_SMTP_PORT / SMTP_PORT")
+    }
+    if (!smtpUser) {
+      missing.add("EMAIL_SMTP_USER / SMTP_USER")
+    }
+    if (!smtpPassword) {
+      missing.add("EMAIL_SMTP_PASSWORD / SMTP_PASSWORD")
+    }
+  }
+
+  if (!runtimeConfig.senderAddress) {
+    missing.add("EMAIL_FROM_EMAIL / EMAIL_FROM_ADDRESS")
+  }
+
+  return {
+    providerName: runtimeConfig.providerName || null,
+    transport,
+    senderNamePresent: Boolean(runtimeConfig.senderName),
+    senderAddressPresent: Boolean(runtimeConfig.senderAddress),
+    replyToPresent: Boolean(runtimeConfig.replyTo),
+    smtpHostPresent: Boolean(smtpHost),
+    smtpPortPresent: Boolean(smtpPort),
+    smtpUserPresent: Boolean(smtpUser),
+    smtpPasswordPresent: Boolean(smtpPassword),
+    ready: Boolean(
+      (transport === "smtp" || !runtimeConfig.providerName) &&
+        smtpHost &&
+        smtpPort &&
+        smtpUser &&
+        smtpPassword &&
+        runtimeConfig.senderAddress,
+    ),
+    missing: Array.from(missing),
   }
 }
 
@@ -853,6 +945,8 @@ export function buildManualNotificationEmail(input: {
 }
 
 export async function fetchEmailOperationalConfig(client: SupabaseClient) {
+  const envConfig = readEmailRuntimeConfigFromEnvironment()
+
   const { data, error } = await client
     .from("site_config")
     .select("config_value")
@@ -863,7 +957,14 @@ export async function fetchEmailOperationalConfig(client: SupabaseClient) {
     throw error
   }
 
-  return normalizeEmailOperationalConfig(data?.config_value ?? null)
+  const storedConfig = normalizeEmailOperationalConfig(data?.config_value ?? null)
+
+  return {
+    providerName: envConfig.providerName || storedConfig.providerName,
+    senderName: envConfig.senderName || storedConfig.senderName,
+    senderAddress: envConfig.senderAddress || storedConfig.senderAddress,
+    replyTo: envConfig.replyTo || storedConfig.replyTo,
+  }
 }
 
 export async function sendTransactionalEmail(
