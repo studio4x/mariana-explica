@@ -94,23 +94,23 @@ export function StudentCoursePlayerLayout() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] overflow-hidden rounded-[2rem] border bg-slate-950 text-white shadow-sm">
+    <div className="flex h-dvh w-screen overflow-hidden bg-slate-50 text-white">
       <aside
-        className={`${sidebarOpen ? "w-[320px]" : "w-[92px]"} hidden shrink-0 border-r border-white/10 bg-slate-950/95 transition-all duration-200 lg:block`}
+        className={`${sidebarOpen ? "w-80" : "w-0 overflow-hidden"} hidden shrink-0 border-r border-slate-200 bg-white text-slate-950 transition-all duration-200 lg:block`}
       >
         <div className="flex h-full flex-col">
-          <div className="border-b border-white/10 px-5 py-5">
+          <div className="border-b border-slate-200 px-5 py-5">
             <div className="flex items-center justify-between gap-3">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => setSidebarOpen((value) => !value)}
-                className="rounded-full text-white hover:bg-white/10 hover:text-white"
+                className="rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-950"
               >
                 <PanelLeftClose className="h-4 w-4" />
               </Button>
               {sidebarOpen ? (
-                <Button asChild variant="ghost" className="rounded-full text-white hover:bg-white/10 hover:text-white">
+                <Button asChild variant="ghost" className="rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-950">
                   <Link to={studentCoursePath(product.id)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Voltar ao curso
@@ -121,15 +121,15 @@ export function StudentCoursePlayerLayout() {
 
             {sidebarOpen ? (
               <div className="mt-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/55">Player LMS</p>
-                <h1 className="mt-2 text-xl font-semibold">{product.title}</h1>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Player LMS</p>
+                <h1 className="mt-2 line-clamp-2 text-xl font-black text-slate-950">{product.title}</h1>
                 <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-white/55">
+                  <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                     <span>Progresso geral</span>
                     <span>{progressPercent}%</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-cyan-300" style={{ width: `${progressPercent}%` }} />
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-[#1398B7]" style={{ width: `${progressPercent}%` }} />
                   </div>
                 </div>
               </div>
@@ -144,21 +144,21 @@ export function StudentCoursePlayerLayout() {
               )
 
               return (
-                <div key={module.id} className="rounded-[1.5rem] border border-white/10 bg-white/5 p-3">
+                <div key={module.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3">
                   {sidebarOpen ? (
                     <>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Modulo {index + 1}</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Modulo {index + 1}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{module.title}</p>
+                        <p className="font-bold text-slate-950">{module.title}</p>
                         {module.is_locked ? <StatusBadge label="Bloqueado" tone="warning" /> : null}
                       </div>
                       {module.is_locked && module.lock_reason ? (
-                        <p className="mt-2 text-xs leading-6 text-white/55">{module.lock_reason}</p>
+                        <p className="mt-2 text-xs leading-6 text-slate-500">{module.lock_reason}</p>
                       ) : null}
                     </>
                   ) : (
                     <div className="flex justify-center">
-                      <BookOpen className="h-4 w-4 text-white/75" />
+                      <BookOpen className="h-4 w-4 text-slate-500" />
                     </div>
                   )}
 
@@ -167,28 +167,28 @@ export function StudentCoursePlayerLayout() {
                       const state = getLessonProgressState(lesson.id, progressMap)
                       const itemClass = `block rounded-2xl border px-3 py-3 transition ${
                         lesson.is_locked
-                          ? "cursor-not-allowed border-white/10 bg-white/5 opacity-70"
+                          ? "cursor-not-allowed border-slate-200 bg-white opacity-70 grayscale"
                           : location.pathname.includes(`/aulas/${lesson.id}`)
-                            ? "border-cyan-300 bg-cyan-300/15"
-                            : "border-white/10 bg-white/5 hover:bg-white/10"
+                            ? "border-sky-200 bg-sky-50 text-sky-800"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
                       }`
 
                       const content = sidebarOpen ? (
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-medium">{lesson.title}</p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">
+                            <p className="text-sm font-bold text-slate-950">{lesson.title}</p>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                               {lesson.lesson_type}
                             </p>
                             {lesson.is_locked && lesson.lock_reason ? (
-                              <p className="mt-2 text-xs leading-5 text-white/55">{lesson.lock_reason}</p>
+                              <p className="mt-2 text-xs leading-5 text-slate-500">{lesson.lock_reason}</p>
                             ) : null}
                           </div>
                           <StatusBadge label={lesson.is_locked ? "Bloqueada" : state.label} tone={lesson.is_locked ? "warning" : state.tone} />
                         </div>
                       ) : (
                         <div className="flex justify-center">
-                          <PlayCircle className="h-4 w-4 text-white/75" />
+                          <PlayCircle className="h-4 w-4 text-slate-500" />
                         </div>
                       )
 
@@ -209,23 +209,23 @@ export function StudentCoursePlayerLayout() {
 
                     {moduleAssessments.map((assessment) => (
                       assessment.is_locked ? (
-                        <div key={assessment.id} className="block rounded-2xl border border-white/10 bg-white/5 px-3 py-3 opacity-70">
+                        <div key={assessment.id} className="block rounded-2xl border border-slate-200 bg-white px-3 py-3 opacity-70 grayscale">
                           {sidebarOpen ? (
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <p className="text-sm font-medium">{assessment.title}</p>
-                                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">
+                                <p className="text-sm font-bold text-slate-950">{assessment.title}</p>
+                                <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                                   Quiz do modulo
                                 </p>
                                 {assessment.lock_reason ? (
-                                  <p className="mt-2 text-xs leading-5 text-white/55">{assessment.lock_reason}</p>
+                                  <p className="mt-2 text-xs leading-5 text-slate-500">{assessment.lock_reason}</p>
                                 ) : null}
                               </div>
                               <StatusBadge label="Bloqueado" tone="warning" />
                             </div>
                           ) : (
                             <div className="flex justify-center">
-                              <ClipboardCheck className="h-4 w-4 text-amber-200" />
+                              <ClipboardCheck className="h-4 w-4 text-amber-500" />
                             </div>
                           )}
                         </div>
@@ -236,16 +236,16 @@ export function StudentCoursePlayerLayout() {
                           className={() =>
                             `block rounded-2xl border px-3 py-3 transition ${
                               location.pathname.includes(`/avaliacoes/${assessment.id}`)
-                                ? "border-amber-300 bg-amber-300/15"
-                                : "border-white/10 bg-white/5 hover:bg-white/10"
+                                ? "border-amber-200 bg-amber-50"
+                                : "border-slate-200 bg-white hover:bg-slate-50"
                             }`
                           }
                         >
                           {sidebarOpen ? (
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <p className="text-sm font-medium">{assessment.title}</p>
-                                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">
+                                <p className="text-sm font-bold text-slate-950">{assessment.title}</p>
+                                <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                                   Quiz do modulo
                                 </p>
                               </div>
@@ -272,7 +272,7 @@ export function StudentCoursePlayerLayout() {
                             </div>
                           ) : (
                             <div className="flex justify-center">
-                              <ClipboardCheck className="h-4 w-4 text-amber-200" />
+                              <ClipboardCheck className="h-4 w-4 text-amber-500" />
                             </div>
                           )}
                         </NavLink>
@@ -285,21 +285,21 @@ export function StudentCoursePlayerLayout() {
 
             {data.assessments.filter((assessment) => assessment.assessment_type === "final").map((assessment) => (
               assessment.is_locked ? (
-                <div key={assessment.id} className="block rounded-[1.5rem] border border-white/10 bg-white/5 px-4 py-4 opacity-70">
+                <div key={assessment.id} className="block rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 opacity-70 grayscale">
                   {sidebarOpen ? (
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="font-medium">{assessment.title}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">Avaliacao final</p>
+                        <p className="font-bold text-slate-950">{assessment.title}</p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Avaliacao final</p>
                         {assessment.lock_reason ? (
-                          <p className="mt-2 text-xs leading-5 text-white/55">{assessment.lock_reason}</p>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">{assessment.lock_reason}</p>
                         ) : null}
                       </div>
                       <StatusBadge label="Bloqueada" tone="warning" />
                     </div>
                   ) : (
                     <div className="flex justify-center">
-                      <ClipboardCheck className="h-4 w-4 text-emerald-200" />
+                      <ClipboardCheck className="h-4 w-4 text-emerald-500" />
                     </div>
                   )}
                 </div>
@@ -310,16 +310,16 @@ export function StudentCoursePlayerLayout() {
                   className={() =>
                     `block rounded-[1.5rem] border px-4 py-4 transition ${
                       location.pathname.includes(`/avaliacoes/${assessment.id}`)
-                        ? "border-emerald-300 bg-emerald-300/15"
-                        : "border-white/10 bg-white/5 hover:bg-white/10"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
                     }`
                   }
                 >
                   {sidebarOpen ? (
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="font-medium">{assessment.title}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">Avaliacao final</p>
+                        <p className="font-bold text-slate-950">{assessment.title}</p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Avaliacao final</p>
                       </div>
                       <StatusBadge
                         label={
@@ -344,7 +344,7 @@ export function StudentCoursePlayerLayout() {
                     </div>
                   ) : (
                     <div className="flex justify-center">
-                      <ClipboardCheck className="h-4 w-4 text-emerald-200" />
+                      <ClipboardCheck className="h-4 w-4 text-emerald-500" />
                     </div>
                   )}
                 </NavLink>
@@ -355,11 +355,22 @@ export function StudentCoursePlayerLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef5fb_100%)] text-slate-950">
-        <header className="border-b bg-white/80 px-4 py-4 backdrop-blur md:px-6">
+        <header className="min-h-16 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur md:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Curso em andamento</p>
-              <h2 className="mt-1 font-display text-2xl font-bold text-slate-950">{product.title}</h2>
+            <div className="flex min-w-0 items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSidebarOpen((value) => !value)}
+                className="hidden h-10 w-10 rounded-2xl p-0 lg:inline-flex"
+                aria-label={sidebarOpen ? "Recolher navegacao do curso" : "Abrir navegacao do curso"}
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Curso em andamento</p>
+                <h2 className="mt-1 truncate font-display text-xl font-black text-slate-950 md:text-2xl">{product.title}</h2>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <StatusBadge label={`${progressPercent}% concluido`} tone="warning" />
@@ -367,6 +378,9 @@ export function StudentCoursePlayerLayout() {
               {product.has_linear_progression ? (
                 <StatusBadge label="Progressao linear ativa" tone="warning" />
               ) : null}
+              <Button asChild variant="outline" className="h-8 rounded-full px-3 text-xs font-black">
+                <Link to={studentCoursePath(product.id)}>Sair do player</Link>
+              </Button>
             </div>
           </div>
         </header>

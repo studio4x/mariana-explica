@@ -287,20 +287,6 @@ export const router = createBrowserRouter(
           element: withSuspense(<StudentCourseDetailsPage />),
         },
         {
-          path: "cursos/:courseId/player",
-          element: withSuspense(<StudentCoursePlayerLayout />),
-          children: [
-            {
-              path: "aulas/:lessonId",
-              element: withSuspense(<StudentLessonPage />),
-            },
-            {
-              path: "avaliacoes/:assessmentId",
-              element: withSuspense(<StudentAssessmentExecutionPage />),
-            },
-          ],
-        },
-        {
           path: "downloads",
           element: withSuspense(<DashboardDownloads />),
         },
@@ -319,6 +305,25 @@ export const router = createBrowserRouter(
         {
           path: "perfil",
           element: withSuspense(<DashboardProfile />),
+        },
+      ],
+    },
+    {
+      path: "/aluno/cursos/:courseId/player",
+      errorElement: <RouteErrorBoundary />,
+      element: (
+        <ProtectedRoute>
+          {withSuspense(<StudentCoursePlayerLayout />)}
+        </ProtectedRoute>
+      ),
+      children: [
+        {
+          path: "aulas/:lessonId",
+          element: withSuspense(<StudentLessonPage />),
+        },
+        {
+          path: "avaliacoes/:assessmentId",
+          element: withSuspense(<StudentAssessmentExecutionPage />),
         },
       ],
     },
