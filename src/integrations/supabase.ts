@@ -4,6 +4,11 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 
 type QueryResponse<T> = Promise<{ data: T | null; error: Error | null }>
 
+interface RealtimeChannelLike {
+  on: (...args: unknown[]) => RealtimeChannelLike
+  subscribe: () => RealtimeChannelLike
+}
+
 interface NoopQueryBuilder {
   select(..._args: unknown[]): NoopQueryBuilder
   eq(..._args: unknown[]): NoopQueryBuilder
@@ -50,6 +55,8 @@ type SupabaseLike = {
       options?: { body?: unknown; headers?: Record<string, string> },
     ) => Promise<{ data: unknown; error: Error | null }>
   }
+  channel: (topic: string) => RealtimeChannelLike
+  removeChannel: (channel: unknown) => Promise<unknown> | unknown
 }
 
 function createNoopQueryBuilder(): NoopQueryBuilder {
@@ -147,6 +154,14 @@ function createNoopSupabaseClient() {
         error: new Error("Supabase nao configurado"),
       }),
     },
+    channel: () => {
+      const channel = {
+        on: () => channel,
+        subscribe: () => channel,
+      }
+      return channel
+    },
+    removeChannel: async () => "ok",
   }
 }
 

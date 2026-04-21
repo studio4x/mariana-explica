@@ -1,4 +1,7 @@
+import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { supabase } from "@/integrations/supabase"
+import { useAuth } from "@/hooks/useAuth"
 import {
   createSupportTicket,
   fetchAccessibleAssessment,
@@ -15,6 +18,7 @@ import {
   fetchProfilePreferences,
   fetchSupportTicketMessages,
   fetchSupportTickets,
+  fetchUnreadNotificationsCount,
   markNotificationAsRead,
   replySupportTicket,
   requestAssetAccess,
@@ -101,6 +105,45 @@ export function useNotifications() {
     queryKey: ["dashboard", "notifications"],
     queryFn: () => fetchNotifications(),
   })
+}
+
+export function useUnreadNotificationsCount() {
+  const { session } = useAuth()
+  const userId = session?.user.id
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: ["dashboard", "notifications", "unread-count", userId],
+    queryFn: fetchUnreadNotificationsCount,
+    enabled: Boolean(userId),
+  })
+
+  useEffect(() => {
+    if (!userId) return undefined
+
+    const channel = supabase
+      .channel(`student-notifications:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications", "unread-count", userId] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient, userId])
+
+  return query
 }
 
 export function usePaymentHistory() {

@@ -1,14 +1,14 @@
-import { Bell, CreditCard, Download, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
+import { Bell, CreditCard, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { InstallPrompt, StatusBadge } from "@/components/common"
+import { InstallPrompt } from "@/components/common"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
+import { useUnreadNotificationsCount } from "@/hooks/useDashboard"
 
 const items = [
   { to: ROUTES.DASHBOARD, label: "Inicio", icon: Home },
   { to: ROUTES.DASHBOARD_PRODUCTS, label: "Meus cursos", icon: FolderOpen },
-  { to: ROUTES.DASHBOARD_DOWNLOADS, label: "Downloads", icon: Download },
   { to: ROUTES.DASHBOARD_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.DASHBOARD_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.DASHBOARD_SUPPORT, label: "Suporte", icon: LifeBuoy },
@@ -17,7 +17,9 @@ const items = [
 
 export function DashboardLayout() {
   const { profile } = useAuth()
+  const unreadNotificationsQuery = useUnreadNotificationsCount()
   const firstName = profile?.full_name?.split(" ")[0] ?? "Aluno"
+  const unreadNotificationsCount = unreadNotificationsQuery.data ?? 0
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbfd_0%,#eff8fb_48%,#ffffff_100%)]">
@@ -31,23 +33,18 @@ export function DashboardLayout() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Link to={ROUTES.DASHBOARD_PRODUCTS} className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <p className="font-semibold text-slate-900">Continuar estudo</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">Cursos e modulos</p>
-            </Link>
-            <Link to={ROUTES.DASHBOARD_NOTIFICATIONS} className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <p className="font-semibold text-slate-900">Ver novidades</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">Avisos e mensagens</p>
-            </Link>
-            <div className="flex items-center justify-between rounded-2xl border bg-slate-900 px-4 py-3 text-white shadow-sm">
-              <div>
-                <p className="font-semibold">Conta</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/65">Estado atual</p>
-              </div>
-              <StatusBadge label={profile?.status === "active" ? "Conta ativa" : profile?.status ?? "Conta"} tone={profile?.status === "active" ? "success" : "warning"} />
-            </div>
-          </div>
+          <Link
+            to={ROUTES.DASHBOARD_NOTIFICATIONS}
+            className="relative flex h-14 w-14 items-center justify-center self-start rounded-full border bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:text-slate-950 hover:shadow-md lg:self-center"
+            aria-label={`Notificacoes${unreadNotificationsCount > 0 ? `, ${unreadNotificationsCount} por ler` : ""}`}
+          >
+            <Bell className="h-6 w-6" />
+            {unreadNotificationsCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex min-h-6 min-w-6 items-center justify-center rounded-full bg-rose-600 px-1.5 text-xs font-black text-white ring-2 ring-white">
+                {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+              </span>
+            ) : null}
+          </Link>
         </div>
       </div>
 
@@ -102,7 +99,7 @@ export function DashboardLayout() {
             <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Foco do dashboard</p>
               <p className="mt-3 text-sm leading-7 text-slate-700">
-                Menos distracao, mais continuidade. Os teus cursos, downloads e suporte ficam juntos para facilitar a rotina de estudo.
+                Menos distracao, mais continuidade. Os teus cursos, pagamentos, notificacoes e suporte ficam juntos para facilitar a rotina de estudo.
               </p>
             </div>
           </aside>

@@ -33,8 +33,8 @@ import {
 import {
   adminCourseAssessmentsPath,
   adminCourseBuilderPath,
-  adminCourseReleasesPath,
   adminCourseSettingsPath,
+  adminCourseStudentsPath,
 } from "@/lib/routes"
 import {
   createAdminProductAssessment,
@@ -816,7 +816,7 @@ export function AdminProducts() {
 
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
                     <Link
-                      to={adminCourseReleasesPath(course.id)}
+                      to={adminCourseStudentsPath(course.id)}
                       className="group/sub flex flex-1 flex-col items-center gap-1 rounded-2xl px-2.5 py-2 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
                     >
                       <UsersRound className="h-5 w-5 opacity-50 transition group-hover/sub:opacity-100" />

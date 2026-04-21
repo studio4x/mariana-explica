@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, Bell, CreditCard, Download, FolderOpen, Home, LifeBuoy, Sparkles } from "lucide-react"
+import { ArrowRight, Bell, CreditCard, FolderOpen, Home, LifeBuoy, Sparkles } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
-import { useDashboardOverview, useDownloads } from "@/hooks/useDashboard"
+import { useDashboardOverview } from "@/hooks/useDashboard"
 import { ROUTES } from "@/lib/constants"
 import { formatDate } from "@/utils/date"
 import { getDashboardProductNote } from "@/lib/product-presentation"
@@ -13,7 +13,6 @@ import { getDashboardProductNote } from "@/lib/product-presentation"
 export function Dashboard() {
   const { profile } = useAuth()
   const { data, isLoading, isError, error, refetch } = useDashboardOverview()
-  const downloadsQuery = useDownloads()
   const [authFlash] = useState<string | null>(() => {
     const flash =
       window.sessionStorage.getItem("mariana-explica:auth-flash") ??
@@ -45,7 +44,6 @@ export function Dashboard() {
   const notifications = data?.recentNotifications ?? []
   const unreadNotificationsCount = data?.unreadNotificationsCount ?? 0
   const supportTickets = data?.supportTickets ?? []
-  const downloads = downloadsQuery.data ?? []
   const nextProduct = products[0] ?? null
   const openSupportTickets = supportTickets.filter((ticket) => ticket.status !== "closed").length
   const attentionTicket = supportTickets.find(
@@ -76,7 +74,7 @@ export function Dashboard() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Cursos disponiveis</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
@@ -86,11 +84,6 @@ export function Dashboard() {
           <p className="text-sm font-medium text-slate-500">Notificacoes por ler</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{unreadNotificationsCount}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Avisos e atualizacoes que ainda merecem a tua atencao.</p>
-        </div>
-        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Downloads seguros</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{downloads.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Materiais protegidos prontos para abrir quando o grant permite.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Suporte em curso</p>
@@ -206,12 +199,6 @@ export function Dashboard() {
                 <Link to={ROUTES.HOME}>
                   <Home className="mr-2 h-4 w-4" />
                   Ir para a home
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="justify-start rounded-full">
-                <Link to={ROUTES.DASHBOARD_DOWNLOADS}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Ver downloads protegidos
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start rounded-full">

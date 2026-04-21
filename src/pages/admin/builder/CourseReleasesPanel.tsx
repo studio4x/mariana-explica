@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
@@ -10,8 +10,19 @@ import {
   useRevokeAdminCourseRelease,
 } from "@/hooks/useAdmin"
 
-export function CourseReleasesPanel() {
-  const { courseId } = useAdminCourseBuilderContext()
+interface CourseReleasesManagerProps {
+  courseId: string
+  title?: string
+  description?: string
+  actions?: ReactNode
+}
+
+export function CourseReleasesManager({
+  courseId,
+  title = "Alunos adicionados e liberacoes",
+  description = "Concessao e revogacao operacional de acesso real ao curso com trilha de auditoria no backend.",
+  actions,
+}: CourseReleasesManagerProps) {
   const releasesQuery = useAdminCourseReleases(courseId)
   const usersQuery = useAdminUsers()
   const createRelease = useCreateAdminCourseRelease()
@@ -89,8 +100,9 @@ export function CourseReleasesPanel() {
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
-          title="Alunos adicionados e liberacoes"
-          description="Concessao e revogacao operacional de acesso real ao curso com trilha de auditoria no backend."
+          title={title}
+          description={description}
+          actions={actions}
         />
 
         <form onSubmit={handleCreate} className="mt-6 grid gap-4 md:grid-cols-[1.1fr_0.8fr_1fr_auto]">
@@ -214,4 +226,10 @@ export function CourseReleasesPanel() {
       </section>
     </div>
   )
+}
+
+export function CourseReleasesPanel() {
+  const { courseId } = useAdminCourseBuilderContext()
+
+  return <CourseReleasesManager courseId={courseId} />
 }

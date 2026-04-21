@@ -45,6 +45,7 @@ export function Product() {
   }
 
   const page = buildCoursePublicPageView(product)
+  const checkoutIdentifier = product.slug?.trim() || product.id
 
   return (
     <div className="bg-white pb-20 pt-6 text-slate-950">
@@ -166,7 +167,7 @@ export function Product() {
                 </div>
 
                 <Button asChild className="w-full rounded-md" size="lg">
-                  <Link to={`${ROUTES.CHECKOUT}?slug=${product.slug}`}>
+                  <Link to={`${ROUTES.CHECKOUT}?slug=${encodeURIComponent(checkoutIdentifier)}`}>
                     {page.ctaLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>

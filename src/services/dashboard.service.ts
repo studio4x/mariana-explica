@@ -113,7 +113,7 @@ async function fetchLessonProgressByProductIds(productIds: string[]) {
   return (data ?? []) as LessonProgressSummary[]
 }
 
-async function fetchUnreadNotificationsCount() {
+export async function fetchUnreadNotificationsCount() {
   const response = await supabase
     .from("notifications")
     .select("id", { count: "exact", head: true })

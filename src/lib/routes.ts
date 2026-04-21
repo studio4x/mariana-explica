@@ -29,6 +29,10 @@ export function adminCourseSettingsPath(courseId: string) {
   return `${adminCourseBuilderPath(courseId)}/settings`
 }
 
+export function adminCourseStudentsPath(courseId: string) {
+  return `${ROUTES.ADMIN_COURSES}/${courseId}/alunos`
+}
+
 export function adminCoursePublicPagePath(courseId: string) {
   return `${adminCourseBuilderPath(courseId)}/pagina-publica`
 }

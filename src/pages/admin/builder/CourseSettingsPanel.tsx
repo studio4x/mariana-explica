@@ -16,6 +16,15 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "")
 }
 
+function formatPriceInput(priceCents: number) {
+  return (priceCents / 100).toFixed(2)
+}
+
+function parsePriceInput(value: string) {
+  const parsed = Number(value.replace(",", ".").trim() || "0")
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0
+}
+
 function extractCoverStoragePath(url: string | null | undefined) {
   if (!url) return null
 
@@ -65,6 +74,15 @@ export function CourseSettingsPanel() {
       product.creator_commission_percent !== null && product.creator_commission_percent !== undefined
         ? String(product.creator_commission_percent)
         : "",
+    productType: product.product_type,
+    status: product.status,
+    price: formatPriceInput(product.price_cents),
+    currency: product.currency,
+    salesPageEnabled: product.sales_page_enabled,
+    requiresAuth: product.requires_auth,
+    isFeatured: product.is_featured,
+    allowAffiliate: product.allow_affiliate,
+    sortOrder: String(product.sort_order ?? 0),
     isPublic: product.is_public,
     hasLinearProgression: product.has_linear_progression,
     quizSingleChoice: product.quiz_type_settings?.single_choice !== false,
@@ -82,6 +100,15 @@ export function CourseSettingsPanel() {
         product.creator_commission_percent !== null && product.creator_commission_percent !== undefined
           ? String(product.creator_commission_percent)
           : "",
+      productType: product.product_type,
+      status: product.status,
+      price: formatPriceInput(product.price_cents),
+      currency: product.currency,
+      salesPageEnabled: product.sales_page_enabled,
+      requiresAuth: product.requires_auth,
+      isFeatured: product.is_featured,
+      allowAffiliate: product.allow_affiliate,
+      sortOrder: String(product.sort_order ?? 0),
       isPublic: product.is_public,
       hasLinearProgression: product.has_linear_progression,
       quizSingleChoice: product.quiz_type_settings?.single_choice !== false,
@@ -137,6 +164,15 @@ export function CourseSettingsPanel() {
         launchDate: form.launchDate || null,
         workloadMinutes: Number(form.workloadMinutes || 0),
         creatorCommissionPercent: form.creatorCommissionPercent ? Number(form.creatorCommissionPercent) : null,
+        productType: form.productType,
+        status: form.status,
+        priceCents: parsePriceInput(form.price),
+        currency: form.currency.trim().toUpperCase() || "EUR",
+        salesPageEnabled: form.salesPageEnabled,
+        requiresAuth: form.requiresAuth,
+        isFeatured: form.isFeatured,
+        allowAffiliate: form.allowAffiliate,
+        sortOrder: Number(form.sortOrder || 0),
         isPublic: form.isPublic,
         hasLinearProgression: form.hasLinearProgression,
         quizTypeSettings: {
@@ -244,6 +280,122 @@ export function CourseSettingsPanel() {
               minHeightClassName="min-h-[180px]"
             />
           </Field>
+        </section>
+
+        <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Compra e checkout</p>
+            <h2 className="mt-2 text-lg font-bold text-slate-950">Configuracao comercial</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              Estes campos controlam o preco, a visibilidade da pagina publica e o comportamento do botao de compra.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <Field label="Tipo de produto" helper="Pago vai para Stripe; gratuito ativa acesso sem pagamento.">
+              <select
+                value={form.productType}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, productType: event.target.value as typeof form.productType }))
+                }
+                className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              >
+                <option value="paid">Pago</option>
+                <option value="free">Gratuito</option>
+                <option value="hybrid">Hibrido</option>
+                <option value="external_service">Servico externo</option>
+              </select>
+            </Field>
+            <Field label="Estado do curso" helper="A pagina publica e o checkout exigem curso publicado.">
+              <select
+                value={form.status}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, status: event.target.value as typeof form.status }))
+                }
+                className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              >
+                <option value="draft">Rascunho</option>
+                <option value="published">Publicado</option>
+                <option value="archived">Arquivado</option>
+              </select>
+            </Field>
+            <Field label="Preco" helper="Valor em euros. Exemplo: 19.90">
+              <input
+                value={form.price}
+                onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
+                placeholder="0.00"
+                inputMode="decimal"
+                className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </Field>
+            <Field label="Moeda" helper="Codigo ISO usado pelo checkout.">
+              <input
+                value={form.currency}
+                onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }))}
+                placeholder="EUR"
+                maxLength={3}
+                className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm uppercase outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </Field>
+            <Field label="Ordem no catalogo" helper="Numeros menores aparecem primeiro.">
+              <input
+                value={form.sortOrder}
+                onChange={(event) => setForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
+                inputMode="numeric"
+                className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </Field>
+            <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+              <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.salesPageEnabled}
+                  onChange={(event) => setForm((prev) => ({ ...prev, salesPageEnabled: event.target.checked }))}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-950">Ativar pagina publica e checkout</span>
+                  <span className="mt-1 block text-slate-500">Permite abrir a pagina do curso e seguir pelo botao de compra.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.requiresAuth}
+                  onChange={(event) => setForm((prev) => ({ ...prev, requiresAuth: event.target.checked }))}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-950">Exigir login para concluir</span>
+                  <span className="mt-1 block text-slate-500">Mantem a compra vinculada a uma conta de aluno ativa.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.isFeatured}
+                  onChange={(event) => setForm((prev) => ({ ...prev, isFeatured: event.target.checked }))}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-950">Destacar no catalogo</span>
+                  <span className="mt-1 block text-slate-500">Marca o curso como destaque nas areas publicas.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.allowAffiliate}
+                  onChange={(event) => setForm((prev) => ({ ...prev, allowAffiliate: event.target.checked }))}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-950">Permitir afiliacao</span>
+                  <span className="mt-1 block text-slate-500">Mantem o curso elegivel para fluxos de afiliados quando ativos.</span>
+                </span>
+              </label>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
