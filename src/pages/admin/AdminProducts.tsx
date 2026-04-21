@@ -34,6 +34,7 @@ import {
   adminCourseAssessmentsPath,
   adminCourseBuilderPath,
   adminCourseReleasesPath,
+  adminCourseSettingsPath,
 } from "@/lib/routes"
 import {
   createAdminProductAssessment,
@@ -138,24 +139,6 @@ function parsePriceInput(value: string) {
   const normalized = value.replace(",", ".").trim()
   const parsed = Number(normalized || "0")
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0
-}
-
-function buildCourseDraft(product?: ProductSummary | null): CourseDraft {
-  return {
-    title: product?.title ?? "",
-    slug: product?.slug ?? "",
-    coverImageUrl: product?.cover_image_url ?? "",
-    status: product?.status ?? "draft",
-    launchDate: product?.launch_date ?? "",
-    price: product ? formatPriceInput(product.price_cents) : "0.00",
-    currency: product?.currency ?? "EUR",
-    isPublic: product?.is_public ?? true,
-    description: product?.description ?? product?.short_description ?? "",
-    workloadMinutes:
-      product?.workload_minutes !== undefined ? String(product.workload_minutes) : "0",
-    sortOrder: product?.sort_order !== undefined ? String(product.sort_order) : "",
-    productType: product?.product_type ?? "paid",
-  }
 }
 
 function buildDefaultCourseDraft(sortOrder: number): CourseDraft {
@@ -352,16 +335,6 @@ export function AdminProducts() {
       courseId: null,
       draft: draft ?? buildDefaultCourseDraft(products.length + 1),
       importedStructure: importedStructure ?? null,
-    })
-  }
-
-  const openEditEditor = (course: ProductSummary) => {
-    setSubmitError(null)
-    setEditorState({
-      mode: "edit",
-      courseId: course.id,
-      draft: buildCourseDraft(course),
-      importedStructure: null,
     })
   }
 
@@ -867,13 +840,14 @@ export function AdminProducts() {
                       <ArrowDownToLine className="h-5 w-5" />
                     </Button>
                     <Button
-                      type="button"
+                      asChild
                       variant="ghost"
                       className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-amber-50 hover:text-amber-600"
-                      onClick={() => openEditEditor(course)}
                       title="Editar curso"
                     >
-                      <Pencil className="h-5 w-5" />
+                      <Link to={adminCourseSettingsPath(course.id)}>
+                        <Pencil className="h-5 w-5" />
+                      </Link>
                     </Button>
                     <Button
                       type="button"

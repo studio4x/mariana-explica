@@ -40,7 +40,7 @@ function Field({
   fullWidth?: boolean
 }) {
   return (
-    <label className={fullWidth ? "md:col-span-2 space-y-2" : "space-y-2"}>
+    <label className={fullWidth ? "block space-y-2 md:col-span-2" : "block space-y-2"}>
       <span className="text-sm font-semibold text-slate-800">{label}</span>
       {children}
       {helper ? <p className="text-sm text-slate-500">{helper}</p> : null}
@@ -180,7 +180,7 @@ export function CourseSettingsPanel() {
                 })
               }
               placeholder="Titulo do curso"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
           <Field label="Slug do curso" helper="Identificador da URL publica. Use texto curto e estavel.">
@@ -188,7 +188,7 @@ export function CourseSettingsPanel() {
               value={form.slug}
               onChange={(event) => setForm((prev) => ({ ...prev, slug: slugify(event.target.value) }))}
               placeholder="slug-do-curso"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
           <Field label="Data de lancamento" helper="Data de referencia comercial do curso.">
@@ -196,7 +196,7 @@ export function CourseSettingsPanel() {
               type="date"
               value={form.launchDate}
               onChange={(event) => setForm((prev) => ({ ...prev, launchDate: event.target.value }))}
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
           <Field label="Carga horaria total" helper="Use minutos para manter consistencia com player e cards.">
@@ -204,7 +204,7 @@ export function CourseSettingsPanel() {
               value={form.workloadMinutes}
               onChange={(event) => setForm((prev) => ({ ...prev, workloadMinutes: event.target.value }))}
               placeholder="Carga horaria em minutos"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
           <Field
@@ -215,14 +215,14 @@ export function CourseSettingsPanel() {
               value={form.creatorCommissionPercent}
               onChange={(event) => setForm((prev) => ({ ...prev, creatorCommissionPercent: event.target.value }))}
               placeholder="Comissao do criador (%)"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
           <Field
             label="URL manual da capa"
             helper="Opcional. Pode usar link externo ou deixar apenas a imagem enviada abaixo."
           >
-            <div className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3">
+            <div className="flex w-full items-center gap-2 rounded-xl border bg-slate-50 px-3">
               <Link2 className="h-4 w-4 text-slate-400" />
               <input
                 value={form.coverImageUrl}
