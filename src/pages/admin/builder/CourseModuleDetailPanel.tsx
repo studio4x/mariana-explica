@@ -18,7 +18,7 @@ import {
   adminCourseLessonPath,
   adminCourseModuleAssessmentPath,
 } from "@/lib/routes"
-import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import type { ProductModuleSummary } from "@/types/app.types"
 
 function toDateTimeLocal(value: string | null | undefined) {

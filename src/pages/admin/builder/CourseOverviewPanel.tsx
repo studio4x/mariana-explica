@@ -14,7 +14,7 @@ import {
   useCreateAdminProductAssessment,
   useCreateAdminProductModule,
 } from "@/hooks/useAdmin"
-import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 
 function formatDuration(totalMinutes: number) {
   if (totalMinutes <= 0) return "0 min"

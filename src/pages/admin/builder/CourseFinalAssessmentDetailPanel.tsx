@@ -5,7 +5,7 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useCreateAdminProductAssessment } from "@/hooks/useAdmin"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
-import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import { AssessmentBuilderWorkspace } from "./AssessmentBuilderWorkspace"
 
 export function CourseFinalAssessmentDetailPanel() {

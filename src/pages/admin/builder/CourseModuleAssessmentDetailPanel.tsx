@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { useParams } from "react-router-dom"
 import { EmptyState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
-import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import { AssessmentBuilderWorkspace } from "./AssessmentBuilderWorkspace"
 
 export function CourseModuleAssessmentDetailPanel() {

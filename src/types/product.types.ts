@@ -1,6 +1,38 @@
 export type ProductType = "paid" | "free" | "hybrid" | "external_service"
 export type ProductStatus = "draft" | "published" | "archived"
 
+export interface CoursePublicPageFeature {
+  title: string
+  description: string
+}
+
+export interface CoursePublicPageCurriculumItem {
+  label: string
+  title: string
+  lessons: string
+  description: string
+}
+
+export interface CoursePublicPageContent {
+  eyebrow?: string
+  headline?: string
+  intro?: string
+  aboutTitle?: string
+  aboutParagraphs?: string[]
+  learnTitle?: string
+  learnItems?: CoursePublicPageFeature[]
+  curriculumTitle?: string
+  curriculumItems?: CoursePublicPageCurriculumItem[]
+  instructorName?: string
+  instructorRole?: string
+  instructorInitials?: string
+  priceNote?: string
+  ctaLabel?: string
+  sidebarFeatures?: string[]
+  previewTitle?: string
+  previewText?: string
+}
+
 export interface ProductSummary {
   id: string
   slug: string
@@ -19,6 +51,7 @@ export interface ProductSummary {
   workload_minutes: number
   has_linear_progression: boolean
   quiz_type_settings: Record<string, boolean>
+  public_page_content: CoursePublicPageContent | null
   sales_page_enabled: boolean
   requires_auth: boolean
   is_featured: boolean

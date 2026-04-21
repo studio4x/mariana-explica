@@ -6,6 +6,15 @@ import { createServiceClient } from "../_shared/supabase.ts"
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
 const COURSE_COVER_BUCKET = "course-cover-public"
+const COURSE_COVER_ALLOWED_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/pjpeg",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+]
 
 function sanitizeSegment(value: string) {
   return value
@@ -23,6 +32,24 @@ function getFileExtension(fileName: string) {
   return sanitizeSegment(parts.at(-1) ?? "")
 }
 
+function inferImageMimeType(extension: string) {
+  switch (extension) {
+    case "png":
+      return "image/png"
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg"
+    case "webp":
+      return "image/webp"
+    case "gif":
+      return "image/gif"
+    case "avif":
+      return "image/avif"
+    default:
+      return null
+  }
+}
+
 async function ensureStorageBucket(
   serviceClient: ReturnType<typeof createServiceClient>,
   bucketName: string,
@@ -32,6 +59,15 @@ async function ensureStorageBucket(
   if (bucketsError) throw bucketsError
 
   if ((buckets ?? []).some((bucket) => bucket.name === bucketName)) {
+    const { error: updateBucketError } = await serviceClient.storage.updateBucket(bucketName, options)
+
+    if (updateBucketError) {
+      logError("Admin storage bucket update failed", {
+        bucket: bucketName,
+        error: String(updateBucketError),
+      })
+    }
+
     return
   }
 
@@ -74,6 +110,7 @@ Deno.serve(async (req) => {
     }
 
     const safeExtension = getFileExtension(file.name)
+    const contentType = file.type || inferImageMimeType(safeExtension) || null
     const fileNameBase = sanitizeSegment(file.name.replace(/\.[^.]+$/, "")) || "arquivo"
     const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
     let objectPath = ""
@@ -83,7 +120,7 @@ Deno.serve(async (req) => {
     let targetBucket = COURSE_STORAGE_BUCKET
     let auditMetadata: Record<string, unknown> = {
       file_name: file.name,
-      mime_type: file.type || null,
+      mime_type: contentType,
       file_size_bytes: file.size,
     }
 
@@ -112,8 +149,12 @@ Deno.serve(async (req) => {
       await ensureStorageBucket(context.serviceClient, COURSE_COVER_BUCKET, {
         public: true,
         fileSizeLimit: "10MB",
-        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+        allowedMimeTypes: COURSE_COVER_ALLOWED_MIME_TYPES,
       })
+
+      if (!contentType || !COURSE_COVER_ALLOWED_MIME_TYPES.includes(contentType)) {
+        throw badRequest("Formato de capa invalido. Use PNG, JPG, WEBP, GIF ou AVIF.")
+      }
 
       targetBucket = COURSE_COVER_BUCKET
       objectPath = `products/${productId}/cover/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
@@ -162,7 +203,7 @@ Deno.serve(async (req) => {
       .from(targetBucket)
       .upload(objectPath, arrayBuffer, {
         upsert: false,
-        contentType: file.type || undefined,
+        contentType: contentType || undefined,
       })
 
     if (uploadError) throw uploadError
@@ -206,7 +247,7 @@ Deno.serve(async (req) => {
         bucket: targetBucket,
         path: objectPath,
         file_name: file.name,
-        mime_type: file.type || null,
+        mime_type: contentType,
         file_size_bytes: file.size,
         uploaded_at: new Date().toISOString(),
         public_url: publicUploadUrl,

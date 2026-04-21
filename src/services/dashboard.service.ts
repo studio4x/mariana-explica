@@ -44,7 +44,7 @@ async function fetchProductsByIds(productIds: string[]) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
     )
     .in("id", productIds)
 

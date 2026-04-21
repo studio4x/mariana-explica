@@ -1,5 +1,5 @@
 import { useQueries } from "@tanstack/react-query"
-import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom"
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   BookOpen,
   ClipboardCheck,
@@ -7,6 +7,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Globe2,
   List,
   PanelLeftClose,
   PanelLeftOpen,
@@ -38,6 +39,7 @@ import {
   adminCourseLessonPath,
   adminCourseModuleAssessmentPath,
   adminCourseModulePath,
+  adminCoursePublicPagePath,
   adminCourseReleasesPath,
   adminCourseSettingsPath,
   publicCoursePath,
@@ -50,20 +52,7 @@ import type {
   ProductLessonSummary,
   ProductModuleSummary,
 } from "@/types/app.types"
-import type { ProductSummary } from "@/types/product.types"
-
-export interface AdminCourseBuilderContext {
-  courseId: string
-  product: ProductSummary
-  modules: ProductModuleSummary[]
-  assessments: ProductAssessmentSummary[]
-  lessonsByModule: Record<string, ProductLessonSummary[]>
-  totalLessons: number
-}
-
-export function useAdminCourseBuilderContext() {
-  return useOutletContext<AdminCourseBuilderContext>()
-}
+import type { AdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 
 export function AdminCourseBuilderLayout() {
   const { courseId } = useParams<{ courseId: string }>()
@@ -357,7 +346,7 @@ export function AdminCourseBuilderLayout() {
             <Link to={adminCourseSettingsPath(courseId)}>Configuracoes</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="rounded-full">
-            <Link to={publicCoursePath(product.slug)} target="_blank" rel="noreferrer">
+            <Link to={publicCoursePath(product.slug, product.id)} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" />
               Visualizar
             </Link>
@@ -629,6 +618,15 @@ export function AdminCourseBuilderLayout() {
               >
                 <Cog className="h-4 w-4 shrink-0 text-slate-400" />
                 {isSidebarOpen ? "Configuracoes do Curso" : null}
+              </NavLink>
+              <NavLink
+                to={adminCoursePublicPagePath(courseId)}
+                className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
+                  isSidebarOpen ? "gap-2.5" : "justify-center"
+                }`}
+              >
+                <Globe2 className="h-4 w-4 shrink-0 text-slate-400" />
+                {isSidebarOpen ? "Pagina Publica" : null}
               </NavLink>
               <NavLink
                 to={adminCourseReleasesPath(courseId)}

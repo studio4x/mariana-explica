@@ -1,21 +1,21 @@
 import { Link, useParams } from "react-router-dom"
 import {
   ArrowRight,
+  BookOpenCheck,
   CheckCircle2,
+  ChevronDown,
   Clock3,
-  FileText,
   PlayCircle,
   ShieldCheck,
   Sparkles,
+  Star,
 } from "lucide-react"
 import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader, RichTextContent } from "@/components/common"
 import { ROUTES } from "@/lib/constants"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { formatProductPrice } from "@/utils/currency"
-import { getProductNarrative } from "@/lib/product-presentation"
-import { richTextToPlainText } from "@/lib/rich-text"
+import { buildCoursePublicPageView } from "@/lib/course-public-page"
 
 export function Product() {
   const { slug } = useParams<{ slug: string }>()
@@ -44,176 +44,160 @@ export function Product() {
     )
   }
 
-  const narrative = getProductNarrative(product)
-
-  const formatHints = [
-    { icon: FileText, title: "Formato", text: narrative.formatLabel },
-    { icon: PlayCircle, title: "Para quem e", text: narrative.audience },
-    { icon: ShieldCheck, title: "Como acedes", text: narrative.accessLabel },
-  ]
-  const courseSignals = [
-    product.workload_minutes > 0 ? `${product.workload_minutes} minutos estimados de estudo` : "Carga organizada por modulos e aulas",
-    product.launch_date ? `Lancamento previsto para ${new Date(product.launch_date).toLocaleDateString("pt-PT")}` : "Ativacao imediata depois da confirmacao",
-    product.has_linear_progression ? "Jornada pensada para seguir em ordem" : "Podes retomar os blocos conforme o teu ritmo",
-  ]
+  const page = buildCoursePublicPageView(product)
 
   return (
-    <div className="container space-y-8 py-10 md:py-12">
-      <PageHeader
-        title={product.title}
-        description={richTextToPlainText(product.short_description ?? product.description) || undefined}
-        backTo={ROUTES.PRODUCTS}
-      />
+    <div className="bg-white pb-20 pt-6 text-slate-950">
+      <div className="container">
+        <Link
+          to={ROUTES.PRODUCTS}
+          className="inline-flex items-center text-sm font-semibold text-slate-500 transition hover:text-slate-900"
+        >
+          Voltar aos cursos
+        </Link>
 
-      <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
-          <div className="overflow-hidden rounded-[2rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-8 text-white shadow-xl">
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
-                {narrative.typeLabel}
-              </span>
-              {product.is_featured ? (
-                <span className="rounded-full bg-amber-300/95 px-3 py-1 text-xs font-semibold text-amber-950">
-                  Destaque
+        <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
+          <main className="min-w-0 space-y-12">
+            <section className="max-w-4xl">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-slate-600">
+                  {page.eyebrow}
                 </span>
-              ) : null}
-            </div>
-            <p className="mt-6 text-sm uppercase tracking-[0.3em] text-white/70">{narrative.eyebrow}</p>
-            <h2 className="mt-6 max-w-3xl font-display text-3xl font-bold leading-tight md:text-5xl">
-              {product.title}
-            </h2>
-            <RichTextContent
-              value={product.description}
-              fallback={narrative.benefit}
-              className="mt-4 max-w-2xl text-base leading-8 text-white/82 md:text-lg"
-            />
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {formatHints.map((item) => (
-                <div key={item.title} className="rounded-2xl bg-white/12 p-4 backdrop-blur">
-                  <item.icon className="h-5 w-5" />
-                  <p className="mt-3 text-sm font-semibold">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/75">{item.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              {
-                title: "Ideal para",
-                text: narrative.audience,
-              },
-              {
-                title: "Formato",
-                text: narrative.formatLabel,
-              },
-              {
-                title: "Acesso",
-                text: narrative.accessLabel,
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-[1.5rem] border bg-white p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.title}</p>
-                <p className="mt-2 text-sm leading-7 text-slate-700">{item.text}</p>
+                {product.is_featured ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-amber-700">
+                    <Star className="h-3.5 w-3.5" />
+                    Destaque
+                  </span>
+                ) : null}
               </div>
-            ))}
-          </div>
 
-          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <h3 className="font-display text-2xl font-bold text-slate-950">O que vais encontrar</h3>
-            <ul className="mt-5 space-y-3">
-              {narrative.receiveItems.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm leading-7 text-slate-700">
-                  <CheckCircle2 className="mt-1 h-5 w-5 text-primary" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+              <h1 className="mt-6 max-w-4xl font-display text-4xl font-black leading-tight text-slate-950 md:text-6xl">
+                {page.headline}
+              </h1>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-xl">
+                {page.intro}
+              </p>
+            </section>
 
-          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <h3 className="font-display text-2xl font-bold text-slate-950">Estrutura deste curso</h3>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {courseSignals.map((signal) => (
-                <div key={signal} className="rounded-2xl bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
-                  {signal}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-2xl font-bold text-slate-950">Como acedes</h3>
-              </div>
-              <div className="mt-5 space-y-4">
-                {narrative.accessSteps.map((step, index) => (
-                  <div key={step} className="flex gap-4 rounded-2xl bg-slate-50/80 p-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                      {index + 1}
-                    </span>
-                    <p className="text-sm leading-7 text-slate-700">{step}</p>
-                  </div>
+            <section className="max-w-3xl">
+              <h2 className="font-display text-3xl font-black text-slate-950">{page.aboutTitle}</h2>
+              <div className="mt-5 space-y-5 text-base leading-8 text-slate-600">
+                {page.aboutParagraphs.map((paragraph, index) => (
+                  <p key={`${paragraph}-${index}`}>{paragraph}</p>
                 ))}
               </div>
             </section>
 
-            <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Clock3 className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-2xl font-bold text-slate-950">Porque faz sentido</h3>
-              </div>
-              <p className="mt-5 text-sm leading-7 text-slate-700">{narrative.valueLine}</p>
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Resumo rapido</p>
-                <p className="mt-2 text-sm leading-7 text-slate-700">{narrative.cardSummary}</p>
+            <section>
+              <h2 className="font-display text-3xl font-black text-slate-950">{page.learnTitle}</h2>
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                {page.learnItems.map((item, index) => (
+                  <article key={`${item.title}-${index}`} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-sky-50 text-sky-700">
+                      <BookOpenCheck className="h-5 w-5" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-black text-slate-950">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                  </article>
+                ))}
               </div>
             </section>
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <div className="rounded-[2rem] border bg-white p-6 shadow-xl">
-            <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Investimento</p>
-            <p className="mt-3 text-3xl font-bold text-slate-950">
-              {formatProductPrice(product.price_cents, product.currency)}
-            </p>
-            <p className="mt-3 text-sm leading-7 text-slate-600">{narrative.sidebarNote}</p>
+            <section>
+              <h2 className="font-display text-3xl font-black text-slate-950">{page.curriculumTitle}</h2>
+              <div className="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white shadow-sm">
+                {page.curriculumItems.map((item, index) => (
+                  <article key={`${item.title}-${index}`} className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">
+                          {item.label}
+                        </p>
+                        <h3 className="mt-2 text-lg font-black text-slate-950">{item.title}</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">{item.lessons}</p>
+                      </div>
+                      <ChevronDown className="mt-2 h-5 w-5 shrink-0 text-slate-400" />
+                    </div>
+                    <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">{item.description}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </main>
 
-            <div className="mt-5 rounded-2xl bg-slate-50/80 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">O que vais encontrar</p>
-              <p className="mt-2 text-sm leading-7 text-slate-700">{narrative.valueLine}</p>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              <Button asChild className="w-full rounded-full" size="lg">
-                <Link to={`${ROUTES.CHECKOUT}?slug=${product.slug}`}>
-                  {narrative.ctaLabel}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-
-              <Button asChild variant="outline" className="w-full rounded-full">
-                <Link to={ROUTES.PRODUCTS}>Voltar ao catalogo</Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-[1.75rem] border bg-slate-50/80 p-6">
-            <h3 className="font-display text-2xl font-bold text-slate-900">Perguntas frequentes</h3>
-            <div className="mt-5 space-y-4 text-sm leading-7 text-slate-600">
-              {narrative.faqs.map((item) => (
-                <div key={item.question}>
-                  <p className="font-semibold text-slate-900">{item.question}</p>
-                  <p className="mt-1">{item.answer}</p>
+          <aside className="lg:sticky lg:top-24">
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+              <div className="relative aspect-video bg-slate-900">
+                {product.cover_image_url ? (
+                  <img
+                    src={product.cover_image_url}
+                    alt={`Capa de ${product.title}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#0f766e_0%,#155e75_52%,#172554_100%)] text-white">
+                    <Sparkles className="h-12 w-12" />
+                  </div>
+                )}
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/10">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-slate-950 shadow-lg">
+                    <PlayCircle className="h-7 w-7" />
+                  </span>
                 </div>
-              ))}
+              </div>
+
+              <div className="space-y-6 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+                    {page.instructorInitials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-950">{page.instructorName}</p>
+                    <p className="text-sm text-slate-500">{page.instructorRole}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Investimento</p>
+                  <p className="mt-2 text-4xl font-black text-slate-950">
+                    {formatProductPrice(product.price_cents, product.currency)}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{page.priceNote}</p>
+                </div>
+
+                <Button asChild className="w-full rounded-md" size="lg">
+                  <Link to={`${ROUTES.CHECKOUT}?slug=${product.slug}`}>
+                    {page.ctaLabel}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <div className="grid gap-3">
+                  {page.sidebarFeatures.map((feature, index) => (
+                    <div key={`${feature}-${index}`} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-sky-700" />
+                    <p className="text-sm font-black text-slate-950">{page.previewTitle}</p>
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{page.previewText}</p>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+                  <Clock3 className="h-4 w-4" />
+                  {product.workload_minutes > 0
+                    ? `${product.workload_minutes} minutos estimados`
+                    : "Acesso organizado na area do aluno"}
+                </div>
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

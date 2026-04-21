@@ -2,9 +2,7 @@ import { useMemo, useState, type FormEvent } from "react"
 import { Button } from "@/components/ui"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import {
-  useAdminCourseBuilderContext,
-} from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import {
   useAdminCourseReleases,
   useAdminUsers,

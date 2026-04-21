@@ -311,7 +311,7 @@ export async function fetchAdminProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
     )
     .order("updated_at", { ascending: false })
 
@@ -999,6 +999,7 @@ export function createAdminProduct(input: {
   workloadMinutes?: number
   hasLinearProgression?: boolean
   quizTypeSettings?: Record<string, boolean>
+  publicPageContent?: ProductSummary["public_page_content"]
 }) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "create",
@@ -1029,6 +1030,7 @@ export function updateAdminProduct(input: {
   workloadMinutes?: number
   hasLinearProgression?: boolean
   quizTypeSettings?: Record<string, boolean>
+  publicPageContent?: ProductSummary["public_page_content"]
 }) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "update",

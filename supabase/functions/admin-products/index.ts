@@ -37,6 +37,7 @@ interface ProductPayload {
   workloadMinutes?: number
   hasLinearProgression?: boolean
   quizTypeSettings?: Record<string, boolean>
+  publicPageContent?: Record<string, unknown> | null
 }
 
 type AdminProductsInput =
@@ -73,6 +74,7 @@ function mapPayload(payload: Partial<ProductPayload>) {
     updates.has_linear_progression = payload.hasLinearProgression
   }
   if (payload.quizTypeSettings !== undefined) updates.quiz_type_settings = payload.quizTypeSettings
+  if (payload.publicPageContent !== undefined) updates.public_page_content = payload.publicPageContent ?? {}
 
   return updates
 }

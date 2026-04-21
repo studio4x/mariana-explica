@@ -19,6 +19,7 @@ const productSelect = `
   workload_minutes,
   has_linear_progression,
   quiz_type_settings,
+  public_page_content,
   sales_page_enabled,
   requires_auth,
   is_featured,

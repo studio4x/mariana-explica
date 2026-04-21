@@ -5,7 +5,7 @@ import { Button } from "@/components/ui"
 import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
 import { adminCourseBuilderPath } from "@/lib/routes"
-import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 
 function slugify(value: string) {
   return value
@@ -97,6 +97,12 @@ export function CourseSettingsPanel() {
 
     setError(null)
     setUploadMessage(null)
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("A capa deve ter no maximo 10MB.")
+      event.target.value = ""
+      return
+    }
 
     try {
       const upload = await uploadCover.mutateAsync({
@@ -273,7 +279,12 @@ export function CourseSettingsPanel() {
                 </p>
               </div>
 
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleCoverSelection} className="text-sm" />
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/pjpeg,image/webp,image/gif,image/avif"
+                onChange={handleCoverSelection}
+                className="text-sm"
+              />
 
               {uploadMessage ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

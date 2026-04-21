@@ -88,6 +88,11 @@ const CourseSettingsPanel = lazy(() =>
     default: module.CourseSettingsPanel,
   })),
 )
+const CoursePublicPagePanel = lazy(() =>
+  import("@/pages/admin/builder/CoursePublicPagePanel").then((module) => ({
+    default: module.CoursePublicPagePanel,
+  })),
+)
 const CourseReleasesPanel = lazy(() =>
   import("@/pages/admin/builder/CourseReleasesPanel").then((module) => ({
     default: module.CourseReleasesPanel,
@@ -380,6 +385,10 @@ export const router = createBrowserRouter(
         {
           path: "settings",
           element: withSuspense(<CourseSettingsPanel />),
+        },
+        {
+          path: "pagina-publica",
+          element: withSuspense(<CoursePublicPagePanel />),
         },
         {
           path: "releases",

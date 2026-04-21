@@ -10,7 +10,7 @@ import {
 } from "@/hooks/useAdmin"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import { adminCourseFinalAssessmentPath, adminCourseModuleAssessmentPath } from "@/lib/routes"
-import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
+import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import { AssessmentBuilderWorkspace } from "./AssessmentBuilderWorkspace"
 
 function downloadAssessmentJson(filename: string, payload: unknown) {
