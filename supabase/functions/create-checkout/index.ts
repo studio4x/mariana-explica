@@ -38,11 +38,11 @@ interface CreateCheckoutInput {
 }
 
 function buildFallbackSuccessUrl() {
-  return `${getAppBaseUrl()}/dashboard?checkout=success`
+  return `${getAppBaseUrl()}/aluno/dashboard?checkout=success`
 }
 
 function buildFallbackCancelUrl(productSlug: string) {
-  return `${getAppBaseUrl()}/produto/${productSlug}?checkout=cancelled`
+  return `${getAppBaseUrl()}/cursos/${productSlug}?checkout=cancelled`
 }
 
 Deno.serve(async (req) => {

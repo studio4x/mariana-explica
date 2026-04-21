@@ -18,6 +18,7 @@ export function Checkout() {
   const { session, profile } = useAuth()
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleCheckout = async () => {
     if (!product) return
@@ -35,6 +36,7 @@ export function Checkout() {
     }
 
     setSubmitting(true)
+    setSubmitError(null)
     try {
       if (isFreeProduct(product)) {
         await claimFreeProduct({ productId: product.id })
@@ -54,6 +56,12 @@ export function Checkout() {
       }
 
       navigate(`${ROUTES.DASHBOARD}?checkout=success`, { replace: true })
+    } catch (checkoutError) {
+      setSubmitError(
+        checkoutError instanceof Error
+          ? checkoutError.message
+          : "Nao foi possivel iniciar o pagamento. Tenta novamente dentro de instantes.",
+      )
     } finally {
       setSubmitting(false)
     }
@@ -149,6 +157,12 @@ export function Checkout() {
             {!canPurchase ? (
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
                 Precisas de entrar com uma conta ativa para continuar a compra.
+              </div>
+            ) : null}
+
+            {submitError ? (
+              <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950">
+                {submitError}
               </div>
             ) : null}
 
