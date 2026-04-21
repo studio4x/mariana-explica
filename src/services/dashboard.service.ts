@@ -24,6 +24,17 @@ import type {
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
 
+async function getCurrentUserId() {
+  const { data } = await supabase.auth.getSession()
+  const userId = data.session?.user?.id
+
+  if (!userId) {
+    throw new Error("Sessao invalida")
+  }
+
+  return userId
+}
+
 async function fetchProductsByIds(productIds: string[]) {
   if (productIds.length === 0) {
     return [] as ProductSummary[]
@@ -779,9 +790,11 @@ export async function replySupportTicket(input: {
 }
 
 export async function fetchProfilePreferences() {
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from("profiles")
     .select("id,full_name,email,phone,avatar_url,notifications_enabled,marketing_consent,role,status")
+    .eq("id", userId)
     .single()
 
   if (error) {
@@ -797,6 +810,7 @@ export async function updateProfilePreferences(input: {
   notificationsEnabled: boolean
   marketingConsent: boolean
 }) {
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from("profiles")
     .update({
@@ -805,6 +819,7 @@ export async function updateProfilePreferences(input: {
       notifications_enabled: input.notificationsEnabled,
       marketing_consent: input.marketingConsent,
     })
+    .eq("id", userId)
     .select("id,full_name,email,phone,avatar_url,notifications_enabled,marketing_consent,role,status")
     .single()
 

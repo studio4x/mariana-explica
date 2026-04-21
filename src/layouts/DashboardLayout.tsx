@@ -1,6 +1,6 @@
 import { Bell, Download, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { InstallPrompt, Navbar, StatusBadge } from "@/components/common"
+import { InstallPrompt, StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
@@ -20,8 +20,6 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbfd_0%,#eff8fb_48%,#ffffff_100%)]">
-      <Navbar />
-
       <div className="border-b border-white/70 bg-white/72 backdrop-blur">
         <div className="container flex flex-col gap-5 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">

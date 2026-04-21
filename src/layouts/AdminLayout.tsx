@@ -14,7 +14,7 @@ import {
   Settings,
 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
-import { Navbar, StatusBadge } from "@/components/common"
+import { StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
@@ -85,8 +85,6 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_50%,#ffffff_100%)]">
-      <Navbar />
-
       <div className="border-b border-slate-200/80 bg-white/80 backdrop-blur">
         <div className="container flex flex-col gap-4 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
