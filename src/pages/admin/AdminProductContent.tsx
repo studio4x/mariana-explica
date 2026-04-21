@@ -58,12 +58,22 @@ const lessonTypeLabels: Record<ProductLessonSummary["lesson_type"], string> = {
   video: "Video",
   text: "Texto",
   hybrid: "Hibrida",
+  file: "Ficheiro",
 }
 
 const lessonStatusLabels: Record<ProductLessonSummary["status"], string> = {
   draft: "Rascunho",
   published: "Publicada",
   archived: "Arquivada",
+}
+
+function slugify(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
 }
 
 function nextOrder(items: Array<{ sort_order?: number; position?: number }>) {
@@ -267,6 +277,23 @@ export function AdminProductContent() {
       ...(prev ?? courseForm),
       [field]: value,
     }))
+  }
+
+  const handleCourseTitleChange = (value: string) => {
+    setCourseDraft((prev) => {
+      const current = prev ?? courseForm
+      const shouldAutoUpdateSlug = !current.slug.trim() || current.slug === slugify(current.title)
+
+      return {
+        ...current,
+        title: value,
+        slug: shouldAutoUpdateSlug ? slugify(value) : current.slug,
+      }
+    })
+  }
+
+  const handleCourseSlugChange = (value: string) => {
+    updateCourseDraftField("slug", slugify(value))
   }
 
   useEffect(() => {
@@ -767,13 +794,13 @@ export function AdminProductContent() {
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <input
             value={courseForm.title}
-            onChange={(event) => updateCourseDraftField("title", event.target.value)}
+            onChange={(event) => handleCourseTitleChange(event.target.value)}
             placeholder="Titulo do curso"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <input
             value={courseForm.slug}
-            onChange={(event) => updateCourseDraftField("slug", event.target.value)}
+            onChange={(event) => handleCourseSlugChange(event.target.value)}
             placeholder="slug-do-curso"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />

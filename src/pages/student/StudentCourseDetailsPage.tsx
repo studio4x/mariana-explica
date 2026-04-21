@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom"
 import { BookOpenCheck, Clock3, PlayCircle } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { PageHeader, RichTextContent, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useDashboardProductContent, useRequestModulePdfAccess } from "@/hooks/useDashboard"
 import {
@@ -16,6 +16,7 @@ import {
   studentCourseAssessmentPath,
   studentCoursePlayerPath,
 } from "@/lib/routes"
+import { richTextToPlainText } from "@/lib/rich-text"
 
 export function StudentCourseDetailsPage() {
   const { courseId } = useParams<{ courseId: string }>()
@@ -67,7 +68,7 @@ export function StudentCourseDetailsPage() {
     <div className="space-y-6">
       <PageHeader
         title={data.product.title}
-        description={data.product.short_description ?? data.product.description ?? "Curso pronto para continuares o estudo."}
+        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Curso pronto para continuares o estudo."}
         backTo="/aluno/cursos"
       />
 
@@ -76,9 +77,11 @@ export function StudentCourseDetailsPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/65">Curso liberado</p>
             <h2 className="mt-3 font-display text-3xl font-bold md:text-5xl">{data.product.title}</h2>
-            <p className="mt-4 max-w-3xl text-sm leading-8 text-white/80 md:text-base">
-              {data.product.description ?? "Segue a trilha do curso, retoma do ponto onde paraste e entra no player para estudar com foco."}
-            </p>
+            <RichTextContent
+              value={data.product.description}
+              fallback="Segue a trilha do curso, retoma do ponto onde paraste e entra no player para estudar com foco."
+              className="mt-4 max-w-3xl text-sm leading-8 text-white/80 md:text-base"
+            />
             <div className="mt-5 flex flex-wrap gap-2">
               <StatusBadge label={`${data.modules.length} modulos`} tone="info" />
               <StatusBadge label={`${data.lessons.length} aulas`} tone="warning" />
@@ -156,9 +159,11 @@ export function StudentCourseDetailsPage() {
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Modulo {moduleIndex + 1}</p>
                       <h3 className="mt-2 text-xl font-semibold text-slate-950">{module.title}</h3>
-                      <p className="mt-2 text-sm leading-7 text-slate-600">
-                        {module.description ?? "Sem descricao adicional para este modulo."}
-                      </p>
+                      <RichTextContent
+                        value={module.description}
+                        fallback="Sem descricao adicional para este modulo."
+                        className="mt-2 text-sm leading-7 text-slate-600"
+                      />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <StatusBadge label={getModuleTypeLabel(module.module_type)} tone="info" />
@@ -203,9 +208,11 @@ export function StudentCourseDetailsPage() {
                         <div key={lesson.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3">
                           <div>
                             <p className="font-medium text-slate-950">{lesson.title}</p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              {lesson.description ?? "Aula pronta para estudo dentro do player."}
-                            </p>
+                            <RichTextContent
+                              value={lesson.description}
+                              fallback="Aula pronta para estudo dentro do player."
+                              className="mt-1 text-sm text-slate-600"
+                            />
                             {lesson.is_locked && lesson.lock_reason ? (
                               <p className="mt-2 text-sm text-amber-700">{lesson.lock_reason}</p>
                             ) : null}
@@ -224,9 +231,11 @@ export function StudentCourseDetailsPage() {
                       <div key={assessment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
                         <div>
                           <p className="font-medium text-slate-950">{assessment.title}</p>
-                          <p className="mt-1 text-sm text-slate-600">
-                            {assessment.description ?? "Avaliacao ligada a este modulo."}
-                          </p>
+                          <RichTextContent
+                            value={assessment.description}
+                            fallback="Avaliacao ligada a este modulo."
+                            className="mt-1 text-sm text-slate-600"
+                          />
                           {assessment.is_locked && assessment.lock_reason ? (
                             <p className="mt-2 text-sm text-amber-700">{assessment.lock_reason}</p>
                           ) : null}
@@ -284,9 +293,11 @@ export function StudentCourseDetailsPage() {
               <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-5">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Aula sugerida</p>
                 <h3 className="mt-2 text-xl font-semibold text-slate-950">{nextLesson.title}</h3>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  {nextLesson.description ?? "Abre esta aula para continuar a tua progressao."}
-                </p>
+                <RichTextContent
+                  value={nextLesson.description}
+                  fallback="Abre esta aula para continuar a tua progressao."
+                  className="mt-2 text-sm leading-7 text-slate-600"
+                />
                 <Button asChild className="mt-5 rounded-full">
                   <Link to={studentCourseLessonPath(data.product.id, nextLesson.id)}>Entrar no player</Link>
                 </Button>

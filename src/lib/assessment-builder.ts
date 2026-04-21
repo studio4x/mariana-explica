@@ -35,11 +35,6 @@ export interface AssessmentBuilderDraft {
 
 export const assessmentQuestionTypeOptions: Array<{ value: AssessmentQuestionKind; label: string }> = [
   { value: "single_choice", label: "Multipla escolha" },
-  { value: "essay_ai", label: "Discursiva com IA" },
-  { value: "case_study_ai", label: "Estudo de caso" },
-  { value: "drag_drop", label: "Arrastar e soltar" },
-  { value: "fill_blank", label: "Preencher lacunas" },
-  { value: "hotspot", label: "Hotspot de imagem" },
 ]
 
 function randomId(prefix: string) {
@@ -49,7 +44,7 @@ function randomId(prefix: string) {
 function questionToDraft(question: AssessmentQuestion, index: number): AssessmentBuilderQuestionDraft {
   return {
     id: question.id || randomId(`question-${index + 1}`),
-    kind: question.kind === "unknown" ? "single_choice" : question.kind,
+    kind: "single_choice",
     title: question.title,
     prompt: question.prompt,
     options:
@@ -82,18 +77,15 @@ function questionToDraft(question: AssessmentQuestion, index: number): Assessmen
 }
 
 export function createEmptyQuestionDraft(kind: AssessmentQuestionKind = "single_choice"): AssessmentBuilderQuestionDraft {
-  const withOptions = kind === "single_choice"
   return {
     id: randomId("question"),
-    kind,
+    kind: kind === "single_choice" ? "single_choice" : "single_choice",
     title: "",
     prompt: "",
-    options: withOptions
-      ? [
-          { id: randomId("option"), label: "Opcao 1", value: "opcao-1", isCorrect: true },
-          { id: randomId("option"), label: "Opcao 2", value: "opcao-2", isCorrect: false },
-        ]
-      : [],
+    options: [
+      { id: randomId("option"), label: "Opcao 1", value: "opcao-1", isCorrect: true },
+      { id: randomId("option"), label: "Opcao 2", value: "opcao-2", isCorrect: false },
+    ],
     feedback: "",
     rubric: "",
     points: "",

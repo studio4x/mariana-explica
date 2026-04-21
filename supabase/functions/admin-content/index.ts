@@ -28,7 +28,7 @@ type ModuleStatus = "draft" | "published" | "archived"
 
 type AssetType = "pdf" | "video_file" | "video_embed" | "external_link"
 type AssetStatus = "active" | "inactive"
-type LessonType = "video" | "text" | "hybrid"
+type LessonType = "video" | "text" | "hybrid" | "file"
 type LessonStatus = "draft" | "published" | "archived"
 type AssessmentType = "module" | "final"
 

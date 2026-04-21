@@ -5,6 +5,7 @@ import { logError } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
+const COURSE_COVER_BUCKET = "course-cover-public"
 
 function sanitizeSegment(value: string) {
   return value
@@ -22,19 +23,19 @@ function getFileExtension(fileName: string) {
   return sanitizeSegment(parts.at(-1) ?? "")
 }
 
-async function ensureStorageBucket(serviceClient: ReturnType<typeof createServiceClient>) {
+async function ensureStorageBucket(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  bucketName: string,
+  options: { public: boolean; fileSizeLimit: string; allowedMimeTypes: string[] },
+) {
   const { data: buckets, error: bucketsError } = await serviceClient.storage.listBuckets()
   if (bucketsError) throw bucketsError
 
-  if ((buckets ?? []).some((bucket) => bucket.name === COURSE_STORAGE_BUCKET)) {
+  if ((buckets ?? []).some((bucket) => bucket.name === bucketName)) {
     return
   }
 
-  const { error: createBucketError } = await serviceClient.storage.createBucket(COURSE_STORAGE_BUCKET, {
-    public: false,
-    fileSizeLimit: "50MB",
-    allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
-  })
+  const { error: createBucketError } = await serviceClient.storage.createBucket(bucketName, options)
 
   if (createBucketError && !String(createBucketError.message).toLowerCase().includes("already exists")) {
     throw createBucketError
@@ -58,10 +59,11 @@ Deno.serve(async (req) => {
     const formData = await req.formData()
     const kind = String(formData.get("kind") ?? "").trim()
     const moduleId = String(formData.get("moduleId") ?? "").trim()
+    const productId = String(formData.get("productId") ?? "").trim()
     const replacePath = String(formData.get("replacePath") ?? "").trim() || null
     const file = formData.get("file")
 
-    if (!["module_pdf", "module_asset", "watermark_logo"].includes(kind)) {
+    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover"].includes(kind)) {
       throw badRequest("kind invalido")
     }
     if (!(file instanceof File)) {
@@ -71,17 +73,15 @@ Deno.serve(async (req) => {
       throw badRequest("O ficheiro enviado esta vazio")
     }
 
-    await ensureStorageBucket(context.serviceClient)
-
     const safeExtension = getFileExtension(file.name)
     const fileNameBase = sanitizeSegment(file.name.replace(/\.[^.]+$/, "")) || "arquivo"
     const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
     let objectPath = ""
     let auditAction = ""
     let auditEntityType = ""
-    let auditEntityId = moduleId || context.user.id
+    let auditEntityId = moduleId || productId || context.user.id
+    let targetBucket = COURSE_STORAGE_BUCKET
     let auditMetadata: Record<string, unknown> = {
-      bucket: COURSE_STORAGE_BUCKET,
       file_name: file.name,
       mime_type: file.type || null,
       file_size_bytes: file.size,
@@ -92,6 +92,39 @@ Deno.serve(async (req) => {
       auditAction = "admin.watermark_logo_uploaded"
       auditEntityType = "site_config"
       auditEntityId = "module_pdf_watermark"
+      await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
+        public: false,
+        fileSizeLimit: "50MB",
+        allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
+      })
+    } else if (kind === "product_cover") {
+      if (!productId) throw badRequest("productId e obrigatorio")
+
+      const { data: productRow, error: productError } = await context.serviceClient
+        .from("products")
+        .select("id,slug,title")
+        .eq("id", productId)
+        .maybeSingle()
+
+      if (productError) throw productError
+      if (!productRow) throw badRequest("Curso nao encontrado")
+
+      await ensureStorageBucket(context.serviceClient, COURSE_COVER_BUCKET, {
+        public: true,
+        fileSizeLimit: "10MB",
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+      })
+
+      targetBucket = COURSE_COVER_BUCKET
+      objectPath = `products/${productId}/cover/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
+      auditAction = "admin.product_cover_uploaded"
+      auditEntityType = "product"
+      auditEntityId = productId
+      auditMetadata = {
+        ...auditMetadata,
+        product_id: productId,
+        product_slug: productRow.slug,
+      }
     } else {
       if (!moduleId) throw badRequest("moduleId e obrigatorio")
 
@@ -103,6 +136,12 @@ Deno.serve(async (req) => {
 
       if (moduleError) throw moduleError
       if (!moduleRow) throw badRequest("Modulo nao encontrado")
+
+      await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
+        public: false,
+        fileSizeLimit: "50MB",
+        allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
+      })
 
       objectPath =
         kind === "module_pdf"
@@ -120,7 +159,7 @@ Deno.serve(async (req) => {
 
     const arrayBuffer = await file.arrayBuffer()
     const { error: uploadError } = await context.serviceClient.storage
-      .from(COURSE_STORAGE_BUCKET)
+      .from(targetBucket)
       .upload(objectPath, arrayBuffer, {
         upsert: false,
         contentType: file.type || undefined,
@@ -130,15 +169,16 @@ Deno.serve(async (req) => {
 
     if (replacePath && replacePath !== objectPath) {
       const { error: removeError } = await context.serviceClient.storage
-        .from(COURSE_STORAGE_BUCKET)
+        .from(targetBucket)
         .remove([replacePath])
 
       if (removeError) {
         logError("Admin storage replace cleanup failed", {
-          request_id: requestId,
-          replace_path: replacePath,
-          error: String(removeError),
-        })
+        request_id: requestId,
+        replace_path: replacePath,
+        bucket: targetBucket,
+        error: String(removeError),
+      })
       }
     }
 
@@ -148,21 +188,28 @@ Deno.serve(async (req) => {
       entityId: auditEntityId,
       metadata: {
         ...auditMetadata,
+        bucket: targetBucket,
         path: objectPath,
       },
       ...auditMeta,
     })
 
+    const publicUploadUrl =
+      targetBucket === COURSE_COVER_BUCKET
+        ? context.serviceClient.storage.from(targetBucket).getPublicUrl(objectPath).data.publicUrl
+        : null
+
     return jsonResponse({
       success: true,
       request_id: requestId,
       upload: {
-        bucket: COURSE_STORAGE_BUCKET,
+        bucket: targetBucket,
         path: objectPath,
         file_name: file.name,
         mime_type: file.type || null,
         file_size_bytes: file.size,
         uploaded_at: new Date().toISOString(),
+        public_url: publicUploadUrl,
       },
     })
   } catch (error) {

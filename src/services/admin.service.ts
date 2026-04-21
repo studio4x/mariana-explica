@@ -183,6 +183,48 @@ export async function uploadAdminModulePdf(input: {
   return (data as { success: true; upload: AdminStorageUploadResult }).upload
 }
 
+export async function uploadAdminProductCover(input: {
+  productId: string
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "product_cover")
+  formData.append("productId", input.productId)
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+}
+
 export async function uploadAdminModuleAssetFile(input: {
   moduleId: string
   file: File
@@ -594,9 +636,11 @@ export async function createAdminProductLesson(input: {
   ends_at?: string | null
   status?: ProductLessonSummary["status"]
 }) {
+  const { status, ...rest } = input
   const response = await invokeAdminFunction<{ success: true; lesson: ProductLessonSummary }>("admin-content", {
     action: "create_lesson",
-    ...input,
+    ...rest,
+    lesson_status: status,
   })
 
   return response.lesson
@@ -616,9 +660,11 @@ export async function updateAdminProductLesson(input: {
   ends_at?: string | null
   status?: ProductLessonSummary["status"]
 }) {
+  const { status, ...rest } = input
   const response = await invokeAdminFunction<{ success: true; lesson: ProductLessonSummary }>("admin-content", {
     action: "update_lesson",
-    ...input,
+    ...rest,
+    lesson_status: status,
   })
 
   return response.lesson

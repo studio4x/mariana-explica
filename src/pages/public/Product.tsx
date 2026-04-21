@@ -10,11 +10,12 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader } from "@/components/common"
+import { PageHeader, RichTextContent } from "@/components/common"
 import { ROUTES } from "@/lib/constants"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { formatProductPrice } from "@/utils/currency"
 import { getProductNarrative } from "@/lib/product-presentation"
+import { richTextToPlainText } from "@/lib/rich-text"
 
 export function Product() {
   const { slug } = useParams<{ slug: string }>()
@@ -60,7 +61,7 @@ export function Product() {
     <div className="container space-y-8 py-10 md:py-12">
       <PageHeader
         title={product.title}
-        description={product.short_description ?? product.description ?? undefined}
+        description={richTextToPlainText(product.short_description ?? product.description) || undefined}
         backTo={ROUTES.PRODUCTS}
       />
 
@@ -81,9 +82,11 @@ export function Product() {
             <h2 className="mt-6 max-w-3xl font-display text-3xl font-bold leading-tight md:text-5xl">
               {product.title}
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-white/82 md:text-lg">
-              {product.description ?? narrative.benefit}
-            </p>
+            <RichTextContent
+              value={product.description}
+              fallback={narrative.benefit}
+              className="mt-4 max-w-2xl text-base leading-8 text-white/82 md:text-lg"
+            />
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {formatHints.map((item) => (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { RichTextEditor, StatusBadge } from "@/components/common"
 import { createAssessmentDraft, createEmptyQuestionDraft, buildAssessmentPayload, assessmentQuestionTypeOptions, type AssessmentBuilderDraft } from "@/lib/assessment-builder"
 import { useUpdateAdminProductAssessment } from "@/hooks/useAdmin"
 import type { ProductAssessmentSummary, ProductModuleSummary } from "@/types/app.types"
@@ -136,6 +136,11 @@ export function AssessmentBuilderWorkspace({
   const handleSubmit = async () => {
     setError(null)
 
+    if (draft.assessmentType === "module" && !draft.moduleId) {
+      setError("Selecione um modulo antes de guardar o quiz.")
+      return
+    }
+
     try {
       await updateAssessment.mutateAsync({
         assessmentId: assessment.id,
@@ -175,64 +180,84 @@ export function AssessmentBuilderWorkspace({
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <input
-            value={draft.title}
-            onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
-            placeholder="Titulo da avaliacao"
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
-          <select
-            value={draft.assessmentType}
-            onChange={(event) =>
-              setDraft((prev) => ({
-                ...prev,
-                assessmentType: event.target.value as ProductAssessmentSummary["assessment_type"],
-                moduleId: event.target.value === "final" ? null : prev.moduleId,
-              }))
-            }
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          >
-            <option value="module">Quiz de modulo</option>
-            <option value="final">Avaliacao final</option>
-          </select>
-          <select
-            value={draft.moduleId ?? ""}
-            disabled={draft.assessmentType === "final"}
-            onChange={(event) => setDraft((prev) => ({ ...prev, moduleId: event.target.value || null }))}
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <option value="">Selecione um modulo</option>
-            {modules.map((module) => (
-              <option key={module.id} value={module.id}>
-                {module.title}
-              </option>
-            ))}
-          </select>
-          <input
-            value={draft.estimatedMinutes}
-            onChange={(event) => setDraft((prev) => ({ ...prev, estimatedMinutes: event.target.value }))}
-            placeholder="Minutos estimados"
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
-          <input
-            value={draft.passingScore}
-            onChange={(event) => setDraft((prev) => ({ ...prev, passingScore: event.target.value }))}
-            placeholder="Nota minima"
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
-          <input
-            value={draft.maxAttempts}
-            onChange={(event) => setDraft((prev) => ({ ...prev, maxAttempts: event.target.value }))}
-            placeholder="Tentativas maximas"
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
-          <textarea
-            value={draft.description}
-            onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))}
-            rows={4}
-            placeholder="Descricao curta"
-            className="md:col-span-2 rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          />
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-slate-800">Titulo da avaliacao</span>
+            <input
+              value={draft.title}
+              onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
+              placeholder="Titulo da avaliacao"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-slate-800">Tipo de avaliacao</span>
+            <select
+              value={draft.assessmentType}
+              onChange={(event) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  assessmentType: event.target.value as ProductAssessmentSummary["assessment_type"],
+                  moduleId: event.target.value === "final" ? null : prev.moduleId,
+                }))
+              }
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="module">Quiz de modulo</option>
+              <option value="final">Avaliacao final</option>
+            </select>
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-slate-800">Modulo vinculado</span>
+            <select
+              value={draft.moduleId ?? ""}
+              disabled={draft.assessmentType === "final"}
+              onChange={(event) => setDraft((prev) => ({ ...prev, moduleId: event.target.value || null }))}
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="">Selecione um modulo</option>
+              {modules.map((module) => (
+                <option key={module.id} value={module.id}>
+                  {module.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-slate-800">Minutos estimados</span>
+            <input
+              value={draft.estimatedMinutes}
+              onChange={(event) => setDraft((prev) => ({ ...prev, estimatedMinutes: event.target.value }))}
+              placeholder="Minutos estimados"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-slate-800">Nota minima (%)</span>
+            <input
+              value={draft.passingScore}
+              onChange={(event) => setDraft((prev) => ({ ...prev, passingScore: event.target.value }))}
+              placeholder="Nota minima"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-slate-800">Tentativas maximas</span>
+            <input
+              value={draft.maxAttempts}
+              onChange={(event) => setDraft((prev) => ({ ...prev, maxAttempts: event.target.value }))}
+              placeholder="Tentativas maximas"
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </label>
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold text-slate-800">Descricao / area de texto</span>
+            <RichTextEditor
+              value={draft.description}
+              onChange={(value) => setDraft((prev) => ({ ...prev, description: value }))}
+              placeholder="Descricao curta da avaliacao"
+              minHeightClassName="min-h-[170px]"
+            />
+          </label>
           <label className="flex items-center gap-2 rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -347,27 +372,33 @@ export function AssessmentBuilderWorkspace({
                   />
                   Pergunta obrigatoria
                 </label>
-                <textarea
-                  value={question.prompt}
-                  onChange={(event) => handleQuestionField(question.id, "prompt", event.target.value)}
-                  rows={4}
-                  placeholder="Enunciado da pergunta"
-                  className="md:col-span-2 rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
-                />
-                <textarea
-                  value={question.feedback}
-                  onChange={(event) => handleQuestionField(question.id, "feedback", event.target.value)}
-                  rows={3}
-                  placeholder="Feedback ou explicacao"
-                  className="rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
-                />
-                <textarea
-                  value={question.rubric}
-                  onChange={(event) => handleQuestionField(question.id, "rubric", event.target.value)}
-                  rows={3}
-                  placeholder="Rubrica ou criterio de correcao"
-                  className="rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
-                />
+                <div className="md:col-span-2">
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Enunciado / area de texto</p>
+                  <RichTextEditor
+                    value={question.prompt}
+                    onChange={(value) => handleQuestionField(question.id, "prompt", value)}
+                    placeholder="Enunciado da pergunta"
+                    minHeightClassName="min-h-[180px]"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Feedback / area de texto</p>
+                  <RichTextEditor
+                    value={question.feedback}
+                    onChange={(value) => handleQuestionField(question.id, "feedback", value)}
+                    placeholder="Feedback ou explicacao"
+                    minHeightClassName="min-h-[150px]"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Rubrica / area de texto</p>
+                  <RichTextEditor
+                    value={question.rubric}
+                    onChange={(value) => handleQuestionField(question.id, "rubric", value)}
+                    placeholder="Rubrica ou criterio de correcao"
+                    minHeightClassName="min-h-[150px]"
+                  />
+                </div>
               </div>
 
               {question.kind === "single_choice" ? (

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ClipboardCheck } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { RichTextContent, StatusBadge } from "@/components/common"
 import {
   useAccessibleAssessment,
   useAssessmentAttemptState,
@@ -224,9 +224,11 @@ export function StudentAssessmentExecutionPage() {
               {assessment.assessment_type === "final" ? "Avaliacao final" : module?.title ?? "Quiz de modulo"}
             </p>
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-950">{assessment.title}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-8 text-slate-600">
-              {assessment.description ?? "Avaliacao ligada ao curso, com score validado no backend."}
-            </p>
+            <RichTextContent
+              value={assessment.description}
+              fallback="Avaliacao ligada ao curso, com score validado no backend."
+              className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             <StatusBadge label={assessment.assessment_type === "final" ? "Final" : "Modulo"} tone={assessment.assessment_type === "final" ? "success" : "warning"} />
@@ -450,7 +452,7 @@ export function StudentAssessmentExecutionPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Questao {index + 1}</p>
-                      <h3 className="mt-2 text-lg font-semibold text-slate-950">{question.prompt}</h3>
+                      <RichTextContent value={question.prompt} className="mt-2 text-lg font-semibold text-slate-950" />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <StatusBadge label={questionTypeLabels[question.kind]} tone="neutral" />
@@ -460,7 +462,7 @@ export function StudentAssessmentExecutionPage() {
                   </div>
 
                   {question.title && question.title !== question.prompt ? (
-                    <p className="mt-3 text-sm text-slate-600">{question.title}</p>
+                    <RichTextContent value={question.title} className="mt-3 text-sm text-slate-600" />
                   ) : null}
 
                   {question.options.length > 0 ? (
@@ -511,14 +513,14 @@ export function StudentAssessmentExecutionPage() {
                   {question.rubric ? (
                     <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-700">
                       <p className="font-semibold text-slate-950">Rubrica</p>
-                      <p className="mt-1 leading-7">{question.rubric}</p>
+                      <RichTextContent value={question.rubric} className="mt-1 leading-7" />
                     </div>
                   ) : null}
 
                   {previewRequested && question.feedback ? (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
                       <p className="font-semibold text-slate-950">Feedback do gabarito</p>
-                      <p className="mt-1 leading-7">{question.feedback}</p>
+                      <RichTextContent value={question.feedback} className="mt-1 leading-7" />
                     </div>
                   ) : null}
                 </article>

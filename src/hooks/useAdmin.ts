@@ -48,6 +48,7 @@ import {
   replyAdminSupportTicket,
   uploadAdminModuleAssetFile,
   uploadAdminModulePdf,
+  uploadAdminProductCover,
   uploadAdminWatermarkLogoFile,
   updateAdminAffiliate,
   updateAdminCoupon,
@@ -308,6 +309,11 @@ export function useCreateAdminProductModule() {
 export function useUploadAdminModulePdf() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: uploadAdminModulePdf, onSuccess: invalidate })
+}
+
+export function useUploadAdminProductCover() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: uploadAdminProductCover, onSuccess: invalidate })
 }
 
 export function useUploadAdminModuleAssetFile() {

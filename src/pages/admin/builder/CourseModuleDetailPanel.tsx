@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { RichTextEditor, StatusBadge } from "@/components/common"
 import {
   useAdminProductLessons,
   useAdminModuleAssets,
@@ -197,25 +197,6 @@ export function CourseModuleDetailPanel() {
             <StatusBadge label={`${moduleAssessments.length} quizzes`} tone="warning" />
           </div>
         </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-950">Revisao com IA</p>
-              <p className="mt-1 text-sm text-slate-500">
-                O spec do builder preve historico, analise e aplicacao de ajustes neste modulo.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" className="rounded-full" disabled>
-                Analisar com IA
-              </Button>
-              <Button type="button" variant="outline" className="rounded-full" disabled>
-                Ver ajustes realizados
-              </Button>
-            </div>
-          </div>
-        </div>
       </section>
 
       <form
@@ -265,12 +246,11 @@ export function CourseModuleDetailPanel() {
             label="Descricao Organizacional"
             helper="Resumo interno do papel deste modulo dentro da trilha pedagógica."
           >
-            <textarea
+            <RichTextEditor
               value={String(values.description)}
-              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-              rows={5}
+              onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
               placeholder="Descreve a finalidade do modulo."
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-sky-300 focus:bg-white"
+              minHeightClassName="min-h-[180px]"
             />
           </ModuleField>
 

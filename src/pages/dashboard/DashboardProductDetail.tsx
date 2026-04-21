@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 import { FileText, PlayCircle, StickyNote } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { PageHeader, RichTextContent, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAccessibleLesson,
@@ -21,6 +21,7 @@ import {
   getModuleTypeLabel,
   getProductNarrative,
 } from "@/lib/product-presentation"
+import { richTextToPlainText } from "@/lib/rich-text"
 
 const EMPTY_PROGRESS: Array<{ lesson_id: string; status: string; progress_percent: number }> = []
 
@@ -144,7 +145,7 @@ export function DashboardProductDetail() {
     <div className="space-y-6">
       <PageHeader
         title={data.product.title}
-        description={data.product.short_description ?? data.product.description ?? "Conteudo do curso."}
+        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Conteudo do curso."}
         backTo="/aluno/cursos"
       />
 
@@ -251,12 +252,25 @@ export function DashboardProductDetail() {
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{selectedModule.title}</p>
                     <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{selectedLessonSummary.title}</h2>
-                    <p className="mt-2 text-sm leading-7 text-slate-600">
-                      {selectedLessonSummary.description ?? "Aula pronta para leitura, visualizacao e continuidade do estudo."}
-                    </p>
+                    <RichTextContent
+                      value={selectedLessonSummary.description}
+                      fallback="Aula pronta para leitura, visualizacao e continuidade do estudo."
+                      className="mt-2 text-sm leading-7 text-slate-600"
+                    />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <StatusBadge label={selectedLessonSummary.lesson_type === "video" ? "Video" : selectedLessonSummary.lesson_type === "text" ? "Texto" : "Hibrida"} tone="info" />
+                    <StatusBadge
+                      label={
+                        selectedLessonSummary.lesson_type === "video"
+                          ? "Video"
+                          : selectedLessonSummary.lesson_type === "text"
+                            ? "Texto"
+                            : selectedLessonSummary.lesson_type === "file"
+                              ? "Ficheiro"
+                              : "Hibrida"
+                      }
+                      tone="info"
+                    />
                     <StatusBadge label={`${selectedLessonSummary.estimated_minutes} min`} tone="warning" />
                     {selectedLessonSummary.is_locked ? <StatusBadge label="Bloqueada" tone="warning" /> : null}
                   </div>
@@ -300,7 +314,17 @@ export function DashboardProductDetail() {
                             <FileText className="h-4 w-4" />
                             <p className="font-medium">Conteudo textual</p>
                           </div>
-                          <p className="mt-3 text-sm leading-6 text-slate-600 line-clamp-6">{selectedLesson.text_content}</p>
+                          <RichTextContent value={selectedLesson.text_content} className="mt-3 text-sm leading-6 text-slate-600" />
+                        </div>
+                      ) : selectedLesson.lesson_type === "file" ? (
+                        <div className="rounded-2xl border bg-slate-50/80 p-4">
+                          <div className="flex items-center gap-2 text-slate-900">
+                            <FileText className="h-4 w-4" />
+                            <p className="font-medium">Conteudo principal em ficheiro</p>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-slate-600">
+                            Esta aula depende dos materiais protegidos listados abaixo.
+                          </p>
                         </div>
                       ) : null}
                     </div>
@@ -418,7 +442,11 @@ export function DashboardProductDetail() {
                           <StatusBadge label={assessment.assessment_type === "final" ? "Avaliacao final" : "Quiz do modulo"} tone="warning" />
                           {assessment.is_locked ? <StatusBadge label="Bloqueada" tone="warning" /> : null}
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">{assessment.description ?? "Avaliacao disponivel neste curso."}</p>
+                        <RichTextContent
+                          value={assessment.description}
+                          fallback="Avaliacao disponivel neste curso."
+                          className="mt-2 text-sm leading-6 text-slate-600"
+                        />
                         {assessment.is_locked && assessment.lock_reason ? (
                           <p className="mt-2 text-sm text-amber-700">{assessment.lock_reason}</p>
                         ) : null}

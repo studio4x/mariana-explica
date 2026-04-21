@@ -3,7 +3,7 @@ import { FileText, PlayCircle, StickyNote } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { RichTextContent, StatusBadge } from "@/components/common"
 import {
   useAccessibleLesson,
   useLessonNote,
@@ -130,12 +130,25 @@ export function StudentLessonPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{module.title}</p>
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-950">{lesson.title}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-8 text-slate-600">
-              {lesson.description ?? "Aula pronta para leitura, video e continuidade do estudo."}
-            </p>
+            <RichTextContent
+              value={lesson.description}
+              fallback="Aula pronta para leitura, video e continuidade do estudo."
+              className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge label={lesson.lesson_type === "hybrid" ? "Hibrida" : lesson.lesson_type === "video" ? "Video" : "Texto"} tone="info" />
+            <StatusBadge
+              label={
+                lesson.lesson_type === "hybrid"
+                  ? "Hibrida"
+                  : lesson.lesson_type === "video"
+                    ? "Video"
+                    : lesson.lesson_type === "file"
+                      ? "Ficheiro"
+                      : "Texto"
+              }
+              tone="info"
+            />
             <StatusBadge label={`${lesson.estimated_minutes} min`} tone="warning" />
           </div>
         </div>
@@ -157,9 +170,17 @@ export function StudentLessonPage() {
                 <FileText className="h-4 w-4" />
                 <p className="font-medium">Conteudo textual</p>
               </div>
-              <div className="mt-3 text-sm leading-7 text-slate-600 whitespace-pre-wrap">
-                {lesson.text_content}
+              <RichTextContent value={lesson.text_content} className="mt-3 text-sm leading-7 text-slate-600" />
+            </div>
+          ) : lesson.lesson_type === "file" ? (
+            <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
+              <div className="flex items-center gap-2 text-slate-900">
+                <FileText className="h-4 w-4" />
+                <p className="font-medium">Conteudo principal em ficheiro</p>
               </div>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Abra os materiais protegidos abaixo para consumir esta aula.
+              </p>
             </div>
           ) : null}
         </div>

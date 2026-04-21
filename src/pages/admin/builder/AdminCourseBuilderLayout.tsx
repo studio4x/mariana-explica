@@ -1,5 +1,5 @@
 import { useQueries } from "@tanstack/react-query"
-import { Link, NavLink, Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom"
+import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom"
 import {
   BookOpen,
   ClipboardCheck,
@@ -13,6 +13,7 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UsersRound,
 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -26,6 +27,9 @@ import {
   useAdminProductAssessments,
   useAdminProductModules,
   useAdminProducts,
+  useDeleteAdminProductAssessment,
+  useDeleteAdminProductLesson,
+  useDeleteAdminProductModule,
 } from "@/hooks/useAdmin"
 import {
   adminCourseAssessmentsPath,
@@ -63,12 +67,16 @@ export function useAdminCourseBuilderContext() {
 export function AdminCourseBuilderLayout() {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const productsQuery = useAdminProducts()
   const modulesQuery = useAdminProductModules(courseId)
   const assessmentsQuery = useAdminProductAssessments(courseId)
   const createModule = useCreateAdminProductModule()
   const createLesson = useCreateAdminProductLesson()
   const createAssessment = useCreateAdminProductAssessment()
+  const deleteModule = useDeleteAdminProductModule()
+  const deleteLesson = useDeleteAdminProductLesson()
+  const deleteAssessment = useDeleteAdminProductAssessment()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [builderError, setBuilderError] = useState<string | null>(null)
 
@@ -218,6 +226,56 @@ export function AdminCourseBuilderLayout() {
     totalLessons,
   }
 
+  const finalAssessments = assessments.filter((assessment) => assessment.assessment_type === "final")
+
+  const handleDeleteModule = async (module: ProductModuleSummary) => {
+    if (!window.confirm(`Excluir o modulo "${module.title}"? Esta acao remove a estrutura ligada a ele.`)) {
+      return
+    }
+
+    setBuilderError(null)
+    try {
+      await deleteModule.mutateAsync(module.id)
+      if (location.pathname.includes(module.id)) {
+        navigate(adminCourseBuilderPath(courseId))
+      }
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel excluir o modulo.")
+    }
+  }
+
+  const handleDeleteLesson = async (module: ProductModuleSummary, lesson: ProductLessonSummary) => {
+    if (!window.confirm(`Excluir a aula "${lesson.title}"?`)) {
+      return
+    }
+
+    setBuilderError(null)
+    try {
+      await deleteLesson.mutateAsync(lesson.id)
+      if (location.pathname.includes(lesson.id)) {
+        navigate(adminCourseModulePath(courseId, module.id))
+      }
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel excluir a aula.")
+    }
+  }
+
+  const handleDeleteAssessment = async (assessment: ProductAssessmentSummary) => {
+    if (!window.confirm(`Excluir a avaliacao "${assessment.title}"?`)) {
+      return
+    }
+
+    setBuilderError(null)
+    try {
+      await deleteAssessment.mutateAsync(assessment.id)
+      if (location.pathname.includes(assessment.id)) {
+        navigate(assessment.module_id ? adminCourseModulePath(courseId, assessment.module_id) : adminCourseAssessmentsPath(courseId))
+      }
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel excluir a avaliacao.")
+    }
+  }
+
   return (
     <div className="relative flex h-screen w-full flex-col overflow-hidden bg-slate-50 text-slate-900">
       <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 shadow-sm">
@@ -322,70 +380,100 @@ export function AdminCourseBuilderLayout() {
 
                     return (
                       <div key={module.id} className="group pt-1">
-                        <NavLink
-                          to={adminCourseModulePath(courseId, module.id)}
-                          title={module.title}
-                          className={({ isActive }) =>
-                            `flex items-center rounded-lg transition ${
-                              isSidebarOpen ? "gap-2 px-2 py-2.5" : "justify-center px-2 py-3"
-                            } ${
-                              isActive
-                                ? "bg-slate-50 text-slate-950"
-                                : "text-slate-700 hover:bg-slate-50"
-                            }`
-                          }
-                        >
-                          {isSidebarOpen ? (
-                            <>
-                              <List className="h-4 w-4 shrink-0 text-slate-300" />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 truncate">
-                                  <span className="w-5 text-center text-[10px] font-extrabold uppercase text-slate-400">
-                                    M{index + 1}
-                                  </span>
-                                  <span className="truncate text-sm font-bold">{module.title}</span>
+                        <div className="flex items-center gap-1">
+                          <NavLink
+                            to={adminCourseModulePath(courseId, module.id)}
+                            title={module.title}
+                            className={({ isActive }) =>
+                              `flex min-w-0 flex-1 items-center rounded-lg transition ${
+                                isSidebarOpen ? "gap-2 px-2 py-2.5" : "justify-center px-2 py-3"
+                              } ${
+                                isActive
+                                  ? "bg-slate-50 text-slate-950"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`
+                            }
+                          >
+                            {isSidebarOpen ? (
+                              <>
+                                <List className="h-4 w-4 shrink-0 text-slate-300" />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="w-5 text-center text-[10px] font-extrabold uppercase text-slate-400">
+                                      M{index + 1}
+                                    </span>
+                                    <span className="truncate text-sm font-bold">{module.title}</span>
+                                  </div>
                                 </div>
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-xs font-bold">M{index + 1}</span>
-                          )}
-                        </NavLink>
+                              </>
+                            ) : (
+                              <span className="text-xs font-bold">M{index + 1}</span>
+                            )}
+                          </NavLink>
+                          {isSidebarOpen ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteModule(module)}
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
+                              title={`Excluir modulo ${module.title}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
+                        </div>
 
                         {isSidebarOpen ? (
                           <div className="ml-9 mt-1 space-y-1 border-l-2 border-slate-100 pl-3">
                             {moduleLessons.map((lesson) => (
-                              <NavLink
-                                key={lesson.id}
-                                to={`${adminCourseModulePath(courseId, module.id)}/aulas/${lesson.id}`}
-                                className={({ isActive }) =>
-                                  `flex items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
-                                    isActive
-                                      ? "bg-slate-100 text-slate-950"
-                                      : "text-slate-700 hover:bg-slate-50"
-                                  }`
-                                }
-                              >
-                                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                <span className="truncate">{lesson.title}</span>
-                              </NavLink>
+                              <div key={lesson.id} className="flex items-center gap-1">
+                                <NavLink
+                                  to={`${adminCourseModulePath(courseId, module.id)}/aulas/${lesson.id}`}
+                                  className={({ isActive }) =>
+                                    `flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
+                                      isActive
+                                        ? "bg-slate-100 text-slate-950"
+                                        : "text-slate-700 hover:bg-slate-50"
+                                    }`
+                                  }
+                                >
+                                  <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                  <span className="truncate">{lesson.title}</span>
+                                </NavLink>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteLesson(module, lesson)}
+                                  className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
+                                  title={`Excluir aula ${lesson.title}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
                             ))}
 
                             {moduleAssessments.map((assessment) => (
-                              <NavLink
-                                key={assessment.id}
-                                to={`${adminCourseModulePath(courseId, module.id)}/avaliacoes/${assessment.id}`}
-                                className={({ isActive }) =>
-                                  `flex items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
-                                    isActive
-                                      ? "bg-amber-50 text-amber-700"
-                                      : "text-amber-700/90 hover:bg-amber-50/50"
-                                  }`
-                                }
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                                <span className="truncate">Quiz: {assessment.title}</span>
-                              </NavLink>
+                              <div key={assessment.id} className="flex items-center gap-1">
+                                <NavLink
+                                  to={`${adminCourseModulePath(courseId, module.id)}/avaliacoes/${assessment.id}`}
+                                  className={({ isActive }) =>
+                                    `flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
+                                      isActive
+                                        ? "bg-amber-50 text-amber-700"
+                                        : "text-amber-700/90 hover:bg-amber-50/50"
+                                    }`
+                                  }
+                                >
+                                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                  <span className="truncate">Quiz: {assessment.title}</span>
+                                </NavLink>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteAssessment(assessment)}
+                                  className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
+                                  title={`Excluir quiz ${assessment.title}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
                             ))}
 
                             <div className="flex items-center gap-1 pt-1">
@@ -416,6 +504,39 @@ export function AdminCourseBuilderLayout() {
                 )}
               </div>
             </div>
+
+            {isSidebarOpen && finalAssessments.length > 0 ? (
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                <p className="px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                  Avaliacao final
+                </p>
+                <div className="mt-2 space-y-2">
+                  {finalAssessments.map((assessment) => (
+                    <div key={assessment.id} className="flex items-center gap-1">
+                      <NavLink
+                        to={adminCourseAssessmentsPath(courseId)}
+                        className={({ isActive }) =>
+                          `flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 text-[13px] font-medium transition ${
+                            isActive ? "bg-emerald-50 text-emerald-700" : "text-emerald-700/90 hover:bg-emerald-50/60"
+                          }`
+                        }
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                        <span className="truncate">{assessment.title}</span>
+                      </NavLink>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteAssessment(assessment)}
+                        className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
+                        title={`Excluir avaliacao final ${assessment.title}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="pt-5">
               <button

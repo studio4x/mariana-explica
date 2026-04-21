@@ -76,6 +76,7 @@ export interface AdminStorageUploadResult {
   mime_type: string | null
   file_size_bytes: number | null
   uploaded_at: string
+  public_url?: string | null
 }
 
 export interface AdminModulePdfWatermarkConfig {
@@ -118,7 +119,7 @@ export interface ProductLessonSummary {
   description: string | null
   position: number
   is_required: boolean
-  lesson_type: "video" | "text" | "hybrid"
+  lesson_type: "video" | "text" | "hybrid" | "file"
   youtube_url: string | null
   text_content: string | null
   estimated_minutes: number
@@ -134,7 +135,7 @@ export interface CourseLessonNavigationSummary {
   description: string | null
   position: number
   is_required: boolean
-  lesson_type: "video" | "text" | "hybrid"
+  lesson_type: "video" | "text" | "hybrid" | "file"
   estimated_minutes: number
   starts_at: string | null
   ends_at: string | null

@@ -4,6 +4,7 @@ import type {
   ProductModuleSummary,
 } from "@/types/app.types"
 import type { ProductSummary, ProductType } from "@/types/product.types"
+import { richTextToPlainText } from "@/lib/rich-text"
 
 type ProductLike = Pick<
   ProductSummary,
@@ -47,7 +48,9 @@ function normalize(value: string | null | undefined) {
 }
 
 function inferProductProfile(product: ProductLike) {
-  const haystack = normalize(`${product.title} ${product.slug} ${product.short_description} ${product.description}`)
+  const haystack = normalize(
+    `${product.title} ${product.slug} ${richTextToPlainText(product.short_description)} ${richTextToPlainText(product.description)}`,
+  )
 
   if (product.product_type === "external_service" || haystack.includes("explicac")) {
     return "service"
@@ -355,8 +358,8 @@ export function getProductNarrative(product: ProductLike): ProductNarrative {
         eyebrow: "Conteudo organizado",
         benefit: "Pensado para tornar o estudo mais claro, com acesso simples e menos dispersao.",
         cardSummary:
-          product.short_description ??
-          product.description ??
+          richTextToPlainText(product.short_description) ||
+          richTextToPlainText(product.description) ||
           "Curso digital pronto para ser consultado com uma experiencia organizada.",
         formatLabel: "Material digital estruturado para consulta simples",
         accessLabel: "Acesso centralizado na tua conta com organizacao por curso e modulos",
