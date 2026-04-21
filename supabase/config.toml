@@ -6,3 +6,18 @@ verify_jwt = false
 
 [functions.admin-course-releases]
 verify_jwt = false
+
+[functions.reconcile-orders]
+verify_jwt = false
+
+[functions.generate-asset-access]
+verify_jwt = false
+
+[functions.generate-module-pdf-access]
+verify_jwt = false
+
+[functions.student-course-navigation]
+verify_jwt = false
+
+[functions.student-assessment-attempts]
+verify_jwt = false
