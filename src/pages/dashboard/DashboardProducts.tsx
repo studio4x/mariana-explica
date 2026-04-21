@@ -33,10 +33,17 @@ export function DashboardProducts() {
 
   if (products.length === 0) {
     return (
-      <EmptyState
-        title="Ainda sem cursos ativos"
-        message="Quando ativares um curso, ele vai aparecer aqui com acesso organizado."
-      />
+      <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <EmptyState
+          title="Ainda sem cursos ativos"
+          message="Quando ativares um curso, ele vai aparecer aqui com acesso organizado."
+        />
+        <div className="mt-2 flex justify-center">
+          <Button asChild className="rounded-full">
+            <Link to={ROUTES.COURSES}>Ver cursos disponiveis</Link>
+          </Button>
+        </div>
+      </div>
     )
   }
 

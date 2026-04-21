@@ -18,6 +18,7 @@ import type {
   ProductLessonSummary,
   ProductModuleSummary,
   ProfilePreferences,
+  StudentPaymentSummary,
   StudentCourseNavigationData,
   SupportTicketMessage,
   SupportTicketSummary,
@@ -711,6 +712,60 @@ export async function fetchNotifications(limit?: number) {
   return (data ?? []) as NotificationItem[]
 }
 
+export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
+  type PaymentOrderRow = {
+    id: string
+    product_id: string
+    status: StudentPaymentSummary["status"]
+    currency: string
+    base_price_cents: number
+    discount_cents: number
+    final_price_cents: number
+    payment_provider: string | null
+    payment_reference: string | null
+    checkout_session_id: string | null
+    paid_at: string | null
+    refunded_at: string | null
+    created_at: string
+    products: { title: string | null } | Array<{ title: string | null }> | null
+  }
+
+  const userId = await getCurrentUserId()
+  const { data, error } = await supabase
+    .from("orders")
+    .select(
+      "id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,paid_at,refunded_at,created_at,products:product_id(title)",
+    )
+    .eq("user_id", userId)
+    .in("status", ["paid", "refunded"])
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as PaymentOrderRow[]).map((order) => {
+    const product = Array.isArray(order.products) ? order.products[0] : order.products
+
+    return {
+      id: order.id,
+      product_id: order.product_id,
+      product_title: product?.title ?? null,
+      status: order.status,
+      currency: order.currency,
+      base_price_cents: order.base_price_cents,
+      discount_cents: order.discount_cents,
+      final_price_cents: order.final_price_cents,
+      payment_provider: order.payment_provider,
+      payment_reference: order.payment_reference,
+      checkout_session_id: order.checkout_session_id,
+      paid_at: order.paid_at,
+      refunded_at: order.refunded_at,
+      created_at: order.created_at,
+    } as StudentPaymentSummary
+  })
+}
+
 export async function markNotificationAsRead(notificationId: string) {
   const { data, error } = await supabase
     .from("notifications")
@@ -828,4 +883,16 @@ export async function updateProfilePreferences(input: {
   }
 
   return data as ProfilePreferences
+}
+
+export async function updateAccountPassword(input: { password: string }) {
+  const password = input.password.trim()
+  if (password.length < 8) {
+    throw new Error("A nova senha deve ter pelo menos 8 caracteres.")
+  }
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) {
+    throw error
+  }
 }

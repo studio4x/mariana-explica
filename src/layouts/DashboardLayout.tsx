@@ -1,4 +1,4 @@
-import { Bell, Download, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
+import { Bell, CreditCard, Download, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
 import { InstallPrompt, StatusBadge } from "@/components/common"
 import { cn } from "@/lib/cn"
@@ -9,6 +9,7 @@ const items = [
   { to: ROUTES.DASHBOARD, label: "Inicio", icon: Home },
   { to: ROUTES.DASHBOARD_PRODUCTS, label: "Meus cursos", icon: FolderOpen },
   { to: ROUTES.DASHBOARD_DOWNLOADS, label: "Downloads", icon: Download },
+  { to: ROUTES.DASHBOARD_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.DASHBOARD_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.DASHBOARD_SUPPORT, label: "Suporte", icon: LifeBuoy },
   { to: ROUTES.DASHBOARD_PROFILE, label: "Perfil", icon: User },

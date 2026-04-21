@@ -49,8 +49,9 @@ export function Products() {
   })
 
   return (
-    <div className="container space-y-8 py-10 md:py-12">
-      <section className="overflow-hidden rounded-[2rem] border bg-[linear-gradient(135deg,#f7fbfd_0%,#edf7fb_48%,#ffffff_100%)] p-6 shadow-sm md:p-8">
+    <div className="bg-white">
+      <div className="container space-y-8 py-10 md:py-12">
+        <section className="overflow-hidden rounded-[2rem] border bg-[linear-gradient(135deg,#f7fbfd_0%,#edf7fb_48%,#ffffff_100%)] p-6 shadow-sm md:p-8">
         <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr] xl:items-end">
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700">
@@ -87,9 +88,9 @@ export function Products() {
             </div>
           </div>
         </div>
-      </section>
+        </section>
 
-      <div className="rounded-[1.75rem] border bg-white p-4 shadow-sm">
+        <div className="rounded-[1.75rem] border bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -110,45 +111,46 @@ export function Products() {
             </Button>
           </div>
         </div>
-      </div>
+        </div>
 
-      {isLoading ? <LoadingState message="A carregar catalogo..." /> : null}
-      {isError ? (
-        <ErrorState
-          title="Falha ao carregar o catalogo"
-          message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
-          onRetry={() => void refetch()}
-        />
-      ) : null}
-      {!isLoading && !isError && filteredProducts.length === 0 ? (
-        <EmptyState
-          title="Nenhum curso encontrado"
-          message={
-            search.trim()
-              ? "Experimenta outro termo de pesquisa ou limpa o filtro."
-              : "Ainda nao ha cursos publicados para mostrar."
-          }
-        />
-      ) : null}
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {filteredProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            actionTo={publicCoursePath(product.slug)}
-            actionLabel="Ver detalhes"
-            compact
+        {isLoading ? <LoadingState message="A carregar catalogo..." /> : null}
+        {isError ? (
+          <ErrorState
+            title="Falha ao carregar o catalogo"
+            message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
+            onRetry={() => void refetch()}
           />
-        ))}
-      </div>
+        ) : null}
+        {!isLoading && !isError && filteredProducts.length === 0 ? (
+          <EmptyState
+            title="Nenhum curso encontrado"
+            message={
+              search.trim()
+                ? "Experimenta outro termo de pesquisa ou limpa o filtro."
+                : "Ainda nao ha cursos publicados para mostrar."
+            }
+          />
+        ) : null}
 
-      {!isLoading && !isError ? (
-        <p className="text-sm text-muted-foreground">
-          {filteredProducts.length} curso{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
-          {quickFilter !== "all" ? ` Filtro ativo: ${filterLabels[quickFilter].toLowerCase()}.` : ""}
-        </p>
-      ) : null}
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              actionTo={publicCoursePath(product.slug, product.id)}
+              actionLabel="Ver detalhes"
+              compact
+            />
+          ))}
+        </div>
+
+        {!isLoading && !isError ? (
+          <p className="text-sm text-muted-foreground">
+            {filteredProducts.length} curso{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
+            {quickFilter !== "all" ? ` Filtro ativo: ${filterLabels[quickFilter].toLowerCase()}.` : ""}
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 }

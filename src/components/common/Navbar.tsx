@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, GraduationCap, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
 import { Button } from "@/components/ui"
-import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
+import { APP_NAME, ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/cn"
 
@@ -15,7 +15,6 @@ export function Navbar() {
     () =>
       [
         { to: ROUTES.COURSES, label: "Cursos" },
-        isAuthenticated && !isAdmin ? { to: ROUTES.DASHBOARD, label: "Area do aluno" } : null,
         isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
       ].filter(Boolean) as Array<{ to: string; label: string }>,
     [isAdmin, isAuthenticated],
@@ -32,23 +31,20 @@ export function Navbar() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                 <GraduationCap className="h-5 w-5" />
               </div>
-              <div className="min-w-0">
-                <p className="truncate font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
-                <p className="hidden text-xs text-slate-500 md:block">{APP_DESCRIPTION}</p>
-              </div>
+              <p className="truncate font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 p-1.5 lg:flex">
+          <nav className="hidden items-center gap-3 lg:flex">
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition",
+                  "rounded-full px-2 py-2 text-sm font-medium transition",
                   location.pathname.startsWith(item.to)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+                    ? "text-slate-950"
+                    : "text-slate-600 hover:text-slate-950",
                 )}
               >
                 {item.label}
@@ -86,7 +82,7 @@ export function Navbar() {
                 <Button asChild variant="ghost" size="sm" className="rounded-full">
                   <Link to={ROUTES.DASHBOARD}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Continuar estudando
+                    Area do Aluno
                   </Link>
                 </Button>
               )}
@@ -111,12 +107,7 @@ export function Navbar() {
       {mobileOpen ? (
         <div className="border-t border-slate-200/80 bg-white/95 md:hidden">
           <div className="container space-y-5 py-5">
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
-              <p className="font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Cursos e materiais claros para exames nacionais, compra simples e area do aluno organizada.
-              </p>
-            </div>
+            <p className="font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
 
             <nav className="grid gap-2">
               {navItems.map((item) => (

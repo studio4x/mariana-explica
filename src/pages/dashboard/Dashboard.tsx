@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, Bell, Download, FolderOpen, LifeBuoy, Sparkles } from "lucide-react"
+import { ArrowRight, Bell, CreditCard, Download, FolderOpen, Home, LifeBuoy, Sparkles } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -203,9 +203,21 @@ export function Dashboard() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start rounded-full">
+                <Link to={ROUTES.HOME}>
+                  <Home className="mr-2 h-4 w-4" />
+                  Ir para a home
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start rounded-full">
                 <Link to={ROUTES.DASHBOARD_DOWNLOADS}>
                   <Download className="mr-2 h-4 w-4" />
                   Ver downloads protegidos
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start rounded-full">
+                <Link to={ROUTES.DASHBOARD_PAYMENTS}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Ver pagamentos
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-start rounded-full">

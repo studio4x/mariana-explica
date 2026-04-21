@@ -28,6 +28,9 @@ const DashboardDownloads = lazy(() =>
 const DashboardNotifications = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardNotifications })),
 )
+const DashboardPayments = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardPayments })),
+)
 const StudentCoursesPage = lazy(() =>
   import("@/pages/student").then((module) => ({ default: module.StudentCoursesPage })),
 )
@@ -251,6 +254,10 @@ export const router = createBrowserRouter(
           element: withSuspense(<DashboardDownloads />),
         },
         {
+          path: "pagamentos",
+          element: withSuspense(<DashboardPayments />),
+        },
+        {
           path: "notificacoes",
           element: withSuspense(<DashboardNotifications />),
         },
@@ -279,6 +286,10 @@ export const router = createBrowserRouter(
     {
       path: "/dashboard/downloads",
       element: <Navigate to="/aluno/downloads" replace />,
+    },
+    {
+      path: "/dashboard/pagamentos",
+      element: <Navigate to="/aluno/pagamentos" replace />,
     },
     {
       path: "/dashboard/notificacoes",

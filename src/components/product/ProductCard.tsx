@@ -122,7 +122,7 @@ export function ProductCard({
             </Button>
           ) : (
             <Button asChild variant="outline" className="rounded-full">
-              <Link to={publicCoursePath(product.slug)}>
+              <Link to={publicCoursePath(product.slug, product.id)}>
                 <LockKeyhole className="mr-2 h-4 w-4" />
                 Detalhes
               </Link>

@@ -368,6 +368,23 @@ export interface AdminOrderSummary {
   created_at: string
 }
 
+export interface StudentPaymentSummary {
+  id: string
+  product_id: string
+  product_title: string | null
+  status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
+  currency: string
+  base_price_cents: number
+  discount_cents: number
+  final_price_cents: number
+  payment_provider: string | null
+  payment_reference: string | null
+  checkout_session_id: string | null
+  paid_at: string | null
+  refunded_at: string | null
+  created_at: string
+}
+
 export interface AdminOrderViewSummary extends AdminOrderSummary {
   user_name: string | null
   user_email: string | null

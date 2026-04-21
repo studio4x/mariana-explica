@@ -11,6 +11,7 @@ import {
   fetchModuleAssetsByModule,
   fetchMyProducts,
   fetchNotifications,
+  fetchPaymentHistory,
   fetchProfilePreferences,
   fetchSupportTicketMessages,
   fetchSupportTickets,
@@ -22,6 +23,7 @@ import {
   saveLessonNote,
   submitAssessmentAttempt,
   upsertLessonProgress,
+  updateAccountPassword,
   updateProfilePreferences,
 } from "@/services"
 
@@ -101,6 +103,13 @@ export function useNotifications() {
   })
 }
 
+export function usePaymentHistory() {
+  return useQuery({
+    queryKey: ["dashboard", "payments"],
+    queryFn: fetchPaymentHistory,
+  })
+}
+
 export function useSupportTickets() {
   return useQuery({
     queryKey: ["dashboard", "support", "tickets"],
@@ -165,6 +174,12 @@ export function useUpdateProfilePreferences() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "profile"] })
     },
+  })
+}
+
+export function useUpdateAccountPassword() {
+  return useMutation({
+    mutationFn: updateAccountPassword,
   })
 }
 

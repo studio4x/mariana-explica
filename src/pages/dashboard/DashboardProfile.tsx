@@ -2,17 +2,27 @@ import { useState, type FormEvent } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { useProfilePreferences, useUpdateProfilePreferences } from "@/hooks/useDashboard"
+import {
+  useProfilePreferences,
+  useUpdateAccountPassword,
+  useUpdateProfilePreferences,
+} from "@/hooks/useDashboard"
 
 export function DashboardProfile() {
   const profileQuery = useProfilePreferences()
   const updateProfile = useUpdateProfilePreferences()
+  const updatePassword = useUpdateAccountPassword()
   const [draft, setDraft] = useState<{
     fullName: string
     phone: string
     notificationsEnabled: boolean
     marketingConsent: boolean
   } | null>(null)
+  const [passwordDraft, setPasswordDraft] = useState({
+    password: "",
+    confirmPassword: "",
+  })
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -22,6 +32,25 @@ export function DashboardProfile() {
       notificationsEnabled: formState.notificationsEnabled,
       marketingConsent: formState.marketingConsent,
     })
+  }
+
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setPasswordMessage(null)
+
+    if (passwordDraft.password.length < 8) {
+      setPasswordMessage("A nova senha deve ter pelo menos 8 caracteres.")
+      return
+    }
+
+    if (passwordDraft.password !== passwordDraft.confirmPassword) {
+      setPasswordMessage("As senhas nao coincidem.")
+      return
+    }
+
+    await updatePassword.mutateAsync({ password: passwordDraft.password })
+    setPasswordDraft({ password: "", confirmPassword: "" })
+    setPasswordMessage("Senha atualizada com sucesso.")
   }
 
   if (profileQuery.isLoading) {
@@ -113,6 +142,49 @@ export function DashboardProfile() {
           </Button>
         </form>
       </div>
+
+      <form onSubmit={handlePasswordSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <h2 className="font-display text-2xl font-bold text-slate-950">Trocar senha</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+          Define uma nova senha para continuar a entrar com seguranca na tua conta.
+        </p>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <input
+            type="password"
+            value={passwordDraft.password}
+            onChange={(event) => setPasswordDraft((prev) => ({ ...prev, password: event.target.value }))}
+            placeholder="Nova senha"
+            autoComplete="new-password"
+            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+          />
+          <input
+            type="password"
+            value={passwordDraft.confirmPassword}
+            onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+            placeholder="Confirmar nova senha"
+            autoComplete="new-password"
+            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+          />
+        </div>
+
+        {passwordMessage ? (
+          <p className="mt-4 text-sm font-medium text-slate-700">{passwordMessage}</p>
+        ) : null}
+        {updatePassword.isError ? (
+          <p className="mt-4 text-sm font-medium text-red-700">
+            {updatePassword.error instanceof Error ? updatePassword.error.message : "Nao foi possivel atualizar a senha."}
+          </p>
+        ) : null}
+
+        <Button
+          type="submit"
+          className="mt-6 rounded-full"
+          disabled={updatePassword.isPending}
+        >
+          {updatePassword.isPending ? "A atualizar..." : "Atualizar senha"}
+        </Button>
+      </form>
     </div>
   )
 }

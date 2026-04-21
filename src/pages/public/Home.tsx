@@ -229,7 +229,7 @@ export function Home() {
                   key={product.id}
                   product={product}
                   actionLabel="Ver detalhes"
-                  actionTo={publicCoursePath(product.slug)}
+                  actionTo={publicCoursePath(product.slug, product.id)}
                 />
               ))}
             </div>

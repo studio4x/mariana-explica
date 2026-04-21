@@ -1,7 +1,8 @@
 import { ROUTES } from "@/lib/constants"
 
-export function publicCoursePath(slug: string) {
-  return `${ROUTES.COURSE}/${slug}`
+export function publicCoursePath(slugOrId: string | null | undefined, fallbackId?: string | null) {
+  const identifier = slugOrId?.trim() || fallbackId?.trim()
+  return identifier ? `${ROUTES.COURSE}/${identifier}` : ROUTES.COURSES
 }
 
 export function studentCoursePath(courseId: string) {
