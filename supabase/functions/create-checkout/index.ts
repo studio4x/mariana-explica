@@ -10,6 +10,7 @@ import {
   findActiveGrantForProduct,
   getAppBaseUrl,
   getProductByIdentifier,
+  markOrderFailed,
   recordAffiliateReferral,
   recordCouponUsage,
   resolveAffiliateByCode,
@@ -37,12 +38,35 @@ interface CreateCheckoutInput {
   cancelUrl?: string | null
 }
 
+const STRIPE_MINIMUM_AMOUNT_CENTS: Record<string, number> = {
+  eur: 50,
+  usd: 50,
+  gbp: 30,
+  brl: 50,
+}
+
 function buildFallbackSuccessUrl() {
   return `${getAppBaseUrl()}/aluno/dashboard?checkout=success`
 }
 
 function buildFallbackCancelUrl(productSlug: string) {
   return `${getAppBaseUrl()}/cursos/${productSlug}?checkout=cancelled`
+}
+
+function assertStripeMinimumAmount(currency: string, amountCents: number) {
+  const currencyKey = currency.trim().toLowerCase()
+  const minimum = STRIPE_MINIMUM_AMOUNT_CENTS[currencyKey] ?? 50
+
+  if (amountCents > 0 && amountCents < minimum) {
+    const formattedMinimum = (minimum / 100).toLocaleString("pt-PT", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+    })
+
+    throw unprocessable(
+      `O valor minimo para pagamento Stripe em ${currency.toUpperCase()} e ${formattedMinimum}. Ajuste o preco do curso ou marque como gratuito.`,
+    )
+  }
 }
 
 Deno.serve(async (req) => {
@@ -184,6 +208,8 @@ Deno.serve(async (req) => {
       })
     }
 
+    assertStripeMinimumAmount(product.currency, totals.finalPriceCents)
+
     const order = await createOrderWithItems(context.serviceClient, {
       userId: context.user.id,
       product,
@@ -195,32 +221,50 @@ Deno.serve(async (req) => {
     })
 
     const stripeMode = getStripeEnvironment()
-    const session = await createStripeCheckoutSession({
-      success_url: body.successUrl ?? buildFallbackSuccessUrl(),
-      cancel_url: body.cancelUrl ?? buildFallbackCancelUrl(product.slug),
-      client_reference_id: order.id,
-      metadata: {
-        order_id: order.id,
-        user_id: context.user.id,
-        product_id: product.id,
-        payment_environment: stripeMode,
-        coupon_id: coupon?.id ?? "",
-        affiliate_id: affiliate?.id ?? "",
-      },
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: product.currency,
-            unit_amount: totals.finalPriceCents,
-            product_data: {
-              name: product.title,
-              description: product.short_description ?? product.description ?? undefined,
+    let session: Awaited<ReturnType<typeof createStripeCheckoutSession>>
+    try {
+      session = await createStripeCheckoutSession({
+        success_url: body.successUrl ?? buildFallbackSuccessUrl(),
+        cancel_url: body.cancelUrl ?? buildFallbackCancelUrl(product.slug),
+        client_reference_id: order.id,
+        metadata: {
+          order_id: order.id,
+          user_id: context.user.id,
+          product_id: product.id,
+          payment_environment: stripeMode,
+          coupon_id: coupon?.id ?? "",
+          affiliate_id: affiliate?.id ?? "",
+        },
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: product.currency,
+              unit_amount: totals.finalPriceCents,
+              product_data: {
+                name: product.title,
+                description: product.short_description ?? product.description ?? undefined,
+              },
             },
           },
-        },
-      ],
-    }, { mode: stripeMode })
+        ],
+      }, { mode: stripeMode })
+    } catch (stripeError) {
+      await markOrderFailed(context.serviceClient, {
+        orderId: order.id,
+        paymentReference: `stripe_session_failed:${crypto.randomUUID()}`,
+      })
+
+      logError("Stripe checkout session failed", {
+        request_id: requestId,
+        user_id: context.user.id,
+        product_id: product.id,
+        order_id: order.id,
+        error: String(stripeError),
+      })
+
+      throw unprocessable("Nao foi possivel iniciar o pagamento na Stripe. Verifique a configuracao do checkout e tente novamente.")
+    }
 
     const { error: updateError } = await context.serviceClient
       .from("orders")

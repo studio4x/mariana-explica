@@ -319,7 +319,7 @@ export function CourseSettingsPanel() {
                 <option value="archived">Arquivado</option>
               </select>
             </Field>
-            <Field label="Preco" helper="Valor em euros. Exemplo: 19.90">
+            <Field label="Preco" helper="Valor em euros. Em produtos pagos, use pelo menos 0.50 para checkout Stripe.">
               <input
                 value={form.price}
                 onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}

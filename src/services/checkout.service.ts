@@ -1,5 +1,5 @@
-import { supabase } from "@/integrations/supabase"
-import { getFunctionAuthHeaders } from "@/services/supabase-auth"
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
+import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   ClaimFreeProductResponse,
   CreateCheckoutResponse,
@@ -20,21 +20,45 @@ export interface ClaimFreeProductInput {
 }
 
 async function invokeFunction<TResponse>(name: string, body: unknown) {
-  const headers = await getFunctionAuthHeaders()
-  const { data, error } = (await supabase.functions.invoke(name, {
-    body: body as never,
-    headers,
-  })) as { data: TResponse | null; error: Error | null }
-
-  if (error) {
-    throw error
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada. Entre novamente para continuar.")
   }
 
-  if (!data) {
-    throw new Error(`A função ${name} não retornou dados`)
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...(typeof body === "object" && body !== null ? body : {}),
+      access_token: auth.accessToken,
+    }),
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
   }
 
-  return data
+  if (!data || typeof data !== "object") {
+    throw new Error(`A funcao ${name} nao retornou dados`)
+  }
+
+  return data as TResponse
 }
 
 export function createCheckoutSession(input: CreateCheckoutInput) {
