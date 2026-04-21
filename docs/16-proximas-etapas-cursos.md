@@ -372,7 +372,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 
 ### Etapa 11 — Integracao real de envio de e-mails transacionais
 
-- Status: `parcial`
+- Status: `concluida`
 - Base adicional desta etapa:
   - `docs/05-backend-edge-functions.md`
   - `docs/11-integracoes.md`
@@ -398,7 +398,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
 - Atualizacao de fechamento em 2026-04-21:
   - a implementacao foi ajustada para usar o SMTP ja configurado nas variaveis do projeto, sem depender obrigatoriamente de Resend, Postmark ou SendGrid;
   - a checagem remota de secrets confirmou `EMAIL_PROVIDER`, variaveis `EMAIL_SMTP_*`, remetente e reply-to no Supabase;
-  - o que falta para fechar operacionalmente e validar uma entrega real em producao pela fila `email_deliveries`.
+  - foi validado envio real via `cron-process-email-deliveries` para `agenciastudio4x@gmail.com`, com `provider = smtp`, `status = sent` e `failed_count = 0` no `job_runs`.
 
 ### Etapa 12 — PWA instalado com fallback offline seguro
 
@@ -457,11 +457,13 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - deploy frontend na Vercel para publicar o checklist final em `/admin/configuracoes`
   - verificacao remota do dominio publico apos deploy com `200 OK`
 - O que falta para concluir:
-  - configurar um scheduler externo real para chamar os cron jobs com `CRON_SECRET`;
-  - validar envio real de email transacional usando o SMTP ja configurado;
   - validar uma compra real em producao, incluindo grant e pos-compra;
   - validar instalacao e uso do PWA em Android e iOS reais;
   - registar essas validacoes finais na pagina `/admin/configuracoes`.
+- Atualizacao de fechamento em 2026-04-21:
+  - scheduler dos cron jobs foi ativado dentro do Supabase com `pg_cron`, `pg_net` e Vault;
+  - criada a Edge Function administrativa `admin-cron-scheduler` para status, agendamento e acionamento seguro sob demanda;
+  - permanecem pendentes apenas compra valida, smoke autenticado e validacao fisica do PWA.
 
 ## 6. Ordem recomendada a partir de agora
 

@@ -44,7 +44,7 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
 - Data: `2026-04-21`
 - Dominio publico: `https://www.mariana-explica.pt` respondeu `200 OK`.
 - Vercel: ultimo deploy consultado esta `READY`, no commit `eb27d1e0d597ccbc85c0ef8c8f557e50fa5fec1e`.
-- Supabase migrations: `0001` a `0012` alinhadas entre local e remoto.
+- Supabase migrations: `0001` a `0013` alinhadas entre local e remoto.
 - Supabase Edge Functions: funcoes criticas, cron jobs e `admin-email-status` constam como `ACTIVE`.
 - Supabase secrets: existem `CRON_SECRET`, secrets Stripe e secrets SMTP (`EMAIL_PROVIDER`, `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, remetente e reply-to).
 - PWA: `manifest.webmanifest` remoto respondeu `200 OK`.
@@ -56,7 +56,7 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
 
 ### Item 1 - Validar email transacional real em producao usando SMTP ja configurado
 
-- Status: `bloqueado`
+- Status: `concluido`
 - Objetivo: confirmar entrega real de email pela fila transacional usando as variaveis SMTP do projeto.
 - Base documental: `docs/11-integracoes.md`, `docs/12-automacoes.md`, `docs/14-deploy.md`, `docs/16-proximas-etapas-cursos.md`.
 - Diagnostico inicial:
@@ -81,10 +81,22 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
   - fornecer ou confirmar um destinatario de teste;
   - fornecer acesso administrativo/sessao de admin ou autorizar uma insercao controlada na fila de emails;
   - fornecer o valor operacional do `CRON_SECRET` ou confirmar que o scheduler externo ja executara o job.
+- Atualizacao de fechamento em 2026-04-21:
+  - destinatario de teste definido: `agenciastudio4x@gmail.com`;
+  - `CRON_SECRET` foi rotacionado e sincronizado entre secrets das Edge Functions e Supabase Vault;
+  - o cron `cron-process-email-deliveries` foi acionado com sucesso;
+  - o email `purchase_confirmed` para `agenciastudio4x@gmail.com` saiu de `queued` para `sent`;
+  - provider registrado: `smtp`;
+  - `provider_message_id` registrado no banco;
+  - `job_runs` registrou `cron_process_email_deliveries` com `status = success`, `processed_count = 1` e `failed_count = 0`.
+- Resultado final:
+  - backend, SMTP, fila e cron validados com sucesso.
+  - a confirmacao visual de recebimento na caixa de entrada fica como verificacao manual do destinatario, mas o envio tecnico foi concluido.
+- Pendencias: nenhuma pendencia tecnica aberta neste item.
 
 ### Item 2 - Confirmar ou configurar scheduler externo dos crons com CRON_SECRET
 
-- Status: `bloqueado`
+- Status: `concluido`
 - Objetivo: garantir que os cron jobs sejam chamados automaticamente em producao.
 - Base documental: `docs/05-backend-edge-functions.md`, `docs/12-automacoes.md`, `docs/14-deploy.md`, `docs/16-proximas-etapas-cursos.md`.
 - Diagnostico inicial:
@@ -107,6 +119,24 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
   - escolher/confirmar provedor de scheduler;
   - fornecer credencial/acesso do provedor;
   - fornecer o valor operacional do `CRON_SECRET` ou permitir configurar a chamada diretamente.
+- Atualizacao de fechamento em 2026-04-21:
+  - criada a migration `0013_platform_cron_scheduler.sql`;
+  - habilitados `pg_cron`, `pg_net` e `supabase_vault`;
+  - criadas RPCs internas `configure_platform_cron_jobs`, `get_platform_cron_jobs` e helper de upsert de secrets no Vault;
+  - criada e implantada a Edge Function `admin-cron-scheduler`;
+  - `admin-cron-scheduler` permite admin acionar `status`, `schedule`, `run_one`, `run_all` e `queue_test_email`;
+  - a chamada sem token para `admin-cron-scheduler` retornou `401 Token de acesso ausente`, confirmando protecao;
+  - os cinco jobs foram programados no banco e estao `active = true`.
+- Jobs ativos:
+  - `mariana-cron-process-email-deliveries`: `*/5 * * * *`
+  - `mariana-cron-retry-email-deliveries`: `*/15 * * * *`
+  - `mariana-cron-reconcile-orders`: `7 * * * *`
+  - `mariana-cron-audit-access-consistency`: `17 5 * * *`
+  - `mariana-cron-clean-expired-links`: `37 5 * * *`
+- Resultado final:
+  - scheduler recorrente foi ativado dentro do Supabase com `pg_cron` + `pg_net`;
+  - URL e segredo ficam no Supabase Vault, sem segredo versionado no repo.
+- Pendencias: nenhuma pendencia tecnica aberta neste item.
 
 ### Item 3 - Validar compra real em producao: Stripe, webhook, pedido, grant e acesso do aluno
 
@@ -137,6 +167,21 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
   - autorizar uma compra real ou fornecer estrategia de compra controlada;
   - informar conta de aluno de teste;
   - informar se o pagamento sera reembolsado apos validacao.
+- Atualizacao de fechamento em 2026-04-21:
+  - usuario de teste confirmado: `agenciastudio4x@gmail.com`;
+  - o perfil existe e esta `active`, `role = student`;
+  - havia um pedido antigo com `payment_environment = test`, `checkout_session_id` de teste e grant ativo associado;
+  - a reconciliacao foi acionada e processou o pedido `693fee1e-be66-43f4-ab63-cee0a4c8fc00`;
+  - a auditoria de acesso foi acionada em seguida;
+  - o grant inconsistente foi revogado porque o pedido permaneceu `status = failed`;
+  - essa correcao eliminou um risco real de acesso indevido.
+- Resultado atual:
+  - a consistencia entre pedido falhado e grant foi corrigida;
+  - ainda nao existe uma compra valida e paga para este aluno apos a correcao.
+- Pendencias para desbloquear:
+  - realizar uma nova compra de teste controlada ou compra real autorizada para `agenciastudio4x@gmail.com`;
+  - confirmar se o checkout deve usar ambiente Stripe `test` ou `live`;
+  - validar novo pedido com `status = paid`, grant ativo e acesso do aluno.
 
 ### Item 4 - Executar smoke test final de producao
 
@@ -166,10 +211,23 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
   - fornecer credenciais ou sessao de uma conta admin;
   - fornecer credenciais ou sessao de aluno com grant ativo;
   - decidir se o smoke sera manual assistido ou automatizado com Playwright.
+- Atualizacao de fechamento em 2026-04-21:
+  - conta admin confirmada no banco: `contato@studio4x.com.br`, `role = admin`, `is_admin = true`, `status = active`;
+  - conta aluno confirmada no banco: `agenciastudio4x@gmail.com`, `role = student`, `status = active`;
+  - o aluno nao possui grant ativo apos a correcao do item 3;
+  - sem senha/sessao das contas, nao foi possivel executar smoke autenticado real no navegador.
+- Resultado atual:
+  - pre-condicoes de existencia das contas foram confirmadas;
+  - smoke publico e saude de backend foram validados;
+  - smoke autenticado continua bloqueado por sessao/senha e por ausencia de grant ativo do aluno.
+- Pendencias para desbloquear:
+  - fornecer senha temporaria ou sessao para `contato@studio4x.com.br`;
+  - fornecer senha temporaria ou sessao para `agenciastudio4x@gmail.com`;
+  - concluir uma compra/grant valido para o aluno antes do smoke de acesso a conteudo.
 
 ### Item 5 - Validar PWA em Android e iOS reais
 
-- Status: `bloqueado`
+- Status: `em_andamento`
 - Objetivo: confirmar que a instalacao e o uso standalone funcionam em dispositivos reais.
 - Base documental: `docs/13-pwa.md`, `docs/14-deploy.md`, `docs/15-plano-de-implementacao.md`.
 - Diagnostico inicial:
@@ -194,6 +252,16 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
   - acesso a um dispositivo Android real;
   - acesso a um dispositivo iOS real;
   - conta de aluno para teste standalone autenticado.
+- Atualizacao de fechamento em 2026-04-21:
+  - o PWA permanece tecnicamente publicado e acessivel;
+  - a validacao Android sera feita manualmente pelo usuario;
+  - iOS segue sem validacao fisica registrada.
+- Resultado atual:
+  - item em validacao manual.
+- Pendencias:
+  - usuario confirmar resultado no Android;
+  - validar iOS quando houver dispositivo disponivel;
+  - repetir teste standalone autenticado quando houver aluno com grant ativo.
 
 ### Item 6 - Definir e implementar analytics e pixels, se houver IDs
 
@@ -321,22 +389,26 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
 - Documento operacional criado para acompanhar o fechamento item a item.
 - Producao respondeu `200 OK` no dominio principal.
 - Vercel confirmou deploy `READY` no commit `eb27d1e0d597ccbc85c0ef8c8f557e50fa5fec1e`.
-- Supabase remoto confirmou migrations `0001` a `0012` alinhadas.
+- Supabase remoto confirmou migrations `0001` a `0013` alinhadas apos aplicar a migration de scheduler.
 - Supabase remoto confirmou funcoes criticas e cron jobs ativos.
 - Supabase remoto confirmou secrets SMTP e `CRON_SECRET` presentes.
 - Limpeza tecnica de diretorios vazios foi classificada sem pendencia versionada.
+- Edge Function `admin-cron-scheduler` criada, implantada e protegida por admin auth.
+- Scheduler interno ativado com cinco jobs `pg_cron` ativos.
+- Email transacional para `agenciastudio4x@gmail.com` processado com sucesso via SMTP.
+- Reconciliacao/auditoria corrigiu grant inconsistente ligado a pedido falhado.
 
 ### Falhas
 
 - A chamada inicial ao Supabase via `npx` falhou por politica de execucao do PowerShell para `npx.ps1`; a validacao foi repetida com `npx.cmd` e concluida com sucesso.
+- Uma tentativa de SQL temporario com BOM foi rejeitada pelo Supabase; o `CRON_SECRET` foi rotacionado em seguida e a configuracao foi refeita com arquivo sem BOM.
+- A validacao do item 3 encontrou pedido de teste antigo com grant ativo, mas pedido em `failed`; o cron corrigiu revogando o grant.
 
 ### Pendencias bloqueadas
 
-- Email real: falta destinatario/teste operacional e forma segura de acionar a fila/cron.
-- Scheduler: falta confirmar provedor externo e configurar chamadas reais com `CRON_SECRET`.
-- Compra real: falta autorizacao de pagamento real e conta de aluno de teste.
-- Smoke autenticado: faltam conta admin e conta aluno com grant.
-- PWA real: faltam dispositivos Android/iOS reais.
+- Compra real: falta nova compra valida para `agenciastudio4x@gmail.com` apos a revogacao do grant inconsistente.
+- Smoke autenticado: faltam senha/sessao das contas admin/aluno e aluno com grant ativo.
+- PWA real: falta confirmacao manual no Android e validacao futura em iOS.
 - E2E critico: faltam contas/dados/ambiente de teste.
 
 ### Pendencias pos-MVP
@@ -347,4 +419,4 @@ Ele deve ser usado como roteiro vivo, item por item. Antes de concluir qualquer 
 
 ### Recomendacao de prontidao
 
-O nucleo tecnico do MVP esta pronto para homologacao final, mas a producao ainda nao deve ser considerada totalmente fechada enquanto email real, scheduler, compra real, smoke autenticado e PWA em dispositivos reais nao forem comprovados.
+O nucleo tecnico do MVP esta pronto para homologacao final, e os itens de email e scheduler foram fechados tecnicamente. A producao ainda nao deve ser considerada totalmente fechada enquanto uma nova compra valida, smoke autenticado e validacao fisica do PWA nao forem comprovados.

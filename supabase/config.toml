@@ -7,6 +7,9 @@ verify_jwt = false
 [functions.admin-email-status]
 verify_jwt = false
 
+[functions.admin-cron-scheduler]
+verify_jwt = false
+
 [functions.admin-course-releases]
 verify_jwt = false
 
