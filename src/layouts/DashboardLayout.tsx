@@ -1,8 +1,8 @@
-import { Bell, CreditCard, FolderOpen, Home, LifeBuoy, User } from "lucide-react"
+import { Bell, CreditCard, FolderOpen, GraduationCap, Home, LifeBuoy, User } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
 import { InstallPrompt } from "@/components/common"
 import { cn } from "@/lib/cn"
-import { ROUTES } from "@/lib/constants"
+import { APP_NAME, ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { useUnreadNotificationsCount } from "@/hooks/useDashboard"
 
@@ -25,12 +25,25 @@ export function DashboardLayout() {
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbfd_0%,#eff8fb_48%,#ffffff_100%)]">
       <div className="border-b border-white/70 bg-white/72 backdrop-blur">
         <div className="container flex flex-col gap-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Area do aluno</p>
-            <h1 className="font-display text-3xl font-bold text-slate-950">Bem-vindo, {firstName}</h1>
-            <p className="max-w-2xl text-sm leading-7 text-slate-600">
-              Continua de onde paraste, encontra os teus materiais mais depressa e acompanha tudo num painel simples.
-            </p>
+          <div className="flex min-w-0 items-start gap-4">
+            <Link
+              to={ROUTES.HOME}
+              className="flex shrink-0 items-center gap-3 rounded-2xl px-1 py-1 transition hover:bg-white/80"
+              aria-label="Ir para a home publica"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                <GraduationCap className="h-5 w-5" />
+              </span>
+              <span className="hidden font-display text-lg font-bold text-slate-950 sm:block">{APP_NAME}</span>
+            </Link>
+
+            <div className="min-w-0 space-y-2">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Area do aluno</p>
+              <h1 className="font-display text-3xl font-bold text-slate-950">Bem-vindo, {firstName}</h1>
+              <p className="max-w-2xl text-sm leading-7 text-slate-600">
+                Continua de onde paraste, encontra os teus materiais mais depressa e acompanha tudo num painel simples.
+              </p>
+            </div>
           </div>
 
           <Link
