@@ -1,4 +1,5 @@
-const CACHE_VERSION = "mariana-explica-pwa-v3";
+const SERVICE_WORKER_VERSION = new URL(self.location.href).searchParams.get("v") || "local";
+const CACHE_VERSION = `mariana-explica-pwa-${SERVICE_WORKER_VERSION}`;
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const PRECACHE_URLS = [

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import { lazy, Suspense, type ReactNode } from "react"
-import { Navigate, createBrowserRouter, useParams } from "react-router-dom"
+import { lazy, Suspense, useEffect, type ReactNode } from "react"
+import { Navigate, createBrowserRouter, useParams, useRouteError } from "react-router-dom"
 import {
   PublicLayout,
   DashboardLayout,
@@ -8,6 +8,9 @@ import {
   AuthLayout,
 } from "@/layouts"
 import { ProtectedRoute, AdminRoute } from "@/components/common"
+import { ErrorState } from "@/components/feedback/ErrorState"
+import { BUILD_VERSION } from "@/lib/build"
+import { isDynamicImportError, reloadAfterRuntimeCleanup } from "@/lib/runtime-recovery"
 
 const Home = lazy(() => import("@/pages/public").then((module) => ({ default: module.Home })))
 const Products = lazy(() => import("@/pages/public").then((module) => ({ default: module.Products })))
@@ -142,6 +145,43 @@ function withSuspense(node: ReactNode) {
   )
 }
 
+function RouteErrorBoundary() {
+  const error = useRouteError()
+  const isRuntimeChunkError = isDynamicImportError(error)
+
+  useEffect(() => {
+    if (!isRuntimeChunkError) {
+      return
+    }
+
+    const retryKey = `mariana-explica:chunk-retry:${BUILD_VERSION}`
+    if (window.sessionStorage.getItem(retryKey) === "done") {
+      return
+    }
+
+    window.sessionStorage.setItem(retryKey, "done")
+    void reloadAfterRuntimeCleanup()
+  }, [isRuntimeChunkError])
+
+  if (isRuntimeChunkError) {
+    return (
+      <ErrorState
+        title="A atualizar a plataforma"
+        message="A aplicacao recebeu uma nova versao. Vamos recarregar a pagina para abrir os ficheiros corretos."
+        onRetry={() => void reloadAfterRuntimeCleanup()}
+      />
+    )
+  }
+
+  return (
+    <ErrorState
+      title="Nao foi possivel carregar esta pagina"
+      message="Atualize a pagina e tente novamente. Se continuar, avise o suporte com o horario do erro."
+      onRetry={() => window.location.reload()}
+    />
+  )
+}
+
 function LegacyPublicCourseRedirect() {
   const { slug } = useParams<{ slug: string }>()
   return <Navigate to={`/cursos/${slug}`} replace />
@@ -162,6 +202,7 @@ export const router = createBrowserRouter(
     {
       path: "/",
       element: <PublicLayout />,
+      errorElement: <RouteErrorBoundary />,
       children: [
         {
           index: true,
@@ -192,6 +233,7 @@ export const router = createBrowserRouter(
     {
       path: "/",
       element: <AuthLayout />,
+      errorElement: <RouteErrorBoundary />,
       children: [
         {
           path: "login",
@@ -221,6 +263,7 @@ export const router = createBrowserRouter(
     },
     {
       path: "/aluno",
+      errorElement: <RouteErrorBoundary />,
       element: (
         <ProtectedRoute>
           <DashboardLayout />
@@ -313,6 +356,7 @@ export const router = createBrowserRouter(
     },
     {
       path: "/admin",
+      errorElement: <RouteErrorBoundary />,
       element: (
         <AdminRoute>
           <AdminLayout />
@@ -379,6 +423,7 @@ export const router = createBrowserRouter(
     },
     {
       path: "/admin/cursos/:courseId/builder",
+      errorElement: <RouteErrorBoundary />,
       element: (
         <AdminRoute>
           {withSuspense(<AdminCourseBuilderLayout />)}
