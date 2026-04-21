@@ -33,8 +33,14 @@ interface EmailOperationalConfig {
 }
 
 interface EmailProviderRuntimeConfig extends EmailOperationalConfig {
-  providerKey: "resend" | "postmark" | "sendgrid"
+  providerKey: "resend" | "postmark" | "sendgrid" | "smtp"
   apiKey: string
+  smtpHost: string | null
+  smtpPort: number | null
+  smtpUser: string | null
+  smtpPassword: string | null
+  smtpSecure: boolean | null
+  smtpEhloDomain: string | null
 }
 
 interface SendTransactionalEmailInput {
@@ -92,6 +98,93 @@ function normalizeProviderName(value?: string | null) {
     .replace(/\s+/g, "-")
 }
 
+function readEnvText(...keys: string[]) {
+  for (const key of keys) {
+    const value = Deno.env.get(key)?.trim()
+    if (value) {
+      return value
+    }
+  }
+
+  return null
+}
+
+function readEnvNumber(...keys: string[]) {
+  for (const key of keys) {
+    const rawValue = Deno.env.get(key)?.trim()
+    if (!rawValue) {
+      continue
+    }
+
+    const parsed = Number(rawValue)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return null
+}
+
+function readEnvBoolean(...keys: string[]) {
+  for (const key of keys) {
+    const rawValue = Deno.env.get(key)?.trim().toLowerCase()
+    if (!rawValue) {
+      continue
+    }
+
+    if (["1", "true", "yes", "on"].includes(rawValue)) {
+      return true
+    }
+
+    if (["0", "false", "no", "off"].includes(rawValue)) {
+      return false
+    }
+  }
+
+  return null
+}
+
+function encodeUtf8Base64(value: string) {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ""
+
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000))
+  }
+
+  return btoa(binary)
+}
+
+function wrapBase64(value: string) {
+  return value.match(/.{1,76}/g)?.join("\r\n") ?? value
+}
+
+function encodeMimeHeaderValue(value: string) {
+  if (/^[\x20-\x7E]*$/.test(value)) {
+    return value
+  }
+
+  return `=?UTF-8?B?${encodeUtf8Base64(value)}?=`
+}
+
+function normalizeEmailAddress(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  const match = trimmed.match(/<([^>]+)>/)
+  const email = (match?.[1] ?? trimmed).trim()
+
+  if (!email || !email.includes("@")) {
+    throw new Error(`Endereco de email invalido: ${value}`)
+  }
+
+  return email
+}
+
+function extractDomainFromEmail(value: string) {
+  const email = normalizeEmailAddress(value)
+  const domain = email.split("@")[1]?.trim()
+  return domain || null
+}
+
 function normalizeEmailOperationalConfig(value: unknown): EmailOperationalConfig {
   const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
   const normalizeText = (key: string) => String(input[key] ?? "").trim() || null
@@ -106,27 +199,26 @@ function normalizeEmailOperationalConfig(value: unknown): EmailOperationalConfig
 
 function resolveProviderRuntimeConfig(config: EmailOperationalConfig): EmailProviderRuntimeConfig {
   const configuredProvider = normalizeProviderName(
-    Deno.env.get("EMAIL_PROVIDER") ||
-      Deno.env.get("EMAIL_PROVIDER_NAME") ||
+    readEnvText("EMAIL_PROVIDER", "EMAIL_PROVIDER_NAME") ||
       config.providerName ||
-      Deno.env.get("RESEND_API_KEY") && "resend" ||
-      Deno.env.get("POSTMARK_SERVER_TOKEN") && "postmark" ||
-      Deno.env.get("SENDGRID_API_KEY") && "sendgrid" ||
+      (readEnvText("EMAIL_SMTP_HOST", "SMTP_HOST") ? "smtp" : null) ||
+      (readEnvText("RESEND_API_KEY") ? "resend" : null) ||
+      (readEnvText("POSTMARK_SERVER_TOKEN") ? "postmark" : null) ||
+      (readEnvText("SENDGRID_API_KEY") ? "sendgrid" : null) ||
       "",
   )
 
-  const senderAddress =
-    Deno.env.get("EMAIL_FROM_EMAIL")?.trim() ||
-    Deno.env.get("EMAIL_FROM_ADDRESS")?.trim() ||
-    config.senderAddress
-  const senderName = Deno.env.get("EMAIL_FROM_NAME")?.trim() || config.senderName
-  const replyTo = Deno.env.get("EMAIL_REPLY_TO")?.trim() || config.replyTo
+  const senderAddress = readEnvText("EMAIL_FROM_EMAIL", "EMAIL_FROM_ADDRESS") || config.senderAddress
+  const senderName = readEnvText("EMAIL_FROM_NAME") || config.senderName
+  const replyTo = readEnvText("EMAIL_REPLY_TO") || config.replyTo
 
   if (!configuredProvider) {
     throw new Error("EMAIL_PROVIDER nao configurado para envio transacional")
   }
 
-  const providerKey = configuredProvider.includes("postmark")
+  const providerKey = configuredProvider.includes("smtp")
+    ? "smtp"
+    : configuredProvider.includes("postmark")
     ? "postmark"
     : configuredProvider.includes("sendgrid")
       ? "sendgrid"
@@ -138,33 +230,298 @@ function resolveProviderRuntimeConfig(config: EmailOperationalConfig): EmailProv
     throw new Error(`Provedor de email nao suportado: ${configuredProvider}`)
   }
 
+  if (!senderAddress) {
+    throw new Error("EMAIL_FROM_EMAIL nao configurado para envio transacional")
+  }
+
+  if (providerKey === "smtp") {
+    const smtpHost = readEnvText("EMAIL_SMTP_HOST", "SMTP_HOST")
+    const smtpPort = readEnvNumber("EMAIL_SMTP_PORT", "SMTP_PORT") ?? 465
+    const smtpUser = readEnvText("EMAIL_SMTP_USER", "SMTP_USER", "EMAIL_SMTP_USERNAME", "SMTP_USERNAME")
+    const smtpPassword = readEnvText("EMAIL_SMTP_PASSWORD", "SMTP_PASSWORD")
+    const smtpSecure = readEnvBoolean("EMAIL_SMTP_SECURE", "SMTP_SECURE") ?? smtpPort === 465
+    const smtpEhloDomain =
+      readEnvText("EMAIL_SMTP_EHLO_DOMAIN", "SMTP_EHLO_DOMAIN") ||
+      extractDomainFromEmail(senderAddress) ||
+      "localhost"
+
+    if (!smtpHost) {
+      throw new Error("EMAIL_SMTP_HOST nao configurado para envio SMTP")
+    }
+
+    if (!smtpUser) {
+      throw new Error("EMAIL_SMTP_USER nao configurado para envio SMTP")
+    }
+
+    if (!smtpPassword) {
+      throw new Error("EMAIL_SMTP_PASSWORD nao configurado para envio SMTP")
+    }
+
+    return {
+      providerKey: "smtp",
+      providerName: configuredProvider,
+      apiKey: "",
+      senderName,
+      senderAddress: normalizeEmailAddress(senderAddress),
+      replyTo: replyTo ? normalizeEmailAddress(replyTo) : null,
+      smtpHost,
+      smtpPort,
+      smtpUser,
+      smtpPassword,
+      smtpSecure,
+      smtpEhloDomain,
+    }
+  }
+
   const apiKey =
     providerKey === "resend"
-      ? Deno.env.get("EMAIL_PROVIDER_API_KEY")?.trim() || Deno.env.get("RESEND_API_KEY")?.trim()
+      ? readEnvText("EMAIL_PROVIDER_API_KEY", "RESEND_API_KEY")
       : providerKey === "postmark"
-        ? Deno.env.get("EMAIL_PROVIDER_API_KEY")?.trim() || Deno.env.get("POSTMARK_SERVER_TOKEN")?.trim()
-        : Deno.env.get("EMAIL_PROVIDER_API_KEY")?.trim() || Deno.env.get("SENDGRID_API_KEY")?.trim()
+        ? readEnvText("EMAIL_PROVIDER_API_KEY", "POSTMARK_SERVER_TOKEN")
+        : readEnvText("EMAIL_PROVIDER_API_KEY", "SENDGRID_API_KEY")
 
   if (!apiKey) {
     throw new Error(`${providerKey.toUpperCase()} API key nao configurada`)
   }
 
-  if (!senderAddress) {
-    throw new Error("EMAIL_FROM_EMAIL nao configurado para envio transacional")
-  }
-
   return {
     providerKey,
     providerName: configuredProvider,
-    apiKey,
     senderName,
-    senderAddress,
-    replyTo,
+    senderAddress: normalizeEmailAddress(senderAddress),
+    replyTo: replyTo ? normalizeEmailAddress(replyTo) : null,
+    apiKey,
+    smtpHost: null,
+    smtpPort: null,
+    smtpUser: null,
+    smtpPassword: null,
+    smtpSecure: null,
+    smtpEhloDomain: null,
   }
 }
 
 function formatSenderAddress(config: EmailProviderRuntimeConfig) {
-  return config.senderName ? `${config.senderName} <${config.senderAddress}>` : config.senderAddress
+  return config.senderName
+    ? `${encodeMimeHeaderValue(config.senderName)} <${config.senderAddress}>`
+    : config.senderAddress
+}
+
+function formatMessageIdDomain(config: EmailProviderRuntimeConfig) {
+  return config.smtpEhloDomain || extractDomainFromEmail(config.senderAddress) || "mariana-explica.pt"
+}
+
+function buildSmtpMessage(config: EmailProviderRuntimeConfig, input: SendTransactionalEmailInput) {
+  const boundary = `boundary-${crypto.randomUUID()}`
+  const fromHeader = formatSenderAddress(config)
+  const toHeader = input.emailTo.trim().toLowerCase()
+  const subjectHeader = encodeMimeHeaderValue(input.subject)
+  const messageId = `<${crypto.randomUUID()}@${formatMessageIdDomain(config)}>`
+  const headers = [
+    `From: ${fromHeader}`,
+    `To: ${toHeader}`,
+    `Subject: ${subjectHeader}`,
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: ${messageId}`,
+    "MIME-Version: 1.0",
+  ]
+
+  if (config.replyTo) {
+    headers.push(`Reply-To: ${config.replyTo}`)
+  }
+
+  const hasHtml = Boolean(input.html?.trim())
+  const hasText = Boolean(input.text?.trim())
+
+  if (hasHtml && hasText) {
+    headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`)
+
+    const textPart = [
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      wrapBase64(encodeUtf8Base64(input.text ?? "")),
+    ].join("\r\n")
+    const htmlPart = [
+      `--${boundary}`,
+      "Content-Type: text/html; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      wrapBase64(encodeUtf8Base64(input.html ?? "")),
+    ].join("\r\n")
+
+    return [
+      ...headers,
+      "",
+      textPart,
+      htmlPart,
+      `--${boundary}--`,
+      "",
+    ].join("\r\n")
+  }
+
+  if (hasHtml) {
+    headers.push("Content-Type: text/html; charset=UTF-8")
+    headers.push("Content-Transfer-Encoding: base64")
+    return [
+      ...headers,
+      "",
+      wrapBase64(encodeUtf8Base64(input.html ?? "")),
+      "",
+    ].join("\r\n")
+  }
+
+  headers.push("Content-Type: text/plain; charset=UTF-8")
+  headers.push("Content-Transfer-Encoding: base64")
+  return [
+    ...headers,
+    "",
+    wrapBase64(encodeUtf8Base64(input.text ?? "")),
+    "",
+  ].join("\r\n")
+}
+
+async function readSmtpResponse(conn: Deno.Conn) {
+  const decoder = new TextDecoder()
+  let buffer = ""
+  const lines: string[] = []
+  let responseCode: number | null = null
+
+  while (true) {
+    const newlineIndex = buffer.indexOf("\n")
+
+    if (newlineIndex === -1) {
+      const chunk = new Uint8Array(4096)
+      const bytesRead = await conn.read(chunk)
+      if (bytesRead === null) {
+        throw new Error("Conexao SMTP encerrada inesperadamente")
+      }
+
+      buffer += decoder.decode(chunk.subarray(0, bytesRead), { stream: true })
+      continue
+    }
+
+    const line = buffer.slice(0, newlineIndex).replace(/\r$/, "")
+    buffer = buffer.slice(newlineIndex + 1)
+    lines.push(line)
+
+    const match = line.match(/^(\d{3})([ -])(.*)$/)
+    if (!match) {
+      continue
+    }
+
+    const code = Number(match[1])
+    if (responseCode === null) {
+      responseCode = code
+    }
+
+    if (match[2] === " " && code === responseCode) {
+      return {
+        code,
+        lines,
+        message: lines
+          .map((entry) => entry.replace(/^(\d{3})([ -])/, "").trim())
+          .join("\n")
+          .trim(),
+      }
+    }
+  }
+}
+
+async function sendSmtpCommand(
+  conn: Deno.Conn,
+  command: string,
+  expectedCodes: number[],
+) {
+  const encoder = new TextEncoder()
+  await conn.write(encoder.encode(`${command}\r\n`))
+  const response = await readSmtpResponse(conn)
+
+  if (!expectedCodes.includes(response.code)) {
+    throw new Error(`SMTP ${command.split(" ")[0]} retornou ${response.code}: ${response.message || "resposta invalida"}`)
+  }
+
+  return response
+}
+
+function buildSmtpDataPayload(message: string) {
+  return message
+    .split("\r\n")
+    .map((line) => (line.startsWith(".") ? `.${line}` : line))
+    .join("\r\n")
+}
+
+async function authenticateSmtp(conn: Deno.Conn, config: EmailProviderRuntimeConfig) {
+  const username = encodeUtf8Base64(config.smtpUser ?? "")
+  const password = encodeUtf8Base64(config.smtpPassword ?? "")
+
+  try {
+    await sendSmtpCommand(conn, `AUTH PLAIN ${encodeUtf8Base64(`\u0000${config.smtpUser}\u0000${config.smtpPassword}`)}`, [235])
+    return
+  } catch (plainError) {
+    const firstError = plainError instanceof Error ? plainError : new Error(String(plainError))
+
+    try {
+      await sendSmtpCommand(conn, "AUTH LOGIN", [334])
+      await sendSmtpCommand(conn, username, [334])
+      await sendSmtpCommand(conn, password, [235])
+      return
+    } catch (loginError) {
+      const secondError = loginError instanceof Error ? loginError : new Error(String(loginError))
+      throw new Error(`Autenticacao SMTP falhou: ${firstError.message}; ${secondError.message}`)
+    }
+  }
+}
+
+async function sendWithSmtp(
+  config: EmailProviderRuntimeConfig,
+  input: SendTransactionalEmailInput,
+): Promise<SendTransactionalEmailResult> {
+  const host = config.smtpHost
+  const port = config.smtpPort ?? 465
+  if (!host || !config.smtpUser || !config.smtpPassword) {
+    throw new Error("Configuracao SMTP incompleta")
+  }
+
+  const conn = await Deno.connectTls({
+    hostname: host,
+    port,
+  })
+
+  try {
+    const banner = await readSmtpResponse(conn)
+    if (banner.code !== 220) {
+      throw new Error(`SMTP nao aceitou a conexao: ${banner.message || banner.code}`)
+    }
+
+    await sendSmtpCommand(conn, `EHLO ${config.smtpEhloDomain ?? "localhost"}`, [250])
+    await authenticateSmtp(conn, config)
+    await sendSmtpCommand(conn, `MAIL FROM:<${config.senderAddress}>`, [250, 251])
+    await sendSmtpCommand(conn, `RCPT TO:<${input.emailTo.trim().toLowerCase()}>`, [250, 251, 252])
+    await sendSmtpCommand(conn, "DATA", [354])
+
+    const payload = buildSmtpMessage(config, input)
+    const data = `${buildSmtpDataPayload(payload)}\r\n.\r\n`
+    await conn.write(new TextEncoder().encode(data))
+
+    const response = await readSmtpResponse(conn)
+    if (!response.code || ![250, 251].includes(response.code)) {
+      throw new Error(`SMTP DATA retornou ${response.code}: ${response.message || "resposta invalida"}`)
+    }
+
+    return {
+      provider: "smtp",
+      providerMessageId: payload.match(/^Message-ID:\s*(<[^>]+>)/mi)?.[1] ?? crypto.randomUUID(),
+    }
+  } finally {
+    try {
+      await sendSmtpCommand(conn, "QUIT", [221])
+    } catch {
+      // ignore quit failures
+    }
+
+    conn.close()
+  }
 }
 
 async function sendWithResend(
@@ -516,7 +873,7 @@ export async function sendTransactionalEmail(
   const runtimeConfig = resolveProviderRuntimeConfig(config)
   const normalizedInput = {
     ...input,
-    emailTo: input.emailTo.trim().toLowerCase(),
+    emailTo: normalizeEmailAddress(input.emailTo),
     subject: input.subject.trim(),
     html: input.html?.trim() || null,
     text: input.text?.trim() || null,
@@ -536,6 +893,10 @@ export async function sendTransactionalEmail(
 
   if (runtimeConfig.providerKey === "postmark") {
     return await sendWithPostmark(runtimeConfig, normalizedInput)
+  }
+
+  if (runtimeConfig.providerKey === "smtp") {
+    return await sendWithSmtp(runtimeConfig, normalizedInput)
   }
 
   return await sendWithSendgrid(runtimeConfig, normalizedInput)

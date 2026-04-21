@@ -359,6 +359,8 @@ Enviar mensagens transacionais e operacionais, como:
 
 O envio de e-mail deve ser feito via backend.
 
+O transporte pode usar SMTP direto ou um provedor HTTP de entrega, desde que a credencial fique sempre no backend.
+
 O sistema deve registrar em `email_deliveries`:
 
 - destinatário

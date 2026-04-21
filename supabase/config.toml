@@ -21,3 +21,18 @@ verify_jwt = false
 
 [functions.student-assessment-attempts]
 verify_jwt = false
+
+[functions.cron-audit-access-consistency]
+verify_jwt = false
+
+[functions.cron-clean-expired-links]
+verify_jwt = false
+
+[functions.cron-process-email-deliveries]
+verify_jwt = false
+
+[functions.cron-reconcile-orders]
+verify_jwt = false
+
+[functions.cron-retry-email-deliveries]
+verify_jwt = false

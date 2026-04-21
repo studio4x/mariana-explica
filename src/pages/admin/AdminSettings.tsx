@@ -84,10 +84,10 @@ export function AdminSettings() {
       },
       {
         title: "Email transacional em producao",
-        description: "O backend ja suporta Resend, Postmark e SendGrid, mas os segredos continuam fora da UI.",
+        description: "O backend ja suporta SMTP, Resend, Postmark e SendGrid, mas os segredos continuam fora da UI.",
         status: emailOperationalInfoReady ? "done" : "pending",
         detail: emailOperationalInfoReady
-          ? "Os dados operacionais do remetente ja estao registados. Ainda sera preciso configurar a API key no provedor seguro."
+          ? "Os dados operacionais do remetente ja estao registados. Ainda sera preciso configurar o segredo no provedor seguro."
           : "Ainda faltam provedor e remetente para fechar a entrega real de emails.",
       },
       {
@@ -214,7 +214,7 @@ export function AdminSettings() {
         {
           key: "email_provider_name" as const,
           label: "Provedor de email",
-          placeholder: "Ex.: Resend, Postmark, SendGrid",
+          placeholder: "Ex.: SMTP, Resend, Postmark, SendGrid",
         },
         {
           key: "email_sender_name" as const,

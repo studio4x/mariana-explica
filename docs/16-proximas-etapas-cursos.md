@@ -386,7 +386,7 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - o processamento da fila usa um provedor transacional real no backend, com falha explicita e retry seguro quando faltar configuracao ou houver erro externo.
 - Entregue nesta rodada:
   - `_shared/email.ts` expandido para ler configuracao operacional de email em `site_config`;
-  - suporte backend a provedores `Resend`, `Postmark` e `SendGrid`, sempre via Edge Function e sem segredo no frontend;
+  - suporte backend a provedores `SMTP`, `Resend`, `Postmark` e `SendGrid`, sempre via Edge Function e sem segredo no frontend;
   - `cron-process-email-deliveries` atualizado para enviar de facto ao provedor, gravando `provider`, `provider_message_id`, falha tecnica e metadata operacional por tentativa.
 - Validacoes executadas:
   - `npm run build`
