@@ -395,6 +395,10 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - verificacao remota de `cron-process-email-deliveries` por resposta `401 Cron secret invalido`, confirmando endpoint ativo e protegido
 - O que falta para concluir:
   - configurar no Supabase o segredo real do provedor (`RESEND_API_KEY`, `POSTMARK_SERVER_TOKEN` ou `SENDGRID_API_KEY`) e definir remetente valido para envio em producao.
+- Atualizacao de fechamento em 2026-04-21:
+  - a implementacao foi ajustada para usar o SMTP ja configurado nas variaveis do projeto, sem depender obrigatoriamente de Resend, Postmark ou SendGrid;
+  - a checagem remota de secrets confirmou `EMAIL_PROVIDER`, variaveis `EMAIL_SMTP_*`, remetente e reply-to no Supabase;
+  - o que falta para fechar operacionalmente e validar uma entrega real em producao pela fila `email_deliveries`.
 
 ### Etapa 12 — PWA instalado com fallback offline seguro
 
@@ -448,13 +452,13 @@ Antes de iniciar qualquer etapa, seguir sempre esta ordem:
   - leitura remota do `manifest.webmanifest` confirmando icones `192x192`, `512x512` e `512x512 maskable`
   - `npx supabase migration list --linked` confirmando `0001` a `0011` alinhadas em `Local` e `Remote`
   - `npx supabase functions list` confirmando funcoes criticas e cron jobs em estado `ACTIVE`
-  - `npx supabase secrets list` confirmando `CRON_SECRET` e segredos Stripe ativos e ausencia atual de segredo de provedor de email
+  - `npx supabase secrets list` confirmando `CRON_SECRET`, segredos Stripe ativos e secrets SMTP de email transacional
 - Deploys executados:
   - deploy frontend na Vercel para publicar o checklist final em `/admin/configuracoes`
   - verificacao remota do dominio publico apos deploy com `200 OK`
 - O que falta para concluir:
   - configurar um scheduler externo real para chamar os cron jobs com `CRON_SECRET`;
-  - configurar segredo real do provedor de email e remetente de producao;
+  - validar envio real de email transacional usando o SMTP ja configurado;
   - validar uma compra real em producao, incluindo grant e pos-compra;
   - validar instalacao e uso do PWA em Android e iOS reais;
   - registar essas validacoes finais na pagina `/admin/configuracoes`.
