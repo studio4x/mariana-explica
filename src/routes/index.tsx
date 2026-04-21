@@ -115,6 +115,11 @@ const CourseModuleAssessmentDetailPanel = lazy(() =>
     default: module.CourseModuleAssessmentDetailPanel,
   })),
 )
+const CourseFinalAssessmentDetailPanel = lazy(() =>
+  import("@/pages/admin/builder/CourseFinalAssessmentDetailPanel").then((module) => ({
+    default: module.CourseFinalAssessmentDetailPanel,
+  })),
+)
 const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminSupport })))
 const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminUsers })))
 
@@ -375,7 +380,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "assessments/final",
-          element: withSuspense(<CourseAssessmentsPanel />),
+          element: withSuspense(<CourseFinalAssessmentDetailPanel />),
         },
         {
           path: "modulos/:moduleId",

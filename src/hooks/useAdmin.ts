@@ -61,6 +61,7 @@ import {
   updateAdminProductModule,
   updateAdminUser,
 } from "@/services"
+import type { ProductAssessmentSummary } from "@/types/app.types"
 
 const ADMIN_QUERY_STALE_TIME = 60_000
 const ADMIN_QUERY_GC_TIME = 15 * 60_000
@@ -256,6 +257,30 @@ function useAdminInvalidation() {
   }
 }
 
+function upsertAdminProductAssessmentCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  assessment: ProductAssessmentSummary,
+) {
+  queryClient.setQueryData<ProductAssessmentSummary[]>(
+    ["admin", "products", assessment.product_id, "assessments"],
+    (current) => {
+      const next = current ? [...current] : []
+      const existingIndex = next.findIndex((item) => item.id === assessment.id)
+
+      if (existingIndex >= 0) {
+        next[existingIndex] = assessment
+      } else {
+        next.push(assessment)
+      }
+
+      return next.sort(
+        (left, right) =>
+          new Date(left.created_at).getTime() - new Date(right.created_at).getTime(),
+      )
+    },
+  )
+}
+
 export function useCreateAdminUser() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: createAdminUser, onSuccess: invalidate })
@@ -343,7 +368,15 @@ export function useCreateAdminModuleAsset() {
 
 export function useCreateAdminProductAssessment() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: createAdminProductAssessment, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminProductAssessment,
+    onSuccess: (assessment) => {
+      upsertAdminProductAssessmentCache(queryClient, assessment)
+      invalidate()
+    },
+  })
 }
 
 export function useCreateAdminProductLesson() {
@@ -363,7 +396,15 @@ export function useUpdateAdminProductLesson() {
 
 export function useUpdateAdminProductAssessment() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: updateAdminProductAssessment, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminProductAssessment,
+    onSuccess: (assessment) => {
+      upsertAdminProductAssessmentCache(queryClient, assessment)
+      invalidate()
+    },
+  })
 }
 
 export function useDeleteAdminModuleAsset() {

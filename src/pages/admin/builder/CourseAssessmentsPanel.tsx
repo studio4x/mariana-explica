@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -9,7 +9,7 @@ import {
   useUpdateAdminProductAssessment,
 } from "@/hooks/useAdmin"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
-import { adminCourseModuleAssessmentPath } from "@/lib/routes"
+import { adminCourseFinalAssessmentPath, adminCourseModuleAssessmentPath } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
 import { AssessmentBuilderWorkspace } from "./AssessmentBuilderWorkspace"
 
@@ -25,6 +25,7 @@ function downloadAssessmentJson(filename: string, payload: unknown) {
 
 export function CourseAssessmentsPanel() {
   const { courseId, product, assessments, modules } = useAdminCourseBuilderContext()
+  const navigate = useNavigate()
   const createAssessment = useCreateAdminProductAssessment()
   const updateAssessment = useUpdateAdminProductAssessment()
   const deleteAssessment = useDeleteAdminProductAssessment()
@@ -64,6 +65,12 @@ export function CourseAssessmentsPanel() {
     setError(null)
 
     try {
+      if (createDraft.assessmentType === "final" && finalAssessments[0]) {
+        setSelectedAssessmentId(finalAssessments[0].id)
+        navigate(adminCourseFinalAssessmentPath(courseId))
+        return
+      }
+
       const created = await createAssessment.mutateAsync({
         productId: courseId,
         moduleId: createDraft.assessmentType === "module" ? createDraft.moduleId || null : null,
@@ -82,6 +89,12 @@ export function CourseAssessmentsPanel() {
 
       setCreateDraft({ title: "", assessmentType: "module", moduleId: "" })
       setSelectedAssessmentId(created.id)
+
+      if (created.assessment_type === "final") {
+        navigate(adminCourseFinalAssessmentPath(courseId))
+      } else if (created.module_id) {
+        navigate(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
+      }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao.")
     }
@@ -145,6 +158,12 @@ export function CourseAssessmentsPanel() {
           builderPayload,
         })
         setSelectedAssessmentId(created.id)
+
+        if (created.assessment_type === "final") {
+          navigate(adminCourseFinalAssessmentPath(courseId))
+        } else if (created.module_id) {
+          navigate(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
+        }
       }
 
       setImportJson("")
@@ -327,7 +346,11 @@ export function CourseAssessmentsPanel() {
                               Abrir rota
                             </Link>
                           </Button>
-                        ) : null}
+                        ) : (
+                          <Button asChild variant={isSelected ? "secondary" : "outline"} className="rounded-full">
+                            <Link to={adminCourseFinalAssessmentPath(courseId)}>Abrir rota</Link>
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant={isSelected ? "secondary" : "outline"}

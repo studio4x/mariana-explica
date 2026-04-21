@@ -34,6 +34,7 @@ import {
 import {
   adminCourseAssessmentsPath,
   adminCourseBuilderPath,
+  adminCourseFinalAssessmentPath,
   adminCourseLessonPath,
   adminCourseModuleAssessmentPath,
   adminCourseModulePath,
@@ -214,6 +215,38 @@ export function AdminCourseBuilderLayout() {
       navigate(adminCourseModuleAssessmentPath(courseId, module.id, createdAssessment.id))
     } catch (error) {
       setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o quiz.")
+    }
+  }
+
+  const handleOpenFinalAssessment = async () => {
+    setBuilderError(null)
+
+    const existingFinalAssessment = finalAssessments[0]
+    if (existingFinalAssessment) {
+      navigate(adminCourseFinalAssessmentPath(courseId))
+      return
+    }
+
+    try {
+      await createAssessment.mutateAsync({
+        productId: courseId,
+        moduleId: null,
+        assessmentType: "final",
+        title: "Avaliacao final",
+        description: null,
+        isRequired: true,
+        passingScore: 70,
+        maxAttempts: null,
+        estimatedMinutes: 20,
+        isActive: true,
+        builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
+      })
+
+      navigate(adminCourseFinalAssessmentPath(courseId))
+    } catch (error) {
+      setBuilderError(
+        error instanceof Error ? error.message : "Nao foi possivel preparar a avaliacao final.",
+      )
     }
   }
 
@@ -505,35 +538,62 @@ export function AdminCourseBuilderLayout() {
               </div>
             </div>
 
-            {isSidebarOpen && finalAssessments.length > 0 ? (
+            {isSidebarOpen ? (
               <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-                <p className="px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  Avaliacao final
-                </p>
+                <div className="flex items-center justify-between gap-2 px-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Avaliacao final
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenFinalAssessment()}
+                    className="rounded-md p-1 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-700"
+                    title={finalAssessments.length > 0 ? "Abrir avaliacao final" : "Criar avaliacao final"}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
                 <div className="mt-2 space-y-2">
-                  {finalAssessments.map((assessment) => (
-                    <div key={assessment.id} className="flex items-center gap-1">
-                      <NavLink
-                        to={adminCourseAssessmentsPath(courseId)}
-                        className={({ isActive }) =>
-                          `flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 text-[13px] font-medium transition ${
-                            isActive ? "bg-emerald-50 text-emerald-700" : "text-emerald-700/90 hover:bg-emerald-50/60"
-                          }`
-                        }
-                      >
-                        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                        <span className="truncate">{assessment.title}</span>
-                      </NavLink>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteAssessment(assessment)}
-                        className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
-                        title={`Excluir avaliacao final ${assessment.title}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
+                  {finalAssessments.length > 0 ? (
+                    finalAssessments.map((assessment) => (
+                      <div key={assessment.id} className="flex items-center gap-1">
+                        <NavLink
+                          to={adminCourseFinalAssessmentPath(courseId)}
+                          className={({ isActive }) =>
+                            `flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 text-[13px] font-medium transition ${
+                              isActive
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "text-emerald-700/90 hover:bg-emerald-50/60"
+                            }`
+                          }
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                          <span className="truncate">{assessment.title}</span>
+                        </NavLink>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteAssessment(assessment)}
+                          className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
+                          title={`Excluir avaliacao final ${assessment.title}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenFinalAssessment()}
+                      disabled={createAssessment.isPending}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/70 px-3 py-3 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {createAssessment.isPending
+                        ? "A criar avaliacao final..."
+                        : "Criar avaliacao final"}
+                    </button>
+                  )}
                 </div>
               </div>
             ) : null}

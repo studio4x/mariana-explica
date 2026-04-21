@@ -3,9 +3,11 @@ import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } f
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { RichTextEditor, StatusBadge } from "@/components/common"
+import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import {
   useAdminProductLessons,
   useAdminModuleAssets,
+  useCreateAdminProductAssessment,
   useDeleteAdminProductModule,
   useUploadAdminModulePdf,
   useUpdateAdminProductModule,
@@ -55,6 +57,7 @@ export function CourseModuleDetailPanel() {
   )
   const lessonsQuery = useAdminProductLessons(moduleId)
   const assetsQuery = useAdminModuleAssets(moduleId)
+  const createAssessment = useCreateAdminProductAssessment()
   const updateModule = useUpdateAdminProductModule()
   const deleteModule = useDeleteAdminProductModule()
   const uploadModulePdf = useUploadAdminModulePdf()
@@ -177,6 +180,30 @@ export function CourseModuleDetailPanel() {
     } finally {
       event.target.value = ""
       setPendingPdfFile(null)
+    }
+  }
+
+  const handleCreateModuleAssessment = async () => {
+    setError(null)
+
+    try {
+      const createdAssessment = await createAssessment.mutateAsync({
+        productId: courseId,
+        moduleId: module.id,
+        assessmentType: "module",
+        title: `Quiz: ${module.title}`,
+        description: null,
+        isRequired: true,
+        passingScore: 70,
+        maxAttempts: null,
+        estimatedMinutes: 15,
+        isActive: true,
+        builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
+      })
+
+      navigate(adminCourseModuleAssessmentPath(courseId, module.id, createdAssessment.id))
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar o quiz do modulo.")
     }
   }
 
@@ -474,7 +501,18 @@ export function CourseModuleDetailPanel() {
               <h2 className="font-display text-2xl font-bold text-slate-950">Materiais e quizzes</h2>
               <p className="mt-1 text-sm text-slate-600">Atalhos operacionais para o modulo atual.</p>
             </div>
-            <StatusBadge label={`${assets.length} materiais`} tone="warning" />
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge label={`${assets.length} materiais`} tone="warning" />
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                disabled={createAssessment.isPending}
+                onClick={() => void handleCreateModuleAssessment()}
+              >
+                {createAssessment.isPending ? "A criar quiz..." : "Criar quiz do modulo"}
+              </Button>
+            </div>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -509,7 +547,22 @@ export function CourseModuleDetailPanel() {
             ))}
 
             {moduleAssessments.length === 0 ? (
-              <EmptyState title="Sem quizzes do modulo" message="Quando houver avaliacao ligada ao modulo, ela aparece aqui." />
+              <div className="space-y-4">
+                <EmptyState
+                  title="Sem quizzes do modulo"
+                  message="Crie o primeiro quiz deste modulo e continue direto no editor profundo da avaliacao."
+                />
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    className="rounded-full"
+                    disabled={createAssessment.isPending}
+                    onClick={() => void handleCreateModuleAssessment()}
+                  >
+                    {createAssessment.isPending ? "A criar quiz..." : "Criar primeiro quiz"}
+                  </Button>
+                </div>
+              </div>
             ) : null}
           </div>
         </section>

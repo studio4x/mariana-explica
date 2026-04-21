@@ -4,8 +4,16 @@ import { BookOpen, Clock3, FileText, ShieldCheck, Video } from "lucide-react"
 import { EmptyState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { StatusBadge } from "@/components/common"
-import { adminCourseModulePath } from "@/lib/routes"
-import { useCreateAdminProductModule } from "@/hooks/useAdmin"
+import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
+import {
+  adminCourseFinalAssessmentPath,
+  adminCourseModuleAssessmentPath,
+  adminCourseModulePath,
+} from "@/lib/routes"
+import {
+  useCreateAdminProductAssessment,
+  useCreateAdminProductModule,
+} from "@/hooks/useAdmin"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderLayout"
 
 function formatDuration(totalMinutes: number) {
@@ -21,6 +29,7 @@ export function CourseOverviewPanel() {
   const { courseId, product, modules, assessments, lessonsByModule, totalLessons } = useAdminCourseBuilderContext()
   const navigate = useNavigate()
   const createModule = useCreateAdminProductModule()
+  const createAssessment = useCreateAdminProductAssessment()
   const [builderError, setBuilderError] = useState<string | null>(null)
   const totalEstimatedMinutes =
     Object.values(lessonsByModule)
@@ -55,6 +64,63 @@ export function CourseOverviewPanel() {
     }
   }
 
+  const finalAssessment = assessments.find((assessment) => assessment.assessment_type === "final") ?? null
+
+  const handleCreateModuleAssessment = async (moduleId: string, moduleTitle: string) => {
+    setBuilderError(null)
+
+    try {
+      const createdAssessment = await createAssessment.mutateAsync({
+        productId: courseId,
+        moduleId,
+        assessmentType: "module",
+        title: `Quiz: ${moduleTitle}`,
+        description: null,
+        isRequired: true,
+        passingScore: 70,
+        maxAttempts: null,
+        estimatedMinutes: 15,
+        isActive: true,
+        builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
+      })
+
+      navigate(adminCourseModuleAssessmentPath(courseId, moduleId, createdAssessment.id))
+    } catch (error) {
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o quiz do modulo.")
+    }
+  }
+
+  const handleOpenFinalAssessment = async () => {
+    setBuilderError(null)
+
+    if (finalAssessment) {
+      navigate(adminCourseFinalAssessmentPath(courseId))
+      return
+    }
+
+    try {
+      await createAssessment.mutateAsync({
+        productId: courseId,
+        moduleId: null,
+        assessmentType: "final",
+        title: "Avaliacao final",
+        description: null,
+        isRequired: true,
+        passingScore: 70,
+        maxAttempts: null,
+        estimatedMinutes: 20,
+        isActive: true,
+        builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
+      })
+
+      navigate(adminCourseFinalAssessmentPath(courseId))
+    } catch (error) {
+      setBuilderError(
+        error instanceof Error ? error.message : "Nao foi possivel preparar a avaliacao final.",
+      )
+    }
+  }
+
   return (
     <div className="w-full space-y-8 pb-12">
       <section className="border-b border-slate-200 pb-5">
@@ -86,6 +152,41 @@ export function CourseOverviewPanel() {
           </div>
           <span className="text-3xl font-black text-slate-900">{formatDuration(totalEstimatedMinutes)}</span>
           <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Estimativa</span>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/50 p-6 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Avaliacao Final</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Prova final do curso em rota dedicada, separada dos quizzes por modulo.
+            </p>
+          </div>
+          <Button type="button" variant="outline" className="rounded-xl" onClick={() => void handleOpenFinalAssessment()}>
+            {finalAssessment ? "Abrir avaliacao final" : "Criar avaliacao final"}
+          </Button>
+        </div>
+
+        <div className="p-6">
+          {finalAssessment ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="truncate text-sm font-semibold text-emerald-900">
+                  {finalAssessment.title}
+                </span>
+              </div>
+              <Button asChild variant="ghost" className="rounded-xl text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800">
+                <Link to={adminCourseFinalAssessmentPath(courseId)}>Editar avaliacao final</Link>
+              </Button>
+            </div>
+          ) : (
+            <EmptyState
+              title="Sem avaliacao final"
+              message="Crie a prova final do curso para cumprir o fluxo profundo previsto no builder."
+            />
+          )}
         </div>
       </section>
 
@@ -183,9 +284,13 @@ export function CourseOverviewPanel() {
                       <Link to={adminCourseModulePath(courseId, module.id)} className="text-blue-600 transition hover:text-blue-700">
                         + Adicionar Aula
                       </Link>
-                      <Link to={adminCourseModulePath(courseId, module.id)} className="text-amber-600 transition hover:text-amber-700">
+                      <button
+                        type="button"
+                        className="text-amber-600 transition hover:text-amber-700"
+                        onClick={() => void handleCreateModuleAssessment(module.id, module.title)}
+                      >
                         + Adicionar Quiz
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>
