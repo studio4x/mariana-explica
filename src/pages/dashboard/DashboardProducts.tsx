@@ -126,9 +126,6 @@ export function DashboardProducts() {
               <Button asChild className="flex-1 rounded-full">
                 <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>Continuar</Link>
               </Button>
-              <Button asChild variant="outline" className="flex-1 rounded-full">
-                <Link to={ROUTES.DASHBOARD_DOWNLOADS}>Downloads</Link>
-              </Button>
             </div>
           </div>
         ))}
