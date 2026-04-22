@@ -694,17 +694,16 @@ export async function fetchDownloads(): Promise<DownloadableItem[]> {
   return [...modulePdfItems, ...assetItems]
 }
 
-export async function fetchNotifications(limit?: number) {
-  let query = supabase
+export async function fetchNotifications(limit?: number, includeArchived = false) {
+  const baseQuery = supabase
     .from("notifications")
     .select("id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
     .order("created_at", { ascending: false })
 
-  if (limit) {
-    query = query.limit(limit)
-  }
+  const query = includeArchived ? baseQuery : baseQuery.neq("status", "archived")
+  const limitedQuery = limit ? query.limit(limit) : query
 
-  const { data, error } = await query
+  const { data, error } = await limitedQuery
 
   if (error) {
     throw error
@@ -789,7 +788,7 @@ export async function markAllNotificationsAsRead() {
   const { data, error } = await supabase
     .from("notifications")
     .update({
-      status: "read",
+      status: "archived",
       read_at: new Date().toISOString(),
     })
     .eq("status", "unread")

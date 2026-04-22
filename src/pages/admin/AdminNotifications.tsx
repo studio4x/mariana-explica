@@ -57,7 +57,7 @@ export function AdminNotifications() {
   const [sentViaEmail, setSentViaEmail] = useState(false)
   const [sentViaInApp, setSentViaInApp] = useState(true)
 
-  const notificationsQuery = useAdminNotifications()
+  const notificationsQuery = useAdminNotifications(true)
   const usersQuery = useAdminUsers()
   const createNotification = useCreateAdminNotification()
 

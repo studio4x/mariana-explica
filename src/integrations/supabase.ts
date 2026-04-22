@@ -12,6 +12,7 @@ interface RealtimeChannelLike {
 interface NoopQueryBuilder {
   select(..._args: unknown[]): NoopQueryBuilder
   eq(..._args: unknown[]): NoopQueryBuilder
+  neq(..._args: unknown[]): NoopQueryBuilder
   in(..._args: unknown[]): NoopQueryBuilder
   order(..._args: unknown[]): NoopQueryBuilder
   limit(..._args: unknown[]): NoopQueryBuilder
@@ -66,6 +67,10 @@ function createNoopQueryBuilder(): NoopQueryBuilder {
       return builder
     },
     eq(...args: unknown[]) {
+      void args
+      return builder
+    },
+    neq(...args: unknown[]) {
       void args
       return builder
     },

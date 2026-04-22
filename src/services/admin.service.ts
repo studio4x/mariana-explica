@@ -811,11 +811,14 @@ export async function fetchAdminSupportTicket(ticketId: string) {
   return data as AdminSupportTicketSummary
 }
 
-export async function fetchAdminNotifications() {
-  const { data, error } = await supabase
+export async function fetchAdminNotifications(includeArchived = false) {
+  const baseQuery = supabase
     .from("notifications")
     .select("id,user_id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
     .order("created_at", { ascending: false })
+
+  const query = includeArchived ? baseQuery : baseQuery.neq("status", "archived")
+  const { data, error } = await query
 
   if (error) {
     throw error
@@ -846,7 +849,7 @@ export async function markAllAdminNotificationsAsRead() {
   const { data, error } = await supabase
     .from("notifications")
     .update({
-      status: "read",
+      status: "archived",
       read_at: new Date().toISOString(),
     })
     .eq("status", "unread")

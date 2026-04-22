@@ -251,11 +251,12 @@ export function useAdminOrdersView() {
   })
 }
 
-export function useAdminNotifications() {
+export function useAdminNotifications(includeArchived = false) {
   const queryClient = useQueryClient()
+  const notificationsQueryKey: unknown[] = ["admin", "notifications", includeArchived ? "all" : "active"]
   const query = useQuery({
-    queryKey: ["admin", "notifications"],
-    queryFn: fetchAdminNotifications,
+    queryKey: notificationsQueryKey,
+    queryFn: () => fetchAdminNotifications(includeArchived),
     ...getAdminQueryOptions(),
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
@@ -263,6 +264,8 @@ export function useAdminNotifications() {
   })
 
   useEffect(() => {
+    if (includeArchived) return undefined
+
     const channel = supabase
       .channel("admin-notifications")
       .on(
@@ -277,29 +280,30 @@ export function useAdminNotifications() {
           const oldNotification = payload.old as AdminNotificationSummary | undefined
 
           if (payload.eventType === "DELETE" && oldNotification?.id) {
-            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) =>
+            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active"], (current) =>
               removeById(current, oldNotification.id),
             )
           } else if (nextNotification?.id) {
-            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) =>
+            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active"], (current) =>
               upsertById(current, nextNotification, sortAdminNotifications),
             )
           }
 
-          refetchActive(queryClient, ["admin", "notifications"])
+          refetchActive(queryClient, ["admin", "notifications", "active"])
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["admin", "notifications"])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, notificationsQueryKey)
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
-  }, [queryClient])
+  }, [queryClient, includeArchived])
 
   return query
 }
@@ -386,13 +390,14 @@ export function useAdminSupportTickets() {
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["admin", "support"])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, ["admin", "support"])
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
   }, [queryClient])
@@ -477,14 +482,15 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
           refetchActive(queryClient, ["admin", "support"])
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["admin", "support", "messages", ticketId])
-          refetchActive(queryClient, ["admin", "support", "ticket", ticketId])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, ["admin", "support", "messages", ticketId])
+      refetchActive(queryClient, ["admin", "support", "ticket", ticketId])
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
   }, [queryClient, ticketId])

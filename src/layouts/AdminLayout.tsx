@@ -80,8 +80,8 @@ export function AdminLayout() {
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({
-      queryKey: ["admin", "notifications"],
-      queryFn: fetchAdminNotifications,
+      queryKey: ["admin", "notifications", "active"],
+      queryFn: () => fetchAdminNotifications(),
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({

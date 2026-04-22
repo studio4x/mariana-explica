@@ -5,7 +5,7 @@ import { useMarkNotificationAsRead, useNotifications } from "@/hooks/useDashboar
 import { formatDateTime } from "@/utils/date"
 
 export function DashboardNotifications() {
-  const { data, isLoading, isError, error, refetch } = useNotifications()
+  const { data, isLoading, isError, error, refetch } = useNotifications(true)
   const markAsRead = useMarkNotificationAsRead()
 
   if (isLoading) {

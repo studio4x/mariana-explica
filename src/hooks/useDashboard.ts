@@ -151,20 +151,21 @@ export function useDownloads() {
   })
 }
 
-export function useNotifications() {
+export function useNotifications(includeArchived = false) {
   const { session } = useAuth()
   const userId = session?.user.id
   const queryClient = useQueryClient()
+  const notificationsQueryKey: unknown[] = ["dashboard", "notifications", includeArchived ? "all" : "active"]
   const query = useQuery({
-    queryKey: ["dashboard", "notifications"],
-    queryFn: () => fetchNotifications(),
+    queryKey: notificationsQueryKey,
+    queryFn: () => fetchNotifications(undefined, includeArchived),
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
-    if (!userId) return undefined
+    if (!userId || includeArchived) return undefined
 
     const channel = supabase
       .channel(`student-notifications-list:${userId}`)
@@ -181,31 +182,32 @@ export function useNotifications() {
           const oldNotification = payload.old as NotificationItem | undefined
 
           if (payload.eventType === "DELETE" && oldNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
               removeById(current, oldNotification.id),
             )
           } else if (nextNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
               upsertById(current, nextNotification, sortNotifications),
             )
           }
 
-          refetchActive(queryClient, ["dashboard", "notifications"])
+          refetchActive(queryClient, ["dashboard", "notifications", "active"])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
           refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["dashboard", "notifications"])
-          refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, notificationsQueryKey)
+      refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
-  }, [queryClient, userId])
+  }, [queryClient, includeArchived, userId])
 
   return query
 }
@@ -241,28 +243,29 @@ export function useUnreadNotificationsCount() {
           const oldNotification = payload.old as NotificationItem | undefined
 
           if (payload.eventType === "DELETE" && oldNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
               removeById(current, oldNotification.id),
             )
           } else if (nextNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
               upsertById(current, nextNotification, sortNotifications),
             )
           }
 
-          refetchActive(queryClient, ["dashboard", "notifications"])
+          refetchActive(queryClient, ["dashboard", "notifications", "active"])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
           refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["dashboard", "notifications"])
-          refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, ["dashboard", "notifications", "active"])
+      refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
   }, [queryClient, userId])
@@ -321,13 +324,14 @@ export function useSupportTickets() {
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["dashboard", "support"])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, ["dashboard", "support"])
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
   }, [queryClient, userId])
@@ -406,14 +410,15 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
           refetchActive(queryClient, ["dashboard", "support"])
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          refetchActive(queryClient, ["dashboard", "support", "messages", ticketId])
-          refetchActive(queryClient, ["dashboard", "support", "ticket", ticketId])
-        }
-      })
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, ["dashboard", "support", "messages", ticketId])
+      refetchActive(queryClient, ["dashboard", "support", "ticket", ticketId])
+    }, 250)
 
     return () => {
+      window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
   }, [queryClient, ticketId])
@@ -434,7 +439,7 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: markNotificationAsRead,
     onSuccess: (notification) => {
-      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
         upsertById(current, notification, sortNotifications),
       )
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
@@ -490,10 +495,12 @@ export function useMarkAllNotificationsAsRead() {
   return useMutation({
     mutationFn: markAllNotificationsAsRead,
     onSuccess: (notifications) => {
-      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) => {
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], () => [])
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "all"], (current) => {
         const next = current ?? []
         const updatedById = new Map(notifications.map((notification) => [notification.id, notification]))
-        return sortNotifications(next.map((notification) => updatedById.get(notification.id) ?? notification))
+        const merged = next.map((notification) => updatedById.get(notification.id) ?? notification)
+        return sortNotifications(merged)
       })
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
