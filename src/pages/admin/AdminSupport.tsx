@@ -138,46 +138,58 @@ export function AdminSupport() {
       </div>
 
       <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-        <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_180px_190px_180px]">
-          <label className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por assunto, nome ou e-mail..."
-              className="h-11 w-full rounded-xl border bg-slate-50 pl-11 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            />
+        <div className="grid gap-4 xl:grid-cols-[minmax(260px,1fr)_180px_190px_180px]">
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Buscar</span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar por assunto, nome ou e-mail..."
+                className="h-11 w-full rounded-xl border bg-slate-50 pl-11 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </div>
           </label>
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          >
-            <option value="all">Todos os status</option>
-            <option value="open">Abertos</option>
-            <option value="in_progress">Em atendimento</option>
-            <option value="answered">Respondidos</option>
-            <option value="closed">Fechados</option>
-          </select>
-          <select
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value as typeof categoryFilter)}
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          >
-            <option value="all">Todas as categorias</option>
-            {supportCategories.map((category) => (
-              <option key={category.key} value={category.key}>{category.label}</option>
-            ))}
-          </select>
-          <select
-            value={sortMode}
-            onChange={(event) => setSortMode(event.target.value as SortMode)}
-            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-          >
-            <option value="sla">Ordenar por SLA</option>
-            <option value="priority">Ordenar por prioridade</option>
-            <option value="date">Ordenar por data</option>
-          </select>
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Status</span>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="all">Todos os status</option>
+              <option value="open">Abertos</option>
+              <option value="in_progress">Em atendimento</option>
+              <option value="answered">Respondidos</option>
+              <option value="closed">Fechados</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Categoria</span>
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value as typeof categoryFilter)}
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="all">Todas as categorias</option>
+              {supportCategories.map((category) => (
+                <option key={category.key} value={category.key}>{category.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Ordenacao</span>
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as SortMode)}
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="sla">Ordenar por SLA</option>
+              <option value="priority">Ordenar por prioridade</option>
+              <option value="date">Ordenar por data</option>
+            </select>
+          </label>
         </div>
 
         {filteredTickets.length === 0 ? (
