@@ -6,7 +6,7 @@ type QueryResponse<T> = Promise<{ data: T | null; error: Error | null }>
 
 interface RealtimeChannelLike {
   on: (...args: unknown[]) => RealtimeChannelLike
-  subscribe: () => RealtimeChannelLike
+  subscribe: (callback?: (status: string) => void) => RealtimeChannelLike
 }
 
 interface NoopQueryBuilder {

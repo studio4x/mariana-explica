@@ -79,6 +79,8 @@ import type {
 
 const ADMIN_QUERY_STALE_TIME = 60_000
 const ADMIN_QUERY_GC_TIME = 15 * 60_000
+const REALTIME_FALLBACK_INTERVAL_MS = 4_000
+const CHAT_FALLBACK_INTERVAL_MS = 2_500
 
 type RealtimePayload = {
   eventType?: "INSERT" | "UPDATE" | "DELETE"
@@ -117,6 +119,10 @@ function sortAdminTickets(items: AdminSupportTicketSummary[]) {
 
 function sortMessages(items: SupportTicketMessage[]) {
   return [...items].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at))
+}
+
+function refetchActive(queryClient: ReturnType<typeof useQueryClient>, queryKey: unknown[]) {
+  void queryClient.refetchQueries({ queryKey, type: "active" })
 }
 
 function getAdminQueryOptions() {
@@ -251,6 +257,9 @@ export function useAdminNotifications() {
     queryKey: ["admin", "notifications"],
     queryFn: fetchAdminNotifications,
     ...getAdminQueryOptions(),
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -277,11 +286,15 @@ export function useAdminNotifications() {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["admin", "notifications"] })
+          refetchActive(queryClient, ["admin", "notifications"])
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["admin", "notifications"])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
@@ -339,6 +352,9 @@ export function useAdminSupportTickets() {
     staleTime: 0,
     gcTime: ADMIN_QUERY_GC_TIME,
     refetchOnMount: "always",
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -366,11 +382,15 @@ export function useAdminSupportTickets() {
             queryClient.setQueryData(["admin", "support", "ticket", nextTicket.id], nextTicket)
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+          refetchActive(queryClient, ["admin", "support"])
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["admin", "support"])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
@@ -388,6 +408,9 @@ export function useAdminSupportTicket(ticketId: string | undefined) {
     staleTime: 0,
     gcTime: ADMIN_QUERY_GC_TIME,
     refetchOnMount: "always",
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -400,6 +423,9 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
     staleTime: 0,
     gcTime: ADMIN_QUERY_GC_TIME,
     refetchOnMount: "always",
+    refetchInterval: CHAT_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -425,7 +451,8 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+          refetchActive(queryClient, ["admin", "support", "messages", ticketId])
+          refetchActive(queryClient, ["admin", "support"])
         },
       )
       .on(
@@ -446,10 +473,16 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+          refetchActive(queryClient, ["admin", "support", "ticket", ticketId])
+          refetchActive(queryClient, ["admin", "support"])
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["admin", "support", "messages", ticketId])
+          refetchActive(queryClient, ["admin", "support", "ticket", ticketId])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)

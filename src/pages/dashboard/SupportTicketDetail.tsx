@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { ArrowLeft, Download, Paperclip, Send, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
@@ -47,6 +47,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   const [status, setStatus] = useState<SupportTicketSummary["status"]>("in_progress")
   const [priority, setPriority] = useState<SupportTicketSummary["priority"]>("normal")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const chatScrollRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const studentTicketQuery = useSupportTicket(mode === "student" ? ticketId : undefined)
   const adminTicketQuery = useAdminSupportTicket(mode === "admin" ? ticketId : undefined)
@@ -78,9 +79,20 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
     setPriority(ticket.priority)
   }, [adminReply.isPending, mode, ticket])
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-  }, [messages.length])
+  const latestMessageId = messages.at(-1)?.id ?? null
+
+  useLayoutEffect(() => {
+    const scrollToLatestMessage = () => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+      }
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
+    }
+
+    scrollToLatestMessage()
+    const frame = window.requestAnimationFrame(scrollToLatestMessage)
+    return () => window.cancelAnimationFrame(frame)
+  }, [latestMessageId, ticket?.id])
 
   const selectedUser =
     mode === "admin" && ticket && "user_id" in ticket
@@ -193,7 +205,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
             ) : null}
           </div>
 
-          <div className="h-[560px] space-y-4 overflow-y-auto bg-slate-50/50 p-5">
+          <div ref={chatScrollRef} className="h-[560px] space-y-4 overflow-y-auto bg-slate-50/50 p-5">
             <div className="max-w-[86%] rounded-2xl rounded-tl-sm border bg-white p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Descricao do problema</p>
               <p className="mt-2 text-sm leading-7 text-slate-700">{ticket.message}</p>

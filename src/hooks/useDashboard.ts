@@ -36,6 +36,9 @@ import {
 } from "@/services"
 import type { NotificationItem, SupportTicketMessage, SupportTicketSummary } from "@/types/app.types"
 
+const REALTIME_FALLBACK_INTERVAL_MS = 4_000
+const CHAT_FALLBACK_INTERVAL_MS = 2_500
+
 type RealtimePayload = {
   eventType?: "INSERT" | "UPDATE" | "DELETE"
   new?: unknown
@@ -73,6 +76,10 @@ function sortTickets(items: SupportTicketSummary[]) {
 
 function sortMessages(items: SupportTicketMessage[]) {
   return [...items].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at))
+}
+
+function refetchActive(queryClient: ReturnType<typeof useQueryClient>, queryKey: unknown[]) {
+  void queryClient.refetchQueries({ queryKey, type: "active" })
 }
 
 export function useDashboardOverview() {
@@ -151,6 +158,9 @@ export function useNotifications() {
   const query = useQuery({
     queryKey: ["dashboard", "notifications"],
     queryFn: () => fetchNotifications(),
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -180,12 +190,17 @@ export function useNotifications() {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
+          refetchActive(queryClient, ["dashboard", "notifications"])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications", "unread-count", userId] })
+          refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["dashboard", "notifications"])
+          refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
@@ -203,6 +218,9 @@ export function useUnreadNotificationsCount() {
     queryKey: ["dashboard", "notifications", "unread-count", userId],
     queryFn: fetchUnreadNotificationsCount,
     enabled: Boolean(userId),
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -232,12 +250,17 @@ export function useUnreadNotificationsCount() {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
+          refetchActive(queryClient, ["dashboard", "notifications"])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications", "unread-count", userId] })
+          refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["dashboard", "notifications"])
+          refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
@@ -261,6 +284,9 @@ export function useSupportTickets() {
   const query = useQuery({
     queryKey: ["dashboard", "support", "tickets"],
     queryFn: fetchSupportTickets,
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -291,11 +317,15 @@ export function useSupportTickets() {
             queryClient.setQueryData(["dashboard", "support", "ticket", nextTicket.id], nextTicket)
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+          refetchActive(queryClient, ["dashboard", "support"])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["dashboard", "support"])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
@@ -310,6 +340,9 @@ export function useSupportTicket(ticketId: string | undefined) {
     queryKey: ["dashboard", "support", "ticket", ticketId],
     queryFn: () => fetchSupportTicket(ticketId ?? ""),
     enabled: Boolean(ticketId),
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -319,6 +352,9 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
     queryKey: ["dashboard", "support", "messages", ticketId],
     queryFn: () => fetchSupportTicketMessages(ticketId ?? ""),
     enabled: Boolean(ticketId),
+    refetchInterval: CHAT_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {
@@ -344,7 +380,8 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+          refetchActive(queryClient, ["dashboard", "support", "messages", ticketId])
+          refetchActive(queryClient, ["dashboard", "support"])
         },
       )
       .on(
@@ -365,10 +402,16 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+          refetchActive(queryClient, ["dashboard", "support", "ticket", ticketId])
+          refetchActive(queryClient, ["dashboard", "support"])
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          refetchActive(queryClient, ["dashboard", "support", "messages", ticketId])
+          refetchActive(queryClient, ["dashboard", "support", "ticket", ticketId])
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
