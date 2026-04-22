@@ -168,6 +168,36 @@ Deno.serve(async (req) => {
         messagePreview: preview,
       })
     } else {
+      const { data: adminRecipients, error: adminRecipientsError } = await context.serviceClient
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin")
+        .eq("is_admin", true)
+        .eq("status", "active")
+
+      if (adminRecipientsError) {
+        throw adminRecipientsError
+      }
+
+      if ((adminRecipients ?? []).length > 0) {
+        const { error: adminNotificationError } = await context.serviceClient.from("notifications").insert(
+          (adminRecipients ?? []).map((admin) => ({
+            user_id: admin.id,
+            type: "support",
+            title: "Nova resposta em ticket",
+            message: `${context.profile.full_name || context.profile.email || "Aluno"} respondeu: ${preview}`.slice(0, 180),
+            link: `/admin/suporte/${ticket.id}`,
+            status: "unread",
+            sent_via_email: false,
+            sent_via_in_app: true,
+          })),
+        )
+
+        if (adminNotificationError) {
+          throw adminNotificationError
+        }
+      }
+
       await recordSupportWhatsappIntent(context.serviceClient, {
         event: "new_message",
         ticketId: ticket.id,

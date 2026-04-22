@@ -182,11 +182,11 @@ export function useNotifications(includeArchived = false) {
           const oldNotification = payload.old as NotificationItem | undefined
 
           if (payload.eventType === "DELETE" && oldNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active", userId], (current) =>
               removeById(current, oldNotification.id),
             )
           } else if (nextNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active", userId], (current) =>
               upsertById(current, nextNotification, sortNotifications),
             )
           }
@@ -243,11 +243,11 @@ export function useUnreadNotificationsCount() {
           const oldNotification = payload.old as NotificationItem | undefined
 
           if (payload.eventType === "DELETE" && oldNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active", userId], (current) =>
               removeById(current, oldNotification.id),
             )
           } else if (nextNotification?.id) {
-            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active", userId], (current) =>
               upsertById(current, nextNotification, sortNotifications),
             )
           }
@@ -260,7 +260,7 @@ export function useUnreadNotificationsCount() {
       .subscribe()
 
     const initialSync = window.setTimeout(() => {
-      refetchActive(queryClient, ["dashboard", "notifications", "active"])
+      refetchActive(queryClient, ["dashboard", "notifications", "active", userId])
       refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
     }, 250)
 
