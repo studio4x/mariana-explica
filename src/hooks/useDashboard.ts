@@ -17,6 +17,7 @@ import {
   fetchPaymentHistory,
   fetchProfilePreferences,
   fetchSupportTicketMessages,
+  fetchSupportTicket,
   fetchSupportTickets,
   fetchUnreadNotificationsCount,
   markNotificationAsRead,
@@ -186,18 +187,95 @@ export function usePaymentHistory() {
 }
 
 export function useSupportTickets() {
-  return useQuery({
+  const { session } = useAuth()
+  const userId = session?.user.id
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ["dashboard", "support", "tickets"],
     queryFn: fetchSupportTickets,
+  })
+
+  useEffect(() => {
+    if (!userId) return undefined
+
+    const channel = supabase
+      .channel(`student-support-tickets:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "support_tickets",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient, userId])
+
+  return query
+}
+
+export function useSupportTicket(ticketId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "support", "ticket", ticketId],
+    queryFn: () => fetchSupportTicket(ticketId ?? ""),
+    enabled: Boolean(ticketId),
   })
 }
 
 export function useSupportTicketMessages(ticketId: string | undefined) {
-  return useQuery({
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ["dashboard", "support", "messages", ticketId],
     queryFn: () => fetchSupportTicketMessages(ticketId ?? ""),
     enabled: Boolean(ticketId),
   })
+
+  useEffect(() => {
+    if (!ticketId) return undefined
+
+    const channel = supabase
+      .channel(`support-chat:${ticketId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_ticket_messages",
+          filter: `ticket_id=eq.${ticketId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "support_tickets",
+          filter: `id=eq.${ticketId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient, ticketId])
+
+  return query
 }
 
 export function useProfilePreferences() {

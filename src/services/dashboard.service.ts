@@ -804,7 +804,7 @@ export async function markAllNotificationsAsRead() {
 export async function fetchSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,subject,message,status,priority,assigned_admin_id,last_reply_at,created_at,updated_at")
+    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -812,6 +812,20 @@ export async function fetchSupportTickets() {
   }
 
   return (data ?? []) as SupportTicketSummary[]
+}
+
+export async function fetchSupportTicket(ticketId: string) {
+  const { data, error } = await supabase
+    .from("support_tickets")
+    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
+    .eq("id", ticketId)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as SupportTicketSummary
 }
 
 export async function fetchSupportTicketMessages(ticketId: string) {
@@ -828,7 +842,12 @@ export async function fetchSupportTicketMessages(ticketId: string) {
   return (data ?? []) as SupportTicketMessage[]
 }
 
-export async function createSupportTicket(input: { subject: string; message: string }) {
+export async function createSupportTicket(input: {
+  subject: string
+  message: string
+  category?: SupportTicketSummary["category"]
+  priority?: SupportTicketSummary["priority"]
+}) {
   const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("create-support-ticket", {
     body: input,

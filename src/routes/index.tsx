@@ -15,6 +15,7 @@ import { isDynamicImportError, reloadAfterRuntimeCleanup } from "@/lib/runtime-r
 const Home = lazy(() => import("@/pages/public").then((module) => ({ default: module.Home })))
 const Products = lazy(() => import("@/pages/public").then((module) => ({ default: module.Products })))
 const Product = lazy(() => import("@/pages/public").then((module) => ({ default: module.Product })))
+const Support = lazy(() => import("@/pages/public").then((module) => ({ default: module.Support })))
 const Checkout = lazy(() => import("@/pages/public").then((module) => ({ default: module.Checkout })))
 const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
 const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
@@ -54,6 +55,9 @@ const DashboardProfile = lazy(() =>
 )
 const DashboardSupport = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardSupport })),
+)
+const DashboardSupportTicketDetail = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.DashboardSupportTicketDetail })),
 )
 const Admin = lazy(() => import("@/pages/admin").then((module) => ({ default: module.Admin })))
 const AdminAffiliates = lazy(() =>
@@ -138,6 +142,9 @@ const CourseFinalAssessmentDetailPanel = lazy(() =>
   })),
 )
 const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminSupport })))
+const AdminSupportTicketDetail = lazy(() =>
+  import("@/pages/dashboard").then((module) => ({ default: module.AdminSupportTicketDetail })),
+)
 const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminUsers })))
 
 function withSuspense(node: ReactNode) {
@@ -195,6 +202,11 @@ function LegacyStudentCourseRedirect() {
   return <Navigate to={`/aluno/cursos/${id}`} replace />
 }
 
+function NavigateToStudentSupportTicket() {
+  const { ticketId } = useParams<{ ticketId: string }>()
+  return <Navigate to={`/aluno/suporte/${ticketId}`} replace />
+}
+
 function LegacyAdminBuilderRedirect() {
   const { id } = useParams<{ id: string }>()
   return <Navigate to={`/admin/cursos/${id}/builder`} replace />
@@ -222,6 +234,10 @@ export const router = createBrowserRouter(
         {
           path: "checkout",
           element: withSuspense(<Checkout />),
+        },
+        {
+          path: "suporte",
+          element: withSuspense(<Support />),
         },
         {
           path: "produtos",
@@ -306,6 +322,10 @@ export const router = createBrowserRouter(
           element: withSuspense(<DashboardSupport />),
         },
         {
+          path: "suporte/:ticketId",
+          element: withSuspense(<DashboardSupportTicketDetail />),
+        },
+        {
           path: "perfil",
           element: withSuspense(<DashboardProfile />),
         },
@@ -359,6 +379,10 @@ export const router = createBrowserRouter(
       element: <Navigate to="/aluno/suporte" replace />,
     },
     {
+      path: "/dashboard/suporte/:ticketId",
+      element: <NavigateToStudentSupportTicket />,
+    },
+    {
       path: "/dashboard/perfil",
       element: <Navigate to="/aluno/perfil" replace />,
     },
@@ -406,6 +430,10 @@ export const router = createBrowserRouter(
         {
           path: "suporte",
           element: withSuspense(<AdminSupport />),
+        },
+        {
+          path: "suporte/:ticketId",
+          element: withSuspense(<AdminSupportTicketDetail />),
         },
         {
           path: "pagamentos",

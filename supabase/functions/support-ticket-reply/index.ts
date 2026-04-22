@@ -19,7 +19,7 @@ interface SupportReplyInput {
   ticketId: string
   message: string
   status?: "open" | "in_progress" | "answered" | "closed"
-  priority?: "low" | "normal" | "high"
+  priority?: "low" | "normal" | "medium" | "high" | "urgent"
 }
 
 Deno.serve(async (req) => {
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
         type: "support",
         title: "O suporte respondeu ao teu ticket",
         message: body.message.trim().slice(0, 180),
-        link: "/dashboard/suporte",
+        link: `/aluno/suporte/${ticket.id}`,
         status: "unread",
         sent_via_email: Boolean(userProfile?.email),
         sent_via_in_app: true,
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
           fullName: userProfile.full_name,
           subject: ticket.subject,
           messagePreview: body.message.trim().slice(0, 180),
-          supportUrl: "/dashboard/suporte",
+          supportUrl: `/aluno/suporte/${ticket.id}`,
         })
 
         await queueEmailDelivery(context.serviceClient, {

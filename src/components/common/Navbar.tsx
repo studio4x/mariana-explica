@@ -15,9 +15,10 @@ export function Navbar() {
     () =>
       [
         { to: ROUTES.COURSES, label: "Cursos" },
+        { to: ROUTES.SUPPORT, label: "Suporte" },
         isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
       ].filter(Boolean) as Array<{ to: string; label: string }>,
-    [isAdmin, isAuthenticated],
+    [isAdmin],
   )
 
   const closeMenu = () => setMobileOpen(false)

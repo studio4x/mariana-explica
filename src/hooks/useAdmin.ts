@@ -41,6 +41,7 @@ import {
   fetchAdminCouponUsages,
   fetchAdminCourseReleases,
   fetchAdminSupportTicketMessages,
+  fetchAdminSupportTicket,
   fetchAdminSupportTickets,
   fetchAdminUsers,
   markAdminOrderCancelled,
@@ -119,10 +120,11 @@ export function useAdminPendingInfoConfig() {
   })
 }
 
-export function useAdminUsers() {
+export function useAdminUsers(enabled = true) {
   return useQuery({
     queryKey: ["admin", "users"],
     queryFn: fetchAdminUsers,
+    enabled,
     ...getAdminQueryOptions(),
   })
 }
@@ -270,20 +272,93 @@ export function useAdminCouponUsages() {
 }
 
 export function useAdminSupportTickets() {
-  return useQuery({
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ["admin", "support", "tickets"],
     queryFn: fetchAdminSupportTickets,
+    ...getAdminQueryOptions(),
+  })
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-support-tickets")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "support_tickets",
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+          void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+
+  return query
+}
+
+export function useAdminSupportTicket(ticketId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "support", "ticket", ticketId],
+    queryFn: () => fetchAdminSupportTicket(ticketId ?? ""),
+    enabled: Boolean(ticketId),
     ...getAdminQueryOptions(),
   })
 }
 
 export function useAdminSupportTicketMessages(ticketId: string | undefined) {
-  return useQuery({
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ["admin", "support", "messages", ticketId],
     queryFn: () => fetchAdminSupportTicketMessages(ticketId ?? ""),
     enabled: Boolean(ticketId),
     ...getAdminQueryOptions(),
   })
+
+  useEffect(() => {
+    if (!ticketId) return undefined
+
+    const channel = supabase
+      .channel(`admin-support-chat:${ticketId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_ticket_messages",
+          filter: `ticket_id=eq.${ticketId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "support_tickets",
+          filter: `id=eq.${ticketId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient, ticketId])
+
+  return query
 }
 
 function useAdminInvalidation() {

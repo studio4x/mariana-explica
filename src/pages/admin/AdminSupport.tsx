@@ -1,142 +1,82 @@
-import { useDeferredValue, useMemo, useState, type FormEvent } from "react"
-import { EmptyState, ErrorState } from "@/components/feedback"
+import { useDeferredValue, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
+import { MessageSquare, RefreshCw, Search } from "lucide-react"
+import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
+import { useAdminSupportTickets, useAdminUsers } from "@/hooks/useAdmin"
+import { ROUTES } from "@/lib/constants"
 import {
-  useAdminSupportTicketMessages,
-  useAdminSupportTickets,
-  useAdminUsers,
-  useReplyAdminSupportTicket,
-} from "@/hooks/useAdmin"
-import type { AdminSupportTicketSummary } from "@/types/app.types"
+  getSupportCategoryMeta,
+  getSupportDueLabel,
+  getSupportPriorityMeta,
+  getSupportSlaStatusMeta,
+  getSupportStatusMeta,
+  supportCategories,
+} from "@/lib/support-sla"
+import type { AdminSupportTicketSummary, SupportTicketSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
 
-function AdminSupportSkeleton() {
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Suporte"
-        description="Fila de tickets, contexto do utilizador e resposta administrativa no mesmo fluxo."
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-            <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
-            <div className="mt-3 h-10 w-16 animate-pulse rounded-2xl bg-slate-200" />
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
-        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="h-4 w-40 animate-pulse rounded-full bg-slate-200" />
-          <div className="mt-3 h-11 w-full animate-pulse rounded-xl bg-slate-100" />
-          <div className="mt-6 space-y-3">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
-          <div className="mt-3 h-8 w-64 animate-pulse rounded-full bg-slate-200" />
-          <div className="mt-6 space-y-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
-            ))}
-          </div>
-          <div className="mt-6 h-24 animate-pulse rounded-xl bg-slate-100" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const statusToneMap: Record<AdminSupportTicketSummary["status"], "warning" | "info" | "success" | "danger"> = {
-  open: "warning",
-  in_progress: "info",
-  answered: "success",
-  closed: "danger",
-}
-
-const priorityToneMap: Record<AdminSupportTicketSummary["priority"], "neutral" | "warning" | "danger"> = {
-  low: "neutral",
-  normal: "warning",
-  high: "danger",
-}
+type SortMode = "sla" | "priority" | "date"
 
 export function AdminSupport() {
-  const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>(undefined)
   const [query, setQuery] = useState("")
-  const [reply, setReply] = useState("")
-  const [status, setStatus] = useState<AdminSupportTicketSummary["status"]>("in_progress")
-  const [priority, setPriority] = useState<AdminSupportTicketSummary["priority"]>("normal")
+  const [statusFilter, setStatusFilter] = useState<"all" | SupportTicketSummary["status"]>("all")
+  const [categoryFilter, setCategoryFilter] = useState<"all" | SupportTicketSummary["category"]>("all")
+  const [sortMode, setSortMode] = useState<SortMode>("sla")
   const deferredQuery = useDeferredValue(query)
-
   const ticketsQuery = useAdminSupportTickets()
   const usersQuery = useAdminUsers()
-  const replyTicket = useReplyAdminSupportTicket()
-
-  const tickets = ticketsQuery.data ?? []
-  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0]
-  const messagesQuery = useAdminSupportTicketMessages(selectedTicket?.id)
+  const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data])
 
   const userMap = useMemo(
     () => new Map((usersQuery.data ?? []).map((user) => [user.id, user])),
     [usersQuery.data],
   )
 
-  const filteredTickets = tickets.filter((ticket) => {
-    const user = userMap.get(ticket.user_id)
-    const haystack = [
-      ticket.subject,
-      ticket.message,
-      ticket.status,
-      ticket.priority,
-      user?.full_name ?? "",
-      user?.email ?? "",
-    ]
-      .join(" ")
-      .toLowerCase()
-
-    return haystack.includes(deferredQuery.trim().toLowerCase())
-  })
-
-  const openCount = tickets.filter((ticket) => ticket.status === "open").length
-  const highPriorityCount = tickets.filter((ticket) => ticket.priority === "high").length
-  const answeredCount = tickets.filter((ticket) => ticket.status === "answered").length
-
-  const syncSelectedTicket = (ticket: AdminSupportTicketSummary | undefined) => {
-    if (!ticket) {
-      return
+  const filteredTickets = useMemo(() => {
+    const priorityWeight = (ticket: AdminSupportTicketSummary) => getSupportPriorityMeta(ticket.priority).weight
+    const bySla = (left: AdminSupportTicketSummary, right: AdminSupportTicketSummary) => {
+      const leftAnswered = left.first_response_at ? 1 : 0
+      const rightAnswered = right.first_response_at ? 1 : 0
+      if (leftAnswered !== rightAnswered) return leftAnswered - rightAnswered
+      const leftDue = left.first_response_due_at ? new Date(left.first_response_due_at).getTime() : Number.MAX_SAFE_INTEGER
+      const rightDue = right.first_response_due_at ? new Date(right.first_response_due_at).getTime() : Number.MAX_SAFE_INTEGER
+      if (leftDue !== rightDue) return leftDue - rightDue
+      return new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
     }
 
-    setSelectedTicketId(ticket.id)
-    setStatus(ticket.status)
-    setPriority(ticket.priority)
-  }
+    return tickets
+      .filter((ticket) => {
+        const user = userMap.get(ticket.user_id)
+        const haystack = [
+          ticket.subject,
+          ticket.message,
+          ticket.status,
+          ticket.priority,
+          ticket.category,
+          user?.full_name ?? "",
+          user?.email ?? "",
+        ].join(" ").toLowerCase()
 
-  const handleReply = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!selectedTicket || !reply.trim()) {
-      return
-    }
+        const matchesQuery = haystack.includes(deferredQuery.trim().toLowerCase())
+        const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
+        const matchesCategory = categoryFilter === "all" || ticket.category === categoryFilter
+        return matchesQuery && matchesStatus && matchesCategory
+      })
+      .sort((left, right) => {
+        if (sortMode === "priority") {
+          const diff = priorityWeight(right) - priorityWeight(left)
+          return diff || bySla(left, right)
+        }
+        if (sortMode === "date") {
+          return new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+        }
+        return bySla(left, right)
+      })
+  }, [categoryFilter, deferredQuery, sortMode, statusFilter, tickets, userMap])
 
-    await replyTicket.mutateAsync({
-      ticketId: selectedTicket.id,
-      message: reply,
-      status,
-      priority,
-    })
-
-    setReply("")
-  }
-
-  if (ticketsQuery.isLoading || usersQuery.isLoading) {
-    return <AdminSupportSkeleton />
-  }
+  if (ticketsQuery.isLoading || usersQuery.isLoading) return <LoadingState message="A carregar suporte..." />
 
   if (ticketsQuery.isError || usersQuery.isError) {
     return (
@@ -151,176 +91,148 @@ export function AdminSupport() {
     )
   }
 
-  const selectedUser = selectedTicket ? userMap.get(selectedTicket.user_id) : null
-  const messages = messagesQuery.data ?? []
+  const overdueCount = filteredTickets.filter((ticket) => ticket.sla_status === "overdue").length
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Suporte"
-        description="Fila de tickets, contexto do utilizador e resposta administrativa no mesmo fluxo."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader
+          title="Central de atendimento"
+          description="Fila operacional de chamados com busca, filtros, SLA e resposta por detalhe."
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full"
+          onClick={() => {
+            void ticketsQuery.refetch()
+            void usersQuery.refetch()
+          }}
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Atualizar lista
+        </Button>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Tickets abertos</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{openCount}</p>
+          <p className="text-sm font-medium text-slate-500">SLA publico</p>
+          <p className="mt-3 text-sm leading-7 text-slate-700">2h uteis para pagamentos e 24h uteis para demais categorias.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Alta prioridade</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{highPriorityCount}</p>
+          <p className="text-sm font-medium text-slate-500">Chamados filtrados</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{filteredTickets.length}</p>
         </div>
-        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Respondidos</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{answeredCount}</p>
+        <div className={`rounded-[1.75rem] border p-5 shadow-sm ${overdueCount > 0 ? "border-red-200 bg-red-50" : "bg-white"}`}>
+          <p className="text-sm font-medium text-slate-500">SLA atrasado</p>
+          <p className={`mt-3 text-3xl font-bold ${overdueCount > 0 ? "text-red-700" : "text-slate-950"}`}>{overdueCount}</p>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Fila de tickets</h2>
-              <p className="mt-1 text-sm text-slate-600">Pesquisa por assunto, estado, prioridade ou utilizador.</p>
-            </div>
+      <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
+        <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_180px_190px_180px]">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Pesquisar..."
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:w-72"
+              placeholder="Buscar por assunto, nome ou e-mail..."
+              className="h-11 w-full rounded-xl border bg-slate-50 pl-11 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+          >
+            <option value="all">Todos os status</option>
+            <option value="open">Abertos</option>
+            <option value="in_progress">Em atendimento</option>
+            <option value="answered">Respondidos</option>
+            <option value="closed">Fechados</option>
+          </select>
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value as typeof categoryFilter)}
+            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+          >
+            <option value="all">Todas as categorias</option>
+            {supportCategories.map((category) => (
+              <option key={category.key} value={category.key}>{category.label}</option>
+            ))}
+          </select>
+          <select
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as SortMode)}
+            className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+          >
+            <option value="sla">Ordenar por SLA</option>
+            <option value="priority">Ordenar por prioridade</option>
+            <option value="date">Ordenar por data</option>
+          </select>
+        </div>
+
+        {filteredTickets.length === 0 ? (
+          <div className="p-8">
+            <EmptyState title="Nenhum chamado encontrado." message="Altere os filtros ou aguarde novos pedidos." />
           </div>
+        ) : (
+          <div className="mt-5 overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                <tr>
+                  <th className="px-4 py-4">Usuario</th>
+                  <th className="px-4 py-4">Assunto</th>
+                  <th className="px-4 py-4">Categoria</th>
+                  <th className="px-4 py-4">SLA</th>
+                  <th className="px-4 py-4">Prioridade</th>
+                  <th className="px-4 py-4">Status</th>
+                  <th className="px-4 py-4">Prazo</th>
+                  <th className="px-4 py-4">Acoes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredTickets.map((ticket) => {
+                  const user = userMap.get(ticket.user_id)
+                  const category = getSupportCategoryMeta(ticket.category)
+                  const sla = getSupportSlaStatusMeta(ticket.sla_status)
+                  const priority = getSupportPriorityMeta(ticket.priority)
+                  const status = getSupportStatusMeta(ticket.status)
 
-          {filteredTickets.length === 0 ? (
-            <div className="mt-6">
-              <EmptyState
-                title="Sem tickets na fila"
-                message="Os pedidos de suporte vao aparecer aqui assim que forem criados."
-              />
-            </div>
-          ) : (
-            <div className="mt-6 space-y-3">
-              {filteredTickets.map((ticket) => {
-                const user = userMap.get(ticket.user_id)
-                const isActive = selectedTicket?.id === ticket.id
-
-                return (
-                  <button
-                    key={ticket.id}
-                    type="button"
-                    onClick={() => syncSelectedTicket(ticket)}
-                    className={`w-full rounded-[1.5rem] border p-4 text-left transition ${
-                      isActive ? "border-slate-900 bg-slate-900 text-white" : "bg-slate-50 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold">{ticket.subject}</p>
-                      <StatusBadge label={ticket.status} tone={statusToneMap[ticket.status]} />
-                      <StatusBadge label={ticket.priority} tone={priorityToneMap[ticket.priority]} />
-                    </div>
-                    <p className={`mt-2 text-sm leading-6 ${isActive ? "text-white/78" : "text-slate-600"}`}>
-                      {user?.full_name ?? "Utilizador"} · {user?.email ?? ticket.user_id}
-                    </p>
-                    <p className={`mt-2 text-sm leading-7 ${isActive ? "text-white/78" : "text-slate-600"}`}>
-                      {ticket.message}
-                    </p>
-                    <p className={`mt-3 text-xs uppercase tracking-[0.18em] ${isActive ? "text-white/55" : "text-slate-500"}`}>
-                      Atualizado em {formatDateTime(ticket.updated_at)}
-                    </p>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          {selectedTicket ? (
-            <>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-display text-2xl font-bold text-slate-950">{selectedTicket.subject}</h2>
-                    <StatusBadge label={selectedTicket.status} tone={statusToneMap[selectedTicket.status]} />
-                    <StatusBadge label={selectedTicket.priority} tone={priorityToneMap[selectedTicket.priority]} />
-                  </div>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{selectedTicket.message}</p>
-                  <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-600">
-                    <span>{selectedUser?.full_name ?? "Utilizador"}</span>
-                    <span>{selectedUser?.email ?? selectedTicket.user_id}</span>
-                    <span>Criado em {formatDateTime(selectedTicket.created_at)}</span>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <select
-                    value={status}
-                    onChange={(event) => setStatus(event.target.value as AdminSupportTicketSummary["status"])}
-                    className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-                  >
-                    <option value="open">Aberto</option>
-                    <option value="in_progress">Em progresso</option>
-                    <option value="answered">Respondido</option>
-                    <option value="closed">Fechado</option>
-                  </select>
-                  <select
-                    value={priority}
-                    onChange={(event) => setPriority(event.target.value as AdminSupportTicketSummary["priority"])}
-                    className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-                  >
-                    <option value="low">Baixa</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">Alta</option>
-                  </select>
-                </div>
-              </div>
-
-              {messagesQuery.isLoading ? (
-                <div className="mt-6 space-y-3">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-6 space-y-3">
-                  {messages.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border bg-slate-50/80 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <StatusBadge
-                          label={entry.sender_role === "admin" ? "Admin" : "Aluno"}
-                          tone={entry.sender_role === "admin" ? "info" : "neutral"}
-                        />
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                          {formatDateTime(entry.created_at)}
-                        </p>
-                      </div>
-                      <p className="mt-3 text-sm leading-7 text-slate-700">{entry.message}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={handleReply} className="mt-6 space-y-4">
-                <textarea
-                  value={reply}
-                  onChange={(event) => setReply(event.target.value)}
-                  rows={5}
-                  placeholder="Escreve a resposta administrativa"
-                  className="w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
-                />
-                <Button type="submit" className="rounded-full" disabled={replyTicket.isPending}>
-                  {replyTicket.isPending ? "A responder..." : "Responder ticket"}
-                </Button>
-              </form>
-            </>
-          ) : (
-            <EmptyState
-              title="Seleciona um ticket"
-              message="Escolhe um ticket na fila para ver o historico e responder."
-            />
-          )}
-        </section>
-      </div>
+                  return (
+                    <tr key={ticket.id} className={priority.rowClass}>
+                      <td className="px-4 py-4">
+                        <p className="font-black text-slate-950">{user?.full_name ?? "Utilizador"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{user?.email ?? ticket.user_id}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="max-w-[220px] truncate font-black text-slate-950">{ticket.subject}</p>
+                        <p className="mt-1 text-xs text-slate-500">{formatDateTime(ticket.created_at)}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusBadge label={category.label} tone="info" />
+                        <p className="mt-1 text-xs text-slate-500">Ate {category.firstResponseHours}h uteis</p>
+                      </td>
+                      <td className="px-4 py-4"><StatusBadge label={sla.label} tone={sla.tone} /></td>
+                      <td className="px-4 py-4"><StatusBadge label={priority.label} tone={priority.tone} /></td>
+                      <td className="px-4 py-4"><StatusBadge label={status.label} tone={status.tone} /></td>
+                      <td className="px-4 py-4 text-slate-600">{getSupportDueLabel(ticket)}</td>
+                      <td className="px-4 py-4">
+                        <Button asChild variant="outline" className="rounded-full">
+                          <Link to={`${ROUTES.ADMIN_SUPPORT}/${ticket.id}`}>
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Responder
+                          </Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

@@ -786,7 +786,7 @@ export async function revokeAdminCourseRelease(input: {
 export async function fetchAdminSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,user_id,subject,message,status,priority,assigned_admin_id,last_reply_at,created_at,updated_at")
+    .select("id,user_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -794,6 +794,20 @@ export async function fetchAdminSupportTickets() {
   }
 
   return (data ?? []) as AdminSupportTicketSummary[]
+}
+
+export async function fetchAdminSupportTicket(ticketId: string) {
+  const { data, error } = await supabase
+    .from("support_tickets")
+    .select("id,user_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
+    .eq("id", ticketId)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as AdminSupportTicketSummary
 }
 
 export async function fetchAdminNotifications() {

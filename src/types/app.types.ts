@@ -280,9 +280,13 @@ export interface SupportTicketSummary {
   subject: string
   message: string
   status: "open" | "in_progress" | "answered" | "closed"
-  priority: "low" | "normal" | "high"
+  priority: "low" | "normal" | "medium" | "high" | "urgent"
+  category: "payment" | "technical" | "account" | "general"
   assigned_admin_id: string | null
   last_reply_at: string | null
+  first_response_due_at: string | null
+  first_response_at: string | null
+  sla_status: "on_time" | "at_risk" | "overdue" | "answered"
   created_at: string
   updated_at: string
 }

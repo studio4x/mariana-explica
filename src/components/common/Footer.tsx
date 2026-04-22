@@ -24,6 +24,7 @@ export function Footer() {
             <div className="mt-4 grid gap-3 text-sm text-slate-600">
               <Link to={ROUTES.HOME} className="hover:text-slate-950">Home</Link>
               <Link to={ROUTES.COURSES} className="hover:text-slate-950">Cursos</Link>
+              <Link to={ROUTES.SUPPORT} className="hover:text-slate-950">Suporte</Link>
               <Link to={ROUTES.REGISTER} className="hover:text-slate-950">Criar conta</Link>
             </div>
           </div>
