@@ -1,4 +1,5 @@
 import { badRequest, unauthorized } from "./errors.ts"
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
 
 export type StripeEnvironment = "test" | "live"
 
@@ -39,6 +40,38 @@ export function getStripeEnvironment(): StripeEnvironment {
   }
 
   return "test"
+}
+
+export async function resolveCheckoutEnvironment(
+  client?: SupabaseClient,
+): Promise<StripeEnvironment> {
+  if (!client) {
+    return getStripeEnvironment()
+  }
+
+  const { data, error } = await client
+    .from("site_config")
+    .select("config_value")
+    .eq("config_key", "checkout_environment")
+    .maybeSingle()
+
+  if (error || !data) {
+    return getStripeEnvironment()
+  }
+
+  const value = data.config_value && typeof data.config_value === "object"
+    ? (data.config_value as Record<string, unknown>)
+    : {}
+
+  const rawMode = String(value.mode ?? "").trim().toLowerCase()
+  if (rawMode === "live" || rawMode === "production") {
+    return "live"
+  }
+  if (rawMode === "test" || rawMode === "sandbox") {
+    return "test"
+  }
+
+  return getStripeEnvironment()
 }
 
 function getStripeSecret(mode?: StripeEnvironment) {

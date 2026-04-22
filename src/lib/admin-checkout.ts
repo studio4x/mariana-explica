@@ -2,8 +2,6 @@ import { SUPABASE_URL } from "@/lib/constants"
 
 export type CheckoutMode = "production" | "sandbox"
 
-export const CHECKOUT_MODE_STORAGE_KEY = "mariana-explica.admin.checkout-mode"
-
 export const CHECKOUT_MODES: Record<
   CheckoutMode,
   {

@@ -2,7 +2,7 @@ import { requireAdmin } from "../_shared/auth.ts"
 import { internalError } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
-import { getStripeEnvironment, type StripeEnvironment } from "../_shared/payments.ts"
+import { resolveCheckoutEnvironment } from "../_shared/payments.ts"
 
 async function validateStripeKey(secret: string) {
   const controller = new AbortController()
@@ -41,7 +41,7 @@ function webhookSecretOk(value: string | null) {
   return value.startsWith("whsec_") && value.length > 10
 }
 
-function stripeSecretOk(value: string | null, env: StripeEnvironment) {
+function stripeSecretOk(value: string | null, env: "test" | "live") {
   if (!value) {
     return false
   }
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const context = await requireAdmin(req)
-    const stripeMode = getStripeEnvironment()
+    const stripeMode = await resolveCheckoutEnvironment(context.serviceClient)
 
     const testSecret =
       readSecret("STRIPE_SECRET_KEY_TEST") ?? readSecret("STRIPE_SECRET_KEY")
@@ -111,4 +111,3 @@ Deno.serve(async (req) => {
     return errorResponse(error, requestId)
   }
 })
-

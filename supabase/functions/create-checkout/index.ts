@@ -26,7 +26,7 @@ import {
   readJsonBody,
 } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
-import { createStripeCheckoutSession, getStripeEnvironment } from "../_shared/payments.ts"
+import { createStripeCheckoutSession, resolveCheckoutEnvironment } from "../_shared/payments.ts"
 import { requireActiveUser } from "../_shared/auth.ts"
 
 interface CreateCheckoutInput {
@@ -210,6 +210,8 @@ Deno.serve(async (req) => {
 
     assertStripeMinimumAmount(product.currency, totals.finalPriceCents)
 
+    const stripeMode = await resolveCheckoutEnvironment(context.serviceClient)
+
     const order = await createOrderWithItems(context.serviceClient, {
       userId: context.user.id,
       product,
@@ -217,10 +219,9 @@ Deno.serve(async (req) => {
       couponId: coupon?.id ?? null,
       affiliateId: affiliate?.id ?? null,
       paymentProvider: "stripe",
-      paymentEnvironment: getStripeEnvironment(),
+      paymentEnvironment: stripeMode,
     })
 
-    const stripeMode = getStripeEnvironment()
     let session: Awaited<ReturnType<typeof createStripeCheckoutSession>>
     try {
       session = await createStripeCheckoutSession({

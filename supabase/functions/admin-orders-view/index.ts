@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       productIds.length
         ? context.serviceClient
             .from("products")
-            .select("id,title")
+            .select("id,title,product_type")
             .in("id", productIds)
         : Promise.resolve({ data: [], error: null }),
     ])
@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
       user_name: userMap.get(order.user_id)?.full_name ?? null,
       user_email: userMap.get(order.user_id)?.email ?? null,
       product_title: productMap.get(order.product_id)?.title ?? null,
+      product_type: productMap.get(order.product_id)?.product_type ?? null,
     }))
 
     return jsonResponse({

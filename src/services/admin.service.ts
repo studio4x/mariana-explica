@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
+  AdminCheckoutModeConfig,
   AdminAffiliateReferralSummary,
   AdminAffiliateSummary,
   AdminDashboardOverview,
@@ -32,6 +33,7 @@ import type {
   SupportAttachmentUploadResult,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
+import type { CheckoutMode } from "@/lib/admin-checkout"
 
 async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
   const auth = await getFreshFunctionAuthContext()
@@ -94,6 +96,7 @@ async function getCurrentUserId() {
 const MODULE_PDF_WATERMARK_KEY = "module_pdf_watermark"
 const DEFAULT_WATERMARK_SITE_NAME = "Mariana Explica"
 const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
+const CHECKOUT_MODE_CONFIG_KEY = "checkout_environment"
 
 function normalizeModulePdfWatermarkConfig(
   row?: Partial<AdminModulePdfWatermarkConfig> | null,
@@ -141,6 +144,28 @@ function normalizeAdminPendingInfoConfig(
     description:
       row?.description ??
       "Informacoes operacionais ainda pendentes de definicao manual pelo admin. Nao armazenar segredos aqui.",
+    is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeCheckoutModeConfig(
+  row?: Partial<AdminCheckoutModeConfig> | null,
+): AdminCheckoutModeConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const rawMode = String(value.mode ?? "").trim().toLowerCase()
+  const mode = rawMode === "live" ? "live" : rawMode === "test" ? "test" : null
+
+  return {
+    config_key: row?.config_key ?? CHECKOUT_MODE_CONFIG_KEY,
+    config_value: {
+      mode: mode ?? "test",
+    },
+    description: row?.description ?? "Configuracao operacional do ambiente do checkout Stripe.",
     is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
@@ -375,6 +400,62 @@ export async function fetchAdminPaymentsStatus() {
   )
 
   return response.stripe
+}
+
+export async function fetchAdminCheckoutModeConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", CHECKOUT_MODE_CONFIG_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data) {
+    return null
+  }
+
+  return normalizeCheckoutModeConfig(data as Partial<AdminCheckoutModeConfig>)
+}
+
+export async function updateAdminCheckoutModeConfig(mode: CheckoutMode) {
+  const payload = normalizeCheckoutModeConfig({
+    config_key: CHECKOUT_MODE_CONFIG_KEY,
+    config_value: {
+      mode: mode === "production" ? "live" : "test",
+    },
+    description: "Configuracao operacional do ambiente do checkout Stripe.",
+    is_public: false,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<AdminCheckoutModeConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: CHECKOUT_MODE_CONFIG_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: false,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeCheckoutModeConfig(data as Partial<AdminCheckoutModeConfig>)
 }
 
 export async function fetchAdminModulePdfWatermarkConfig() {

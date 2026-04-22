@@ -104,6 +104,16 @@ export interface AdminPendingInfoConfig {
   updated_at: string | null
 }
 
+export interface AdminCheckoutModeConfig {
+  config_key: string
+  config_value: {
+    mode: "test" | "live"
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface AdminEmailStatus {
   providerName: string | null
   transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
@@ -445,6 +455,7 @@ export interface AdminOrderViewSummary extends AdminOrderSummary {
   user_name: string | null
   user_email: string | null
   product_title: string | null
+  product_type: ProductSummary["product_type"] | null
 }
 
 export interface AdminDashboardMetrics {
