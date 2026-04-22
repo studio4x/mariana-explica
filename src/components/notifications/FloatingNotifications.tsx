@@ -30,6 +30,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
   const [isOpen, setIsOpen] = useState(false)
   const effectiveUnreadCount = unreadCount ?? notifications.filter((item) => item.status === "unread").length
   const visibleNotifications = useMemo(() => notifications.slice(0, 30), [notifications])
+  const canClearAll = visibleNotifications.length > 0
 
   return (
     <div className="fixed bottom-5 right-5 z-[70]">
@@ -46,7 +47,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
                 variant="outline"
                 className="h-9 rounded-full px-3 text-xs"
                 onClick={onClearAll}
-                disabled={clearAllPending || effectiveUnreadCount === 0}
+                disabled={clearAllPending || !canClearAll}
               >
                 <CheckCheck className="mr-2 h-4 w-4" />
                 Limpar todas

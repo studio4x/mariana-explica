@@ -852,7 +852,7 @@ export async function markAllAdminNotificationsAsRead() {
       status: "archived",
       read_at: new Date().toISOString(),
     })
-    .eq("status", "unread")
+    .neq("status", "archived")
     .select("id,user_id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
 
   if (error) {
