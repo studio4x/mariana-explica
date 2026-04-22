@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
+import { BUILD_VERSION } from "@/lib/build"
 import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
 
 export function Footer() {
@@ -41,7 +42,12 @@ export function Footer() {
         </div>
 
         <div className="border-t border-slate-200/80 pt-6 text-sm text-slate-500 lg:col-span-2">
-          © 2026 {APP_NAME}. Todos os direitos reservados.
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>© 2026 {APP_NAME}. Todos os direitos reservados.</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400/80">
+              Build {BUILD_VERSION}
+            </span>
+          </div>
         </div>
       </div>
     </footer>

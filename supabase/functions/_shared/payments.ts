@@ -77,17 +77,28 @@ export async function resolveCheckoutEnvironment(
 function getStripeSecret(mode?: StripeEnvironment) {
   const resolvedMode = mode ?? getStripeEnvironment()
 
-  const secret =
+  const directSecret =
     resolvedMode === "live"
-      ? (Deno.env.get("STRIPE_SECRET_KEY_LIVE") ?? Deno.env.get("STRIPE_SECRET_KEY"))
-      : (Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? Deno.env.get("STRIPE_SECRET_KEY"))
+      ? Deno.env.get("STRIPE_SECRET_KEY_LIVE")?.trim() ?? null
+      : Deno.env.get("STRIPE_SECRET_KEY_TEST")?.trim() ?? null
+
+  const legacySecret = Deno.env.get("STRIPE_SECRET_KEY")?.trim() ?? null
+
+  const secret = directSecret && directSecret.startsWith("sk_")
+    ? directSecret
+    : legacySecret && (
+        (resolvedMode === "live" && legacySecret.startsWith("sk_live_")) ||
+        (resolvedMode === "test" && legacySecret.startsWith("sk_test_"))
+      )
+      ? legacySecret
+      : null
 
   if (!secret) {
-    throw unauthorized("STRIPE_SECRET_KEY não configurada")
-  }
-
-  if (!secret.startsWith("sk_")) {
-    throw unauthorized("STRIPE_SECRET_KEY inválida")
+    throw unauthorized(
+      resolvedMode === "live"
+        ? "STRIPE_SECRET_KEY_LIVE não configurada"
+        : "STRIPE_SECRET_KEY_TEST não configurada",
+    )
   }
 
   if (resolvedMode === "live" && !secret.startsWith("sk_live_")) {
