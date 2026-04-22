@@ -183,6 +183,7 @@ export function AdminLayout() {
         markAsReadPending={markNotificationAsRead.isPending}
         clearAllPending={markAllNotificationsAsRead.isPending}
         getAudienceLabel={(notification) => {
+          if (!notification.user_id) return "Operacional"
           const user = userMap.get(notification.user_id)
           return user ? `${user.full_name} - ${user.email}` : notification.user_id
         }}

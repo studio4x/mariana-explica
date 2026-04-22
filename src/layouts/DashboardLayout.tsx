@@ -79,6 +79,9 @@ export function DashboardLayout() {
   const markAllAsRead = useMarkAllNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Aluno"
   const initials = getInitials(profile?.full_name, profile?.email)
+  const unreadNotificationsCount = notificationsQuery.data
+    ? notificationsQuery.data.filter((notification) => notification.status === "unread").length
+    : unreadNotificationsQuery.data ?? 0
 
   return (
     <div className="min-h-screen bg-[#F2F7F9] text-[#163138]">
@@ -202,7 +205,7 @@ export function DashboardLayout() {
       <FloatingNotifications
         notifications={notificationsQuery.data ?? []}
         isLoading={notificationsQuery.isLoading}
-        unreadCount={unreadNotificationsQuery.data ?? 0}
+        unreadCount={unreadNotificationsCount}
         onMarkAsRead={(notificationId) => void markAsRead.mutateAsync(notificationId)}
         onClearAll={() => void markAllAsRead.mutateAsync()}
         markAsReadPending={markAsRead.isPending}

@@ -67,10 +67,54 @@ import {
   updateAdminProductModule,
   updateAdminUser,
 } from "@/services"
-import type { ProductAssessmentSummary } from "@/types/app.types"
+import type {
+  AdminNotificationSummary,
+  AdminSupportTicketSummary,
+  ProductAssessmentSummary,
+  SupportTicketMessage,
+} from "@/types/app.types"
 
 const ADMIN_QUERY_STALE_TIME = 60_000
 const ADMIN_QUERY_GC_TIME = 15 * 60_000
+
+type RealtimePayload = {
+  eventType?: "INSERT" | "UPDATE" | "DELETE"
+  new?: unknown
+  old?: unknown
+}
+
+function upsertById<TItem extends { id: string }>(
+  current: TItem[] | undefined,
+  nextItem: TItem,
+  sortItems?: (items: TItem[]) => TItem[],
+) {
+  const next = current ? [...current] : []
+  const index = next.findIndex((item) => item.id === nextItem.id)
+
+  if (index >= 0) {
+    next[index] = nextItem
+  } else {
+    next.unshift(nextItem)
+  }
+
+  return sortItems ? sortItems(next) : next
+}
+
+function removeById<TItem extends { id: string }>(current: TItem[] | undefined, itemId: string) {
+  return (current ?? []).filter((item) => item.id !== itemId)
+}
+
+function sortAdminNotifications(items: AdminNotificationSummary[]) {
+  return [...items].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+}
+
+function sortAdminTickets(items: AdminSupportTicketSummary[]) {
+  return [...items].sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at))
+}
+
+function sortMessages(items: SupportTicketMessage[]) {
+  return [...items].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at))
+}
 
 function getAdminQueryOptions() {
   return {
@@ -216,7 +260,20 @@ export function useAdminNotifications() {
           schema: "public",
           table: "notifications",
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextNotification = payload.new as AdminNotificationSummary | undefined
+          const oldNotification = payload.old as AdminNotificationSummary | undefined
+
+          if (payload.eventType === "DELETE" && oldNotification?.id) {
+            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) =>
+              removeById(current, oldNotification.id),
+            )
+          } else if (nextNotification?.id) {
+            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) =>
+              upsertById(current, nextNotification, sortAdminNotifications),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["admin", "notifications"] })
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
@@ -276,7 +333,9 @@ export function useAdminSupportTickets() {
   const query = useQuery({
     queryKey: ["admin", "support", "tickets"],
     queryFn: fetchAdminSupportTickets,
-    ...getAdminQueryOptions(),
+    staleTime: 0,
+    gcTime: ADMIN_QUERY_GC_TIME,
+    refetchOnMount: "always",
   })
 
   useEffect(() => {
@@ -289,7 +348,21 @@ export function useAdminSupportTickets() {
           schema: "public",
           table: "support_tickets",
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextTicket = payload.new as AdminSupportTicketSummary | undefined
+          const oldTicket = payload.old as AdminSupportTicketSummary | undefined
+
+          if (payload.eventType === "DELETE" && oldTicket?.id) {
+            queryClient.setQueryData<AdminSupportTicketSummary[]>(["admin", "support", "tickets"], (current) =>
+              removeById(current, oldTicket.id),
+            )
+          } else if (nextTicket?.id) {
+            queryClient.setQueryData<AdminSupportTicketSummary[]>(["admin", "support", "tickets"], (current) =>
+              upsertById(current, nextTicket, sortAdminTickets),
+            )
+            queryClient.setQueryData(["admin", "support", "ticket", nextTicket.id], nextTicket)
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
@@ -309,7 +382,9 @@ export function useAdminSupportTicket(ticketId: string | undefined) {
     queryKey: ["admin", "support", "ticket", ticketId],
     queryFn: () => fetchAdminSupportTicket(ticketId ?? ""),
     enabled: Boolean(ticketId),
-    ...getAdminQueryOptions(),
+    staleTime: 0,
+    gcTime: ADMIN_QUERY_GC_TIME,
+    refetchOnMount: "always",
   })
 }
 
@@ -319,7 +394,9 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
     queryKey: ["admin", "support", "messages", ticketId],
     queryFn: () => fetchAdminSupportTicketMessages(ticketId ?? ""),
     enabled: Boolean(ticketId),
-    ...getAdminQueryOptions(),
+    staleTime: 0,
+    gcTime: ADMIN_QUERY_GC_TIME,
+    refetchOnMount: "always",
   })
 
   useEffect(() => {
@@ -335,7 +412,16 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
           table: "support_ticket_messages",
           filter: `ticket_id=eq.${ticketId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextMessage = payload.new as SupportTicketMessage | undefined
+
+          if (nextMessage?.id) {
+            queryClient.setQueryData<SupportTicketMessage[]>(
+              ["admin", "support", "messages", ticketId],
+              (current) => upsertById(current, nextMessage, sortMessages),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
         },
       )
@@ -347,7 +433,16 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
           table: "support_tickets",
           filter: `id=eq.${ticketId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextTicket = payload.new as AdminSupportTicketSummary | undefined
+
+          if (nextTicket?.id) {
+            queryClient.setQueryData(["admin", "support", "ticket", nextTicket.id], nextTicket)
+            queryClient.setQueryData<AdminSupportTicketSummary[]>(["admin", "support", "tickets"], (current) =>
+              upsertById(current, nextTicket, sortAdminTickets),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
         },
       )
@@ -574,12 +669,34 @@ export function useCreateAdminNotification() {
 
 export function useMarkAdminNotificationAsRead() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: markAdminNotificationAsRead, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: markAdminNotificationAsRead,
+    onSuccess: (notification) => {
+      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) =>
+        upsertById(current, notification, sortAdminNotifications),
+      )
+      invalidate()
+    },
+  })
 }
 
 export function useMarkAllAdminNotificationsAsRead() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: markAllAdminNotificationsAsRead, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: markAllAdminNotificationsAsRead,
+    onSuccess: (notifications) => {
+      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) => {
+        const next = current ?? []
+        const updatedById = new Map(notifications.map((notification) => [notification.id, notification]))
+        return sortAdminNotifications(next.map((notification) => updatedById.get(notification.id) ?? notification))
+      })
+      invalidate()
+    },
+  })
 }
 
 export function useCreateAdminAffiliate() {
@@ -624,5 +741,16 @@ export function useRevokeAdminCourseRelease() {
 
 export function useReplyAdminSupportTicket() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: replyAdminSupportTicket, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: replyAdminSupportTicket,
+    onSuccess: (result) => {
+      queryClient.setQueryData<SupportTicketMessage[]>(
+        ["admin", "support", "messages", result.message.ticket_id],
+        (current) => upsertById(current, result.message, sortMessages),
+      )
+      invalidate()
+    },
+  })
 }

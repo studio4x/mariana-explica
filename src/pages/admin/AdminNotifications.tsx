@@ -263,7 +263,7 @@ export function AdminNotifications() {
           ) : (
             <div className="mt-5 space-y-3">
               {notifications.slice(0, 10).map((notification) => {
-                const user = userMap.get(notification.user_id)
+                const user = notification.user_id ? userMap.get(notification.user_id) : null
 
                 return (
                   <div key={notification.id} className="rounded-2xl border bg-slate-50/70 p-4">

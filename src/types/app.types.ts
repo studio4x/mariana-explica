@@ -492,7 +492,7 @@ export interface AdminSupportTicketSummary extends SupportTicketSummary {
 }
 
 export interface AdminNotificationSummary extends NotificationItem {
-  user_id: string
+  user_id: string | null
 }
 
 export interface AdminAffiliateSummary {

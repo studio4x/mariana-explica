@@ -32,6 +32,46 @@ import {
   updateAccountPassword,
   updateProfilePreferences,
 } from "@/services"
+import type { NotificationItem, SupportTicketMessage, SupportTicketSummary } from "@/types/app.types"
+
+type RealtimePayload = {
+  eventType?: "INSERT" | "UPDATE" | "DELETE"
+  new?: unknown
+  old?: unknown
+}
+
+function upsertById<TItem extends { id: string }>(
+  current: TItem[] | undefined,
+  nextItem: TItem,
+  sortItems?: (items: TItem[]) => TItem[],
+) {
+  const next = current ? [...current] : []
+  const index = next.findIndex((item) => item.id === nextItem.id)
+
+  if (index >= 0) {
+    next[index] = nextItem
+  } else {
+    next.unshift(nextItem)
+  }
+
+  return sortItems ? sortItems(next) : next
+}
+
+function removeById<TItem extends { id: string }>(current: TItem[] | undefined, itemId: string) {
+  return (current ?? []).filter((item) => item.id !== itemId)
+}
+
+function sortNotifications(items: NotificationItem[]) {
+  return [...items].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+}
+
+function sortTickets(items: SupportTicketSummary[]) {
+  return [...items].sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at))
+}
+
+function sortMessages(items: SupportTicketMessage[]) {
+  return [...items].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at))
+}
 
 export function useDashboardOverview() {
   return useQuery({
@@ -124,7 +164,20 @@ export function useNotifications() {
           table: "notifications",
           filter: `user_id=eq.${userId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextNotification = payload.new as NotificationItem | undefined
+          const oldNotification = payload.old as NotificationItem | undefined
+
+          if (payload.eventType === "DELETE" && oldNotification?.id) {
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+              removeById(current, oldNotification.id),
+            )
+          } else if (nextNotification?.id) {
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+              upsertById(current, nextNotification, sortNotifications),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications", "unread-count", userId] })
@@ -163,7 +216,20 @@ export function useUnreadNotificationsCount() {
           table: "notifications",
           filter: `user_id=eq.${userId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextNotification = payload.new as NotificationItem | undefined
+          const oldNotification = payload.old as NotificationItem | undefined
+
+          if (payload.eventType === "DELETE" && oldNotification?.id) {
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+              removeById(current, oldNotification.id),
+            )
+          } else if (nextNotification?.id) {
+            queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+              upsertById(current, nextNotification, sortNotifications),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications", "unread-count", userId] })
@@ -208,7 +274,21 @@ export function useSupportTickets() {
           table: "support_tickets",
           filter: `user_id=eq.${userId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextTicket = payload.new as SupportTicketSummary | undefined
+          const oldTicket = payload.old as SupportTicketSummary | undefined
+
+          if (payload.eventType === "DELETE" && oldTicket?.id) {
+            queryClient.setQueryData<SupportTicketSummary[]>(["dashboard", "support", "tickets"], (current) =>
+              removeById(current, oldTicket.id),
+            )
+          } else if (nextTicket?.id) {
+            queryClient.setQueryData<SupportTicketSummary[]>(["dashboard", "support", "tickets"], (current) =>
+              upsertById(current, nextTicket, sortTickets),
+            )
+            queryClient.setQueryData(["dashboard", "support", "ticket", nextTicket.id], nextTicket)
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
         },
@@ -252,7 +332,16 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
           table: "support_ticket_messages",
           filter: `ticket_id=eq.${ticketId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextMessage = payload.new as SupportTicketMessage | undefined
+
+          if (nextMessage?.id) {
+            queryClient.setQueryData<SupportTicketMessage[]>(
+              ["dashboard", "support", "messages", ticketId],
+              (current) => upsertById(current, nextMessage, sortMessages),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
         },
       )
@@ -264,7 +353,16 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
           table: "support_tickets",
           filter: `id=eq.${ticketId}`,
         },
-        () => {
+        (payload: RealtimePayload) => {
+          const nextTicket = payload.new as SupportTicketSummary | undefined
+
+          if (nextTicket?.id) {
+            queryClient.setQueryData(["dashboard", "support", "ticket", nextTicket.id], nextTicket)
+            queryClient.setQueryData<SupportTicketSummary[]>(["dashboard", "support", "tickets"], (current) =>
+              upsertById(current, nextTicket, sortTickets),
+            )
+          }
+
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
         },
       )
@@ -290,7 +388,10 @@ export function useMarkNotificationAsRead() {
 
   return useMutation({
     mutationFn: markNotificationAsRead,
-    onSuccess: () => {
+    onSuccess: (notification) => {
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) =>
+        upsertById(current, notification, sortNotifications),
+      )
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
     },
@@ -302,7 +403,11 @@ export function useCreateSupportTicket() {
 
   return useMutation({
     mutationFn: createSupportTicket,
-    onSuccess: () => {
+    onSuccess: (ticket) => {
+      queryClient.setQueryData<SupportTicketSummary[]>(["dashboard", "support", "tickets"], (current) =>
+        upsertById(current, ticket, sortTickets),
+      )
+      queryClient.setQueryData(["dashboard", "support", "ticket", ticket.id], ticket)
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
     },
   })
@@ -313,7 +418,11 @@ export function useReplySupportTicket() {
 
   return useMutation({
     mutationFn: replySupportTicket,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      queryClient.setQueryData<SupportTicketMessage[]>(
+        ["dashboard", "support", "messages", result.message.ticket_id],
+        (current) => upsertById(current, result.message, sortMessages),
+      )
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
     },
   })
@@ -335,7 +444,12 @@ export function useMarkAllNotificationsAsRead() {
 
   return useMutation({
     mutationFn: markAllNotificationsAsRead,
-    onSuccess: () => {
+    onSuccess: (notifications) => {
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications"], (current) => {
+        const next = current ?? []
+        const updatedById = new Map(notifications.map((notification) => [notification.id, notification]))
+        return sortNotifications(next.map((notification) => updatedById.get(notification.id) ?? notification))
+      })
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
     },

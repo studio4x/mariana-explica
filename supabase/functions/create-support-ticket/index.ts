@@ -89,6 +89,21 @@ Deno.serve(async (req) => {
       })
     }
 
+    const { error: adminNotificationError } = await context.serviceClient.from("notifications").insert({
+      user_id: null,
+      type: "support",
+      title: "Novo ticket de suporte",
+      message: `${context.profile.full_name || context.profile.email || "Aluno"} abriu: ${subject}`.slice(0, 180),
+      link: `/admin/suporte/${ticket.id}`,
+      status: "unread",
+      sent_via_email: false,
+      sent_via_in_app: true,
+    })
+
+    if (adminNotificationError) {
+      throw adminNotificationError
+    }
+
     await writeAuditLog(context.serviceClient, context, {
       action: "support.ticket_created",
       entityType: "support_ticket",
