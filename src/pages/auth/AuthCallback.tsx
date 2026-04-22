@@ -85,7 +85,7 @@ export function AuthCallback() {
 
   const nextPath = useMemo(() => {
     const next = searchParams.get("next")
-    if (!next || !next.startsWith("/")) {
+    if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
       return ROUTES.DASHBOARD
     }
 

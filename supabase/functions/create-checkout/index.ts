@@ -285,6 +285,8 @@ Deno.serve(async (req) => {
       product_id: product.id,
       order_id: order.id,
       checkout_session_id: session.id,
+      payment_environment: stripeMode,
+      stripe_livemode: session.livemode,
     })
 
     await writeAuditLog(
@@ -300,6 +302,8 @@ Deno.serve(async (req) => {
           coupon_id: coupon?.id ?? null,
           affiliate_id: affiliate?.id ?? null,
           final_price_cents: totals.finalPriceCents,
+          payment_environment: stripeMode,
+          stripe_livemode: session.livemode,
         },
         ...extractRequestAuditContext(req),
       },
@@ -312,6 +316,8 @@ Deno.serve(async (req) => {
       order_id: order.id,
       checkout_session_id: session.id,
       checkout_url: session.url,
+      payment_environment: stripeMode,
+      stripe_livemode: session.livemode,
       final_price_cents: totals.finalPriceCents,
       currency: product.currency,
     })

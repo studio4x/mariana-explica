@@ -70,6 +70,8 @@ export interface CreateCheckoutResponse {
   grant_id?: string
   checkout_session_id?: string
   checkout_url?: string | null
+  payment_environment?: "test" | "live"
+  stripe_livemode?: boolean
   final_price_cents: number
   currency: string
 }

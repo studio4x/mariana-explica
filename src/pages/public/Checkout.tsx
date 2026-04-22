@@ -19,19 +19,19 @@ export function Checkout() {
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const loginRedirectState = {
+    from: {
+      pathname: location.pathname,
+      search: location.search,
+    },
+  }
+  const loginHref = `${ROUTES.LOGIN}?redirect=${encodeURIComponent(`${location.pathname}${location.search}`)}`
 
   const handleCheckout = async () => {
     if (!product) return
 
     if (!session || profile?.status !== "active") {
-      navigate(ROUTES.LOGIN, {
-        state: {
-          from: {
-            pathname: location.pathname,
-            search: location.search,
-          },
-        },
-      })
+      navigate(loginHref, { state: loginRedirectState })
       return
     }
 
@@ -174,7 +174,7 @@ export function Checkout() {
                 </Button>
               ) : (
                 <Button asChild className="w-full rounded-full" size="lg">
-                  <Link to={ROUTES.LOGIN} state={{ from: { pathname: location.pathname, search: location.search } }}>
+                  <Link to={loginHref} state={loginRedirectState}>
                     Entrar para continuar
                     <Lock className="ml-2 h-4 w-4" />
                   </Link>

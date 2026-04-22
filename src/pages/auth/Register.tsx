@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES, APP_NAME } from "@/lib/constants"
@@ -12,14 +12,55 @@ type SignUpResult = {
   } | null
 }
 
-function buildAuthCallbackUrl() {
+function isSafeInternalRedirect(path: string) {
+  return path.startsWith("/") && !path.startsWith("//") && !path.includes("\\")
+}
+
+function normalizeRedirectPath(value: unknown) {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return isSafeInternalRedirect(trimmed) ? trimmed : null
+}
+
+function resolveRegisterRedirect(state: unknown, searchParams: URLSearchParams) {
+  const stateFrom = (state as { from?: { pathname?: string; search?: string } | string } | null)?.from
+
+  if (typeof stateFrom === "string") {
+    return normalizeRedirectPath(stateFrom) ?? ROUTES.DASHBOARD
+  }
+
+  if (stateFrom?.pathname) {
+    const stateSearch = stateFrom.search?.startsWith("?") ? stateFrom.search : ""
+    const normalizedStateRedirect = normalizeRedirectPath(`${stateFrom.pathname}${stateSearch}`)
+    if (normalizedStateRedirect) {
+      return normalizedStateRedirect
+    }
+  }
+
+  return normalizeRedirectPath(searchParams.get("redirect")) ?? ROUTES.DASHBOARD
+}
+
+function buildAuthCallbackUrl(nextPath: string) {
   const normalizedBase = (import.meta.env.VITE_BASE_URL || "/").replace(/\/$/, "")
   const callbackPath = `${normalizedBase}${ROUTES.AUTH_CALLBACK}`.replace(/\/{2,}/g, "/")
-  return `${window.location.origin}${callbackPath}`
+  const callbackUrl = new URL(`${window.location.origin}${callbackPath}`)
+  callbackUrl.searchParams.set("next", nextPath)
+  return callbackUrl.toString()
+}
+
+function buildAuthRedirectHref(basePath: string, redirectPath: string) {
+  const params = new URLSearchParams()
+  params.set("redirect", redirectPath)
+  return `${basePath}?${params.toString()}`
 }
 
 export function Register() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated, isAdmin } = useAuth()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -28,12 +69,13 @@ export function Register() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
+  const redirectPath = resolveRegisterRedirect(location.state, searchParams)
 
   useEffect(() => {
     if (isAuthenticated && !pendingVerificationEmail) {
-      navigate(isAdmin ? ROUTES.ADMIN : ROUTES.DASHBOARD, { replace: true })
+      navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
     }
-  }, [isAdmin, isAuthenticated, navigate, pendingVerificationEmail])
+  }, [isAdmin, isAuthenticated, navigate, pendingVerificationEmail, redirectPath])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -53,7 +95,7 @@ export function Register() {
         data: {
           full_name: name,
         },
-        emailRedirectTo: buildAuthCallbackUrl(),
+        emailRedirectTo: buildAuthCallbackUrl(redirectPath),
       },
     })
 
@@ -157,7 +199,11 @@ export function Register() {
 
         <div className="text-center text-sm text-slate-600">
           Ja tens conta?{" "}
-          <Link to={ROUTES.LOGIN} className="font-semibold underline underline-offset-4 hover:text-primary">
+          <Link
+            to={buildAuthRedirectHref(ROUTES.LOGIN, redirectPath)}
+            state={{ from: redirectPath }}
+            className="font-semibold underline underline-offset-4 hover:text-primary"
+          >
             Entrar
           </Link>
         </div>
@@ -177,7 +223,9 @@ export function Register() {
             </p>
             <div className="mt-6 space-y-3">
               <Button asChild className="w-full rounded-full" size="lg">
-                <Link to={ROUTES.LOGIN}>Ir para o login</Link>
+                <Link to={buildAuthRedirectHref(ROUTES.LOGIN, redirectPath)} state={{ from: redirectPath }}>
+                  Ir para o login
+                </Link>
               </Button>
               <Button
                 type="button"

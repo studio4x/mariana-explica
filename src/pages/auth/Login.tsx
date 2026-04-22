@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES, APP_NAME } from "@/lib/constants"
@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth"
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated, isAdmin } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -19,15 +20,13 @@ export function Login() {
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState<string | null>(null)
 
+  const redirectPath = resolveLoginRedirect(location.state, searchParams)
+
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(isAdmin ? ROUTES.ADMIN : ROUTES.DASHBOARD, { replace: true })
+      navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
     }
-  }, [isAdmin, isAuthenticated, navigate])
-
-  const redirectPath =
-    (location.state as { from?: { pathname: string } })?.from?.pathname ||
-    (isAdmin ? ROUTES.ADMIN : ROUTES.DASHBOARD)
+  }, [isAdmin, isAuthenticated, navigate, redirectPath])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -142,7 +141,11 @@ export function Login() {
 
       <div className="text-center text-sm text-slate-600">
         Ainda nao tens conta?{" "}
-        <Link to={ROUTES.REGISTER} className="font-semibold underline underline-offset-4 hover:text-primary">
+        <Link
+          to={buildAuthRedirectHref(ROUTES.REGISTER, redirectPath)}
+          state={{ from: redirectPath }}
+          className="font-semibold underline underline-offset-4 hover:text-primary"
+        >
           Criar conta
         </Link>
       </div>
@@ -204,4 +207,43 @@ export function Login() {
       ) : null}
     </div>
   )
+}
+
+function isSafeInternalRedirect(path: string) {
+  return path.startsWith("/") && !path.startsWith("//") && !path.includes("\\")
+}
+
+function normalizeRedirectPath(value: unknown) {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return isSafeInternalRedirect(trimmed) ? trimmed : null
+}
+
+function resolveLoginRedirect(state: unknown, searchParams: URLSearchParams) {
+  const stateFrom = (state as { from?: { pathname?: string; search?: string } | string } | null)?.from
+
+  if (typeof stateFrom === "string") {
+    return normalizeRedirectPath(stateFrom) ?? ROUTES.DASHBOARD
+  }
+
+  if (stateFrom?.pathname) {
+    const stateSearch = stateFrom.search?.startsWith("?") ? stateFrom.search : ""
+    const stateRedirect = `${stateFrom.pathname}${stateSearch}`
+    const normalizedStateRedirect = normalizeRedirectPath(stateRedirect)
+    if (normalizedStateRedirect) {
+      return normalizedStateRedirect
+    }
+  }
+
+  const queryRedirect = normalizeRedirectPath(searchParams.get("redirect"))
+  return queryRedirect ?? ROUTES.DASHBOARD
+}
+
+function buildAuthRedirectHref(basePath: string, redirectPath: string) {
+  const params = new URLSearchParams()
+  params.set("redirect", redirectPath)
+  return `${basePath}?${params.toString()}`
 }

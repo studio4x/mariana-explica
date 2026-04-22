@@ -264,6 +264,7 @@ export async function createStripeCheckoutSession(
     id: string
     url: string | null
     payment_intent: string | null
+    livemode: boolean
   }
 }
 
