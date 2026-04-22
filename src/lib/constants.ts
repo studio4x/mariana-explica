@@ -37,7 +37,7 @@ export const ROUTES = {
   DASHBOARD_SUPPORT: "/aluno/suporte",
   DASHBOARD_PROFILE: "/aluno/perfil",
   ADMIN: "/admin",
-  ADMIN_OPERATIONS: "/admin/operacoes",
+  ADMIN_OPERATIONS: "/admin/configuracoes?tab=operacoes",
   ADMIN_PAYMENTS: "/admin/pagamentos",
   ADMIN_SETTINGS: "/admin/configuracoes",
   ADMIN_NOTIFICATIONS: "/admin/notificacoes",

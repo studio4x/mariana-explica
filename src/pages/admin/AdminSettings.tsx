@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Image, RefreshCw, UploadCloud } from "lucide-react"
+import { Activity, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
+import { useSearchParams } from "react-router-dom"
 import { ErrorState } from "@/components/feedback"
 import { StatusBadge } from "@/components/common"
 import {
@@ -9,8 +10,10 @@ import {
   uploadAdminBrandingAssetFile,
 } from "@/services/admin.service"
 import type { AdminBrandingAsset, AdminBrandingConfig } from "@/types/app.types"
+import { AdminOperations } from "./AdminOperations"
 
 type BrandingRole = keyof AdminBrandingConfig["config_value"]
+type SettingsTab = "branding" | "operations"
 
 const assetCards: Array<{
   role: BrandingRole
@@ -160,8 +163,10 @@ function BrandingAssetCard({
 
 export function AdminSettings() {
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [uploadingRole, setUploadingRole] = useState<BrandingRole | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
+  const activeTab: SettingsTab = searchParams.get("tab") === "operacoes" ? "operations" : "branding"
 
   const brandingQuery = useQuery({
     queryKey: ["admin", "branding"],
@@ -225,6 +230,10 @@ export function AdminSettings() {
 
   const branding = brandingQuery.data
   const readyCount = branding ? countReady(branding) : 0
+  const tabs: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
+    { key: "branding", label: "Branding", icon: Palette },
+    { key: "operations", label: "Operacoes", icon: Activity },
+  ]
 
   return (
     <div className="space-y-7">
@@ -252,65 +261,101 @@ export function AdminSettings() {
         </div>
       </div>
 
-      {feedback ? (
-        <div
-          className={[
-            "rounded-2xl border px-4 py-3 text-sm font-medium",
-            feedback.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : "border-rose-200 bg-rose-50 text-rose-900",
-          ].join(" ")}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+        {tabs.map((tab) => {
+          const Icon = tab.icon
+          const active = activeTab === tab.key
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Status</p>
-          <p className="mt-4 text-3xl font-bold text-slate-950">{brandingQuery.isLoading ? "..." : `${readyCount}/3`}</p>
-          <p className="mt-2 text-sm text-slate-600">Assets de branding publicados</p>
-        </div>
-        <div className="border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Selecao dinamica</p>
-          <p className="mt-4 text-2xl font-bold text-slate-950">Automatica</p>
-          <p className="mt-2 text-sm text-slate-600">Light em fundo escuro, dark em fundo claro.</p>
-        </div>
-        <div className="border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Favicon</p>
-          <div className="mt-4 flex items-center gap-3">
-            <p className="text-2xl font-bold text-slate-950">Ativo</p>
-            <StatusBadge label="OK" tone="success" />
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                if (tab.key === "branding") {
+                  setSearchParams({})
+                } else {
+                  setSearchParams({ tab: "operacoes" })
+                }
+              }}
+              className={[
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition",
+                active
+                  ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-950",
+              ].join(" ")}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {activeTab === "operations" ? (
+        <AdminOperations embedded />
+      ) : (
+        <>
+          {feedback ? (
+            <div
+              className={[
+                "rounded-2xl border px-4 py-3 text-sm font-medium",
+                feedback.tone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-rose-200 bg-rose-50 text-rose-900",
+              ].join(" ")}
+            >
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Status</p>
+              <p className="mt-4 text-3xl font-bold text-slate-950">{brandingQuery.isLoading ? "..." : `${readyCount}/3`}</p>
+              <p className="mt-2 text-sm text-slate-600">Assets de branding publicados</p>
+            </div>
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Selecao dinamica</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Automatica</p>
+              <p className="mt-2 text-sm text-slate-600">Light em fundo escuro, dark em fundo claro.</p>
+            </div>
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Favicon</p>
+              <div className="mt-4 flex items-center gap-3">
+                <p className="text-2xl font-bold text-slate-950">Ativo</p>
+                <StatusBadge label="OK" tone="success" />
+              </div>
+              <p className="mt-2 text-sm text-slate-600">Atualizado para as proximas sessoes do navegador.</p>
+            </div>
           </div>
-          <p className="mt-2 text-sm text-slate-600">Atualizado para as proximas sessoes do navegador.</p>
-        </div>
-      </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        {assetCards.map((card) => (
-          <BrandingAssetCard
-            key={card.role}
-            card={card}
-            asset={branding?.config_value[card.role] ?? {
-              bucket: null,
-              path: null,
-              public_url: null,
-              file_name: null,
-              uploaded_at: null,
-            }}
-            uploading={uploadingRole === card.role || brandingQuery.isLoading}
-            onUpload={(file) => void handleUpload(card.role, file)}
-          />
-        ))}
-      </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            {assetCards.map((card) => (
+              <BrandingAssetCard
+                key={card.role}
+                card={card}
+                asset={branding?.config_value[card.role] ?? {
+                  bucket: null,
+                  path: null,
+                  public_url: null,
+                  file_name: null,
+                  uploaded_at: null,
+                }}
+                uploading={uploadingRole === card.role || brandingQuery.isLoading}
+                onUpload={(file) => void handleUpload(card.role, file)}
+              />
+            ))}
+          </div>
 
-      <div className="flex items-start gap-3 border border-slate-200 bg-[#f4f9fb] p-4 text-sm leading-7 text-slate-600">
-        <Image className="mt-1 h-4 w-4 shrink-0 text-sky-700" />
-        <p>
-          Formatos aceitos: SVG, PNG, JPG, WEBP, GIF, AVIF e ICO. Use SVG ou PNG com fundo transparente para manter a
-          nitidez em telas de alta resolucao.
-        </p>
-      </div>
+          <div className="flex items-start gap-3 border border-slate-200 bg-[#f4f9fb] p-4 text-sm leading-7 text-slate-600">
+            <Image className="mt-1 h-4 w-4 shrink-0 text-sky-700" />
+            <p>
+              Formatos aceitos: SVG, PNG, JPG, WEBP, GIF, AVIF e ICO. Use SVG ou PNG com fundo transparente para manter a
+              nitidez em telas de alta resolucao.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   )
 }

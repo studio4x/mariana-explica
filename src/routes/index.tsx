@@ -67,9 +67,6 @@ const AdminCoupons = lazy(() => import("@/pages/admin").then((module) => ({ defa
 const AdminNotifications = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminNotifications })),
 )
-const AdminOperations = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminOperations })),
-)
 const AdminPayments = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPayments })),
 )
@@ -400,7 +397,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "operacoes",
-          element: withSuspense(<AdminOperations />),
+          element: <Navigate to="/admin/configuracoes?tab=operacoes" replace />,
         },
         {
           path: "usuarios",

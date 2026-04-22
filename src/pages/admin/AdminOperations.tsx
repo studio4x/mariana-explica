@@ -5,13 +5,15 @@ import { Button } from "@/components/ui"
 import { useAdminOperations, useRetryAdminEmailDelivery } from "@/hooks/useAdmin"
 import { formatDateTime } from "@/utils/date"
 
-function AdminOperationsSkeleton() {
+function AdminOperationsSkeleton({ embedded = false }: { embedded?: boolean }) {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Operacoes"
-        description="Fila de emails, historico de jobs e reprocessamento seguro da camada operacional."
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Operacoes"
+          description="Fila de emails, historico de jobs e reprocessamento seguro da camada operacional."
+        />
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -50,13 +52,13 @@ function jobTone(status: "running" | "success" | "failed") {
   return "warning"
 }
 
-export function AdminOperations() {
+export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
   const operationsQuery = useAdminOperations()
   const retryEmail = useRetryAdminEmailDelivery()
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
 
   if (operationsQuery.isLoading) {
-    return <AdminOperationsSkeleton />
+    return <AdminOperationsSkeleton embedded={embedded} />
   }
 
   if (operationsQuery.isError) {
@@ -83,10 +85,12 @@ export function AdminOperations() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Operacoes"
-        description="Fila de emails, historico de jobs e reprocessamento seguro da camada operacional."
-      />
+      {!embedded ? (
+        <PageHeader
+          title="Operacoes"
+          description="Fila de emails, historico de jobs e reprocessamento seguro da camada operacional."
+        />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">

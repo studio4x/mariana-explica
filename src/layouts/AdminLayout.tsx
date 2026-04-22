@@ -1,7 +1,6 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
-  Activity,
   Bell,
   LayoutDashboard,
   LifeBuoy,
@@ -41,7 +40,6 @@ import {
 
 const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
-  { to: ROUTES.ADMIN_OPERATIONS, label: "Operacoes", icon: Activity },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
