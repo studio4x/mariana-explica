@@ -70,7 +70,6 @@ const AdminNotifications = lazy(() =>
 const AdminOperations = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminOperations })),
 )
-const AdminOrders = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminOrders })))
 const AdminPayments = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPayments })),
 )
@@ -421,7 +420,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "pedidos",
-          element: withSuspense(<AdminOrders />),
+          element: <Navigate to="/admin/pagamentos" replace />,
         },
         {
           path: "reviews",

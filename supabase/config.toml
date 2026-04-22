@@ -40,6 +40,9 @@ verify_jwt = false
 [functions.student-assessment-attempts]
 verify_jwt = false
 
+[functions.student-order-actions]
+verify_jwt = false
+
 [functions.create-support-ticket]
 verify_jwt = false
 

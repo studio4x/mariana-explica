@@ -363,7 +363,7 @@ export async function fetchAdminOrders() {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id,user_id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_reference,checkout_session_id,paid_at,refunded_at,created_at",
+      "id,user_id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at,created_at",
     )
     .order("created_at", { ascending: false })
 

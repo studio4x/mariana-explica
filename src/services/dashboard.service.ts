@@ -728,6 +728,7 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
     payment_provider: string | null
     payment_reference: string | null
     checkout_session_id: string | null
+    payment_environment: "test" | "live" | null
     paid_at: string | null
     refunded_at: string | null
     created_at: string
@@ -738,7 +739,7 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,paid_at,refunded_at,created_at,products:product_id(title)",
+      "id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at,created_at,products:product_id(title)",
     )
     .eq("user_id", userId)
     .in("status", ["paid", "refunded"])
@@ -763,10 +764,68 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
       payment_provider: order.payment_provider,
       payment_reference: order.payment_reference,
       checkout_session_id: order.checkout_session_id,
+      payment_environment: order.payment_environment,
       paid_at: order.paid_at,
       refunded_at: order.refunded_at,
       created_at: order.created_at,
     } as StudentPaymentSummary
+  })
+}
+
+async function invokeStudentOrderAction<TResponse>(body: unknown) {
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada")
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/student-order-actions`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...(typeof body === "object" && body !== null ? body : {}),
+      access_token: auth.accessToken,
+    }),
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return data as TResponse
+}
+
+export function fetchStudentOrderReceiptUrl(orderId: string) {
+  return invokeStudentOrderAction<{
+    success: true
+    receipt_url: string
+    payment_intent: string
+    charge_id: string
+  }>({
+    action: "receipt",
+    orderId,
+  })
+}
+
+export function requestStudentOrderRefund(input: { orderId: string; message?: string | null }) {
+  return invokeStudentOrderAction<{ success: true; ticket: SupportTicketSummary }>({
+    action: "request_refund",
+    ...input,
   })
 }
 

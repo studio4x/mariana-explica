@@ -427,8 +427,10 @@ export interface AdminOrderSummary {
   base_price_cents: number
   discount_cents: number
   final_price_cents: number
+  payment_provider?: string | null
   payment_reference: string | null
   checkout_session_id: string | null
+  payment_environment?: "test" | "live" | null
   paid_at: string | null
   refunded_at: string | null
   created_at: string
@@ -446,6 +448,7 @@ export interface StudentPaymentSummary {
   payment_provider: string | null
   payment_reference: string | null
   checkout_session_id: string | null
+  payment_environment?: "test" | "live" | null
   paid_at: string | null
   refunded_at: string | null
   created_at: string

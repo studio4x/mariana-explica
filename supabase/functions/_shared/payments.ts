@@ -74,7 +74,7 @@ export async function resolveCheckoutEnvironment(
   return getStripeEnvironment()
 }
 
-function getStripeSecret(mode?: StripeEnvironment) {
+export function getStripeSecret(mode?: StripeEnvironment) {
   const resolvedMode = mode ?? getStripeEnvironment()
 
   const directSecret =
@@ -294,6 +294,45 @@ export async function getStripeCheckoutSession(
     currency: string | null
     metadata?: Record<string, string | undefined>
     client_reference_id?: string | null
+  }
+}
+
+export async function getStripePaymentIntent(
+  paymentIntentId: string,
+  options?: { mode?: StripeEnvironment },
+) {
+  const secret = getStripeSecret(options?.mode)
+  const response = await fetch(
+    `https://api.stripe.com/v1/payment_intents/${paymentIntentId}?expand[]=latest_charge`,
+    {
+      headers: {
+        Authorization: `Bearer ${secret}`,
+      },
+    },
+  )
+
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Falha ao consultar payment intent Stripe")
+  }
+
+  return payload as {
+    id: string
+    livemode: boolean
+    status: string
+    amount: number
+    amount_received: number
+    currency: string | null
+    latest_charge:
+      | string
+      | {
+          id: string
+          receipt_url: string | null
+          refunded: boolean
+          amount_refunded: number
+          payment_intent: string | null
+        }
+      | null
   }
 }
 

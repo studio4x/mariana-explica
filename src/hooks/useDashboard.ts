@@ -15,6 +15,7 @@ import {
   fetchMyProducts,
   fetchNotifications,
   fetchPaymentHistory,
+  fetchStudentOrderReceiptUrl,
   fetchProfilePreferences,
   fetchSupportTicketMessages,
   fetchSupportTicket,
@@ -25,6 +26,7 @@ import {
   replySupportTicket,
   requestAssetAccess,
   requestModulePdfAccess,
+  requestStudentOrderRefund,
   saveAssessmentAttemptDraft,
   saveLessonNote,
   submitAssessmentAttempt,
@@ -277,6 +279,25 @@ export function usePaymentHistory() {
   return useQuery({
     queryKey: ["dashboard", "payments"],
     queryFn: fetchPaymentHistory,
+  })
+}
+
+export function useStudentOrderReceipt() {
+  return useMutation({
+    mutationFn: fetchStudentOrderReceiptUrl,
+  })
+}
+
+export function useRequestStudentOrderRefund() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: requestStudentOrderRefund,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "payments"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
+    },
   })
 }
 

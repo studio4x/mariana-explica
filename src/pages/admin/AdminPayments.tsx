@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "react-router-dom"
-import { ArrowUpRight, Check, CreditCard, RefreshCw, Search, Settings2 } from "lucide-react"
+import { ArrowUpRight, Check, CreditCard, MoreHorizontal, RefreshCw, Search, Settings2 } from "lucide-react"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { ROUTES } from "@/lib/constants"
 import { CHECKOUT_MODES, type CheckoutMode } from "@/lib/admin-checkout"
 import {
   fetchAdminCheckoutModeConfig,
   fetchAdminOrdersView,
   fetchAdminPaymentsStatus,
+  markAdminOrderCancelled,
+  markAdminOrderPaid,
+  markAdminOrderRefunded,
+  reconcileAdminOrder,
   updateAdminCheckoutModeConfig,
 } from "@/services/admin.service"
 import { formatProductPrice } from "@/utils/currency"
@@ -54,6 +56,42 @@ function toUiMode(mode: "test" | "live" | null | undefined): CheckoutMode {
   return mode === "live" ? "production" : "sandbox"
 }
 
+function getStripeDashboardUrl(order: AdminOrderViewSummary) {
+  const environmentPath = order.payment_environment === "live" ? "" : "/test"
+
+  if (order.payment_reference?.startsWith("pi_")) {
+    return `https://dashboard.stripe.com${environmentPath}/payments/${order.payment_reference}`
+  }
+
+  if (order.checkout_session_id) {
+    return `https://dashboard.stripe.com${environmentPath}/checkout/sessions/${order.checkout_session_id}`
+  }
+
+  return null
+}
+
+function getOrderActions(order: AdminOrderViewSummary) {
+  const actions: Array<"reconcile" | "mark_paid" | "refund" | "cancel"> = []
+
+  if (order.payment_provider === "stripe" || order.checkout_session_id) {
+    actions.push("reconcile")
+  }
+
+  if (["pending", "failed", "cancelled"].includes(order.status)) {
+    actions.push("mark_paid")
+  }
+
+  if (order.status === "paid") {
+    actions.push("refund")
+  }
+
+  if (order.status === "pending") {
+    actions.push("cancel")
+  }
+
+  return actions
+}
+
 function AdminPaymentsSkeleton() {
   return (
     <div className="space-y-6">
@@ -64,12 +102,12 @@ function AdminPaymentsSkeleton() {
 }
 
 export function AdminPayments() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<PaymentsTab>("history")
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<PaymentsFilter>("all")
   const [draftMode, setDraftMode] = useState<CheckoutMode>("sandbox")
+  const [openActionOrderId, setOpenActionOrderId] = useState<string | null>(null)
 
   const ordersQuery = useQuery({
     queryKey: ["admin", "orders-view"],
@@ -101,6 +139,36 @@ export function AdminPayments() {
         queryClient.invalidateQueries({ queryKey: ["admin", "payments-status"] }),
       ])
     },
+  })
+
+  const invalidateOrders = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["admin", "orders-view"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin", "overview"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+    ])
+  }
+
+  const reconcileOrder = useMutation({
+    mutationFn: reconcileAdminOrder,
+    onSuccess: invalidateOrders,
+  })
+
+  const markPaid = useMutation({
+    mutationFn: ({ orderId }: { orderId: string }) => markAdminOrderPaid(orderId),
+    onSuccess: invalidateOrders,
+  })
+
+  const markRefunded = useMutation({
+    mutationFn: ({ orderId, reason }: { orderId: string; reason?: string | null }) =>
+      markAdminOrderRefunded(orderId, reason),
+    onSuccess: invalidateOrders,
+  })
+
+  const markCancelled = useMutation({
+    mutationFn: ({ orderId, reason }: { orderId: string; reason?: string | null }) =>
+      markAdminOrderCancelled(orderId, reason),
+    onSuccess: invalidateOrders,
   })
 
   const activeMode = useMemo(() => {
@@ -317,43 +385,143 @@ export function AdminPayments() {
                       <th className="px-4 py-3 font-medium">Data/Hora</th>
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="px-4 py-3 font-medium">Valor</th>
-                      <th className="px-4 py-3 font-medium">Detalhe</th>
+                      <th className="px-4 py-3 font-medium">Detalhes</th>
+                      <th className="px-4 py-3 font-medium">Acoes</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.map((order) => (
-                      <tr key={order.id} className="border-b last:border-b-0 align-top">
-                        <td className="px-4 py-4">
-                          <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente nao identificado"}</p>
-                          <p className="mt-1 break-all text-xs text-slate-500">{order.user_email ?? order.user_id}</p>
-                        </td>
-                        <td className="px-4 py-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                            {productTypeLabel(order.product_type)}
-                          </p>
-                          <p className="mt-1 font-medium text-slate-950">{order.product_title ?? order.product_id}</p>
-                          <p className="mt-1 text-xs text-slate-500">Pedido {order.id.slice(0, 8)}</p>
-                        </td>
-                        <td className="px-4 py-4 text-slate-600">{formatDateTime(order.created_at)}</td>
-                        <td className="px-4 py-4">
-                          <StatusBadge label={paymentStatusLabel(order.status)} tone={orderStatusTone(order.status)} />
-                        </td>
-                        <td className="px-4 py-4 font-semibold text-slate-950">
-                          {formatProductPrice(order.final_price_cents, order.currency)}
-                        </td>
-                        <td className="px-4 py-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="rounded-full"
-                            onClick={() => navigate(ROUTES.ADMIN_ORDERS)}
-                          >
-                            Abrir pedido
-                            <ArrowUpRight className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredOrders.map((order) => {
+                      const stripeUrl = getStripeDashboardUrl(order)
+                      const actions = getOrderActions(order)
+                      const actionsOpen = openActionOrderId === order.id
+                      const actionPending =
+                        reconcileOrder.isPending ||
+                        markPaid.isPending ||
+                        markRefunded.isPending ||
+                        markCancelled.isPending
+
+                      return (
+                        <tr key={order.id} className="border-b last:border-b-0 align-top">
+                          <td className="px-4 py-4">
+                            <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente nao identificado"}</p>
+                            <p className="mt-1 break-all text-xs text-slate-500">{order.user_email ?? order.user_id}</p>
+                          </td>
+                          <td className="px-4 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                              {productTypeLabel(order.product_type)}
+                            </p>
+                            <p className="mt-1 font-medium text-slate-950">{order.product_title ?? order.product_id}</p>
+                            <p className="mt-1 text-xs text-slate-500">Pedido {order.id.slice(0, 8)}</p>
+                          </td>
+                          <td className="px-4 py-4 text-slate-600">{formatDateTime(order.created_at)}</td>
+                          <td className="px-4 py-4">
+                            <StatusBadge label={paymentStatusLabel(order.status)} tone={orderStatusTone(order.status)} />
+                          </td>
+                          <td className="px-4 py-4 font-semibold text-slate-950">
+                            {formatProductPrice(order.final_price_cents, order.currency)}
+                          </td>
+                          <td className="px-4 py-4">
+                            {stripeUrl ? (
+                              <Button asChild type="button" variant="outline" className="rounded-full">
+                                <a href={stripeUrl} target="_blank" rel="noreferrer">
+                                  Abrir pedido
+                                  <ArrowUpRight className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-slate-500">Sem link Stripe</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {actions.length > 0 ? (
+                              <div className="relative">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  onClick={() => setOpenActionOrderId(actionsOpen ? null : order.id)}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  Acoes
+                                </Button>
+
+                                {actionsOpen ? (
+                                  <div className="absolute right-0 z-20 mt-2 grid min-w-56 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                                    {actions.includes("reconcile") ? (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="justify-start rounded-xl"
+                                        disabled={actionPending}
+                                        onClick={() => {
+                                          setOpenActionOrderId(null)
+                                          void reconcileOrder.mutateAsync(order.id)
+                                        }}
+                                      >
+                                        Reconciliar
+                                      </Button>
+                                    ) : null}
+                                    {actions.includes("mark_paid") ? (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="justify-start rounded-xl"
+                                        disabled={actionPending}
+                                        onClick={() => {
+                                          if (!window.confirm("Marcar este pedido como pago e liberar o acesso?")) return
+                                          setOpenActionOrderId(null)
+                                          void markPaid.mutateAsync({ orderId: order.id })
+                                        }}
+                                      >
+                                        Marcar como pago
+                                      </Button>
+                                    ) : null}
+                                    {actions.includes("refund") ? (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="justify-start rounded-xl text-rose-700 hover:text-rose-700"
+                                        disabled={actionPending}
+                                        onClick={() => {
+                                          if (!window.confirm("Marcar este pedido como reembolsado e revogar o acesso?")) return
+                                          setOpenActionOrderId(null)
+                                          void markRefunded.mutateAsync({
+                                            orderId: order.id,
+                                            reason: "Reembolso registrado pelo admin na tela de pagamentos.",
+                                          })
+                                        }}
+                                      >
+                                        Reembolsar
+                                      </Button>
+                                    ) : null}
+                                    {actions.includes("cancel") ? (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="justify-start rounded-xl text-rose-700 hover:text-rose-700"
+                                        disabled={actionPending}
+                                        onClick={() => {
+                                          if (!window.confirm("Cancelar este pedido pendente?")) return
+                                          setOpenActionOrderId(null)
+                                          void markCancelled.mutateAsync({
+                                            orderId: order.id,
+                                            reason: "Pedido cancelado pelo admin na tela de pagamentos.",
+                                          })
+                                        }}
+                                      >
+                                        Cancelar pedido
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-500">Sem acoes</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
