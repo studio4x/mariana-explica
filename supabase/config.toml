@@ -43,6 +43,15 @@ verify_jwt = false
 [functions.support-ticket-reply]
 verify_jwt = false
 
+[functions.support-attachment-upload]
+verify_jwt = false
+
+[functions.support-attachment-access]
+verify_jwt = false
+
+[functions.admin-support-ticket-delete]
+verify_jwt = false
+
 [functions.create-review]
 verify_jwt = false
 

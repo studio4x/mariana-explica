@@ -7,6 +7,7 @@ import {
   createAdminCoupon,
   createAdminCourseRelease,
   createAdminNotification,
+  deleteAdminSupportTicket,
   createAdminProduct,
   createAdminUser,
   deleteAdminProduct,
@@ -52,6 +53,8 @@ import {
   retryAdminEmailDelivery,
   revokeAdminCourseRelease,
   replyAdminSupportTicket,
+  fetchSupportAttachmentUrl,
+  uploadSupportAttachment,
   uploadAdminModuleAssetFile,
   uploadAdminModulePdf,
   uploadAdminProductCover,
@@ -753,4 +756,17 @@ export function useReplyAdminSupportTicket() {
       invalidate()
     },
   })
+}
+
+export function useUploadAdminSupportAttachment() {
+  return useMutation({ mutationFn: uploadSupportAttachment })
+}
+
+export function useAdminSupportAttachmentUrl() {
+  return useMutation({ mutationFn: fetchSupportAttachmentUrl })
+}
+
+export function useDeleteAdminSupportTicket() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: deleteAdminSupportTicket, onSuccess: invalidate })
 }

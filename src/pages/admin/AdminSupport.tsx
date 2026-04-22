@@ -1,10 +1,10 @@
 import { useDeferredValue, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { MessageSquare, RefreshCw, Search } from "lucide-react"
+import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { useAdminSupportTickets, useAdminUsers } from "@/hooks/useAdmin"
+import { useAdminSupportTickets, useAdminUsers, useDeleteAdminSupportTicket } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
 import {
   getSupportCategoryMeta,
@@ -24,9 +24,11 @@ export function AdminSupport() {
   const [statusFilter, setStatusFilter] = useState<"all" | SupportTicketSummary["status"]>("all")
   const [categoryFilter, setCategoryFilter] = useState<"all" | SupportTicketSummary["category"]>("all")
   const [sortMode, setSortMode] = useState<SortMode>("sla")
+  const [ticketToDelete, setTicketToDelete] = useState<AdminSupportTicketSummary | null>(null)
   const deferredQuery = useDeferredValue(query)
   const ticketsQuery = useAdminSupportTickets()
   const usersQuery = useAdminUsers()
+  const deleteTicket = useDeleteAdminSupportTicket()
   const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data])
 
   const userMap = useMemo(
@@ -92,6 +94,12 @@ export function AdminSupport() {
   }
 
   const overdueCount = filteredTickets.filter((ticket) => ticket.sla_status === "overdue").length
+
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete) return
+    await deleteTicket.mutateAsync(ticketToDelete.id)
+    setTicketToDelete(null)
+  }
 
   return (
     <div className="space-y-6">
@@ -218,12 +226,23 @@ export function AdminSupport() {
                       <td className="px-4 py-4"><StatusBadge label={status.label} tone={status.tone} /></td>
                       <td className="px-4 py-4 text-slate-600">{getSupportDueLabel(ticket)}</td>
                       <td className="px-4 py-4">
-                        <Button asChild variant="outline" className="rounded-full">
-                          <Link to={`${ROUTES.ADMIN_SUPPORT}/${ticket.id}`}>
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Responder
-                          </Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild variant="outline" className="rounded-full">
+                            <Link to={`${ROUTES.ADMIN_SUPPORT}/${ticket.id}`}>
+                              <MessageSquare className="mr-2 h-4 w-4" />
+                              Responder
+                            </Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            className="rounded-full"
+                            onClick={() => setTicketToDelete(ticket)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -233,6 +252,39 @@ export function AdminSupport() {
           </div>
         )}
       </section>
+
+      {ticketToDelete ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-lg rounded-[1.5rem] bg-white p-6 shadow-[0_24px_90px_rgba(15,23,42,0.28)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-red-700">Acao irreversivel</p>
+                <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Excluir chamado permanentemente</h2>
+              </div>
+              <button type="button" onClick={() => setTicketToDelete(null)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              Isto apaga o ticket, o historico de mensagens e os anexos associados. Chamado: <strong>{ticketToDelete.subject}</strong>.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setTicketToDelete(null)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="rounded-full"
+                onClick={() => void handleDeleteTicket()}
+                disabled={deleteTicket.isPending}
+              >
+                {deleteTicket.isPending ? "A excluir..." : "Confirmar exclusao"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

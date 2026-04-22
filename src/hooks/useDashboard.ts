@@ -31,6 +31,8 @@ import {
   upsertLessonProgress,
   updateAccountPassword,
   updateProfilePreferences,
+  uploadSupportAttachment,
+  fetchSupportAttachmentUrl,
 } from "@/services"
 import type { NotificationItem, SupportTicketMessage, SupportTicketSummary } from "@/types/app.types"
 
@@ -460,6 +462,14 @@ export function useUpdateAccountPassword() {
   return useMutation({
     mutationFn: updateAccountPassword,
   })
+}
+
+export function useUploadSupportAttachment() {
+  return useMutation({ mutationFn: uploadSupportAttachment })
+}
+
+export function useSupportAttachmentUrl() {
+  return useMutation({ mutationFn: fetchSupportAttachmentUrl })
 }
 
 export function useRequestAssetAccess() {

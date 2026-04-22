@@ -14,12 +14,20 @@ import {
   requireActiveUser,
   writeAuditLog,
 } from "../_shared/mod.ts"
+import { recordSupportWhatsappIntent } from "../_shared/whatsapp.ts"
 
 interface CreateSupportTicketInput {
   subject: string
   message: string
   category?: "payment" | "technical" | "account" | "general"
   priority?: "low" | "normal" | "medium" | "high" | "urgent"
+  attachment?: {
+    bucket: string
+    path: string
+    file_name: string
+    mime_type?: string | null
+    file_size_bytes?: number | null
+  } | null
 }
 
 Deno.serve(async (req) => {
@@ -53,6 +61,14 @@ Deno.serve(async (req) => {
       throw badRequest("priority invalida")
     }
 
+    if (
+      body.attachment &&
+      (body.attachment.bucket !== "support-attachments" ||
+        !body.attachment.path.startsWith(`support/${context.user.id}/`))
+    ) {
+      throw badRequest("Anexo invalido para este usuario")
+    }
+
     const { data: ticket, error } = await context.serviceClient
       .from("support_tickets")
       .insert({
@@ -61,8 +77,13 @@ Deno.serve(async (req) => {
         category,
         priority,
         user_id: context.user.id,
+        attachment_bucket: body.attachment?.bucket ?? null,
+        attachment_path: body.attachment?.path ?? null,
+        attachment_name: body.attachment?.file_name ?? null,
+        attachment_mime_type: body.attachment?.mime_type ?? null,
+        attachment_size_bytes: body.attachment?.file_size_bytes ?? null,
       })
-      .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
+      .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
       .single()
 
     if (error) {
@@ -104,11 +125,24 @@ Deno.serve(async (req) => {
       throw adminNotificationError
     }
 
+    await recordSupportWhatsappIntent(context.serviceClient, {
+      event: "new_ticket",
+      ticketId: ticket.id,
+      actorUserId: context.user.id,
+      target: "admin",
+      messagePreview: message.slice(0, 180),
+    })
+
     await writeAuditLog(context.serviceClient, context, {
       action: "support.ticket_created",
       entityType: "support_ticket",
       entityId: ticket.id,
-      metadata: { subject, category, priority },
+      metadata: {
+        subject,
+        category,
+        priority,
+        has_attachment: Boolean(body.attachment?.path),
+      },
       ...extractRequestAuditContext(req),
     })
 

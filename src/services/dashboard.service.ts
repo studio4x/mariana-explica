@@ -22,6 +22,7 @@ import type {
   StudentCourseNavigationData,
   SupportTicketMessage,
   SupportTicketSummary,
+  SupportAttachmentUploadResult,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
 
@@ -804,7 +805,7 @@ export async function markAllNotificationsAsRead() {
 export async function fetchSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
+    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -817,7 +818,7 @@ export async function fetchSupportTickets() {
 export async function fetchSupportTicket(ticketId: string) {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,created_at,updated_at")
+    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .eq("id", ticketId)
     .single()
 
@@ -831,7 +832,7 @@ export async function fetchSupportTicket(ticketId: string) {
 export async function fetchSupportTicketMessages(ticketId: string) {
   const { data, error } = await supabase
     .from("support_ticket_messages")
-    .select("id,ticket_id,sender_user_id,sender_role,message,created_at")
+    .select("id,ticket_id,sender_user_id,sender_role,message,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at")
     .eq("ticket_id", ticketId)
     .order("created_at", { ascending: true })
 
@@ -847,6 +848,7 @@ export async function createSupportTicket(input: {
   message: string
   category?: SupportTicketSummary["category"]
   priority?: SupportTicketSummary["priority"]
+  attachment?: SupportAttachmentUploadResult | null
 }) {
   const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("create-support-ticket", {
@@ -866,6 +868,7 @@ export async function replySupportTicket(input: {
   message: string
   status?: SupportTicketSummary["status"]
   priority?: SupportTicketSummary["priority"]
+  attachment?: SupportAttachmentUploadResult | null
 }) {
   const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("support-ticket-reply", {

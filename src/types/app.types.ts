@@ -287,6 +287,11 @@ export interface SupportTicketSummary {
   first_response_due_at: string | null
   first_response_at: string | null
   sla_status: "on_time" | "at_risk" | "overdue" | "answered"
+  attachment_bucket: string | null
+  attachment_path: string | null
+  attachment_name: string | null
+  attachment_mime_type: string | null
+  attachment_size_bytes: number | null
   created_at: string
   updated_at: string
 }
@@ -297,7 +302,20 @@ export interface SupportTicketMessage {
   sender_user_id: string
   sender_role: "student" | "admin"
   message: string
+  attachment_bucket: string | null
+  attachment_path: string | null
+  attachment_name: string | null
+  attachment_mime_type: string | null
+  attachment_size_bytes: number | null
   created_at: string
+}
+
+export interface SupportAttachmentUploadResult {
+  bucket: string
+  path: string
+  file_name: string
+  mime_type: string | null
+  file_size_bytes: number | null
 }
 
 export interface CourseReviewAuthor {

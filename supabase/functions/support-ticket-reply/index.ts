@@ -14,12 +14,20 @@ import {
   requireActiveUser,
   writeAuditLog,
 } from "../_shared/mod.ts"
+import { recordSupportWhatsappIntent } from "../_shared/whatsapp.ts"
 
 interface SupportReplyInput {
   ticketId: string
-  message: string
+  message?: string
   status?: "open" | "in_progress" | "answered" | "closed"
   priority?: "low" | "normal" | "medium" | "high" | "urgent"
+  attachment?: {
+    bucket: string
+    path: string
+    file_name: string
+    mime_type?: string | null
+    file_size_bytes?: number | null
+  } | null
 }
 
 Deno.serve(async (req) => {
@@ -31,13 +39,23 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method !== "POST") {
-      throw badRequest("MÃ©todo nÃ£o suportado")
+      throw badRequest("Metodo nao suportado")
     }
 
     const context = await requireActiveUser(req)
     const body = await readJsonBody<SupportReplyInput>(req)
-    if (!body.ticketId || !body.message.trim()) {
-      throw badRequest("ticketId e message sÃ£o obrigatÃ³rios")
+    const replyMessage = body.message?.trim() ?? ""
+
+    if (!body.ticketId || (!replyMessage && !body.attachment?.path)) {
+      throw badRequest("ticketId e message ou attachment sao obrigatorios")
+    }
+
+    if (
+      body.attachment &&
+      (body.attachment.bucket !== "support-attachments" ||
+        !body.attachment.path.startsWith(`support/${context.user.id}/`))
+    ) {
+      throw badRequest("Anexo invalido para este usuario")
     }
 
     const { data: ticket, error: ticketError } = await context.serviceClient
@@ -46,21 +64,16 @@ Deno.serve(async (req) => {
       .eq("id", body.ticketId)
       .maybeSingle()
 
-    if (ticketError) {
-      throw ticketError
-    }
-
-    if (!ticket) {
-      throw notFound("Ticket nÃ£o encontrado")
-    }
+    if (ticketError) throw ticketError
+    if (!ticket) throw notFound("Ticket nao encontrado")
 
     const isOwner = ticket.user_id === context.user.id
     if (!context.profile.is_admin && !isOwner) {
-      throw forbidden("VocÃª nÃ£o pode responder este ticket")
+      throw forbidden("Voce nao pode responder este ticket")
     }
 
     if (!context.profile.is_admin && ticket.status === "closed") {
-      throw forbidden("Ticket encerrado nÃ£o pode receber nova resposta do usuÃ¡rio")
+      throw forbidden("Ticket encerrado nao pode receber nova resposta do usuario")
     }
 
     const { data: message, error: messageError } = await context.serviceClient
@@ -69,14 +82,17 @@ Deno.serve(async (req) => {
         ticket_id: body.ticketId,
         sender_user_id: context.user.id,
         sender_role: context.profile.role === "admin" ? "admin" : "student",
-        message: body.message.trim(),
+        message: replyMessage,
+        attachment_bucket: body.attachment?.bucket ?? null,
+        attachment_path: body.attachment?.path ?? null,
+        attachment_name: body.attachment?.file_name ?? null,
+        attachment_mime_type: body.attachment?.mime_type ?? null,
+        attachment_size_bytes: body.attachment?.file_size_bytes ?? null,
       })
       .select("*")
       .single()
 
-    if (messageError) {
-      throw messageError
-    }
+    if (messageError) throw messageError
 
     const ticketUpdates: Record<string, unknown> = {}
     if (context.profile.is_admin) {
@@ -93,10 +109,10 @@ Deno.serve(async (req) => {
         .update(ticketUpdates)
         .eq("id", body.ticketId)
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
     }
+
+    const preview = (replyMessage || body.attachment?.file_name || "Anexo").slice(0, 180)
 
     if (context.profile.is_admin) {
       const { data: userProfile, error: userProfileError } = await context.serviceClient
@@ -105,30 +121,26 @@ Deno.serve(async (req) => {
         .eq("id", ticket.user_id)
         .maybeSingle()
 
-      if (userProfileError) {
-        throw userProfileError
-      }
+      if (userProfileError) throw userProfileError
 
       const { data: notification, error: notificationError } = await context.serviceClient.from("notifications").insert({
         user_id: ticket.user_id,
         type: "support",
-        title: "O suporte respondeu ao teu ticket",
-        message: body.message.trim().slice(0, 180),
+        title: body.status === "closed" ? "O teu ticket foi encerrado" : "O suporte respondeu ao teu ticket",
+        message: preview,
         link: `/aluno/suporte/${ticket.id}`,
         status: "unread",
         sent_via_email: Boolean(userProfile?.email),
         sent_via_in_app: true,
       }).select("id").single()
 
-      if (notificationError) {
-        throw notificationError
-      }
+      if (notificationError) throw notificationError
 
       if (userProfile?.email) {
         const email = buildSupportTicketRepliedEmail({
           fullName: userProfile.full_name,
           subject: ticket.subject,
-          messagePreview: body.message.trim().slice(0, 180),
+          messagePreview: preview,
           supportUrl: `/aluno/suporte/${ticket.id}`,
         })
 
@@ -146,6 +158,36 @@ Deno.serve(async (req) => {
           },
         })
       }
+
+      await recordSupportWhatsappIntent(context.serviceClient, {
+        event: body.status === "closed" ? "ticket_closed" : "new_message",
+        ticketId: ticket.id,
+        actorUserId: context.user.id,
+        target: "student",
+        targetUserId: ticket.user_id,
+        messagePreview: preview,
+      })
+    } else {
+      const { error: adminNotificationError } = await context.serviceClient.from("notifications").insert({
+        user_id: null,
+        type: "support",
+        title: "Nova resposta em ticket",
+        message: `${context.profile.full_name || context.profile.email || "Aluno"} respondeu: ${preview}`.slice(0, 180),
+        link: `/admin/suporte/${ticket.id}`,
+        status: "unread",
+        sent_via_email: false,
+        sent_via_in_app: true,
+      })
+
+      if (adminNotificationError) throw adminNotificationError
+
+      await recordSupportWhatsappIntent(context.serviceClient, {
+        event: "new_message",
+        ticketId: ticket.id,
+        actorUserId: context.user.id,
+        target: "admin",
+        messagePreview: preview,
+      })
     }
 
     await writeAuditLog(context.serviceClient, context, {
@@ -157,6 +199,7 @@ Deno.serve(async (req) => {
         is_admin_reply: context.profile.is_admin,
         status: body.status ?? null,
         priority: body.priority ?? null,
+        has_attachment: Boolean(body.attachment?.path),
       },
       ...extractRequestAuditContext(req),
     })

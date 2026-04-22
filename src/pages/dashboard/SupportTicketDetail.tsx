@@ -1,18 +1,22 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft, Send } from "lucide-react"
+import { ArrowLeft, Download, Paperclip, Send, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useReplySupportTicket,
+  useSupportAttachmentUrl,
   useSupportTicket,
   useSupportTicketMessages,
+  useUploadSupportAttachment,
 } from "@/hooks/useDashboard"
 import {
+  useAdminSupportAttachmentUrl,
   useAdminSupportTicket,
   useAdminSupportTicketMessages,
   useAdminUsers,
+  useUploadAdminSupportAttachment,
   useReplyAdminSupportTicket,
 } from "@/hooks/useAdmin"
 import { useAuth } from "@/hooks/useAuth"
@@ -28,13 +32,22 @@ import {
 import type { SupportTicketSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
 
+function formatFileSize(size: number | null) {
+  if (!size) return null
+  if (size < 1024 * 1024) return `${Math.ceil(size / 1024)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
 function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   const { ticketId } = useParams<{ ticketId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const [reply, setReply] = useState("")
+  const [attachment, setAttachment] = useState<File | null>(null)
   const [status, setStatus] = useState<SupportTicketSummary["status"]>("in_progress")
   const [priority, setPriority] = useState<SupportTicketSummary["priority"]>("normal")
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const studentTicketQuery = useSupportTicket(mode === "student" ? ticketId : undefined)
   const adminTicketQuery = useAdminSupportTicket(mode === "admin" ? ticketId : undefined)
   const studentMessagesQuery = useSupportTicketMessages(mode === "student" ? ticketId : undefined)
@@ -42,6 +55,10 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   const usersQuery = useAdminUsers(mode === "admin")
   const studentReply = useReplySupportTicket()
   const adminReply = useReplyAdminSupportTicket()
+  const studentUpload = useUploadSupportAttachment()
+  const adminUpload = useUploadAdminSupportAttachment()
+  const studentAttachmentUrl = useSupportAttachmentUrl()
+  const adminAttachmentUrl = useAdminSupportAttachmentUrl()
   const ticket = mode === "admin" ? adminTicketQuery.data : studentTicketQuery.data
   const messages = mode === "admin" ? adminMessagesQuery.data ?? [] : studentMessagesQuery.data ?? []
   const isLoading =
@@ -61,6 +78,10 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
     setPriority(ticket.priority)
   }, [adminReply.isPending, mode, ticket])
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [messages.length])
+
   const selectedUser =
     mode === "admin" && ticket && "user_id" in ticket
       ? (usersQuery.data ?? []).find((item) => item.id === ticket.user_id)
@@ -68,15 +89,34 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
 
   const handleReply = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!ticket || !reply.trim()) return
+    if (!ticket || (!reply.trim() && !attachment)) return
+
+    const upload = attachment
+      ? mode === "admin"
+        ? await adminUpload.mutateAsync({ file: attachment, ticketId: ticket.id })
+        : await studentUpload.mutateAsync({ file: attachment, ticketId: ticket.id })
+      : null
 
     if (mode === "admin") {
-      await adminReply.mutateAsync({ ticketId: ticket.id, message: reply, status, priority })
+      await adminReply.mutateAsync({ ticketId: ticket.id, message: reply, status, priority, attachment: upload })
     } else {
-      await studentReply.mutateAsync({ ticketId: ticket.id, message: reply })
+      await studentReply.mutateAsync({ ticketId: ticket.id, message: reply, attachment: upload })
     }
 
     setReply("")
+    setAttachment(null)
+  }
+
+  const openAttachment = async (input: {
+    bucket: string | null
+    path: string | null
+  }) => {
+    if (!ticket || !input.bucket || !input.path) return
+    const result =
+      mode === "admin"
+        ? await adminAttachmentUrl.mutateAsync({ ticketId: ticket.id, bucket: input.bucket, path: input.path })
+        : await studentAttachmentUrl.mutateAsync({ ticketId: ticket.id, bucket: input.bucket, path: input.path })
+    window.open(result.signed_url, "_blank", "noopener,noreferrer")
   }
 
   if (isLoading) return <LoadingState message="A carregar chamado..." />
@@ -100,7 +140,8 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   const slaMeta = getSupportSlaStatusMeta(ticket.sla_status)
   const priorityMeta = getSupportPriorityMeta(ticket.priority)
   const isClosedForStudent = mode === "student" && ticket.status === "closed"
-  const isSubmitting = mode === "admin" ? adminReply.isPending : studentReply.isPending
+  const isSubmitting =
+    (mode === "admin" ? adminReply.isPending || adminUpload.isPending : studentReply.isPending || studentUpload.isPending)
   const backTo = mode === "admin" ? ROUTES.ADMIN_SUPPORT : ROUTES.DASHBOARD_SUPPORT
 
   return (
@@ -156,6 +197,17 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
             <div className="max-w-[86%] rounded-2xl rounded-tl-sm border bg-white p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Descricao do problema</p>
               <p className="mt-2 text-sm leading-7 text-slate-700">{ticket.message}</p>
+              {ticket.attachment_path ? (
+                <button
+                  type="button"
+                  onClick={() => void openAttachment({ bucket: ticket.attachment_bucket, path: ticket.attachment_path })}
+                  className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white"
+                >
+                  <Download className="mr-2 h-3.5 w-3.5" />
+                  {ticket.attachment_name ?? "Abrir anexo"}
+                  {formatFileSize(ticket.attachment_size_bytes) ? ` (${formatFileSize(ticket.attachment_size_bytes)})` : ""}
+                </button>
+              ) : null}
               <p className="mt-3 text-xs font-semibold text-slate-400">{formatDateTime(ticket.created_at)}</p>
             </div>
 
@@ -175,7 +227,22 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                         {message.sender_role === "admin" ? "Equipe de suporte" : "Aluno"}
                       </p>
                     ) : null}
-                    <p className="text-sm leading-7">{message.message}</p>
+                    {message.message ? <p className="text-sm leading-7">{message.message}</p> : null}
+                    {message.attachment_path ? (
+                      <button
+                        type="button"
+                        onClick={() => void openAttachment({ bucket: message.attachment_bucket, path: message.attachment_path })}
+                        className={`mt-3 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ${
+                          isMine
+                            ? "bg-white/10 text-white hover:bg-white/20"
+                            : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"
+                        }`}
+                      >
+                        <Download className="mr-2 h-3.5 w-3.5" />
+                        {message.attachment_name ?? "Abrir anexo"}
+                        {formatFileSize(message.attachment_size_bytes) ? ` (${formatFileSize(message.attachment_size_bytes)})` : ""}
+                      </button>
+                    ) : null}
                     <p className={`mt-3 text-xs font-semibold ${isMine ? "text-white/60" : "text-slate-400"}`}>
                       {formatDateTime(message.created_at)}
                     </p>
@@ -183,6 +250,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                 </div>
               )
             })}
+            <div ref={messagesEndRef} />
           </div>
 
           <form onSubmit={handleReply} className="border-t bg-white p-4">
@@ -191,18 +259,35 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                 Este chamado foi encerrado.
               </div>
             ) : (
-              <div className="flex gap-3">
-                <textarea
-                  value={reply}
-                  onChange={(event) => setReply(event.target.value)}
-                  rows={2}
-                  placeholder="Escreve a tua resposta"
-                  className="min-h-12 flex-1 resize-none rounded-2xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
-                />
-                <Button type="submit" className="self-end rounded-2xl" disabled={isSubmitting || !reply.trim()}>
-                  <Send className="mr-2 h-4 w-4" />
-                  Enviar
-                </Button>
+              <div className="space-y-3">
+                {attachment ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                    <span className="truncate">
+                      <Paperclip className="mr-2 inline h-4 w-4" />
+                      {attachment.name}
+                    </span>
+                    <button type="button" onClick={() => setAttachment(null)} className="text-red-700">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
+                <div className="flex gap-3">
+                  <input ref={fileInputRef} type="file" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} />
+                  <Button type="button" variant="outline" className="self-end rounded-2xl" onClick={() => fileInputRef.current?.click()}>
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <textarea
+                    value={reply}
+                    onChange={(event) => setReply(event.target.value)}
+                    rows={2}
+                    placeholder="Escreve a tua resposta"
+                    className="min-h-12 flex-1 resize-none rounded-2xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+                  />
+                  <Button type="submit" className="self-end rounded-2xl" disabled={isSubmitting || (!reply.trim() && !attachment)}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Enviar
+                  </Button>
+                </div>
               </div>
             )}
           </form>
@@ -233,6 +318,10 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
               <div>
                 <dt className="font-black text-slate-500">Prazo previsto</dt>
                 <dd className="mt-1">{getSupportDueLabel(ticket)}</dd>
+              </div>
+              <div>
+                <dt className="font-black text-slate-500">Primeira resposta</dt>
+                <dd className="mt-1">{ticket.first_response_at ? formatDateTime(ticket.first_response_at) : "Ainda pendente"}</dd>
               </div>
               <div>
                 <dt className="font-black text-slate-500">Ultima atualizacao</dt>
