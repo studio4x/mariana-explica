@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react"
-import { Bell, CheckCheck, X } from "lucide-react"
+import { useMemo, useState, type KeyboardEvent } from "react"
+import { Bell, CheckCheck, ExternalLink, X } from "lucide-react"
 import { StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
 import { formatDateTime } from "@/utils/date"
 import type { AdminNotificationSummary, NotificationItem } from "@/types/app.types"
+import { Link } from "react-router-dom"
 
 interface FloatingNotificationsProps<TNotification extends NotificationItem | AdminNotificationSummary> {
   notifications: TNotification[]
@@ -31,6 +32,53 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
   const effectiveUnreadCount = unreadCount ?? notifications.filter((item) => item.status === "unread").length
   const visibleNotifications = useMemo(() => notifications.slice(0, 30), [notifications])
   const canClearAll = visibleNotifications.length > 0
+
+  const renderActionButton = (notification: TNotification) => {
+    if (!notification.link) return null
+
+    const isExternal = /^https?:\/\//i.test(notification.link)
+    const actionContent = (
+      <span className="inline-flex items-center gap-2">
+        <ExternalLink className="h-3.5 w-3.5" />
+        Abrir
+      </span>
+    )
+
+    if (isExternal) {
+      return (
+        <a
+          href={notification.link}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          className="inline-flex h-8 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+        >
+          {actionContent}
+        </a>
+      )
+    }
+
+    return (
+      <Button
+        asChild
+        variant="outline"
+        className="h-8 rounded-full px-3 text-xs"
+      >
+        <Link to={notification.link} onClick={(event) => event.stopPropagation()}>
+          {actionContent}
+        </Link>
+      </Button>
+    )
+  }
+
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>, notificationId: string, isUnread: boolean) => {
+    if (markAsReadPending) return
+    if (!isUnread) return
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      onMarkAsRead(notificationId)
+    }
+  }
 
   return (
     <div className="fixed bottom-5 right-5 z-[70]">
@@ -73,17 +121,22 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
                 {visibleNotifications.map((notification) => {
                   const isUnread = notification.status === "unread"
                   const audience = getAudienceLabel?.(notification)
+                  const actionButton = renderActionButton(notification)
 
                   return (
-                    <button
+                    <div
                       key={notification.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
+                      aria-busy={markAsReadPending}
                       onClick={() => {
+                        if (markAsReadPending) return
                         if (isUnread) onMarkAsRead(notification.id)
                       }}
-                      disabled={markAsReadPending}
+                      onKeyDown={(event) => handleCardKeyDown(event, notification.id, isUnread)}
                       className={cn(
-                        "rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-wait",
+                        "rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm",
+                        markAsReadPending ? "cursor-wait" : "cursor-pointer",
                         isUnread
                           ? "border-sky-200 bg-sky-50 shadow-[0_10px_30px_rgba(14,165,233,0.12)]"
                           : "border-slate-100 bg-white",
@@ -103,7 +156,8 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
                           {formatDateTime(notification.created_at)}
                         </span>
                       </div>
-                    </button>
+                      {actionButton ? <div className="mt-3 flex justify-start">{actionButton}</div> : null}
+                    </div>
                   )
                 })}
               </div>
