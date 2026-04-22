@@ -91,6 +91,26 @@ export interface AdminModulePdfWatermarkConfig {
   updated_at: string | null
 }
 
+export interface AdminBrandingAsset {
+  bucket: string | null
+  path: string | null
+  public_url: string | null
+  file_name: string | null
+  uploaded_at: string | null
+}
+
+export interface AdminBrandingConfig {
+  config_key: string
+  config_value: {
+    logo_light: AdminBrandingAsset
+    logo_dark: AdminBrandingAsset
+    favicon: AdminBrandingAsset
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface AdminPendingInfoConfig {
   config_key: string
   config_value: {

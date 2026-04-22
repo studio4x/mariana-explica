@@ -18,6 +18,8 @@ import type {
   AdminCouponUsageSummary,
   AdminCourseReleaseSummary,
   AdminModulePdfWatermarkConfig,
+  AdminBrandingConfig,
+  AdminBrandingAsset,
   AdminEmailStatus,
   AdminPendingInfoConfig,
   AdminStorageUploadResult,
@@ -97,6 +99,19 @@ const MODULE_PDF_WATERMARK_KEY = "module_pdf_watermark"
 const DEFAULT_WATERMARK_SITE_NAME = "Mariana Explica"
 const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
 const CHECKOUT_MODE_CONFIG_KEY = "checkout_environment"
+const BRANDING_CONFIG_KEY = "site_branding"
+
+function normalizeBrandingAsset(value: unknown): AdminBrandingAsset {
+  const asset = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+
+  return {
+    bucket: String(asset.bucket ?? "").trim() || null,
+    path: String(asset.path ?? "").trim() || null,
+    public_url: String(asset.public_url ?? "").trim() || null,
+    file_name: String(asset.file_name ?? "").trim() || null,
+    uploaded_at: String(asset.uploaded_at ?? "").trim() || null,
+  }
+}
 
 function normalizeModulePdfWatermarkConfig(
   row?: Partial<AdminModulePdfWatermarkConfig> | null,
@@ -167,6 +182,27 @@ function normalizeCheckoutModeConfig(
     },
     description: row?.description ?? "Configuracao operacional do ambiente do checkout Stripe.",
     is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminBrandingConfig(
+  row?: Partial<AdminBrandingConfig> | null,
+): AdminBrandingConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  return {
+    config_key: row?.config_key ?? BRANDING_CONFIG_KEY,
+    config_value: {
+      logo_light: normalizeBrandingAsset(value.logo_light),
+      logo_dark: normalizeBrandingAsset(value.logo_dark),
+      favicon: normalizeBrandingAsset(value.favicon),
+    },
+    description: row?.description ?? "Assets oficiais de branding usados nas areas publica, aluno e admin.",
+    is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
 }
@@ -337,6 +373,48 @@ export async function uploadAdminWatermarkLogoFile(input: {
   return (data as { success: true; upload: AdminStorageUploadResult }).upload
 }
 
+export async function uploadAdminBrandingAssetFile(input: {
+  role: "logo_light" | "logo_dark" | "favicon"
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "branding_asset")
+  formData.append("assetRole", input.role)
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+}
+
 export async function fetchAdminUsers() {
   const response = await invokeAdminFunction<{ success: true; users: AdminUserSummary[] }>("admin-users", {
     action: "list",
@@ -425,6 +503,20 @@ export async function fetchAdminCheckoutModeConfig() {
   return response.checkout_mode ? normalizeCheckoutModeConfig(response.checkout_mode) : null
 }
 
+export async function fetchAdminBrandingConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", BRANDING_CONFIG_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminBrandingConfig(data as Partial<AdminBrandingConfig> | null)
+}
+
 export async function fetchAdminModulePdfWatermarkConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -500,6 +592,42 @@ export async function updateAdminModulePdfWatermarkConfig(input: {
   }
 
   return normalizeModulePdfWatermarkConfig(data as Partial<AdminModulePdfWatermarkConfig>)
+}
+
+export async function updateAdminBrandingConfig(input: AdminBrandingConfig["config_value"]) {
+  const payload = normalizeAdminBrandingConfig({
+    config_key: BRANDING_CONFIG_KEY,
+    config_value: input,
+    description: "Assets oficiais de branding usados nas areas publica, aluno e admin.",
+    is_public: true,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<AdminBrandingConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: BRANDING_CONFIG_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: true,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminBrandingConfig(data as Partial<AdminBrandingConfig>)
 }
 
 export async function updateAdminPendingInfoConfig(

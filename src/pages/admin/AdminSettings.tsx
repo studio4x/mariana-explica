@@ -1,179 +1,316 @@
-import { RefreshCw } from "lucide-react"
-import { EmptyState, ErrorState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
-import { Button } from "@/components/ui"
-import { useAdminEmailStatus } from "@/hooks/useAdmin"
+import { useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Image, RefreshCw, UploadCloud } from "lucide-react"
+import { ErrorState } from "@/components/feedback"
+import { StatusBadge } from "@/components/common"
+import {
+  fetchAdminBrandingConfig,
+  updateAdminBrandingConfig,
+  uploadAdminBrandingAssetFile,
+} from "@/services/admin.service"
+import type { AdminBrandingAsset, AdminBrandingConfig } from "@/types/app.types"
 
-function transportLabel(transport: string | null) {
-  if (transport === "smtp") {
-    return "SMTP"
-  }
+type BrandingRole = keyof AdminBrandingConfig["config_value"]
 
-  if (transport === "resend") {
-    return "Resend"
-  }
+const assetCards: Array<{
+  role: BrandingRole
+  eyebrow: string
+  title: string
+  description: string
+  defaultFileName: string
+  fallbackSrc: string
+  previewTone: "dark" | "light" | "icon"
+}> = [
+  {
+    role: "logo_light",
+    eyebrow: "Uso em fundo escuro",
+    title: "Logotipo light",
+    description: "Aplicado automaticamente em headers, rodapes e secoes com fundo escuro.",
+    defaultFileName: "logo-light-padrao.svg",
+    fallbackSrc: "/favicon.svg",
+    previewTone: "dark",
+  },
+  {
+    role: "logo_dark",
+    eyebrow: "Uso em fundo claro",
+    title: "Logotipo dark",
+    description: "Aplicado automaticamente em headers claros, admin e superficies claras do site.",
+    defaultFileName: "logo-dark-padrao.svg",
+    fallbackSrc: "/favicon.svg",
+    previewTone: "light",
+  },
+  {
+    role: "favicon",
+    eyebrow: "Navegador",
+    title: "Favicon",
+    description: "Usado na aba do navegador e em atalhos quando a aplicacao e aberta.",
+    defaultFileName: "favicon.svg",
+    fallbackSrc: "/favicon.svg",
+    previewTone: "icon",
+  },
+]
 
-  if (transport === "postmark") {
-    return "Postmark"
-  }
+function assetReady(asset: AdminBrandingAsset) {
+  return Boolean(asset.public_url || asset.path)
+}
 
-  if (transport === "sendgrid") {
-    return "SendGrid"
-  }
+function countReady(config: AdminBrandingConfig) {
+  return assetCards.filter((item) => assetReady(config.config_value[item.role])).length
+}
 
-  return "Nao definido"
+function BrandingPreview({
+  asset,
+  fallbackSrc,
+  title,
+  tone,
+}: {
+  asset: AdminBrandingAsset
+  fallbackSrc: string
+  title: string
+  tone: "dark" | "light" | "icon"
+}) {
+  const src = asset.public_url || fallbackSrc
+
+  return (
+    <div
+      className={[
+        "mt-6 flex h-28 items-center justify-center rounded-[1.4rem] border px-8",
+        tone === "dark"
+          ? "border-sky-950/20 bg-[#0f5966]"
+          : tone === "light"
+            ? "border-slate-200 bg-[#f4f9fb]"
+            : "border-slate-200 bg-[#f4f9fb]",
+      ].join(" ")}
+    >
+      {tone === "icon" ? (
+        <img src={src} alt={title} className="h-16 w-16 object-contain" />
+      ) : (
+        <div className="flex max-w-full items-center gap-3">
+          <img src={src} alt="" className="h-12 w-12 shrink-0 object-contain" />
+          <span
+            className={[
+              "truncate font-display text-xl font-black",
+              tone === "dark" ? "text-white" : "text-slate-950",
+            ].join(" ")}
+          >
+            Mariana Explica
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BrandingAssetCard({
+  asset,
+  card,
+  uploading,
+  onUpload,
+}: {
+  asset: AdminBrandingAsset
+  card: (typeof assetCards)[number]
+  uploading: boolean
+  onUpload: (file: File) => void
+}) {
+  const inputId = `branding-upload-${card.role}`
+  const currentFile = asset.file_name || card.defaultFileName
+
+  return (
+    <article className="border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">{card.eyebrow}</p>
+      <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">{card.title}</h2>
+      <p className="mt-3 min-h-12 text-sm leading-7 text-slate-600">{card.description}</p>
+
+      <BrandingPreview asset={asset} fallbackSrc={card.fallbackSrc} title={card.title} tone={card.previewTone} />
+
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-[#f4f9fb] px-4 py-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">Arquivo atual</p>
+        <p className="mt-2 break-all text-sm font-bold text-slate-950">{currentFile}</p>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Enviar novo arquivo</p>
+        <label
+          htmlFor={inputId}
+          className="mt-2 flex h-14 cursor-pointer items-center justify-center gap-3 border border-slate-200 bg-[#eef6f9] px-4 text-xs font-black uppercase tracking-[0.18em] text-sky-700 transition hover:border-sky-300 hover:bg-sky-50"
+        >
+          <UploadCloud className="h-4 w-4" />
+          {uploading ? "A publicar..." : "Escolher arquivo"}
+        </label>
+        <input
+          id={inputId}
+          type="file"
+          accept="image/svg+xml,image/png,image/jpeg,image/webp,image/gif,image/avif,image/x-icon,.ico"
+          className="sr-only"
+          disabled={uploading}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ""
+            if (file) onUpload(file)
+          }}
+        />
+      </div>
+
+      <p className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-600">
+        Ao escolher um arquivo, o upload e a publicacao acontecem automaticamente.
+      </p>
+    </article>
+  )
 }
 
 export function AdminSettings() {
-  const emailStatusQuery = useAdminEmailStatus()
-  const email = emailStatusQuery.data
+  const queryClient = useQueryClient()
+  const [uploadingRole, setUploadingRole] = useState<BrandingRole | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
 
-  if (emailStatusQuery.isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Configuracoes" description="Estado operacional do email transacional do projeto." />
-        <div className="grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-              <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
-              <div className="mt-4 h-8 w-40 animate-pulse rounded-full bg-slate-200" />
-              <div className="mt-3 h-4 w-52 animate-pulse rounded-full bg-slate-100" />
-            </div>
-          ))}
-        </div>
-      </div>
-    )
+  const brandingQuery = useQuery({
+    queryKey: ["admin", "branding"],
+    queryFn: fetchAdminBrandingConfig,
+    staleTime: 60_000,
+  })
+
+  const saveBranding = useMutation({
+    mutationFn: updateAdminBrandingConfig,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "branding"] })
+    },
+  })
+
+  const handleUpload = async (role: BrandingRole, file: File) => {
+    if (!brandingQuery.data) return
+
+    setUploadingRole(role)
+    setFeedback(null)
+
+    try {
+      const currentConfig = brandingQuery.data.config_value
+      const currentAsset = currentConfig[role]
+      const upload = await uploadAdminBrandingAssetFile({
+        role,
+        file,
+        replacePath: currentAsset.path,
+      })
+
+      await saveBranding.mutateAsync({
+        ...currentConfig,
+        [role]: {
+          bucket: upload.bucket,
+          path: upload.path,
+          public_url: upload.public_url ?? null,
+          file_name: upload.file_name,
+          uploaded_at: upload.uploaded_at,
+        },
+      })
+
+      setFeedback({ tone: "success", message: "Asset de branding publicado com sucesso." })
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel publicar o asset.",
+      })
+    } finally {
+      setUploadingRole(null)
+    }
   }
 
-  if (emailStatusQuery.isError) {
+  if (brandingQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar as configuracoes de email"
-        message={
-          emailStatusQuery.error instanceof Error
-            ? emailStatusQuery.error.message
-            : "Tenta novamente dentro de instantes."
-        }
-        onRetry={() => void emailStatusQuery.refetch()}
+        title="Nao foi possivel carregar as configuracoes"
+        message={brandingQuery.error instanceof Error ? brandingQuery.error.message : "Tenta novamente dentro de instantes."}
+        onRetry={() => void brandingQuery.refetch()}
       />
     )
   }
 
-  if (!email) {
-    return (
-      <EmptyState
-        title="Sem configuracoes disponiveis"
-        message="O backend ainda nao devolveu estado suficiente para o email transacional."
-      />
-    )
-  }
-
-  const ready = email.ready
-  const missingItems = email.missing
-
-  const cards = [
-    {
-      label: "Transporte",
-      value: transportLabel(email.transport),
-      tone: ready ? "success" : "warning",
-      note: email.providerName ? `Resolvido a partir de ${email.providerName}.` : "Resolver pelo ambiente do projeto.",
-    },
-    {
-      label: "Remetente",
-      value: email.senderAddressPresent ? "Configurado" : "Em falta",
-      tone: email.senderAddressPresent ? "success" : "warning",
-      note: email.senderNamePresent ? "Nome do remetente disponivel." : "Nome do remetente nao e obrigatorio.",
-    },
-    {
-      label: "Reply-to",
-      value: email.replyToPresent ? "Configurado" : "Opcional",
-      tone: email.replyToPresent ? "success" : "neutral",
-      note: email.replyToPresent ? "Resposta direcionada ao endereco correto." : "Pode ficar vazio se nao houver um destinatario de resposta dedicado.",
-    },
-  ] as const
+  const branding = brandingQuery.data
+  const readyCount = branding ? countReady(branding) : 0
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Configuracoes"
-        description="O email transacional usa as variaveis do projeto e o SMTP configurado no backend. Esta pagina apenas confirma o estado real."
-        actions={
-          <Button
+    <div className="space-y-7">
+      <div className="border-b border-slate-200 pb-6">
+        <div className="inline-flex border border-slate-200 bg-[#eef6f9] px-4 py-2">
+          <p className="text-[11px] font-black uppercase tracking-[0.32em] text-sky-700">Configuracoes do site</p>
+        </div>
+        <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-slate-950">Branding e logotipos</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+              Envie aqui os arquivos oficiais da marca. O sistema escolhe automaticamente o logotipo light ou dark de
+              acordo com o fundo em cada area da plataforma.
+            </p>
+          </div>
+          <button
             type="button"
-            variant="outline"
-            className="rounded-full"
-            onClick={() => void emailStatusQuery.refetch()}
-            disabled={emailStatusQuery.isFetching}
+            onClick={() => void brandingQuery.refetch()}
+            disabled={brandingQuery.isFetching}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 disabled:opacity-60"
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {emailStatusQuery.isFetching ? "A validar..." : "Atualizar"}
-          </Button>
-        }
-      />
+            <RefreshCw className="h-4 w-4" />
+            {brandingQuery.isFetching ? "A atualizar..." : "Atualizar"}
+          </button>
+        </div>
+      </div>
+
+      {feedback ? (
+        <div
+          className={[
+            "rounded-2xl border px-4 py-3 text-sm font-medium",
+            feedback.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-rose-200 bg-rose-50 text-rose-900",
+          ].join(" ")}
+        >
+          {feedback.message}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Estado geral</p>
-          <div className="mt-3 flex items-center gap-3">
-            <p className="text-3xl font-bold text-slate-950">{ready ? "Pronto" : "Em falta"}</p>
-            <StatusBadge label={ready ? "OK" : "Pendente"} tone={ready ? "success" : "warning"} />
-          </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {ready
-              ? "O backend ja consegue enviar emails usando o ambiente do projeto."
-              : "Ainda falta pelo menos uma variavel de email para fechar o envio transacional."}
-          </p>
+        <div className="border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Status</p>
+          <p className="mt-4 text-3xl font-bold text-slate-950">{brandingQuery.isLoading ? "..." : `${readyCount}/3`}</p>
+          <p className="mt-2 text-sm text-slate-600">Assets de branding publicados</p>
         </div>
-
-        {cards.map((card) => (
-          <div key={card.label} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">{card.label}</p>
-            <div className="mt-3 flex items-center gap-3">
-              <p className="text-2xl font-bold text-slate-950">{card.value}</p>
-              <StatusBadge
-                label={card.tone === "success" ? "OK" : card.tone === "warning" ? "Pendente" : "Opcional"}
-                tone={card.tone === "success" ? "success" : card.tone === "warning" ? "warning" : "neutral"}
-              />
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{card.note}</p>
+        <div className="border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Selecao dinamica</p>
+          <p className="mt-4 text-2xl font-bold text-slate-950">Automatica</p>
+          <p className="mt-2 text-sm text-slate-600">Light em fundo escuro, dark em fundo claro.</p>
+        </div>
+        <div className="border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Favicon</p>
+          <div className="mt-4 flex items-center gap-3">
+            <p className="text-2xl font-bold text-slate-950">Ativo</p>
+            <StatusBadge label="OK" tone="success" />
           </div>
+          <p className="mt-2 text-sm text-slate-600">Atualizado para as proximas sessoes do navegador.</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        {assetCards.map((card) => (
+          <BrandingAssetCard
+            key={card.role}
+            card={card}
+            asset={branding?.config_value[card.role] ?? {
+              bucket: null,
+              path: null,
+              public_url: null,
+              file_name: null,
+              uploaded_at: null,
+            }}
+            uploading={uploadingRole === card.role || brandingQuery.isLoading}
+            onUpload={(file) => void handleUpload(card.role, file)}
+          />
         ))}
       </div>
 
-      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Pendencias reais</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-              So aparecem itens que o backend ainda nao consegue resolver sozinho a partir do ambiente do projeto.
-            </p>
-          </div>
-          <StatusBadge label={missingItems.length === 0 ? "Sem pendencias" : `${missingItems.length} pendente(s)`} tone={missingItems.length === 0 ? "success" : "warning"} />
-        </div>
-
-        <div className="mt-6 space-y-3">
-          {missingItems.length === 0 ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
-              Nada manual precisa ser fornecido aqui. O SMTP do projeto ja cobre a entrega transacional.
-            </div>
-          ) : (
-            missingItems.map((item) => (
-              <div
-                key={item}
-                className="flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-amber-950">{item}</p>
-                  <p className="mt-1 text-sm leading-6 text-amber-800">
-                    Este valor ainda precisa ser definido nas variaveis do projeto.
-                  </p>
-                </div>
-                <StatusBadge label="Falta" tone="warning" />
-              </div>
-            ))
-          )}
-        </div>
-      </section>
+      <div className="flex items-start gap-3 border border-slate-200 bg-[#f4f9fb] p-4 text-sm leading-7 text-slate-600">
+        <Image className="mt-1 h-4 w-4 shrink-0 text-sky-700" />
+        <p>
+          Formatos aceitos: SVG, PNG, JPG, WEBP, GIF, AVIF e ICO. Use SVG ou PNG com fundo transparente para manter a
+          nitidez em telas de alta resolucao.
+        </p>
+      </div>
     </div>
   )
 }

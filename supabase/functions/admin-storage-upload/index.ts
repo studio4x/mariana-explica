@@ -6,6 +6,7 @@ import { createServiceClient } from "../_shared/supabase.ts"
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
 const COURSE_COVER_BUCKET = "course-cover-public"
+const SITE_BRANDING_BUCKET = "site-branding-public"
 const COURSE_COVER_ALLOWED_MIME_TYPES = [
   "image/png",
   "image/jpeg",
@@ -14,6 +15,12 @@ const COURSE_COVER_ALLOWED_MIME_TYPES = [
   "image/webp",
   "image/gif",
   "image/avif",
+]
+const BRANDING_ALLOWED_MIME_TYPES = [
+  ...COURSE_COVER_ALLOWED_MIME_TYPES,
+  "image/svg+xml",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
 ]
 
 function sanitizeSegment(value: string) {
@@ -96,10 +103,11 @@ Deno.serve(async (req) => {
     const kind = String(formData.get("kind") ?? "").trim()
     const moduleId = String(formData.get("moduleId") ?? "").trim()
     const productId = String(formData.get("productId") ?? "").trim()
+    const assetRole = sanitizeSegment(String(formData.get("assetRole") ?? "").trim())
     const replacePath = String(formData.get("replacePath") ?? "").trim() || null
     const file = formData.get("file")
 
-    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover"].includes(kind)) {
+    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset"].includes(kind)) {
       throw badRequest("kind invalido")
     }
     if (!(file instanceof File)) {
@@ -134,6 +142,30 @@ Deno.serve(async (req) => {
         fileSizeLimit: "50MB",
         allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
       })
+    } else if (kind === "branding_asset") {
+      if (!["logo_light", "logo_dark", "favicon"].includes(assetRole)) {
+        throw badRequest("assetRole invalido")
+      }
+
+      await ensureStorageBucket(context.serviceClient, SITE_BRANDING_BUCKET, {
+        public: true,
+        fileSizeLimit: "5MB",
+        allowedMimeTypes: BRANDING_ALLOWED_MIME_TYPES,
+      })
+
+      if (!contentType || !BRANDING_ALLOWED_MIME_TYPES.includes(contentType)) {
+        throw badRequest("Formato de branding invalido. Use SVG, PNG, JPG, WEBP, GIF, AVIF ou ICO.")
+      }
+
+      targetBucket = SITE_BRANDING_BUCKET
+      objectPath = `${assetRole}/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
+      auditAction = "admin.branding_asset_uploaded"
+      auditEntityType = "site_config"
+      auditEntityId = "site_branding"
+      auditMetadata = {
+        ...auditMetadata,
+        asset_role: assetRole,
+      }
     } else if (kind === "product_cover") {
       if (!productId) throw badRequest("productId e obrigatorio")
 
@@ -236,7 +268,7 @@ Deno.serve(async (req) => {
     })
 
     const publicUploadUrl =
-      targetBucket === COURSE_COVER_BUCKET
+      targetBucket === COURSE_COVER_BUCKET || targetBucket === SITE_BRANDING_BUCKET
         ? context.serviceClient.storage.from(targetBucket).getPublicUrl(objectPath).data.publicUrl
         : null
 

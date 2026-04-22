@@ -43,7 +43,6 @@ const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
   { to: ROUTES.ADMIN_OPERATIONS, label: "Operacoes", icon: Activity },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
-  { to: ROUTES.ADMIN_SETTINGS, label: "Configuracoes", icon: Settings },
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Cursos", icon: Package },
@@ -51,6 +50,7 @@ const items = [
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
+  { to: ROUTES.ADMIN_SETTINGS, label: "Configuracoes", icon: Settings },
 ]
 
 function getInitials(name?: string | null, email?: string | null) {
