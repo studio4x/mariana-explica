@@ -22,6 +22,9 @@ verify_jwt = false
 [functions.claim-free-product]
 verify_jwt = false
 
+[functions.payment-webhook]
+verify_jwt = false
+
 [functions.reconcile-orders]
 verify_jwt = false
 
