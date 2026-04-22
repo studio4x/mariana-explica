@@ -784,6 +784,23 @@ export async function markNotificationAsRead(notificationId: string) {
   return data as NotificationItem
 }
 
+export async function markAllNotificationsAsRead() {
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({
+      status: "read",
+      read_at: new Date().toISOString(),
+    })
+    .eq("status", "unread")
+    .select("id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as NotificationItem[]
+}
+
 export async function fetchSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")

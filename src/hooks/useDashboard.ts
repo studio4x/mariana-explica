@@ -20,6 +20,7 @@ import {
   fetchSupportTickets,
   fetchUnreadNotificationsCount,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
   replySupportTicket,
   requestAssetAccess,
   requestModulePdfAccess,
@@ -101,10 +102,41 @@ export function useDownloads() {
 }
 
 export function useNotifications() {
-  return useQuery({
+  const { session } = useAuth()
+  const userId = session?.user.id
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ["dashboard", "notifications"],
     queryFn: () => fetchNotifications(),
   })
+
+  useEffect(() => {
+    if (!userId) return undefined
+
+    const channel = supabase
+      .channel(`student-notifications-list:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
+          void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications", "unread-count", userId] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient, userId])
+
+  return query
 }
 
 export function useUnreadNotificationsCount() {
@@ -216,6 +248,18 @@ export function useUpdateProfilePreferences() {
     mutationFn: updateProfilePreferences,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "profile"] })
+    },
+  })
+}
+
+export function useMarkAllNotificationsAsRead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: markAllNotificationsAsRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
     },
   })
 }

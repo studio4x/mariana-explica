@@ -1,4 +1,3 @@
-import { useState } from "react"
 import {
   Bell,
   BookOpen,
@@ -11,13 +10,18 @@ import {
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
 import { InstallPrompt } from "@/components/common"
+import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
-import { useMarkNotificationAsRead, useNotifications, useUnreadNotificationsCount } from "@/hooks/useDashboard"
+import {
+  useMarkAllNotificationsAsRead,
+  useMarkNotificationAsRead,
+  useNotifications,
+  useUnreadNotificationsCount,
+} from "@/hooks/useDashboard"
 import { BUILD_VERSION } from "@/lib/build"
 import { cn } from "@/lib/cn"
 import { APP_NAME, ROUTES } from "@/lib/constants"
-import { formatDateTime } from "@/utils/date"
 
 const items = [
   {
@@ -67,93 +71,12 @@ function getInitials(name?: string | null, email?: string | null) {
     .join("") || "A"
 }
 
-function NotificationCenter() {
-  const [isOpen, setIsOpen] = useState(false)
+export function DashboardLayout() {
+  const { profile, signOut } = useAuth()
   const unreadNotificationsQuery = useUnreadNotificationsCount()
   const notificationsQuery = useNotifications()
   const markAsRead = useMarkNotificationAsRead()
-  const unreadNotificationsCount = unreadNotificationsQuery.data ?? 0
-  const notifications = (notificationsQuery.data ?? []).slice(0, 5)
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen((current) => !current)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-[#D8E6EB] bg-white text-[#163138] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-        aria-label={`Notificacoes${unreadNotificationsCount > 0 ? `, ${unreadNotificationsCount} por ler` : ""}`}
-      >
-        <Bell className="h-5 w-5" />
-        {unreadNotificationsCount > 0 ? (
-          <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#1398B7] px-1 text-[10px] font-black text-white ring-2 ring-white">
-            {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
-          </span>
-        ) : null}
-      </button>
-
-      {isOpen ? (
-        <div className="absolute right-0 z-50 mt-3 w-[min(calc(100vw-2rem),420px)] overflow-hidden rounded-[1.5rem] border border-[#D8E6EB] bg-white shadow-[0_24px_70px_rgba(22,49,56,0.14)]">
-          <div className="flex items-center justify-between gap-3 bg-[#F2F7F9] px-5 py-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#1398B7]">Centro</p>
-              <h2 className="text-sm font-black text-[#163138]">Notificacoes</h2>
-            </div>
-            <Link
-              to={ROUTES.DASHBOARD_NOTIFICATIONS}
-              onClick={() => setIsOpen(false)}
-              className="text-xs font-bold text-[#1398B7] hover:text-[#0A3640]"
-            >
-              Ver todas
-            </Link>
-          </div>
-          <div className="max-h-[420px] overflow-y-auto p-3">
-            {notificationsQuery.isLoading ? (
-              <p className="px-3 py-6 text-sm text-slate-500">A carregar notificacoes...</p>
-            ) : notifications.length === 0 ? (
-              <p className="px-3 py-6 text-sm text-slate-500">Sem notificacoes por enquanto.</p>
-            ) : (
-              <div className="grid gap-2">
-                {notifications.map((notification) => (
-                  <button
-                    key={notification.id}
-                    type="button"
-                    onClick={() => {
-                      if (notification.status === "unread") {
-                        void markAsRead.mutateAsync(notification.id)
-                      }
-                    }}
-                    className={cn(
-                      "rounded-2xl border p-3 text-left transition hover:bg-[#F2F7F9]",
-                      notification.status === "unread"
-                        ? "border-[#B9E5EF] bg-[#F2FBFD]"
-                        : "border-slate-100 bg-white",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-bold text-[#163138]">{notification.title}</p>
-                      {notification.status === "unread" ? (
-                        <span className="rounded-full bg-[#1398B7] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-white">
-                          Nova
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{notification.message}</p>
-                    <p className="mt-2 text-[11px] font-semibold text-slate-400">
-                      {formatDateTime(notification.created_at)}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-export function DashboardLayout() {
-  const { profile, signOut } = useAuth()
+  const markAllAsRead = useMarkAllNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Aluno"
   const initials = getInitials(profile?.full_name, profile?.email)
 
@@ -189,7 +112,6 @@ export function DashboardLayout() {
             >
               <Home className="h-5 w-5" />
             </Link>
-            <NotificationCenter />
             <Link
               to={ROUTES.DASHBOARD_PROFILE}
               className="hidden rounded-2xl border border-[#D8E6EB] bg-white px-4 py-2 text-sm font-bold text-[#163138] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:inline-flex"
@@ -277,6 +199,15 @@ export function DashboardLayout() {
           </footer>
         </main>
       </div>
+      <FloatingNotifications
+        notifications={notificationsQuery.data ?? []}
+        isLoading={notificationsQuery.isLoading}
+        unreadCount={unreadNotificationsQuery.data ?? 0}
+        onMarkAsRead={(notificationId) => void markAsRead.mutateAsync(notificationId)}
+        onClearAll={() => void markAllAsRead.mutateAsync()}
+        markAsReadPending={markAsRead.isPending}
+        clearAllPending={markAllAsRead.isPending}
+      />
       <InstallPrompt />
     </div>
   )

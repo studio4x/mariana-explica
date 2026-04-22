@@ -809,6 +809,41 @@ export async function fetchAdminNotifications() {
   return (data ?? []) as AdminNotificationSummary[]
 }
 
+export async function markAdminNotificationAsRead(notificationId: string) {
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({
+      status: "read",
+      read_at: new Date().toISOString(),
+    })
+    .eq("id", notificationId)
+    .select("id,user_id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as AdminNotificationSummary
+}
+
+export async function markAllAdminNotificationsAsRead() {
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({
+      status: "read",
+      read_at: new Date().toISOString(),
+    })
+    .eq("status", "unread")
+    .select("id,user_id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as AdminNotificationSummary[]
+}
+
 export async function fetchAdminAffiliates() {
   const { data, error } = await supabase
     .from("affiliates")

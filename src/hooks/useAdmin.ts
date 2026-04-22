@@ -1,4 +1,6 @@
+import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { supabase } from "@/integrations/supabase"
 import {
   archiveAdminProduct,
   createAdminAffiliate,
@@ -25,6 +27,8 @@ import {
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
   fetchAdminNotifications,
+  markAdminNotificationAsRead,
+  markAllAdminNotificationsAsRead,
   fetchAdminOperations,
   fetchAdminOrders,
   fetchAdminOrdersView,
@@ -193,11 +197,36 @@ export function useAdminOrdersView() {
 }
 
 export function useAdminNotifications() {
-  return useQuery({
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ["admin", "notifications"],
     queryFn: fetchAdminNotifications,
     ...getAdminQueryOptions(),
   })
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["admin", "notifications"] })
+          void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+
+  return query
 }
 
 export function useAdminOperations() {
@@ -466,6 +495,16 @@ export function useReconcileAdminOrder() {
 export function useCreateAdminNotification() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: createAdminNotification, onSuccess: invalidate })
+}
+
+export function useMarkAdminNotificationAsRead() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: markAdminNotificationAsRead, onSuccess: invalidate })
+}
+
+export function useMarkAllAdminNotificationsAsRead() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: markAllAdminNotificationsAsRead, onSuccess: invalidate })
 }
 
 export function useCreateAdminAffiliate() {

@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 import { StatusBadge } from "@/components/common"
+import { FloatingNotifications } from "@/components/notifications"
 import { cn } from "@/lib/cn"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
@@ -28,6 +29,12 @@ import {
   fetchAdminSupportTickets,
   fetchAdminUsers,
 } from "@/services"
+import {
+  useAdminNotifications,
+  useAdminUsers,
+  useMarkAdminNotificationAsRead,
+  useMarkAllAdminNotificationsAsRead,
+} from "@/hooks/useAdmin"
 
 const items = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
@@ -46,6 +53,10 @@ const items = [
 
 export function AdminLayout() {
   const queryClient = useQueryClient()
+  const notificationsQuery = useAdminNotifications()
+  const usersQuery = useAdminUsers()
+  const markNotificationAsRead = useMarkAdminNotificationAsRead()
+  const markAllNotificationsAsRead = useMarkAllAdminNotificationsAsRead()
 
   useEffect(() => {
     void queryClient.prefetchQuery({
@@ -84,6 +95,9 @@ export function AdminLayout() {
       staleTime: 60_000,
     })
   }, [queryClient])
+
+  const userMap = new Map((usersQuery.data ?? []).map((user) => [user.id, user]))
+  const unreadNotificationsCount = (notificationsQuery.data ?? []).filter((notification) => notification.status === "unread").length
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_50%,#ffffff_100%)]">
@@ -160,6 +174,19 @@ export function AdminLayout() {
           </main>
         </div>
       </div>
+      <FloatingNotifications
+        notifications={notificationsQuery.data ?? []}
+        isLoading={notificationsQuery.isLoading}
+        unreadCount={unreadNotificationsCount}
+        onMarkAsRead={(notificationId) => void markNotificationAsRead.mutateAsync(notificationId)}
+        onClearAll={() => void markAllNotificationsAsRead.mutateAsync()}
+        markAsReadPending={markNotificationAsRead.isPending}
+        clearAllPending={markAllNotificationsAsRead.isPending}
+        getAudienceLabel={(notification) => {
+          const user = userMap.get(notification.user_id)
+          return user ? `${user.full_name} - ${user.email}` : notification.user_id
+        }}
+      />
     </div>
   )
 }
