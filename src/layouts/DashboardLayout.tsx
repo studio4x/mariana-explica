@@ -182,6 +182,13 @@ export function DashboardLayout() {
           </p>
 
           <div className="flex items-center gap-2">
+            <Link
+              to={ROUTES.HOME}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#D8E6EB] bg-white text-[#163138] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              aria-label="Ir para a pagina publica"
+            >
+              <Home className="h-5 w-5" />
+            </Link>
             <NotificationCenter />
             <Link
               to={ROUTES.DASHBOARD_PROFILE}

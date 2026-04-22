@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
-  PlayCircle,
   ShieldCheck,
   Sparkles,
   Star,
@@ -140,11 +139,6 @@ export function Product() {
                     <Sparkles className="h-12 w-12" />
                   </div>
                 )}
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/10">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-slate-950 shadow-lg">
-                    <PlayCircle className="h-7 w-7" />
-                  </span>
-                </div>
               </div>
 
               <div className="space-y-6 p-6">

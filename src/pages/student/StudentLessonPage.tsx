@@ -1,5 +1,5 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
-import { FileText, PlayCircle, StickyNote } from "lucide-react"
+import { CheckCircle2, FileText, Loader2, PlayCircle, StickyNote } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -36,6 +36,7 @@ export function StudentLessonPage() {
   const [noteText, setNoteText] = useState("")
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs the fetched note into the editable draft when the lesson changes.
     setNoteText(noteQuery.data?.note_text ?? "")
   }, [lessonSummary?.id, noteQuery.data?.note_text])
 
@@ -98,6 +99,10 @@ export function StudentLessonPage() {
   const previousEntry = currentIndex > 0 ? unlockedEntries[currentIndex - 1] : null
   const nextEntry = currentIndex >= 0 ? unlockedEntries[currentIndex + 1] ?? null : null
   const currentNote = noteText
+  const currentProgress = context.progress.find((item) => item.lesson_id === lesson.id)
+  const displayedProgress = currentProgress?.progress_percent ?? lessonSummary.progress_percent ?? 0
+  const displayedStatus = currentProgress?.status ?? lessonSummary.progress_state ?? "not_started"
+  const isLessonCompleted = displayedStatus === "completed"
 
   const handleSaveNote = async () => {
     await saveLessonNote.mutateAsync({ lessonId: lesson.id, noteText: currentNote })
@@ -186,11 +191,28 @@ export function StudentLessonPage() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button type="button" className="rounded-full" onClick={() => void handleProgress("in_progress")} disabled={progressMutation.isPending}>
-            Marcar em progresso
+          <div className="mr-auto min-w-[220px]">
+            <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              <span>Progresso da aula</span>
+              <span>{displayedProgress}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-[#1398B7] transition-all duration-300" style={{ width: `${displayedProgress}%` }} />
+            </div>
+          </div>
+          <Button type="button" className="rounded-full" onClick={() => void handleProgress("in_progress")} disabled={progressMutation.isPending || isLessonCompleted}>
+            {progressMutation.isPending && progressMutation.variables?.status === "in_progress" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {displayedStatus === "in_progress" ? "Em progresso" : "Marcar em progresso"}
           </Button>
-          <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleProgress("completed")} disabled={progressMutation.isPending}>
-            Concluir aula
+          <Button type="button" variant={isLessonCompleted ? "default" : "outline"} className="rounded-full" onClick={() => void handleProgress("completed")} disabled={progressMutation.isPending || isLessonCompleted}>
+            {progressMutation.isPending && progressMutation.variables?.status === "completed" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : isLessonCompleted ? (
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+            ) : null}
+            {isLessonCompleted ? "Aula concluida" : "Concluir aula"}
           </Button>
         </div>
       </section>

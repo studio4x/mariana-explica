@@ -282,6 +282,57 @@ export function useUpsertLessonProgress() {
 
   return useMutation({
     mutationFn: upsertLessonProgress,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ["dashboard", "product", variables.productId] })
+
+      const previousProduct = queryClient.getQueryData<Awaited<ReturnType<typeof fetchDashboardProductContent>>>([
+        "dashboard",
+        "product",
+        variables.productId,
+      ])
+
+      const optimisticProgress = {
+        id: `optimistic-${variables.lessonId}`,
+        user_id: "",
+        lesson_id: variables.lessonId,
+        product_id: variables.productId,
+        module_id: variables.moduleId,
+        status: variables.status,
+        progress_percent: variables.progressPercent,
+        started_at: variables.status !== "not_started" ? new Date().toISOString() : null,
+        completed_at: variables.status === "completed" ? new Date().toISOString() : null,
+        last_accessed_at: new Date().toISOString(),
+      } satisfies Awaited<ReturnType<typeof upsertLessonProgress>>
+
+      queryClient.setQueryData<Awaited<ReturnType<typeof fetchDashboardProductContent>>>(
+        ["dashboard", "product", variables.productId],
+        (current) => {
+          if (!current) return current
+
+          const progress = current.progress.filter((item) => item.lesson_id !== variables.lessonId)
+          return {
+            ...current,
+            lessons: current.lessons.map((lesson) =>
+              lesson.id === variables.lessonId
+                ? {
+                    ...lesson,
+                    progress_state: variables.status,
+                    progress_percent: variables.progressPercent,
+                  }
+                : lesson,
+            ),
+            progress: [...progress, optimisticProgress],
+          }
+        },
+      )
+
+      return { previousProduct, productId: variables.productId }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousProduct) {
+        queryClient.setQueryData(["dashboard", "product", context.productId], context.previousProduct)
+      }
+    },
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "product", variables.productId] })
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "products"] })
