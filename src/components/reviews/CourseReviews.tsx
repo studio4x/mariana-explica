@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import { Link } from "react-router-dom"
 import { CheckCircle2, MessageSquareText, ThumbsDown, ThumbsUp } from "lucide-react"
@@ -99,8 +99,19 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [message, setMessage] = useState<string | null>(null)
+  const [loadedReviewId, setLoadedReviewId] = useState<string | null>(null)
   const stats = statsQuery.data
   const reviews = reviewsQuery.data ?? []
+
+  useEffect(() => {
+    if (!myReviewQuery.data || loadedReviewId === myReviewQuery.data.id) return
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrates the editable draft from the user's existing review.
+    setLoadedReviewId(myReviewQuery.data.id)
+    setRating(myReviewQuery.data.rating)
+    setTitle(myReviewQuery.data.title)
+    setContent(myReviewQuery.data.content)
+  }, [loadedReviewId, myReviewQuery.data])
 
   const distribution = useMemo(() => {
     const values = stats?.rating_distribution ?? { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 }
