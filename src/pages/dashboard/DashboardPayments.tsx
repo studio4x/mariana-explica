@@ -37,6 +37,7 @@ export function DashboardPayments() {
   const [refundPayment, setRefundPayment] = useState<StudentPaymentSummary | null>(null)
   const [confirmRefund, setConfirmRefund] = useState(false)
   const [refundMessage, setRefundMessage] = useState("")
+  const [receiptLoadingOrderId, setReceiptLoadingOrderId] = useState<string | null>(null)
 
   if (paymentsQuery.isLoading) {
     return <LoadingState message="A carregar historico de pagamentos..." />
@@ -59,8 +60,41 @@ export function DashboardPayments() {
   const currency = payments[0]?.currency ?? "EUR"
 
   const openReceipt = async (payment: StudentPaymentSummary) => {
-    const result = await receiptMutation.mutateAsync(payment.id)
-    window.open(result.receipt_url, "_blank", "noopener,noreferrer")
+    const receiptWindow = window.open("", "_blank")
+    if (receiptWindow) {
+      receiptWindow.opener = null
+      receiptWindow.document.title = "A preparar fatura"
+      receiptWindow.document.body.innerHTML = `
+        <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a;">
+          <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #64748b;">Mariana Explica</p>
+          <h1 style="font-size: 24px; margin: 12px 0;">A preparar a tua fatura...</h1>
+          <p style="color: #475569;">Esta janela vai abrir automaticamente dentro de instantes.</p>
+        </main>
+      `
+    }
+
+    setReceiptLoadingOrderId(payment.id)
+
+    try {
+      const result = await receiptMutation.mutateAsync(payment.id)
+      if (receiptWindow) {
+        receiptWindow.location.href = result.receipt_url
+      } else {
+        window.open(result.receipt_url, "_blank", "noopener,noreferrer")
+      }
+    } catch {
+      if (receiptWindow) {
+        receiptWindow.document.body.innerHTML = `
+          <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a;">
+            <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #b91c1c;">Erro</p>
+            <h1 style="font-size: 24px; margin: 12px 0;">Nao foi possivel abrir a fatura</h1>
+            <p style="color: #475569;">Volta a pagina anterior e tenta novamente.</p>
+          </main>
+        `
+      }
+    } finally {
+      setReceiptLoadingOrderId(null)
+    }
   }
 
   const submitRefundRequest = async () => {
@@ -146,10 +180,10 @@ export function DashboardPayments() {
                         type="button"
                         variant="outline"
                         className="rounded-full"
-                        disabled={!payment.payment_reference || receiptMutation.isPending}
+                        disabled={!payment.payment_reference || receiptLoadingOrderId === payment.id}
                         onClick={() => void openReceipt(payment)}
                       >
-                        Ver fatura
+                        {receiptLoadingOrderId === payment.id ? "A abrir..." : "Ver fatura"}
                         <ExternalLink className="h-4 w-4" />
                       </Button>
 

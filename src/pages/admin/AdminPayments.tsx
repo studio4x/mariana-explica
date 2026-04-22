@@ -21,6 +21,10 @@ import type { AdminOrderViewSummary } from "@/types/app.types"
 
 type PaymentsTab = "history" | "settings"
 type PaymentsFilter = "all" | "pending" | "paid" | "refunded"
+type ActionFeedback = {
+  tone: "success" | "warning" | "danger"
+  message: string
+}
 
 const filterOptions: Array<{ key: PaymentsFilter; label: string }> = [
   { key: "all", label: "Todos" },
@@ -92,6 +96,23 @@ function getOrderActions(order: AdminOrderViewSummary) {
   return actions
 }
 
+function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_failed", stripe: {
+  status?: string | null
+  payment_status?: string | null
+}) {
+  const stripeState = [stripe.status, stripe.payment_status].filter(Boolean).join(" / ")
+
+  if (action === "mark_paid") {
+    return "Pedido reconciliado com a Stripe, marcado como pago e acesso sincronizado."
+  }
+
+  if (action === "mark_failed") {
+    return "Pedido reconciliado com a Stripe e marcado como falhou porque a sessao externa nao confirmou pagamento."
+  }
+
+  return `Reconciliacao concluida sem mudancas. Estado Stripe: ${stripeState || "sem alteracao relevante"}.`
+}
+
 function AdminPaymentsSkeleton() {
   return (
     <div className="space-y-6">
@@ -108,6 +129,7 @@ export function AdminPayments() {
   const [filter, setFilter] = useState<PaymentsFilter>("all")
   const [draftMode, setDraftMode] = useState<CheckoutMode>("sandbox")
   const [openActionOrderId, setOpenActionOrderId] = useState<string | null>(null)
+  const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null)
 
   const ordersQuery = useQuery({
     queryKey: ["admin", "orders-view"],
@@ -170,6 +192,37 @@ export function AdminPayments() {
       markAdminOrderCancelled(orderId, reason),
     onSuccess: invalidateOrders,
   })
+
+  const runOrderAction = async (action: () => Promise<unknown>, successMessage: string) => {
+    setActionFeedback(null)
+
+    try {
+      await action()
+      setActionFeedback({ tone: "success", message: successMessage })
+    } catch (error) {
+      setActionFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel concluir a acao do pedido.",
+      })
+    }
+  }
+
+  const runReconciliation = async (orderId: string) => {
+    setActionFeedback(null)
+
+    try {
+      const result = await reconcileOrder.mutateAsync(orderId)
+      setActionFeedback({
+        tone: result.action === "noop" ? "warning" : "success",
+        message: reconcileFeedbackMessage(result.action, result.stripe),
+      })
+    } catch (error) {
+      setActionFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel reconciliar o pedido.",
+      })
+    }
+  }
 
   const activeMode = useMemo(() => {
     const persisted = checkoutModeQuery.data?.config_value.mode ?? null
@@ -310,6 +363,21 @@ export function AdminPayments() {
             )
           })}
         </div>
+
+        {actionFeedback ? (
+          <div
+            className={[
+              "mt-5 rounded-2xl border px-4 py-3 text-sm font-medium",
+              actionFeedback.tone === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : actionFeedback.tone === "warning"
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : "border-rose-200 bg-rose-50 text-rose-900",
+            ].join(" ")}
+          >
+            {actionFeedback.message}
+          </div>
+        ) : null}
 
         {tab === "history" ? (
           <div className="space-y-6 pt-6">
@@ -455,7 +523,7 @@ export function AdminPayments() {
                                         disabled={actionPending}
                                         onClick={() => {
                                           setOpenActionOrderId(null)
-                                          void reconcileOrder.mutateAsync(order.id)
+                                          void runReconciliation(order.id)
                                         }}
                                       >
                                         Reconciliar
@@ -470,7 +538,10 @@ export function AdminPayments() {
                                         onClick={() => {
                                           if (!window.confirm("Marcar este pedido como pago e liberar o acesso?")) return
                                           setOpenActionOrderId(null)
-                                          void markPaid.mutateAsync({ orderId: order.id })
+                                          void runOrderAction(
+                                            () => markPaid.mutateAsync({ orderId: order.id }),
+                                            "Pedido marcado como pago e acesso sincronizado.",
+                                          )
                                         }}
                                       >
                                         Marcar como pago
@@ -485,10 +556,14 @@ export function AdminPayments() {
                                         onClick={() => {
                                           if (!window.confirm("Marcar este pedido como reembolsado e revogar o acesso?")) return
                                           setOpenActionOrderId(null)
-                                          void markRefunded.mutateAsync({
-                                            orderId: order.id,
-                                            reason: "Reembolso registrado pelo admin na tela de pagamentos.",
-                                          })
+                                          void runOrderAction(
+                                            () =>
+                                              markRefunded.mutateAsync({
+                                                orderId: order.id,
+                                                reason: "Reembolso registrado pelo admin na tela de pagamentos.",
+                                              }),
+                                            "Pedido marcado como reembolsado e acesso revogado.",
+                                          )
                                         }}
                                       >
                                         Reembolsar
@@ -503,10 +578,14 @@ export function AdminPayments() {
                                         onClick={() => {
                                           if (!window.confirm("Cancelar este pedido pendente?")) return
                                           setOpenActionOrderId(null)
-                                          void markCancelled.mutateAsync({
-                                            orderId: order.id,
-                                            reason: "Pedido cancelado pelo admin na tela de pagamentos.",
-                                          })
+                                          void runOrderAction(
+                                            () =>
+                                              markCancelled.mutateAsync({
+                                                orderId: order.id,
+                                                reason: "Pedido cancelado pelo admin na tela de pagamentos.",
+                                              }),
+                                            "Pedido pendente cancelado.",
+                                          )
                                         }}
                                       >
                                         Cancelar pedido
@@ -637,6 +716,42 @@ export function AdminPayments() {
             </div>
           </div>
         )}
+
+        <div className="mt-8 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Legendas das acoes</p>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {[
+              {
+                title: "Reconciliar",
+                description:
+                  "Consulta a Stripe e sincroniza o pedido local. Se a Stripe ainda estiver pendente, nada e forcado.",
+              },
+              {
+                title: "Marcar como pago",
+                description:
+                  "Correcao manual para confirmar o pedido e liberar o acesso quando a operacao ja foi validada.",
+              },
+              {
+                title: "Reembolsar",
+                description:
+                  "Marca o pedido como reembolsado na plataforma e revoga o acesso. O reembolso financeiro deve existir na Stripe.",
+              },
+              {
+                title: "Cancelar pedido",
+                description: "Cancela um pedido pendente sem liberar acesso ao aluno.",
+              },
+              {
+                title: "Abrir pedido",
+                description: "Abre o registro correspondente na Stripe; a Stripe pode pedir login administrativo.",
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="font-semibold text-slate-950">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     </div>
   )

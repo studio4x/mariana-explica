@@ -1185,8 +1185,21 @@ export function markAdminOrderCancelled(orderId: string, reason?: string | null)
   return invokeAdminFunction("admin-orders", { action: "mark_cancelled", orderId, reason })
 }
 
+export interface ReconcileAdminOrderResponse {
+  success: true
+  request_id: string
+  action: "noop" | "mark_paid" | "mark_failed"
+  order: AdminOrderSummary
+  grants: unknown[]
+  stripe: {
+    id?: string
+    status?: string | null
+    payment_status?: string | null
+  }
+}
+
 export function reconcileAdminOrder(orderId: string) {
-  return invokeAdminFunction("reconcile-orders", { orderId })
+  return invokeAdminFunction<ReconcileAdminOrderResponse>("reconcile-orders", { orderId })
 }
 
 export function replyAdminSupportTicket(input: {
