@@ -37,6 +37,12 @@ verify_jwt = false
 [functions.student-assessment-attempts]
 verify_jwt = false
 
+[functions.create-support-ticket]
+verify_jwt = false
+
+[functions.support-ticket-reply]
+verify_jwt = false
+
 [functions.cron-audit-access-consistency]
 verify_jwt = false
 
