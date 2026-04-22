@@ -402,60 +402,27 @@ export async function fetchAdminPaymentsStatus() {
   return response.stripe
 }
 
-export async function fetchAdminCheckoutModeConfig() {
-  const { data, error } = await supabase
-    .from("site_config")
-    .select("config_key,config_value,description,is_public,updated_at")
-    .eq("config_key", CHECKOUT_MODE_CONFIG_KEY)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  if (!data) {
-    return null
-  }
-
-  return normalizeCheckoutModeConfig(data as Partial<AdminCheckoutModeConfig>)
-}
-
 export async function updateAdminCheckoutModeConfig(mode: CheckoutMode) {
-  const payload = normalizeCheckoutModeConfig({
-    config_key: CHECKOUT_MODE_CONFIG_KEY,
-    config_value: {
-      mode: mode === "production" ? "live" : "test",
-    },
-    description: "Configuracao operacional do ambiente do checkout Stripe.",
-    is_public: false,
+  const response = await invokeAdminFunction<{
+    success: true
+    checkout_mode: AdminCheckoutModeConfig
+  }>("admin-checkout-mode", {
+    action: "update",
+    mode,
   })
 
-  const siteConfigTable = supabase.from("site_config") as unknown as {
-    upsert: (...args: unknown[]) => {
-      select: (columns: string) => {
-        single: () => Promise<{ data: Partial<AdminCheckoutModeConfig> | null; error: Error | null }>
-      }
-    }
-  }
+  return normalizeCheckoutModeConfig(response.checkout_mode)
+}
 
-  const { data, error } = await siteConfigTable
-    .upsert(
-      {
-        config_key: CHECKOUT_MODE_CONFIG_KEY,
-        config_value: payload.config_value,
-        description: payload.description,
-        is_public: false,
-      },
-      { onConflict: "config_key" },
-    )
-    .select("config_key,config_value,description,is_public,updated_at")
-    .single()
+export async function fetchAdminCheckoutModeConfig() {
+  const response = await invokeAdminFunction<{
+    success: true
+    checkout_mode: AdminCheckoutModeConfig | null
+  }>("admin-checkout-mode", {
+    action: "get",
+  })
 
-  if (error) {
-    throw error
-  }
-
-  return normalizeCheckoutModeConfig(data as Partial<AdminCheckoutModeConfig>)
+  return response.checkout_mode ? normalizeCheckoutModeConfig(response.checkout_mode) : null
 }
 
 export async function fetchAdminModulePdfWatermarkConfig() {

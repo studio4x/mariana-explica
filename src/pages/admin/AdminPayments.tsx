@@ -94,7 +94,8 @@ export function AdminPayments() {
 
   const updateCheckoutMode = useMutation({
     mutationFn: updateAdminCheckoutModeConfig,
-    onSuccess: async () => {
+    onSuccess: async (nextMode) => {
+      setDraftMode(toUiMode(nextMode.config_value.mode))
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "checkout-mode"] }),
         queryClient.invalidateQueries({ queryKey: ["admin", "payments-status"] }),
@@ -391,10 +392,7 @@ export function AdminPayments() {
                           type="button"
                           onClick={() => {
                             if (updateCheckoutMode.isPending) return
-                            setDraftMode(mode)
-                            void updateCheckoutMode.mutateAsync(mode).catch(() => {
-                              setDraftMode(activeMode)
-                            })
+                            void updateCheckoutMode.mutateAsync(mode).catch(() => undefined)
                           }}
                           className={[
                             "inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition",
