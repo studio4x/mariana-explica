@@ -466,14 +466,53 @@ export function useCreateSupportTicket() {
 }
 
 export function useReplySupportTicket() {
+  const { session } = useAuth()
+  const userId = session?.user.id
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: replySupportTicket,
-    onSuccess: (result) => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ["dashboard", "support", "messages", variables.ticketId] })
+
+      const previousMessages =
+        queryClient.getQueryData<SupportTicketMessage[]>(["dashboard", "support", "messages", variables.ticketId]) ?? []
+      const tempId = `temp-${crypto.randomUUID()}`
+      const optimisticMessage: SupportTicketMessage = {
+        id: tempId,
+        ticket_id: variables.ticketId,
+        sender_user_id: userId ?? "pending-user",
+        sender_role: "student",
+        message: variables.message,
+        attachment_bucket: variables.attachment?.bucket ?? null,
+        attachment_path: variables.attachment?.path ?? null,
+        attachment_name: variables.attachment?.file_name ?? null,
+        attachment_mime_type: variables.attachment?.mime_type ?? null,
+        attachment_size_bytes: variables.attachment?.file_size_bytes ?? null,
+        created_at: new Date().toISOString(),
+      }
+
+      queryClient.setQueryData<SupportTicketMessage[]>(
+        ["dashboard", "support", "messages", variables.ticketId],
+        (current) => upsertById(current, optimisticMessage, sortMessages),
+      )
+
+      return { previousMessages, ticketId: variables.ticketId, tempId }
+    },
+    onError: (_error, _variables, context) => {
+      if (!context) return
+      queryClient.setQueryData<SupportTicketMessage[]>(
+        ["dashboard", "support", "messages", context.ticketId],
+        context.previousMessages,
+      )
+    },
+    onSuccess: (result, _variables, context) => {
       queryClient.setQueryData<SupportTicketMessage[]>(
         ["dashboard", "support", "messages", result.message.ticket_id],
-        (current) => upsertById(current, result.message, sortMessages),
+        (current) => {
+          const withoutTemp = (current ?? []).filter((message) => message.id !== context?.tempId)
+          return upsertById(withoutTemp, result.message, sortMessages)
+        },
       )
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
     },
