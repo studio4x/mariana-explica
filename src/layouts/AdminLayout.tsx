@@ -120,7 +120,7 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#f3f7fa] text-slate-950">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
-        <div className="container flex min-h-[64px] items-center justify-between gap-4 py-3">
+        <div className="flex min-h-[64px] w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link to={ROUTES.ADMIN} className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
               <Shield className="h-5 w-5" />
@@ -177,52 +177,55 @@ export function AdminLayout() {
         </div>
       </header>
 
-      <div className="container grid gap-6 py-6 lg:grid-cols-[256px_minmax(0,1fr)]">
-        <aside className="hidden rounded-[30px] border border-slate-200 bg-white p-3 shadow-[0_20px_50px_rgba(15,23,42,0.05)] lg:sticky lg:top-6 lg:block lg:self-start">
-          <div className="rounded-[24px] border border-slate-100 bg-slate-50 px-4 py-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Navegacao</p>
-            <p className="mt-2 text-lg font-black text-slate-950">Admin</p>
+      <div className="grid min-h-[calc(100vh-73px)] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:px-8">
+        <aside className="hidden self-start lg:sticky lg:top-[92px] lg:block">
+          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Navegacao</p>
+              <p className="mt-2 text-lg font-black text-slate-950">Admin</p>
+            </div>
+            <nav className="space-y-1 p-3">
+              {items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === ROUTES.ADMIN}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center rounded-2xl px-4 py-3 text-sm font-bold transition-all",
+                      isActive
+                        ? "bg-gradient-to-r from-sky-700 to-slate-950 text-white shadow-[0_14px_30px_rgba(2,132,199,0.22)]"
+                        : "text-slate-600 hover:bg-[#F2F7F9] hover:text-[#163138]",
+                    )
+                  }
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </nav>
           </div>
-
-          <nav className="mt-4 grid gap-2">
-            {items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === ROUTES.ADMIN}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
-                    isActive
-                      ? "bg-gradient-to-r from-sky-700 to-slate-950 text-white shadow-[0_14px_30px_rgba(2,132,199,0.22)]"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-950",
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
-          </nav>
         </aside>
 
         <main className="min-w-0">
           <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-            <div className="min-h-[calc(100vh-210px)] p-4 sm:p-6 lg:p-8">
+            <div className="min-h-[calc(100vh-225px)] p-4 sm:p-6 lg:p-7">
               <Outlet />
             </div>
           </div>
 
-          <footer className="mt-5 rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-xs text-slate-500 shadow-[0_18px_44px_rgba(15,23,42,0.04)]">
+          <footer className="mt-5 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2 font-black uppercase tracking-[0.22em] text-sky-700">
+              <div className="flex flex-wrap items-center gap-3 text-[#5F7077]">
                 <Link to={ROUTES.ADMIN_SETTINGS}>Privacidade</Link>
-                <span>/</span>
+                <span aria-hidden="true" className="text-slate-300">/</span>
                 <Link to={ROUTES.ADMIN_SETTINGS}>Cookies</Link>
-                <span>/</span>
+                <span aria-hidden="true" className="text-slate-300">/</span>
                 <Link to={ROUTES.ADMIN_SETTINGS}>Termos de uso</Link>
               </div>
-              <span className="font-semibold text-slate-400">Build {BUILD_VERSION}</span>
+              <span className="text-[10px] font-medium tracking-[0.06em] text-slate-400/90 text-[#5F7077]">
+                Build {BUILD_VERSION}
+              </span>
             </div>
           </footer>
         </main>
