@@ -20,6 +20,7 @@ import { FloatingNotifications } from "@/components/notifications"
 import { cn } from "@/lib/cn"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
+import { useAuth } from "@/hooks/useAuth"
 import {
   fetchAdminDashboardOverview,
   fetchAdminNotifications,
@@ -53,6 +54,7 @@ const items = [
 
 export function AdminLayout() {
   const queryClient = useQueryClient()
+  const { profile } = useAuth()
   const notificationsQuery = useAdminNotifications()
   const usersQuery = useAdminUsers()
   const markNotificationAsRead = useMarkAdminNotificationAsRead()
@@ -80,8 +82,8 @@ export function AdminLayout() {
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({
-      queryKey: ["admin", "notifications", "active"],
-      queryFn: () => fetchAdminNotifications(),
+      queryKey: ["admin", "notifications", "active", profile?.id],
+      queryFn: () => fetchAdminNotifications(false, profile?.id),
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({
@@ -94,7 +96,7 @@ export function AdminLayout() {
       queryFn: fetchAdminOperations,
       staleTime: 60_000,
     })
-  }, [queryClient])
+  }, [queryClient, profile?.id])
 
   const userMap = new Map((usersQuery.data ?? []).map((user) => [user.id, user]))
   const unreadNotificationsCount = (notificationsQuery.data ?? []).filter((notification) => notification.status === "unread").length

@@ -80,6 +80,17 @@ async function requireFreshAuth() {
   return auth
 }
 
+async function getCurrentUserId() {
+  const { data } = await supabase.auth.getSession()
+  const userId = data.session?.user?.id
+
+  if (!userId) {
+    throw new Error("Sessao invalida")
+  }
+
+  return userId
+}
+
 const MODULE_PDF_WATERMARK_KEY = "module_pdf_watermark"
 const DEFAULT_WATERMARK_SITE_NAME = "Mariana Explica"
 const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
@@ -811,10 +822,12 @@ export async function fetchAdminSupportTicket(ticketId: string) {
   return data as AdminSupportTicketSummary
 }
 
-export async function fetchAdminNotifications(includeArchived = false) {
+export async function fetchAdminNotifications(includeArchived = false, userId?: string) {
+  const targetUserId = userId ?? (await getCurrentUserId())
   const baseQuery = supabase
     .from("notifications")
     .select("id,user_id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
+    .eq("user_id", targetUserId)
     .order("created_at", { ascending: false })
 
   const query = includeArchived ? baseQuery : baseQuery.neq("status", "archived")

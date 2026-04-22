@@ -155,10 +155,10 @@ export function useNotifications(includeArchived = false) {
   const { session } = useAuth()
   const userId = session?.user.id
   const queryClient = useQueryClient()
-  const notificationsQueryKey: unknown[] = ["dashboard", "notifications", includeArchived ? "all" : "active"]
+  const notificationsQueryKey: unknown[] = ["dashboard", "notifications", includeArchived ? "all" : "active", userId]
   const query = useQuery({
     queryKey: notificationsQueryKey,
-    queryFn: () => fetchNotifications(undefined, includeArchived),
+    queryFn: () => fetchNotifications(undefined, includeArchived, userId),
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
@@ -191,7 +191,7 @@ export function useNotifications(includeArchived = false) {
             )
           }
 
-          refetchActive(queryClient, ["dashboard", "notifications", "active"])
+          refetchActive(queryClient, ["dashboard", "notifications", "active", userId])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
           refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
         },
@@ -218,7 +218,7 @@ export function useUnreadNotificationsCount() {
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ["dashboard", "notifications", "unread-count", userId],
-    queryFn: fetchUnreadNotificationsCount,
+    queryFn: () => fetchUnreadNotificationsCount(userId),
     enabled: Boolean(userId),
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
@@ -252,7 +252,7 @@ export function useUnreadNotificationsCount() {
             )
           }
 
-          refetchActive(queryClient, ["dashboard", "notifications", "active"])
+          refetchActive(queryClient, ["dashboard", "notifications", "active", userId])
           void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] })
           refetchActive(queryClient, ["dashboard", "notifications", "unread-count", userId])
         },
@@ -434,12 +434,14 @@ export function useProfilePreferences() {
 }
 
 export function useMarkNotificationAsRead() {
+  const { session } = useAuth()
+  const userId = session?.user.id
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: markNotificationAsRead,
     onSuccess: (notification) => {
-      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], (current) =>
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active", userId], (current) =>
         upsertById(current, notification, sortNotifications),
       )
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "notifications"] })
@@ -490,13 +492,15 @@ export function useUpdateProfilePreferences() {
 }
 
 export function useMarkAllNotificationsAsRead() {
+  const { session } = useAuth()
+  const userId = session?.user.id
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: markAllNotificationsAsRead,
     onSuccess: (notifications) => {
-      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active"], () => [])
-      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "all"], (current) => {
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "active", userId], () => [])
+      queryClient.setQueryData<NotificationItem[]>(["dashboard", "notifications", "all", userId], (current) => {
         const next = current ?? []
         const updatedById = new Map(notifications.map((notification) => [notification.id, notification]))
         const merged = next.map((notification) => updatedById.get(notification.id) ?? notification)

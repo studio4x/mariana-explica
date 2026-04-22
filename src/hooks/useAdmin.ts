@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase"
+import { useAuth } from "@/hooks/useAuth"
 import {
   archiveAdminProduct,
   createAdminAffiliate,
@@ -252,11 +253,13 @@ export function useAdminOrdersView() {
 }
 
 export function useAdminNotifications(includeArchived = false) {
+  const { session } = useAuth()
+  const userId = session?.user.id
   const queryClient = useQueryClient()
-  const notificationsQueryKey: unknown[] = ["admin", "notifications", includeArchived ? "all" : "active"]
+  const notificationsQueryKey: unknown[] = ["admin", "notifications", includeArchived ? "all" : "active", userId]
   const query = useQuery({
     queryKey: notificationsQueryKey,
-    queryFn: () => fetchAdminNotifications(includeArchived),
+    queryFn: () => fetchAdminNotifications(includeArchived, userId),
     ...getAdminQueryOptions(),
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
@@ -264,7 +267,7 @@ export function useAdminNotifications(includeArchived = false) {
   })
 
   useEffect(() => {
-    if (includeArchived) return undefined
+    if (includeArchived || !userId) return undefined
 
     const channel = supabase
       .channel("admin-notifications")
@@ -280,16 +283,16 @@ export function useAdminNotifications(includeArchived = false) {
           const oldNotification = payload.old as AdminNotificationSummary | undefined
 
           if (payload.eventType === "DELETE" && oldNotification?.id) {
-            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active"], (current) =>
+            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active", userId], (current) =>
               removeById(current, oldNotification.id),
             )
           } else if (nextNotification?.id) {
-            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active"], (current) =>
+            queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active", userId], (current) =>
               upsertById(current, nextNotification, sortAdminNotifications),
             )
           }
 
-          refetchActive(queryClient, ["admin", "notifications", "active"])
+          refetchActive(queryClient, ["admin", "notifications", "active", userId])
           void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] })
         },
       )
@@ -303,7 +306,7 @@ export function useAdminNotifications(includeArchived = false) {
       window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
-  }, [queryClient, includeArchived])
+  }, [queryClient, includeArchived, userId])
 
   return query
 }
@@ -711,12 +714,14 @@ export function useCreateAdminNotification() {
 
 export function useMarkAdminNotificationAsRead() {
   const invalidate = useAdminInvalidation()
+  const { session } = useAuth()
+  const userId = session?.user.id
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: markAdminNotificationAsRead,
     onSuccess: (notification) => {
-      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) =>
+      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active", userId], (current) =>
         upsertById(current, notification, sortAdminNotifications),
       )
       invalidate()
@@ -726,12 +731,15 @@ export function useMarkAdminNotificationAsRead() {
 
 export function useMarkAllAdminNotificationsAsRead() {
   const invalidate = useAdminInvalidation()
+  const { session } = useAuth()
+  const userId = session?.user.id
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: markAllAdminNotificationsAsRead,
     onSuccess: (notifications) => {
-      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications"], (current) => {
+      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "active", userId], () => [])
+      queryClient.setQueryData<AdminNotificationSummary[]>(["admin", "notifications", "all", userId], (current) => {
         const next = current ?? []
         const updatedById = new Map(notifications.map((notification) => [notification.id, notification]))
         return sortAdminNotifications(next.map((notification) => updatedById.get(notification.id) ?? notification))

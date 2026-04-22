@@ -114,10 +114,12 @@ async function fetchLessonProgressByProductIds(productIds: string[]) {
   return (data ?? []) as LessonProgressSummary[]
 }
 
-export async function fetchUnreadNotificationsCount() {
+export async function fetchUnreadNotificationsCount(userId?: string) {
+  const targetUserId = userId ?? (await getCurrentUserId())
   const response = await supabase
     .from("notifications")
     .select("id", { count: "exact", head: true })
+    .eq("user_id", targetUserId)
     .eq("status", "unread")
 
   const error = "error" in response ? response.error : null
@@ -694,10 +696,12 @@ export async function fetchDownloads(): Promise<DownloadableItem[]> {
   return [...modulePdfItems, ...assetItems]
 }
 
-export async function fetchNotifications(limit?: number, includeArchived = false) {
+export async function fetchNotifications(limit?: number, includeArchived = false, userId?: string) {
+  const targetUserId = userId ?? (await getCurrentUserId())
   const baseQuery = supabase
     .from("notifications")
     .select("id,type,title,message,link,status,sent_via_email,sent_via_in_app,read_at,created_at")
+    .eq("user_id", targetUserId)
     .order("created_at", { ascending: false })
 
   const query = includeArchived ? baseQuery : baseQuery.neq("status", "archived")
