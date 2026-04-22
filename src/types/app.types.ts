@@ -296,6 +296,40 @@ export interface SupportTicketMessage {
   created_at: string
 }
 
+export interface CourseReviewAuthor {
+  full_name: string | null
+  avatar_url: string | null
+}
+
+export interface CourseReviewSummary {
+  id: string
+  author_id: string
+  target_id: string
+  target_type: "course" | "product"
+  target_resource_id: string | null
+  rating: number
+  title: string
+  content: string
+  is_verified_purchase: boolean
+  is_moderated: boolean
+  moderation_status: "pending" | "approved" | "rejected"
+  moderation_reason: string | null
+  helpful_count: number
+  unhelpful_count: number
+  created_at: string
+  updated_at: string
+  profiles?: CourseReviewAuthor | null
+}
+
+export interface CourseReviewStats {
+  target_id: string
+  target_type: "course" | "product"
+  total_reviews: number
+  avg_rating: number
+  rating_distribution: Record<"1" | "2" | "3" | "4" | "5", number>
+  updated_at: string
+}
+
 export interface DashboardOverviewData {
   products: DashboardProductSummary[]
   recentNotifications: NotificationItem[]

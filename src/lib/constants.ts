@@ -44,6 +44,7 @@ export const ROUTES = {
   ADMIN_COURSES: "/admin/cursos",
   ADMIN_PRODUCTS: "/admin/cursos",
   ADMIN_ORDERS: "/admin/pedidos",
+  ADMIN_REVIEWS: "/admin/reviews",
   ADMIN_SUPPORT: "/admin/suporte",
   ADMIN_AFFILIATES: "/admin/afiliados",
   ADMIN_COUPONS: "/admin/cupons",

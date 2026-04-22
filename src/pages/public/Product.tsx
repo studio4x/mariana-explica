@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
+import { CourseReviews } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { formatProductPrice } from "@/utils/currency"
@@ -123,6 +124,8 @@ export function Product() {
                 ))}
               </div>
             </section>
+
+            <CourseReviews productId={product.id} />
           </main>
 
           <aside className="lg:sticky lg:top-24">
