@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui"
+import { FooterCopyright } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
@@ -296,6 +297,11 @@ export function Checkout() {
           </aside>
         </div>
       </div>
+      <footer className="border-t border-slate-200/70 bg-[#f5fafc]">
+        <div className="container py-6">
+          <FooterCopyright className="border-t-0 pt-0" />
+        </div>
+      </footer>
     </div>
   )
 }

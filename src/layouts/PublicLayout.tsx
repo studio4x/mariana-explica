@@ -12,7 +12,7 @@ export function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <Footer />
+      {isCheckout ? null : <Footer />}
     </div>
   )
 }

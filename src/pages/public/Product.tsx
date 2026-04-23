@@ -54,16 +54,9 @@ export function Product() {
   const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
 
   return (
-    <div className="bg-white pb-20 pt-6 text-slate-950">
+    <div className="bg-white pb-20 pt-10 text-slate-950">
       <div className="container">
-        <Link
-          to={ROUTES.PRODUCTS}
-          className="inline-flex items-center text-sm font-semibold text-slate-500 transition hover:text-slate-900"
-        >
-          Voltar aos cursos
-        </Link>
-
-        <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
           <main className="min-w-0 space-y-12">
             <section className="max-w-4xl">
               <div className="flex flex-wrap items-center gap-3">
@@ -136,7 +129,7 @@ export function Product() {
 
           <aside className="lg:sticky lg:top-24">
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-              <div className="relative aspect-video bg-slate-900">
+              <div className="relative aspect-[1348/736] bg-slate-900">
                 {product.cover_image_url ? (
                   <img
                     src={product.cover_image_url}

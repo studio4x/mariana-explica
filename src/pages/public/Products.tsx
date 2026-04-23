@@ -239,7 +239,7 @@ function CatalogCourseCard({
   return (
     <article className="group">
       <Link to={actionTo} className="block">
-        <div className="relative mb-8 flex aspect-[4/5] items-center justify-center overflow-hidden rounded-lg bg-slate-100 p-8 shadow-[0_4px_20px_-4px_rgba(15,18,44,0.05)] [perspective:1000px]">
+        <div className="relative mb-8 flex aspect-[1348/736] items-center justify-center overflow-hidden rounded-lg bg-slate-100 p-5 shadow-[0_4px_20px_-4px_rgba(15,18,44,0.05)] [perspective:1000px]">
           {isFree ? (
             <span className="absolute right-4 top-4 z-10 rounded-sm bg-[#B8926A] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white">
               Gratis
