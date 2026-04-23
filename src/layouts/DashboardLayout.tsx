@@ -9,7 +9,7 @@ import {
   User,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { InstallPrompt } from "@/components/common"
+import { CookieConsentBanner, InstallPrompt, ScrollToTop } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
@@ -90,6 +90,7 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-[#F2F7F9] text-[#163138]">
+      <ScrollToTop />
       <header className="sticky top-0 z-40 border-b border-[#D8E6EB] bg-[#F2F7F9]/95 backdrop-blur-md">
         <div className="container flex min-h-[68px] items-center justify-between gap-4 py-3">
           <Link
@@ -209,12 +210,16 @@ export function DashboardLayout() {
                 <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">Site publico</Link>
                 <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">Chamados</Link>
                 <Link to={ROUTES.DASHBOARD_PROFILE} className="hover:text-[#1398B7]">Conta</Link>
+                <Link to={ROUTES.PRIVACY} className="hover:text-[#1398B7]">Privacidade</Link>
+                <Link to={ROUTES.COOKIES} className="hover:text-[#1398B7]">Cookies</Link>
+                <Link to={ROUTES.TERMS} className="hover:text-[#1398B7]">Termos de uso</Link>
               </div>
               <span className="font-semibold">Build {BUILD_VERSION}</span>
             </div>
           </footer>
         </main>
       </div>
+      <CookieConsentBanner />
       <FloatingNotifications
         notifications={notificationsQuery.data ?? []}
         isLoading={notificationsQuery.isLoading}

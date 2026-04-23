@@ -15,7 +15,7 @@ import {
   Shield,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { StatusBadge } from "@/components/common"
+import { CookieConsentBanner, ScrollToTop, StatusBadge } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
@@ -115,6 +115,7 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-[#f3f7fa] text-slate-950">
+      <ScrollToTop />
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="flex min-h-[64px] w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link to={ROUTES.ADMIN} className="flex items-center gap-3">
@@ -213,11 +214,11 @@ export function AdminLayout() {
           <footer className="mt-5 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-3 text-[#5F7077]">
-                <Link to={ROUTES.ADMIN_SETTINGS}>Privacidade</Link>
+                <Link to={ROUTES.PRIVACY}>Privacidade</Link>
                 <span aria-hidden="true" className="text-slate-300">/</span>
-                <Link to={ROUTES.ADMIN_SETTINGS}>Cookies</Link>
+                <Link to={ROUTES.COOKIES}>Cookies</Link>
                 <span aria-hidden="true" className="text-slate-300">/</span>
-                <Link to={ROUTES.ADMIN_SETTINGS}>Termos de uso</Link>
+                <Link to={ROUTES.TERMS}>Termos de uso</Link>
               </div>
               <span className="text-[10px] font-medium tracking-[0.06em] text-slate-400/90 text-[#5F7077]">
                 Build {BUILD_VERSION}
@@ -226,6 +227,7 @@ export function AdminLayout() {
           </footer>
         </main>
       </div>
+      <CookieConsentBanner />
       <FloatingNotifications
         notifications={notificationsQuery.data ?? []}
         isLoading={notificationsQuery.isLoading}
