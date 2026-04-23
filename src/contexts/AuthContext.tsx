@@ -23,6 +23,7 @@ export interface UserProfile {
   id: string
   full_name: string | null
   email: string | null
+  avatar_url: string | null
   role: UserRole
   is_admin: boolean
   status: UserStatus
@@ -93,7 +94,7 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id,full_name,email,role,is_admin,status")
+      .select("id,full_name,email,avatar_url,role,is_admin,status")
       .eq("id", userId)
       .single()
 

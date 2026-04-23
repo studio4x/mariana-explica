@@ -19,6 +19,7 @@ import { recordSupportWhatsappIntent } from "../_shared/whatsapp.ts"
 interface CreateSupportTicketInput {
   subject: string
   message: string
+  productId?: string | null
   category?: "payment" | "technical" | "account" | "general"
   priority?: "low" | "normal" | "medium" | "high" | "urgent"
   attachment?: {
@@ -48,6 +49,7 @@ Deno.serve(async (req) => {
     const message = body.message?.trim()
     const category = body.category ?? "general"
     const priority = body.priority ?? "normal"
+    const productId = String(body.productId ?? "").trim() || null
 
     if (!subject || !message) {
       throw badRequest("subject e message sao obrigatorios")
@@ -69,6 +71,30 @@ Deno.serve(async (req) => {
       throw badRequest("Anexo invalido para este usuario")
     }
 
+    if (productId) {
+      const { data: product, error: productError } = await context.serviceClient
+        .from("products")
+        .select("id,status")
+        .eq("id", productId)
+        .maybeSingle()
+
+      if (productError) throw productError
+      if (!product) throw badRequest("Curso nao encontrado")
+
+      const { data: grant, error: grantError } = await context.serviceClient
+        .from("access_grants")
+        .select("id")
+        .eq("user_id", context.user.id)
+        .eq("product_id", productId)
+        .eq("status", "active")
+        .maybeSingle()
+
+      if (grantError) throw grantError
+      if (!grant && !context.profile.is_admin) {
+        throw badRequest("Este curso nao esta vinculado a tua conta")
+      }
+    }
+
     const { data: ticket, error } = await context.serviceClient
       .from("support_tickets")
       .insert({
@@ -76,6 +102,7 @@ Deno.serve(async (req) => {
         message,
         category,
         priority,
+        product_id: productId,
         user_id: context.user.id,
         attachment_bucket: body.attachment?.bucket ?? null,
         attachment_path: body.attachment?.path ?? null,
@@ -83,7 +110,7 @@ Deno.serve(async (req) => {
         attachment_mime_type: body.attachment?.mime_type ?? null,
         attachment_size_bytes: body.attachment?.file_size_bytes ?? null,
       })
-      .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+      .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
       .single()
 
     if (error) {
@@ -156,6 +183,7 @@ Deno.serve(async (req) => {
         subject,
         category,
         priority,
+        product_id: productId,
         has_attachment: Boolean(body.attachment?.path),
       },
       ...extractRequestAuditContext(req),

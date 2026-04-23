@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react"
+import { Camera } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -6,12 +7,14 @@ import {
   useProfilePreferences,
   useUpdateAccountPassword,
   useUpdateProfilePreferences,
+  useUploadProfileAvatar,
 } from "@/hooks/useDashboard"
 
 export function DashboardProfile() {
   const profileQuery = useProfilePreferences()
   const updateProfile = useUpdateProfilePreferences()
   const updatePassword = useUpdateAccountPassword()
+  const uploadAvatar = useUploadProfileAvatar()
   const [draft, setDraft] = useState<{
     fullName: string
     phone: string
@@ -23,6 +26,7 @@ export function DashboardProfile() {
     confirmPassword: "",
   })
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
+  const [avatarMessage, setAvatarMessage] = useState<string | null>(null)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -51,6 +55,18 @@ export function DashboardProfile() {
     await updatePassword.mutateAsync({ password: passwordDraft.password })
     setPasswordDraft({ password: "", confirmPassword: "" })
     setPasswordMessage("Senha atualizada com sucesso.")
+  }
+
+  const handleAvatarChange = async (file: File | undefined) => {
+    if (!file) return
+    setAvatarMessage(null)
+
+    try {
+      await uploadAvatar.mutateAsync({ file })
+      setAvatarMessage("Avatar atualizado com sucesso.")
+    } catch (error) {
+      setAvatarMessage(error instanceof Error ? error.message : "Nao foi possivel atualizar o avatar.")
+    }
   }
 
   if (profileQuery.isLoading) {
@@ -95,6 +111,34 @@ export function DashboardProfile() {
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <h2 className="font-display text-2xl font-bold text-slate-950">Conta</h2>
+          <div className="mt-5 flex items-center gap-4">
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="" className="h-20 w-20 rounded-full object-cover ring-4 ring-slate-100" />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-900 font-display text-2xl font-black text-white">
+                {(profile.full_name?.[0] || profile.email?.[0] || "A").toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                <Camera className="h-4 w-4" />
+                {uploadAvatar.isPending ? "A enviar..." : "Trocar avatar"}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                  className="sr-only"
+                  disabled={uploadAvatar.isPending}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ""
+                    void handleAvatarChange(file)
+                  }}
+                />
+              </label>
+              <p className="mt-2 text-xs leading-5 text-slate-500">PNG, JPG, WEBP, GIF ou AVIF ate 5 MB.</p>
+              {avatarMessage ? <p className="mt-2 text-sm font-medium text-slate-700">{avatarMessage}</p> : null}
+            </div>
+          </div>
           <div className="mt-5 space-y-3 text-sm text-slate-600">
             <p>Email: {profile.email}</p>
             <p>Tipo de conta: {profile.role}</p>

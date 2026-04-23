@@ -14,6 +14,7 @@ import {
   fetchModuleAssetsByModule,
   fetchMyProducts,
   fetchNotifications,
+  fetchCreatorCourseInboxes,
   fetchPaymentHistory,
   fetchStudentOrderReceiptUrl,
   fetchProfilePreferences,
@@ -33,6 +34,7 @@ import {
   upsertLessonProgress,
   updateAccountPassword,
   updateProfilePreferences,
+  uploadProfileAvatar,
   uploadSupportAttachment,
   fetchSupportAttachmentUrl,
 } from "@/services"
@@ -447,6 +449,13 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
   return query
 }
 
+export function useCreatorCourseInboxes() {
+  return useQuery({
+    queryKey: ["dashboard", "creator", "course-inboxes"],
+    queryFn: fetchCreatorCourseInboxes,
+  })
+}
+
 export function useProfilePreferences() {
   return useQuery({
     queryKey: ["dashboard", "profile"],
@@ -546,6 +555,18 @@ export function useUpdateProfilePreferences() {
   return useMutation({
     mutationFn: updateProfilePreferences,
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "profile"] })
+    },
+  })
+}
+
+export function useUploadProfileAvatar() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: uploadProfileAvatar,
+    onSuccess: (result) => {
+      queryClient.setQueryData(["dashboard", "profile"], result.profile)
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "profile"] })
     },
   })

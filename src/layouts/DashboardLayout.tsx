@@ -17,6 +17,7 @@ import {
   useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useNotifications,
+  useProfilePreferences,
   useUnreadNotificationsCount,
 } from "@/hooks/useDashboard"
 import { BUILD_VERSION } from "@/lib/build"
@@ -49,9 +50,9 @@ const items = [
     icon: Bell,
   },
   {
-    to: ROUTES.DASHBOARD_SUPPORT,
-    label: "Suporte",
-    description: "Pedidos e respostas",
+    to: ROUTES.DASHBOARD_MESSAGES,
+    label: "Mensagens",
+    description: "Chamados e conversas",
     icon: LifeBuoy,
   },
   {
@@ -73,12 +74,16 @@ function getInitials(name?: string | null, email?: string | null) {
 
 export function DashboardLayout() {
   const { profile, signOut } = useAuth()
+  const profilePreferencesQuery = useProfilePreferences()
   const unreadNotificationsQuery = useUnreadNotificationsCount()
   const notificationsQuery = useNotifications()
   const markAsRead = useMarkNotificationAsRead()
   const markAllAsRead = useMarkAllNotificationsAsRead()
-  const displayName = profile?.full_name?.trim() || profile?.email || "Aluno"
-  const initials = getInitials(profile?.full_name, profile?.email)
+  const profilePreferences = profilePreferencesQuery.data
+  const displayName = profilePreferences?.full_name?.trim() || profile?.full_name?.trim() || profilePreferences?.email || profile?.email || "Aluno"
+  const email = profilePreferences?.email || profile?.email || null
+  const avatarUrl = profilePreferences?.avatar_url || profile?.avatar_url || null
+  const initials = getInitials(profilePreferences?.full_name ?? profile?.full_name, email)
   const unreadNotificationsCount = notificationsQuery.data
     ? notificationsQuery.data.filter((notification) => notification.status === "unread").length
     : unreadNotificationsQuery.data ?? 0
@@ -141,16 +146,24 @@ export function DashboardLayout() {
         <aside className="rounded-[30px] border border-[#D8E6EB] bg-white p-4 shadow-[0_20px_50px_rgba(22,49,56,0.05)] lg:sticky lg:top-[100px] lg:self-start">
           <div className="rounded-[24px] bg-[#F2F7F9] p-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#1398B7] to-[#0A3640] text-sm font-black text-white">
-                {initials}
-              </span>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white"
+                />
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#1398B7] to-[#0A3640] text-sm font-black text-white">
+                  {initials}
+                </span>
+              )}
               <div className="min-w-0">
                 <p className="truncate font-black text-[#163138]">{displayName}</p>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1398B7]">Aluno</p>
               </div>
             </div>
-            {profile?.email ? (
-              <p className="mt-3 truncate text-xs font-medium text-[#5f7077]">{profile.email}</p>
+            {email ? (
+              <p className="mt-3 truncate text-xs font-medium text-[#5f7077]">{email}</p>
             ) : null}
           </div>
 
@@ -194,7 +207,7 @@ export function DashboardLayout() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-3 font-bold">
                 <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">Site publico</Link>
-                <Link to={ROUTES.DASHBOARD_SUPPORT} className="hover:text-[#1398B7]">Suporte</Link>
+                <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">Mensagens</Link>
                 <Link to={ROUTES.DASHBOARD_PROFILE} className="hover:text-[#1398B7]">Conta</Link>
               </div>
               <span className="font-semibold">Build {BUILD_VERSION}</span>

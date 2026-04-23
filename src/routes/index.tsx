@@ -318,7 +318,15 @@ export const router = createBrowserRouter(
           element: withSuspense(<DashboardSupport />),
         },
         {
+          path: "mensagens",
+          element: withSuspense(<DashboardSupport />),
+        },
+        {
           path: "suporte/:ticketId",
+          element: withSuspense(<DashboardSupportTicketDetail />),
+        },
+        {
+          path: "mensagens/:ticketId",
           element: withSuspense(<DashboardSupportTicketDetail />),
         },
         {
@@ -369,6 +377,10 @@ export const router = createBrowserRouter(
     {
       path: "/dashboard/notificacoes",
       element: <Navigate to="/aluno/notificacoes" replace />,
+    },
+    {
+      path: "/dashboard/mensagens",
+      element: <Navigate to="/aluno/mensagens" replace />,
     },
     {
       path: "/dashboard/suporte",

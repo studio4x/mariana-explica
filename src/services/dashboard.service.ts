@@ -5,6 +5,7 @@ import type {
   AccessGrantSummary,
   AssessmentAttemptState,
   CourseAssessmentNavigationSummary,
+  CreatorCourseInbox,
   CourseLessonNavigationSummary,
   CourseModuleNavigationSummary,
   DashboardOverviewData,
@@ -18,6 +19,7 @@ import type {
   ProductLessonSummary,
   ProductModuleSummary,
   ProfilePreferences,
+  ProfileAvatarUploadResult,
   StudentPaymentSummary,
   StudentCourseNavigationData,
   SupportTicketMessage,
@@ -867,7 +869,7 @@ export async function markAllNotificationsAsRead() {
 export async function fetchSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+    .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -880,7 +882,7 @@ export async function fetchSupportTickets() {
 export async function fetchSupportTicket(ticketId: string) {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+    .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .eq("id", ticketId)
     .single()
 
@@ -908,6 +910,7 @@ export async function fetchSupportTicketMessages(ticketId: string) {
 export async function createSupportTicket(input: {
   subject: string
   message: string
+  productId?: string | null
   category?: SupportTicketSummary["category"]
   priority?: SupportTicketSummary["priority"]
   attachment?: SupportAttachmentUploadResult | null
@@ -963,6 +966,7 @@ export async function fetchProfilePreferences() {
 export async function updateProfilePreferences(input: {
   fullName: string
   phone?: string | null
+  avatarUrl?: string | null
   notificationsEnabled: boolean
   marketingConsent: boolean
 }) {
@@ -972,6 +976,7 @@ export async function updateProfilePreferences(input: {
     .update({
       full_name: input.fullName.trim(),
       phone: input.phone?.trim() || null,
+      ...(input.avatarUrl !== undefined ? { avatar_url: input.avatarUrl } : {}),
       notifications_enabled: input.notificationsEnabled,
       marketing_consent: input.marketingConsent,
     })
@@ -984,6 +989,63 @@ export async function updateProfilePreferences(input: {
   }
 
   return data as ProfilePreferences
+}
+
+export async function uploadProfileAvatar(input: {
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) {
+    throw new Error("Sessao expirada")
+  }
+
+  const formData = new FormData()
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/profile-avatar-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return data as { success: true; avatar: ProfileAvatarUploadResult; profile: ProfilePreferences }
+}
+
+export async function fetchCreatorCourseInboxes() {
+  const headers = await getFunctionAuthHeaders()
+  const { data, error } = await supabase.functions.invoke("creator-course-inboxes", {
+    body: {},
+    headers,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data as { success: true; inboxes: CreatorCourseInbox[] }).inboxes ?? []) as CreatorCourseInbox[]
 }
 
 export async function updateAccountPassword(input: { password: string }) {
