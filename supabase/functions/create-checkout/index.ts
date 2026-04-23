@@ -26,7 +26,11 @@ import {
   readJsonBody,
 } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
-import { createStripeCheckoutSession, resolveCheckoutEnvironment } from "../_shared/payments.ts"
+import {
+  createStripeCheckoutSession,
+  getStripeCheckoutSession,
+  resolveCheckoutEnvironment,
+} from "../_shared/payments.ts"
 import { requireActiveUser } from "../_shared/auth.ts"
 
 interface CreateCheckoutInput {
@@ -66,6 +70,46 @@ function assertStripeMinimumAmount(currency: string, amountCents: number) {
     throw unprocessable(
       `O valor minimo para pagamento Stripe em ${currency.toUpperCase()} e ${formattedMinimum}. Ajuste o preco do curso ou marque como gratuito.`,
     )
+  }
+}
+
+async function findReusablePendingCheckout(
+  client: Awaited<ReturnType<typeof requireActiveUser>>["serviceClient"],
+  params: {
+    userId: string
+    productId: string
+    currency: string
+    finalPriceCents: number
+    paymentEnvironment: "test" | "live"
+  },
+) {
+  const createdAfter = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  const { data, error } = await client
+    .from("orders")
+    .select("id,checkout_session_id,payment_environment,final_price_cents,currency,created_at")
+    .eq("user_id", params.userId)
+    .eq("product_id", params.productId)
+    .eq("status", "pending")
+    .eq("payment_provider", "stripe")
+    .eq("payment_environment", params.paymentEnvironment)
+    .eq("final_price_cents", params.finalPriceCents)
+    .eq("currency", params.currency)
+    .not("checkout_session_id", "is", null)
+    .gte("created_at", createdAfter)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data?.checkout_session_id) {
+    return null
+  }
+
+  return data as {
+    id: string
+    checkout_session_id: string
+    payment_environment: "test" | "live"
+    final_price_cents: number
+    currency: string
   }
 }
 
@@ -211,6 +255,54 @@ Deno.serve(async (req) => {
     assertStripeMinimumAmount(product.currency, totals.finalPriceCents)
 
     const stripeMode = await resolveCheckoutEnvironment(context.serviceClient)
+    const reusableOrder = await findReusablePendingCheckout(context.serviceClient, {
+      userId: context.user.id,
+      productId: product.id,
+      currency: product.currency,
+      finalPriceCents: totals.finalPriceCents,
+      paymentEnvironment: stripeMode,
+    })
+
+    if (reusableOrder) {
+      try {
+        const existingSession = await getStripeCheckoutSession(reusableOrder.checkout_session_id, {
+          mode: stripeMode,
+        })
+
+        if (existingSession.url && existingSession.status === "open") {
+          logInfo("Reusing pending checkout session", {
+            request_id: requestId,
+            user_id: context.user.id,
+            product_id: product.id,
+            order_id: reusableOrder.id,
+            checkout_session_id: reusableOrder.checkout_session_id,
+            payment_environment: stripeMode,
+            stripe_livemode: existingSession.livemode,
+          })
+
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            mode: "stripe",
+            order_id: reusableOrder.id,
+            checkout_session_id: reusableOrder.checkout_session_id,
+            checkout_url: existingSession.url,
+            payment_environment: stripeMode,
+            stripe_livemode: existingSession.livemode,
+            final_price_cents: totals.finalPriceCents,
+            currency: product.currency,
+          })
+        }
+      } catch (reuseError) {
+        logError("Reusable checkout lookup failed", {
+          request_id: requestId,
+          user_id: context.user.id,
+          product_id: product.id,
+          order_id: reusableOrder.id,
+          error: String(reuseError),
+        })
+      }
+    }
 
     const order = await createOrderWithItems(context.serviceClient, {
       userId: context.user.id,
