@@ -55,13 +55,13 @@ export function Checkout() {
     try {
       if (isFreeProduct(product)) {
         await claimFreeProduct({ productId: product.id })
-        navigate(`${ROUTES.DASHBOARD}?checkout=success`, { replace: true })
+        navigate(`${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=free`, { replace: true })
         return
       }
 
       const result = await createCheckoutSession({
         productId: product.id,
-        successUrl: `${window.location.origin}${ROUTES.DASHBOARD}?checkout=success`,
+        successUrl,
         cancelUrl: `${window.location.origin}${location.pathname}${location.search}&checkout=cancelled`,
       })
 
@@ -70,7 +70,7 @@ export function Checkout() {
         return
       }
 
-      navigate(`${ROUTES.DASHBOARD}?checkout=success`, { replace: true })
+      navigate(`${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=internal`, { replace: true })
     } catch (checkoutError) {
       setSubmitError(
         checkoutError instanceof Error
@@ -122,6 +122,8 @@ export function Checkout() {
     "Conteudo digital pronto para ser ativado na tua conta Mariana Explica."
   const priceLabel = formatProductPrice(product.price_cents, product.currency)
   const totalLabel = isFree ? formatProductPrice(0, product.currency) : priceLabel
+  const checkoutIdentifier = product.slug?.trim() || product.id
+  const successUrl = `${window.location.origin}${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&session_id={CHECKOUT_SESSION_ID}`
 
   return (
     <div className="bg-[#f5fafc] text-[#171c1e]">

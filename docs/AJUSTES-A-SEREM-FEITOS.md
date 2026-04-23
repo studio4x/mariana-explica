@@ -12,4 +12,5 @@
 
 [OK] Na página de cursos, a imagem de capa do curso deve estar no formato/aspecto compartivel com uma imagem de tamanho 1348 x 736 px. A imagem não tem que ficar deste tamanho, apenas precisa estar no aspecto desse tamanho.
 
+[OK] depois que o checkout na stripe for feito, atualmente o usuario é levado para o dashboard. Vamos ajustar para incluir uma página de confirmação depois do checkout concluído e nessa página de confirmação inserimos um botão para levar diretamente para o curso. Vou utilizar essa página para validar o evento de checkout no google ads e no pixel meta.
 # REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

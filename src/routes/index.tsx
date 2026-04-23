@@ -17,6 +17,7 @@ const Products = lazy(() => import("@/pages/public").then((module) => ({ default
 const Product = lazy(() => import("@/pages/public").then((module) => ({ default: module.Product })))
 const Support = lazy(() => import("@/pages/public").then((module) => ({ default: module.Support })))
 const Checkout = lazy(() => import("@/pages/public").then((module) => ({ default: module.Checkout })))
+const CheckoutSuccess = lazy(() => import("@/pages/public").then((module) => ({ default: module.CheckoutSuccess })))
 const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
 const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
 const AuthCallback = lazy(() => import("@/pages/auth").then((module) => ({ default: module.AuthCallback })))
@@ -230,6 +231,10 @@ export const router = createBrowserRouter(
         {
           path: "checkout",
           element: withSuspense(<Checkout />),
+        },
+        {
+          path: "checkout/confirmacao",
+          element: withSuspense(<CheckoutSuccess />),
         },
         {
           path: "suporte",

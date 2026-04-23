@@ -11,6 +11,7 @@ export const ROUTES = {
   PRODUCTS: "/cursos",
   PRODUCT: "/cursos",
   CHECKOUT: "/checkout",
+  CHECKOUT_SUCCESS: "/checkout/confirmacao",
   SUPPORT: "/suporte",
   LOGIN: "/login",
   REGISTER: "/register",
