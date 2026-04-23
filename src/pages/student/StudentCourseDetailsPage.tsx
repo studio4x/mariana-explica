@@ -1,7 +1,15 @@
 import { Link, useParams } from "react-router-dom"
-import { BookOpenCheck, Clock3, PlayCircle } from "lucide-react"
+import {
+  ArrowRight,
+  Check,
+  Clock3,
+  FileText,
+  LibraryBig,
+  LockKeyhole,
+  ScrollText,
+} from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader, RichTextContent, StatusBadge } from "@/components/common"
+import { RichTextContent } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useDashboardProductContent, useRequestModulePdfAccess } from "@/hooks/useDashboard"
 import {
@@ -17,6 +25,41 @@ import {
   studentCoursePlayerPath,
 } from "@/lib/routes"
 import { richTextToPlainText } from "@/lib/rich-text"
+
+function ProgressRing({ value }: { value: number }) {
+  const radius = 28
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (Math.min(Math.max(value, 0), 100) / 100) * circumference
+
+  return (
+    <div className="relative h-16 w-16 shrink-0">
+      <svg className="h-full w-full -rotate-90">
+        <circle cx="32" cy="32" r={radius} stroke="currentColor" strokeWidth="6" fill="transparent" className="text-slate-100" />
+        <circle
+          cx="32"
+          cy="32"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="6"
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="text-blue-600 transition-all duration-1000"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-xs font-black text-slate-900">{value}%</span>
+      </div>
+    </div>
+  )
+}
+
+function formatMinutes(minutes: number | null | undefined) {
+  const safeMinutes = Math.max(0, Number(minutes ?? 0))
+  if (safeMinutes <= 0) return "Tempo flexivel"
+  return `${safeMinutes} Minutos`
+}
 
 export function StudentCourseDetailsPage() {
   const { courseId } = useParams<{ courseId: string }>()
@@ -46,6 +89,7 @@ export function StudentCourseDetailsPage() {
     )
   }
 
+  const product = data.product
   const progressMap = createLessonProgressMap(data.progress)
   const nextLesson = findNextLesson(data.lessons, progressMap)
   const completedLessons = data.progress.filter((item) => item.status === "completed").length
@@ -53,281 +97,298 @@ export function StudentCourseDetailsPage() {
     data.lessons.length > 0 ? Math.round((completedLessons / data.lessons.length) * 100) : 0
   const playerEntries = buildCoursePlayerEntries(data.modules, data.lessons, data.assessments)
   const firstUnlockedEntry = playerEntries.find((entry) => !entry.isLocked) ?? null
-  const lockedLessonsCount = data.lessons.filter((lesson) => lesson.is_locked).length
-  const lockedAssessmentsCount = data.assessments.filter((assessment) => assessment.is_locked).length
-  const assessmentsByModule = new Map(
-    data.modules.map((module) => [
-      module.id,
-      data.assessments.filter(
-        (assessment) => assessment.module_id === module.id && assessment.assessment_type === "module",
-      ),
-    ]),
-  )
+  const startPath = nextLesson
+    ? studentCourseLessonPath(product.id, nextLesson.id)
+    : firstUnlockedEntry?.type === "assessment"
+      ? studentCourseAssessmentPath(product.id, firstUnlockedEntry.id)
+      : studentCoursePlayerPath(product.id)
+  const description =
+    richTextToPlainText(product.description) ||
+    richTextToPlainText(product.short_description) ||
+    "Curso pronto para continuares o estudo com clareza."
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={data.product.title}
-        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Curso pronto para continuares o estudo."}
-        backTo="/aluno/cursos"
-      />
-
-      <section className="overflow-hidden rounded-[2rem] border bg-[linear-gradient(135deg,#1e293b_0%,#0f4c81_52%,#0f172a_100%)] p-6 text-white shadow-sm md:p-8">
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/65">Curso liberado</p>
-            <h2 className="mt-3 font-display text-3xl font-bold md:text-5xl">{data.product.title}</h2>
-            <RichTextContent
-              value={data.product.description}
-              fallback="Segue a trilha do curso, retoma do ponto onde paraste e entra no player para estudar com foco."
-              className="mt-4 max-w-3xl text-sm leading-8 text-white/80 md:text-base"
+    <section className="rounded-[34px] border border-[#D8E6EB] bg-white p-5 shadow-[0_20px_50px_rgba(22,49,56,0.04)] sm:p-7">
+      <div className="space-y-12 pb-10 animate-in fade-in duration-700">
+        <section className="relative flex min-h-[400px] flex-col justify-end overflow-hidden rounded-[48px] bg-slate-900 p-8 shadow-2xl md:p-16">
+          {product.cover_image_url ? (
+            <img
+              src={product.cover_image_url}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-40"
             />
-            <div className="mt-5 flex flex-wrap gap-2">
-              <StatusBadge label={`${data.modules.length} modulos`} tone="info" />
-              <StatusBadge label={`${data.lessons.length} aulas`} tone="warning" />
-              <StatusBadge label={`${data.assessments.length} avaliacoes`} tone="success" />
-              {data.product.has_linear_progression ? <StatusBadge label="Trilha sequencial" tone="warning" /> : null}
+          ) : (
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_48%,#242742_100%)]" />
+          )}
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+          <div className="relative z-20 max-w-4xl space-y-6">
+            <div className="space-y-4">
+              <Link to="/aluno/cursos" className="inline-flex text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:text-white">
+                Voltar aos cursos
+              </Link>
+              <h1 className="font-display text-4xl font-black leading-tight tracking-tight text-white md:text-6xl">
+                {product.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-6">
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-300">
+                  <Clock3 className="h-5 w-5 text-blue-400" />
+                  {formatMinutes(product.workload_minutes)}
+                </span>
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-300">
+                  <LibraryBig className="h-5 w-5 text-blue-400" />
+                  {data.modules.length} Modulo{data.modules.length === 1 ? "" : "s"}
+                </span>
+                <div className="hidden h-6 w-px bg-white/10 md:block" />
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-32 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span className="text-sm font-black text-white">
+                    {progressPercent}% <span className="ml-1 text-[10px] uppercase text-white/40">Concluido</span>
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild className="rounded-full bg-white text-slate-950 hover:bg-white/90">
-                <Link
-                  to={
-                    nextLesson
-                      ? studentCourseLessonPath(data.product.id, nextLesson.id)
-                      : firstUnlockedEntry?.type === "assessment"
-                        ? studentCourseAssessmentPath(data.product.id, firstUnlockedEntry.id)
-                        : studentCoursePlayerPath(data.product.id)
-                  }
-                >
-                  {progressPercent > 0 ? "Continuar no player" : "Iniciar curso"}
-                  <PlayCircle className="ml-2 h-4 w-4" />
+
+            <div className="pt-4">
+              <Button asChild className="h-16 rounded-2xl bg-white px-10 text-lg font-black text-slate-900 shadow-xl hover:bg-slate-100">
+                <Link to={startPath}>
+                  {progressPercent > 0 ? "Continuar aprendizado" : "Iniciar aprendizado"}
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/15">
-                <Link to={studentCoursePlayerPath(data.product.id)}>Abrir estrutura completa</Link>
-              </Button>
             </div>
           </div>
+        </section>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-            <div className="rounded-[1.5rem] bg-white/10 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/65">Progresso geral</p>
-              <p className="mt-3 text-3xl font-bold">{progressPercent}%</p>
-              <p className="mt-2 text-sm text-white/80">
-                {completedLessons} de {data.lessons.length} aulas concluidas
-              </p>
+        <section className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm animate-in slide-in-from-top-4 duration-700">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-6">
+              <ProgressRing value={progressPercent} />
+              <div className="min-w-0 space-y-1">
+                <h5 className="text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400">
+                  Resumo da jornada
+                </h5>
+                <p className="text-sm font-bold text-slate-900">O teu progresso atual neste curso</p>
+                <div className="flex h-1.5 w-32 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
+                </div>
+              </div>
             </div>
-            <div className="rounded-[1.5rem] bg-white/10 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/65">Carga horaria</p>
-              <p className="mt-3 text-3xl font-bold">{data.product.workload_minutes || 0} min</p>
-              <p className="mt-2 text-sm text-white/80">Estimativa total para percorrer a trilha.</p>
-            </div>
-            <div className="rounded-[1.5rem] bg-white/10 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/65">Player LMS</p>
-              <p className="mt-3 text-3xl font-bold">{playerEntries.length}</p>
-              <p className="mt-2 text-sm text-white/80">Itens navegaveis entre aulas e avaliacoes.</p>
-            </div>
-            <div className="rounded-[1.5rem] bg-white/10 p-5 md:col-span-2 xl:col-span-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/65">Bloqueios atuais</p>
-              <p className="mt-3 text-3xl font-bold">{lockedLessonsCount + lockedAssessmentsCount}</p>
-              <p className="mt-2 text-sm text-white/80">Itens ainda dependentes da tua progressao.</p>
+            <div className="flex w-fit min-w-fit flex-col items-start justify-center gap-1 self-start rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 lg:shrink-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Aulas</span>
+              <div className="flex items-end gap-2">
+                <span className="text-3xl font-black leading-none text-slate-900">{completedLessons}</span>
+                <span className="text-2xl font-black leading-none text-slate-300">/</span>
+                <span className="text-3xl font-black leading-none text-slate-900">{data.lessons.length}</span>
+              </div>
+              <div className="inline-flex w-fit items-center rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">
+                Concluidas
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <BookOpenCheck className="h-5 w-5 text-slate-900" />
-            <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Grade curricular</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Modulos, aulas e checkpoints do curso organizados como trilha de estudo.
-              </p>
-            </div>
+        <section className="space-y-8 rounded-[40px] border border-slate-100 bg-white p-10 shadow-sm animate-in slide-in-from-bottom-4 duration-700 md:p-14">
+          <div className="flex items-center gap-4">
+            <h3 className="text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400">Sobre este curso</h3>
+            <div className="h-px flex-1 bg-slate-100" />
+          </div>
+          <RichTextContent
+            value={product.description}
+            fallback={description}
+            className="text-lg font-medium leading-relaxed text-slate-600"
+          />
+        </section>
+
+        <div className="space-y-12">
+          <div className="flex items-center gap-4">
+            <h3 className="text-3xl font-black tracking-tight text-slate-900">Grade curricular</h3>
+            <div className="h-px flex-1 bg-slate-100" />
           </div>
 
-          <div className="mt-6 space-y-4">
+          <div className="space-y-8">
             {data.modules.map((module, moduleIndex) => {
               const moduleLessons = data.lessons.filter((lesson) => lesson.module_id === module.id)
-              const moduleAssessments = assessmentsByModule.get(module.id) ?? []
+              const moduleAssessments = data.assessments.filter(
+                (assessment) => assessment.module_id === module.id && assessment.assessment_type === "module",
+              )
+              const moduleCompletedLessons = moduleLessons.filter((lesson) => progressMap.get(lesson.id)?.status === "completed").length
+              const moduleProgressPercent = moduleLessons.length > 0
+                ? Math.round((moduleCompletedLessons / moduleLessons.length) * 100)
+                : 0
+              const moduleStatus = module.is_locked
+                ? "Bloqueado"
+                : moduleProgressPercent >= 100
+                  ? "Concluido"
+                  : moduleProgressPercent > 0
+                    ? "Em andamento"
+                    : "Por iniciar"
 
               return (
-                <div key={module.id} className="rounded-[1.5rem] border bg-slate-50/70 p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Modulo {moduleIndex + 1}</p>
-                      <h3 className="mt-2 text-xl font-semibold text-slate-950">{module.title}</h3>
-                      <RichTextContent
-                        value={module.description}
-                        fallback="Sem descricao adicional para este modulo."
-                        className="mt-2 text-sm leading-7 text-slate-600"
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <StatusBadge label={getModuleTypeLabel(module.module_type)} tone="info" />
-                      {module.is_required ? <StatusBadge label="Obrigatorio" tone="success" /> : null}
-                      {module.module_pdf_file_name ? <StatusBadge label="PDF base" tone="warning" /> : null}
-                      {module.is_locked ? <StatusBadge label="Bloqueado" tone="warning" /> : null}
-                    </div>
-                  </div>
-                  {module.is_locked && module.lock_reason ? (
-                    <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-700">
-                      {module.lock_reason}
-                    </p>
-                  ) : null}
-                  {module.module_pdf_file_name && !module.is_locked ? (
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
-                      <div>
-                        <p className="font-medium text-slate-950">{module.module_pdf_file_name}</p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          PDF base protegido, com acesso temporario emitido pelo backend.
-                        </p>
+                <div key={module.id} className="group">
+                  <div className="flex items-start gap-6">
+                    <div className="hidden flex-col items-center gap-2 pt-2 md:flex">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 font-black text-white shadow-lg shadow-blue-100 transition-all">
+                        {moduleIndex + 1}
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        disabled={modulePdfAccess.isPending}
-                        onClick={() =>
-                          void modulePdfAccess
-                            .mutateAsync(module.id)
-                            .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
-                        }
-                      >
-                        {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF"}
-                      </Button>
+                      <div className="min-h-[100px] w-0.5 flex-1 bg-slate-100 group-last:hidden" />
                     </div>
-                  ) : null}
 
-                  <div className="mt-4 space-y-2">
-                    {moduleLessons.map((lesson) => {
-                      const lessonState = getLessonProgressState(lesson.id, progressMap)
-                      return (
-                        <div key={lesson.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3">
+                    <div className="flex-1 space-y-6">
+                      <div className="rounded-[32px] border border-slate-100 bg-white p-8 shadow-sm transition-all group-hover:shadow-md">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
                           <div>
-                            <p className="font-medium text-slate-950">{lesson.title}</p>
-                            <RichTextContent
-                              value={lesson.description}
-                              fallback="Aula pronta para estudo dentro do player."
-                              className="mt-1 text-sm text-slate-600"
-                            />
-                            {lesson.is_locked && lesson.lock_reason ? (
-                              <p className="mt-2 text-sm text-amber-700">{lesson.lock_reason}</p>
+                            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                              {getModuleTypeLabel(module.module_type)}
+                            </p>
+                            <h4 className="text-xl font-black text-slate-900 transition-colors group-hover:text-blue-600">
+                              {module.title}
+                            </h4>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-blue-100 bg-blue-50 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                              {moduleStatus}
+                            </span>
+                            {module.module_pdf_file_name && !module.is_locked ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="flex h-8 items-center gap-1.5 rounded-xl border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 hover:text-blue-600"
+                                disabled={modulePdfAccess.isPending}
+                                onClick={() =>
+                                  void modulePdfAccess
+                                    .mutateAsync(module.id)
+                                    .then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))
+                                }
+                              >
+                                <FileText className="h-3.5 w-3.5 text-rose-500" />
+                                {modulePdfAccess.isPending ? "A preparar" : "Baixar PDF"}
+                              </Button>
                             ) : null}
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <StatusBadge label={`${lesson.estimated_minutes} min`} tone="neutral" />
-                            <StatusBadge
-                              label={lesson.is_locked ? "Bloqueada" : lessonState.label}
-                              tone={lesson.is_locked ? "warning" : lessonState.tone}
-                            />
+                        </div>
+
+                        <RichTextContent
+                          value={module.description}
+                          fallback="Modulo organizado para avancares com clareza dentro da trilha do curso."
+                          className="mb-8 text-sm font-medium leading-relaxed text-slate-500"
+                        />
+
+                        {module.is_locked && module.lock_reason ? (
+                          <div className="mb-6 rounded-[24px] border border-amber-200 bg-amber-50/50 p-5 text-sm font-bold text-amber-700">
+                            {module.lock_reason}
                           </div>
-                        </div>
-                      )
-                    })}
-                    {moduleAssessments.map((assessment) => (
-                      <div key={assessment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                        <div>
-                          <p className="font-medium text-slate-950">{assessment.title}</p>
-                          <RichTextContent
-                            value={assessment.description}
-                            fallback="Avaliacao ligada a este modulo."
-                            className="mt-1 text-sm text-slate-600"
-                          />
-                          {assessment.is_locked && assessment.lock_reason ? (
-                            <p className="mt-2 text-sm text-amber-700">{assessment.lock_reason}</p>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <StatusBadge
-                            label={assessment.is_locked ? "Quiz bloqueado" : "Quiz do modulo"}
-                            tone="warning"
-                          />
-                          <StatusBadge
-                            label={
-                              assessment.progress_state === "passed"
-                                ? "Aprovado"
-                                : assessment.progress_state === "pending_review"
-                                  ? "Em revisao"
-                                  : assessment.progress_state === "failed"
-                                    ? "Reprovado"
-                                    : assessment.is_locked
-                                      ? "Bloqueado"
-                                      : `Minimo ${assessment.passing_score}%`
-                            }
-                            tone={
-                              assessment.progress_state === "passed"
-                                ? "success"
-                                : assessment.progress_state === "failed"
-                                  ? "danger"
-                                  : assessment.progress_state === "pending_review" || assessment.is_locked
-                                    ? "warning"
-                                    : "info"
-                            }
-                          />
+                        ) : null}
+
+                        <div className="space-y-4">
+                          {moduleLessons.map((lesson) => {
+                            const lessonState = getLessonProgressState(lesson.id, progressMap)
+                            const isCompleted = lessonState.label.toLowerCase().includes("concl")
+
+                            return (
+                              <div key={lesson.id} className="group/item flex items-center gap-2">
+                                <span
+                                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-inner transition-all ${
+                                    isCompleted
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-slate-100 text-slate-300 group-hover/item:text-blue-500"
+                                  }`}
+                                >
+                                  {lesson.is_locked ? <LockKeyhole className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                </span>
+                                {lesson.is_locked ? (
+                                  <div className="flex flex-1 items-center justify-between rounded-2xl border border-transparent bg-slate-50/50 p-4 opacity-75">
+                                    <div>
+                                      <p className="text-sm font-bold text-slate-700">{lesson.title}</p>
+                                      <span className="text-[9px] font-black uppercase tracking-tight text-amber-500">
+                                        {lesson.lock_reason || "Bloqueada"}
+                                      </span>
+                                    </div>
+                                    <LockKeyhole className="h-4 w-4 text-slate-300" />
+                                  </div>
+                                ) : (
+                                  <Link
+                                    to={studentCourseLessonPath(product.id, lesson.id)}
+                                    className="flex flex-1 items-center justify-between rounded-2xl border border-transparent bg-slate-50/50 p-4 transition-all hover:border-blue-100 hover:bg-blue-50/50"
+                                  >
+                                    <div>
+                                      <p className="text-sm font-bold text-slate-700">{lesson.title}</p>
+                                      <span className="text-[9px] font-black uppercase tracking-tight text-blue-400">
+                                        {lesson.is_required ? "Obrigatoria" : "Complementar"} · {lesson.estimated_minutes} min
+                                      </span>
+                                    </div>
+                                    <ArrowRight className="h-4 w-4 text-slate-300 transition-transform group-hover/item:translate-x-1" />
+                                  </Link>
+                                )}
+                              </div>
+                            )
+                          })}
+
+                          {moduleAssessments.map((assessment) => (
+                            <div
+                              key={assessment.id}
+                              className={`mt-6 rounded-[24px] border border-dashed p-6 transition-all ${
+                                assessment.is_locked ? "border-amber-200 bg-amber-50/40" : "border-blue-200 bg-blue-50/40"
+                              }`}
+                            >
+                              <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                                      assessment.is_locked ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                                    }`}>
+                                      <ScrollText className="h-4 w-4" />
+                                    </div>
+                                    <span className="text-sm font-black uppercase tracking-tight text-slate-800">
+                                      Quiz: {assessment.title}
+                                    </span>
+                                  </div>
+                                  <p className={`text-xs font-bold ${assessment.is_locked ? "text-amber-600" : "text-blue-600"}`}>
+                                    {assessment.is_locked
+                                      ? assessment.lock_reason || "Conclua os requisitos para liberar o quiz"
+                                      : `Pontuacao minima: ${assessment.passing_score}%`}
+                                  </p>
+                                </div>
+                                {assessment.is_locked ? (
+                                  <Button type="button" size="sm" disabled className="h-11 rounded-xl px-6 text-[0.8rem] font-black">
+                                    Quiz bloqueado
+                                  </Button>
+                                ) : (
+                                  <Button asChild size="sm" className="h-11 rounded-xl bg-blue-600 px-6 text-[0.8rem] font-black">
+                                    <Link to={studentCourseAssessmentPath(product.id, assessment.id)}>
+                                      Abrir quiz
+                                    </Link>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               )
             })}
           </div>
-        </section>
+        </div>
 
-        <section className="space-y-4">
-          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <Clock3 className="h-5 w-5 text-slate-900" />
-              <div>
-                <h2 className="font-display text-2xl font-bold text-slate-950">Proximo passo</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  O player abre diretamente no ponto mais util para continuares.
-                </p>
-              </div>
-            </div>
-
-            {nextLesson ? (
-              <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Aula sugerida</p>
-                <h3 className="mt-2 text-xl font-semibold text-slate-950">{nextLesson.title}</h3>
-                <RichTextContent
-                  value={nextLesson.description}
-                  fallback="Abre esta aula para continuar a tua progressao."
-                  className="mt-2 text-sm leading-7 text-slate-600"
-                />
-                <Button asChild className="mt-5 rounded-full">
-                  <Link to={studentCourseLessonPath(data.product.id, nextLesson.id)}>Entrar no player</Link>
-                </Button>
-              </div>
-            ) : (
-              <EmptyState
-                title="Sem proximo passo desbloqueado"
-                message="Conclui os itens anteriores para libertar a proxima aula ou avaliacao desta trilha."
-              />
-            )}
+        <section className="space-y-6">
+          <div className="flex items-center gap-4">
+            <h3 className="text-3xl font-black tracking-tight text-slate-900">Minhas anotacoes</h3>
+            <div className="h-px flex-1 bg-slate-100" />
           </div>
-
-          <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <h2 className="font-display text-2xl font-bold text-slate-950">Regras do curso</h2>
-            <div className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
-              <div className="rounded-2xl border bg-slate-50/80 p-4">
-                A autorizacao continua dependente do teu grant ativo e das regras de agenda por modulo e aula.
-              </div>
-              <div className="rounded-2xl border bg-slate-50/80 p-4">
-                {data.product.has_linear_progression
-                  ? "Este curso usa progressao linear, por isso aulas e quizzes futuros ficam visiveis, mas bloqueados ate concluirem os requisitos anteriores."
-                  : "Este curso permite navegacao mais livre, sempre respeitando acesso e disponibilidade do conteudo."}
-              </div>
-              <div className="rounded-2xl border bg-slate-50/80 p-4">
-                PDFs e materiais protegidos continuam a sair por URL assinada, nunca por link publico direto.
-              </div>
+          <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+            <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
+              <p className="text-sm font-medium text-slate-500">
+                Voce ainda nao criou anotacoes neste curso. Abra uma aula e use o bloco de notas ao final da pagina.
+              </p>
             </div>
           </div>
         </section>
       </div>
-    </div>
+    </section>
   )
 }

@@ -11,21 +11,12 @@ import {
   UserRound,
 } from "lucide-react"
 import { ErrorState, LoadingState } from "@/components/feedback"
-import { StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
-import { getDashboardProductNote } from "@/lib/product-presentation"
 import { ROUTES } from "@/lib/constants"
 import { cn } from "@/lib/cn"
 import { useDashboardOverview } from "@/hooks/useDashboard"
-import { formatDate } from "@/utils/date"
 import type { DashboardProductSummary } from "@/types/app.types"
-
-function sanitizeDescription(product: DashboardProductSummary) {
-  const text = product.short_description ?? product.description ?? ""
-  const plainText = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
-  return plainText || "Conteudo liberado para estudar com mais clareza, pratica e seguranca."
-}
 
 function isCompleted(product: DashboardProductSummary) {
   return product.lesson_count > 0 && product.progress_percent >= 100
@@ -35,18 +26,6 @@ function getCourseActionLabel(product: DashboardProductSummary) {
   if (isCompleted(product)) return "Revisar aprendizagem"
   if (product.completed_lessons > 0 || product.progress_percent > 0) return "Continuar aprendizagem"
   return "Iniciar aprendizagem"
-}
-
-function getCourseStatus(product: DashboardProductSummary) {
-  if (isCompleted(product)) {
-    return { label: "Concluido", tone: "success" as const }
-  }
-
-  if (product.completed_lessons > 0 || product.progress_percent > 0) {
-    return { label: "Em andamento", tone: "info" as const }
-  }
-
-  return { label: "Por iniciar", tone: "neutral" as const }
 }
 
 function MetricCard({
@@ -108,48 +87,6 @@ function QuickLink({
   )
 }
 
-function RecommendedCourseCard({ product }: { product: DashboardProductSummary }) {
-  const status = getCourseStatus(product)
-
-  return (
-    <article className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-sm">
-      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700">
-        {product.cover_image_url ? (
-          <img src={product.cover_image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-5xl font-black tracking-[0.2em] text-white/10">
-            LMS
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
-        <div className="absolute left-4 top-4">
-          <StatusBadge label={status.label} tone={status.tone} />
-        </div>
-      </div>
-
-      <div className="p-5">
-        <h3 className="line-clamp-2 font-display text-xl font-black text-slate-950">{product.title}</h3>
-        <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{sanitizeDescription(product)}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <StatusBadge label={`${product.module_count} modulos`} tone="info" />
-          <StatusBadge label={`${product.lesson_count} aulas`} tone="neutral" />
-          <StatusBadge label={`${product.progress_percent}%`} tone={status.tone} />
-        </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <Button asChild className="rounded-full bg-[#1398B7] text-white hover:bg-[#0A3640]">
-            <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>
-              {getCourseActionLabel(product)}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="rounded-full bg-white">
-            <Link to={ROUTES.DASHBOARD_PRODUCTS}>Ver catalogo</Link>
-          </Button>
-        </div>
-      </div>
-    </article>
-  )
-}
-
 export function Dashboard() {
   const { profile } = useAuth()
   const { data, isLoading, isError, error, refetch } = useDashboardOverview()
@@ -185,7 +122,6 @@ export function Dashboard() {
   const inProgressCourses = products.filter((product) => !isCompleted(product))
   const finalPendingCourses = 0
   const featuredCourse = inProgressCourses[0] ?? products[0] ?? null
-  const recommendedCourses = (inProgressCourses.length > 0 ? inProgressCourses : products).slice(0, 2)
   const firstName = profile?.full_name?.split(" ")[0] ?? profile?.email?.split("@")[0] ?? "Aluno"
 
   return (
@@ -231,148 +167,98 @@ export function Dashboard() {
         <MetricCard label="Concluidos" value={completedCourses.length} tone="emerald" />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
-        <div className="space-y-6">
-          <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Acesso rapido</p>
-            <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Atalhos do aluno</h2>
-            <div className="mt-5 grid gap-3">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Acesso rapido</p>
+          <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Atalhos do aluno</h2>
+          <div className="mt-5 grid gap-3">
+            <QuickLink
+              to={ROUTES.DASHBOARD_PRODUCTS}
+              icon={<BookOpen className="h-5 w-5" />}
+              title="Explorar meus cursos"
+              description="Acesse todos os materiais liberados para sua conta."
+            />
+            {featuredCourse ? (
               <QuickLink
-                to={ROUTES.DASHBOARD_PRODUCTS}
-                icon={<BookOpen className="h-5 w-5" />}
-                title="Explorar meus cursos"
-                description="Acesse todos os materiais liberados para sua conta."
+                to={`${ROUTES.DASHBOARD_PRODUCT}/${featuredCourse.id}`}
+                icon={<PlayCircle className="h-5 w-5" />}
+                title={getCourseActionLabel(featuredCourse)}
+                description={featuredCourse.title}
+                variant="slate"
               />
-              {featuredCourse ? (
-                <QuickLink
-                  to={`${ROUTES.DASHBOARD_PRODUCT}/${featuredCourse.id}`}
-                  icon={<PlayCircle className="h-5 w-5" />}
-                  title={getCourseActionLabel(featuredCourse)}
-                  description={featuredCourse.title}
-                  variant="slate"
-                />
-              ) : (
-                <QuickLink
-                  to={ROUTES.COURSES}
-                  icon={<GraduationCap className="h-5 w-5" />}
-                  title="Conhecer cursos disponiveis"
-                  description="Veja o catalogo publico e escolha o proximo material."
-                  variant="slate"
-                />
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Destaque</p>
-            <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Proximos cursos recomendados</h2>
-
-            {recommendedCourses.length === 0 ? (
-              <div className="mt-6 rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                <p className="font-black text-slate-950">Nenhum curso liberado no momento.</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Assim que novos materiais forem atribuidos, eles aparecerao aqui.
-                </p>
-                <Button asChild className="mt-5 rounded-full bg-[#1398B7] text-white hover:bg-[#0A3640]">
-                  <Link to={ROUTES.COURSES}>Ver cursos</Link>
-                </Button>
-              </div>
             ) : (
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {recommendedCourses.map((product) => (
-                  <RecommendedCourseCard key={product.id} product={product} />
-                ))}
-              </div>
+              <QuickLink
+                to={ROUTES.COURSES}
+                icon={<GraduationCap className="h-5 w-5" />}
+                title="Conhecer cursos disponiveis"
+                description="Veja o catalogo publico e escolha o proximo material."
+                variant="slate"
+              />
             )}
-          </section>
+          </div>
+        </section>
+
+        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Situacao da conta</p>
+          <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Resumo do perfil</h2>
+
+          <div className="mt-5 rounded-[24px] border border-emerald-100 bg-emerald-50 p-4">
+            <div className="flex gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
+                <CheckCircle2 className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-black text-slate-950">Conta ativa para aprendizagem</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Seus materiais liberados estao disponiveis para acesso e estudo.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Nome</p>
+              <p className="mt-2 truncate font-bold text-slate-950">{profile?.full_name || "Nao informado"}</p>
+            </div>
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">E-mail</p>
+              <p className="mt-2 truncate font-bold text-slate-950">{profile?.email ?? "Nao informado"}</p>
+            </div>
+          </div>
+
+          <Button asChild variant="outline" className="mt-5 w-full rounded-full bg-white">
+            <Link to={ROUTES.DASHBOARD_PROFILE}>
+              Editar meus dados
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </section>
+      </section>
+
+      <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Leitura rapida</p>
+        <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Status da jornada</h2>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="flex items-center justify-between rounded-[20px] border border-sky-100 bg-sky-50 p-4">
+            <span className="text-sm font-bold text-slate-700">Cursos em andamento</span>
+            <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-black text-sky-700">
+              {inProgressCourses.length}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-[20px] border border-amber-100 bg-amber-50 p-4">
+            <span className="text-sm font-bold text-slate-700">Aguardando prova final</span>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-700">
+              {finalPendingCourses}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-[20px] border border-emerald-100 bg-emerald-50 p-4">
+            <span className="text-sm font-bold text-slate-700">Cursos concluidos</span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-700">
+              {completedCourses.length}
+            </span>
+          </div>
         </div>
-
-        <aside className="space-y-6">
-          <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Situacao da conta</p>
-            <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Resumo do perfil</h2>
-
-            <div className="mt-5 rounded-[24px] border border-emerald-100 bg-emerald-50 p-4">
-              <div className="flex gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
-                  <CheckCircle2 className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-black text-slate-950">Conta ativa para aprendizagem</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Seus materiais liberados estao disponiveis para acesso e continuidade.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-              <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Nome</p>
-                <p className="mt-2 truncate font-bold text-slate-950">{profile?.full_name || "Nao informado"}</p>
-              </div>
-              <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">E-mail</p>
-                <p className="mt-2 truncate font-bold text-slate-950">{profile?.email ?? "Nao informado"}</p>
-              </div>
-            </div>
-
-            <Button asChild variant="outline" className="mt-5 w-full rounded-full bg-white">
-              <Link to={ROUTES.DASHBOARD_PROFILE}>
-                Editar meus dados
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </section>
-
-          <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Leitura rapida</p>
-            <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Status da jornada</h2>
-            <div className="mt-5 grid gap-3">
-              <div className="flex items-center justify-between rounded-[20px] border border-sky-100 bg-sky-50 p-4">
-                <span className="text-sm font-bold text-slate-700">Cursos em andamento</span>
-                <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-black text-sky-700">
-                  {inProgressCourses.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[20px] border border-amber-100 bg-amber-50 p-4">
-                <span className="text-sm font-bold text-slate-700">Aguardando prova final</span>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-700">
-                  {finalPendingCourses}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[20px] border border-emerald-100 bg-emerald-50 p-4">
-                <span className="text-sm font-bold text-slate-700">Cursos concluidos</span>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-700">
-                  {completedCourses.length}
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {featuredCourse ? (
-            <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Continuidade</p>
-              <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Ultimo destaque</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{getDashboardProductNote(featuredCourse)}</p>
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                  <span>Progresso</span>
-                  <span>{featuredCourse.progress_percent}%</span>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-[#1398B7]"
-                    style={{ width: `${featuredCourse.progress_percent}%` }}
-                  />
-                </div>
-              </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Liberado em {formatDate(featuredCourse.granted_at)}
-              </p>
-            </section>
-          ) : null}
-        </aside>
       </section>
     </div>
   )
