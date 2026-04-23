@@ -51,7 +51,7 @@ const items = [
   },
   {
     to: ROUTES.DASHBOARD_MESSAGES,
-    label: "Mensagens",
+    label: "Chamados",
     description: "Chamados e conversas",
     icon: LifeBuoy,
   },
@@ -207,7 +207,7 @@ export function DashboardLayout() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-3 font-bold">
                 <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">Site publico</Link>
-                <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">Mensagens</Link>
+                <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">Chamados</Link>
                 <Link to={ROUTES.DASHBOARD_PROFILE} className="hover:text-[#1398B7]">Conta</Link>
               </div>
               <span className="font-semibold">Build {BUILD_VERSION}</span>

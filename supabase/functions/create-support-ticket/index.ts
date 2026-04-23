@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       const email = buildSupportTicketCreatedEmail({
         fullName: context.profile.full_name,
         subject,
-        supportUrl: `/aluno/suporte/${ticket.id}`,
+        supportUrl: `/aluno/chamados/${ticket.id}`,
       })
 
       await queueEmailDelivery(context.serviceClient, {

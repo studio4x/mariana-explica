@@ -200,7 +200,7 @@ function LegacyStudentCourseRedirect() {
 
 function NavigateToStudentSupportTicket() {
   const { ticketId } = useParams<{ ticketId: string }>()
-  return <Navigate to={`/aluno/suporte/${ticketId}`} replace />
+  return <Navigate to={`/aluno/chamados/${ticketId}`} replace />
 }
 
 function LegacyAdminBuilderRedirect() {
@@ -314,20 +314,28 @@ export const router = createBrowserRouter(
           element: withSuspense(<DashboardNotifications />),
         },
         {
-          path: "suporte",
+          path: "chamados",
           element: withSuspense(<DashboardSupport />),
+        },
+        {
+          path: "suporte",
+          element: <Navigate to="/aluno/chamados" replace />,
         },
         {
           path: "mensagens",
-          element: withSuspense(<DashboardSupport />),
+          element: <Navigate to="/aluno/chamados" replace />,
+        },
+        {
+          path: "chamados/:ticketId",
+          element: withSuspense(<DashboardSupportTicketDetail />),
         },
         {
           path: "suporte/:ticketId",
-          element: withSuspense(<DashboardSupportTicketDetail />),
+          element: <NavigateToStudentSupportTicket />,
         },
         {
           path: "mensagens/:ticketId",
-          element: withSuspense(<DashboardSupportTicketDetail />),
+          element: <NavigateToStudentSupportTicket />,
         },
         {
           path: "perfil",
@@ -380,11 +388,23 @@ export const router = createBrowserRouter(
     },
     {
       path: "/dashboard/mensagens",
-      element: <Navigate to="/aluno/mensagens" replace />,
+      element: <Navigate to="/aluno/chamados" replace />,
+    },
+    {
+      path: "/dashboard/mensagens/:ticketId",
+      element: <NavigateToStudentSupportTicket />,
     },
     {
       path: "/dashboard/suporte",
-      element: <Navigate to="/aluno/suporte" replace />,
+      element: <Navigate to="/aluno/chamados" replace />,
+    },
+    {
+      path: "/dashboard/chamados",
+      element: <Navigate to="/aluno/chamados" replace />,
+    },
+    {
+      path: "/dashboard/chamados/:ticketId",
+      element: <NavigateToStudentSupportTicket />,
     },
     {
       path: "/dashboard/suporte/:ticketId",
