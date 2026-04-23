@@ -14,7 +14,6 @@ import {
   fetchModuleAssetsByModule,
   fetchMyProducts,
   fetchNotifications,
-  fetchCreatorCourseInboxes,
   fetchPaymentHistory,
   fetchStudentOrderReceiptUrl,
   fetchProfilePreferences,
@@ -447,13 +446,6 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
   }, [queryClient, ticketId])
 
   return query
-}
-
-export function useCreatorCourseInboxes() {
-  return useQuery({
-    queryKey: ["dashboard", "creator", "course-inboxes"],
-    queryFn: fetchCreatorCourseInboxes,
-  })
 }
 
 export function useProfilePreferences() {

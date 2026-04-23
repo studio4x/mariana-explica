@@ -58,9 +58,6 @@ verify_jwt = false
 [functions.profile-avatar-upload]
 verify_jwt = false
 
-[functions.creator-course-inboxes]
-verify_jwt = false
-
 [functions.admin-support-ticket-delete]
 verify_jwt = false
 

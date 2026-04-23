@@ -359,33 +359,6 @@ export interface ProfileAvatarUploadResult {
   uploaded_at: string
 }
 
-export interface CreatorCourseInboxTicket extends Pick<
-  SupportTicketSummary,
-  "id" | "product_id" | "subject" | "status" | "priority" | "category" | "last_reply_at" | "updated_at" | "created_at"
-> {
-  user_id: string
-  student: {
-    id: string
-    full_name: string | null
-    email: string | null
-    avatar_url: string | null
-  } | null
-}
-
-export interface CreatorCourseInbox {
-  product: {
-    id: string
-    title: string
-    slug: string
-    status: string
-    cover_image_url: string | null
-  }
-  total_tickets: number
-  open_tickets: number
-  last_message_at: string | null
-  tickets: CreatorCourseInboxTicket[]
-}
-
 export interface CourseReviewAuthor {
   full_name: string | null
   avatar_url: string | null

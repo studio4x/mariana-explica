@@ -5,7 +5,6 @@ import type {
   AccessGrantSummary,
   AssessmentAttemptState,
   CourseAssessmentNavigationSummary,
-  CreatorCourseInbox,
   CourseLessonNavigationSummary,
   CourseModuleNavigationSummary,
   DashboardOverviewData,
@@ -1032,20 +1031,6 @@ export async function uploadProfileAvatar(input: {
   }
 
   return data as { success: true; avatar: ProfileAvatarUploadResult; profile: ProfilePreferences }
-}
-
-export async function fetchCreatorCourseInboxes() {
-  const headers = await getFunctionAuthHeaders()
-  const { data, error } = await supabase.functions.invoke("creator-course-inboxes", {
-    body: {},
-    headers,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return ((data as { success: true; inboxes: CreatorCourseInbox[] }).inboxes ?? []) as CreatorCourseInbox[]
 }
 
 export async function updateAccountPassword(input: { password: string }) {

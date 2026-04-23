@@ -6,7 +6,6 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useCreateSupportTicket,
-  useCreatorCourseInboxes,
   useMyProducts,
   useSupportTickets,
   useUploadSupportAttachment,
@@ -39,12 +38,10 @@ export function DashboardSupport() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const ticketsQuery = useSupportTickets()
   const productsQuery = useMyProducts()
-  const creatorInboxesQuery = useCreatorCourseInboxes()
   const createTicket = useCreateSupportTicket()
   const uploadAttachment = useUploadSupportAttachment()
   const tickets = ticketsQuery.data ?? []
   const products = productsQuery.data ?? []
-  const creatorInboxes = creatorInboxesQuery.data ?? []
   const selectedCategory = useMemo(() => getSupportCategoryMeta(category), [category])
   const isSubmitting = createTicket.isPending || uploadAttachment.isPending
   const modalFromQuery = searchParams.get("openTicketModal") === "1"
@@ -132,66 +129,6 @@ export function DashboardSupport() {
           <StatusBadge label="Nao e prazo de resolucao final" tone="info" />
         </div>
       </section>
-
-      {creatorInboxes.length > 0 ? (
-        <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Criador</p>
-              <h2 className="mt-1 font-display text-xl font-black text-slate-950">Caixas de mensagens dos cursos</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                Chamados associados aos cursos em que a tua conta esta vinculada como criador.
-              </p>
-            </div>
-            <StatusBadge label={`${creatorInboxes.length} curso(s)`} tone="info" />
-          </div>
-
-          <div className="mt-5 grid gap-4 xl:grid-cols-2">
-            {creatorInboxes.map((inbox) => (
-              <article key={inbox.product.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-200">
-                    {inbox.product.cover_image_url ? (
-                      <img src={inbox.product.cover_image_url} alt="" className="h-full w-full object-cover" />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-display text-lg font-black text-slate-950">{inbox.product.title}</h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {inbox.open_tickets} aberto(s) · {inbox.total_tickets} total
-                    </p>
-                    {inbox.last_message_at ? (
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        Ultima atividade {formatDateTime(inbox.last_message_at)}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  {inbox.tickets.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">
-                      Ainda nao ha chamados associados a este curso.
-                    </p>
-                  ) : (
-                    inbox.tickets.map((ticket) => (
-                      <div key={ticket.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-bold text-slate-950">{ticket.subject}</p>
-                          <StatusBadge label={getSupportStatusMeta(ticket.status).label} tone={getSupportStatusMeta(ticket.status).tone} />
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {ticket.student?.full_name || ticket.student?.email || "Aluno"} · {formatDateTime(ticket.updated_at)}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {isTicketModalOpen ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4">
