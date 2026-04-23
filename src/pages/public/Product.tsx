@@ -13,13 +13,18 @@ import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { CourseReviews } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
+import { useAuth } from "@/hooks/useAuth"
+import { useMyProducts } from "@/hooks/useDashboard"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
+import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
 import { formatProductPrice } from "@/utils/currency"
 import { buildCoursePublicPageView } from "@/lib/course-public-page"
 
 export function Product() {
   const { slug } = useParams<{ slug: string }>()
+  const { session } = useAuth()
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
+  const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
 
   if (isLoading) {
     return <LoadingState message="A carregar curso..." />
@@ -46,6 +51,7 @@ export function Product() {
 
   const page = buildCoursePublicPageView(product)
   const checkoutIdentifier = product.slug?.trim() || product.id
+  const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
 
   return (
     <div className="bg-white pb-20 pt-6 text-slate-950">
@@ -164,8 +170,8 @@ export function Product() {
                 </div>
 
                 <Button asChild className="w-full rounded-md" size="lg">
-                  <Link to={`${ROUTES.CHECKOUT}?slug=${encodeURIComponent(checkoutIdentifier)}`}>
-                    {page.ctaLabel}
+                  <Link to={enrolledAction?.to ?? `${ROUTES.CHECKOUT}?slug=${encodeURIComponent(checkoutIdentifier)}`}>
+                    {enrolledAction?.label ?? page.ctaLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>

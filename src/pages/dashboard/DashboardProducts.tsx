@@ -5,6 +5,7 @@ import { Button } from "@/components/ui"
 import { useMyProducts } from "@/hooks/useDashboard"
 import { ROUTES } from "@/lib/constants"
 import { formatDate } from "@/utils/date"
+import { getEnrolledCourseAction } from "@/lib/course-cta"
 import { getDashboardProductNote } from "@/lib/product-presentation"
 
 export function DashboardProducts() {
@@ -80,7 +81,10 @@ export function DashboardProducts() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {products.map((product) => (
+        {products.map((product) => {
+          const courseAction = getEnrolledCourseAction(product)
+
+          return (
           <div key={product.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -124,11 +128,14 @@ export function DashboardProducts() {
 
             <div className="mt-6 flex gap-3">
               <Button asChild className="flex-1 rounded-full">
-                <Link to={`${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>Continuar</Link>
+                <Link to={courseAction?.to ?? `${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>
+                  {courseAction?.label ?? "Iniciar aprendizado"}
+                </Link>
               </Button>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

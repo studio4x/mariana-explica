@@ -23,9 +23,9 @@ function isCompleted(product: DashboardProductSummary) {
 }
 
 function getCourseActionLabel(product: DashboardProductSummary) {
-  if (isCompleted(product)) return "Revisar aprendizagem"
-  if (product.completed_lessons > 0 || product.progress_percent > 0) return "Continuar aprendizagem"
-  return "Iniciar aprendizagem"
+  if (isCompleted(product)) return "Revisar aprendizado"
+  if (product.completed_lessons > 0 || product.progress_percent > 0) return "Continuar aprendizado"
+  return "Iniciar aprendizado"
 }
 
 function MetricCard({

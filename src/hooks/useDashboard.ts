@@ -92,10 +92,14 @@ export function useDashboardOverview() {
   })
 }
 
-export function useMyProducts() {
+export function useMyProducts(options?: { enabled?: boolean }) {
+  const { session } = useAuth()
+  const userId = session?.user.id
+
   return useQuery({
-    queryKey: ["dashboard", "products"],
+    queryKey: ["dashboard", "products", userId],
     queryFn: fetchMyProducts,
+    enabled: (options?.enabled ?? true) && Boolean(userId),
   })
 }
 

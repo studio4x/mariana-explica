@@ -5,7 +5,10 @@ import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
 import { ROUTES } from "@/lib/constants"
+import { useAuth } from "@/hooks/useAuth"
+import { useMyProducts } from "@/hooks/useDashboard"
 import { usePublishedProducts } from "@/hooks/useProducts"
+import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
 
@@ -20,10 +23,12 @@ const filterLabels: Record<QuickFilter, string> = {
 }
 
 export function Products() {
+  const { session } = useAuth()
   const [search, setSearch] = useState("")
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all")
   const deferredSearch = useDeferredValue(search)
   const { data: products, isLoading, isError, error, refetch } = usePublishedProducts()
+  const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
 
   const filteredProducts = (products ?? []).filter((product) => {
     const haystack = [
@@ -133,15 +138,19 @@ export function Products() {
         ) : null}
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              actionTo={publicCoursePath(product.slug, product.id)}
-              actionLabel="Ver detalhes"
-              compact
-            />
-          ))}
+          {filteredProducts.map((product) => {
+            const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
+
+            return (
+              <ProductCard
+                key={product.id}
+                product={product}
+                actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
+                actionLabel={enrolledAction?.label ?? "Ver detalhes"}
+                compact
+              />
+            )
+          })}
         </div>
 
         {!isLoading && !isError ? (

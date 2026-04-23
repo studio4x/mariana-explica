@@ -124,7 +124,7 @@ export function Checkout() {
 
   return (
     <div className="bg-[#f5fafc] text-[#171c1e]">
-      <div className="mx-auto max-w-[1200px] px-6 py-12 md:px-8 md:py-20">
+      <div className="container py-12 md:py-20">
         <div className="mb-10 flex flex-col gap-4 border-b border-[#dee3e5]/50 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>

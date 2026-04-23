@@ -16,7 +16,10 @@ import { Button } from "@/components/ui"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
 import { ROUTES, APP_NAME } from "@/lib/constants"
+import { useAuth } from "@/hooks/useAuth"
+import { useMyProducts } from "@/hooks/useDashboard"
 import { useFeaturedProducts } from "@/hooks/useProducts"
+import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
 import { publicCoursePath } from "@/lib/routes"
 
 const benefits = [
@@ -100,7 +103,9 @@ const reassuranceCards = [
 ]
 
 export function Home() {
+  const { session } = useAuth()
   const { data: featuredProducts, isLoading, isError, error, refetch } = useFeaturedProducts()
+  const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
   const hasFeaturedProducts = (featuredProducts?.length ?? 0) > 0
 
   return (
@@ -224,14 +229,18 @@ export function Home() {
 
           {!isLoading && !isError && hasFeaturedProducts ? (
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {featuredProducts?.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  actionLabel="Ver detalhes"
-                  actionTo={publicCoursePath(product.slug, product.id)}
-                />
-              ))}
+              {featuredProducts?.map((product) => {
+                const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
+
+                return (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    actionLabel={enrolledAction?.label ?? "Ver detalhes"}
+                    actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
+                  />
+                )
+              })}
             </div>
           ) : null}
 
