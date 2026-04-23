@@ -18,6 +18,15 @@ const Product = lazy(() => import("@/pages/public").then((module) => ({ default:
 const Support = lazy(() => import("@/pages/public").then((module) => ({ default: module.Support })))
 const Checkout = lazy(() => import("@/pages/public").then((module) => ({ default: module.Checkout })))
 const CheckoutSuccess = lazy(() => import("@/pages/public").then((module) => ({ default: module.CheckoutSuccess })))
+const PrivacyPolicy = lazy(() =>
+  import("@/pages/public").then((module) => ({ default: module.PrivacyPolicy })),
+)
+const CookiePolicy = lazy(() =>
+  import("@/pages/public").then((module) => ({ default: module.CookiePolicy })),
+)
+const TermsOfUse = lazy(() =>
+  import("@/pages/public").then((module) => ({ default: module.TermsOfUse })),
+)
 const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
 const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
 const AuthCallback = lazy(() => import("@/pages/auth").then((module) => ({ default: module.AuthCallback })))
@@ -239,6 +248,18 @@ export const router = createBrowserRouter(
         {
           path: "suporte",
           element: withSuspense(<Support />),
+        },
+        {
+          path: "privacidade",
+          element: withSuspense(<PrivacyPolicy />),
+        },
+        {
+          path: "cookies",
+          element: withSuspense(<CookiePolicy />),
+        },
+        {
+          path: "termos-de-uso",
+          element: withSuspense(<TermsOfUse />),
         },
         {
           path: "produtos",

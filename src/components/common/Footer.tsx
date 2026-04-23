@@ -8,9 +8,22 @@ export function FooterCopyright({ className = "" }: { className?: string }) {
     <div className={`border-t border-slate-200/80 pt-6 text-sm text-slate-500 ${className}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <span>&copy; 2026 {APP_NAME}. Todos os direitos reservados.</span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400/80">
-          Build {BUILD_VERSION}
-        </span>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-400/90">
+            <Link to={ROUTES.PRIVACY} className="transition hover:text-slate-600">
+              Privacidade
+            </Link>
+            <Link to={ROUTES.COOKIES} className="transition hover:text-slate-600">
+              Cookies
+            </Link>
+            <Link to={ROUTES.TERMS} className="transition hover:text-slate-600">
+              Termos de uso
+            </Link>
+          </div>
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400/80">
+            Build {BUILD_VERSION}
+          </span>
+        </div>
       </div>
     </div>
   )
