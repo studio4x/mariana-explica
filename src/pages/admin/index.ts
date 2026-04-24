@@ -1,4 +1,5 @@
 export { Admin } from "./Admin"
+export { AdminAccount } from "./AdminAccount"
 export { AdminAffiliates } from "./AdminAffiliates"
 export { AdminCoupons } from "./AdminCoupons"
 export { AdminCourseStudents } from "./AdminCourseStudents"

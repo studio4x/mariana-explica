@@ -70,6 +70,9 @@ const DashboardSupportTicketDetail = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.DashboardSupportTicketDetail })),
 )
 const Admin = lazy(() => import("@/pages/admin").then((module) => ({ default: module.Admin })))
+const AdminAccount = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminAccount })),
+)
 const AdminAffiliates = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAffiliates })),
 )
@@ -460,6 +463,10 @@ export const router = createBrowserRouter(
         {
           path: "usuarios",
           element: withSuspense(<AdminUsers />),
+        },
+        {
+          path: "minha-conta",
+          element: withSuspense(<AdminAccount />),
         },
         {
           path: "notificacoes",

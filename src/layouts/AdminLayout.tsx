@@ -13,6 +13,7 @@ import {
   CreditCard,
   Settings,
   Shield,
+  UserCircle2,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
 import { CookieConsentBanner, ScrollToTop, SiteTrackingManager, StatusBadge } from "@/components/common"
@@ -48,6 +49,7 @@ const items = [
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
+  { to: ROUTES.ADMIN_ACCOUNT, label: "Minha Conta", icon: UserCircle2 },
   { to: ROUTES.ADMIN_SETTINGS, label: "Configuracoes", icon: Settings },
 ]
 
@@ -150,7 +152,10 @@ export function AdminLayout() {
               ) : null}
             </Link>
 
-            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm md:flex">
+            <Link
+              to={ROUTES.ADMIN_ACCOUNT}
+              className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md md:flex"
+            >
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700">
                 {initials}
               </span>
@@ -160,7 +165,7 @@ export function AdminLayout() {
                   {displayName}
                 </span>
               </span>
-            </div>
+            </Link>
 
             <Button
               type="button"

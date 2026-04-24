@@ -45,7 +45,18 @@ interface DeleteUserInput {
   userId: string
 }
 
-type AdminUsersInput = ListUsersInput | CreateUserInput | UpdateUserInput | DeleteUserInput
+interface SetPasswordInput {
+  action: "set_password"
+  userId: string
+  password: string
+}
+
+type AdminUsersInput =
+  | ListUsersInput
+  | CreateUserInput
+  | UpdateUserInput
+  | DeleteUserInput
+  | SetPasswordInput
 
 const allowedRoles = new Set<UserRole>(["student", "affiliate", "admin"])
 const allowedStatuses = new Set<UserStatus>(["active", "inactive", "blocked", "pending_review"])
@@ -382,6 +393,51 @@ Deno.serve(async (req) => {
         success: true,
         request_id: requestId,
         user: buildAdminUserSummary(profile as ProfileRow, null),
+      })
+    }
+
+    if (body.action === "set_password") {
+      const password = body.password.trim()
+      if (password.length < 8) {
+        throw badRequest("A nova senha deve ter pelo menos 8 caracteres")
+      }
+
+      const { error } = await context.serviceClient.auth.admin.updateUserById(body.userId, {
+        password,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      const profile = await fetchProfileById(context.serviceClient, body.userId)
+      const { data: authUserData, error: authUserError } = await context.serviceClient.auth.admin.getUserById(
+        body.userId,
+      )
+      if (authUserError) {
+        throw authUserError
+      }
+
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.user_password_reset",
+        entityType: "profile",
+        entityId: profile.id,
+        metadata: {
+          email: profile.email,
+        },
+        ...auditMeta,
+      })
+
+      logInfo("Admin reset user password", {
+        request_id: requestId,
+        actor_user_id: context.user.id,
+        target_user_id: body.userId,
+      })
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        user: buildAdminUserSummary(profile, authUserData.user as AuthUserRow | null),
       })
     }
 

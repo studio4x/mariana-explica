@@ -75,6 +75,7 @@ import {
   updateAdminProductLesson,
   updateAdminProductModule,
   updateAdminUser,
+  updateAdminUserPassword,
 } from "@/services"
 import type {
   AdminNotificationSummary,
@@ -560,6 +561,11 @@ export function useUpdateAdminUser() {
 export function useDeleteAdminUser() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminUser, onSuccess: invalidate })
+}
+
+export function useUpdateAdminUserPassword() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminUserPassword, onSuccess: invalidate })
 }
 
 export function useRetryAdminEmailDelivery() {

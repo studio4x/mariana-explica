@@ -1377,6 +1377,13 @@ export function updateAdminUser(input: {
   })
 }
 
+export function updateAdminUserPassword(input: { userId: string; password: string }) {
+  return invokeAdminFunction<{ success: true; user: AdminUserSummary }>("admin-users", {
+    action: "set_password",
+    ...input,
+  })
+}
+
 export function deleteAdminUser(userId: string) {
   return invokeAdminFunction<{ success: true; user: AdminUserSummary }>("admin-users", {
     action: "delete",
