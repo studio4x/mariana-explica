@@ -2,7 +2,6 @@ import ReactQuill from "react-quill"
 import "react-quill/dist/quill.snow.css"
 import { useMemo } from "react"
 import { cn } from "@/lib/cn"
-import { sanitizeRichTextHtml } from "@/lib/rich-text"
 
 interface RichTextEditorProps {
   value: string
@@ -23,8 +22,6 @@ export function RichTextEditor({
   toolbarVariant = "lesson",
   disabled = false,
 }: RichTextEditorProps) {
-  const sanitizedValue = useMemo(() => sanitizeRichTextHtml(value), [value])
-
   const modules = useMemo(
     () => ({
       toolbar:
@@ -69,8 +66,8 @@ export function RichTextEditor({
     <div className={cn("rich-text-editor-quill rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
       <ReactQuill
         theme="snow"
-        value={sanitizedValue}
-        onChange={(nextValue) => onChange(sanitizeRichTextHtml(nextValue))}
+        value={value ?? ""}
+        onChange={(nextValue) => onChange(nextValue)}
         modules={modules}
         formats={formats}
         placeholder={placeholder}
