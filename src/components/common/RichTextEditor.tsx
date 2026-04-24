@@ -22,14 +22,18 @@ export function RichTextEditor({
   toolbarVariant = "lesson",
   disabled = false,
 }: RichTextEditorProps) {
-  const [draftValue, setDraftValue] = useState(value ?? "")
-  const lastCommittedValueRef = useRef(value ?? "")
+  const [editorKey, setEditorKey] = useState(0)
+  const [initialValue, setInitialValue] = useState(value ?? "")
+  const currentValueRef = useRef(value ?? "")
+  const lastExternalValueRef = useRef(value ?? "")
 
   useEffect(() => {
     const nextValue = value ?? ""
-    if (nextValue === lastCommittedValueRef.current) return
-    setDraftValue(nextValue)
-    lastCommittedValueRef.current = nextValue
+    if (nextValue === lastExternalValueRef.current) return
+    lastExternalValueRef.current = nextValue
+    currentValueRef.current = nextValue
+    setInitialValue(nextValue)
+    setEditorKey((current) => current + 1)
   }, [value])
 
   const modules = useMemo(
@@ -73,20 +77,23 @@ export function RichTextEditor({
   )
 
   const commitValue = (nextValue: string) => {
-    if (nextValue === lastCommittedValueRef.current) return
-    lastCommittedValueRef.current = nextValue
+    if (nextValue === lastExternalValueRef.current) return
+    lastExternalValueRef.current = nextValue
     onChange(nextValue)
   }
 
   return (
     <div className={cn("rich-text-editor-quill rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
       <ReactQuill
+        key={`${toolbarVariant}-${editorKey}`}
         theme="snow"
-        value={draftValue}
-        onChange={(nextValue) => setDraftValue(nextValue)}
+        defaultValue={initialValue}
+        onChange={(nextValue) => {
+          currentValueRef.current = nextValue
+        }}
         onBlur={(_previousRange, _source, editor) => {
           const html = editor.getHTML()
-          setDraftValue(html)
+          currentValueRef.current = html
           commitValue(html)
         }}
         modules={modules}
