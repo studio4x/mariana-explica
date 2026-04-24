@@ -255,7 +255,7 @@ export function AssessmentBuilderWorkspace({
               value={draft.description}
               onChange={(value) => setDraft((prev) => ({ ...prev, description: value }))}
               placeholder="Descricao curta da avaliacao"
-              minHeightClassName="min-h-[170px]"
+              minHeightPx={170}
             />
           </label>
           <label className="flex items-center gap-2 rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -378,7 +378,7 @@ export function AssessmentBuilderWorkspace({
                     value={question.prompt}
                     onChange={(value) => handleQuestionField(question.id, "prompt", value)}
                     placeholder="Enunciado da pergunta"
-                    minHeightClassName="min-h-[180px]"
+                    minHeightPx={180}
                   />
                 </div>
                 <div>
@@ -387,7 +387,7 @@ export function AssessmentBuilderWorkspace({
                     value={question.feedback}
                     onChange={(value) => handleQuestionField(question.id, "feedback", value)}
                     placeholder="Feedback ou explicacao"
-                    minHeightClassName="min-h-[150px]"
+                    minHeightPx={150}
                   />
                 </div>
                 <div>
@@ -396,7 +396,7 @@ export function AssessmentBuilderWorkspace({
                     value={question.rubric}
                     onChange={(value) => handleQuestionField(question.id, "rubric", value)}
                     placeholder="Rubrica ou criterio de correcao"
-                    minHeightClassName="min-h-[150px]"
+                    minHeightPx={150}
                   />
                 </div>
               </div>

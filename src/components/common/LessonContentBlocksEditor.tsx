@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ImagePlus, Plus, Table2, Trash2, Type } from "lucide-react"
+import { ImagePlus, Plus, Trash2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/cn"
 import type {
@@ -80,93 +80,66 @@ export function LessonContentBlocksEditor({
     commitBlocks(next.length > 0 ? next : [{ type: "rich-text", content: "" }])
   }
 
-  const moveBlock = (index: number, direction: "up" | "down") => {
-    const target = direction === "up" ? index - 1 : index + 1
-    if (target < 0 || target >= blocks.length) return
-    const next = [...blocks]
-    const current = next[index]
-    next[index] = next[target]
-    next[target] = current
-    commitBlocks(next)
-  }
-
-  const addBlock = (type: LessonContentBlock["type"]) => {
+  const buildBlock = (type: LessonContentBlock["type"]): LessonContentBlock => {
     if (type === "table") {
-      commitBlocks([...blocks, { type: "table", content: "<table><tbody><tr><td></td></tr></tbody></table>" }])
-      return
+      return { type: "table", content: "<table><tbody><tr><td></td></tr></tbody></table>" }
     }
     if (type === "image-hotspots") {
-      commitBlocks([...blocks, { type: "image-hotspots", content: emptyHotspotsContent() }])
-      return
+      return { type: "image-hotspots", content: emptyHotspotsContent() }
     }
-    commitBlocks([...blocks, { type: "rich-text", content: "" }])
+    return { type: "rich-text", content: "" }
+  }
+
+  const addBlockAfter = (index: number, type: LessonContentBlock["type"]) => {
+    const next = [...blocks]
+    next.splice(index + 1, 0, buildBlock(type))
+    commitBlocks(next)
   }
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => addBlock("rich-text")}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <Type className="h-3.5 w-3.5" />
-          Texto
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => addBlock("table")}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <Table2 className="h-3.5 w-3.5" />
-          Tabela
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => addBlock("image-hotspots")}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <ImagePlus className="h-3.5 w-3.5" />
-          Imagem Interativa
-        </button>
-      </div>
-
       <div className="space-y-4">
         {blocks.map((block, index) => (
-          <section key={`${block.type}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
-                {blockLabel(block)} #{index + 1}
+          <section key={`${block.type}-${index}`} className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-blue-100 px-1.5 text-[10px] text-blue-700">
+                  {index + 1}
+                </span>
+                Bloco de {blockLabel(block)}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  disabled={disabled || index === 0}
-                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => moveBlock(index, "up")}
-                  title="Mover para cima"
+                  disabled={disabled}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                  onClick={() => addBlockAfter(index, "rich-text")}
+                  title="Adicionar bloco de texto"
                 >
-                  <ArrowUp className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled || index === blocks.length - 1}
-                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => moveBlock(index, "down")}
-                  title="Mover para baixo"
-                >
-                  <ArrowDown className="h-3.5 w-3.5" />
+                  <Plus className="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
                   disabled={disabled}
-                  className="rounded-lg border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                  onClick={() => addBlockAfter(index, "table")}
+                  title="Adicionar bloco de tabela"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                  onClick={() => addBlockAfter(index, "image-hotspots")}
+                  title="Adicionar bloco de imagem interativa"
+                >
+                  <ImagePlus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                   onClick={() => removeBlock(index)}
                   title="Remover bloco"
                 >
@@ -184,7 +157,7 @@ export function LessonContentBlocksEditor({
                   )
                 }
                 placeholder={placeholder}
-                minHeightClassName="min-h-[220px]"
+                minHeightPx={220}
                 disabled={disabled}
               />
             ) : null}
@@ -386,7 +359,8 @@ function ImageHotspotsBlockEditor({
                 value={hotspot.body_html}
                 onChange={(next) => updateHotspot(hotspot.id, (current) => ({ ...current, body_html: next }))}
                 placeholder="Conteudo HTML do hotspot"
-                minHeightClassName="min-h-[140px]"
+                minHeightPx={140}
+                toolbarVariant="compact"
                 disabled={disabled}
               />
             </div>
@@ -396,4 +370,3 @@ function ImageHotspotsBlockEditor({
     </div>
   )
 }
-

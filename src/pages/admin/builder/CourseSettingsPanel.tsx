@@ -277,7 +277,7 @@ export function CourseSettingsPanel() {
               value={form.shortDescription}
               onChange={(value) => setForm((prev) => ({ ...prev, shortDescription: value }))}
               placeholder="Descreva o curso com hierarquia, listas e destaques."
-              minHeightClassName="min-h-[180px]"
+              minHeightPx={180}
             />
           </Field>
         </section>
