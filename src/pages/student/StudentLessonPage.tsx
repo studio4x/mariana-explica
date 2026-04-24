@@ -3,7 +3,7 @@ import { CheckCircle2, FileText, Loader2, PlayCircle, StickyNote } from "lucide-
 import { useEffect, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { RichTextContent, StatusBadge } from "@/components/common"
+import { LessonContentBlocksRenderer, RichTextContent, StatusBadge } from "@/components/common"
 import {
   useAccessibleLesson,
   useLessonNote,
@@ -175,7 +175,7 @@ export function StudentLessonPage() {
                 <FileText className="h-4 w-4" />
                 <p className="font-medium">Conteudo textual</p>
               </div>
-              <RichTextContent value={lesson.text_content} className="mt-3 text-sm leading-7 text-slate-600" />
+              <LessonContentBlocksRenderer value={lesson.text_content} className="mt-3" />
             </div>
           ) : lesson.lesson_type === "file" ? (
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">

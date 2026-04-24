@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 import { FileText, PlayCircle, StickyNote } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader, RichTextContent, StatusBadge } from "@/components/common"
+import { LessonContentBlocksRenderer, PageHeader, RichTextContent, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAccessibleLesson,
@@ -314,7 +314,7 @@ export function DashboardProductDetail() {
                             <FileText className="h-4 w-4" />
                             <p className="font-medium">Conteudo textual</p>
                           </div>
-                          <RichTextContent value={selectedLesson.text_content} className="mt-3 text-sm leading-6 text-slate-600" />
+                          <LessonContentBlocksRenderer value={selectedLesson.text_content} className="mt-3" />
                         </div>
                       ) : selectedLesson.lesson_type === "file" ? (
                         <div className="rounded-2xl border bg-slate-50/80 p-4">

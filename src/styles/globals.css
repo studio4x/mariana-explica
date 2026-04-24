@@ -169,4 +169,28 @@ textarea {
     color: rgb(3 105 161);
     text-decoration: underline;
   }
+
+  .lesson-content-blocks-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .lesson-content-blocks-table th,
+  .lesson-content-blocks-table td {
+    border: 1px solid rgb(226 232 240);
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+  }
+
+  .lesson-content-blocks-table th {
+    background: rgb(248 250 252);
+    font-weight: 700;
+  }
+
+  .lesson-content-blocks-table td[data-empty-cell="true"]::after,
+  .lesson-content-blocks-table th[data-empty-cell="true"]::after {
+    content: "—";
+    color: rgb(148 163 184);
+  }
 }

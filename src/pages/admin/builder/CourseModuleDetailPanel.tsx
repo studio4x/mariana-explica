@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { RichTextEditor, StatusBadge } from "@/components/common"
+import { LessonContentBlocksEditor, StatusBadge } from "@/components/common"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import {
   useAdminProductLessons,
@@ -364,11 +364,10 @@ export function CourseModuleDetailPanel() {
             label="Descricao Organizacional"
             helper="Resumo interno do papel deste modulo dentro da trilha pedagógica."
           >
-            <RichTextEditor
+            <LessonContentBlocksEditor
               value={String(values.description)}
               onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
               placeholder="Descreve a finalidade do modulo."
-              minHeightClassName="min-h-[180px]"
             />
           </ModuleField>
 

@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { RichTextEditor, StatusBadge } from "@/components/common"
+import { LessonContentBlocksEditor, StatusBadge } from "@/components/common"
 import {
   useAdminProductLessons,
   useCreateAdminModuleAsset,
@@ -270,11 +270,10 @@ export function CourseLessonDetailPanel() {
             </div>
 
             <LessonField label="Descricao curta / area de texto">
-              <RichTextEditor
+              <LessonContentBlocksEditor
                 value={String(values.description)}
                 onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
                 placeholder="Resumo rapido da aula."
-                minHeightClassName="min-h-[170px]"
               />
             </LessonField>
           </section>
@@ -348,11 +347,10 @@ export function CourseLessonDetailPanel() {
                 label="Texto principal / area de texto"
                 helper="Conteudo editorial principal apresentado ao aluno."
               >
-                <RichTextEditor
+                <LessonContentBlocksEditor
                   value={String(values.text_content)}
                   onChange={(value) => setForm((prev) => ({ ...prev, text_content: value }))}
                   placeholder="Escreve o conteudo textual da aula."
-                  minHeightClassName="min-h-[260px]"
                 />
               </LessonField>
             </section>
