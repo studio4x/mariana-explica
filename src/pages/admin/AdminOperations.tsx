@@ -198,6 +198,23 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
     [cronStatusQuery.data?.scheduledJobs],
   )
 
+  const emailDeliveries = operationsQuery.data?.emailDeliveries ?? []
+  const jobRuns = operationsQuery.data?.jobRuns ?? []
+  const emailPagination = paginateItems(emailDeliveries, emailPage, OPERATIONS_PAGE_SIZE)
+  const jobPagination = paginateItems(jobRuns, jobPage, OPERATIONS_PAGE_SIZE)
+
+  useEffect(() => {
+    if (emailPage !== emailPagination.currentPage) {
+      setEmailPage(emailPagination.currentPage)
+    }
+  }, [emailPage, emailPagination.currentPage])
+
+  useEffect(() => {
+    if (jobPage !== jobPagination.currentPage) {
+      setJobPage(jobPagination.currentPage)
+    }
+  }, [jobPage, jobPagination.currentPage])
+
   if (isLoading) {
     return <AdminOperationsSkeleton embedded={embedded} />
   }
@@ -230,20 +247,6 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
   const scheduledCount = cronStatus.scheduledJobs.length
   const activeScheduledCount = cronStatus.scheduledJobs.filter((job) => job.active).length
   const failedCronRuns = cronStatus.jobRuns.filter((job) => job.status === "failed").length
-  const emailPagination = paginateItems(data.emailDeliveries, emailPage, OPERATIONS_PAGE_SIZE)
-  const jobPagination = paginateItems(data.jobRuns, jobPage, OPERATIONS_PAGE_SIZE)
-
-  useEffect(() => {
-    if (emailPage !== emailPagination.currentPage) {
-      setEmailPage(emailPagination.currentPage)
-    }
-  }, [emailPage, emailPagination.currentPage])
-
-  useEffect(() => {
-    if (jobPage !== jobPagination.currentPage) {
-      setJobPage(jobPagination.currentPage)
-    }
-  }, [jobPage, jobPagination.currentPage])
 
   return (
     <div className="space-y-6">
