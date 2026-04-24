@@ -73,6 +73,11 @@ export function CourseLessonDetailPanel() {
   const [error, setError] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductLessonSummary>>({})
+  const lessons = lessonsQuery.data ?? []
+  const lesson = useMemo(
+    () => lessons.find((item) => item.id === lessonId) ?? null,
+    [lessonId, lessons],
+  )
 
   if (!courseId || !moduleId || !lessonId) {
     return <EmptyState title="Aula invalida" message="Seleciona uma aula valida na arvore do builder." />
@@ -91,12 +96,6 @@ export function CourseLessonDetailPanel() {
       />
     )
   }
-
-  const lessons = lessonsQuery.data ?? []
-  const lesson = useMemo(
-    () => lessons.find((item) => item.id === lessonId) ?? null,
-    [lessonId, lessons],
-  )
 
   if (!lesson) {
     return <EmptyState title="Aula nao encontrada" message="Esta aula nao esta ligada ao modulo atual." />

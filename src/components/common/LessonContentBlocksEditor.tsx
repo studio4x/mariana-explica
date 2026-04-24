@@ -1,5 +1,5 @@
 import { ImagePlus, Plus, Trash2 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 import type {
   LessonContentBlock,
@@ -54,19 +54,20 @@ export function LessonContentBlocksEditor({
   disabled = false,
 }: LessonContentBlocksEditorProps) {
   const [blocks, setBlocks] = useState<LessonContentBlock[]>(() => splitLessonContent(value))
-  const serializedBlocks = useMemo(() => JSON.stringify(blocks), [blocks])
+  const lastCommittedValueRef = useRef(value ?? "")
 
   useEffect(() => {
-    const nextBlocks = splitLessonContent(value)
-    const nextSerialized = JSON.stringify(nextBlocks)
-    if (nextSerialized !== serializedBlocks) {
-      setBlocks(nextBlocks)
-    }
-  }, [serializedBlocks, value])
+    const nextValue = value ?? ""
+    if (nextValue === lastCommittedValueRef.current) return
+    setBlocks(splitLessonContent(nextValue))
+    lastCommittedValueRef.current = nextValue
+  }, [value])
 
   const commitBlocks = (nextBlocks: LessonContentBlock[]) => {
+    const nextValue = mergeLessonContent(nextBlocks)
     setBlocks(nextBlocks)
-    onChange(mergeLessonContent(nextBlocks))
+    lastCommittedValueRef.current = nextValue
+    onChange(nextValue)
   }
 
   const updateBlock = (index: number, updater: (block: LessonContentBlock) => LessonContentBlock) => {
