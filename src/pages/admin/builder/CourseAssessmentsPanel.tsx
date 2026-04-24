@@ -12,6 +12,12 @@ import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessme
 import { adminCourseFinalAssessmentPath, adminCourseModuleAssessmentPath } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import { AssessmentBuilderWorkspace } from "./AssessmentBuilderWorkspace"
+import {
+  exportAssessmentToJson,
+  makeAssessmentExportFileName,
+  normalizeAssessmentImport,
+  parseJsonInput,
+} from "@/lib/course-json-import-export"
 
 function downloadAssessmentJson(filename: string, payload: unknown) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
@@ -104,25 +110,9 @@ export function CourseAssessmentsPanel() {
     setError(null)
 
     try {
-      const parsed = JSON.parse(importJson) as {
-        assessment?: {
-          title?: string
-          description?: string | null
-          assessment_type?: "module" | "final"
-          module_id?: string | null
-          is_required?: boolean
-          passing_score?: number
-          max_attempts?: number | null
-          estimated_minutes?: number
-          is_active?: boolean
-        }
-        builder_payload?: Record<string, unknown>
-        questions?: unknown[]
-      }
-
-      const builderPayload =
-        parsed.builder_payload ??
-        (Array.isArray(parsed.questions) ? { version: 1, questions: parsed.questions } : parsed)
+      const parsed = parseJsonInput(importJson)
+      const normalized = normalizeAssessmentImport(parsed)
+      const builderPayload = normalized.builder_payload
 
       if (importMode === "update") {
         if (!selectedAssessment) {
@@ -132,29 +122,36 @@ export function CourseAssessmentsPanel() {
         await updateAssessment.mutateAsync({
           assessmentId: selectedAssessment.id,
           productId: courseId,
-          moduleId: parsed.assessment?.module_id ?? selectedAssessment.module_id,
-          assessmentType: parsed.assessment?.assessment_type ?? selectedAssessment.assessment_type,
-          title: parsed.assessment?.title ?? selectedAssessment.title,
-          description: parsed.assessment?.description ?? selectedAssessment.description,
-          isRequired: parsed.assessment?.is_required ?? selectedAssessment.is_required,
-          passingScore: parsed.assessment?.passing_score ?? selectedAssessment.passing_score,
-          maxAttempts: parsed.assessment?.max_attempts ?? selectedAssessment.max_attempts,
-          estimatedMinutes: parsed.assessment?.estimated_minutes ?? selectedAssessment.estimated_minutes,
-          isActive: parsed.assessment?.is_active ?? selectedAssessment.is_active,
+          moduleId:
+            normalized.assessment.assessment_type === "final"
+              ? null
+              : normalized.assessment.module_id ?? selectedAssessment.module_id,
+          assessmentType: normalized.assessment.assessment_type ?? selectedAssessment.assessment_type,
+          title: normalized.assessment.title || selectedAssessment.title,
+          description: normalized.assessment.description ?? selectedAssessment.description,
+          isRequired: selectedAssessment.is_required,
+          passingScore: normalized.assessment.passing_score ?? selectedAssessment.passing_score,
+          maxAttempts: normalized.assessment.max_attempts ?? selectedAssessment.max_attempts,
+          estimatedMinutes:
+            normalized.assessment.estimated_minutes ?? selectedAssessment.estimated_minutes,
+          isActive: selectedAssessment.is_active,
           builderPayload,
         })
       } else {
         const created = await createAssessment.mutateAsync({
           productId: courseId,
-          moduleId: parsed.assessment?.assessment_type === "final" ? null : parsed.assessment?.module_id ?? null,
-          assessmentType: parsed.assessment?.assessment_type ?? "module",
-          title: parsed.assessment?.title ?? "Avaliacao importada",
-          description: parsed.assessment?.description ?? null,
-          isRequired: parsed.assessment?.is_required ?? true,
-          passingScore: parsed.assessment?.passing_score ?? 70,
-          maxAttempts: parsed.assessment?.max_attempts ?? null,
-          estimatedMinutes: parsed.assessment?.estimated_minutes ?? 15,
-          isActive: parsed.assessment?.is_active ?? true,
+          moduleId:
+            normalized.assessment.assessment_type === "final"
+              ? null
+              : normalized.assessment.module_id ?? null,
+          assessmentType: normalized.assessment.assessment_type ?? "module",
+          title: normalized.assessment.title || "Avaliacao importada",
+          description: normalized.assessment.description ?? null,
+          isRequired: true,
+          passingScore: normalized.assessment.passing_score ?? 70,
+          maxAttempts: normalized.assessment.max_attempts ?? null,
+          estimatedMinutes: normalized.assessment.estimated_minutes ?? 15,
+          isActive: true,
           builderPayload,
         })
         setSelectedAssessmentId(created.id)
@@ -242,7 +239,7 @@ export function CourseAssessmentsPanel() {
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-4">
               <h3 className="font-semibold text-slate-950">Importar ou exportar JSON</h3>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                O JSON pode conter `assessment` e `builder_payload`, ou apenas um payload com `questions`.
+                Aceita JSON do contrato de avaliacao (spec) e tambem o formato legado com `assessment` + `builder_payload`.
               </p>
               <div className="mt-4 space-y-3">
                 <select
@@ -270,21 +267,8 @@ export function CourseAssessmentsPanel() {
                     className="w-full rounded-full"
                     onClick={() =>
                       downloadAssessmentJson(
-                        `${product.slug}-${selectedAssessment.title.toLowerCase().replace(/\s+/g, "-")}.json`,
-                        {
-                          assessment: {
-                            title: selectedAssessment.title,
-                            description: selectedAssessment.description,
-                            assessment_type: selectedAssessment.assessment_type,
-                            module_id: selectedAssessment.module_id,
-                            is_required: selectedAssessment.is_required,
-                            passing_score: selectedAssessment.passing_score,
-                            max_attempts: selectedAssessment.max_attempts,
-                            estimated_minutes: selectedAssessment.estimated_minutes,
-                            is_active: selectedAssessment.is_active,
-                          },
-                          builder_payload: selectedAssessment.builder_payload,
-                        },
+                        makeAssessmentExportFileName(product.slug, selectedAssessment.title),
+                        exportAssessmentToJson(selectedAssessment),
                       )
                     }
                   >

@@ -7,7 +7,10 @@ import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessme
 import {
   useAdminProductLessons,
   useAdminModuleAssets,
+  useCreateAdminProductLesson,
   useCreateAdminProductAssessment,
+  useDeleteAdminProductAssessment,
+  useDeleteAdminProductLesson,
   useDeleteAdminProductModule,
   useUploadAdminModulePdf,
   useUpdateAdminProductModule,
@@ -20,6 +23,11 @@ import {
 } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import type { ProductModuleSummary } from "@/types/app.types"
+import {
+  exportModuleToJson,
+  normalizeModuleImportForReplace,
+  parseJsonInput,
+} from "@/lib/course-json-import-export"
 
 function toDateTimeLocal(value: string | null | undefined) {
   if (!value) return ""
@@ -58,12 +66,17 @@ export function CourseModuleDetailPanel() {
   const lessonsQuery = useAdminProductLessons(moduleId)
   const assetsQuery = useAdminModuleAssets(moduleId)
   const createAssessment = useCreateAdminProductAssessment()
+  const createLesson = useCreateAdminProductLesson()
+  const deleteAssessment = useDeleteAdminProductAssessment()
+  const deleteLesson = useDeleteAdminProductLesson()
   const updateModule = useUpdateAdminProductModule()
   const deleteModule = useDeleteAdminProductModule()
   const uploadModulePdf = useUploadAdminModulePdf()
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductModuleSummary>>({})
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null)
+  const [jsonImport, setJsonImport] = useState("")
+  const [importPending, setImportPending] = useState(false)
 
   if (!moduleId || !courseId) {
     return <EmptyState title="Modulo invalido" message="Seleciona um modulo valido na arvore lateral." />
@@ -204,6 +217,84 @@ export function CourseModuleDetailPanel() {
       navigate(adminCourseModuleAssessmentPath(courseId, module.id, createdAssessment.id))
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar o quiz do modulo.")
+    }
+  }
+
+  const handleExportModuleJson = () => {
+    const payload = exportModuleToJson(module, lessons, moduleAssessments)
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `${module.title.toLowerCase().replace(/\s+/g, "-") || "modulo"}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportModuleJson = async () => {
+    if (!jsonImport.trim()) {
+      setError("Cole o JSON do modulo para importar.")
+      return
+    }
+
+    setError(null)
+    setImportPending(true)
+    try {
+      const parsed = parseJsonInput(jsonImport)
+      const normalized = normalizeModuleImportForReplace(parsed, module.id, courseId)
+
+      await updateModule.mutateAsync({
+        moduleId: module.id,
+        title: normalized.module.title,
+        description: normalized.module.description ?? null,
+      })
+
+      for (const assessment of moduleAssessments) {
+        await deleteAssessment.mutateAsync(assessment.id)
+      }
+
+      for (const lesson of lessons) {
+        await deleteLesson.mutateAsync(lesson.id)
+      }
+
+      for (const lesson of normalized.lessons) {
+        await createLesson.mutateAsync({
+          moduleId: module.id,
+          title: lesson.title,
+          description: lesson.description ?? null,
+          position: lesson.position,
+          is_required: lesson.is_required,
+          lesson_type: lesson.lesson_type,
+          youtube_url: lesson.youtube_url,
+          text_content: lesson.text_content,
+          estimated_minutes: lesson.estimated_minutes,
+          starts_at: null,
+          ends_at: null,
+          status: "draft",
+        })
+      }
+
+      for (const assessment of normalized.assessments) {
+        await createAssessment.mutateAsync({
+          productId: courseId,
+          moduleId: module.id,
+          assessmentType: "module",
+          title: assessment.title,
+          description: assessment.description,
+          isRequired: assessment.is_required,
+          passingScore: assessment.passing_score,
+          maxAttempts: assessment.max_attempts,
+          estimatedMinutes: assessment.estimated_minutes,
+          isActive: assessment.is_active,
+          builderPayload: assessment.builder_payload,
+        })
+      }
+
+      setJsonImport("")
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel importar o modulo em JSON.")
+    } finally {
+      setImportPending(false)
     }
   }
 
@@ -567,6 +658,43 @@ export function CourseModuleDetailPanel() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Importacao e exportacao JSON</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Exporta este modulo no contrato da spec. Na importacao, o modulo atual e substituido (aulas + quizzes).
+            </p>
+          </div>
+          <Button type="button" variant="outline" className="rounded-full" onClick={handleExportModuleJson}>
+            Exportar modulo em JSON
+          </Button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <textarea
+            value={jsonImport}
+            onChange={(event) => setJsonImport(event.target.value)}
+            rows={10}
+            placeholder="Cole aqui o JSON do modulo ou de curso (sera usado o primeiro modulo)."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              className="rounded-full"
+              disabled={importPending}
+              onClick={() => void handleImportModuleJson()}
+            >
+              {importPending ? "A importar..." : "Importar e substituir modulo"}
+            </Button>
+            <p className="text-sm text-slate-500">
+              Materiais existentes do modulo sao preservados. Aulas e quizzes sao recriados.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

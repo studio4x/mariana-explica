@@ -46,14 +46,16 @@ import {
   fetchAdminProductLessons,
   fetchAdminProductModules,
 } from "@/services"
-import type {
-  ModuleAssetSummary,
-  ProductAssessmentSummary,
-  ProductLessonSummary,
-  ProductModuleSummary,
-} from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
 import { formatProductPrice } from "@/utils/currency"
+import {
+  exportCourseToJson,
+  makeCourseExportFileName,
+  normalizeCourseImport,
+  parseJsonInput,
+  type ExportedCourseModule,
+  type ExportedCoursePackage,
+} from "@/lib/course-json-import-export"
 
 interface CourseDraft {
   title: string
@@ -68,16 +70,6 @@ interface CourseDraft {
   workloadMinutes: string
   sortOrder: string
   productType: ProductSummary["product_type"]
-}
-
-interface ExportedCourseModule extends ProductModuleSummary {
-  lessons: ProductLessonSummary[]
-  assets: ModuleAssetSummary[]
-}
-
-interface ExportedCoursePackage {
-  modules: ExportedCourseModule[]
-  assessments: ProductAssessmentSummary[]
 }
 
 interface CourseEditorState {
@@ -173,55 +165,6 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
   const [item] = next.splice(fromIndex, 1)
   next.splice(toIndex, 0, item)
   return next
-}
-
-function normalizeImportedCourse(raw: unknown): {
-  draft: CourseDraft
-  importedStructure: ExportedCoursePackage | null
-} {
-  const payload = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {}
-  const course =
-    typeof payload.course === "object" && payload.course !== null
-      ? (payload.course as Record<string, unknown>)
-      : typeof payload.product === "object" && payload.product !== null
-        ? (payload.product as Record<string, unknown>)
-        : payload
-
-  const modules = Array.isArray(payload.modules)
-    ? (payload.modules as ExportedCourseModule[])
-    : []
-  const assessments = Array.isArray(payload.assessments)
-    ? (payload.assessments as ProductAssessmentSummary[])
-    : []
-
-  return {
-    draft: {
-      title: String(course.title ?? ""),
-      slug: String(course.slug ?? ""),
-      coverImageUrl: String(course.cover_image_url ?? course.coverImageUrl ?? ""),
-      status:
-        course.status === "published" || course.status === "archived"
-          ? course.status
-          : "draft",
-      launchDate: String(course.launch_date ?? course.launchDate ?? ""),
-      price: formatPriceInput(Number(course.price_cents ?? course.priceCents ?? 0)),
-      currency: String(course.currency ?? "EUR"),
-      isPublic: Boolean(course.is_public ?? course.isPublic ?? true),
-      description: String(course.description ?? course.short_description ?? ""),
-      workloadMinutes: String(course.workload_minutes ?? course.workloadMinutes ?? 0),
-      sortOrder: String(course.sort_order ?? course.sortOrder ?? ""),
-      productType:
-        course.product_type === "free" ||
-        course.product_type === "hybrid" ||
-        course.product_type === "external_service"
-          ? course.product_type
-          : Number(course.price_cents ?? 0) > 0
-            ? "paid"
-            : "free",
-    },
-    importedStructure:
-      modules.length > 0 || assessments.length > 0 ? { modules, assessments } : null,
-  }
 }
 
 function AdminCoursesSkeleton() {
@@ -344,9 +287,25 @@ export function AdminProducts() {
 
     try {
       const text = await file.text()
-      const parsed = JSON.parse(text) as unknown
-      const imported = normalizeImportedCourse(parsed)
-      openCreateEditor(imported.draft, imported.importedStructure)
+      const parsed = parseJsonInput(text)
+      const imported = normalizeCourseImport(parsed)
+      openCreateEditor(
+        {
+          title: imported.title,
+          slug: imported.slug,
+          coverImageUrl: imported.coverImageUrl,
+          status: imported.status,
+          launchDate: imported.launchDate,
+          price: formatPriceInput(imported.priceCents),
+          currency: imported.currency,
+          isPublic: imported.isPublic,
+          description: imported.description,
+          workloadMinutes: String(imported.workloadMinutes),
+          sortOrder: imported.sortOrder > 0 ? String(imported.sortOrder) : String(products.length + 1),
+          productType: imported.productType,
+        },
+        imported.importedStructure,
+      )
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Nao foi possivel ler o JSON do curso.")
     } finally {
@@ -388,17 +347,9 @@ export function AdminProducts() {
         }),
       )
       const assessments = await fetchAdminProductAssessments(course.id)
+      const exported = exportCourseToJson(course, modulePayload, assessments)
 
-      triggerJsonDownload(
-        `${course.slug || slugify(course.title) || "curso"}.json`,
-        {
-          version: 1,
-          exported_at: new Date().toISOString(),
-          course,
-          modules: modulePayload,
-          assessments,
-        },
-      )
+      triggerJsonDownload(makeCourseExportFileName(course), exported)
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Nao foi possivel exportar o curso.")
     } finally {
