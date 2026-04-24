@@ -564,6 +564,33 @@ export interface AdminOperationsOverview {
   jobRuns: AdminJobRunSummary[]
 }
 
+export type AdminCronKey =
+  | "process_email_deliveries"
+  | "retry_email_deliveries"
+  | "reconcile_orders"
+  | "audit_access_consistency"
+  | "clean_expired_links"
+
+export interface AdminCronScheduleSummary {
+  jobid: number
+  jobname: string
+  schedule: string
+  active: boolean
+}
+
+export interface AdminCronInvokeResult {
+  cron: AdminCronKey
+  slug: string
+  ok: boolean
+  status: number
+  result: unknown
+}
+
+export interface AdminCronStatusOverview {
+  scheduledJobs: AdminCronScheduleSummary[]
+  jobRuns: AdminJobRunSummary[]
+}
+
 export interface AdminSupportTicketSummary extends SupportTicketSummary {
   user_id: string
 }

@@ -41,6 +41,7 @@ import {
   fetchAdminProductModules,
   fetchAdminCoupons,
   fetchAdminCouponUsages,
+  fetchAdminCronStatus,
   fetchAdminCourseReleases,
   fetchAdminSupportTicketMessages,
   fetchAdminSupportTicket,
@@ -52,8 +53,12 @@ import {
   publishAdminProduct,
   reconcileAdminOrder,
   retryAdminEmailDelivery,
+  runAllAdminCrons,
+  runOneAdminCron,
+  scheduleAdminCronJobs,
   revokeAdminCourseRelease,
   replyAdminSupportTicket,
+  queueAdminCronTestEmail,
   fetchSupportAttachmentUrl,
   uploadSupportAttachment,
   uploadAdminModuleAssetFile,
@@ -319,6 +324,14 @@ export function useAdminOperations() {
   })
 }
 
+export function useAdminCronStatus() {
+  return useQuery({
+    queryKey: ["admin", "cron-status"],
+    queryFn: fetchAdminCronStatus,
+    ...getAdminQueryOptions(),
+  })
+}
+
 export function useAdminAffiliates() {
   return useQuery({
     queryKey: ["admin", "affiliates"],
@@ -552,6 +565,26 @@ export function useDeleteAdminUser() {
 export function useRetryAdminEmailDelivery() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: retryAdminEmailDelivery, onSuccess: invalidate })
+}
+
+export function useScheduleAdminCronJobs() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: scheduleAdminCronJobs, onSuccess: invalidate })
+}
+
+export function useRunOneAdminCron() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: runOneAdminCron, onSuccess: invalidate })
+}
+
+export function useRunAllAdminCrons() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: runAllAdminCrons, onSuccess: invalidate })
+}
+
+export function useQueueAdminCronTestEmail() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: queueAdminCronTestEmail, onSuccess: invalidate })
 }
 
 export function useCreateAdminProduct() {

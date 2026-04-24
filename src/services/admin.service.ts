@@ -20,6 +20,10 @@ import type {
   AdminModulePdfWatermarkConfig,
   AdminBrandingConfig,
   AdminBrandingAsset,
+  AdminCronInvokeResult,
+  AdminCronKey,
+  AdminCronScheduleSummary,
+  AdminCronStatusOverview,
   AdminEmailStatus,
   AdminPendingInfoConfig,
   AdminTrackingConfig,
@@ -606,6 +610,79 @@ export async function fetchAdminPendingInfoConfig() {
 export async function fetchAdminEmailStatus() {
   const response = await invokeAdminFunction<{ success: true; email: AdminEmailStatus }>("admin-email-status", {})
   return response.email
+}
+
+export async function fetchAdminCronStatus(): Promise<AdminCronStatusOverview> {
+  const response = await invokeAdminFunction<{
+    success: true
+    scheduledJobs: AdminCronScheduleSummary[] | null
+    jobRuns: AdminJobRunSummary[] | null
+  }>("admin-cron-scheduler", {
+    action: "status",
+  })
+
+  return {
+    scheduledJobs: response.scheduledJobs ?? [],
+    jobRuns: response.jobRuns ?? [],
+  }
+}
+
+export async function scheduleAdminCronJobs() {
+  const response = await invokeAdminFunction<{
+    success: true
+    schedule: {
+      success: boolean
+      scheduled_count: number
+      jobs: AdminCronScheduleSummary[]
+    }
+  }>("admin-cron-scheduler", {
+    action: "schedule",
+  })
+
+  return response.schedule
+}
+
+export async function runOneAdminCron(input: {
+  cron: AdminCronKey
+  batchSize?: number
+  maxAttempts?: number
+  retentionHours?: number
+  maxUsers?: number
+  dryRun?: boolean
+}) {
+  const response = await invokeAdminFunction<{
+    success: boolean
+    run: AdminCronInvokeResult
+  }>("admin-cron-scheduler", {
+    action: "run_one",
+    ...input,
+  })
+
+  return response.run
+}
+
+export async function runAllAdminCrons() {
+  const response = await invokeAdminFunction<{
+    success: boolean
+    runs: AdminCronInvokeResult[]
+  }>("admin-cron-scheduler", {
+    action: "run_all",
+  })
+
+  return response.runs ?? []
+}
+
+export async function queueAdminCronTestEmail(input: { emailTo: string; processImmediately?: boolean }) {
+  const response = await invokeAdminFunction<{
+    success: boolean
+    emailDelivery: AdminEmailDeliverySummary
+    process: AdminCronInvokeResult | null
+  }>("admin-cron-scheduler", {
+    action: "queue_test_email",
+    ...input,
+  })
+
+  return response
 }
 
 export async function updateAdminModulePdfWatermarkConfig(input: {
