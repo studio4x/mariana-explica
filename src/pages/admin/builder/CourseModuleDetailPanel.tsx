@@ -1,9 +1,10 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { CheckCircle2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { LessonContentBlocksEditor, StatusBadge } from "@/components/common"
+import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import {
   useAdminProductLessons,
@@ -122,6 +123,7 @@ export function CourseModuleDetailPanel() {
   const [error, setError] = useState<string | null>(null)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductModuleSummary>>({})
+  const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null)
   const [jsonImport, setJsonImport] = useState("")
   const [importPending, setImportPending] = useState(false)
@@ -174,12 +176,13 @@ export function CourseModuleDetailPanel() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
+    const latestDescription = descriptionEditorRef.current?.flush()
 
     try {
       const updatedModule = await updateModule.mutateAsync({
         moduleId: module.id,
         title: values.title?.trim(),
-        description: values.description?.trim() || null,
+        description: (latestDescription ?? values.description)?.trim() || null,
         position: Number(values.position),
         access_type: values.access_type,
         starts_at: values.starts_at || null,
@@ -414,6 +417,9 @@ export function CourseModuleDetailPanel() {
             helper="Resumo interno do papel deste modulo dentro da trilha pedagógica."
           >
             <LessonContentBlocksEditor
+              ref={(instance) => {
+                descriptionEditorRef.current = instance
+              }}
               value={String(values.description)}
               onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
               placeholder="Descreve a finalidade do modulo."

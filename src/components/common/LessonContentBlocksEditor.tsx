@@ -1,5 +1,5 @@
 import { ImagePlus, Plus, Trash2 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 import type {
   LessonContentBlock,
@@ -11,7 +11,7 @@ import {
   normalizeLessonImageHotspotsBlockContent,
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
-import { RichTextEditor } from "./RichTextEditor"
+import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
 
 interface LessonContentBlocksEditorProps {
   value: string
@@ -19,6 +19,10 @@ interface LessonContentBlocksEditorProps {
   className?: string
   placeholder?: string
   disabled?: boolean
+}
+
+export interface LessonContentBlocksEditorHandle {
+  flush: () => string
 }
 
 function randomId() {
@@ -46,38 +50,44 @@ function blockLabel(block: LessonContentBlock) {
   return "Texto Rico"
 }
 
-export function LessonContentBlocksEditor({
+export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHandle, LessonContentBlocksEditorProps>(function LessonContentBlocksEditor({
   value,
   onChange,
   className,
   placeholder = "Escreva aqui...",
   disabled = false,
-}: LessonContentBlocksEditorProps) {
+}: LessonContentBlocksEditorProps, ref) {
   const [blocks, setBlocks] = useState<LessonContentBlock[]>(() => splitLessonContent(value))
+  const blocksRef = useRef<LessonContentBlock[]>(splitLessonContent(value))
+  const editorRefs = useRef<Record<string, RichTextEditorHandle | null>>({})
   const lastCommittedValueRef = useRef(value ?? "")
 
   useEffect(() => {
     const nextValue = value ?? ""
     if (nextValue === lastCommittedValueRef.current) return
-    setBlocks(splitLessonContent(nextValue))
+    const nextBlocks = splitLessonContent(nextValue)
+    blocksRef.current = nextBlocks
+    setBlocks(nextBlocks)
     lastCommittedValueRef.current = nextValue
   }, [value])
 
   const commitBlocks = (nextBlocks: LessonContentBlock[]) => {
     const nextValue = mergeLessonContent(nextBlocks)
+    blocksRef.current = nextBlocks
     setBlocks(nextBlocks)
     lastCommittedValueRef.current = nextValue
     onChange(nextValue)
   }
 
   const updateBlock = (index: number, updater: (block: LessonContentBlock) => LessonContentBlock) => {
+    const currentBlocks = blocksRef.current
     commitBlocks(
-      blocks.map((block, blockIndex) => (blockIndex === index ? updater(block) : block)),
+      currentBlocks.map((block, blockIndex) => (blockIndex === index ? updater(block) : block)),
     )
   }
 
   const removeBlock = (index: number) => {
-    const next = blocks.filter((_, blockIndex) => blockIndex !== index)
+    const next = blocksRef.current.filter((_, blockIndex) => blockIndex !== index)
     commitBlocks(next.length > 0 ? next : [{ type: "rich-text", content: "" }])
   }
 
@@ -92,10 +102,28 @@ export function LessonContentBlocksEditor({
   }
 
   const addBlockAfter = (index: number, type: LessonContentBlock["type"]) => {
-    const next = [...blocks]
+    const next = [...blocksRef.current]
     next.splice(index + 1, 0, buildBlock(type))
     commitBlocks(next)
   }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      flush: () => {
+        for (const editor of Object.values(editorRefs.current)) {
+          editor?.flush()
+        }
+        const nextValue = mergeLessonContent(blocksRef.current)
+        if (nextValue !== lastCommittedValueRef.current) {
+          lastCommittedValueRef.current = nextValue
+          onChange(nextValue)
+        }
+        return nextValue
+      },
+    }),
+    [onChange],
+  )
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -151,6 +179,9 @@ export function LessonContentBlocksEditor({
 
             {block.type === "rich-text" ? (
               <RichTextEditor
+                ref={(instance) => {
+                  editorRefs.current[`block-${index}`] = instance
+                }}
                 value={block.content}
                 onChange={(next) =>
                   updateBlock(index, (current) =>
@@ -186,6 +217,9 @@ export function LessonContentBlocksEditor({
                     current.type === "image-hotspots" ? { ...current, content } : current,
                   )
                 }
+                registerEditorRef={(editorKey, instance) => {
+                  editorRefs.current[`block-${index}-${editorKey}`] = instance
+                }}
                 disabled={disabled}
               />
             ) : null}
@@ -194,15 +228,17 @@ export function LessonContentBlocksEditor({
       </div>
     </div>
   )
-}
+})
 
 function ImageHotspotsBlockEditor({
   value,
   onChange,
+  registerEditorRef,
   disabled,
 }: {
   value: LessonImageHotspotsBlockContent
   onChange: (value: LessonImageHotspotsBlockContent) => void
+  registerEditorRef: (editorKey: string, instance: RichTextEditorHandle | null) => void
   disabled: boolean
 }) {
   const normalized = normalizeLessonImageHotspotsBlockContent(value)
@@ -357,6 +393,9 @@ function ImageHotspotsBlockEditor({
                 />
               </div>
               <RichTextEditor
+                ref={(instance) => {
+                  registerEditorRef(`hotspot-${hotspot.id}`, instance)
+                }}
                 value={hotspot.body_html}
                 onChange={(next) => updateHotspot(hotspot.id, (current) => ({ ...current, body_html: next }))}
                 placeholder="Conteudo HTML do hotspot"

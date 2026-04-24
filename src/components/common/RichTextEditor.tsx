@@ -1,6 +1,6 @@
 import ReactQuill from "react-quill"
 import "react-quill/dist/quill.snow.css"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 
 interface RichTextEditorProps {
@@ -13,7 +13,11 @@ interface RichTextEditorProps {
   disabled?: boolean
 }
 
-export function RichTextEditor({
+export interface RichTextEditorHandle {
+  flush: () => string
+}
+
+export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor({
   value,
   onChange,
   placeholder = "Escreva aqui...",
@@ -21,8 +25,9 @@ export function RichTextEditor({
   minHeightPx = 220,
   toolbarVariant = "lesson",
   disabled = false,
-}: RichTextEditorProps) {
+}: RichTextEditorProps, ref) {
   const [draft, setDraft] = useState(value ?? "")
+  const quillRef = useRef<ReactQuill | null>(null)
   const isFocusedRef = useRef(false)
   const lastCommittedValueRef = useRef(value ?? "")
 
@@ -80,9 +85,26 @@ export function RichTextEditor({
     onChange(nextValue)
   }
 
+  const flushDraft = () => {
+    const html = quillRef.current?.getEditor().root.innerHTML ?? draft
+    isFocusedRef.current = false
+    setDraft(html)
+    commitValue(html)
+    return html
+  }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      flush: flushDraft,
+    }),
+    [draft],
+  )
+
   return (
     <div className={cn("rich-text-editor-quill rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
       <ReactQuill
+        ref={quillRef}
         theme="snow"
         value={draft}
         onChange={setDraft}
@@ -103,4 +125,4 @@ export function RichTextEditor({
       />
     </div>
   )
-}
+})

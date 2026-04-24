@@ -1,9 +1,10 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { CheckCircle2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { LessonContentBlocksEditor, StatusBadge } from "@/components/common"
+import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import {
   useAdminProductLessons,
   useCreateAdminModuleAsset,
@@ -121,6 +122,8 @@ export function CourseLessonDetailPanel() {
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductLessonSummary>>({})
+  const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
+  const textContentEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const lessons = lessonsQuery.data ?? []
   const lesson = useMemo(
     () => lessons.find((item) => item.id === lessonId) ?? null,
@@ -167,16 +170,21 @@ export function CourseLessonDetailPanel() {
     event.preventDefault()
     setError(null)
 
+    const latestDescription = descriptionEditorRef.current?.flush()
+    const latestTextContent = textContentEditorRef.current?.flush()
+    const descriptionToSave = latestDescription ?? values.description
+    const textContentToSave = latestTextContent ?? values.text_content
+
     const normalizedYoutube =
       values.lesson_type === "video" || values.lesson_type === "hybrid" ? values.youtube_url?.trim() || null : null
     const normalizedText =
-      values.lesson_type === "text" || values.lesson_type === "hybrid" ? values.text_content?.trim() || null : null
+      values.lesson_type === "text" || values.lesson_type === "hybrid" ? textContentToSave?.trim() || null : null
 
     try {
       const updatedLesson = await updateLesson.mutateAsync({
         lessonId: lesson.id,
         title: values.title?.trim(),
-        description: values.description?.trim() || null,
+        description: descriptionToSave?.trim() || null,
         position: Number(values.position),
         lesson_type: values.lesson_type,
         youtube_url: normalizedYoutube,
@@ -319,6 +327,9 @@ export function CourseLessonDetailPanel() {
 
             <LessonField label="Descricao curta / area de texto">
               <LessonContentBlocksEditor
+                ref={(instance) => {
+                  descriptionEditorRef.current = instance
+                }}
                 value={String(values.description)}
                 onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
                 placeholder="Resumo rapido da aula."
@@ -396,6 +407,9 @@ export function CourseLessonDetailPanel() {
                 helper="Conteudo editorial principal apresentado ao aluno."
               >
                 <LessonContentBlocksEditor
+                  ref={(instance) => {
+                    textContentEditorRef.current = instance
+                  }}
                   value={String(values.text_content)}
                   onChange={(value) => setForm((prev) => ({ ...prev, text_content: value }))}
                   placeholder="Escreve o conteudo textual da aula."
