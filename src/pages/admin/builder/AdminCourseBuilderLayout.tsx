@@ -969,13 +969,22 @@ export function AdminCourseBuilderLayout() {
             </div>
 
             <div className="space-y-6 p-8">
+              {builderError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                  {builderError}
+                </div>
+              ) : null}
+
               <div className="space-y-2">
                 <span className="pl-1 text-xs font-black uppercase tracking-widest text-slate-400">
                   Codigo JSON Estruturado
                 </span>
                 <textarea
                   value={importJson}
-                  onChange={(event) => setImportJson(event.target.value)}
+                  onChange={(event) => {
+                    setImportJson(event.target.value)
+                    if (builderError) setBuilderError(null)
+                  }}
                   className="h-80 w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 font-mono text-xs text-emerald-400 transition-all focus:ring-4 focus:ring-blue-100"
                   placeholder='[ { "title": "Modulo 1", "lessons": [...] } ]'
                 />

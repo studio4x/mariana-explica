@@ -156,11 +156,75 @@ function extractFencedJson(input: string) {
   return text
 }
 
+function escapeControlCharsInsideStrings(input: string) {
+  let output = ""
+  let inString = false
+  let escaped = false
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index]
+    const code = input.charCodeAt(index)
+
+    if (!inString) {
+      output += char
+      if (char === '"') inString = true
+      continue
+    }
+
+    if (escaped) {
+      output += char
+      escaped = false
+      continue
+    }
+
+    if (char === "\\") {
+      output += char
+      escaped = true
+      continue
+    }
+
+    if (char === '"') {
+      output += char
+      inString = false
+      continue
+    }
+
+    if (code < 0x20) {
+      switch (char) {
+        case "\n":
+          output += "\\n"
+          break
+        case "\r":
+          output += "\\r"
+          break
+        case "\t":
+          output += "\\t"
+          break
+        case "\b":
+          output += "\\b"
+          break
+        case "\f":
+          output += "\\f"
+          break
+        default:
+          output += `\\u${code.toString(16).padStart(4, "0")}`
+          break
+      }
+      continue
+    }
+
+    output += char
+  }
+
+  return output
+}
+
 export function parseJsonInput(raw: string): unknown {
-  const extracted = extractFencedJson(raw)
+  const extracted = extractFencedJson(raw).replace(/^\uFEFF/, "")
+  const escapedControls = escapeControlCharsInsideStrings(extracted)
   const candidates = [
-    extracted,
-    extracted.replace(/\\"/g, '"').replace(/\\'/g, "'"),
+    escapedControls,
+    escapedControls.replace(/\\"/g, '"').replace(/\\'/g, "'"),
   ]
 
   let lastError: unknown = null
