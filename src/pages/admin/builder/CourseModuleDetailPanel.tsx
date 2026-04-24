@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
+import { CheckCircle2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { LessonContentBlocksEditor, StatusBadge } from "@/components/common"
@@ -55,6 +56,52 @@ function ModuleField({
   )
 }
 
+function SaveConfirmationModal({
+  open,
+  title,
+  message,
+  onClose,
+}: {
+  open: boolean
+  title: string
+  message: string
+  onClose: () => void
+}) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[28px] border border-[#D8E6EB] bg-white p-6 shadow-[0_32px_80px_rgba(15,23,42,0.26)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 className="font-display text-2xl font-bold text-[#15323b]">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-[#5F7077]">{message}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#D8E6EB] bg-white text-[#5F7077] transition hover:bg-[#F2F7F9] hover:text-[#15323b]"
+            onClick={onClose}
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button type="button" className="rounded-2xl bg-[#1398B7] font-black hover:bg-[#0A3640]" onClick={onClose}>
+            Continuar
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function CourseModuleDetailPanel() {
   const navigate = useNavigate()
   const { courseId, moduleId } = useParams<{ courseId: string; moduleId: string }>()
@@ -73,6 +120,7 @@ export function CourseModuleDetailPanel() {
   const deleteModule = useDeleteAdminProductModule()
   const uploadModulePdf = useUploadAdminModulePdf()
   const [error, setError] = useState<string | null>(null)
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductModuleSummary>>({})
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null)
   const [jsonImport, setJsonImport] = useState("")
@@ -128,7 +176,7 @@ export function CourseModuleDetailPanel() {
     setError(null)
 
     try {
-      await updateModule.mutateAsync({
+      const updatedModule = await updateModule.mutateAsync({
         moduleId: module.id,
         title: values.title?.trim(),
         description: values.description?.trim() || null,
@@ -149,6 +197,7 @@ export function CourseModuleDetailPanel() {
         status: values.status,
       })
       setForm({})
+      setSaveSuccessMessage(`O modulo "${updatedModule.title}" foi guardado com sucesso.`)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Nao foi possivel guardar o modulo.")
     }
@@ -694,6 +743,13 @@ export function CourseModuleDetailPanel() {
           </div>
         </div>
       </section>
+
+      <SaveConfirmationModal
+        open={Boolean(saveSuccessMessage)}
+        title="Alteracoes guardadas"
+        message={saveSuccessMessage ?? ""}
+        onClose={() => setSaveSuccessMessage(null)}
+      />
     </div>
   )
 }

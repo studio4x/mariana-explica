@@ -80,6 +80,8 @@ import {
 import type {
   AdminNotificationSummary,
   AdminSupportTicketSummary,
+  ProductLessonSummary,
+  ProductModuleSummary,
   ProductAssessmentSummary,
   SupportTicketMessage,
 } from "@/types/app.types"
@@ -548,6 +550,53 @@ function upsertAdminProductAssessmentCache(
   )
 }
 
+function upsertAdminProductModuleCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  module: ProductModuleSummary,
+) {
+  queryClient.setQueryData<ProductModuleSummary[]>(
+    ["admin", "products", module.product_id, "modules"],
+    (current) => {
+      const next = current ? [...current] : []
+      const existingIndex = next.findIndex((item) => item.id === module.id)
+
+      if (existingIndex >= 0) {
+        next[existingIndex] = module
+      } else {
+        next.push(module)
+      }
+
+      return next.sort((left, right) => {
+        if (left.position !== right.position) {
+          return left.position - right.position
+        }
+        return left.sort_order - right.sort_order
+      })
+    },
+  )
+}
+
+function upsertAdminProductLessonCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  lesson: ProductLessonSummary,
+) {
+  queryClient.setQueryData<ProductLessonSummary[]>(
+    ["admin", "modules", lesson.module_id, "lessons"],
+    (current) => {
+      const next = current ? [...current] : []
+      const existingIndex = next.findIndex((item) => item.id === lesson.id)
+
+      if (existingIndex >= 0) {
+        next[existingIndex] = lesson
+      } else {
+        next.push(lesson)
+      }
+
+      return next.sort((left, right) => left.position - right.position)
+    },
+  )
+}
+
 export function useCreateAdminUser() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: createAdminUser, onSuccess: invalidate })
@@ -620,7 +669,15 @@ export function useDeleteAdminProduct() {
 
 export function useCreateAdminProductModule() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: createAdminProductModule, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminProductModule,
+    onSuccess: (module) => {
+      upsertAdminProductModuleCache(queryClient, module)
+      invalidate()
+    },
+  })
 }
 
 export function useUploadAdminModulePdf() {
@@ -645,7 +702,15 @@ export function useUploadAdminWatermarkLogoFile() {
 
 export function useUpdateAdminProductModule() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: updateAdminProductModule, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminProductModule,
+    onSuccess: (module) => {
+      upsertAdminProductModuleCache(queryClient, module)
+      invalidate()
+    },
+  })
 }
 
 export function useDeleteAdminProductModule() {
@@ -673,7 +738,15 @@ export function useCreateAdminProductAssessment() {
 
 export function useCreateAdminProductLesson() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: createAdminProductLesson, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminProductLesson,
+    onSuccess: (lesson) => {
+      upsertAdminProductLessonCache(queryClient, lesson)
+      invalidate()
+    },
+  })
 }
 
 export function useUpdateAdminModuleAsset() {
@@ -683,7 +756,15 @@ export function useUpdateAdminModuleAsset() {
 
 export function useUpdateAdminProductLesson() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: updateAdminProductLesson, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminProductLesson,
+    onSuccess: (lesson) => {
+      upsertAdminProductLessonCache(queryClient, lesson)
+      invalidate()
+    },
+  })
 }
 
 export function useUpdateAdminProductAssessment() {
