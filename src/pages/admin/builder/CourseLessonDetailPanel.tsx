@@ -31,11 +31,11 @@ function LessonField({
   children: ReactNode
 }) {
   return (
-    <label className="space-y-2">
-      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">{label}</span>
+    <div className="space-y-2">
+      <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">{label}</div>
       {children}
       {helper ? <p className="text-sm text-slate-500">{helper}</p> : null}
-    </label>
+    </div>
   )
 }
 
