@@ -1,6 +1,6 @@
 import ReactQuill from "react-quill"
 import "react-quill/dist/quill.snow.css"
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 
 interface RichTextEditorProps {
@@ -22,6 +22,16 @@ export function RichTextEditor({
   toolbarVariant = "lesson",
   disabled = false,
 }: RichTextEditorProps) {
+  const [draftValue, setDraftValue] = useState(value ?? "")
+  const lastCommittedValueRef = useRef(value ?? "")
+
+  useEffect(() => {
+    const nextValue = value ?? ""
+    if (nextValue === lastCommittedValueRef.current) return
+    setDraftValue(nextValue)
+    lastCommittedValueRef.current = nextValue
+  }, [value])
+
   const modules = useMemo(
     () => ({
       toolbar:
@@ -62,12 +72,23 @@ export function RichTextEditor({
     [toolbarVariant],
   )
 
+  const commitValue = (nextValue: string) => {
+    if (nextValue === lastCommittedValueRef.current) return
+    lastCommittedValueRef.current = nextValue
+    onChange(nextValue)
+  }
+
   return (
     <div className={cn("rich-text-editor-quill rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
       <ReactQuill
         theme="snow"
-        value={value ?? ""}
-        onChange={(nextValue) => onChange(nextValue)}
+        value={draftValue}
+        onChange={(nextValue) => setDraftValue(nextValue)}
+        onBlur={(_previousRange, _source, editor) => {
+          const html = editor.getHTML()
+          setDraftValue(html)
+          commitValue(html)
+        }}
         modules={modules}
         formats={formats}
         placeholder={placeholder}
