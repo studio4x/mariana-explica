@@ -134,6 +134,20 @@ export interface AdminCheckoutModeConfig {
   updated_at: string | null
 }
 
+export interface AdminTrackingConfig {
+  config_key: string
+  config_value: {
+    google_tag_manager_id: string
+    meta_pixel_id: string
+    custom_head_code: string
+    custom_body_code: string
+    custom_footer_code: string
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface AdminEmailStatus {
   providerName: string | null
   transport: "smtp" | "resend" | "postmark" | "sendgrid" | null

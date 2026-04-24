@@ -22,6 +22,7 @@ import type {
   AdminBrandingAsset,
   AdminEmailStatus,
   AdminPendingInfoConfig,
+  AdminTrackingConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
   AdminSupportTicketSummary,
@@ -100,6 +101,7 @@ const DEFAULT_WATERMARK_SITE_NAME = "Mariana Explica"
 const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
 const CHECKOUT_MODE_CONFIG_KEY = "checkout_environment"
 const BRANDING_CONFIG_KEY = "site_branding"
+const TRACKING_CONFIG_KEY = "site_tracking"
 
 function normalizeBrandingAsset(value: unknown): AdminBrandingAsset {
   const asset = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
@@ -202,6 +204,33 @@ function normalizeAdminBrandingConfig(
       favicon: normalizeBrandingAsset(value.favicon),
     },
     description: row?.description ?? "Assets oficiais de branding usados nas areas publica, aluno e admin.",
+    is_public: row?.is_public ?? true,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminTrackingConfig(
+  row?: Partial<AdminTrackingConfig> | null,
+): AdminTrackingConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const normalizeText = (key: string) => String(value[key] ?? "").trim()
+
+  return {
+    config_key: row?.config_key ?? TRACKING_CONFIG_KEY,
+    config_value: {
+      google_tag_manager_id: normalizeText("google_tag_manager_id"),
+      meta_pixel_id: normalizeText("meta_pixel_id"),
+      custom_head_code: String(value.custom_head_code ?? ""),
+      custom_body_code: String(value.custom_body_code ?? ""),
+      custom_footer_code: String(value.custom_footer_code ?? ""),
+    },
+    description:
+      row?.description ??
+      "Configuracao publica de rastreamento e codigos personalizados do site, respeitando consentimento quando aplicavel.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
@@ -517,6 +546,35 @@ export async function fetchAdminBrandingConfig() {
   return normalizeAdminBrandingConfig(data as Partial<AdminBrandingConfig> | null)
 }
 
+export async function fetchAdminTrackingConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", TRACKING_CONFIG_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig> | null)
+}
+
+export async function fetchPublicTrackingConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", TRACKING_CONFIG_KEY)
+    .eq("is_public", true)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig> | null)
+}
+
 export async function fetchAdminModulePdfWatermarkConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -628,6 +686,45 @@ export async function updateAdminBrandingConfig(input: AdminBrandingConfig["conf
   }
 
   return normalizeAdminBrandingConfig(data as Partial<AdminBrandingConfig>)
+}
+
+export async function updateAdminTrackingConfig(
+  input: AdminTrackingConfig["config_value"],
+) {
+  const payload = normalizeAdminTrackingConfig({
+    config_key: TRACKING_CONFIG_KEY,
+    config_value: input,
+    description:
+      "Configuracao publica de rastreamento e codigos personalizados do site, respeitando consentimento quando aplicavel.",
+    is_public: true,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<AdminTrackingConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: TRACKING_CONFIG_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: true,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig>)
 }
 
 export async function updateAdminPendingInfoConfig(

@@ -1,11 +1,12 @@
 import { Outlet } from "react-router-dom"
 import { GraduationCap, ShieldCheck, Sparkles } from "lucide-react"
-import { CookieConsentBanner, Footer, Navbar, ScrollToTop } from "@/components/common"
+import { CookieConsentBanner, Footer, Navbar, ScrollToTop, SiteTrackingManager } from "@/components/common"
 
 export function AuthLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,rgba(36,39,66,0.18),transparent_28%),linear-gradient(180deg,#f6fbfd_0%,#edf7fb_55%,#ffffff_100%)]">
       <ScrollToTop />
+      <SiteTrackingManager />
       <Navbar />
       <main className="flex-1">
         <div className="container grid min-h-[calc(100vh-8rem)] items-center gap-10 py-10 lg:grid-cols-[0.95fr_1.05fr]">

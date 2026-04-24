@@ -1,19 +1,21 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Activity, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
+import { Activity, Code2, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
 import { useSearchParams } from "react-router-dom"
 import { ErrorState } from "@/components/feedback"
 import { StatusBadge } from "@/components/common"
 import {
   fetchAdminBrandingConfig,
+  fetchAdminTrackingConfig,
   updateAdminBrandingConfig,
+  updateAdminTrackingConfig,
   uploadAdminBrandingAssetFile,
 } from "@/services/admin.service"
-import type { AdminBrandingAsset, AdminBrandingConfig } from "@/types/app.types"
+import type { AdminBrandingAsset, AdminBrandingConfig, AdminTrackingConfig } from "@/types/app.types"
 import { AdminOperations } from "./AdminOperations"
 
 type BrandingRole = keyof AdminBrandingConfig["config_value"]
-type SettingsTab = "branding" | "operations"
+type SettingsTab = "branding" | "tracking" | "operations"
 
 const assetCards: Array<{
   role: BrandingRole
@@ -166,11 +168,19 @@ export function AdminSettings() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [uploadingRole, setUploadingRole] = useState<BrandingRole | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
-  const activeTab: SettingsTab = searchParams.get("tab") === "operacoes" ? "operations" : "branding"
+  const [trackingDraft, setTrackingDraft] = useState<AdminTrackingConfig["config_value"] | null>(null)
+  const currentTab = searchParams.get("tab")
+  const activeTab: SettingsTab =
+    currentTab === "operacoes" ? "operations" : currentTab === "rastreamento" ? "tracking" : "branding"
 
   const brandingQuery = useQuery({
     queryKey: ["admin", "branding"],
     queryFn: fetchAdminBrandingConfig,
+    staleTime: 60_000,
+  })
+  const trackingQuery = useQuery({
+    queryKey: ["admin", "tracking"],
+    queryFn: fetchAdminTrackingConfig,
     staleTime: 60_000,
   })
 
@@ -178,6 +188,13 @@ export function AdminSettings() {
     mutationFn: updateAdminBrandingConfig,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "branding"] })
+    },
+  })
+  const saveTracking = useMutation({
+    mutationFn: updateAdminTrackingConfig,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "tracking"] })
+      await queryClient.invalidateQueries({ queryKey: ["site", "tracking"] })
     },
   })
 
@@ -228,12 +245,58 @@ export function AdminSettings() {
     )
   }
 
+  if (trackingQuery.isError) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar as configuracoes"
+        message={trackingQuery.error instanceof Error ? trackingQuery.error.message : "Tenta novamente dentro de instantes."}
+        onRetry={() => void trackingQuery.refetch()}
+      />
+    )
+  }
+
   const branding = brandingQuery.data
+  const trackingConfig = trackingQuery.data ?? {
+    config_key: "site_tracking",
+    config_value: {
+      google_tag_manager_id: "",
+      meta_pixel_id: "",
+      custom_head_code: "",
+      custom_body_code: "",
+      custom_footer_code: "",
+    },
+    description: null,
+    is_public: true,
+    updated_at: null,
+  }
+  const trackingState = trackingDraft ?? trackingConfig.config_value
   const readyCount = branding ? countReady(branding) : 0
   const tabs: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
     { key: "branding", label: "Branding", icon: Palette },
+    { key: "tracking", label: "Rastreamento", icon: Code2 as typeof Palette },
     { key: "operations", label: "Operacoes", icon: Activity },
   ]
+  const sectionCopy = {
+    branding: {
+      title: "Branding e logotipos",
+      description:
+        "Envie aqui os arquivos oficiais da marca. O sistema escolhe automaticamente o logotipo light ou dark de acordo com o fundo em cada area da plataforma.",
+    },
+    tracking: {
+      title: "Rastreamento e codigos globais",
+      description:
+        "Configure GTM, Meta Pixel e codigos personalizados do site. Os identificadores de rastreamento respeitam o centro de preferencias de cookies da plataforma.",
+    },
+    operations: {
+      title: "Operacoes do ambiente",
+      description:
+        "Acompanhe rotinas operacionais, jobs, entregas tecnicas e ajustes sensiveis do ambiente de producao.",
+    },
+  } as const
+
+  const handleTrackingDraft = (updates: Partial<AdminTrackingConfig["config_value"]>) => {
+    setTrackingDraft({ ...trackingState, ...updates })
+  }
 
   return (
     <div className="space-y-7">
@@ -243,20 +306,25 @@ export function AdminSettings() {
         </div>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold text-slate-950">Branding e logotipos</h1>
+            <h1 className="font-display text-3xl font-bold text-slate-950">{sectionCopy[activeTab].title}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-              Envie aqui os arquivos oficiais da marca. O sistema escolhe automaticamente o logotipo light ou dark de
-              acordo com o fundo em cada area da plataforma.
+              {sectionCopy[activeTab].description}
             </p>
           </div>
           <button
             type="button"
-            onClick={() => void brandingQuery.refetch()}
-            disabled={brandingQuery.isFetching}
+            onClick={() => {
+              if (activeTab === "tracking") {
+                void trackingQuery.refetch()
+                return
+              }
+              void brandingQuery.refetch()
+            }}
+            disabled={brandingQuery.isFetching || trackingQuery.isFetching}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 disabled:opacity-60"
           >
             <RefreshCw className="h-4 w-4" />
-            {brandingQuery.isFetching ? "A atualizar..." : "Atualizar"}
+            {brandingQuery.isFetching || trackingQuery.isFetching ? "A atualizar..." : "Atualizar"}
           </button>
         </div>
       </div>
@@ -273,6 +341,8 @@ export function AdminSettings() {
               onClick={() => {
                 if (tab.key === "branding") {
                   setSearchParams({})
+                } else if (tab.key === "tracking") {
+                  setSearchParams({ tab: "rastreamento" })
                 } else {
                   setSearchParams({ tab: "operacoes" })
                 }
@@ -293,6 +363,162 @@ export function AdminSettings() {
 
       {activeTab === "operations" ? (
         <AdminOperations embedded />
+      ) : activeTab === "tracking" ? (
+        <>
+          {feedback ? (
+            <div
+              className={[
+                "rounded-2xl border px-4 py-3 text-sm font-medium",
+                feedback.tone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-rose-200 bg-rose-50 text-rose-900",
+              ].join(" ")}
+            >
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Google tag manager</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">
+                {trackingState.google_tag_manager_id ? "Configurado" : "Pendente"}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">Carregado apenas com consentimento analitico.</p>
+            </div>
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Meta pixel</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">
+                {trackingState.meta_pixel_id ? "Configurado" : "Pendente"}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">Carregado apenas com consentimento de marketing.</p>
+            </div>
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Codigos globais</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">
+                {[trackingState.custom_head_code, trackingState.custom_body_code, trackingState.custom_footer_code].some((value) => value.trim())
+                  ? "Ativos"
+                  : "Vazios"}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">Snippets livres para head, body e footer do site.</p>
+            </div>
+          </div>
+
+          <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  ID do container GTM
+                </span>
+                <input
+                  value={trackingState.google_tag_manager_id}
+                  onChange={(event) => handleTrackingDraft({ google_tag_manager_id: event.target.value })}
+                  placeholder="Ex.: GTM-XXXXXXX"
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Use o ID do container. O script e injetado automaticamente quando o utilizador aceita cookies analiticos.
+                </p>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  ID do Meta Pixel
+                </span>
+                <input
+                  value={trackingState.meta_pixel_id}
+                  onChange={(event) => handleTrackingDraft({ meta_pixel_id: event.target.value })}
+                  placeholder="Ex.: 123456789012345"
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  O pixel so dispara quando o utilizador aceita cookies de marketing.
+                </p>
+              </label>
+            </div>
+
+            <div className="grid gap-4">
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Codigo personalizado no head
+                </span>
+                <textarea
+                  value={trackingState.custom_head_code}
+                  onChange={(event) => handleTrackingDraft({ custom_head_code: event.target.value })}
+                  placeholder="<script>/* codigo global no head */</script>"
+                  rows={6}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Codigo personalizado no body
+                </span>
+                <textarea
+                  value={trackingState.custom_body_code}
+                  onChange={(event) => handleTrackingDraft({ custom_body_code: event.target.value })}
+                  placeholder="<script>/* codigo no body */</script>"
+                  rows={6}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Codigo personalizado no footer
+                </span>
+                <textarea
+                  value={trackingState.custom_footer_code}
+                  onChange={(event) => handleTrackingDraft({ custom_footer_code: event.target.value })}
+                  placeholder="<script>/* codigo no footer */</script>"
+                  rows={6}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-200 bg-[#f4f9fb] p-4 text-sm leading-7 text-slate-600">
+              <p>
+                O GTM e o Meta Pixel respeitam o centro de preferencias de cookies. Ja os codigos personalizados sao
+                injetados conforme inseridos aqui, por isso use esses campos apenas para snippets que realmente devam
+                existir no site.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTrackingDraft(trackingConfig.config_value)
+                    setFeedback(null)
+                  }}
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300"
+                >
+                  Repor alteracoes
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setFeedback(null)
+                    try {
+                      await saveTracking.mutateAsync(trackingState)
+                      setTrackingDraft(null)
+                      setFeedback({ tone: "success", message: "Configuracoes de rastreamento guardadas com sucesso." })
+                    } catch (error) {
+                      setFeedback({
+                        tone: "danger",
+                        message: error instanceof Error ? error.message : "Nao foi possivel guardar o rastreamento.",
+                      })
+                    }
+                  }}
+                  disabled={saveTracking.isPending}
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {saveTracking.isPending ? "A guardar..." : "Guardar rastreamento"}
+                </button>
+              </div>
+            </div>
+          </section>
+        </>
       ) : (
         <>
           {feedback ? (

@@ -15,7 +15,7 @@ import {
   Shield,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { CookieConsentBanner, ScrollToTop, StatusBadge } from "@/components/common"
+import { CookieConsentBanner, ScrollToTop, SiteTrackingManager, StatusBadge } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
@@ -116,6 +116,7 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#f3f7fa] text-slate-950">
       <ScrollToTop />
+      <SiteTrackingManager />
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="flex min-h-[64px] w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link to={ROUTES.ADMIN} className="flex items-center gap-3">

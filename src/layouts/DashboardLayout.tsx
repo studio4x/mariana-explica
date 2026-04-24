@@ -9,7 +9,7 @@ import {
   User,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { CookieConsentBanner, InstallPrompt, ScrollToTop } from "@/components/common"
+import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteTrackingManager } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
@@ -91,6 +91,7 @@ export function DashboardLayout() {
   return (
     <div className="min-h-screen bg-[#F2F7F9] text-[#163138]">
       <ScrollToTop />
+      <SiteTrackingManager />
       <header className="sticky top-0 z-40 border-b border-[#D8E6EB] bg-[#F2F7F9]/95 backdrop-blur-md">
         <div className="container flex min-h-[68px] items-center justify-between gap-4 py-3">
           <Link
