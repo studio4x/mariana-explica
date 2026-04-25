@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
-import { FileText, PlayCircle, StickyNote } from "lucide-react"
+import { FileText, StickyNote } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { LessonContentBlocksRenderer, PageHeader, RichTextContent, StatusBadge } from "@/components/common"
+import { LessonContentBlocksRenderer, LessonPrimaryMedia, PageHeader, RichTextContent, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAccessibleLesson,
@@ -298,16 +298,8 @@ export function DashboardProductDetail() {
                   </div>
                 ) : selectedLesson ? (
                   <>
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">
-                      {selectedLesson.youtube_url ? (
-                        <div className="rounded-2xl border bg-slate-50/80 p-4">
-                          <div className="flex items-center gap-2 text-slate-900">
-                            <PlayCircle className="h-4 w-4" />
-                            <p className="font-medium">Video principal</p>
-                          </div>
-                          <p className="mt-3 break-all text-sm leading-6 text-slate-600">{selectedLesson.youtube_url}</p>
-                        </div>
-                      ) : null}
+                    <div className="mt-5 space-y-3">
+                      <LessonPrimaryMedia source={selectedLesson.youtube_url} />
                       {selectedLesson.text_content ? (
                         <div className="rounded-2xl border bg-slate-50/80 p-4">
                           <div className="flex items-center gap-2 text-slate-900">

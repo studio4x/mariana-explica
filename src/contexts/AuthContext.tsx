@@ -42,6 +42,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 const PROFILE_CACHE_KEY = "mariana-explica:auth-profile"
+const PROFILE_CACHE_FALLBACK_KEY = "mariana-explica:auth-profile:shared"
 
 function getSupabaseStorageKey() {
   if (!SUPABASE_URL) {
@@ -114,7 +115,9 @@ function readCachedProfile(userId: string): UserProfile | null {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(PROFILE_CACHE_KEY)
+    const raw =
+      window.sessionStorage.getItem(PROFILE_CACHE_KEY) ??
+      window.localStorage.getItem(PROFILE_CACHE_FALLBACK_KEY)
     if (!raw) {
       return null
     }
@@ -133,10 +136,12 @@ function writeCachedProfile(profile: UserProfile | null) {
 
   if (!profile) {
     window.sessionStorage.removeItem(PROFILE_CACHE_KEY)
+    window.localStorage.removeItem(PROFILE_CACHE_FALLBACK_KEY)
     return
   }
 
   window.sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile))
+  window.localStorage.setItem(PROFILE_CACHE_FALLBACK_KEY, JSON.stringify(profile))
 }
 
 async function refreshProfileState(

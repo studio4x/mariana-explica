@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       productId: product.id,
     })
     if (existingGrant) {
-      throw unprocessable("VocÃª jÃ¡ possui acesso ativo a este produto")
+      throw unprocessable("Ja tens acesso ativo a este curso.")
     }
 
     if (body.affiliateCode && !product.allow_affiliate) {

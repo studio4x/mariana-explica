@@ -15,6 +15,7 @@ describe("AdminRoute", () => {
       session: { access_token: "token" },
       profile: { status: "active", is_admin: true, role: "admin" },
       loading: false,
+      isAdmin: true,
       refreshSession: vi.fn(),
     })
 
@@ -41,6 +42,7 @@ describe("AdminRoute", () => {
       session: { access_token: "token" },
       profile: { status: "active", is_admin: false, role: "student" },
       loading: false,
+      isAdmin: false,
       refreshSession: vi.fn(),
     })
 
@@ -68,6 +70,7 @@ describe("AdminRoute", () => {
       session: { access_token: "token" },
       profile: { status: "active", is_admin: true, role: "student" },
       loading: false,
+      isAdmin: false,
       refreshSession: vi.fn(),
     })
 
@@ -90,15 +93,16 @@ describe("AdminRoute", () => {
     expect(screen.getByText("Home")).toBeInTheDocument()
   })
 
-  it("shows loading while recovering a missing profile", () => {
+  it("renders nothing while recovering a missing profile", () => {
     mockUseAuth.mockReturnValue({
       session: { access_token: "token" },
       profile: null,
       loading: false,
       refreshSession: vi.fn().mockResolvedValue(false),
+      isAdmin: false,
     })
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/admin"]}>
         <Routes>
           <Route
@@ -113,7 +117,7 @@ describe("AdminRoute", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText("A preparar o acesso administrativo...")).toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it("keeps rendering admin while session refreshes in the background", () => {

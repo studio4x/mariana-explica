@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "reac
 import {
   AlertTriangle,
   BookOpen,
+  CheckCircle2,
   ClipboardCheck,
   Cog,
   Download,
@@ -19,7 +20,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useMemo, useState, type DragEvent } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { StatusBadge } from "@/components/common"
@@ -35,6 +36,7 @@ import {
   useDeleteAdminProductLesson,
   useDeleteAdminProductModule,
   useUpdateAdminProductAssessment,
+  useUpdateAdminProductLesson,
   useUpdateAdminProductModule,
 } from "@/hooks/useAdmin"
 import {
@@ -76,6 +78,50 @@ function triggerJsonDownload(filename: string, payload: unknown) {
   URL.revokeObjectURL(url)
 }
 
+function ImportFeedbackModal({
+  open,
+  message,
+  onClose,
+}: {
+  open: boolean
+  message: string
+  onClose: () => void
+}) {
+  if (!open) return null
+
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[28px] border border-[#D8E6EB] bg-white p-6 shadow-[0_32px_80px_rgba(15,23,42,0.26)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 className="text-2xl font-black text-[#15323b]">Importacao realizada</h2>
+              <p className="mt-2 text-sm leading-6 text-[#5F7077]">{message}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#D8E6EB] bg-white text-[#5F7077] transition hover:bg-[#F2F7F9] hover:text-[#15323b]"
+            onClick={onClose}
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button type="button" className="rounded-2xl bg-[#1398B7] font-black hover:bg-[#0A3640]" onClick={onClose}>
+            Continuar
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function AdminCourseBuilderLayout() {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
@@ -91,6 +137,7 @@ export function AdminCourseBuilderLayout() {
   const deleteLesson = useDeleteAdminProductLesson()
   const deleteAssessment = useDeleteAdminProductAssessment()
   const updateModule = useUpdateAdminProductModule()
+  const updateLesson = useUpdateAdminProductLesson()
   const updateAssessment = useUpdateAdminProductAssessment()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [builderError, setBuilderError] = useState<string | null>(null)
@@ -100,6 +147,8 @@ export function AdminCourseBuilderLayout() {
   const [clearCourseBeforeImport, setClearCourseBeforeImport] = useState(false)
   const [replaceModuleId, setReplaceModuleId] = useState<string>("")
   const [isImporting, setIsImporting] = useState(false)
+  const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null)
+  const [draggedLesson, setDraggedLesson] = useState<{ moduleId: string; lessonId: string } | null>(null)
 
   const product = useMemo(() => {
     const products = productsQuery.data ?? []
@@ -164,6 +213,34 @@ export function AdminCourseBuilderLayout() {
     (count, lessons) => count + lessons.length,
     0,
   )
+
+  const handleReorderLesson = async (moduleId: string, sourceLessonId: string, targetLessonId: string) => {
+    if (sourceLessonId === targetLessonId) return
+
+    const moduleLessons = [...(lessonsByModule[moduleId] ?? [])]
+    const sourceIndex = moduleLessons.findIndex((lesson) => lesson.id === sourceLessonId)
+    const targetIndex = moduleLessons.findIndex((lesson) => lesson.id === targetLessonId)
+    if (sourceIndex < 0 || targetIndex < 0) return
+
+    const [movedLesson] = moduleLessons.splice(sourceIndex, 1)
+    moduleLessons.splice(targetIndex, 0, movedLesson)
+
+    setBuilderError(null)
+    try {
+      for (const [index, currentLesson] of moduleLessons.entries()) {
+        const nextPosition = index + 1
+        if (currentLesson.position === nextPosition) continue
+        await updateLesson.mutateAsync({
+          lessonId: currentLesson.id,
+          position: nextPosition,
+        })
+      }
+    } catch (error) {
+      setBuilderError(
+        error instanceof Error ? error.message : "Nao foi possivel reordenar as aulas deste modulo.",
+      )
+    }
+  }
 
   const handleCreateModule = async () => {
     if (!courseId) return
@@ -556,6 +633,11 @@ export function AdminCourseBuilderLayout() {
       setClearCourseBeforeImport(false)
       setImportMode("append")
       setReplaceModuleId("")
+      setImportSuccessMessage(
+        clearCourseBeforeImport
+          ? "O curso foi reconstruido a partir do JSON enviado."
+          : "A importacao do conteudo foi concluida com sucesso.",
+      )
     } catch (error) {
       setBuilderError(error instanceof Error ? error.message : "Nao foi possivel importar o conteudo do curso.")
     } finally {
@@ -712,7 +794,22 @@ export function AdminCourseBuilderLayout() {
                         {isSidebarOpen ? (
                           <div className="ml-9 mt-1 space-y-1 border-l-2 border-slate-100 pl-3">
                             {moduleLessons.map((lesson) => (
-                              <div key={lesson.id} className="flex items-center gap-1">
+                              <div
+                                key={lesson.id}
+                                draggable
+                                onDragStart={() => setDraggedLesson({ moduleId: module.id, lessonId: lesson.id })}
+                                onDragEnd={() => setDraggedLesson(null)}
+                                onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+                                onDrop={(event: DragEvent<HTMLDivElement>) => {
+                                  event.preventDefault()
+                                  if (!draggedLesson || draggedLesson.moduleId !== module.id) return
+                                  void handleReorderLesson(module.id, draggedLesson.lessonId, lesson.id)
+                                  setDraggedLesson(null)
+                                }}
+                                className={`flex items-center gap-1 rounded-lg ${
+                                  draggedLesson?.lessonId === lesson.id ? "bg-sky-50/80" : ""
+                                }`}
+                              >
                                 <NavLink
                                   to={`${adminCourseModulePath(courseId, module.id)}/aulas/${lesson.id}`}
                                   className={({ isActive }) =>
@@ -1079,6 +1176,12 @@ export function AdminCourseBuilderLayout() {
           </div>
         </div>
       ) : null}
+
+      <ImportFeedbackModal
+        open={Boolean(importSuccessMessage)}
+        message={importSuccessMessage ?? ""}
+        onClose={() => setImportSuccessMessage(null)}
+      />
 
       <div className="pointer-events-none absolute bottom-4 right-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
         Build {BUILD_VERSION}

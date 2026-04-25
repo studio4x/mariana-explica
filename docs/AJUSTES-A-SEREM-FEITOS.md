@@ -1,16 +1,21 @@
 # AJUSTES A SEREM FEITOS
 
-[OK] no dashboard do aluno, na página inicial, remova o card "destaque" e o card "continuidade". Reorganize o layout dos demais cards
+[OK] Ajustar essa frase: Voce ja possui acesso ativo a este produto
 
-[OK] Vamos ajustar a página que se abre quando se clica em "continuar" no card do curso dentro de "https://www.mariana-explica.pt/aluno/cursos". A página que se abre e que deve ser editada está nessa url: "https://www.mariana-explica.pt/aluno/cursos/c271877d-a354-4a6b-b8bf-6fc456d0e1e1". O layout dessa página de todos os cursos deverá ter o layout de acordo com o html de exemplo inserido no arquivo: C:\PLATAFORMAS VS CODE\MARIANA EXPLICA\mariana-explica\docs\Referências\pagina-curso-antes-visualizador.html
+[OK] As paginas do admin estavam demorando para carregar e exibindo a mensagem "preparando acesso administrativo". O carregamento foi otimizado para nao depender mais dessa mensagem.
 
-[OK] Ajuste o layout da página de catalogo de curso para ficar conforme o arquivo C:\PLATAFORMAS VS CODE\MARIANA EXPLICA\mariana-explica\docs\Referências\catalogo-curso.html
+[OK] Ao importar um curso ou modulo via JSON, mostrar um modal de "importacao realizada".
 
-[OK] Na página de checkout, vamos remover o rodapé padrão do site.. Vamos deixar somente a seção de copyright.. Utilize a mesma do site padrão, pois futuramente vamos precisar inserir páginas de prvidadecida, cookies e termos de uso.. Então, quando inserirmos isso no rodapé do site, irá inserir automaticamente nesse rodapé do checkout também.
+[OK] Na barra lateral do construtor de cursos e na listagem de aulas do modulo (na pagina do modulo), implementar a ordenacao das aulas via drag and drop.
 
-[OK] remova o botão "Voltar aos cursos" que está no topo da página publica do curso..
+[OK] No construtor do curso, configurar o botao de salvar configuracoes para ficar flutuante na pagina do modulo, da aula e do quiz.
 
-[OK] Na página de cursos, a imagem de capa do curso deve estar no formato/aspecto compartivel com uma imagem de tamanho 1348 x 736 px. A imagem não tem que ficar deste tamanho, apenas precisa estar no aspecto desse tamanho.
+[OK] Implementar no admin a visualizacao do curso, abrindo a pagina do curso mesmo quando o curso ainda nao estiver publicado para o publico.
 
-[OK] depois que o checkout na stripe for feito, atualmente o usuario é levado para o dashboard. Vamos ajustar para incluir uma página de confirmação depois do checkout concluído e nessa página de confirmação inserimos um botão para levar diretamente para o curso. Vou utilizar essa página para validar o evento de checkout no google ads e no pixel meta.
+[OK] No visualizador de cursos, o container do bloco de texto deve ocupar 100% da largura e os blocos devem ficar empilhados, um embaixo do outro.
+
+[OK] Implementar player para video. Links do YouTube devem abrir o player corretamente. No construtor do curso, o bloco de video deve permitir upload de video seguro, sem opcao de download para o aluno.
+
+[OK] As paginas do admin estavam demorando para carregar e exibindo a mensagem "preparando acesso administrativo". O carregamento foi otimizado para nao depender mais dessa mensagem.
+
 # REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

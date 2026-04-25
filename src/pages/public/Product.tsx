@@ -15,16 +15,29 @@ import { CourseReviews } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { usePublishedProductBySlug } from "@/hooks/useProducts"
+import { useAdminPreviewProductBySlug, usePublishedProductBySlug } from "@/hooks/useProducts"
 import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
 import { formatProductPrice } from "@/utils/currency"
 import { buildCoursePublicPageView } from "@/lib/course-public-page"
 
 export function Product() {
   const { slug } = useParams<{ slug: string }>()
-  const { session } = useAuth()
-  const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
+  const { session, isAdmin } = useAuth()
+  const publicProductQuery = usePublishedProductBySlug(slug)
+  const adminPreviewQuery = useAdminPreviewProductBySlug(slug, Boolean(session && isAdmin))
   const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
+  const product = publicProductQuery.data ?? adminPreviewQuery.data ?? null
+  const isLoading =
+    publicProductQuery.isLoading || (Boolean(session && isAdmin) && !publicProductQuery.data && adminPreviewQuery.isLoading)
+  const isError =
+    publicProductQuery.isError || (Boolean(session && isAdmin) && !publicProductQuery.data && adminPreviewQuery.isError)
+  const error = publicProductQuery.error ?? adminPreviewQuery.error ?? null
+  const refetch = async () => {
+    await publicProductQuery.refetch()
+    if (session && isAdmin) {
+      await adminPreviewQuery.refetch()
+    }
+  }
 
   if (isLoading) {
     return <LoadingState message="A carregar curso..." />

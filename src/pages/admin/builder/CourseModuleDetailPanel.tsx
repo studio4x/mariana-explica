@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent, type ReactNode } from "react"
 import { CheckCircle2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -15,6 +15,7 @@ import {
   useDeleteAdminProductLesson,
   useDeleteAdminProductModule,
   useUploadAdminModulePdf,
+  useUpdateAdminProductLesson,
   useUpdateAdminProductModule,
 } from "@/hooks/useAdmin"
 import {
@@ -117,16 +118,19 @@ export function CourseModuleDetailPanel() {
   const createLesson = useCreateAdminProductLesson()
   const deleteAssessment = useDeleteAdminProductAssessment()
   const deleteLesson = useDeleteAdminProductLesson()
+  const updateLesson = useUpdateAdminProductLesson()
   const updateModule = useUpdateAdminProductModule()
   const deleteModule = useDeleteAdminProductModule()
   const uploadModulePdf = useUploadAdminModulePdf()
   const [error, setError] = useState<string | null>(null)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
+  const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<ProductModuleSummary>>({})
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null)
   const [jsonImport, setJsonImport] = useState("")
   const [importPending, setImportPending] = useState(false)
+  const [draggedLessonId, setDraggedLessonId] = useState<string | null>(null)
 
   if (!moduleId || !courseId) {
     return <EmptyState title="Modulo invalido" message="Seleciona um modulo valido na arvore lateral." />
@@ -343,10 +347,41 @@ export function CourseModuleDetailPanel() {
       }
 
       setJsonImport("")
+      setImportSuccessMessage(`O modulo "${normalized.module.title}" foi importado com sucesso.`)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Nao foi possivel importar o modulo em JSON.")
     } finally {
       setImportPending(false)
+    }
+  }
+
+  const handleLessonReorder = async (sourceLessonId: string, targetLessonId: string) => {
+    if (sourceLessonId === targetLessonId) return
+
+    const sourceIndex = lessons.findIndex((lesson) => lesson.id === sourceLessonId)
+    const targetIndex = lessons.findIndex((lesson) => lesson.id === targetLessonId)
+    if (sourceIndex < 0 || targetIndex < 0) return
+
+    const reordered = [...lessons]
+    const [movedLesson] = reordered.splice(sourceIndex, 1)
+    reordered.splice(targetIndex, 0, movedLesson)
+
+    setError(null)
+    try {
+      for (const [index, currentLesson] of reordered.entries()) {
+        const nextPosition = index + 1
+        if (currentLesson.position === nextPosition) continue
+        await updateLesson.mutateAsync({
+          lessonId: currentLesson.id,
+          position: nextPosition,
+        })
+      }
+    } catch (reorderError) {
+      setError(
+        reorderError instanceof Error
+          ? reorderError.message
+          : "Nao foi possivel reordenar as aulas deste modulo.",
+      )
     }
   }
 
@@ -370,6 +405,7 @@ export function CourseModuleDetailPanel() {
       </section>
 
       <form
+        id="course-module-form"
         onSubmit={handleSubmit}
         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
@@ -619,9 +655,29 @@ export function CourseModuleDetailPanel() {
               <EmptyState title="Sem aulas" message="Cria aulas no fluxo existente e depois edita cada uma pela rota dedicada." />
             ) : (
               lessons.map((lesson) => (
-                <div key={lesson.id} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div
+                  key={lesson.id}
+                  draggable
+                  onDragStart={() => setDraggedLessonId(lesson.id)}
+                  onDragEnd={() => setDraggedLessonId(null)}
+                  onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+                  onDrop={(event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault()
+                    if (!draggedLessonId) return
+                    void handleLessonReorder(draggedLessonId, lesson.id)
+                    setDraggedLessonId(null)
+                  }}
+                  className={`rounded-2xl border p-4 transition ${
+                    draggedLessonId === lesson.id
+                      ? "border-sky-300 bg-sky-50/70"
+                      : "border-slate-200 bg-slate-50/80"
+                  }`}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                        Arrastar para ordenar
+                      </p>
                       <p className="font-semibold text-slate-950">{lesson.title}</p>
                       <p className="mt-1 text-sm text-slate-600">{lesson.description ?? "Aula sem descricao curta."}</p>
                     </div>
@@ -756,6 +812,24 @@ export function CourseModuleDetailPanel() {
         message={saveSuccessMessage ?? ""}
         onClose={() => setSaveSuccessMessage(null)}
       />
+
+      <SaveConfirmationModal
+        open={Boolean(importSuccessMessage)}
+        title="Importacao realizada"
+        message={importSuccessMessage ?? ""}
+        onClose={() => setImportSuccessMessage(null)}
+      />
+
+      <div className="fixed bottom-6 right-6 z-30">
+        <Button
+          type="submit"
+          form="course-module-form"
+          className="rounded-full bg-[#1398B7] px-6 py-6 font-black shadow-[0_20px_40px_rgba(19,152,183,0.28)] hover:bg-[#0A3640]"
+          disabled={updateModule.isPending}
+        >
+          {updateModule.isPending ? "A guardar..." : "Salvar configuracoes"}
+        </Button>
+      </div>
     </div>
   )
 }

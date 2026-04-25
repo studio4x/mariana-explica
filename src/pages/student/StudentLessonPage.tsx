@@ -1,9 +1,9 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
-import { CheckCircle2, FileText, Loader2, PlayCircle, StickyNote } from "lucide-react"
+import { CheckCircle2, FileText, Loader2, StickyNote } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { LessonContentBlocksRenderer, RichTextContent, StatusBadge } from "@/components/common"
+import { LessonContentBlocksRenderer, LessonPrimaryMedia, RichTextContent, StatusBadge } from "@/components/common"
 import {
   useAccessibleLesson,
   useLessonNote,
@@ -158,17 +158,8 @@ export function StudentLessonPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 xl:grid-cols-2">
-          {lesson.youtube_url ? (
-            <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
-              <div className="flex items-center gap-2 text-slate-900">
-                <PlayCircle className="h-4 w-4" />
-                <p className="font-medium">Video principal</p>
-              </div>
-              <p className="mt-3 break-all text-sm leading-7 text-slate-600">{lesson.youtube_url}</p>
-            </div>
-          ) : null}
-
+        <div className="mt-6 space-y-4">
+          <LessonPrimaryMedia source={lesson.youtube_url} />
           {lesson.text_content ? (
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
               <div className="flex items-center gap-2 text-slate-900">

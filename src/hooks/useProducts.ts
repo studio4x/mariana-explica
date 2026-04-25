@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import {
+  fetchAdminPreviewProductBySlug,
   fetchFeaturedProducts,
   fetchPublishedProductBySlug,
   fetchPublishedProducts,
@@ -24,6 +25,14 @@ export function usePublishedProductBySlug(slug: string | undefined) {
     queryKey: ["products", "published", slug],
     queryFn: () => fetchPublishedProductBySlug(slug ?? ""),
     enabled: Boolean(slug),
+  })
+}
+
+export function useAdminPreviewProductBySlug(slug: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["products", "admin-preview", slug],
+    queryFn: () => fetchAdminPreviewProductBySlug(slug ?? ""),
+    enabled: enabled && Boolean(slug),
   })
 }
 

@@ -162,7 +162,7 @@ export function AssessmentBuilderWorkspace({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -457,6 +457,17 @@ export function AssessmentBuilderWorkspace({
           {error ? <p className="text-sm text-rose-700">{error}</p> : null}
         </div>
       </section>
+
+      <div className="fixed bottom-6 right-6 z-30">
+        <Button
+          type="button"
+          className="rounded-full bg-[#1398B7] px-6 py-6 font-black shadow-[0_20px_40px_rgba(19,152,183,0.28)] hover:bg-[#0A3640]"
+          disabled={updateAssessment.isPending}
+          onClick={handleSubmit}
+        >
+          {updateAssessment.isPending ? "A guardar..." : "Salvar configuracoes"}
+        </Button>
+      </div>
     </div>
   )
 }

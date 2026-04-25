@@ -12,6 +12,7 @@ import {
   useUpdateAdminProductLesson,
   useUploadAdminModuleAssetFile,
 } from "@/hooks/useAdmin"
+import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { adminCourseLessonMaterialsPath, adminCourseModulePath } from "@/lib/routes"
 import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
 
@@ -236,7 +237,7 @@ export function CourseLessonDetailPanel() {
         external_url: null,
         mime_type: upload.mime_type,
         file_size_bytes: upload.file_size_bytes,
-        allow_download: true,
+        allow_download: !file.type.startsWith("video/"),
         allow_stream: true,
         watermark_enabled: false,
         asset_status: "active",
@@ -245,6 +246,46 @@ export function CourseLessonDetailPanel() {
       setForm((prev) => ({ ...prev, lesson_type: "file" }))
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o ficheiro.")
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  const handleVideoUploadSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    setError(null)
+    setUploadMessage(null)
+
+    try {
+      const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
+      const asset = await createAsset.mutateAsync({
+        moduleId,
+        asset_type: "video_file",
+        title: `${values.title?.trim() || lesson.title} - video principal`,
+        sort_order_asset: Date.now(),
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        external_url: null,
+        mime_type: upload.mime_type,
+        file_size_bytes: upload.file_size_bytes,
+        allow_download: false,
+        allow_stream: true,
+        watermark_enabled: false,
+        asset_status: "active",
+      })
+
+      const assetValue = makeLessonVideoAssetValue(asset.id)
+      setForm((prev) => ({ ...prev, youtube_url: assetValue }))
+      await updateLesson.mutateAsync({
+        lessonId: lesson.id,
+        lesson_type: values.lesson_type,
+        youtube_url: assetValue,
+      })
+      setUploadMessage("Video protegido enviado com sucesso. O player da aula ja vai usar este ficheiro.")
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o video.")
     } finally {
       event.target.value = ""
     }
@@ -275,6 +316,7 @@ export function CourseLessonDetailPanel() {
       </section>
 
       <form
+        id="course-lesson-form"
         onSubmit={handleSubmit}
         className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
@@ -381,7 +423,7 @@ export function CourseLessonDetailPanel() {
 
               <LessonField
                 label="URL do video"
-                helper="Aceita o link atual do YouTube usado pelo player administrativo."
+                helper="Aceita links do YouTube ou o identificador interno do video protegido enviado abaixo."
               >
                 <input
                   value={String(values.youtube_url)}
@@ -390,6 +432,19 @@ export function CourseLessonDetailPanel() {
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-sky-300"
                 />
               </LessonField>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">Upload seguro de video</p>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  O video enviado fica protegido por URL assinada e sem opcao de download no player do aluno.
+                </p>
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={handleVideoUploadSelection}
+                  className="mt-4 text-sm"
+                />
+              </div>
             </section>
           ) : null}
 
@@ -551,6 +606,17 @@ export function CourseLessonDetailPanel() {
         message={saveSuccessMessage ?? ""}
         onClose={() => setSaveSuccessMessage(null)}
       />
+
+      <div className="fixed bottom-6 right-6 z-30">
+        <Button
+          type="submit"
+          form="course-lesson-form"
+          className="rounded-full bg-[#1398B7] px-6 py-6 font-black shadow-[0_20px_40px_rgba(19,152,183,0.28)] hover:bg-[#0A3640]"
+          disabled={updateLesson.isPending}
+        >
+          {updateLesson.isPending ? "A guardar..." : "Salvar configuracoes"}
+        </Button>
+      </div>
     </div>
   )
 }

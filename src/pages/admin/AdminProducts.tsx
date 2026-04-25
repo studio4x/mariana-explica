@@ -208,6 +208,45 @@ function AdminCoursesSkeleton() {
   )
 }
 
+function ImportConfirmationModal({
+  open,
+  message,
+  onClose,
+}: {
+  open: boolean
+  message: string
+  onClose: () => void
+}) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Importacao realizada</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-600">{message}</p>
+            </div>
+          </div>
+          <Button type="button" variant="ghost" className="rounded-full" onClick={onClose}>
+            Fechar
+          </Button>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button type="button" className="rounded-full" onClick={onClose}>
+            Continuar
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function AdminProducts() {
   const navigate = useNavigate()
   const importInputRef = useRef<HTMLInputElement | null>(null)
@@ -221,6 +260,7 @@ export function AdminProducts() {
   const [exportingCourseId, setExportingCourseId] = useState<string | null>(null)
   const [editorState, setEditorState] = useState<CourseEditorState | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null)
   const deferredQuery = useDeferredValue(query)
 
   const products = useMemo(() => {
@@ -504,6 +544,9 @@ export function AdminProducts() {
 
       await importStructureIntoCourse(createdCourseId, editorState.importedStructure)
       setEditorState(null)
+      if (editorState.importedStructure) {
+        setImportSuccessMessage(`O curso "${title}" foi criado e a estrutura JSON foi importada com sucesso.`)
+      }
       navigate(adminCourseBuilderPath(createdCourseId))
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Nao foi possivel guardar o curso.")
@@ -956,6 +999,12 @@ export function AdminProducts() {
           </div>
         </div>
       ) : null}
+
+      <ImportConfirmationModal
+        open={Boolean(importSuccessMessage)}
+        message={importSuccessMessage ?? ""}
+        onClose={() => setImportSuccessMessage(null)}
+      />
     </div>
   )
 }
