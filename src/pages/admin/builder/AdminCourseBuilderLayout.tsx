@@ -46,10 +46,10 @@ import {
   adminCourseLessonPath,
   adminCourseModuleAssessmentPath,
   adminCourseModulePath,
+  adminCoursePreviewPath,
   adminCoursePublicPagePath,
   adminCourseReleasesPath,
   adminCourseSettingsPath,
-  publicCoursePath,
 } from "@/lib/routes"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import { BUILD_VERSION } from "@/lib/build"
@@ -693,9 +693,9 @@ export function AdminCourseBuilderLayout() {
             <Link to={adminCourseSettingsPath(courseId)}>Configuracoes</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="rounded-full">
-            <Link to={publicCoursePath(product.slug, product.id)} target="_blank" rel="noreferrer">
+            <Link to={adminCoursePreviewPath(courseId)}>
               <ExternalLink className="mr-2 h-4 w-4" />
-              Visualizar
+              Visualizar curso
             </Link>
           </Button>
         </div>

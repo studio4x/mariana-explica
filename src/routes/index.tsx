@@ -95,6 +95,9 @@ const AdminProducts = lazy(() =>
 const AdminCourseStudents = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminCourseStudents })),
 )
+const AdminCoursePreview = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminCoursePreview })),
+)
 const AdminCourseBuilderLayout = lazy(() =>
   import("@/pages/admin/builder/AdminCourseBuilderLayout").then((module) => ({
     default: module.AdminCourseBuilderLayout,
@@ -479,6 +482,10 @@ export const router = createBrowserRouter(
         {
           path: "cursos/:courseId/alunos",
           element: withSuspense(<AdminCourseStudents />),
+        },
+        {
+          path: "cursos/:courseId/builder/preview",
+          element: withSuspense(<AdminCoursePreview />),
         },
         {
           path: "pedidos",
