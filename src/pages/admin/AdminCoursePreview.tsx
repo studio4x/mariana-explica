@@ -36,6 +36,23 @@ export function AdminCoursePreview() {
     })),
   })
 
+  const lessonsByModule = modules.reduce<Record<string, Awaited<ReturnType<typeof fetchAdminProductLessons>>>>(
+    (accumulator, module, index) => {
+      accumulator[module.id] = (lessonQueries[index]?.data as Awaited<ReturnType<typeof fetchAdminProductLessons>> | undefined) ?? []
+      return accumulator
+    },
+    {},
+  )
+
+  const selectedModule =
+    modules.find((module) => module.id === (selectedModuleId ?? modules[0]?.id ?? null)) ?? modules[0] ?? null
+  const selectedModuleLessons = selectedModule ? lessonsByModule[selectedModule.id] ?? [] : []
+  const selectedLesson =
+    selectedModuleLessons.find((lesson) => lesson.id === (selectedLessonId ?? selectedModuleLessons[0]?.id ?? null)) ??
+    selectedModuleLessons[0] ??
+    null
+  const moduleAssetsQuery = useAdminModuleAssets(selectedModule?.id)
+
   const loading =
     productsQuery.isLoading ||
     modulesQuery.isLoading ||
@@ -75,23 +92,6 @@ export function AdminCoursePreview() {
   if (!product) {
     return <EmptyState title="Curso nao encontrado" message="Este curso nao esta disponivel no admin." />
   }
-
-  const lessonsByModule = modules.reduce<Record<string, Awaited<ReturnType<typeof fetchAdminProductLessons>>>>(
-    (accumulator, module, index) => {
-      accumulator[module.id] = (lessonQueries[index]?.data as Awaited<ReturnType<typeof fetchAdminProductLessons>> | undefined) ?? []
-      return accumulator
-    },
-    {},
-  )
-
-  const selectedModule =
-    modules.find((module) => module.id === (selectedModuleId ?? modules[0]?.id ?? null)) ?? modules[0] ?? null
-  const selectedModuleLessons = selectedModule ? lessonsByModule[selectedModule.id] ?? [] : []
-  const selectedLesson =
-    selectedModuleLessons.find((lesson) => lesson.id === (selectedLessonId ?? selectedModuleLessons[0]?.id ?? null)) ??
-    selectedModuleLessons[0] ??
-    null
-  const moduleAssetsQuery = useAdminModuleAssets(selectedModule?.id)
 
   const moduleAssets = moduleAssetsQuery.data ?? []
   const moduleAssessments = (assessmentsQuery.data ?? []).filter(
