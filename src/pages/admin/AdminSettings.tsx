@@ -74,6 +74,7 @@ function BrandingPreview({
   title: string
   tone: "dark" | "light" | "icon"
 }) {
+  const hasUploadedAsset = Boolean(asset.public_url)
   const src = asset.public_url || fallbackSrc
 
   return (
@@ -89,6 +90,8 @@ function BrandingPreview({
     >
       {tone === "icon" ? (
         <img src={src} alt={title} className="h-16 w-16 object-contain" />
+      ) : hasUploadedAsset ? (
+        <img src={src} alt={title} className="h-16 max-w-full object-contain" />
       ) : (
         <div className="flex max-w-full items-center gap-3">
           <img src={src} alt="" className="h-12 w-12 shrink-0 object-contain" />

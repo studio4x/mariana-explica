@@ -2,14 +2,13 @@ import {
   Bell,
   BookOpen,
   CreditCard,
-  GraduationCap,
   Home,
   LifeBuoy,
   LogOut,
   User,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteBrandingManager, SiteTrackingManager } from "@/components/common"
+import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteBrandingManager, SiteLogo, SiteTrackingManager } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
@@ -22,7 +21,7 @@ import {
 } from "@/hooks/useDashboard"
 import { BUILD_VERSION } from "@/lib/build"
 import { cn } from "@/lib/cn"
-import { APP_NAME, ROUTES } from "@/lib/constants"
+import { ROUTES } from "@/lib/constants"
 
 const items = [
   {
@@ -100,15 +99,12 @@ export function DashboardLayout() {
             className="flex min-w-0 items-center gap-3 rounded-2xl px-1 py-1 transition hover:bg-white/80"
             aria-label="Ir para a home publica"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#242742] text-white shadow-sm">
-              <GraduationCap className="h-5 w-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate font-display text-base font-black text-[#163138]">{APP_NAME}</span>
+            <div className="min-w-0">
+              <SiteLogo variant="dark" imageClassName="h-12 max-w-[190px]" />
               <span className="hidden text-xs font-bold uppercase tracking-[0.2em] text-[#1398B7] sm:block">
                 Area do aluno
               </span>
-            </span>
+            </div>
           </Link>
 
           <p className="hidden text-sm font-black uppercase tracking-[0.28em] text-[#5f7077] md:block">

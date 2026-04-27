@@ -12,11 +12,10 @@ import {
   Users,
   CreditCard,
   Settings,
-  Shield,
   UserCircle2,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { CookieConsentBanner, ScrollToTop, SiteBrandingManager, SiteTrackingManager, StatusBadge } from "@/components/common"
+import { CookieConsentBanner, ScrollToTop, SiteBrandingManager, SiteLogo, SiteTrackingManager, StatusBadge } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
@@ -123,15 +122,12 @@ export function AdminLayout() {
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="flex min-h-[64px] w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link to={ROUTES.ADMIN} className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
-              <Shield className="h-5 w-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate font-display text-lg font-black text-slate-950">Mariana Explica</span>
+            <div className="min-w-0">
+              <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
               <span className="block text-[11px] font-black uppercase tracking-[0.26em] text-sky-700">
                 Painel admin
               </span>
-            </span>
+            </div>
           </Link>
 
           <div className="hidden items-center gap-2 md:flex">

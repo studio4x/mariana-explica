@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { ArrowRight, GraduationCap, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
+import { ArrowRight, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
+import { SiteLogo } from "@/components/common"
 import { Button } from "@/components/ui"
-import { APP_NAME, ROUTES } from "@/lib/constants"
+import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/cn"
 
@@ -28,12 +29,7 @@ export function Navbar() {
       <div className="container flex items-center justify-between gap-4 py-3">
         <div className="flex min-w-0 items-center gap-4">
           <Link to={ROUTES.HOME} className="min-w-0" onClick={closeMenu}>
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-                <GraduationCap className="h-5 w-5" />
-              </div>
-              <p className="truncate font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
-            </div>
+            <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
           </Link>
 
           <nav className="hidden items-center gap-3 lg:flex">
@@ -108,7 +104,7 @@ export function Navbar() {
       {mobileOpen ? (
         <div className="border-t border-slate-200/80 bg-white/95 md:hidden">
           <div className="container space-y-5 py-5">
-            <p className="font-display text-lg font-bold text-slate-950">{APP_NAME}</p>
+            <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
 
             <nav className="grid gap-2">
               {navItems.map((item) => (
