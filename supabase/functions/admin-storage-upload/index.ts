@@ -22,6 +22,7 @@ const BRANDING_ALLOWED_MIME_TYPES = [
   "image/x-icon",
   "image/vnd.microsoft.icon",
 ]
+const BRANDING_ALLOWED_EXTENSIONS = new Set(["svg", "png", "jpg", "jpeg", "webp", "gif", "avif", "ico"])
 
 function sanitizeSegment(value: string) {
   return value
@@ -43,6 +44,8 @@ function inferImageMimeType(extension: string) {
   switch (extension) {
     case "png":
       return "image/png"
+    case "svg":
+      return "image/svg+xml"
     case "jpg":
     case "jpeg":
       return "image/jpeg"
@@ -52,9 +55,29 @@ function inferImageMimeType(extension: string) {
       return "image/gif"
     case "avif":
       return "image/avif"
+    case "ico":
+      return "image/x-icon"
     default:
       return null
   }
+}
+
+function normalizeBrandingMimeType(rawMimeType: string | null, extension: string) {
+  const normalized = rawMimeType?.trim().toLowerCase() ?? ""
+
+  if (!normalized || normalized === "application/octet-stream") {
+    return inferImageMimeType(extension)
+  }
+
+  if (normalized === "image/jpg" || normalized === "image/pjpeg") {
+    return "image/jpeg"
+  }
+
+  if (["image/x-icon", "image/vnd.microsoft.icon", "image/ico", "image/icon"].includes(normalized)) {
+    return "image/x-icon"
+  }
+
+  return normalized
 }
 
 async function ensureStorageBucket(
@@ -118,7 +141,8 @@ Deno.serve(async (req) => {
     }
 
     const safeExtension = getFileExtension(file.name)
-    const contentType = file.type || inferImageMimeType(safeExtension) || null
+    const rawContentType = file.type || null
+    let contentType = rawContentType || inferImageMimeType(safeExtension) || null
     const fileNameBase = sanitizeSegment(file.name.replace(/\.[^.]+$/, "")) || "arquivo"
     const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
     let objectPath = ""
@@ -146,6 +170,12 @@ Deno.serve(async (req) => {
       if (!["logo_light", "logo_dark", "favicon"].includes(assetRole)) {
         throw badRequest("assetRole invalido")
       }
+
+      if (!BRANDING_ALLOWED_EXTENSIONS.has(safeExtension)) {
+        throw badRequest("Formato de branding invalido. Use SVG, PNG, JPG, WEBP, GIF, AVIF ou ICO.")
+      }
+
+      contentType = normalizeBrandingMimeType(rawContentType, safeExtension)
 
       await ensureStorageBucket(context.serviceClient, SITE_BRANDING_BUCKET, {
         public: true,
@@ -238,7 +268,24 @@ Deno.serve(async (req) => {
         contentType: contentType || undefined,
       })
 
-    if (uploadError) throw uploadError
+    if (uploadError) {
+      const uploadMessage = String(uploadError.message ?? uploadError)
+
+      if (kind === "branding_asset") {
+        if (/mime|content[- ]?type|format|file type|extension/i.test(uploadMessage)) {
+          throw badRequest("Formato de branding invalido. Use SVG, PNG, JPG, WEBP, GIF, AVIF ou ICO.", {
+            mime_type: contentType,
+            extension: safeExtension,
+          })
+        }
+
+        if (/size limit|payload too large|entity too large|file too large/i.test(uploadMessage)) {
+          throw badRequest("O ficheiro de branding excede o limite de 5MB.")
+        }
+      }
+
+      throw uploadError
+    }
 
     if (replacePath && replacePath !== objectPath) {
       const { error: removeError } = await context.serviceClient.storage
