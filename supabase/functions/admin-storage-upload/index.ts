@@ -160,12 +160,16 @@ Deno.serve(async (req) => {
       objectPath = `site-config/module-pdf-watermark/logo/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
       auditAction = "admin.watermark_logo_uploaded"
       auditEntityType = "site_config"
-      auditEntityId = "module_pdf_watermark"
+      auditEntityId = null
       await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
         fileSizeLimit: "50MB",
         allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
       })
+      auditMetadata = {
+        ...auditMetadata,
+        config_key: "module_pdf_watermark",
+      }
     } else if (kind === "branding_asset") {
       if (!["logo_light", "logo_dark", "favicon"].includes(assetRole)) {
         throw badRequest("assetRole invalido")
@@ -191,9 +195,10 @@ Deno.serve(async (req) => {
       objectPath = `${assetRole}/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
       auditAction = "admin.branding_asset_uploaded"
       auditEntityType = "site_config"
-      auditEntityId = "site_branding"
+      auditEntityId = null
       auditMetadata = {
         ...auditMetadata,
+        config_key: "site_branding",
         asset_role: assetRole,
       }
     } else if (kind === "product_cover") {
