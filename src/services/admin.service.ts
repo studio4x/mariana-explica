@@ -579,6 +579,21 @@ export async function fetchPublicTrackingConfig() {
   return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig> | null)
 }
 
+export async function fetchPublicBrandingConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", BRANDING_CONFIG_KEY)
+    .eq("is_public", true)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminBrandingConfig(data as Partial<AdminBrandingConfig> | null)
+}
+
 export async function fetchAdminModulePdfWatermarkConfig() {
   const { data, error } = await supabase
     .from("site_config")

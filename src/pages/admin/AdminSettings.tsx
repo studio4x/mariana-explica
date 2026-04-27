@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Activity, Code2, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
 import { useSearchParams } from "react-router-dom"
 import { ErrorState } from "@/components/feedback"
-import { StatusBadge } from "@/components/common"
+import { applySiteFavicon, StatusBadge } from "@/components/common"
 import {
   fetchAdminBrandingConfig,
   fetchAdminTrackingConfig,
@@ -223,6 +223,10 @@ export function AdminSettings() {
           uploaded_at: upload.uploaded_at,
         },
       })
+
+      if (role === "favicon") {
+        applySiteFavicon(upload.public_url)
+      }
 
       setFeedback({ tone: "success", message: "Asset de branding publicado com sucesso." })
     } catch (error) {
