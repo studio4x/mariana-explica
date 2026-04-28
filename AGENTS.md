@@ -1,27 +1,35 @@
-# AGENTS.md
+# AGENTS.md — Mariana Explica
 
-## Objetivo deste repositório
+## Função deste arquivo
 
-Este repositório contém a implementação da plataforma **Mariana Explica**, uma plataforma real de venda e entrega de conteúdos educacionais digitais, com:
+Este arquivo orienta o Codex dentro do repositório.
 
-- área pública comercial
-- área autenticada do aluno
-- painel administrativo
-- backend serverless
-- PostgreSQL com RLS
-- integrações seguras
-- PWA
-- deploy em Vercel + Supabase
+A fonte oficial de verdade está na pasta `/docs`.
 
-O agente deve tratar o projeto como **sistema de produção**, não como protótipo.
+O Codex deve tratar este projeto como sistema real de produção, não como protótipo.
 
 ---
 
-## Fonte oficial de verdade
+## Projeto
 
-A pasta `/docs` é a fonte oficial de verdade do produto.
+Mariana Explica é uma plataforma de venda e entrega de conteúdos educacionais digitais, com:
 
-### Ordem de prioridade
+- área pública comercial;
+- área autenticada do aluno;
+- painel administrativo;
+- backend serverless;
+- PostgreSQL com RLS;
+- Supabase Auth;
+- Supabase Storage;
+- Stripe;
+- PWA;
+- deploy em Vercel + Supabase.
+
+---
+
+## Fontes de verdade
+
+Prioridade:
 
 1. `docs/02-regras-negocio.md`
 2. `docs/03-arquitetura.md`
@@ -29,85 +37,66 @@ A pasta `/docs` é a fonte oficial de verdade do produto.
 4. `docs/04-banco-dados.md`
 5. `docs/05-backend-edge-functions.md`
 6. `docs/15-plano-de-implementacao.md`
-7. demais documentos específicos do domínio em questão
+7. demais documentos `docs/01-15` conforme o domínio da tarefa
 
-### Documentos canônicos
+A pasta `docs/Specs/` é auxiliar.
 
-- `docs/01-visao-geral.md`
-- `docs/02-regras-negocio.md`
-- `docs/03-arquitetura.md`
-- `docs/04-banco-dados.md`
-- `docs/05-backend-edge-functions.md`
-- `docs/06-frontend-estrutura.md`
-- `docs/07-ui-ux.md`
-- `docs/08-dashboard.md`
-- `docs/09-admin.md`
-- `docs/10-autenticacao-seguranca.md`
-- `docs/11-integracoes.md`
-- `docs/12-automacoes.md`
-- `docs/13-pwa.md`
-- `docs/14-deploy.md`
-- `docs/15-plano-de-implementacao.md`
+Use `docs/Specs/` como referência de:
 
-### Sobre `docs/Specs`
+- módulos;
+- telas;
+- componentes;
+- fluxos;
+- comportamento funcional já validado.
 
-Os arquivos em `docs/Specs/` são **auxiliares**.
+Mas, em caso de conflito, prevalecem os documentos canônicos `docs/01-15`.
 
-Eles podem ser usados como referência de estrutura de documentação, layout, componentes e detalhamento funcional, mas **não substituem** os documentos canônicos `docs/01-15`.
+Para alterações visuais públicas, consultar também:
 
-Quando houver conflito, prevalecem sempre os documentos canônicos.
+- `docs/DESIGN.MD`
 
----
-
-## Regra principal de execução
-
-Antes de implementar qualquer mudança relevante, o agente deve:
-
-1. identificar quais docs governam a tarefa
-2. ler esses docs
-3. resumir internamente objetivo e restrições
-4. só então implementar
-
-O agente não deve inventar arquitetura, fluxos de negócio, permissões ou modelagem que contrariem a documentação.
+O redesign público deve preservar rotas, CTAs, fluxos dinâmicos, estados de loading/erro/vazio e a lógica funcional atual. :contentReference[oaicite:1]{index=1}
 
 ---
 
 ## Stack obrigatória
 
-### Frontend
+Usar, salvo instrução contrária:
+
 - React
 - TypeScript
 - Vite
 - React Router
 - TanStack React Query
-
-### UI
 - Tailwind CSS
 - shadcn/ui
 - Radix UI
 - Lucide React
-
-### Backend
 - Supabase
-- Supabase Edge Functions
-
-### Banco
 - PostgreSQL
-- migrations SQL versionadas
-
-### Auth
 - Supabase Auth
-
-### Storage
 - Supabase Storage
-
-### Deploy
-- Vercel para frontend
-- Supabase para backend e banco
+- Supabase Edge Functions
+- Stripe
+- Vercel
 
 ---
 
-## Princípios arquiteturais obrigatórios
+## Regra principal de execução
+
+Antes de implementar tarefa relevante:
+
+1. identificar quais docs governam a tarefa;
+2. consultar apenas os documentos necessários;
+3. entender escopo, restrições e riscos;
+4. implementar de forma pequena e objetiva;
+5. não alterar arquitetura, regras de negócio ou segurança sem base documental.
+
+Não inventar fluxos, permissões, modelagem ou integrações fora da documentação.
+
+---
+
+## Arquitetura
 
 A plataforma segue o padrão:
 
@@ -115,316 +104,310 @@ A plataforma segue o padrão:
 
 Separar claramente:
 
-- apresentação
-- regras de negócio
-- persistência
-- autenticação e autorização
-- integrações externas
-- automações
+- área pública;
+- dashboard do aluno;
+- painel admin;
+- regras de negócio;
+- persistência;
+- autenticação/autorização;
+- integrações externas;
+- automações.
 
-### Regras obrigatórias
+O frontend não é fonte de verdade.
 
-- frontend não é fonte de verdade
-- lógica crítica não deve ficar apenas no frontend
-- operações sensíveis devem ir para Edge Functions
-- banco é parte ativa da segurança
-- dados privados devem usar RLS
-- migrations SQL são a fonte oficial da estrutura do banco
+Operações críticas devem ficar em Edge Functions, banco, RLS e policies.
 
 ---
 
 ## Segurança obrigatória
 
-### Sempre aplicar
+Sempre considerar:
 
-- autenticação obrigatória em áreas privadas
-- autorização por `role`, `is_admin` e `status`
-- RLS em tabelas privadas
-- validação no backend para ações críticas
-- segredos nunca no frontend
-- storage privado por padrão
-- URLs assinadas para arquivos protegidos
-- auditoria em ações sensíveis
-- logs em automações e integrações críticas
+- autenticação em áreas privadas;
+- autorização por `role`, `is_admin` e `status`;
+- RLS em tabelas privadas;
+- storage privado por padrão;
+- URLs assinadas para arquivos protegidos;
+- validação backend para ações críticas;
+- auditoria em ações sensíveis;
+- logs em integrações e automações;
+- segredos nunca no frontend.
 
-### Nunca fazer
+Nunca fazer:
 
-- expor `service_role` no cliente
-- confiar no frontend para liberar acesso
-- deixar tabela privada sem RLS
-- deixar função admin sem validação robusta
-- tornar PDFs pagos públicos
-- criar grants diretamente pelo frontend
-- alterar estrutura do banco sem migration
-
----
-
-## Regra de negócio crítica
-
-A tabela `access_grants` é a base real de autorização ao conteúdo.
-
-Isso significa:
-
-- `orders` representam estado comercial
-- `access_grants` representam permissão real de acesso
-- compra confirmada não equivale a acesso sem grant válido
-- reembolso pode exigir revogação de grant
-- conteúdo protegido depende de grant válido ou regra explícita de acesso gratuito
+- expor `service_role` no cliente;
+- confiar no frontend para liberar acesso;
+- tornar PDFs pagos públicos;
+- criar grants diretamente pelo frontend;
+- alterar banco sem migration;
+- deixar função admin sem validação robusta.
 
 ---
 
-## Regras por camada
+## Regra crítica de negócio
 
-### Frontend
+`access_grants` é a fonte real de autorização ao conteúdo.
+
+- `orders` representam estado comercial;
+- `access_grants` representam permissão real de acesso;
+- compra confirmada não libera acesso sem grant válido;
+- reembolso pode exigir revogação de grant;
+- conteúdo pago depende de grant válido;
+- produto gratuito deve seguir regra explícita de liberação.
+
+---
+
+## Banco de dados
+
+Toda alteração estrutural deve ser feita via migration SQL versionada.
+
+Sempre avaliar:
+
+- foreign keys;
+- constraints;
+- índices;
+- triggers de `updated_at`;
+- RLS;
+- policies;
+- logs/auditoria;
+- idempotência.
+
+Não depender de configuração manual no Supabase como fonte oficial.
+
+---
+
+## Edge Functions
+
+Usar Edge Functions para:
+
+- checkout Stripe;
+- webhook Stripe;
+- geração de URL assinada;
+- claim de produto gratuito;
+- criação/revogação de grants;
+- ações administrativas sensíveis;
+- notificações;
+- jobs;
+- integrações;
+- reprocessamentos.
+
+Cada função deve ter:
+
+- responsabilidade única;
+- validação explícita;
+- checagem de permissão;
+- idempotência quando necessário;
+- retorno JSON claro;
+- logs úteis.
+
+---
+
+## Frontend
 
 O frontend deve:
 
-- separar público, dashboard e admin
-- usar componentes reutilizáveis
-- usar React Query para estado remoto
-- tratar loading, empty, error e success states
-- ser mobile-first
-- respeitar `docs/07-ui-ux.md`
+- separar público, aluno e admin;
+- usar React Query para estado remoto;
+- usar componentes reutilizáveis;
+- ser mobile-first;
+- tratar loading, error, empty e success states;
+- respeitar `docs/07-ui-ux.md`;
+- preservar rotas e CTAs existentes.
 
 O frontend não deve:
 
-- calcular preço final como verdade
-- decidir autorização final
-- liberar download por conta própria
-- chamar integrações sensíveis diretamente
-
-### Backend / Edge Functions
-
-Toda lógica crítica deve ficar em Edge Functions.
-
-Exemplos:
-
-- checkout Stripe
-- webhook Stripe
-- geração de URL assinada
-- claim de produto gratuito
-- criação ou revogação de grant
-- ações administrativas sensíveis
-- notificações em massa
-- reprocessamentos
-- jobs/cron
-
-### Banco
-
-Toda alteração estrutural deve ser feita por migration SQL versionada.
-
-Sempre considerar:
-
-- foreign keys
-- constraints
-- índices
-- triggers de `updated_at`
-- RLS e policies
-- logs ou auditoria quando necessário
-- idempotência em fluxos críticos
+- decidir autorização final;
+- calcular preço final como verdade;
+- liberar download por conta própria;
+- chamar integrações sensíveis diretamente.
 
 ---
 
-## Integrações
+## Área pública e redesign
 
-### Stripe é o gateway oficial
+Para páginas públicas, seguir `DESIGN.MD`.
 
-A integração com pagamento deve usar Stripe como gateway principal.
+Preservar obrigatoriamente:
 
-Regras obrigatórias:
+- header público;
+- footer público;
+- catálogo;
+- página de curso;
+- checkout;
+- suporte;
+- login/criar conta;
+- busca e filtros;
+- CTA de checkout;
+- fluxo de login com redirect;
+- rodapé com build discreto.
 
-- checkout criado no backend
-- webhook validado por assinatura
-- idempotência
-- grant só após confirmação real do backend
-- referência interna do pedido mantida no banco
-- reconciliação entre pedido interno e sessão externa
+A área pública deve parecer:
+
+- clara;
+- educacional;
+- moderna;
+- confiável;
+- próxima;
+- comercial sem ser agressiva.
+
+Não transformar páginas dinâmicas em landing page estática.
 
 ---
 
 ## Admin
 
-O painel administrativo é parte central da operação.
+O admin é área sensível.
 
-Deve permitir no mínimo:
+Operações administrativas devem:
 
-- criar, editar e remover usuário com estratégia segura
-- bloquear e desbloquear usuário
-- visualizar e alterar role
-- gerenciar produtos
-- gerenciar pedidos
+- validar permissão no backend;
+- auditar ações críticas;
+- proteger alteração de role;
+- evitar autoexclusão perigosa;
+- passar por Edge Functions quando envolver dado sensível.
 
-Regras críticas:
+---
 
-- alteração de role deve ser auditada
-- operações sensíveis devem passar por backend
-- admin não remove a si próprio sem proteção
-- gestão de usuários é área de alta sensibilidade
+## Stripe
+
+Stripe é o gateway oficial.
+
+Regras:
+
+- checkout criado no backend;
+- webhook validado por assinatura;
+- grant criado apenas após confirmação real;
+- idempotência obrigatória;
+- pedido interno deve manter referência externa;
+- prever reconciliação entre Stripe e banco.
 
 ---
 
 ## PWA
 
-A plataforma deve nascer compatível com PWA.
+A plataforma deve manter compatibilidade com PWA.
 
-Incluir quando aplicável:
+O PWA não pode quebrar:
 
-- `manifest.webmanifest`
-- `sw.js`
-- `offline.html`
-- prompt de instalação
-- ícones adequados
-
-O PWA nunca pode quebrar regras de autenticação, autorização ou segurança de conteúdo.
+- autenticação;
+- autorização;
+- segurança de conteúdo;
+- acesso a arquivos protegidos.
 
 ---
 
-## Deploy obrigatório
-
-Quando a mudança precisar refletir em ambiente remoto, deploy faz parte da tarefa.
-
-### GitHub
-
-Quando necessário publicar código remoto:
-
-- preparar alterações locais
-- revisar consistência mínima
-- fazer commit com mensagem clara
-- fazer push para o repositório correto
-
-### Supabase
-
-Quando houver mudança em:
-
-- Edge Functions
-- migrations SQL
-- RLS/policies
-- banco
-- storage
-- integrações backend
-
-o agente deve considerar deploy no Supabase.
-
-### Vercel
-
-Quando houver deploy de frontend:
-
-- usar o token fornecido pelo usuário na sessão atual
-- nunca salvar o token em arquivo versionado
-
-### Ordem segura de deploy
-
-1. backend / Edge Functions
-2. banco / migrations / policies
-3. frontend
-4. validações finais
-
-Se não for possível concluir deploy, informar claramente:
-
-- o que foi concluído
-- o que faltou
-- qual credencial ou bloqueio impediu a execução
-
----
-
-## Ordem de implementação obrigatória
+## Ordem de implementação
 
 Seguir `docs/15-plano-de-implementacao.md`.
 
 Resumo:
 
-1. setup do projeto
-2. estrutura base do frontend
-3. integração com Supabase
-4. banco de dados
-5. autenticação e segurança
-6. backend crítico
-7. área pública
-8. checkout Stripe
-9. dashboard do aluno
-10. admin
-11. notificações e suporte
-12. automações
-13. PWA
-14. deploy
+1. setup;
+2. estrutura base;
+3. Supabase;
+4. banco;
+5. auth e segurança;
+6. backend crítico;
+7. área pública;
+8. checkout Stripe;
+9. dashboard do aluno;
+10. admin;
+11. notificações e suporte;
+12. automações;
+13. PWA;
+14. deploy.
 
 Não pular etapas críticas como auth, roles, RLS, grants e webhook.
 
 ---
 
-## Padrão de resposta do agente
+## Build version
 
-Para qualquer tarefa relevante, o agente deve:
+Quando houver ajuste relevante de produto, atualizar a versão exibida no admin.
 
-1. dizer brevemente o que vai implementar
-2. listar os docs usados como base
-3. executar a implementação
-4. validar build ou testes relevantes
-5. informar arquivos alterados
-6. informar pendências reais
-7. executar deploy quando necessário e possível
+Preferir hash curto do commit atual ou identificador consistente de build.
+
+Não deixar rodapé/admin exibindo versão antiga após deploy.
 
 ---
 
-## Checklist interno antes de concluir
+## Deploy
 
-- respeitei os docs corretos?
-- mantive segurança no backend e no banco?
-- evitei regra crítica no frontend?
-- preservei a separação entre público, dashboard e admin?
-- usei migrations para mudanças estruturais?
-- considerei roles, grants e RLS?
-- considerei build e consistência?
-- considerei necessidade de deploy?
+Quando a mudança precisar refletir em ambiente remoto, deploy faz parte da tarefa.
+
+Considerar deploy quando houver alteração em:
+
+- frontend;
+- Edge Functions;
+- migrations;
+- RLS/policies;
+- storage;
+- integrações;
+- automações.
+
+Ordem segura:
+
+1. backend / Edge Functions;
+2. banco / migrations / policies;
+3. frontend;
+4. validações finais.
+
+Nunca salvar tokens em arquivos versionados.
 
 ---
 
-## Resultado esperado
+## Resposta esperada do Codex
 
-Este projeto deve resultar em uma plataforma:
+Para tarefa relevante, responder objetivamente com:
 
-- pronta para produção
-- segura
-- escalável
-- organizada
-- operável por admin
-- integrada com Stripe
-- com dashboard funcional
-- com área pública de conversão
-- com backend auditável
-- com documentação coerente com a implementação
+- docs usados como base;
+- resumo do que será feito;
+- arquivos criados/editados;
+- validação realizada;
+- pendências reais.
+
+Evitar explicações longas em tarefas simples.
+
 ---
 
-## Versão da build
+## Checklist antes de concluir
 
-Quando houver novos ajustes relevantes, a build exibida no admin deve ser atualizada automaticamente, preferencialmente usando o hash curto do commit atual ou outro identificador de build consistente. Não deixar o rodapé do admin com versão antiga após novos deploys.
+Antes de finalizar, verificar:
 
-## Edge Function 401 Playbook (Admin Sync Actions)
-- If an admin-triggered Edge Function returns `401` from `functions/v1/...`, do this first:
-  1. Treat browser-extension logs (e.g., Kaspersky `inspector.js`) as noise unless they reference your own domain/function.
-  2. Ensure frontend sends a fresh session token:
-     - Call `supabase.auth.getSession()` + `supabase.auth.refreshSession()`.
-     - Send `Authorization: Bearer <access_token>`.
-     - Prefer `fetch` with explicit headers over `supabase.functions.invoke` when diagnosing auth problems.
-  3. Include fallback token in body: `{ access_token: <access_token> }`.
+- os docs corretos foram respeitados?
+- regra crítica ficou fora do frontend?
+- RLS/policies foram consideradas?
+- grants foram preservados?
+- roles/status foram respeitados?
+- mudanças de banco têm migration?
+- estados de loading/erro/vazio existem?
+- build/teste foi validado quando aplicável?
+- deploy era necessário?
 
-- If gateway-level `401` persists, use this hardened pattern:
-  1. Deploy function with `--no-verify-jwt`.
-  2. Inside the function, validate auth manually:
-     - Read token from `Authorization` header OR request body `access_token`.
-     - Validate with `supabaseAdmin.auth.getUser(token)`.
-     - Enforce admin permission from `profiles` (`is_admin` or `role === "admin"`).
-     - Return explicit JSON errors (`401 token ausente/invalido`, `403 acesso negado`).
-  3. Keep function secure by requiring token and role checks before any privileged SQL.
+---
 
-- Required deploy pattern for this scenario:
-  - `npx supabase functions deploy <function-name> --project-ref <ref> --no-verify-jwt`
+## Playbook: Edge Function 401 em ações admin
 
-- Frontend request pattern for admin sync functions:
-  - `POST ${SUPABASE_URL}/functions/v1/<function-name>`
-  - Headers: `Content-Type: application/json`, `apikey`, `Authorization: Bearer <access_token>`
-  - Body: `{ access_token: <access_token> }`
+Se uma Edge Function admin retornar `401`:
 
-- Apply this technique to all future "admin maintenance/sync/setup" functions when auth instability appears.
+1. atualizar sessão no frontend;
+2. usar `supabase.auth.getSession()`;
+3. se necessário, usar `supabase.auth.refreshSession()`;
+4. enviar `Authorization: Bearer <access_token>`;
+5. incluir `{ access_token }` no body;
+6. usar `fetch` direto para diagnóstico quando `supabase.functions.invoke` falhar.
 
-- For every admin-triggered Edge Function that mutates data or syncs state, the frontend must refresh the session before the request, send both `Authorization: Bearer <access_token>` and `access_token` in the JSON body, and surface the backend JSON error instead of failing silently. Use direct `fetch` for diagnostics and hardening when `supabase.functions.invoke` is not enough.
+Se o gateway continuar retornando `401`:
+
+1. publicar com `--no-verify-jwt`;
+2. validar token manualmente dentro da função;
+3. usar `supabaseAdmin.auth.getUser(token)`;
+4. checar `profiles.is_admin` ou `profiles.role === "admin"`;
+5. retornar JSON claro:
+   - `401 token ausente ou inválido`;
+   - `403 acesso negado`.
+
+Deploy:
+
+```bash
+npx supabase functions deploy <function-name> --project-ref <ref> --no-verify-jwt
