@@ -1,104 +1,48 @@
 import { Link } from "react-router-dom"
-import {
-  ArrowRight,
-  BadgeCheck,
-  CheckCircle2,
-  Files,
-  GraduationCap,
-  Headphones,
-  Layers3,
-  LibraryBig,
-  ShieldCheck,
-  Smartphone,
-  Sparkles,
-} from "lucide-react"
+import { ArrowRight, BadgeCheck, BookOpenCheck, CheckCircle2, Sparkles, Target, TimerReset } from "lucide-react"
 import { Button } from "@/components/ui"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
-import { ROUTES, APP_NAME } from "@/lib/constants"
+import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
 import { useFeaturedProducts } from "@/hooks/useProducts"
 import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
 import { publicCoursePath } from "@/lib/routes"
 
-const benefits = [
+const pillars = [
   {
-    title: "Clareza para estudar melhor",
-    text: "Materiais organizados para explicar sem ruido e ajudar a ganhar confianca na revisao.",
-    icon: GraduationCap,
+    title: "Explicacao clara",
+    text: "Sem excesso de teoria solta. O foco e perceber rapido e aplicar melhor.",
+    icon: BookOpenCheck,
   },
   {
-    title: "Compra curta e previsivel",
-    text: "Do curso ao checkout, o caminho foi desenhado para reduzir duvidas e passos desnecessarios.",
-    icon: Sparkles,
+    title: "Plano objetivo",
+    text: "Sabes o que estudar primeiro e como manter ritmo ate ao exame.",
+    icon: Target,
   },
   {
-    title: "Acesso organizado na conta",
-    text: "Os cursos ficam reunidos numa area do aluno simples, preparada para continuar o estudo.",
-    icon: ShieldCheck,
-  },
-]
-
-const offerTracks = [
-  {
-    title: "Packs completos",
-    text: "Para quem prefere resolver varios temas num so curso, com menos dispersao.",
-    icon: Layers3,
-  },
-  {
-    title: "Sebentas individuais",
-    text: "Materiais de apoio focados por disciplina, com leitura mais clara e direta.",
-    icon: LibraryBig,
-  },
-  {
-    title: "Materiais gratuitos",
-    text: "Boas entradas para conhecer a plataforma e comecar com apoio util desde logo.",
-    icon: Files,
-  },
-  {
-    title: "Explicacoes online",
-    text: "Opcao para quem precisa de apoio mais acompanhado e orientado ao momento do aluno.",
-    icon: Headphones,
+    title: "Acesso organizado",
+    text: "Tudo fica na tua conta: cursos, materiais e historico de apoio.",
+    icon: TimerReset,
   },
 ]
 
-const trustPoints = [
-  "Fluxo pensado para exames nacionais, com materiais claros e proposta objetiva.",
-  "Compra e acesso associados a conta para manter tudo organizado no mesmo lugar.",
-  "Experiencia pensada primeiro para telemovel, sem perder leitura e hierarquia no desktop.",
-]
-
-const studyFlow = [
+const journey = [
   {
-    step: "1",
+    step: "01",
     title: "Escolhe o curso certo",
-    text: "Entras no catalogo, comparas rapidamente e percebes para quem serve cada curso.",
+    text: "Compara os cursos e encontra o formato ideal para o teu momento.",
   },
   {
-    step: "2",
-    title: "Ativa ou compra sem ruina visual",
-    text: "O processo foi desenhado para ser curto, claro e sem excesso de ruido entre a decisao e a compra.",
+    step: "02",
+    title: "Ativa ou compra",
+    text: "Checkout simples, sem ruido e com proximos passos claros.",
   },
   {
-    step: "3",
+    step: "03",
     title: "Continua no dashboard",
-    text: "Depois da confirmacao, o acesso fica reunido na tua area do aluno para retomares quando quiseres.",
-  },
-]
-
-const reassuranceCards = [
-  {
-    title: "Compra simples",
-    text: "Checkout direto, leitura clara do curso e proximos passos bem definidos.",
-  },
-  {
-    title: "Area do aluno organizada",
-    text: "Modulos, downloads e materiais reunidos para reduzir dispersao depois da compra.",
-  },
-  {
-    title: "Experiencia confiavel",
-    text: "Permissoes, grants e acesso controlado pela plataforma em vez de depender da interface.",
+    text: "Acede aos conteudos e segue o teu estudo com mais consistencia.",
   },
 ]
 
@@ -110,66 +54,61 @@ export function Home() {
 
   return (
     <div className="flex flex-col">
-      <section className="relative overflow-hidden border-b border-white/60">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(36,39,66,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(54,93,135,0.14),transparent_34%),linear-gradient(180deg,#f6fbfd_0%,#eef8fb_52%,#ffffff_100%)]" />
-        <div className="container relative grid gap-10 py-16 md:py-24 xl:grid-cols-[1.05fr_0.95fr] xl:items-center xl:py-28">
-          <div className="space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/88 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Materiais para exames nacionais, compra simples e acesso organizado
-            </div>
+      <section className="relative overflow-hidden border-b border-[#d9e8ef]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(15,58,84,0.16),transparent_38%),radial-gradient(circle_at_top_right,rgba(97,168,210,0.2),transparent_44%),linear-gradient(180deg,#f7fcff_0%,#edf7fc_52%,#ffffff_100%)]" />
+        <div className="container relative grid gap-10 py-14 md:py-20 xl:grid-cols-[1.05fr_0.95fr] xl:items-center">
+          <div className="space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#cde0ea] bg-white px-4 py-2 text-sm font-semibold text-[#1f4f6b]">
+              <Sparkles className="h-4 w-4" />
+              Exames nacionais com mais clareza e menos ansiedade
+            </span>
 
-            <div className="space-y-5">
-              <h1 className="max-w-4xl font-display text-4xl font-bold leading-tight text-slate-950 md:text-6xl">
-                Aprende com mais clareza, escolhe o material certo e continua a estudar no mesmo lugar.
+            <div className="space-y-4">
+              <h1 className="max-w-4xl font-display text-4xl font-bold leading-tight text-[#0f2736] md:text-6xl">
+                Tens dificuldades a Portugues ou Filosofia?
               </h1>
-              <p className="max-w-2xl text-lg leading-8 text-slate-600 md:text-xl">
-                {APP_NAME} junta sebentas, packs, materiais gratuitos e apoio organizado numa plataforma pensada para reduzir friccao, melhorar a compreensao e manter o estudo acessivel.
+              <p className="max-w-2xl text-lg leading-8 text-[#345669] md:text-xl">
+                Aprende com um metodo mais direto: curso certo, compra simples e uma area do aluno preparada para continuares sem te perderes.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="rounded-full">
-                <Link to={ROUTES.PRODUCTS}>
-                  Explorar cursos
+              <Button asChild size="lg" className="rounded-full bg-[#123f59] hover:bg-[#0f3247]">
+                <Link to={ROUTES.COURSES}>
+                  Ver cursos agora
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" asChild className="rounded-full">
+              <Button variant="outline" size="lg" asChild className="rounded-full border-[#bcd6e3] text-[#14384d]">
                 <Link to={ROUTES.REGISTER}>Criar conta</Link>
               </Button>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              {benefits.map((item) => (
-                <div key={item.title} className="rounded-[1.5rem] border border-white/70 bg-white/82 p-4 shadow-sm backdrop-blur">
-                  <item.icon className="h-5 w-5 text-primary" />
-                  <p className="mt-3 font-semibold text-slate-900">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p>
+              {pillars.map((item) => (
+                <div key={item.title} className="rounded-[1.3rem] border border-[#d7e8f0] bg-white p-4 shadow-sm">
+                  <item.icon className="h-5 w-5 text-[#134663]" />
+                  <p className="mt-3 text-sm font-bold text-[#14384d]">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#45667b]">{item.text}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-white/70 bg-white/85 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur">
-            <div className="rounded-[1.5rem] bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-8 text-white">
-              <p className="text-sm uppercase tracking-[0.3em] text-white/70">Estrutura orientada ao aluno</p>
-              <h2 className="mt-4 max-w-md font-display text-3xl font-bold leading-tight">
-                Uma experiencia simples para comprar, aceder e retomar o estudo sem te perderes.
+          <div className="rounded-[2rem] border border-[#d3e5ef] bg-white p-5 shadow-[0_24px_60px_rgba(17,64,93,0.14)]">
+            <div className="rounded-[1.6rem] bg-[linear-gradient(145deg,#133f59_0%,#1f668f_100%)] p-7 text-white">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/75">Metodo Mariana Explica</p>
+              <h2 className="mt-4 font-display text-3xl font-bold leading-tight">
+                Menos confusao no que estudar. Mais foco no que realmente sai no exame.
               </h2>
-              <p className="mt-4 max-w-md text-sm leading-7 text-white/82">
-                A plataforma foi pensada para sair do modelo de site solto: aqui encontras uma area publica mais clara, checkout direto e uma area do aluno organizada para continuar de onde paraste.
-              </p>
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl bg-white/12 p-4 backdrop-blur">
-                  <Smartphone className="h-5 w-5" />
-                  <p className="mt-3 text-sm font-semibold">Mobile primeiro</p>
-                  <p className="mt-2 text-sm text-white/75">Leitura confortavel, navegacao simples e CTA claros no telemovel.</p>
+              <div className="mt-6 grid gap-3">
+                <div className="rounded-2xl bg-white/12 p-4">
+                  <p className="font-semibold">Portuguese e Filosofia com orientacao pratica</p>
+                  <p className="mt-1 text-sm text-white/80">Conteudo pensado para leitura rapida e revisao inteligente.</p>
                 </div>
-                <div className="rounded-2xl bg-white/12 p-4 backdrop-blur">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <p className="mt-3 text-sm font-semibold">Acesso centralizado</p>
-                  <p className="mt-2 text-sm text-white/75">Cursos, modulos, downloads e suporte reunidos no mesmo painel.</p>
+                <div className="rounded-2xl bg-white/12 p-4">
+                  <p className="font-semibold">Compra e acesso no mesmo fluxo</p>
+                  <p className="mt-1 text-sm text-white/80">Do catalogo ao dashboard sem passos quebrados.</p>
                 </div>
               </div>
             </div>
@@ -177,178 +116,109 @@ export function Home() {
         </div>
       </section>
 
-      <section className="container py-16 md:py-20">
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-3 rounded-[1.75rem] border bg-white p-8 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Oferta principal</p>
-            <h2 className="font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-              Escolhe a forma de estudar que faz mais sentido para o teu momento.
-            </h2>
-            <p className="max-w-2xl text-base leading-8 text-slate-600">
-              A plataforma foi desenhada para acomodar cursos diferentes sem parecer um catalogo confuso. Em vez de uma lista fria, o objetivo e ajudar-te a encontrar o formato certo mais depressa.
-            </p>
+      <section className="container py-14 md:py-20">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#567085]">Cursos em destaque</p>
+            <h2 className="font-display text-3xl font-bold text-[#112e40] md:text-4xl">Comeca pelo curso que resolve a tua dificuldade agora.</h2>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {offerTracks.map((track) => (
-              <div key={track.title} className="rounded-[1.75rem] border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-                <track.icon className="h-5 w-5 text-primary" />
-                <h3 className="mt-4 font-display text-2xl font-bold text-slate-950">{track.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{track.text}</p>
-              </div>
-            ))}
-          </div>
+          <Button variant="outline" asChild className="hidden rounded-full border-[#c9dbe6] md:inline-flex">
+            <Link to={ROUTES.COURSES}>Catalogo completo</Link>
+          </Button>
         </div>
-      </section>
 
-      <section className="container py-16 md:py-20">
-        <div className="mx-auto max-w-6xl space-y-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Cursos em destaque</p>
-              <h2 className="font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-                Comeca pelo curso que melhor responde ao teu objetivo.
-              </h2>
-              <p className="max-w-2xl text-slate-600">
-                Cursos publicados com copy mais clara, diferenciacao por formato e um caminho curto entre descoberta, compra e acesso.
-              </p>
-            </div>
-            <Button variant="outline" asChild className="hidden rounded-full md:inline-flex">
-              <Link to={ROUTES.COURSES}>Ver catalogo completo</Link>
+        {isLoading ? <LoadingState message="A carregar cursos em destaque..." /> : null}
+        {isError ? (
+          <ErrorState
+            title="Nao foi possivel carregar os cursos"
+            message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
+            onRetry={() => void refetch()}
+          />
+        ) : null}
+
+        {!isLoading && !isError && hasFeaturedProducts ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {featuredProducts?.map((product) => {
+              const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
+
+              return (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  actionLabel={enrolledAction?.label ?? "Ver detalhes"}
+                  actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
+                />
+              )
+            })}
+          </div>
+        ) : null}
+
+        {!isLoading && !isError && !hasFeaturedProducts ? (
+          <div className="rounded-[1.4rem] border border-[#d7e8f0] bg-white p-6">
+            <p className="text-[#45667b]">Ainda nao existem cursos em destaque. Explora o catalogo completo.</p>
+            <Button asChild className="mt-4 rounded-full bg-[#123f59] hover:bg-[#0f3247]">
+              <Link to={ROUTES.COURSES}>Ver catalogo</Link>
             </Button>
           </div>
-
-          {isLoading ? <LoadingState message="A carregar cursos em destaque..." /> : null}
-          {isError ? (
-            <ErrorState
-              title="Nao foi possivel carregar os cursos"
-              message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
-              onRetry={() => void refetch()}
-            />
-          ) : null}
-
-          {!isLoading && !isError && hasFeaturedProducts ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {featuredProducts?.map((product) => {
-                const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
-
-                return (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    actionLabel={enrolledAction?.label ?? "Ver detalhes"}
-                    actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
-                  />
-                )
-              })}
-            </div>
-          ) : null}
-
-          {!isLoading && !isError && !hasFeaturedProducts ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  title: "Ver packs completos",
-                  text: "Para quem quer concentrar os materiais centrais num so percurso.",
-                  to: ROUTES.PRODUCTS,
-                },
-                {
-                  title: "Explorar sebentas",
-                  text: "Materiais individuais com leitura mais direta por disciplina.",
-                  to: ROUTES.PRODUCTS,
-                },
-                {
-                  title: "Comecar pelos gratuitos",
-                  text: "Boa forma de conhecer a experiencia antes de comprar outros cursos.",
-                  to: ROUTES.COURSES,
-                },
-                {
-                  title: "Entrar na area do aluno",
-                  text: "Se ja tens acesso, o teu proximo passo esta no dashboard.",
-                  to: ROUTES.DASHBOARD,
-                },
-              ].map((item) => (
-                <Link
-                  key={item.title}
-                  to={item.to}
-                  className="rounded-[1.75rem] border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <BadgeCheck className="h-5 w-5 text-primary" />
-                  <h3 className="mt-4 font-display text-2xl font-bold text-slate-950">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.text}</p>
-                </Link>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </section>
 
-      <section className="border-y border-slate-200/80 bg-white/70">
-        <div className="container py-16 md:py-20">
-          <div className="mb-8 max-w-3xl space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Como funciona</p>
-            <h2 className="font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-              Do interesse ao acesso, o percurso foi desenhado para ser simples.
-            </h2>
-            <p className="text-base leading-8 text-slate-600">
-              A logica da plataforma e comercial, mas a experiencia foi pensada com foco em clareza: perceber o curso, decidir com confianca e continuar a estudar sem friccao.
-            </p>
+      <section className="border-y border-[#d9e8ef] bg-[#f8fcff]">
+        <div className="container py-14 md:py-20">
+          <div className="mb-8 space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#567085]">Como funciona</p>
+            <h2 className="font-display text-3xl font-bold text-[#112e40] md:text-4xl">Um percurso simples para estudar com continuidade.</h2>
           </div>
-          <div className="grid gap-6 lg:grid-cols-3">
-            {studyFlow.map((step) => (
-              <div key={step.title} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Passo {step.step}</p>
-                <h3 className="mt-3 font-display text-2xl font-bold text-slate-900">{step.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{step.text}</p>
+          <div className="grid gap-5 lg:grid-cols-3">
+            {journey.map((item) => (
+              <div key={item.step} className="rounded-[1.4rem] border border-[#d6e7ef] bg-white p-6 shadow-sm">
+                <span className="inline-flex rounded-full bg-[#e8f4fb] px-3 py-1 text-xs font-black tracking-[0.14em] text-[#0f3a53]">
+                  PASSO {item.step}
+                </span>
+                <h3 className="mt-4 font-display text-2xl font-bold text-[#14384d]">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#4a6a7f]">{item.text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="container py-16 md:py-20">
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[1.75rem] border bg-white p-8 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Porque transmite confianca</p>
-            <h2 className="mt-4 font-display text-3xl font-bold text-slate-950">
-              Menos cara de template, mais contexto real de compra e estudo.
-            </h2>
-            <div className="mt-6 space-y-4">
-              {trustPoints.map((point) => (
-                <div key={point} className="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-4">
-                  <CheckCircle2 className="mt-1 h-5 w-5 text-primary" />
-                  <p className="text-sm leading-7 text-slate-700">{point}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-6 rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-8 text-white shadow-xl">
+      <section className="container py-14 md:py-20">
+        <div className="rounded-[2rem] border border-[#d4e6ef] bg-[linear-gradient(135deg,#103a52_0%,#1f6288_100%)] p-8 text-white shadow-xl md:p-10">
+          <div className="grid gap-7 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/70">Pronto para comecar</p>
-              <h2 className="mt-4 font-display text-3xl font-bold leading-tight">
-                A proposta e simples: menos duvida na compra, mais clareza depois do acesso.
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/75">Pronto para comecar</p>
+              <h2 className="mt-4 font-display text-3xl font-bold leading-tight md:text-4xl">
+                Estuda com direcao, compra com confianca e continua no teu ritmo.
               </h2>
-              <p className="mt-4 max-w-xl text-base leading-8 text-white/82">
-                A plataforma foi desenhada para vender melhor sem ficar agressiva, e para ensinar melhor sem parecer tecnica demais.
-              </p>
+              <div className="mt-6 space-y-3">
+                <p className="flex items-start gap-2 text-sm text-white/85">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  Fluxo pensado para exames nacionais, sem linguagem confusa.
+                </p>
+                <p className="flex items-start gap-2 text-sm text-white/85">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  Compra, acesso e suporte no mesmo ecossistema.
+                </p>
+                <p className="flex items-start gap-2 text-sm text-white/85">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  Experiencia forte no telemovel e consistente no desktop.
+                </p>
+              </div>
             </div>
 
-            <div className="grid gap-3">
-              {reassuranceCards.map((card) => (
-                <div key={card.title} className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                  <p className="text-sm font-semibold">{card.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/75">{card.text}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" variant="secondary" className="rounded-full bg-white text-slate-950 hover:bg-white/90">
+            <div className="space-y-3">
+              <Button asChild size="lg" className="w-full rounded-full bg-white text-[#103a52] hover:bg-white/90">
                 <Link to={ROUTES.COURSES}>Explorar cursos</Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/15">
+              <Button asChild size="lg" variant="outline" className="w-full rounded-full border-white/40 bg-white/10 text-white hover:bg-white/20">
                 <Link to={ROUTES.REGISTER}>Criar conta</Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost" className="w-full rounded-full text-white hover:bg-white/15">
+                <Link to={ROUTES.SUPPORT}>
+                  Tirar duvidas no suporte
+                  <BadgeCheck className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
           </div>

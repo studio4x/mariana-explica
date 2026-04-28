@@ -38,8 +38,8 @@ export function ProductCard({
         : "Investimento"
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/92 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
-      <div className="relative aspect-[16/9] overflow-hidden bg-[linear-gradient(135deg,#242742_0%,#2f5f8a_55%,#dff2f8_100%)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-[#d6e7ef] bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+      <div className="relative aspect-[16/9] overflow-hidden bg-[linear-gradient(135deg,#123f59_0%,#2c79a7_55%,#dff2f8_100%)]">
         {product.cover_image_url ? (
           <img
             src={product.cover_image_url}
@@ -48,13 +48,13 @@ export function ProductCard({
             loading="lazy"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-          <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-900">
+          <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-slate-900">
             {typeLabel}
           </span>
           {product.is_featured ? (
-            <span className="rounded-full bg-amber-300/95 px-3 py-1 text-xs font-semibold text-amber-950">
+            <span className="rounded-full bg-[#ffe3a8] px-3 py-1 text-xs font-semibold text-[#684400]">
               Destaque
             </span>
           ) : null}
@@ -70,46 +70,46 @@ export function ProductCard({
       <div className={`flex flex-1 flex-col gap-5 p-6 ${compact ? "p-5" : ""}`}>
         <div className="space-y-3">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{familyLabel}</p>
-            <h3 className="font-display text-2xl font-bold tracking-tight text-slate-900">{product.title}</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#567085]">{familyLabel}</p>
+            <h3 className="font-display text-2xl font-bold tracking-tight text-[#13364b]">{product.title}</h3>
           </div>
-          <p className="text-sm leading-7 text-slate-600">{narrative.cardSummary}</p>
+          <p className="text-sm leading-7 text-[#4f6f83]">{narrative.cardSummary}</p>
         </div>
 
         <div className="grid gap-3">
-          <div className="flex items-start gap-3 rounded-2xl bg-slate-50/80 px-4 py-3">
-            <BadgeCheck className="mt-0.5 h-4 w-4 text-primary" />
+          <div className="flex items-start gap-3 rounded-2xl bg-[#f4f9fc] px-4 py-3">
+            <BadgeCheck className="mt-0.5 h-4 w-4 text-[#154764]" />
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Beneficio principal</p>
-              <p className="mt-1 text-sm leading-6 text-slate-700">{narrative.benefit}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">Beneficio principal</p>
+              <p className="mt-1 text-sm leading-6 text-[#3e6177]">{narrative.benefit}</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 rounded-2xl bg-slate-50/80 px-4 py-3">
-            <Clock3 className="mt-0.5 h-4 w-4 text-primary" />
+          <div className="flex items-start gap-3 rounded-2xl bg-[#f4f9fc] px-4 py-3">
+            <Clock3 className="mt-0.5 h-4 w-4 text-[#154764]" />
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Formato e entrega</p>
-              <p className="mt-1 text-sm leading-6 text-slate-700">{narrative.formatLabel}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">Formato e entrega</p>
+              <p className="mt-1 text-sm leading-6 text-[#3e6177]">{narrative.formatLabel}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Como acedes</p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">
+        <div className="rounded-2xl border border-[#d7e8f0] bg-white p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">Como acedes</p>
+          <p className="mt-2 text-sm leading-6 text-[#3e6177]">
             {narrative.accessLabel}
           </p>
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-4 pt-2">
           <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{priceLabel}</p>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">{priceLabel}</p>
+            <p className="text-2xl font-bold text-[#13364b]">
               {formatProductPrice(product.price_cents, product.currency)}
             </p>
           </div>
 
           {actionTo ? (
-            <Button asChild className="rounded-full">
+            <Button asChild className="rounded-full bg-[#123f59] hover:bg-[#0f3247]">
               <Link to={actionTo}>
                 {actionLabel}
                 <ArrowRight className="ml-2 h-4 w-4" />

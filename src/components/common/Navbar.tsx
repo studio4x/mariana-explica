@@ -25,8 +25,18 @@ export function Navbar() {
   const closeMenu = () => setMobileOpen(false)
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/60 bg-white/88 backdrop-blur supports-[backdrop-filter]:bg-white/75">
-      <div className="container flex items-center justify-between gap-4 py-3">
+    <nav className="sticky top-0 z-50 border-b border-[#d9e6ec] bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/78">
+      <div className="border-b border-[#e8f0f4] bg-[#f7fbfd]">
+        <div className="container flex items-center justify-between gap-3 py-2 text-xs font-semibold text-[#21485e]">
+          <p className="truncate">Tens dificuldades a Portugues ou Filosofia? Comeca com um plano claro de estudo.</p>
+          <Link to={ROUTES.COURSES} className="hidden items-center gap-1 text-[#163d56] sm:inline-flex">
+            Ver cursos
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+
+      <div className="container flex items-center justify-between gap-4 py-3.5">
         <div className="flex min-w-0 items-center gap-4">
           <Link to={ROUTES.HOME} className="min-w-0" onClick={closeMenu}>
             <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
@@ -38,10 +48,10 @@ export function Navbar() {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "rounded-full px-2 py-2 text-sm font-medium transition",
+                  "rounded-full px-3 py-2 text-sm font-semibold transition",
                   location.pathname.startsWith(item.to)
-                    ? "text-slate-950"
-                    : "text-slate-600 hover:text-slate-950",
+                    ? "bg-[#e8f4fb] text-[#0f3247]"
+                    : "text-slate-600 hover:bg-[#f4f8fa] hover:text-slate-950",
                 )}
               >
                 {item.label}
@@ -54,12 +64,12 @@ export function Navbar() {
           {!isAuthenticated ? (
             <>
               <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 xl:inline-flex">
-                Exames nacionais e materiais digitais
+                Exames nacionais
               </div>
               <Button asChild variant="ghost" size="sm" className="rounded-full">
                 <Link to={ROUTES.LOGIN}>Entrar</Link>
               </Button>
-              <Button asChild size="sm" className="rounded-full">
+              <Button asChild size="sm" className="rounded-full bg-[#123f59] hover:bg-[#0f3247]">
                 <Link to={ROUTES.COURSES}>
                   Ver cursos
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -93,7 +103,7 @@ export function Navbar() {
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-full md:hidden"
+          className="rounded-full border border-slate-200 md:hidden"
           aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
           onClick={() => setMobileOpen((value) => !value)}
         >
