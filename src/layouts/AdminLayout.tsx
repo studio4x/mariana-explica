@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   LogOut,
+  ExternalLink,
   Package,
   MessageSquareText,
   Percent,
@@ -136,6 +137,18 @@ export function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              asChild
+              type="button"
+              variant="outline"
+              className="h-11 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
+            >
+              <Link to={ROUTES.HOME}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Site publico
+              </Link>
+            </Button>
+
             <Link
               to={ROUTES.ADMIN_NOTIFICATIONS}
               className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"

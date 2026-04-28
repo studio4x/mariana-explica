@@ -96,6 +96,18 @@ Não inventar fluxos, permissões, modelagem ou integrações fora da documenta�
 
 ---
 
+## Credenciais e confirmação de projeto
+
+Antes de qualquer ação que exija acesso externo (Supabase, Vercel, GitHub, deploy, CLI ou integrações):
+
+1. consultar obrigatoriamente o arquivo `.env.local` para obter credenciais e identificadores atualizados;
+2. confirmar explicitamente que o projeto alvo é o correto (nome do repositório, `project_id`, URL e ambiente);
+3. só executar comandos de acesso após essa validação dupla (credencial + projeto correto).
+
+Se houver inconsistência entre credenciais, projeto e contexto atual, pausar a execução e corrigir antes de continuar.
+
+---
+
 ## Arquitetura
 
 A plataforma segue o padrão:
