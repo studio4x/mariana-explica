@@ -50,6 +50,10 @@ type SupabaseLike = {
     setSession: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
   }
   from: (_table: string) => NoopQueryBuilder
+  rpc: (
+    fn: string,
+    params?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: Error | null }>
   functions: {
     invoke: (
       name: string,
@@ -153,6 +157,10 @@ function createNoopSupabaseClient() {
       }),
     },
     from: () => queryBuilder,
+    rpc: async () => ({
+      data: null,
+      error: new Error("Supabase nao configurado"),
+    }),
     functions: {
       invoke: async () => ({
         data: null,
@@ -173,4 +181,15 @@ function createNoopSupabaseClient() {
 export const supabase: SupabaseLike =
   SUPABASE_URL && SUPABASE_ANON_KEY
     ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY) as unknown as SupabaseLike)
+    : createNoopSupabaseClient()
+
+export const publicSupabase: SupabaseLike =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+        },
+      }) as unknown as SupabaseLike)
     : createNoopSupabaseClient()

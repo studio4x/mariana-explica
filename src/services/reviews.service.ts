@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase"
+import { publicSupabase, supabase } from "@/integrations/supabase"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type { CourseReviewStats, CourseReviewSummary } from "@/types/app.types"
@@ -59,7 +59,7 @@ async function invokeReviewFunction<TResponse>(name: string, body: Record<string
 }
 
 export async function fetchCourseReviewStats(productId: string) {
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from("review_stats")
     .select("target_id,target_type,total_reviews,avg_rating,rating_distribution,updated_at")
     .eq("target_id", productId)
@@ -81,14 +81,10 @@ export async function fetchCourseReviewStats(productId: string) {
 }
 
 export async function fetchApprovedCourseReviews(productId: string) {
-  const { data, error } = await supabase
-    .from("reviews")
-    .select(reviewSelect)
-    .eq("target_id", productId)
-    .eq("target_type", "course")
-    .eq("moderation_status", "approved")
-    .order("helpful_count", { ascending: false })
-    .order("created_at", { ascending: false })
+  const { data, error } = await publicSupabase.rpc("get_public_course_reviews", {
+    target_product_id: productId,
+    limit_count: 12,
+  })
 
   if (error) {
     throw error
@@ -98,14 +94,9 @@ export async function fetchApprovedCourseReviews(productId: string) {
 }
 
 export async function fetchHomepageReviews(limit = 6) {
-  const { data, error } = await supabase
-    .from("reviews")
-    .select(reviewSelect)
-    .eq("target_type", "course")
-    .eq("moderation_status", "approved")
-    .order("helpful_count", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(limit)
+  const { data, error } = await publicSupabase.rpc("get_homepage_reviews", {
+    limit_count: limit,
+  })
 
   if (error) {
     throw error

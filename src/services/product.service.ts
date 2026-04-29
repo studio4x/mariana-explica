@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase"
+import { publicSupabase, supabase } from "@/integrations/supabase"
 import type { ProductDetails, ProductSummary } from "@/types/product.types"
 
 const productSelect = `
@@ -29,7 +29,7 @@ const productSelect = `
 `
 
 export async function fetchPublishedProducts() {
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from("products")
     .select(productSelect)
     .eq("status", "published")
@@ -45,7 +45,7 @@ export async function fetchPublishedProducts() {
 }
 
 export async function fetchFeaturedProducts() {
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from("products")
     .select(productSelect)
     .eq("status", "published")
@@ -68,7 +68,7 @@ export async function fetchPublishedProductBySlug(slug: string): Promise<Product
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identifier)
 
   if (isUuid) {
-    const { data, error } = await supabase
+    const { data, error } = await publicSupabase
       .from("products")
       .select(productSelect)
       .eq("status", "published")
@@ -83,7 +83,7 @@ export async function fetchPublishedProductBySlug(slug: string): Promise<Product
     return (data ?? null) as ProductSummary | null
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from("products")
     .select(productSelect)
     .eq("status", "published")
@@ -105,7 +105,7 @@ export async function fetchAdminPreviewProductBySlug(slug: string): Promise<Prod
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identifier)
 
   if (isUuid) {
-    const { data, error } = await supabase
+    const { data, error } = await publicSupabase
       .from("products")
       .select(productSelect)
       .eq("id", identifier)
@@ -132,7 +132,7 @@ export async function fetchAdminPreviewProductBySlug(slug: string): Promise<Prod
 }
 
 export async function fetchPublishedProductDetailsBySlug(slug: string): Promise<ProductDetails | null> {
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from("products")
     .select(productSelect)
     .eq("status", "published")
