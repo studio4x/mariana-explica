@@ -3,6 +3,7 @@ import {
   createCourseReview,
   fetchAdminReviews,
   fetchApprovedCourseReviews,
+  fetchHomepageReviews,
   fetchCourseReviewStats,
   fetchMyCourseReview,
   moderateCourseReview,
@@ -22,6 +23,13 @@ export function useApprovedCourseReviews(productId: string | undefined) {
     queryKey: ["reviews", "course", productId],
     queryFn: () => fetchApprovedCourseReviews(productId ?? ""),
     enabled: Boolean(productId),
+  })
+}
+
+export function useHomepageReviews(limit = 6) {
+  return useQuery({
+    queryKey: ["reviews", "home", limit],
+    queryFn: () => fetchHomepageReviews(limit),
   })
 }
 

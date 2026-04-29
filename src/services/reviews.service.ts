@@ -97,6 +97,23 @@ export async function fetchApprovedCourseReviews(productId: string) {
   return (data ?? []) as CourseReviewSummary[]
 }
 
+export async function fetchHomepageReviews(limit = 6) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(reviewSelect)
+    .eq("target_type", "course")
+    .eq("moderation_status", "approved")
+    .order("helpful_count", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as CourseReviewSummary[]
+}
+
 export async function fetchMyCourseReview(productId: string) {
   const {
     data: { session },
