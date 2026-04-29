@@ -1,5 +1,5 @@
-import { useDeferredValue, useState } from "react"
-import { Link } from "react-router-dom"
+import { useDeferredValue, useMemo, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
 import { Search } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
@@ -14,6 +14,16 @@ import type { ProductSummary } from "@/types/product.types"
 
 type QuickFilter = "all" | "packs" | "sebentas" | "free" | "services"
 type SortMode = "recent" | "price_asc" | "popular"
+
+const quickFilterFromCategory: Record<string, QuickFilter> = {
+  all: "all",
+  cursos: "all",
+  packs: "packs",
+  sebentas: "sebentas",
+  gratis: "free",
+  gratuitos: "free",
+  explicacoes: "services",
+}
 
 const filterLabels: Record<QuickFilter, string> = {
   all: "Todos",
@@ -49,12 +59,27 @@ function sortProducts(products: ProductSummary[], sortMode: SortMode) {
 
 export function Products() {
   const { session } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState("")
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all")
   const [sortMode, setSortMode] = useState<SortMode>("recent")
   const deferredSearch = useDeferredValue(search)
   const { data: products, isLoading, isError, error, refetch } = usePublishedProducts()
   const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
+
+  const quickFilter = useMemo(() => {
+    const category = searchParams.get("categoria")?.trim().toLowerCase() ?? ""
+    return quickFilterFromCategory[category] ?? "all"
+  }, [searchParams])
+
+  const setCategoryFilter = (filter: QuickFilter) => {
+    if (filter === "all") {
+      setSearchParams({})
+      return
+    }
+
+    const category = filter === "free" ? "gratuitos" : filter === "services" ? "explicacoes" : filter
+    setSearchParams({ categoria: category })
+  }
 
   const filteredProducts = sortProducts(
     (products ?? []).filter((product) => {
@@ -91,7 +116,8 @@ export function Products() {
             Escolhe o curso certo para o teu momento de estudo.
           </h1>
           <p className="max-w-3xl text-base leading-8 text-[#46687d] md:text-lg">
-            Encontra packs, sebentas, materiais gratuitos e apoio especializado com uma navegacao simples e orientada para decisao rapida.
+            Encontra packs, sebentas, materiais gratuitos e apoio especializado com uma navegacao simples e orientada
+            para decisao rapida.
           </p>
         </header>
 
@@ -102,7 +128,7 @@ export function Products() {
                 <button
                   key={filterKey}
                   type="button"
-                  onClick={() => setQuickFilter(filterKey)}
+                  onClick={() => setCategoryFilter(filterKey)}
                   className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition ${
                     quickFilter === filterKey
                       ? "bg-[#123f59] text-white"

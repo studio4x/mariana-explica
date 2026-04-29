@@ -7,22 +7,42 @@ import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/cn"
 
+const courseCategories = [
+  { to: `${ROUTES.COURSES}?categoria=sebentas`, label: "Sebentas" },
+  { to: `${ROUTES.COURSES}?categoria=packs`, label: "Packs" },
+  { to: `${ROUTES.COURSES}?categoria=gratis`, label: "Gratuitos" },
+  { to: `${ROUTES.COURSES}?categoria=explicacoes`, label: "Explicacoes" },
+] as const
+
 export function Navbar() {
   const location = useLocation()
   const { isAuthenticated, isAdmin, signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const searchParams = new URLSearchParams(location.search)
+  const currentCategory = searchParams.get("categoria")
 
   const navItems = useMemo(
     () =>
       [
         { to: ROUTES.COURSES, label: "Cursos" },
-        { to: ROUTES.SUPPORT, label: "Suporte" },
+        ...courseCategories,
         isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
       ].filter(Boolean) as Array<{ to: string; label: string }>,
     [isAdmin],
   )
 
   const closeMenu = () => setMobileOpen(false)
+  const isActiveItem = (itemTo: string) => {
+    if (itemTo === ROUTES.COURSES) {
+      return location.pathname === ROUTES.COURSES && !currentCategory
+    }
+
+    if (itemTo.startsWith(`${ROUTES.COURSES}?categoria=`)) {
+      return location.pathname === ROUTES.COURSES && itemTo.includes(`categoria=${currentCategory ?? ""}`)
+    }
+
+    return location.pathname.startsWith(itemTo)
+  }
 
   return (
     <nav className="sticky top-0 z-50 border-b border-[#d9e6ec] bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/78">
@@ -49,7 +69,7 @@ export function Navbar() {
                 to={item.to}
                 className={cn(
                   "rounded-full px-3 py-2 text-sm font-semibold transition",
-                  location.pathname.startsWith(item.to)
+                  isActiveItem(item.to)
                     ? "bg-[#e8f4fb] text-[#0f3247]"
                     : "text-slate-600 hover:bg-[#f4f8fa] hover:text-slate-950",
                 )}
