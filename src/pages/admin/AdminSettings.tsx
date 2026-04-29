@@ -190,7 +190,10 @@ export function AdminSettings() {
   const saveBranding = useMutation({
     mutationFn: updateAdminBrandingConfig,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin", "branding"] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "branding"] }),
+        queryClient.invalidateQueries({ queryKey: ["site", "branding"] }),
+      ])
     },
   })
   const saveTracking = useMutation({
@@ -216,7 +219,7 @@ export function AdminSettings() {
         replacePath: currentAsset.path,
       })
 
-      await saveBranding.mutateAsync({
+      const updatedConfig = await saveBranding.mutateAsync({
         ...currentConfig,
         [role]: {
           bucket: upload.bucket,
@@ -226,6 +229,9 @@ export function AdminSettings() {
           uploaded_at: upload.uploaded_at,
         },
       })
+
+      queryClient.setQueryData(["admin", "branding"], updatedConfig)
+      queryClient.setQueryData(["site", "branding"], updatedConfig)
 
       if (role === "favicon") {
         applySiteFavicon(upload.public_url)
