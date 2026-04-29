@@ -43,6 +43,15 @@ export default defineConfig([
 ])
 ```
 
+## Deploy de producao
+
+Antes de fechar um release, valide em producao que:
+
+- o deploy publicado ficou com status `READY`;
+- o dominio canonico aponta para a revisao mais recente;
+- a revisao ativa corresponde ao `HEAD` que foi publicado;
+- o alias de producao nao ficou preso em uma revisao antiga.
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

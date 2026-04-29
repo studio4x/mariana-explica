@@ -366,6 +366,15 @@ Ordem segura:
 
 Nunca salvar tokens em arquivos versionados.
 
+### Validação de produção
+
+Antes de encerrar um deploy, confirmar que:
+
+- o deploy de produção está com status `READY`;
+- o domínio canônico aponta para o deploy mais recente;
+- o SHA do deploy ativo corresponde ao `HEAD` atual;
+- o alias de produção não ficou preso em revisão antiga.
+
 ---
 
 ## Resposta esperada do Codex
