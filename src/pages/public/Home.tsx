@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, CheckCircle2, MessageCircleHeart, Sparkles, Target } from "lucide-react"
+import { ArrowRight, CheckCircle2, MessageCircleHeart, Target } from "lucide-react"
 import { Button } from "@/components/ui"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
+import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
@@ -52,49 +53,52 @@ export function Home() {
 
   return (
     <div className="flex flex-col">
-      <section className="relative overflow-hidden border-b border-[#d9e8ef]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(15,58,84,0.16),transparent_38%),radial-gradient(circle_at_top_right,rgba(97,168,210,0.2),transparent_44%),linear-gradient(180deg,#f7fcff_0%,#edf7fc_52%,#ffffff_100%)]" />
-        <div className="container relative grid gap-10 py-14 md:py-20 xl:grid-cols-[1.1fr_0.9fr] xl:items-center">
-          <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#cde0ea] bg-white px-4 py-2 text-sm font-semibold text-[#1f4f6b]">
-              <Sparkles className="h-4 w-4" />
-              O teu caminho para o sucesso e simples
-            </span>
-            <h1 className="max-w-4xl font-display text-4xl font-bold leading-tight text-[#0f2736] md:text-6xl">
-              Tens dificuldades a Portugues ou Filosofia?
-            </h1>
-            <p className="max-w-2xl text-lg leading-8 text-[#345669] md:text-xl">
-              Nunca tiveste a disciplina e vais fazer exame? Entao fica aqui que este espaco e para ti.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="rounded-full bg-[#123f59] hover:bg-[#0f3247]">
+      <section className="relative overflow-hidden border-b border-[#d9e8ef] bg-[#dbeef7]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.5),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.34),transparent_26%),linear-gradient(180deg,#dff0f8_0%,#d7eaf4_100%)]" />
+        <div className="container relative grid gap-8 py-10 md:py-14 xl:grid-cols-[0.94fr_1.06fr] xl:items-center xl:gap-16 xl:py-16">
+          <figure className="order-1 flex justify-center xl:justify-start">
+            <div className="w-full max-w-[520px] rounded-[2.2rem] bg-white p-4 shadow-[0_24px_60px_rgba(17,64,93,0.12)] ring-1 ring-white/75 md:p-5">
+              <img
+                src={homeHeroIllustration}
+                alt="Ilustração de cadernos, livros e apontamentos para Português e Filosofia"
+                className="h-full w-full object-contain"
+                loading="eager"
+              />
+            </div>
+          </figure>
+
+          <div className="order-2 max-w-3xl space-y-8 xl:pt-6">
+            <div className="space-y-5">
+              <h1 className="max-w-[10ch] font-display text-5xl font-bold leading-[0.93] tracking-[-0.04em] text-[#2a2d4f] md:text-6xl xl:text-[4.95rem]">
+                Tens dificuldades a Português ou Filosofia?
+              </h1>
+              <div className="space-y-4 text-[#2d3555]">
+                <p className="max-w-[13ch] font-display text-3xl font-bold leading-[1.05] md:text-[3.1rem]">
+                  Nunca tiveste a disciplina e vais fazer exame?
+                </p>
+                <p className="max-w-[14ch] font-display text-3xl font-bold leading-[1.05] md:text-[3.1rem]">
+                  Então fica aqui que este local é para ti!
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <Button
+                asChild
+                size="lg"
+                className="min-w-[240px] rounded-full bg-[#2a2d4f] px-10 py-7 text-base font-medium uppercase tracking-[0.08em] text-white hover:bg-[#23263f]"
+              >
                 <Link to={ROUTES.COURSES}>
-                  Comecar
+                  Começar!
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" asChild className="rounded-full border-[#bcd6e3] text-[#14384d]">
-                <Link to={ROUTES.LOGIN}>Entrar</Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-[#d3e5ef] bg-white p-5 shadow-[0_24px_60px_rgba(17,64,93,0.14)]">
-            <div className="rounded-[1.6rem] bg-[linear-gradient(145deg,#133f59_0%,#1f668f_100%)] p-7 text-white">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/75">Objetivo principal</p>
-              <h2 className="mt-4 font-display text-3xl font-bold leading-tight">
-                Domina temas complexos ao teu ritmo com aulas gravadas e materiais digitais.
-              </h2>
-              <div className="mt-6 grid gap-3">
-                <div className="rounded-2xl bg-white/12 p-4">
-                  <p className="font-semibold">Materiais digitais</p>
-                  <p className="mt-1 text-sm text-white/80">Resumos visuais, esquemas claros e recursos rapidos.</p>
-                </div>
-                <div className="rounded-2xl bg-white/12 p-4">
-                  <p className="font-semibold">Em breve: aulas gravadas e explicacoes</p>
-                  <p className="mt-1 text-sm text-white/80">Acompanhamento personalizado para garantir resultados.</p>
-                </div>
-              </div>
+              <Link
+                to={ROUTES.LOGIN}
+                className="text-sm font-semibold text-[#2a2d4f] underline-offset-4 transition hover:underline"
+              >
+                Já tens conta? Entrar
+              </Link>
             </div>
           </div>
         </div>
