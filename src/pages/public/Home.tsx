@@ -1,193 +1,228 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, CheckCircle2, MessageCircleHeart, Target } from "lucide-react"
+import { ArrowLeft, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui"
-import { ErrorState, LoadingState } from "@/components/feedback"
-import { ProductCard } from "@/components/product"
-import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
 import { ROUTES } from "@/lib/constants"
-import { useAuth } from "@/hooks/useAuth"
-import { useMyProducts } from "@/hooks/useDashboard"
-import { useFeaturedProducts } from "@/hooks/useProducts"
-import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
-import { publicCoursePath } from "@/lib/routes"
+import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
+
+const featureBlocks = [
+  {
+    eyebrow: "EM BREVE - AULAS GRAVADAS",
+    text: "Domina temas complexos ao teu ritmo, com aulas organizadas e flexíveis, prontas quando tu estiveres.",
+  },
+  {
+    eyebrow: "EXPLICAÇÕES",
+    text: "Acompanhamento personalizado e focado nas tuas dúvidas específicas para garantires resultados.",
+  },
+  {
+    eyebrow: "MATERIAIS DIGITAIS",
+    text: "Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota máxima sem complicações.",
+  },
+  {
+    eyebrow: "MATERIAIS DIGITAIS - GRATUITOS",
+    text: "Dicas flash e recursos rápidos para descarregar e dares um boost imediato no teu estudo.",
+  },
+]
 
 const steps = [
   {
-    title: "Encontra o teu apoio",
-    text: "Explora as sebentas e cursos disponiveis. Cada material resolve uma dor especifica.",
+    eyebrow: "ENCONTRA O TEU APOIO",
+    text: "Explora as sebentas e cursos disponíveis. Cada material foi criado para resolver uma dor específica, por isso vais perceber logo qual é o ideal para o teu momento.",
   },
   {
-    title: "Acesso rapido e seguro",
-    text: "Processo direto e transparente, sem passos desnecessarios. Tudo fica na tua area do aluno.",
+    eyebrow: "ACESSO RÁPIDO E SEGURO",
+    text: "O processo é direto e transparente. Sem taxas escondidas ou passos desnecessários. Pagas de forma segura e o material é teu no segundo seguinte.",
   },
   {
-    title: "Foca-te no que importa",
-    text: "Retoma o estudo ao teu ritmo, com PDFs e aulas sempre organizados na conta.",
+    eyebrow: "FOCA-TE NO QUE IMPORTA",
+    text: "Tudo fica organizado na tua Área do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.",
   },
 ]
 
-const advantages = [
+const trustPointsLeft = [
   {
-    title: "Materiais",
-    points: [
-      "Resumos visuais e esquemas claros para simplificar o estudo.",
-      "Foco no exame com o que realmente sai, sem distracoes.",
-      "Filosofia e Portugues explicados com linguagem direta.",
-    ],
+    title: "Linguagem Direta:",
+    text: "Falamos a mesma língua. Esquece os termos impossíveis dos manuais e entende a matéria à primeira.",
   },
   {
-    title: "Suporte",
-    points: [
-      "Acompanhamento real para as tuas duvidas especificas.",
-      "Tens apoio continuo para manter ritmo e confianca.",
-      "Os materiais ficam sempre guardados na tua area do aluno.",
-    ],
+    title: "Foco no Exame:",
+    text: "Materiais desenhados apenas com o que realmente sai. Sem distrações.",
   },
+  {
+    title: "Resumos Visuais:",
+    text: "Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.",
+  },
+]
+
+const trustPointsRight = [
+  "Suporte Real: Não recebes só um PDF. Tens uma \"amiga\" (eu!) nas DMs para te apoiar sempre que precisares.",
+  "Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Área do Aluno.",
+  "Pés na Terra: Filosofia e Português deixam de ser abstratos e passam a ser ferramentas que dominas com segurança.",
 ]
 
 export function Home() {
-  const { session } = useAuth()
-  const { data: featuredProducts, isLoading, isError, error, refetch } = useFeaturedProducts()
-  const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
-  const hasFeaturedProducts = (featuredProducts?.length ?? 0) > 0
-
   return (
     <div className="flex flex-col">
-      <section className="relative overflow-hidden border-b border-[#d9e8ef] bg-[#dbeef7]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.5),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.34),transparent_26%),linear-gradient(180deg,#dff0f8_0%,#d7eaf4_100%)]" />
-        <div className="container relative grid gap-8 py-10 md:py-14 xl:grid-cols-[0.94fr_1.06fr] xl:items-center xl:gap-16 xl:py-16">
-          <figure className="order-1 flex justify-center xl:justify-start">
-            <div className="w-full max-w-[520px] rounded-[2.2rem] bg-white p-4 shadow-[0_24px_60px_rgba(17,64,93,0.12)] ring-1 ring-white/75 md:p-5">
+      <header className="bg-[#f5fafc] py-20 lg:py-32">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-16 px-6 lg:grid-cols-2">
+          <div className="order-2 lg:order-1">
+            <div className="aspect-[4/5] w-full rounded-xl bg-white shadow-sm ring-1 ring-black/5 lg:aspect-square">
               <img
                 src={homeHeroIllustration}
-                alt="Ilustração de cadernos, livros e apontamentos para Português e Filosofia"
-                className="h-full w-full object-contain"
+                alt="Ilustração de materiais de estudo para Português e Filosofia"
+                className="h-full w-full rounded-xl object-contain p-6"
                 loading="eager"
               />
             </div>
-          </figure>
+          </div>
 
-          <div className="order-2 max-w-3xl space-y-8 xl:pt-6">
-            <div className="space-y-5">
-              <h1 className="max-w-[10ch] font-display text-5xl font-bold leading-[0.93] tracking-[-0.04em] text-[#2a2d4f] md:text-6xl xl:text-[4.95rem]">
+          <div className="order-1 space-y-8 lg:order-2">
+            <div className="space-y-4">
+              <h1 className="max-w-[12ch] font-display text-5xl font-bold leading-[1.1] tracking-[-0.02em] text-[#0f122c] lg:text-6xl">
                 Tens dificuldades a Português ou Filosofia?
               </h1>
-              <div className="space-y-4 text-[#2d3555]">
-                <p className="max-w-[13ch] font-display text-3xl font-bold leading-[1.05] md:text-[3.1rem]">
-                  Nunca tiveste a disciplina e vais fazer exame?
-                </p>
-                <p className="max-w-[14ch] font-display text-3xl font-bold leading-[1.05] md:text-[3.1rem]">
-                  Então fica aqui que este local é para ti!
-                </p>
-              </div>
+              <h2 className="max-w-[14ch] font-display text-3xl font-bold leading-[1.3] tracking-[-0.02em] text-[#0f122c]/80 lg:text-4xl">
+                Nunca tiveste a disciplina e vais fazer exame?
+              </h2>
+              <p className="max-w-[18ch] font-sans text-xl leading-[1.6] text-[#46464d]">
+                Então fica aqui que este local é para ti!
+              </p>
             </div>
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Button
-                asChild
-                size="lg"
-                className="min-w-[240px] rounded-full bg-[#2a2d4f] px-10 py-7 text-base font-medium uppercase tracking-[0.08em] text-white hover:bg-[#23263f]"
-              >
-                <Link to={ROUTES.COURSES}>
-                  Começar!
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Link
-                to={ROUTES.LOGIN}
-                className="text-sm font-semibold text-[#2a2d4f] underline-offset-4 transition hover:underline"
-              >
-                Já tens conta? Entrar
-              </Link>
-            </div>
+            <Button
+              asChild
+              className="rounded-full bg-[#242742] px-12 py-6 text-sm font-bold uppercase tracking-widest text-white shadow-lg hover:bg-[#1d2036]"
+            >
+              <Link to={ROUTES.COURSES}>Começar!</Link>
+            </Button>
           </div>
         </div>
-      </section>
+      </header>
 
-      <section className="container py-14 md:py-20">
-        <div className="mb-8 space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#567085]">O teu caminho em 3 passos</p>
-          <h2 className="font-display text-3xl font-bold text-[#112e40] md:text-4xl">
-            Esquece complicacoes: o foco e o teu estudo.
-          </h2>
-        </div>
-        <div className="grid gap-5 lg:grid-cols-3">
-          {steps.map((item, index) => (
-            <div key={item.title} className="rounded-[1.4rem] border border-[#d6e7ef] bg-white p-6 shadow-sm">
-              <span className="inline-flex rounded-full bg-[#e8f4fb] px-3 py-1 text-xs font-black tracking-[0.14em] text-[#0f3a53]">
-                PASSO {index + 1}
-              </span>
-              <h3 className="mt-4 font-display text-2xl font-bold text-[#14384d]">{item.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-[#4a6a7f]">{item.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-y border-[#d9e8ef] bg-[#f8fcff]">
-        <div className="container py-14 md:py-20">
-          <div className="mb-8 flex items-center gap-3">
-            <Target className="h-6 w-6 text-[#123f59]" />
-            <h2 className="font-display text-3xl font-bold text-[#112e40] md:text-4xl">Vantagens de trabalhares comigo</h2>
+      <section className="bg-[rgba(239,244,246,0.5)] py-24">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
+          <div className="flex flex-col items-center rounded shadow-sm border border-[rgba(71,71,77,0.12)] bg-white p-12 text-center">
+            <span className="mb-8 inline-flex rounded-full bg-[#242742] px-6 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
+              Objetivo Principal
+            </span>
+            <p className="max-w-2xl font-display text-2xl leading-relaxed text-[#0f122c]">
+              Criei este espaço para te dar o apoio que os manuais não dão: leveza, clareza e uma estratégia real para
+              brilhares nos exames de Filosofia e Português. Vamo-nos simplificar?
+            </p>
           </div>
-          <div className="grid gap-6 lg:grid-cols-2">
-            {advantages.map((block) => (
-              <div key={block.title} className="rounded-[1.5rem] border border-[#d6e7ef] bg-white p-7 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#567085]">{block.title}</p>
-                <div className="mt-4 space-y-3">
-                  {block.points.map((point) => (
-                    <p key={point} className="flex items-start gap-2 text-sm leading-7 text-[#3f6278]">
-                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[#1f668f]" />
-                      {point}
-                    </p>
-                  ))}
-                </div>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {featureBlocks.map((block) => (
+              <div
+                key={block.eyebrow}
+                className="flex flex-col items-center rounded shadow-sm border border-[rgba(71,71,77,0.12)] bg-white p-8 text-center"
+              >
+                <span className="mb-4 inline-flex rounded-full bg-[#242742] px-4 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-white">
+                  {block.eyebrow}
+                </span>
+                <p className="text-xs leading-relaxed text-[#46464d]">{block.text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="container py-14 md:py-20">
-        <div className="mb-8 flex items-center gap-3">
-          <MessageCircleHeart className="h-6 w-6 text-[#123f59]" />
-          <h2 className="font-display text-3xl font-bold text-[#112e40] md:text-4xl">E o que dizem os nossos alunos?</h2>
-        </div>
-
-        {isLoading ? <LoadingState message="A carregar materiais em destaque..." /> : null}
-        {isError ? (
-          <ErrorState
-            title="Nao foi possivel carregar os materiais"
-            message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
-            onRetry={() => void refetch()}
-          />
-        ) : null}
-
-        {!isLoading && !isError && hasFeaturedProducts ? (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {featuredProducts?.map((product) => {
-              const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
-
-              return (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  actionLabel={enrolledAction?.label ?? "Explorar sebenta"}
-                  actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
-                />
-              )
-            })}
+      <section className="bg-[#eff4f6] py-24">
+        <div className="mx-auto max-w-[1200px] px-6">
+          <div className="mb-16 max-w-2xl">
+            <h2 className="mb-6 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">
+              O teu caminho para o sucesso é simples
+            </h2>
+            <p className="text-lg leading-8 text-[#46464d]">
+              Esquece as complicações burocráticas. Aqui, o foco é o teu estudo. Em três passos rápidos, tens tudo o
+              que precisas para começar a brilhar.
+            </p>
           </div>
-        ) : null}
 
-        {!isLoading && !isError && !hasFeaturedProducts ? (
-          <div className="rounded-[1.4rem] border border-[#d7e8f0] bg-white p-6">
-            <p className="text-[#45667b]">Ainda nao existem materiais em destaque. Explora o catalogo completo.</p>
-            <Button asChild className="mt-4 rounded-full bg-[#123f59] hover:bg-[#0f3247]">
-              <Link to={ROUTES.COURSES}>Explorar sebentas</Link>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            {steps.map((step) => (
+              <div key={step.eyebrow} className="flex flex-col rounded border border-[rgba(71,71,77,0.12)] bg-white p-10 shadow-sm">
+                <span className="mb-8 inline-flex self-start rounded-full bg-[#242742] px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
+                  {step.eyebrow}
+                </span>
+                <p className="text-base leading-7 text-[#46464d]">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[rgba(239,244,246,0.5)] py-24">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
+          <div className="rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 shadow-sm">
+            <h3 className="mb-12 inline-flex rounded-full bg-[rgba(169,207,255,0.35)] px-6 py-2 text-lg font-display text-[#0f122c]">
+              Vantagens de trabalhares comigo
+            </h3>
+            <ul className="space-y-8">
+              {trustPointsLeft.map((point) => (
+                <li key={point.title} className="flex items-start gap-3">
+                  <span className="mt-1 text-xs text-[#242742]">•</span>
+                  <div>
+                    <span className="block text-base font-bold text-[#242742]">{point.title}</span>
+                    <span className="text-sm text-[#46464d]">{point.text}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="flex flex-col justify-between rounded bg-[rgba(169,207,255,0.2)] p-12">
+            <div>
+              <h3 className="mb-12 inline-flex rounded-full bg-white px-6 py-2 text-lg font-display text-[#0f122c]">
+                Leveza e Confiança em cada passo
+              </h3>
+              <ul className="space-y-6">
+                {trustPointsRight.map((point) => (
+                  <li key={point} className="flex items-start gap-3">
+                    <span className="mt-1 text-xs text-[#242742]">•</span>
+                    <span className="text-sm font-medium leading-6 text-[#242742]">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mt-12 flex flex-wrap gap-4">
+              <Button asChild variant="outline" className="rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm">
+                <Link to={ROUTES.COURSES}>Explorar sebentas</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm">
+                <Link to={ROUTES.REGISTER}>Criar Conta</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[#f5fafc] py-24">
+        <div className="mx-auto max-w-[1200px] px-6 text-center">
+          <h2 className="mb-2 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">
+            E o que dizem os nossos alunos?
+          </h2>
+          <p className="mb-16 text-base text-[#46464d]">De estudante para estudante: o vosso feedback</p>
+
+          <div className="flex items-center justify-center gap-8">
+            <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full bg-[rgba(169,207,255,0.4)] text-[#242742] shadow-none">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+
+            <div className="flex h-[300px] w-full max-w-2xl items-center justify-center rounded-xl border border-[rgba(71,71,77,0.08)] bg-white p-16 shadow-sm">
+              <div className="w-full max-w-md space-y-4">
+                <div className="mx-auto h-3 w-24 rounded-full bg-[#dee3e5]" />
+                <div className="mx-auto h-5 w-3/4 rounded-full bg-[#e8edf0]" />
+                <div className="mx-auto h-5 w-2/3 rounded-full bg-[#eff4f6]" />
+                <div className="mx-auto h-5 w-5/6 rounded-full bg-[#f1f5f7]" />
+              </div>
+            </div>
+
+            <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full bg-[rgba(169,207,255,0.4)] text-[#242742] shadow-none">
+              <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
-        ) : null}
+        </div>
       </section>
     </div>
   )
