@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Activity, Code2, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
 import { useSearchParams } from "react-router-dom"
 import { ErrorState } from "@/components/feedback"
-import { applySiteFavicon, StatusBadge } from "@/components/common"
+import { applySiteFavicon, broadcastBrandingUpdate, StatusBadge } from "@/components/common"
 import {
   fetchAdminBrandingConfig,
   fetchAdminTrackingConfig,
@@ -232,6 +232,7 @@ export function AdminSettings() {
 
       queryClient.setQueryData(["admin", "branding"], updatedConfig)
       queryClient.setQueryData(["site", "branding"], updatedConfig)
+      broadcastBrandingUpdate(updatedConfig.updated_at)
 
       if (role === "favicon") {
         applySiteFavicon(upload.public_url)

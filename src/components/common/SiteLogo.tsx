@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { cn } from "@/lib/cn"
 import { APP_NAME } from "@/lib/constants"
 import { fetchPublicBrandingConfig } from "@/services"
+import { buildVersionedAssetUrl } from "./site-branding"
 
 type SiteLogoVariant = "light" | "dark"
 
@@ -12,9 +13,14 @@ function getAssetUrl(
 ) {
   if (!config) return null
 
-  return variant === "light"
-    ? config.config_value.logo_light.public_url
-    : config.config_value.logo_dark.public_url
+  const asset = variant === "light" ? config.config_value.logo_light : config.config_value.logo_dark
+  const url = asset.public_url?.trim()
+
+  if (!url) {
+    return null
+  }
+
+  return buildVersionedAssetUrl(url, asset.uploaded_at?.trim() || config.updated_at?.trim() || "")
 }
 
 export function SiteLogo({
@@ -31,7 +37,8 @@ export function SiteLogo({
   const brandingConfigQuery = useQuery({
     queryKey: ["site", "branding"],
     queryFn: fetchPublicBrandingConfig,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   })
 
   const logoUrl = getAssetUrl(brandingConfigQuery.data, variant)
