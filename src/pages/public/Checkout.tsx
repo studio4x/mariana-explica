@@ -29,6 +29,7 @@ interface CheckoutDraft {
   fullName: string
   email: string
   confirmEmail: string
+  invoiceWithNif: boolean
   nif: string
   contentUpdatesConsent: boolean
   acceptTerms: boolean
@@ -40,6 +41,7 @@ const emptyDraft: CheckoutDraft = {
   fullName: "",
   email: "",
   confirmEmail: "",
+  invoiceWithNif: false,
   nif: "",
   contentUpdatesConsent: false,
   acceptTerms: false,
@@ -65,6 +67,7 @@ function loadCheckoutDraft() {
       fullName: String(parsed.fullName ?? ""),
       email: String(parsed.email ?? ""),
       confirmEmail: String(parsed.confirmEmail ?? ""),
+      invoiceWithNif: Boolean(parsed.invoiceWithNif),
       nif: String(parsed.nif ?? ""),
       contentUpdatesConsent: Boolean(parsed.contentUpdatesConsent),
       acceptTerms: Boolean(parsed.acceptTerms),
@@ -225,6 +228,7 @@ export function Checkout() {
       fullName: current.fullName || profile.full_name || "",
       email: current.email || profile.email || "",
       confirmEmail: current.confirmEmail || profile.email || current.email || "",
+      invoiceWithNif: current.invoiceWithNif || Boolean(profile.nif),
       nif: current.nif || profile.nif || "",
       contentUpdatesConsent: current.contentUpdatesConsent || profile.content_updates_consent || false,
     }))
@@ -247,7 +251,7 @@ export function Checkout() {
     Boolean(trimmedName) &&
     isValidEmail(trimmedEmail) &&
     emailMatches &&
-    isValidNif(draft.nif) &&
+    (!draft.invoiceWithNif || isValidNif(draft.nif)) &&
     draft.acceptTerms
 
   const handleAuthNavigation = useCallback(
@@ -262,6 +266,7 @@ export function Checkout() {
           checkoutDraft: {
             fullName: draft.fullName,
             email: draft.email,
+            invoiceWithNif: draft.invoiceWithNif,
             nif: draft.nif,
             contentUpdatesConsent: draft.contentUpdatesConsent,
           },
@@ -272,6 +277,7 @@ export function Checkout() {
       draft.contentUpdatesConsent,
       draft.email,
       draft.fullName,
+      draft.invoiceWithNif,
       draft.nif,
       location.pathname,
       location.search,
@@ -303,7 +309,7 @@ export function Checkout() {
       return
     }
 
-    if (!isValidNif(draft.nif)) {
+    if (draft.invoiceWithNif && !isValidNif(draft.nif)) {
       setSubmitError("Indica um NIF válido.")
       return
     }
@@ -335,7 +341,8 @@ export function Checkout() {
       const result = await createCheckoutSession({
         productId: product.id,
         customerEmail: trimmedEmail,
-        customerNif: stripDigits(draft.nif),
+        customerNif: draft.invoiceWithNif ? stripDigits(draft.nif) : null,
+        invoiceWithNif: draft.invoiceWithNif,
         contentUpdatesConsent: draft.contentUpdatesConsent,
         successUrl,
         cancelUrl,
@@ -368,6 +375,7 @@ export function Checkout() {
     checkoutIdentifier,
     draft.acceptTerms,
     draft.contentUpdatesConsent,
+    draft.invoiceWithNif,
     draft.nif,
     handleAuthNavigation,
     isAuthenticatedAndActive,
@@ -621,6 +629,38 @@ export function Checkout() {
                         />
                       </label>
 
+                      <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={draft.invoiceWithNif}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              invoiceWithNif: event.target.checked,
+                              nif: event.target.checked ? current.nif : "",
+                            }))
+                          }
+                          className="mt-1 h-4 w-4 accent-[#e9bf94]"
+                        />
+                        <span className="leading-6">Pretendo receber fatura com NIF</span>
+                      </label>
+
+                      {draft.invoiceWithNif ? (
+                        <label className="grid gap-2">
+                          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">NIF</span>
+                          <input
+                            value={formatNif(draft.nif)}
+                            onChange={(event) =>
+                              setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
+                            }
+                            placeholder="Número de Identificação Fiscal"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                          />
+                        </label>
+                      ) : null}
+
                       <label className="grid gap-2">
                         <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
                           Confirmar e-mail
@@ -632,20 +672,6 @@ export function Checkout() {
                           }
                           placeholder="repete o e-mail"
                           autoComplete="email"
-                          className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                        />
-                      </label>
-
-                      <label className="grid gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">NIF</span>
-                        <input
-                          value={formatNif(draft.nif)}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
-                          }
-                          placeholder="Número de Identificação Fiscal"
-                          inputMode="numeric"
-                          autoComplete="off"
                           className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
                         />
                       </label>

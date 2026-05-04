@@ -39,6 +39,7 @@ interface CreateCheckoutInput {
   couponCode?: string | null
   affiliateCode?: string | null
   customerEmail?: string | null
+  invoiceWithNif?: boolean
   customerNif?: string | null
   contentUpdatesConsent?: boolean
   successUrl?: string | null
@@ -141,6 +142,7 @@ Deno.serve(async (req) => {
     const body = await readJsonBody<CreateCheckoutInput>(req)
     const identifier = body.productId ?? body.productSlug
     const customerEmail = body.customerEmail?.trim() || null
+    const invoiceWithNif = Boolean(body.invoiceWithNif)
     const customerNif = body.customerNif?.trim() || null
     const contentUpdatesConsent = Boolean(body.contentUpdatesConsent)
 
@@ -152,12 +154,14 @@ Deno.serve(async (req) => {
       throw badRequest("customerEmail invalido")
     }
 
-    if (!customerNif) {
-      throw badRequest("NIF obrigatorio")
-    }
+    if (invoiceWithNif) {
+      if (!customerNif) {
+        throw badRequest("NIF obrigatorio")
+      }
 
-    if (!isValidNif(customerNif)) {
-      throw badRequest("NIF invalido")
+      if (!isValidNif(customerNif)) {
+        throw badRequest("NIF invalido")
+      }
     }
 
     const product = await getProductByIdentifier(context.serviceClient, identifier)
@@ -188,8 +192,10 @@ Deno.serve(async (req) => {
     const profileUpdates: Record<string, unknown> = {
       content_updates_consent: contentUpdatesConsent,
     }
-    if (customerNif) {
+    if (invoiceWithNif && customerNif) {
       profileUpdates.nif = stripDigits(customerNif)
+    } else if (!invoiceWithNif) {
+      profileUpdates.nif = null
     }
 
     const { error: profileUpdateError } = await context.serviceClient
