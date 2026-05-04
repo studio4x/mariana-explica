@@ -161,6 +161,27 @@ export function createCourseReview(input: {
   )
 }
 
+export function createAdminCourseReview(input: {
+  productId: string
+  authorId?: string | null
+  rating: number
+  title: string
+  content: string
+  isVerifiedPurchase?: boolean
+}) {
+  return invokeReviewFunction<{ success: true; review: CourseReviewSummary; saved_as: "inserted" | "updated" }>(
+    "admin-create-review",
+    {
+      productId: input.productId,
+      authorId: input.authorId ?? null,
+      rating: input.rating,
+      title: input.title,
+      content: input.content,
+      isVerifiedPurchase: input.isVerifiedPurchase ?? false,
+    },
+  )
+}
+
 export function voteCourseReview(input: { reviewId: string; isHelpful: boolean }) {
   return invokeReviewFunction<{ success: true; helpful_count: number; unhelpful_count: number }>(
     "helpful-vote",

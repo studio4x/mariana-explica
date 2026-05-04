@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
+  createAdminCourseReview,
   createCourseReview,
   fetchAdminReviews,
   fetchApprovedCourseReviews,
@@ -81,6 +82,19 @@ export function useModerateCourseReview() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] })
       void queryClient.invalidateQueries({ queryKey: ["reviews"] })
+    },
+  })
+}
+
+export function useCreateAdminCourseReview() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminCourseReview,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] })
+      void queryClient.invalidateQueries({ queryKey: ["reviews"] })
+      void queryClient.invalidateQueries({ queryKey: ["reviews", "stats"] })
     },
   })
 }

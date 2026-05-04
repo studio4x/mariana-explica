@@ -4,5 +4,5 @@
 
 [OK] T1 - implemente um botao de levar para o site publico no header do painel do admin
 
-
+[OK] T2 - Implementar a possibilidade de criação manual de reviews para cursos na página de reviews do admin. Implementar a funcionalidade de vincular a um curso e a um usuário (opcional)
 # REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

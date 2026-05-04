@@ -64,6 +64,9 @@ verify_jwt = false
 [functions.create-review]
 verify_jwt = false
 
+[functions.admin-create-review]
+verify_jwt = false
+
 [functions.helpful-vote]
 verify_jwt = false
 
