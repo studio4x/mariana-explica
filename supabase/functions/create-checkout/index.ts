@@ -39,6 +39,8 @@ interface CreateCheckoutInput {
   couponCode?: string | null
   affiliateCode?: string | null
   customerEmail?: string | null
+  customerNif?: string | null
+  contentUpdatesConsent?: boolean
   successUrl?: string | null
   cancelUrl?: string | null
 }
@@ -72,6 +74,15 @@ function assertStripeMinimumAmount(currency: string, amountCents: number) {
       `O valor minimo para pagamento Stripe em ${currency.toUpperCase()} e ${formattedMinimum}. Ajuste o preco do curso ou marque como gratuito.`,
     )
   }
+}
+
+function stripDigits(value: string) {
+  return value.replace(/\D/g, "")
+}
+
+function isValidNif(value: string) {
+  const digits = stripDigits(value)
+  return digits.length === 9 && !/^(\d)\1{8}$/.test(digits)
 }
 
 async function findReusablePendingCheckout(
@@ -130,6 +141,8 @@ Deno.serve(async (req) => {
     const body = await readJsonBody<CreateCheckoutInput>(req)
     const identifier = body.productId ?? body.productSlug
     const customerEmail = body.customerEmail?.trim() || null
+    const customerNif = body.customerNif?.trim() || null
+    const contentUpdatesConsent = Boolean(body.contentUpdatesConsent)
 
     if (!identifier) {
       throw badRequest("Informe productId ou productSlug")
@@ -137,6 +150,14 @@ Deno.serve(async (req) => {
 
     if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
       throw badRequest("customerEmail invalido")
+    }
+
+    if (!customerNif) {
+      throw badRequest("NIF obrigatorio")
+    }
+
+    if (!isValidNif(customerNif)) {
+      throw badRequest("NIF invalido")
     }
 
     const product = await getProductByIdentifier(context.serviceClient, identifier)
@@ -162,6 +183,22 @@ Deno.serve(async (req) => {
     const affiliate = await resolveAffiliateByCode(context.serviceClient, body.affiliateCode)
     if (body.affiliateCode && !affiliate) {
       throw badRequest("Afiliado não encontrado")
+    }
+
+    const profileUpdates: Record<string, unknown> = {
+      content_updates_consent: contentUpdatesConsent,
+    }
+    if (customerNif) {
+      profileUpdates.nif = stripDigits(customerNif)
+    }
+
+    const { error: profileUpdateError } = await context.serviceClient
+      .from("profiles")
+      .update(profileUpdates)
+      .eq("id", context.user.id)
+
+    if (profileUpdateError) {
+      throw profileUpdateError
     }
 
     if (coupon) {

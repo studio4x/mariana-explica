@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       .from("profiles")
       .update({ avatar_url: publicUrl })
       .eq("id", context.user.id)
-      .select("id,full_name,email,phone,avatar_url,notifications_enabled,marketing_consent,role,status")
+      .select("id,full_name,email,phone,nif,avatar_url,notifications_enabled,marketing_consent,content_updates_consent,role,status")
       .single()
 
     if (profileError) throw profileError

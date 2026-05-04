@@ -111,7 +111,11 @@ Representa o perfil público-operacional do usuário autenticado.
 
 - `phone text null`
 
+- `nif text null`
+
 - `marketing_consent boolean not null default false`
+
+- `content_updates_consent boolean not null default false`
 
 - `notifications_enabled boolean not null default true`
 

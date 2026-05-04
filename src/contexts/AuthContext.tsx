@@ -23,10 +23,12 @@ export interface UserProfile {
   id: string
   full_name: string | null
   email: string | null
+  nif: string | null
   avatar_url: string | null
   role: UserRole
   is_admin: boolean
   status: UserStatus
+  content_updates_consent: boolean
 }
 
 interface AuthContextValue {
@@ -95,7 +97,7 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id,full_name,email,avatar_url,role,is_admin,status")
+      .select("id,full_name,email,nif,avatar_url,role,is_admin,status,content_updates_consent")
       .eq("id", userId)
       .single()
 

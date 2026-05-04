@@ -69,10 +69,12 @@ interface ProfileRow {
   is_admin: boolean
   status: UserStatus
   phone: string | null
+  nif: string | null
   last_login_at: string | null
   created_at: string
   notifications_enabled: boolean
   marketing_consent: boolean
+  content_updates_consent: boolean
 }
 
 interface AuthUserRow {
@@ -101,6 +103,7 @@ function buildAdminUserSummary(profile: ProfileRow, authUser?: AuthUserRow | nul
     created_at: profile.created_at,
     notifications_enabled: profile.notifications_enabled,
     marketing_consent: profile.marketing_consent,
+    content_updates_consent: profile.content_updates_consent,
     email_verified: Boolean(authUser?.email_confirmed_at),
     email_verified_at: authUser?.email_confirmed_at ?? null,
   }
@@ -150,7 +153,7 @@ async function fetchProfileById(serviceClient: SupabaseClient, userId: string) {
   const { data, error } = await serviceClient
     .from("profiles")
     .select(
-      "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
+      "id,full_name,email,role,is_admin,status,phone,nif,last_login_at,created_at,notifications_enabled,marketing_consent,content_updates_consent",
     )
     .eq("id", userId)
     .single()
@@ -166,7 +169,7 @@ async function fetchProfileMaybe(serviceClient: SupabaseClient, userId: string) 
   const { data, error } = await serviceClient
     .from("profiles")
     .select(
-      "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
+      "id,full_name,email,role,is_admin,status,phone,nif,last_login_at,created_at,notifications_enabled,marketing_consent,content_updates_consent",
     )
     .eq("id", userId)
     .maybeSingle()
@@ -198,7 +201,7 @@ Deno.serve(async (req) => {
       const { data: profiles, error } = await context.serviceClient
         .from("profiles")
         .select(
-          "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
+          "id,full_name,email,role,is_admin,status,phone,nif,last_login_at,created_at,notifications_enabled,marketing_consent,content_updates_consent",
         )
         .order("created_at", { ascending: false })
 
@@ -249,7 +252,7 @@ Deno.serve(async (req) => {
         })
         .eq("id", data.user.id)
         .select(
-          "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
+          "id,full_name,email,role,is_admin,status,phone,nif,last_login_at,created_at,notifications_enabled,marketing_consent,content_updates_consent",
         )
         .single()
 
@@ -334,13 +337,15 @@ Deno.serve(async (req) => {
           is_admin: false,
           status: "inactive",
           phone: null,
+          nif: null,
           last_login_at: null,
           notifications_enabled: false,
           marketing_consent: false,
+          content_updates_consent: false,
         })
         .eq("id", body.userId)
         .select(
-          "id,full_name,email,role,is_admin,status,phone,last_login_at,created_at,notifications_enabled,marketing_consent",
+          "id,full_name,email,role,is_admin,status,phone,nif,last_login_at,created_at,notifications_enabled,marketing_consent,content_updates_consent",
         )
         .maybeSingle()
 
@@ -376,10 +381,12 @@ Deno.serve(async (req) => {
           is_admin: false,
           status: "inactive",
           phone: null,
+          nif: null,
           last_login_at: null,
           created_at: previousProfile?.created_at ?? nowIso,
           notifications_enabled: false,
           marketing_consent: false,
+          content_updates_consent: false,
         }
 
         return jsonResponse({

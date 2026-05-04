@@ -440,9 +440,11 @@ export interface ProfilePreferences {
   full_name: string
   email: string
   phone: string | null
+  nif: string | null
   avatar_url: string | null
   notifications_enabled: boolean
   marketing_consent: boolean
+  content_updates_consent: boolean
   role: UserRole
   status: UserStatus
 }
@@ -457,10 +459,12 @@ export interface AdminUserSummary {
   is_admin: boolean
   status: UserStatus
   phone: string | null
+  nif: string | null
   last_login_at: string | null
   created_at: string
   notifications_enabled: boolean
   marketing_consent: boolean
+  content_updates_consent: boolean
 }
 
 export interface AdminOrderSummary {

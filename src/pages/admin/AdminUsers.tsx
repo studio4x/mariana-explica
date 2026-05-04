@@ -138,7 +138,7 @@ export function AdminUsers() {
   const [passwordDraft, setPasswordDraft] = useState({ password: "", confirmPassword: "" })
   const deferredQuery = useDeferredValue(query)
 
-  const users = usersQuery.data ?? []
+  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data])
   const normalizedQuery = deferredQuery.trim().toLowerCase()
 
   const filteredUsers = useMemo(() => {
@@ -150,6 +150,7 @@ export function AdminUsers() {
         : [
             user.full_name,
             user.email,
+            user.nif,
             user.role,
             statusLabel(user.status),
             user.id,
@@ -485,6 +486,7 @@ export function AdminUsers() {
                         <div className="min-w-[220px] space-y-1 text-xs text-[#6d7a80]">
                           <p>{user.email}</p>
                           <p>{user.phone?.trim() ? user.phone : "Sem telefone"}</p>
+                          <p>{user.nif?.trim() ? `NIF: ${user.nif}` : "Sem NIF"}</p>
                           <p>auth: {user.id.slice(0, 8)}...</p>
                           <span
                             className={cn(
@@ -514,6 +516,16 @@ export function AdminUsers() {
                                 Marketing
                               </span>
                             ) : null}
+                            <span
+                              className={cn(
+                                "inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium",
+                                user.content_updates_consent
+                                  ? "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700"
+                                  : "border-slate-200 bg-slate-100 text-slate-600",
+                              )}
+                            >
+                              {user.content_updates_consent ? "Quer novidades" : "Sem novidades"}
+                            </span>
                           </div>
                         </div>
                       </td>

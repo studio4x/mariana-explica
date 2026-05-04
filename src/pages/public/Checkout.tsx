@@ -29,7 +29,8 @@ interface CheckoutDraft {
   fullName: string
   email: string
   confirmEmail: string
-  cpf: string
+  nif: string
+  contentUpdatesConsent: boolean
   acceptTerms: boolean
 }
 
@@ -39,7 +40,8 @@ const emptyDraft: CheckoutDraft = {
   fullName: "",
   email: "",
   confirmEmail: "",
-  cpf: "",
+  nif: "",
+  contentUpdatesConsent: false,
   acceptTerms: false,
 }
 
@@ -63,7 +65,8 @@ function loadCheckoutDraft() {
       fullName: String(parsed.fullName ?? ""),
       email: String(parsed.email ?? ""),
       confirmEmail: String(parsed.confirmEmail ?? ""),
-      cpf: String(parsed.cpf ?? ""),
+      nif: String(parsed.nif ?? ""),
+      contentUpdatesConsent: Boolean(parsed.contentUpdatesConsent),
       acceptTerms: Boolean(parsed.acceptTerms),
     }
   } catch {
@@ -96,6 +99,10 @@ function readCheckoutIntent() {
   return value === "login" || value === "register" ? value : null
 }
 
+function preloadAuthPages() {
+  void import("@/pages/auth")
+}
+
 function getCheckoutBadge(productType: string) {
   if (productType === "free") return "MATERIAL GRATUITO"
   if (productType === "external_service") return "APOIO PERSONALIZADO"
@@ -106,41 +113,28 @@ function stripDigits(value: string) {
   return value.replace(/\D/g, "")
 }
 
-function formatCpf(value: string) {
-  const digits = stripDigits(value).slice(0, 11)
+function formatNif(value: string) {
+  const digits = stripDigits(value).slice(0, 9)
   return digits
-    .replace(/^(\d{3})(\d)/, "$1.$2")
-    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
-    .replace(/\.(\d{3})(\d)/, ".$1-$2")
+    .replace(/^(\d{3})(\d)/, "$1 $2")
+    .replace(/^(\d{3}) (\d{3})(\d)/, "$1 $2 $3")
 }
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-function isValidCpf(value: string) {
+function isValidNif(value: string) {
   const digits = stripDigits(value)
-  if (digits.length !== 11) {
+  if (digits.length !== 9) {
     return false
   }
 
-  if (/^(\d)\1{10}$/.test(digits)) {
+  if (/^(\d)\1{8}$/.test(digits)) {
     return false
   }
 
-  const calcCheckDigit = (base: string, factorStart: number) => {
-    let sum = 0
-    for (let index = 0; index < base.length; index += 1) {
-      sum += Number(base[index]) * (factorStart - index)
-    }
-    const remainder = sum % 11
-    return remainder < 2 ? 0 : 11 - remainder
-  }
-
-  const firstDigit = calcCheckDigit(digits.slice(0, 9), 10)
-  const secondDigit = calcCheckDigit(digits.slice(0, 10), 11)
-
-  return firstDigit === Number(digits[9]) && secondDigit === Number(digits[10])
+  return true
 }
 
 function TermsModal({
@@ -218,6 +212,10 @@ export function Checkout() {
   }, [draft])
 
   useEffect(() => {
+    preloadAuthPages()
+  }, [])
+
+  useEffect(() => {
     if (!profile) {
       return
     }
@@ -227,6 +225,8 @@ export function Checkout() {
       fullName: current.fullName || profile.full_name || "",
       email: current.email || profile.email || "",
       confirmEmail: current.confirmEmail || profile.email || current.email || "",
+      nif: current.nif || profile.nif || "",
+      contentUpdatesConsent: current.contentUpdatesConsent || profile.content_updates_consent || false,
     }))
   }, [profile])
 
@@ -247,7 +247,7 @@ export function Checkout() {
     Boolean(trimmedName) &&
     isValidEmail(trimmedEmail) &&
     emailMatches &&
-    isValidCpf(draft.cpf) &&
+    isValidNif(draft.nif) &&
     draft.acceptTerms
 
   const handleAuthNavigation = useCallback(
@@ -262,11 +262,23 @@ export function Checkout() {
           checkoutDraft: {
             fullName: draft.fullName,
             email: draft.email,
+            nif: draft.nif,
+            contentUpdatesConsent: draft.contentUpdatesConsent,
           },
         },
       })
     },
-    [draft.email, draft.fullName, location.pathname, location.search, loginHref, navigate, registerHref],
+    [
+      draft.contentUpdatesConsent,
+      draft.email,
+      draft.fullName,
+      draft.nif,
+      location.pathname,
+      location.search,
+      loginHref,
+      navigate,
+      registerHref,
+    ],
   )
 
   const handleCheckout = useCallback(async () => {
@@ -291,8 +303,8 @@ export function Checkout() {
       return
     }
 
-    if (!isValidCpf(draft.cpf)) {
-      setSubmitError("Indica um CPF válido.")
+    if (!isValidNif(draft.nif)) {
+      setSubmitError("Indica um NIF válido.")
       return
     }
 
@@ -323,6 +335,8 @@ export function Checkout() {
       const result = await createCheckoutSession({
         productId: product.id,
         customerEmail: trimmedEmail,
+        customerNif: stripDigits(draft.nif),
+        contentUpdatesConsent: draft.contentUpdatesConsent,
         successUrl,
         cancelUrl,
       })
@@ -353,7 +367,8 @@ export function Checkout() {
     cancelUrl,
     checkoutIdentifier,
     draft.acceptTerms,
-    draft.cpf,
+    draft.contentUpdatesConsent,
+    draft.nif,
     handleAuthNavigation,
     isAuthenticatedAndActive,
     emailMatches,
@@ -503,6 +518,8 @@ export function Checkout() {
                       variant="outline"
                       className="h-12 rounded-lg border-[#bcd1de] bg-white text-[#315882]"
                       onClick={() => handleAuthNavigation("login")}
+                      onMouseEnter={preloadAuthPages}
+                      onFocus={preloadAuthPages}
                     >
                       <LogIn className="mr-2 h-4 w-4" />
                       Já tenho conta
@@ -511,6 +528,8 @@ export function Checkout() {
                       type="button"
                       className="h-12 rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]"
                       onClick={() => handleAuthNavigation("register")}
+                      onMouseEnter={preloadAuthPages}
+                      onFocus={preloadAuthPages}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
                       Quero criar conta
@@ -618,17 +637,31 @@ export function Checkout() {
                       </label>
 
                       <label className="grid gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">CPF</span>
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">NIF</span>
                         <input
-                          value={formatCpf(draft.cpf)}
+                          value={formatNif(draft.nif)}
                           onChange={(event) =>
-                            setDraft((current) => ({ ...current, cpf: stripDigits(event.target.value) }))
+                            setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
                           }
-                          placeholder="000.000.000-00"
+                          placeholder="Número de Identificação Fiscal"
                           inputMode="numeric"
                           autoComplete="off"
                           className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
                         />
+                      </label>
+
+                      <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={draft.contentUpdatesConsent}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, contentUpdatesConsent: event.target.checked }))
+                          }
+                          className="mt-1 h-4 w-4 accent-[#e9bf94]"
+                        />
+                        <span className="leading-6">
+                          Quero saber quando os resumos sao melhorados ou saem novas disciplinas e recursos.
+                        </span>
                       </label>
 
                       <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">

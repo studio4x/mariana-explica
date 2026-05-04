@@ -11,6 +11,8 @@ export interface CreateCheckoutInput {
   couponCode?: string | null
   affiliateCode?: string | null
   customerEmail?: string | null
+  customerNif?: string | null
+  contentUpdatesConsent?: boolean
   successUrl?: string | null
   cancelUrl?: string | null
 }

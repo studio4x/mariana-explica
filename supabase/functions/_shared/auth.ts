@@ -7,9 +7,11 @@ export interface UserProfile {
   id: string
   full_name: string | null
   email: string | null
+  nif: string | null
   role: "student" | "affiliate" | "admin"
   is_admin: boolean
   status: "active" | "inactive" | "blocked" | "pending_review"
+  content_updates_consent: boolean
 }
 
 export interface AuthContext {
@@ -22,7 +24,7 @@ export interface AuthContext {
 async function fetchProfile(serviceClient: ReturnType<typeof createServiceClient>, userId: string) {
   const { data, error } = await serviceClient
     .from("profiles")
-    .select("id,full_name,email,role,is_admin,status")
+    .select("id,full_name,email,nif,role,is_admin,status,content_updates_consent")
     .eq("id", userId)
     .maybeSingle()
 

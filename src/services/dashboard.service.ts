@@ -951,7 +951,7 @@ export async function fetchProfilePreferences() {
   const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,full_name,email,phone,avatar_url,notifications_enabled,marketing_consent,role,status")
+    .select("id,full_name,email,phone,nif,avatar_url,notifications_enabled,marketing_consent,content_updates_consent,role,status")
     .eq("id", userId)
     .single()
 
@@ -980,7 +980,7 @@ export async function updateProfilePreferences(input: {
       marketing_consent: input.marketingConsent,
     })
     .eq("id", userId)
-    .select("id,full_name,email,phone,avatar_url,notifications_enabled,marketing_consent,role,status")
+    .select("id,full_name,email,phone,nif,avatar_url,notifications_enabled,marketing_consent,content_updates_consent,role,status")
     .single()
 
   if (error) {
