@@ -136,23 +136,58 @@ export function Navbar() {
           <div className="container space-y-5 py-5">
             <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
 
-            <nav className="grid gap-2">
-              {navItems.map((item) => (
+            <section className="space-y-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Menu principal</p>
+              <nav className="grid gap-2">
                 <Link
-                  key={item.to}
-                  to={item.to}
+                  to={ROUTES.COURSES}
                   onClick={closeMenu}
                   className={cn(
                     "rounded-2xl border px-4 py-3 text-sm font-medium transition",
-                    location.pathname.startsWith(item.to)
+                    isActiveItem(ROUTES.COURSES)
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-slate-200 bg-white text-slate-700",
                   )}
                 >
-                  {item.label}
+                  Cursos
                 </Link>
-              ))}
-            </nav>
+                {isAdmin ? (
+                  <Link
+                    to={ROUTES.ADMIN}
+                    onClick={closeMenu}
+                    className={cn(
+                      "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                      isActiveItem(ROUTES.ADMIN)
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-slate-200 bg-white text-slate-700",
+                    )}
+                  >
+                    Admin
+                  </Link>
+                ) : null}
+              </nav>
+            </section>
+
+            <section className="space-y-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Categorias</p>
+              <div className="grid grid-cols-2 gap-2">
+                {courseCategories.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={closeMenu}
+                    className={cn(
+                      "rounded-2xl border px-3 py-3 text-center text-sm font-semibold transition",
+                      isActiveItem(item.to)
+                        ? "border-[#123f59] bg-[#123f59] text-white"
+                        : "border-slate-200 bg-[#f8fbfd] text-slate-700",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             <div className="grid gap-3">
               {!isAuthenticated ? (
