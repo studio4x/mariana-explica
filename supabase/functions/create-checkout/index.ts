@@ -38,6 +38,7 @@ interface CreateCheckoutInput {
   productSlug?: string
   couponCode?: string | null
   affiliateCode?: string | null
+  customerEmail?: string | null
   successUrl?: string | null
   cancelUrl?: string | null
 }
@@ -128,9 +129,14 @@ Deno.serve(async (req) => {
     const context = await requireActiveUser(req)
     const body = await readJsonBody<CreateCheckoutInput>(req)
     const identifier = body.productId ?? body.productSlug
+    const customerEmail = body.customerEmail?.trim() || null
 
     if (!identifier) {
       throw badRequest("Informe productId ou productSlug")
+    }
+
+    if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+      throw badRequest("customerEmail invalido")
     }
 
     const product = await getProductByIdentifier(context.serviceClient, identifier)
@@ -320,6 +326,7 @@ Deno.serve(async (req) => {
         success_url: body.successUrl ?? buildFallbackSuccessUrl(),
         cancel_url: body.cancelUrl ?? buildFallbackCancelUrl(product.slug),
         client_reference_id: order.id,
+        customer_email: customerEmail ?? context.profile.email ?? context.user.email ?? undefined,
         metadata: {
           order_id: order.id,
           user_id: context.user.id,

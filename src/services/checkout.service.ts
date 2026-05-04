@@ -10,6 +10,7 @@ export interface CreateCheckoutInput {
   productSlug?: string
   couponCode?: string | null
   affiliateCode?: string | null
+  customerEmail?: string | null
   successUrl?: string | null
   cancelUrl?: string | null
 }

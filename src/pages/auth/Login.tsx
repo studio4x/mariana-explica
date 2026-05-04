@@ -11,7 +11,9 @@ export function Login() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, isAdmin } = useAuth()
-  const [email, setEmail] = useState("")
+  const checkoutDraft = (location.state as { checkoutDraft?: { fullName?: string; email?: string } } | null)
+    ?.checkoutDraft
+  const [email, setEmail] = useState(checkoutDraft?.email ?? "")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

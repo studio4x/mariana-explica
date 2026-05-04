@@ -62,8 +62,10 @@ export function Register() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, isAdmin } = useAuth()
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const checkoutDraft = (location.state as { checkoutDraft?: { fullName?: string; email?: string } } | null)
+    ?.checkoutDraft
+  const [name, setName] = useState(checkoutDraft?.fullName ?? "")
+  const [email, setEmail] = useState(checkoutDraft?.email ?? "")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
