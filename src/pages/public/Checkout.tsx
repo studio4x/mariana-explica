@@ -629,6 +629,21 @@ export function Checkout() {
                         />
                       </label>
 
+                      <label className="grid gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                          Confirmar e-mail
+                        </span>
+                        <input
+                          value={draft.confirmEmail}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
+                          }
+                          placeholder="repete o e-mail"
+                          autoComplete="email"
+                          className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                        />
+                      </label>
+
                       <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
                         <input
                           type="checkbox"
@@ -660,21 +675,6 @@ export function Checkout() {
                           />
                         </label>
                       ) : null}
-
-                      <label className="grid gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                          Confirmar e-mail
-                        </span>
-                        <input
-                          value={draft.confirmEmail}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
-                          }
-                          placeholder="repete o e-mail"
-                          autoComplete="email"
-                          className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                        />
-                      </label>
 
                       <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
                         <input
