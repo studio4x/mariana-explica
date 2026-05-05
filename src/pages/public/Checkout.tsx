@@ -147,8 +147,8 @@ function TermsModal({
       <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Termos e condiÃ§Ãµes</p>
-            <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">Antes de avanÃ§ar</h2>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Termos e condições</p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">Antes de avançar</h2>
           </div>
           <button
             type="button"
@@ -161,16 +161,16 @@ function TermsModal({
         </div>
         <div className="space-y-4 px-6 py-6 text-sm leading-7 text-slate-600">
           <p>
-            Ao continuar, confirmas que leste e aceitas os termos de uso, a polÃ­tica de privacidade e as condiÃ§Ãµes
+            Ao continuar, confirmas que leste e aceitas os termos de uso, a política de privacidade e as condições
             comerciais apresentadas para este curso.
           </p>
           <ul className="space-y-2">
-            <li>â€¢ O pagamento Ã© processado pela Stripe e validado no backend.</li>
-            <li>â€¢ O acesso ao conteÃºdo depende da confirmaÃ§Ã£o do pagamento.</li>
-            <li>â€¢ Os teus dados sÃ£o tratados para operacionalizar a compra e o acesso.</li>
+            <li>• O pagamento é processado pela Stripe e validado no backend.</li>
+            <li>• O acesso ao conteúdo depende da confirmação do pagamento.</li>
+            <li>• Os teus dados são tratados para operacionalizar a compra e o acesso.</li>
           </ul>
           <p>
-            Podes rever o texto completo na pÃ¡gina oficial de termos antes de concluir.
+            Podes rever o texto completo na página oficial de termos antes de concluir.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild className="rounded-full">
@@ -522,7 +522,7 @@ export function Checkout() {
             <div>
               <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>
               <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]">
-                Ambiente de inscriÃ§Ã£o seguro
+                Ambiente de inscrição seguro
               </p>
             </div>
             <Link
@@ -541,10 +541,10 @@ export function Checkout() {
                   Confirmacao de pedido
                 </span>
                 <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
-                  Quase la! Vamos finalizar sua inscriÃ§Ã£o.
+                  Quase lá! Vamos finalizar sua inscrição.
                 </h1>
                 <p className="max-w-xl text-lg leading-8 text-[#46464d]">
-                  Preenche os dados de checkout e segue para o pagamento com seguranÃ§a.
+                  Preenche os dados de checkout e segue para o pagamento com segurança.
                 </p>
               </div>
 
@@ -778,7 +778,7 @@ export function Checkout() {
                             onChange={(event) =>
                               setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
                             }
-                            placeholder="NÃºmero de IdentificaÃ§Ã£o Fiscal"
+                            placeholder="Número de Identificação Fiscal"
                             inputMode="numeric"
                             autoComplete="off"
                             className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
