@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from "react"
+﻿import { useCallback, useEffect, useState, type FormEvent } from "react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  CreditCard,
   Lock,
   LogIn,
   ShieldCheck,
@@ -14,15 +13,15 @@ import {
 import { Button } from "@/components/ui"
 import { FooterCopyright } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
+import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES } from "@/lib/constants"
+import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
-import { formatProductPrice } from "@/utils/currency"
 import { richTextToPlainText } from "@/lib/rich-text"
 
 const CHECKOUT_DRAFT_STORAGE_KEY = "mariana-explica:checkout-draft"
-const CHECKOUT_INTENT_STORAGE_KEY = "mariana-explica:checkout-intent"
 
 interface CheckoutDraft {
   fullName: string
@@ -34,7 +33,13 @@ interface CheckoutDraft {
   acceptTerms: boolean
 }
 
-type AuthTarget = "login" | "register"
+type AuthTab = "login" | "register"
+
+type SignUpResult = {
+  user?: {
+    email?: string | null
+  } | null
+}
 
 const emptyDraft: CheckoutDraft = {
   fullName: "",
@@ -84,25 +89,12 @@ function clearCheckoutDraft() {
   window.sessionStorage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY)
 }
 
-function persistCheckoutIntent(target: AuthTarget) {
-  window.sessionStorage.setItem(CHECKOUT_INTENT_STORAGE_KEY, target)
-}
-
-function clearCheckoutIntent() {
-  window.sessionStorage.removeItem(CHECKOUT_INTENT_STORAGE_KEY)
-}
-
-function readCheckoutIntent() {
-  if (typeof window === "undefined") {
-    return null
-  }
-
-  const value = window.sessionStorage.getItem(CHECKOUT_INTENT_STORAGE_KEY)
-  return value === "login" || value === "register" ? value : null
-}
-
-function preloadAuthPages() {
-  void import("@/pages/auth")
+function buildAuthCallbackUrl(nextPath: string) {
+  const normalizedBase = (import.meta.env.VITE_BASE_URL || "/").replace(/\/$/, "")
+  const callbackPath = `${normalizedBase}${ROUTES.AUTH_CALLBACK}`.replace(/\/{2,}/g, "/")
+  const callbackUrl = new URL(`${window.location.origin}${callbackPath}`)
+  callbackUrl.searchParams.set("next", nextPath)
+  return callbackUrl.toString()
 }
 
 function getCheckoutBadge(productType: string) {
@@ -155,8 +147,8 @@ function TermsModal({
       <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Termos e condições</p>
-            <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">Antes de avançar</h2>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Termos e condiÃ§Ãµes</p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">Antes de avanÃ§ar</h2>
           </div>
           <button
             type="button"
@@ -169,16 +161,16 @@ function TermsModal({
         </div>
         <div className="space-y-4 px-6 py-6 text-sm leading-7 text-slate-600">
           <p>
-            Ao continuar, confirmas que leste e aceitas os termos de uso, a política de privacidade e as condições
+            Ao continuar, confirmas que leste e aceitas os termos de uso, a polÃ­tica de privacidade e as condiÃ§Ãµes
             comerciais apresentadas para este curso.
           </p>
           <ul className="space-y-2">
-            <li>• O pagamento é processado pela Stripe e validado no backend.</li>
-            <li>• O acesso ao conteúdo depende da confirmação do pagamento.</li>
-            <li>• Os teus dados são tratados para operacionalizar a compra e o acesso.</li>
+            <li>â€¢ O pagamento Ã© processado pela Stripe e validado no backend.</li>
+            <li>â€¢ O acesso ao conteÃºdo depende da confirmaÃ§Ã£o do pagamento.</li>
+            <li>â€¢ Os teus dados sÃ£o tratados para operacionalizar a compra e o acesso.</li>
           </ul>
           <p>
-            Podes rever o texto completo na página oficial de termos antes de concluir.
+            Podes rever o texto completo na pÃ¡gina oficial de termos antes de concluir.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild className="rounded-full">
@@ -201,21 +193,22 @@ export function Checkout() {
   const location = useLocation()
   const { session, profile } = useAuth()
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
+  const [activeAuthTab, setActiveAuthTab] = useState<AuthTab>("login")
   const [submitting, setSubmitting] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
   const [termsOpen, setTermsOpen] = useState(false)
+  const [pendingCheckoutAfterAuth, setPendingCheckoutAfterAuth] = useState(false)
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
+  const [loginPassword, setLoginPassword] = useState("")
+  const [registerPassword, setRegisterPassword] = useState("")
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
   const [draft, setDraft] = useState<CheckoutDraft>(() => loadCheckoutDraft())
-
-  const loginHref = `${ROUTES.LOGIN}?redirect=${encodeURIComponent(`${location.pathname}${location.search}`)}`
-  const registerHref = `${ROUTES.REGISTER}?redirect=${encodeURIComponent(`${location.pathname}${location.search}`)}`
 
   useEffect(() => {
     persistCheckoutDraft(draft)
   }, [draft])
-
-  useEffect(() => {
-    preloadAuthPages()
-  }, [])
 
   useEffect(() => {
     if (!profile) {
@@ -246,64 +239,39 @@ export function Checkout() {
   const trimmedEmail = draft.email.trim()
   const trimmedConfirmEmail = draft.confirmEmail.trim()
   const emailMatches = trimmedEmail.toLowerCase() === trimmedConfirmEmail.toLowerCase()
+  const resolvedFullName = trimmedName || profile?.full_name?.trim() || ""
+  const resolvedEmail = trimmedEmail || profile?.email?.trim() || ""
   const canSubmitCheckout =
-    Boolean(trimmedName) &&
-    isValidEmail(trimmedEmail) &&
+    Boolean(resolvedFullName) &&
+    isValidEmail(resolvedEmail) &&
     emailMatches &&
     (!draft.invoiceWithNif || isValidNif(draft.nif)) &&
     draft.acceptTerms
+  const formError = authError ?? submitError
 
-  const handleAuthNavigation = useCallback(
-    (target: AuthTarget) => {
-      persistCheckoutIntent(target)
-      navigate(target === "login" ? loginHref : registerHref, {
-        state: {
-          from: {
-            pathname: location.pathname,
-            search: location.search,
-          },
-          checkoutDraft: {
-            fullName: draft.fullName,
-            email: draft.email,
-            invoiceWithNif: draft.invoiceWithNif,
-            nif: draft.nif,
-            contentUpdatesConsent: draft.contentUpdatesConsent,
-          },
-        },
-      })
-    },
-    [
-      draft.contentUpdatesConsent,
-      draft.email,
-      draft.fullName,
-      draft.invoiceWithNif,
-      draft.nif,
-      location.pathname,
-      location.search,
-      loginHref,
-      navigate,
-      registerHref,
-    ],
-  )
-
-  const handleCheckout = useCallback(async () => {
+  const continueCheckout = useCallback(async () => {
     if (!product) {
       return
     }
 
     setSubmitError(null)
 
-    if (!trimmedName) {
+    const nameToUse = draft.fullName.trim() || profile?.full_name?.trim() || ""
+    const emailToUse = draft.email.trim() || profile?.email?.trim() || ""
+    const confirmEmailToUse = draft.confirmEmail.trim()
+    const emailMatchesCurrent = emailToUse.toLowerCase() === confirmEmailToUse.toLowerCase()
+
+    if (!nameToUse) {
       setSubmitError("Indica o teu nome completo.")
       return
     }
 
-    if (!isValidEmail(trimmedEmail)) {
+    if (!isValidEmail(emailToUse)) {
       setSubmitError("Indica um email válido.")
       return
     }
 
-    if (!emailMatches) {
+    if (!emailMatchesCurrent) {
       setSubmitError("O email e a confirmação de email precisam de coincidir.")
       return
     }
@@ -319,7 +287,7 @@ export function Checkout() {
     }
 
     if (!isAuthenticatedAndActive) {
-      handleAuthNavigation("login")
+      setAuthError("Entra ou cria conta para continuar com o pagamento.")
       return
     }
 
@@ -329,7 +297,6 @@ export function Checkout() {
       if (isFreeProduct(product)) {
         await claimFreeProduct({ productId: product.id })
         clearCheckoutDraft()
-        clearCheckoutIntent()
         navigate(
           `${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=free`,
           { replace: true },
@@ -339,7 +306,7 @@ export function Checkout() {
 
       const result = await createCheckoutSession({
         productId: product.id,
-        customerEmail: trimmedEmail,
+        customerEmail: emailToUse,
         customerNif: draft.invoiceWithNif ? stripDigits(draft.nif) : null,
         invoiceWithNif: draft.invoiceWithNif,
         contentUpdatesConsent: draft.contentUpdatesConsent,
@@ -349,13 +316,11 @@ export function Checkout() {
 
       if (result.mode === "stripe" && result.checkout_url) {
         clearCheckoutDraft()
-        clearCheckoutIntent()
         window.location.assign(result.checkout_url)
         return
       }
 
       clearCheckoutDraft()
-      clearCheckoutIntent()
       navigate(
         `${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=internal`,
         { replace: true },
@@ -374,30 +339,143 @@ export function Checkout() {
     checkoutIdentifier,
     draft.acceptTerms,
     draft.contentUpdatesConsent,
+    draft.confirmEmail,
+    draft.email,
+    draft.fullName,
     draft.invoiceWithNif,
     draft.nif,
-    handleAuthNavigation,
     isAuthenticatedAndActive,
-    emailMatches,
     navigate,
     product,
+    profile?.email,
+    profile?.full_name,
     successUrl,
-    trimmedEmail,
-    trimmedName,
   ])
 
   useEffect(() => {
-    if (!product || !isAuthenticatedAndActive || submitting || !canSubmitCheckout) {
+    if (!pendingCheckoutAfterAuth || !product || !isAuthenticatedAndActive || submitting || !canSubmitCheckout) {
       return
     }
 
-    if (readCheckoutIntent() !== "login" && readCheckoutIntent() !== "register") {
+    setPendingCheckoutAfterAuth(false)
+    void continueCheckout()
+  }, [canSubmitCheckout, continueCheckout, isAuthenticatedAndActive, pendingCheckoutAfterAuth, product, submitting])
+
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAuthError(null)
+    setSubmitError(null)
+
+    const email = draft.email.trim()
+    if (!isValidEmail(email)) {
+      setAuthError("Indica um email válido.")
       return
     }
 
-    clearCheckoutIntent()
-    void handleCheckout()
-  }, [canSubmitCheckout, handleCheckout, isAuthenticatedAndActive, product, submitting])
+    if (!loginPassword.trim()) {
+      setAuthError("Indica a tua palavra-passe.")
+      return
+    }
+
+    setDraft((current) => ({
+      ...current,
+      confirmEmail: current.email,
+    }))
+
+    setAuthLoading(true)
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: loginPassword,
+    })
+
+    setAuthLoading(false)
+
+    if (error) {
+      setAuthError(mapAuthErrorMessage(error.message))
+      return
+    }
+
+    setPendingVerificationEmail(null)
+    setPendingCheckoutAfterAuth(true)
+  }
+
+  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAuthError(null)
+    setSubmitError(null)
+
+    const fullName = draft.fullName.trim()
+    const email = draft.email.trim()
+    const confirmEmail = draft.confirmEmail.trim()
+
+    if (!fullName) {
+      setAuthError("Indica o teu nome completo.")
+      return
+    }
+
+    if (!isValidEmail(email)) {
+      setAuthError("Indica um email válido.")
+      return
+    }
+
+    if (email.toLowerCase() !== confirmEmail.toLowerCase()) {
+      setAuthError("O email e a confirmação de email precisam de coincidir.")
+      return
+    }
+
+    if (!registerPassword.trim()) {
+      setAuthError("Cria uma palavra-passe.")
+      return
+    }
+
+    if (registerPassword !== registerConfirmPassword) {
+      setAuthError("As palavras-passe nao coincidem.")
+      return
+    }
+
+    if (draft.invoiceWithNif && !isValidNif(draft.nif)) {
+      setAuthError("Indica um NIF válido.")
+      return
+    }
+
+    if (!draft.acceptTerms) {
+      setAuthError("Aceita os termos e condições para continuar.")
+      return
+    }
+
+    setAuthLoading(true)
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: registerPassword,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+        emailRedirectTo: buildAuthCallbackUrl(`${location.pathname}${location.search}`),
+      },
+    })
+
+    setAuthLoading(false)
+
+    if (error) {
+      setAuthError(mapAuthErrorMessage(error.message))
+      return
+    }
+
+    const signUpData = data as SignUpResult | null
+    const signedUpEmail = signUpData?.user?.email ?? email
+
+    if (session || isAuthenticatedAndActive) {
+      setPendingVerificationEmail(null)
+      setPendingCheckoutAfterAuth(true)
+      return
+    }
+
+    setPendingVerificationEmail(signedUpEmail)
+    setPendingCheckoutAfterAuth(false)
+  }
 
   if (!slug) {
     return (
@@ -431,13 +509,10 @@ export function Checkout() {
     )
   }
 
-  const isFree = isFreeProduct(product)
   const productDescription =
     richTextToPlainText(product.short_description) ||
     richTextToPlainText(product.description) ||
     "Conteudo digital pronto para ser ativado na tua conta Mariana Explica."
-  const priceLabel = formatProductPrice(product.price_cents, product.currency)
-  const totalLabel = isFree ? formatProductPrice(0, product.currency) : priceLabel
 
   return (
     <>
@@ -447,7 +522,7 @@ export function Checkout() {
             <div>
               <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>
               <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]">
-                Ambiente de inscrição seguro
+                Ambiente de inscriÃ§Ã£o seguro
               </p>
             </div>
             <Link
@@ -461,56 +536,15 @@ export function Checkout() {
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-7">
-              {!isAuthenticatedAndActive ? (
-                <section className="rounded-lg border border-[#dee3e5]/60 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,18,44,0.04)]">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-[#d1e4ff]/60 p-3 text-[#315882]">
-                      <Lock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="font-display text-2xl font-bold text-[#0f122c]">Já tens cadastro?</h2>
-                      <p className="mt-2 text-sm leading-7 text-[#46464d]">
-                        Entra para usar a conta já existente ou cria uma nova conta e continuamos com os dados já
-                        preenchidos.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-12 rounded-lg border-[#bcd1de] bg-white text-[#315882]"
-                      onClick={() => handleAuthNavigation("login")}
-                      onMouseEnter={preloadAuthPages}
-                      onFocus={preloadAuthPages}
-                    >
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Já tenho conta
-                    </Button>
-                    <Button
-                      type="button"
-                      className="h-12 rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]"
-                      onClick={() => handleAuthNavigation("register")}
-                      onMouseEnter={preloadAuthPages}
-                      onFocus={preloadAuthPages}
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Quero criar conta
-                    </Button>
-                  </div>
-                </section>
-              ) : null}
-
               <div className="space-y-3">
                 <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
                   Confirmacao de pedido
                 </span>
                 <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
-                  Quase la! Vamos finalizar sua inscrição.
+                  Quase la! Vamos finalizar sua inscriÃ§Ã£o.
                 </h1>
                 <p className="max-w-xl text-lg leading-8 text-[#46464d]">
-                  Preenche os dados de checkout, entra na tua conta se já tens cadastro e abre o pagamento com segurança.
+                  Preenche os dados de checkout e segue para o pagamento com seguranÃ§a.
                 </p>
               </div>
 
@@ -550,80 +584,175 @@ export function Checkout() {
             <aside className="lg:col-span-5">
               <div className="sticky top-28 space-y-4">
                 <div className="rounded-lg bg-[#242742] p-8 text-white shadow-[0_4px_20px_-2px_rgba(15,18,44,0.22)]">
-                  <div className="mb-8 flex items-start justify-between gap-4">
+                  <div className="mb-6 flex items-start justify-between gap-4">
                     <div>
                       <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#8c8eae]">
-                        Resumo financeiro
+                        Acesso e pagamento
                       </p>
                       <h3 className="font-display text-2xl font-bold text-white">
-                        {isFree ? "Ativação gratuita" : "Investimento único"}
+                        {isAuthenticatedAndActive
+                          ? "Conta ligada"
+                          : activeAuthTab === "login"
+                            ? "Ja tenho conta"
+                            : "Quero me cadastrar"}
                       </h3>
                     </div>
-                    <CreditCard className="h-10 w-10 text-[#af8962]" />
+                    <Lock className="h-10 w-10 text-[#af8962]" />
                   </div>
 
-                  <div className="mb-8 space-y-4">
-                    <div className="flex justify-between text-base text-white/80">
-                      <span>Valor do curso</span>
-                      <span>{priceLabel}</span>
-                    </div>
-                    {isFree ? (
-                      <div className="flex justify-between text-base text-[#e9bf94]">
-                        <span>Desconto aplicado</span>
-                        <span>- {priceLabel}</span>
-                      </div>
-                    ) : null}
-                    <div className="flex items-baseline justify-between border-t border-[#8c8eae]/30 pt-4">
-                      <span className="font-display text-2xl text-white">Total</span>
-                      <div className="text-right">
-                        <span className="block font-display text-4xl font-bold text-white">{totalLabel}</span>
-                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
-                          {isFree ? "sem pagamento" : "pagamento único"}
-                        </span>
-                      </div>
+                  <div className="rounded-full border border-white/10 bg-white/5 p-1">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveAuthTab("login")
+                          setAuthError(null)
+                          setSubmitError(null)
+                        }}
+                        className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+                          activeAuthTab === "login" && !isAuthenticatedAndActive
+                            ? "bg-white text-[#242742] shadow-lg"
+                            : "text-white/65 hover:bg-white/10"
+                        }`}
+                      >
+                        <LogIn className="h-4 w-4" />
+                        Ja tenho conta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveAuthTab("register")
+                          setAuthError(null)
+                          setSubmitError(null)
+                        }}
+                        className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+                          activeAuthTab === "register" && !isAuthenticatedAndActive
+                            ? "bg-white text-[#242742] shadow-lg"
+                            : "text-white/65 hover:bg-white/10"
+                        }`}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        Quero me cadastrar
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="grid gap-4">
-                      <label className="grid gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                          Nome completo
-                        </span>
-                        <input
-                          value={draft.fullName}
-                          onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
-                          placeholder="O teu nome"
-                          autoComplete="name"
-                          className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                        />
-                      </label>
+                  {!isAuthenticatedAndActive ? (
+                    <form
+                      className="mt-6 space-y-4"
+                      onSubmit={activeAuthTab === "login" ? handleLoginSubmit : handleRegisterSubmit}
+                    >
+                      {activeAuthTab === "register" ? (
+                        <div className="space-y-4">
+                          <label className="grid gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                              Nome completo
+                            </span>
+                            <input
+                              value={draft.fullName}
+                              onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
+                              placeholder="O teu nome"
+                              autoComplete="name"
+                              className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                            />
+                          </label>
 
-                      <label className="grid gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">E-mail</span>
-                        <input
-                          value={draft.email}
-                          onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
-                          placeholder="seu@email.com"
-                          autoComplete="email"
-                          className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                        />
-                      </label>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="grid gap-2">
+                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                E-mail
+                              </span>
+                              <input
+                                value={draft.email}
+                                onChange={(event) =>
+                                  setDraft((current) => ({ ...current, email: event.target.value }))
+                                }
+                                placeholder="seu@email.com"
+                                autoComplete="email"
+                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                              />
+                            </label>
 
-                      <label className="grid gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                          Confirmar e-mail
-                        </span>
-                        <input
-                          value={draft.confirmEmail}
+                            <label className="grid gap-2">
+                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                Confirmar e-mail
+                              </span>
+                              <input
+                                value={draft.confirmEmail}
+                                onChange={(event) =>
+                                  setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
+                                }
+                                placeholder="repete o e-mail"
+                                autoComplete="email"
+                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="grid gap-2">
+                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                Palavra-passe
+                              </span>
+                              <input
+                                type="password"
+                                autoComplete="new-password"
+                                value={registerPassword}
+                                onChange={(event) => setRegisterPassword(event.target.value)}
+                                placeholder="Crie uma senha"
+                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                              />
+                            </label>
+
+                            <label className="grid gap-2">
+                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                Confirmar senha
+                              </span>
+                              <input
+                                type="password"
+                                autoComplete="new-password"
+                                value={registerConfirmPassword}
+                                onChange={(event) => setRegisterConfirmPassword(event.target.value)}
+                                placeholder="Repita a senha"
+                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <label className="grid gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">E-mail</span>
+                            <input
+                              value={draft.email}
                           onChange={(event) =>
-                            setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
+                            setDraft((current) => ({
+                              ...current,
+                              email: event.target.value,
+                              confirmEmail: event.target.value,
+                            }))
                           }
-                          placeholder="repete o e-mail"
-                          autoComplete="email"
-                          className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                        />
-                      </label>
+                              placeholder="seu@email.com"
+                              autoComplete="email"
+                              className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                            />
+                          </label>
+
+                          <label className="grid gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                              Palavra-passe
+                            </span>
+                            <input
+                              type="password"
+                              autoComplete="current-password"
+                              value={loginPassword}
+                              onChange={(event) => setLoginPassword(event.target.value)}
+                              placeholder="Digite a sua senha"
+                              className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                            />
+                          </label>
+                        </div>
+                      )}
 
                       <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
                         <input
@@ -649,7 +778,7 @@ export function Checkout() {
                             onChange={(event) =>
                               setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
                             }
-                            placeholder="Número de Identificação Fiscal"
+                            placeholder="NÃºmero de IdentificaÃ§Ã£o Fiscal"
                             inputMode="numeric"
                             autoComplete="off"
                             className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
@@ -692,52 +821,56 @@ export function Checkout() {
                           .
                         </span>
                       </label>
+
+                      {formError ? (
+                        <div className="rounded-lg border border-red-200/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+                          {formError}
+                        </div>
+                      ) : null}
+
+                      <Button
+                        type="submit"
+                        className="h-14 w-full rounded-lg bg-[#B8926A] text-base font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#a6825d] active:scale-[0.99]"
+                        size="lg"
+                        disabled={authLoading || submitting}
+                      >
+                        {authLoading
+                          ? "A processar..."
+                          : activeAuthTab === "login"
+                            ? "Entrar e continuar"
+                            : "Criar conta e continuar"}
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+
+                      <p className="text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
+                        {activeAuthTab === "login"
+                          ? "Ao entrar, usaremos a tua conta para abrir o checkout."
+                          : "Ao criar a conta, avançamos para o pagamento sem sair desta página."}
+                      </p>
+                    </form>
+                  ) : (
+                    <div className="mt-6 space-y-4">
+                      <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-sm leading-7 text-white/80">
+                        A tua sessão já está ativa. Confirma os dados abaixo e avança para o pagamento.
+                      </div>
+
+                      {formError ? (
+                        <div className="rounded-lg border border-red-200/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+                          {formError}
+                        </div>
+                      ) : null}
+
+                      <Button
+                        className="h-14 w-full rounded-lg bg-[#B8926A] text-base font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#a6825d] active:scale-[0.99]"
+                        size="lg"
+                        onClick={() => void continueCheckout()}
+                        disabled={submitting}
+                      >
+                        {submitting ? "A processar..." : "Ir para pagamento"}
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
                     </div>
-                  </div>
-
-                  {submitError ? (
-                    <div className="mt-5 rounded-lg border border-red-200/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
-                      {submitError}
-                    </div>
-                  ) : null}
-
-                  <Button
-                    className="mt-5 h-14 w-full rounded-lg bg-[#B8926A] text-base font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#a6825d] active:scale-[0.99]"
-                    size="lg"
-                    onClick={() => void handleCheckout()}
-                    disabled={submitting}
-                  >
-                    {submitting ? "A processar..." : "Ir para pagamento"}
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-
-                  <div className="mt-8 flex flex-col items-center gap-3 text-center">
-                    <p className="max-w-[280px] text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
-                      {isFree
-                        ? "Ao confirmar, o material será ativado diretamente na tua área do aluno."
-                        : "Ao clicar, serás redirecionado para concluir o pagamento com total segurança."}
-                    </p>
-                    <div className="flex gap-2 opacity-75">
-                      <span className="rounded border border-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]">
-                        Stripe
-                      </span>
-                      <span className="rounded border border-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]">
-                        Visa
-                      </span>
-                      <span className="rounded border border-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]">
-                        Mastercard
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-[#dee3e5]/60 bg-[#e4e9eb]/50 p-6 text-center">
-                  <blockquote className="mb-3 font-display text-base italic text-[#0f122c]">
-                    "A Mariana explica de um jeito que deixa o estudo mais leve e organizado."
-                  </blockquote>
-                  <cite className="text-xs font-bold uppercase tracking-[0.14em] text-[#46464d]">
-                    Aluna Mariana Explica
-                  </cite>
+                  )}
                 </div>
               </div>
             </aside>
@@ -751,6 +884,45 @@ export function Checkout() {
       </div>
 
       <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
+      {pendingVerificationEmail ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/70 bg-white p-6 shadow-2xl sm:p-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Conta pendente de verificacao</p>
+            <h2 className="mt-3 font-display text-3xl font-bold text-slate-950">
+              Enviamos um email para ativares a tua conta
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              A conta foi criada e ficou pendente de verificacao. Enviamos um email para{" "}
+              <span className="font-semibold text-slate-950">{pendingVerificationEmail}</span>.
+              Clica no botao de validacao desse email para ativares a conta e voltares ao checkout.
+            </p>
+            <div className="mt-6 space-y-3">
+              <Button
+                type="button"
+                className="w-full rounded-full"
+                size="lg"
+                onClick={() => {
+                  setPendingVerificationEmail(null)
+                  setActiveAuthTab("login")
+                }}
+              >
+                Continuar no login
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-full"
+                size="lg"
+                onClick={() => setPendingVerificationEmail(null)}
+              >
+                Fechar aviso
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   )
 }
+
+
