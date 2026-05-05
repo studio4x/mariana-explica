@@ -22,6 +22,7 @@ import {
 import { logError, logInfo } from "../_shared/logger.ts"
 import { requireActiveUser } from "../_shared/auth.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
+import { HttpError } from "../_shared/errors.ts"
 
 interface ClaimFreeProductInput {
   productId?: string
@@ -56,6 +57,40 @@ async function waitForProfileById(serviceClient: ReturnType<typeof createService
   return null
 }
 
+async function resolveClaimContext(req: Request, pendingUserId: string | null) {
+  const accessToken = await getAccessToken(req)
+
+  if (accessToken) {
+    try {
+      return await requireActiveUser(req)
+    } catch (error) {
+      if (!pendingUserId) {
+        throw error
+      }
+
+      if (!(error instanceof HttpError) || error.status !== 401) {
+        throw error
+      }
+    }
+  }
+
+  if (!pendingUserId) {
+    return null
+  }
+
+  const serviceClient = createServiceClient()
+  const { data: authUserData, error: authUserError } = await serviceClient.auth.admin.getUserById(pendingUserId)
+  if (authUserError) throw authUserError
+
+  const user = authUserData.user
+  if (!user) throw badRequest("Utilizador pendente nao encontrado")
+
+  const profile = await waitForProfileById(serviceClient, pendingUserId)
+  if (!profile) throw badRequest("Perfil pendente nao encontrado")
+
+  return { user, profile, serviceClient, token: "" }
+}
+
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
 
@@ -76,26 +111,7 @@ Deno.serve(async (req) => {
       throw badRequest("Informe productId ou productSlug")
     }
 
-    const accessToken = await getAccessToken(req)
-    const context = accessToken
-      ? await requireActiveUser(req)
-      : pendingUserId
-        ? {
-            ...(await (async () => {
-              const serviceClient = createServiceClient()
-              const { data: authUserData, error: authUserError } = await serviceClient.auth.admin.getUserById(
-                pendingUserId,
-              )
-              if (authUserError) throw authUserError
-              const user = authUserData.user
-              if (!user) throw badRequest("Utilizador pendente nao encontrado")
-              const profile = await waitForProfileById(serviceClient, pendingUserId)
-              if (!profile) throw badRequest("Perfil pendente nao encontrado")
-              return { user, profile, serviceClient }
-            })()),
-            token: "",
-          }
-        : null
+    const context = await resolveClaimContext(req, pendingUserId)
 
     if (!context) {
       throw badRequest("Sessao ausente. Cria a conta para continuar.")

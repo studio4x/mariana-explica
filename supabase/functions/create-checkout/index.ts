@@ -34,6 +34,7 @@ import {
   resolveCheckoutEnvironment,
 } from "../_shared/payments.ts"
 import { requireActiveUser } from "../_shared/auth.ts"
+import { HttpError } from "../_shared/errors.ts"
 
 interface CreateCheckoutInput {
   productId?: string
@@ -146,6 +147,30 @@ async function resolvePendingCheckoutContext(
   }
 }
 
+async function resolveCheckoutContext(req: Request, pendingUserId: string | null) {
+  const accessToken = await getAccessToken(req)
+
+  if (accessToken) {
+    try {
+      return await requireActiveUser(req)
+    } catch (error) {
+      if (!pendingUserId) {
+        throw error
+      }
+
+      if (!(error instanceof HttpError) || error.status !== 401) {
+        throw error
+      }
+    }
+  }
+
+  if (!pendingUserId) {
+    return null
+  }
+
+  return await resolvePendingCheckoutContext(createServiceClient(), pendingUserId)
+}
+
 async function findReusablePendingCheckout(
   client: Awaited<ReturnType<typeof requireActiveUser>>["serviceClient"],
   params: {
@@ -214,12 +239,7 @@ Deno.serve(async (req) => {
       throw badRequest("customerEmail invalido")
     }
 
-    const accessToken = await getAccessToken(req)
-    const context = accessToken
-      ? await requireActiveUser(req)
-      : pendingUserId
-        ? await resolvePendingCheckoutContext(createServiceClient(), pendingUserId)
-        : null
+    const context = await resolveCheckoutContext(req, pendingUserId)
 
     if (!context) {
       throw badRequest("Sessao ausente. Cria a conta para continuar.")
