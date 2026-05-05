@@ -462,6 +462,47 @@ export function Checkout() {
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-7">
+              {!isAuthenticatedAndActive ? (
+                <section className="rounded-lg border border-[#dee3e5]/60 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,18,44,0.04)]">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-2xl bg-[#d1e4ff]/60 p-3 text-[#315882]">
+                      <Lock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="font-display text-2xl font-bold text-[#0f122c]">Já tens cadastro?</h2>
+                      <p className="mt-2 text-sm leading-7 text-[#46464d]">
+                        Entra para usar a conta já existente ou cria uma nova conta e continuamos com os dados já
+                        preenchidos.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-lg border-[#bcd1de] bg-white text-[#315882]"
+                      onClick={() => handleAuthNavigation("login")}
+                      onMouseEnter={preloadAuthPages}
+                      onFocus={preloadAuthPages}
+                    >
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Já tenho conta
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-12 rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]"
+                      onClick={() => handleAuthNavigation("register")}
+                      onMouseEnter={preloadAuthPages}
+                      onFocus={preloadAuthPages}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Quero criar conta
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
+
               <div className="space-y-3">
                 <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
                   Confirmacao de pedido
@@ -504,47 +545,6 @@ export function Checkout() {
                   </div>
                 </div>
               </div>
-
-              {!isAuthenticatedAndActive ? (
-                <section className="rounded-lg border border-[#dee3e5]/60 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,18,44,0.04)]">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-[#d1e4ff]/60 p-3 text-[#315882]">
-                      <Lock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="font-display text-2xl font-bold text-[#0f122c]">Já tens cadastro?</h2>
-                      <p className="mt-2 text-sm leading-7 text-[#46464d]">
-                        Entra para usar a conta já existente ou cria uma nova conta e continuamos com os dados já
-                        preenchidos.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-12 rounded-lg border-[#bcd1de] bg-white text-[#315882]"
-                      onClick={() => handleAuthNavigation("login")}
-                      onMouseEnter={preloadAuthPages}
-                      onFocus={preloadAuthPages}
-                    >
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Já tenho conta
-                    </Button>
-                    <Button
-                      type="button"
-                      className="h-12 rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]"
-                      onClick={() => handleAuthNavigation("register")}
-                      onMouseEnter={preloadAuthPages}
-                      onFocus={preloadAuthPages}
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Quero criar conta
-                    </Button>
-                  </div>
-                </section>
-              ) : null}
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-lg border border-[#dee3e5]/60 bg-white/60 p-8">
@@ -713,12 +713,6 @@ export function Checkout() {
                       </label>
                     </div>
                   </div>
-
-                  {!isAuthenticatedAndActive ? (
-                    <div className="mt-5 rounded-lg border border-[#e9bf94]/40 bg-[#ffddbb]/10 p-4 text-sm leading-6 text-[#ffddbb]">
-                      Faz login ou cria a conta para abrir o Stripe com o pedido já validado.
-                    </div>
-                  ) : null}
 
                   {submitError ? (
                     <div className="mt-5 rounded-lg border border-red-200/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
