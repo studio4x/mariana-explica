@@ -62,5 +62,11 @@ export const ROUTES = {
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
 
 // Supabase
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
+// Fallback público do projecto para evitar que builds sem VITE_* deixem o cliente "mock".
+// Estes valores não concedem acesso administrativo.
+const FALLBACK_SUPABASE_URL = "https://gookhgufsxeplelpdaua.supabase.co"
+const FALLBACK_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdvb2toZ3Vmc3hlcGxlbHBkYXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDM1OTYsImV4cCI6MjA5MTY3OTU5Nn0.9uw7Tk9R8-3tlPAJzRY8LxTC5TQMYVkHMf5JWsxqGjI"
+
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY
