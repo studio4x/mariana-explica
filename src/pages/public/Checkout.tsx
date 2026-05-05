@@ -199,7 +199,6 @@ export function Checkout() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
   const [termsOpen, setTermsOpen] = useState(false)
-  const [pendingCheckoutAfterAuth, setPendingCheckoutAfterAuth] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
   const [loginPassword, setLoginPassword] = useState("")
   const [registerPassword, setRegisterPassword] = useState("")
@@ -235,6 +234,7 @@ export function Checkout() {
     : ""
 
   const isAuthenticatedAndActive = Boolean(session && profile?.status === "active")
+  const hasSession = Boolean(session)
   const trimmedName = draft.fullName.trim()
   const trimmedEmail = draft.email.trim()
   const trimmedConfirmEmail = draft.confirmEmail.trim()
@@ -242,12 +242,19 @@ export function Checkout() {
   const resolvedFullName = trimmedName || profile?.full_name?.trim() || ""
   const resolvedEmail = trimmedEmail || profile?.email?.trim() || ""
   const canSubmitCheckout =
+    hasSession &&
     Boolean(resolvedFullName) &&
     isValidEmail(resolvedEmail) &&
     emailMatches &&
     (!draft.invoiceWithNif || isValidNif(draft.nif)) &&
     draft.acceptTerms
   const formError = authError ?? submitError
+
+  useEffect(() => {
+    if (hasSession) {
+      setAuthError(null)
+    }
+  }, [hasSession])
 
   const continueCheckout = useCallback(async () => {
     if (!product) {
@@ -352,15 +359,6 @@ export function Checkout() {
     successUrl,
   ])
 
-  useEffect(() => {
-    if (!pendingCheckoutAfterAuth || !product || !isAuthenticatedAndActive || submitting || !canSubmitCheckout) {
-      return
-    }
-
-    setPendingCheckoutAfterAuth(false)
-    void continueCheckout()
-  }, [canSubmitCheckout, continueCheckout, isAuthenticatedAndActive, pendingCheckoutAfterAuth, product, submitting])
-
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setAuthError(null)
@@ -395,9 +393,6 @@ export function Checkout() {
       setAuthError(mapAuthErrorMessage(error.message))
       return
     }
-
-    setPendingVerificationEmail(null)
-    setPendingCheckoutAfterAuth(true)
   }
 
   const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -469,12 +464,10 @@ export function Checkout() {
 
     if (session || isAuthenticatedAndActive) {
       setPendingVerificationEmail(null)
-      setPendingCheckoutAfterAuth(true)
       return
     }
 
     setPendingVerificationEmail(signedUpEmail)
-    setPendingCheckoutAfterAuth(false)
   }
 
   if (!slug) {
@@ -590,8 +583,8 @@ export function Checkout() {
                         Acesso e pagamento
                       </p>
                       <h3 className="font-display text-2xl font-bold text-white">
-                        {isAuthenticatedAndActive
-                          ? "Conta ligada"
+                        {hasSession
+                          ? "Confirma os teus dados"
                           : activeAuthTab === "login"
                             ? "Ja tenho conta"
                             : "Quero me cadastrar"}
@@ -600,64 +593,130 @@ export function Checkout() {
                     <Lock className="h-10 w-10 text-[#af8962]" />
                   </div>
 
-                  <div className="rounded-full border border-white/10 bg-white/5 p-1">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveAuthTab("login")
-                          setAuthError(null)
-                          setSubmitError(null)
-                        }}
-                        className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
-                          activeAuthTab === "login" && !isAuthenticatedAndActive
-                            ? "bg-white text-[#242742] shadow-lg"
-                            : "text-white/65 hover:bg-white/10"
-                        }`}
-                      >
-                        <LogIn className="h-4 w-4" />
-                        Ja tenho conta
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveAuthTab("register")
-                          setAuthError(null)
-                          setSubmitError(null)
-                        }}
-                        className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
-                          activeAuthTab === "register" && !isAuthenticatedAndActive
-                            ? "bg-white text-[#242742] shadow-lg"
-                            : "text-white/65 hover:bg-white/10"
-                        }`}
-                      >
-                        <UserPlus className="h-4 w-4" />
-                        Quero me cadastrar
-                      </button>
-                    </div>
-                  </div>
+                  {!hasSession ? (
+                    <>
+                      <div className="rounded-full border border-white/10 bg-white/5 p-1">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveAuthTab("login")
+                              setAuthError(null)
+                              setSubmitError(null)
+                            }}
+                            className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+                              activeAuthTab === "login"
+                                ? "bg-white text-[#242742] shadow-lg"
+                                : "text-white/65 hover:bg-white/10"
+                            }`}
+                          >
+                            <LogIn className="h-4 w-4" />
+                            Ja tenho conta
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveAuthTab("register")
+                              setAuthError(null)
+                              setSubmitError(null)
+                            }}
+                            className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+                              activeAuthTab === "register"
+                                ? "bg-white text-[#242742] shadow-lg"
+                                : "text-white/65 hover:bg-white/10"
+                            }`}
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Quero me cadastrar
+                          </button>
+                        </div>
+                      </div>
 
-                  {!isAuthenticatedAndActive ? (
-                    <form
-                      className="mt-6 space-y-4"
-                      onSubmit={activeAuthTab === "login" ? handleLoginSubmit : handleRegisterSubmit}
-                    >
-                      {activeAuthTab === "register" ? (
-                        <div className="space-y-4">
-                          <label className="grid gap-2">
-                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                              Nome completo
-                            </span>
-                            <input
-                              value={draft.fullName}
-                              onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
-                              placeholder="O teu nome"
-                              autoComplete="name"
-                              className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                            />
-                          </label>
+                      <form
+                        className="mt-6 space-y-4"
+                        onSubmit={activeAuthTab === "login" ? handleLoginSubmit : handleRegisterSubmit}
+                      >
+                        {activeAuthTab === "register" ? (
+                          <div className="space-y-4">
+                            <label className="grid gap-2">
+                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                Nome completo
+                              </span>
+                              <input
+                                value={draft.fullName}
+                                onChange={(event) =>
+                                  setDraft((current) => ({ ...current, fullName: event.target.value }))
+                                }
+                                placeholder="O teu nome"
+                                autoComplete="name"
+                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                              />
+                            </label>
 
-                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <label className="grid gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                  E-mail
+                                </span>
+                                <input
+                                  value={draft.email}
+                                  onChange={(event) =>
+                                    setDraft((current) => ({ ...current, email: event.target.value }))
+                                  }
+                                  placeholder="seu@email.com"
+                                  autoComplete="email"
+                                  className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                                />
+                              </label>
+
+                              <label className="grid gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                  Confirmar e-mail
+                                </span>
+                                <input
+                                  value={draft.confirmEmail}
+                                  onChange={(event) =>
+                                    setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
+                                  }
+                                  placeholder="repete o e-mail"
+                                  autoComplete="email"
+                                  className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <label className="grid gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                  Palavra-passe
+                                </span>
+                                <input
+                                  type="password"
+                                  autoComplete="new-password"
+                                  value={registerPassword}
+                                  onChange={(event) => setRegisterPassword(event.target.value)}
+                                  placeholder="Crie uma senha"
+                                  className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                                />
+                              </label>
+
+                              <label className="grid gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                  Confirmar senha
+                                </span>
+                                <input
+                                  type="password"
+                                  autoComplete="new-password"
+                                  value={registerConfirmPassword}
+                                  onChange={(event) => setRegisterConfirmPassword(event.target.value)}
+                                  placeholder="Repita a senha"
+                                  className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
                             <label className="grid gap-2">
                               <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
                                 E-mail
@@ -665,7 +724,11 @@ export function Checkout() {
                               <input
                                 value={draft.email}
                                 onChange={(event) =>
-                                  setDraft((current) => ({ ...current, email: event.target.value }))
+                                  setDraft((current) => ({
+                                    ...current,
+                                    email: event.target.value,
+                                    confirmEmail: event.target.value,
+                                  }))
                                 }
                                 placeholder="seu@email.com"
                                 autoComplete="email"
@@ -675,63 +738,79 @@ export function Checkout() {
 
                             <label className="grid gap-2">
                               <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                                Confirmar e-mail
-                              </span>
-                              <input
-                                value={draft.confirmEmail}
-                                onChange={(event) =>
-                                  setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
-                                }
-                                placeholder="repete o e-mail"
-                                autoComplete="email"
-                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                              />
-                            </label>
-                          </div>
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <label className="grid gap-2">
-                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
                                 Palavra-passe
                               </span>
                               <input
                                 type="password"
-                                autoComplete="new-password"
-                                value={registerPassword}
-                                onChange={(event) => setRegisterPassword(event.target.value)}
-                                placeholder="Crie uma senha"
-                                className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                              />
-                            </label>
-
-                            <label className="grid gap-2">
-                              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                                Confirmar senha
-                              </span>
-                              <input
-                                type="password"
-                                autoComplete="new-password"
-                                value={registerConfirmPassword}
-                                onChange={(event) => setRegisterConfirmPassword(event.target.value)}
-                                placeholder="Repita a senha"
+                                autoComplete="current-password"
+                                value={loginPassword}
+                                onChange={(event) => setLoginPassword(event.target.value)}
+                                placeholder="Digite a sua senha"
                                 className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
                               />
                             </label>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
+                        )}
+
+                        {formError ? (
+                          <div className="rounded-lg border border-red-200/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+                            {formError}
+                          </div>
+                        ) : null}
+
+                        <Button
+                          type="submit"
+                          className="h-14 w-full rounded-lg bg-[#B8926A] text-base font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#a6825d] active:scale-[0.99]"
+                          size="lg"
+                          disabled={authLoading || submitting}
+                        >
+                          {authLoading
+                            ? "A processar..."
+                            : activeAuthTab === "login"
+                              ? "Entrar e continuar"
+                              : "Criar conta e continuar"}
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </Button>
+
+                        <p className="text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
+                          {activeAuthTab === "login"
+                            ? "Ao entrar, usaremos a tua conta para abrir o checkout."
+                            : "Ao criar a conta, avançamos para o pagamento sem sair desta página."}
+                        </p>
+                      </form>
+                    </>
+                  ) : (
+                    <form
+                      className="mt-6 space-y-4"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        void continueCheckout()
+                      }}
+                    >
+                      <div className="grid gap-4">
+                        <label className="grid gap-2">
+                          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                            Nome completo
+                          </span>
+                          <input
+                            value={draft.fullName}
+                            onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
+                            placeholder="O teu nome"
+                            autoComplete="name"
+                            className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                          />
+                        </label>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
                           <label className="grid gap-2">
-                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">E-mail</span>
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                              E-mail
+                            </span>
                             <input
                               value={draft.email}
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              email: event.target.value,
-                              confirmEmail: event.target.value,
-                            }))
-                          }
+                              onChange={(event) =>
+                                setDraft((current) => ({ ...current, email: event.target.value }))
+                              }
                               placeholder="seu@email.com"
                               autoComplete="email"
                               className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
@@ -740,118 +819,89 @@ export function Checkout() {
 
                           <label className="grid gap-2">
                             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
-                              Palavra-passe
+                              Confirmar e-mail
                             </span>
                             <input
-                              type="password"
-                              autoComplete="current-password"
-                              value={loginPassword}
-                              onChange={(event) => setLoginPassword(event.target.value)}
-                              placeholder="Digite a sua senha"
+                              value={draft.confirmEmail}
+                              onChange={(event) =>
+                                setDraft((current) => ({ ...current, confirmEmail: event.target.value }))
+                              }
+                              placeholder="repete o e-mail"
+                              autoComplete="email"
                               className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
                             />
                           </label>
                         </div>
-                      )}
 
-                      <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
-                        <input
-                          type="checkbox"
-                          checked={draft.invoiceWithNif}
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              invoiceWithNif: event.target.checked,
-                              nif: event.target.checked ? current.nif : "",
-                            }))
-                          }
-                          className="mt-1 h-4 w-4 accent-[#e9bf94]"
-                        />
-                        <span className="leading-6">Pretendo receber fatura com NIF</span>
-                      </label>
-
-                      {draft.invoiceWithNif ? (
-                        <label className="grid gap-2">
-                          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">NIF</span>
+                        <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
                           <input
-                            value={formatNif(draft.nif)}
+                            type="checkbox"
+                            checked={draft.invoiceWithNif}
                             onChange={(event) =>
-                              setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
+                              setDraft((current) => ({
+                                ...current,
+                                invoiceWithNif: event.target.checked,
+                                nif: event.target.checked ? current.nif : "",
+                              }))
                             }
-                            placeholder="Número de Identificação Fiscal"
-                            inputMode="numeric"
-                            autoComplete="off"
-                            className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                            className="mt-1 h-4 w-4 accent-[#e9bf94]"
                           />
+                          <span className="leading-6">Pretendo receber fatura com NIF</span>
                         </label>
-                      ) : null}
 
-                      <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
-                        <input
-                          type="checkbox"
-                          checked={draft.contentUpdatesConsent}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, contentUpdatesConsent: event.target.checked }))
-                          }
-                          className="mt-1 h-4 w-4 accent-[#e9bf94]"
-                        />
-                        <span className="leading-6">
-                          Quero saber quando os resumos sao melhorados ou saem novas disciplinas e recursos.
-                        </span>
-                      </label>
+                        {draft.invoiceWithNif ? (
+                          <label className="grid gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                              NIF
+                            </span>
+                            <input
+                              value={formatNif(draft.nif)}
+                              onChange={(event) =>
+                                setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
+                              }
+                              placeholder="Número de Identificação Fiscal"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                            />
+                          </label>
+                        ) : null}
 
-                      <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
-                        <input
-                          type="checkbox"
-                          checked={draft.acceptTerms}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, acceptTerms: event.target.checked }))
-                          }
-                          className="mt-1 h-4 w-4 accent-[#e9bf94]"
-                        />
-                        <span className="leading-6">
-                          Confirmo que li e aceito os{" "}
-                          <button
-                            type="button"
-                            onClick={() => setTermsOpen(true)}
-                            className="font-semibold text-[#e9bf94] underline underline-offset-4"
-                          >
-                            termos e condições
-                          </button>
-                          .
-                        </span>
-                      </label>
+                        <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
+                          <input
+                            type="checkbox"
+                            checked={draft.contentUpdatesConsent}
+                            onChange={(event) =>
+                              setDraft((current) => ({ ...current, contentUpdatesConsent: event.target.checked }))
+                            }
+                            className="mt-1 h-4 w-4 accent-[#e9bf94]"
+                          />
+                          <span className="leading-6">
+                            Quero saber quando os resumos sao melhorados ou saem novas disciplinas e recursos.
+                          </span>
+                        </label>
 
-                      {formError ? (
-                        <div className="rounded-lg border border-red-200/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
-                          {formError}
-                        </div>
-                      ) : null}
-
-                      <Button
-                        type="submit"
-                        className="h-14 w-full rounded-lg bg-[#B8926A] text-base font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#a6825d] active:scale-[0.99]"
-                        size="lg"
-                        disabled={authLoading || submitting}
-                      >
-                        {authLoading
-                          ? "A processar..."
-                          : activeAuthTab === "login"
-                            ? "Entrar e continuar"
-                            : "Criar conta e continuar"}
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                      </Button>
-
-                      <p className="text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
-                        {activeAuthTab === "login"
-                          ? "Ao entrar, usaremos a tua conta para abrir o checkout."
-                          : "Ao criar a conta, avançamos para o pagamento sem sair desta página."}
-                      </p>
-                    </form>
-                  ) : (
-                    <div className="mt-6 space-y-4">
-                      <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-sm leading-7 text-white/80">
-                        A tua sessão já está ativa. Confirma os dados abaixo e avança para o pagamento.
+                        <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
+                          <input
+                            type="checkbox"
+                            checked={draft.acceptTerms}
+                            onChange={(event) =>
+                              setDraft((current) => ({ ...current, acceptTerms: event.target.checked }))
+                            }
+                            className="mt-1 h-4 w-4 accent-[#e9bf94]"
+                          />
+                          <span className="leading-6">
+                            Confirmo que li e aceito os{" "}
+                            <button
+                              type="button"
+                              onClick={() => setTermsOpen(true)}
+                              className="font-semibold text-[#e9bf94] underline underline-offset-4"
+                            >
+                              termos e condições
+                            </button>
+                            .
+                          </span>
+                        </label>
                       </div>
 
                       {formError ? (
@@ -864,12 +914,12 @@ export function Checkout() {
                         className="h-14 w-full rounded-lg bg-[#B8926A] text-base font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#a6825d] active:scale-[0.99]"
                         size="lg"
                         onClick={() => void continueCheckout()}
-                        disabled={submitting}
+                        disabled={submitting || !canSubmitCheckout}
                       >
                         {submitting ? "A processar..." : "Ir para pagamento"}
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
-                    </div>
+                    </form>
                   )}
                 </div>
               </div>
