@@ -83,3 +83,9 @@ export interface ClaimFreeProductResponse {
   grant_id: string
   mode: "free_claim"
 }
+
+export interface CheckoutAutologinResponse {
+  success: true
+  request_id: string
+  autologin_url: string
+}

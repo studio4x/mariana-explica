@@ -1,6 +1,7 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
+  CheckoutAutologinResponse,
   ClaimFreeProductResponse,
   CreateCheckoutResponse,
 } from "@/types/product.types"
@@ -23,6 +24,12 @@ export interface ClaimFreeProductInput {
   productId?: string
   productSlug?: string
   pendingUserId?: string | null
+}
+
+export interface CheckoutAutologinInput {
+  checkoutSessionId: string
+  productId?: string
+  nextPath?: string | null
 }
 
 const RETRYABLE_NETWORK_ERROR_PATTERNS = [
@@ -122,4 +129,16 @@ export function claimFreeProduct(input: ClaimFreeProductInput) {
   return invokeFunction<ClaimFreeProductResponse>("claim-free-product", input, {
     allowAnonymous: Boolean(input.pendingUserId),
   })
+}
+
+export function createCheckoutAutologin(input: CheckoutAutologinInput) {
+  return invokeFunction<CheckoutAutologinResponse>(
+    "checkout-autologin",
+    {
+      checkout_session_id: input.checkoutSessionId,
+      product_id: input.productId ?? null,
+      next_path: input.nextPath ?? null,
+    },
+    { allowAnonymous: true },
+  )
 }

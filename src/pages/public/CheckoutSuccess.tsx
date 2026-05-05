@@ -1,9 +1,11 @@
+import { useEffect, useRef, useState } from "react"
 import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom"
 import { ArrowRight, BadgeCheck, BookOpenCheck, CheckCircle2, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
+import { createCheckoutAutologin } from "@/services"
 
 export function CheckoutSuccess() {
   const location = useLocation()
@@ -15,9 +17,44 @@ export function CheckoutSuccess() {
   const courseHref = productId ? studentCoursePath(productId) : ROUTES.DASHBOARD
   const redirectPath = `${location.pathname}${location.search}`
   const loginRedirectHref = `${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirectPath)}`
+  const autologinAttemptedRef = useRef(false)
+  const [autologinInProgress, setAutologinInProgress] = useState(false)
 
-  if (loading) {
-    return <div className="p-8 text-center">A validar o teu acesso...</div>
+  useEffect(() => {
+    if (loading || (session && profile?.status === "active")) {
+      return
+    }
+
+    if (autologinAttemptedRef.current) {
+      return
+    }
+
+    if (!sessionId || mode !== "stripe") {
+      return
+    }
+
+    autologinAttemptedRef.current = true
+    setAutologinInProgress(true)
+
+    void (async () => {
+      try {
+        const response = await createCheckoutAutologin({
+          checkoutSessionId: sessionId,
+          productId: productId || undefined,
+          nextPath: redirectPath,
+        })
+
+        window.location.assign(response.autologin_url)
+      } catch {
+        // fallback para o login manual abaixo
+      } finally {
+        setAutologinInProgress(false)
+      }
+    })()
+  }, [loading, mode, productId, profile?.status, redirectPath, session, sessionId])
+
+  if (loading || autologinInProgress) {
+    return <div className="p-8 text-center">A iniciar sessao automatica...</div>
   }
 
   if (!session || !profile || profile.status !== "active") {
