@@ -8,7 +8,6 @@ import {
   Lock,
   LogIn,
   ShieldCheck,
-  UserCircle,
   UserPlus,
   X,
 } from "lucide-react"
@@ -546,24 +545,6 @@ export function Checkout() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-[#dee3e5]/60 bg-white/60 p-8">
-                  <UserCircle className="mb-3 h-6 w-6 text-[#3a618b]" />
-                  <h3 className="mb-2 font-display text-lg font-bold text-[#0f122c]">Conta vinculada</h3>
-                  <p className="text-sm leading-6 text-[#46464d]">
-                    {isAuthenticatedAndActive
-                      ? `O conteúdo será liberado na conta ${profile?.email ? `associada a ${profile.email}` : "usada no login"}.`
-                      : "Faz login ou cria a conta para abrir o pagamento e vincular o acesso corretamente."}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#dee3e5]/60 bg-white/60 p-8">
-                  <Lock className="mb-3 h-6 w-6 text-[#3a618b]" />
-                  <h3 className="mb-2 font-display text-lg font-bold text-[#0f122c]">Termos confirmados</h3>
-                  <p className="text-sm leading-6 text-[#46464d]">
-                    O botão de pagamento só fica disponível depois de confirmares os dados e aceitares os termos.
-                  </p>
-                </div>
-              </div>
             </section>
 
             <aside className="lg:col-span-5">
