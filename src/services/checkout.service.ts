@@ -11,6 +11,7 @@ export interface CreateCheckoutInput {
   couponCode?: string | null
   affiliateCode?: string | null
   customerEmail?: string | null
+  pendingUserId?: string | null
   invoiceWithNif?: boolean
   customerNif?: string | null
   contentUpdatesConsent?: boolean
@@ -21,6 +22,7 @@ export interface CreateCheckoutInput {
 export interface ClaimFreeProductInput {
   productId?: string
   productSlug?: string
+  pendingUserId?: string | null
 }
 
 const RETRYABLE_NETWORK_ERROR_PATTERNS = [
@@ -43,16 +45,21 @@ function isRetryableNetworkError(error: unknown) {
   return RETRYABLE_NETWORK_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
 }
 
-async function invokeFunction<TResponse>(name: string, body: unknown) {
+async function invokeFunction<TResponse>(
+  name: string,
+  body: unknown,
+  options?: { allowAnonymous?: boolean },
+) {
   const auth = await getFreshFunctionAuthContext()
-  if (!auth) {
+  if (!auth && !options?.allowAnonymous) {
     throw new Error("Sessao expirada. Entre novamente para continuar.")
   }
 
   const url = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`
+  const bodyObject = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {}
   const requestBody = JSON.stringify({
-    ...(typeof body === "object" && body !== null ? body : {}),
-    access_token: auth.accessToken,
+    ...bodyObject,
+    ...(auth ? { access_token: auth.accessToken } : null),
   })
   let response: Response | null = null
 
@@ -62,7 +69,7 @@ async function invokeFunction<TResponse>(name: string, body: unknown) {
         method: "POST",
         headers: {
           apikey: SUPABASE_ANON_KEY,
-          Authorization: auth.headers.Authorization,
+          ...(auth ? { Authorization: auth.headers.Authorization } : {}),
           "Content-Type": "application/json",
         },
         body: requestBody,
@@ -106,9 +113,13 @@ async function invokeFunction<TResponse>(name: string, body: unknown) {
 }
 
 export function createCheckoutSession(input: CreateCheckoutInput) {
-  return invokeFunction<CreateCheckoutResponse>("create-checkout", input)
+  return invokeFunction<CreateCheckoutResponse>("create-checkout", input, {
+    allowAnonymous: Boolean(input.pendingUserId),
+  })
 }
 
 export function claimFreeProduct(input: ClaimFreeProductInput) {
-  return invokeFunction<ClaimFreeProductResponse>("claim-free-product", input)
+  return invokeFunction<ClaimFreeProductResponse>("claim-free-product", input, {
+    allowAnonymous: Boolean(input.pendingUserId),
+  })
 }

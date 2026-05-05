@@ -37,8 +37,10 @@ type AuthTab = "login" | "register"
 
 type SignUpResult = {
   user?: {
+    id?: string | null
     email?: string | null
   } | null
+  session?: unknown
 }
 
 const emptyDraft: CheckoutDraft = {
@@ -256,7 +258,7 @@ export function Checkout() {
     }
   }, [hasSession])
 
-  const continueCheckout = useCallback(async () => {
+  const continueCheckout = useCallback(async (pendingUserId?: string | null) => {
     if (!product) {
       return
     }
@@ -293,7 +295,7 @@ export function Checkout() {
       return
     }
 
-    if (!isAuthenticatedAndActive) {
+    if (!isAuthenticatedAndActive && !pendingUserId) {
       setAuthError("Entra ou cria conta para continuar com o pagamento.")
       return
     }
@@ -302,7 +304,7 @@ export function Checkout() {
 
     try {
       if (isFreeProduct(product)) {
-        await claimFreeProduct({ productId: product.id })
+        await claimFreeProduct({ productId: product.id, pendingUserId: pendingUserId ?? null })
         clearCheckoutDraft()
         navigate(
           `${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=free`,
@@ -314,6 +316,7 @@ export function Checkout() {
       const result = await createCheckoutSession({
         productId: product.id,
         customerEmail: emailToUse,
+        pendingUserId: pendingUserId ?? null,
         customerNif: draft.invoiceWithNif ? stripDigits(draft.nif) : null,
         invoiceWithNif: draft.invoiceWithNif,
         contentUpdatesConsent: draft.contentUpdatesConsent,
@@ -461,13 +464,10 @@ export function Checkout() {
 
     const signUpData = data as SignUpResult | null
     const signedUpEmail = signUpData?.user?.email ?? email
-
-    if (session || isAuthenticatedAndActive) {
-      setPendingVerificationEmail(null)
-      return
-    }
+    const pendingUserId = signUpData?.user?.id ?? null
 
     setPendingVerificationEmail(signedUpEmail)
+    await continueCheckout(pendingUserId)
   }
 
   if (!slug) {
@@ -736,6 +736,14 @@ export function Checkout() {
                                 .
                               </span>
                             </label>
+
+                            {pendingVerificationEmail ? (
+                              <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm leading-6 text-white/75">
+                                Criámos a conta para{" "}
+                                <span className="font-semibold text-white">{pendingVerificationEmail}</span> e enviámos
+                                o email de confirmação sem travar o checkout.
+                              </div>
+                            ) : null}
                           </div>
                         ) : (
                           <div className="space-y-4">
@@ -956,43 +964,6 @@ export function Checkout() {
       </div>
 
       <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
-      {pendingVerificationEmail ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[2rem] border border-white/70 bg-white p-6 shadow-2xl sm:p-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Conta pendente de verificacao</p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-slate-950">
-              Enviamos um email para ativares a tua conta
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              A conta foi criada e ficou pendente de verificacao. Enviamos um email para{" "}
-              <span className="font-semibold text-slate-950">{pendingVerificationEmail}</span>.
-              Clica no botao de validacao desse email para ativares a conta e voltares ao checkout.
-            </p>
-            <div className="mt-6 space-y-3">
-              <Button
-                type="button"
-                className="w-full rounded-full"
-                size="lg"
-                onClick={() => {
-                  setPendingVerificationEmail(null)
-                  setActiveAuthTab("login")
-                }}
-              >
-                Continuar no login
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-full"
-                size="lg"
-                onClick={() => setPendingVerificationEmail(null)}
-              >
-                Fechar aviso
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   )
 }

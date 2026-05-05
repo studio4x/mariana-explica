@@ -15,12 +15,14 @@ import {
   recordCouponUsage,
   resolveAffiliateByCode,
   resolveCouponByCode,
+  createServiceClient,
   writeAuditLog,
 } from "../_shared/mod.ts"
 import { badRequest, internalError, unprocessable } from "../_shared/errors.ts"
 import {
   corsResponse,
   errorResponse,
+  getAccessToken,
   getRequestId,
   jsonResponse,
   readJsonBody,
@@ -39,6 +41,7 @@ interface CreateCheckoutInput {
   couponCode?: string | null
   affiliateCode?: string | null
   customerEmail?: string | null
+  pendingUserId?: string | null
   invoiceWithNif?: boolean
   customerNif?: string | null
   contentUpdatesConsent?: boolean
@@ -84,6 +87,63 @@ function stripDigits(value: string) {
 function isValidNif(value: string) {
   const digits = stripDigits(value)
   return digits.length === 9 && !/^(\d)\1{8}$/.test(digits)
+}
+
+async function waitForProfileById(
+  client: Awaited<ReturnType<typeof requireActiveUser>>["serviceClient"],
+  userId: string,
+) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,full_name,email,nif,role,is_admin,status,content_updates_consent")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (!error && data) {
+      return data as {
+        id: string
+        full_name: string | null
+        email: string | null
+        nif: string | null
+        role: "student" | "affiliate" | "admin"
+        is_admin: boolean
+        status: "active" | "inactive" | "blocked" | "pending_review"
+        content_updates_consent: boolean
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+
+  return null
+}
+
+async function resolvePendingCheckoutContext(
+  serviceClient: Awaited<ReturnType<typeof requireActiveUser>>["serviceClient"],
+  pendingUserId: string,
+) {
+  const { data: authUserData, error: authUserError } = await serviceClient.auth.admin.getUserById(pendingUserId)
+  if (authUserError) {
+    throw authUserError
+  }
+
+  const authUser = authUserData.user
+  if (!authUser) {
+    throw badRequest("Utilizador pendente nao encontrado")
+  }
+
+  const profile = await waitForProfileById(serviceClient, pendingUserId)
+  if (!profile) {
+    throw badRequest("Perfil pendente nao encontrado")
+  }
+
+  return {
+    token: "",
+    user: authUser,
+    profile,
+    serviceClient,
+  }
 }
 
 async function findReusablePendingCheckout(
@@ -138,10 +198,10 @@ Deno.serve(async (req) => {
       throw badRequest("Método não suportado")
     }
 
-    const context = await requireActiveUser(req)
     const body = await readJsonBody<CreateCheckoutInput>(req)
     const identifier = body.productId ?? body.productSlug
     const customerEmail = body.customerEmail?.trim() || null
+    const pendingUserId = body.pendingUserId?.trim() || null
     const invoiceWithNif = Boolean(body.invoiceWithNif)
     const customerNif = body.customerNif?.trim() || null
     const contentUpdatesConsent = Boolean(body.contentUpdatesConsent)
@@ -152,6 +212,26 @@ Deno.serve(async (req) => {
 
     if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
       throw badRequest("customerEmail invalido")
+    }
+
+    const accessToken = await getAccessToken(req)
+    const context = accessToken
+      ? await requireActiveUser(req)
+      : pendingUserId
+        ? await resolvePendingCheckoutContext(createServiceClient(), pendingUserId)
+        : null
+
+    if (!context) {
+      throw badRequest("Sessao ausente. Cria a conta para continuar.")
+    }
+
+    const accountEmail = context.profile.email ?? context.user.email ?? null
+    if (
+      customerEmail &&
+      accountEmail &&
+      customerEmail.trim().toLowerCase() !== accountEmail.trim().toLowerCase()
+    ) {
+      throw badRequest("customerEmail nao corresponde ao utilizador da conta")
     }
 
     if (invoiceWithNif) {
