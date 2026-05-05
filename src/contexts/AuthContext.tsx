@@ -13,6 +13,7 @@ import {
   type SetStateAction,
 } from "react"
 import { supabase } from "@/integrations/supabase"
+import { queryClient } from "@/lib/query-client"
 import type { Session, User } from "@supabase/supabase-js"
 import { SUPABASE_URL } from "@/lib/constants"
 
@@ -174,6 +175,13 @@ async function refreshProfileState(
   }
 }
 
+function clearAuthenticatedQueryCache() {
+  queryClient.removeQueries({ queryKey: ["dashboard"] })
+  queryClient.removeQueries({ queryKey: ["admin"] })
+  queryClient.removeQueries({ queryKey: ["reviews", "mine"] })
+  queryClient.removeQueries({ queryKey: ["reviews", "stats"] })
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const optimisticSession = useMemo(() => readStoredSession(), [])
   const optimisticProfile = useMemo(
@@ -209,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!nextSession?.user) {
       setProfile(null)
+      clearAuthenticatedQueryCache()
       setLoading(false)
       return
     }
@@ -334,6 +343,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
     setUser(null)
     setSession(null)
+    clearAuthenticatedQueryCache()
   }, [])
 
   const refreshSession = useCallback(async () => {
