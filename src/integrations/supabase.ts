@@ -187,6 +187,7 @@ export const publicSupabase: SupabaseLike =
   SUPABASE_URL && SUPABASE_ANON_KEY
     ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
+          storageKey: "sb-mariana-explica-public-readonly",
           autoRefreshToken: false,
           persistSession: false,
           detectSessionInUrl: false,
