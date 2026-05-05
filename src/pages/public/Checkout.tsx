@@ -714,6 +714,28 @@ export function Checkout() {
                                 />
                               </label>
                             </div>
+
+                            <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
+                              <input
+                                type="checkbox"
+                                checked={draft.acceptTerms}
+                                onChange={(event) =>
+                                  setDraft((current) => ({ ...current, acceptTerms: event.target.checked }))
+                                }
+                                className="mt-1 h-4 w-4 accent-[#e9bf94]"
+                              />
+                              <span className="leading-6">
+                                Confirmo que li e aceito os{" "}
+                                <button
+                                  type="button"
+                                  onClick={() => setTermsOpen(true)}
+                                  className="font-semibold text-[#e9bf94] underline underline-offset-4"
+                                >
+                                  termos e condições
+                                </button>
+                                .
+                              </span>
+                            </label>
                           </div>
                         ) : (
                           <div className="space-y-4">
