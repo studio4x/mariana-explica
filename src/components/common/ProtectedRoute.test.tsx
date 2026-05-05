@@ -61,12 +61,13 @@ describe("ProtectedRoute", () => {
     expect(screen.getByText("Login")).toBeInTheDocument()
   })
 
-  it("keeps the user on loading state when session exists but profile is not ready", () => {
+  it("tries to recover when session exists but profile is not ready", async () => {
     mockUseAuth.mockReturnValue({
       session: { access_token: "token" },
       profile: null,
       loading: false,
       isAdmin: false,
+      refreshSession: vi.fn().mockResolvedValue(false),
     })
 
     render(
@@ -84,7 +85,7 @@ describe("ProtectedRoute", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText("A preparar o teu acesso...")).toBeInTheDocument()
+    expect(await screen.findByText("A validar o teu acesso...")).toBeInTheDocument()
   })
 
   it("keeps rendering when session and profile are valid during a background refresh", () => {
