@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     const nextPath = normalizeNextPath(body.next_path, fallbackNextPath)
     const callbackUrl = new URL(`${getAppBaseUrl()}/auth/callback`)
     callbackUrl.searchParams.set("next", nextPath)
+    callbackUrl.searchParams.set("silent", "1")
 
     const authUserResponse = await serviceClient.auth.admin.getUserById(order.user_id)
     if (authUserResponse.error) {

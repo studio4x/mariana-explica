@@ -19,6 +19,8 @@ export function CheckoutSuccess() {
   const loginRedirectHref = `${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirectPath)}`
   const autologinAttemptedRef = useRef(false)
   const [autologinInProgress, setAutologinInProgress] = useState(false)
+  const [autologinAttempted, setAutologinAttempted] = useState(false)
+  const shouldTryAutologin = !session && mode === "stripe" && Boolean(sessionId)
 
   useEffect(() => {
     if (loading || (session && profile?.status === "active")) {
@@ -34,6 +36,7 @@ export function CheckoutSuccess() {
     }
 
     autologinAttemptedRef.current = true
+    setAutologinAttempted(true)
     setAutologinInProgress(true)
 
     void (async () => {
@@ -53,8 +56,8 @@ export function CheckoutSuccess() {
     })()
   }, [loading, mode, productId, profile?.status, redirectPath, session, sessionId])
 
-  if (loading || autologinInProgress) {
-    return <div className="p-8 text-center">A iniciar sessao automatica...</div>
+  if (loading || autologinInProgress || (shouldTryAutologin && !autologinAttempted)) {
+    return <div className="min-h-[35vh]" aria-hidden="true" />
   }
 
   if (!session || !profile || profile.status !== "active") {

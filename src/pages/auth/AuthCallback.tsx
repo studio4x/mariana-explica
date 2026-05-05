@@ -82,6 +82,7 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null)
   const handledRef = useRef(false)
   const navigatedRef = useRef(false)
+  const silentMode = searchParams.get("silent") === "1"
 
   const nextPath = useMemo(() => {
     const next = searchParams.get("next")
@@ -231,6 +232,19 @@ export function AuthCallback() {
       cancelled = true
     }
   }, [loading, navigate, nextPath, profile, session])
+
+  useEffect(() => {
+    if (!silentMode || status !== "error" || navigatedRef.current) {
+      return
+    }
+
+    navigatedRef.current = true
+    navigate(`${ROUTES.LOGIN}?redirect=${encodeURIComponent(nextPath)}`, { replace: true })
+  }, [navigate, nextPath, silentMode, status])
+
+  if (silentMode && status !== "error") {
+    return <div className="min-h-[30vh]" aria-hidden="true" />
+  }
 
   return (
     <div className="space-y-6 text-center">
