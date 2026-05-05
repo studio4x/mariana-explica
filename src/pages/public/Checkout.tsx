@@ -718,6 +718,40 @@ export function Checkout() {
                             <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
                               <input
                                 type="checkbox"
+                                checked={draft.invoiceWithNif}
+                                onChange={(event) =>
+                                  setDraft((current) => ({
+                                    ...current,
+                                    invoiceWithNif: event.target.checked,
+                                    nif: event.target.checked ? current.nif : "",
+                                  }))
+                                }
+                                className="mt-1 h-4 w-4 accent-[#e9bf94]"
+                              />
+                              <span className="leading-6">Pretendo receber fatura com NIF</span>
+                            </label>
+
+                            {draft.invoiceWithNif ? (
+                              <label className="grid gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                                  NIF
+                                </span>
+                                <input
+                                  value={formatNif(draft.nif)}
+                                  onChange={(event) =>
+                                    setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
+                                  }
+                                  placeholder="Número de Identificação Fiscal"
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                  className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+                                />
+                              </label>
+                            ) : null}
+
+                            <label className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/80">
+                              <input
+                                type="checkbox"
                                 checked={draft.acceptTerms}
                                 onChange={(event) =>
                                   setDraft((current) => ({ ...current, acceptTerms: event.target.checked }))
