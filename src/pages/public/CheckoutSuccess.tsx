@@ -1,15 +1,28 @@
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom"
 import { ArrowRight, BadgeCheck, BookOpenCheck, CheckCircle2, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui"
+import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
 
 export function CheckoutSuccess() {
+  const location = useLocation()
   const [searchParams] = useSearchParams()
+  const { session, profile, loading } = useAuth()
   const productId = searchParams.get("product_id") ?? ""
   const sessionId = searchParams.get("session_id") ?? ""
   const mode = searchParams.get("mode") ?? "stripe"
   const courseHref = productId ? studentCoursePath(productId) : ROUTES.DASHBOARD
+  const redirectPath = `${location.pathname}${location.search}`
+  const loginRedirectHref = `${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirectPath)}`
+
+  if (loading) {
+    return <div className="p-8 text-center">A validar o teu acesso...</div>
+  }
+
+  if (!session || !profile || profile.status !== "active") {
+    return <Navigate to={loginRedirectHref} replace />
+  }
 
   return (
     <div className="bg-[#f5fafc] px-4 py-14 text-[#171c1e] md:py-20">
