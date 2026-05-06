@@ -29,6 +29,8 @@ import {
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
   fetchAdminProductCategories,
+  fetchAdminFaqCategories,
+  fetchAdminFaqs,
   fetchAdminNotifications,
   markAdminNotificationAsRead,
   markAllAdminNotificationsAsRead,
@@ -72,8 +74,14 @@ import {
   updateAdminPendingInfoConfig,
   updateAdminProduct,
   createAdminProductCategory,
+  createAdminFaqCategory,
+  createAdminFaq,
   deleteAdminProductCategory,
+  deleteAdminFaqCategory,
+  deleteAdminFaq,
   updateAdminProductCategory,
+  updateAdminFaqCategory,
+  updateAdminFaq,
   updateAdminModuleAsset,
   updateAdminProductAssessment,
   updateAdminProductLesson,
@@ -283,6 +291,98 @@ export function useDeleteAdminProductCategory() {
       void queryClient.invalidateQueries({ queryKey: ["products", "categories"] })
       void queryClient.invalidateQueries({ queryKey: ["admin", "products"] })
       void queryClient.invalidateQueries({ queryKey: ["products", "published"] })
+    },
+  })
+}
+
+export function useAdminFaqCategories() {
+  return useQuery({
+    queryKey: ["admin", "faq-categories"],
+    queryFn: fetchAdminFaqCategories,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminFaqs() {
+  return useQuery({
+    queryKey: ["admin", "faqs"],
+    queryFn: fetchAdminFaqs,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useCreateAdminFaqCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminFaqCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faq-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faq-categories"] })
+    },
+  })
+}
+
+export function useUpdateAdminFaqCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminFaqCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faq-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faq-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faqs"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faqs"] })
+    },
+  })
+}
+
+export function useDeleteAdminFaqCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: deleteAdminFaqCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faq-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faq-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faqs"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faqs"] })
+    },
+  })
+}
+
+export function useCreateAdminFaq() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminFaq,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faqs"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faqs"] })
+    },
+  })
+}
+
+export function useUpdateAdminFaq() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminFaq,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faqs"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faqs"] })
+    },
+  })
+}
+
+export function useDeleteAdminFaq() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: deleteAdminFaq,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "faqs"] })
+      void queryClient.invalidateQueries({ queryKey: ["support", "faqs"] })
     },
   })
 }
@@ -576,6 +676,7 @@ function useAdminInvalidation() {
     void queryClient.invalidateQueries({ queryKey: ["admin"] })
     void queryClient.invalidateQueries({ queryKey: ["dashboard"] })
     void queryClient.invalidateQueries({ queryKey: ["products"] })
+    void queryClient.invalidateQueries({ queryKey: ["support"] })
   }
 }
 

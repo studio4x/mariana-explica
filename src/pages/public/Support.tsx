@@ -3,42 +3,48 @@ import { Link } from "react-router-dom"
 import { HelpCircle, LifeBuoy, Search, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
+import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
 import { supportBusinessHours, supportCategories, supportPublicNote } from "@/lib/support-sla"
-
-const faqs = [
-  {
-    category: "payment",
-    question: "Paguei e ainda nao tenho acesso ao material. O que faco?",
-    answer: "Confirme se esta a usar o mesmo email do checkout. Se o acesso nao aparecer, abra um chamado em Pagamentos.",
-  },
-  {
-    category: "technical",
-    question: "O material nao abre no dashboard.",
-    answer: "Atualize a pagina, verifique a sessao e tente outro navegador. Se continuar, envie o erro e o material afetado.",
-  },
-  {
-    category: "account",
-    question: "Esqueci a senha.",
-    answer: "Use a opcao de recuperacao no login. Se nao receber o email, abra um chamado com o email da conta.",
-  },
-  {
-    category: "general",
-    question: "Como acompanho meus chamados?",
-    answer: "Depois de entrar na conta, acesse Area do Aluno > Suporte para ver status, SLA e respostas.",
-  },
-]
+import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
 
 export function Support() {
   const [query, setQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState("all")
-  const filteredFaqs = useMemo(() => {
+  const { data: faqCategoriesFromDb } = usePublishedFaqCategories()
+  const { data: faqsFromDb } = usePublishedFaqs()
+
+  const faqCategories = useMemo(() => {
+    return faqCategoriesFromDb && faqCategoriesFromDb.length > 0
+      ? faqCategoriesFromDb
+      : buildDefaultFaqCategories()
+  }, [faqCategoriesFromDb])
+
+  const faqCategoryById = useMemo(
+    () => new Map(faqCategories.map((category) => [category.id, category])),
+    [faqCategories],
+  )
+
+  const faqs = useMemo(() => {
+    if (faqsFromDb && faqsFromDb.length > 0) return faqsFromDb
+    return buildDefaultFaqs(faqCategories)
+  }, [faqCategories, faqsFromDb])
+
+  const activeFaqs = useMemo(() => {
     const term = query.trim().toLowerCase()
+
     return faqs.filter((faq) => {
-      const matchesCategory = activeCategory === "all" || faq.category === activeCategory
-      const matchesQuery = !term || `${faq.question} ${faq.answer}`.toLowerCase().includes(term)
+      const category = faqCategoryById.get(faq.category_id)
+      const matchesCategory = activeCategory === "all" || category?.slug === activeCategory
+      const matchesQuery =
+        !term || `${faq.question} ${faq.answer} ${category?.title ?? ""}`.toLowerCase().includes(term)
+
       return matchesCategory && matchesQuery
     })
-  }, [activeCategory, query])
+  }, [activeCategory, faqCategoryById, faqs, query])
+
+  const filteredFaqs = useMemo(() => {
+    return [...activeFaqs].sort((left, right) => left.sort_order - right.sort_order || left.question.localeCompare(right.question))
+  }, [activeFaqs])
 
   return (
     <div className="bg-white pb-20 pt-8 text-slate-950">
@@ -100,14 +106,14 @@ export function Support() {
               >
                 Todas
               </button>
-              {supportCategories.map((category) => (
+              {faqCategories.map((category) => (
                 <button
-                  key={category.key}
+                  key={category.slug}
                   type="button"
-                  onClick={() => setActiveCategory(category.key)}
-                  className={`rounded-full px-4 py-2 text-left text-sm font-bold ${activeCategory === category.key ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"}`}
+                  onClick={() => setActiveCategory(category.slug)}
+                  className={`rounded-full px-4 py-2 text-left text-sm font-bold ${activeCategory === category.slug ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"}`}
                 >
-                  {category.label}
+                  {category.title}
                 </button>
               ))}
             </div>
@@ -120,13 +126,13 @@ export function Support() {
               className="mb-4 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm lg:hidden"
             >
               <option value="all">Todas</option>
-              {supportCategories.map((category) => (
-                <option key={category.key} value={category.key}>{category.label}</option>
+              {faqCategories.map((category) => (
+                <option key={category.slug} value={category.slug}>{category.title}</option>
               ))}
             </select>
             <div className="space-y-3">
               {filteredFaqs.map((faq) => (
-                <details key={faq.question} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <details key={faq.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                   <summary className="cursor-pointer font-black text-slate-950">{faq.question}</summary>
                   <p className="mt-3 text-sm leading-7 text-slate-600">{faq.answer}</p>
                 </details>

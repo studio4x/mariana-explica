@@ -6,11 +6,16 @@ import { ProductCard } from "@/components/product"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
+import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
 import { usePublishedProductCategories, usePublishedProducts } from "@/hooks/useProducts"
 import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
+import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
+import { ROUTES } from "@/lib/constants"
 import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
+import { supportBusinessHours, supportPublicNote } from "@/lib/support-sla"
+import type { FaqCategorySummary, FaqSummary } from "@/types/faq.types"
 import type { ProductCategorySummary, ProductSummary } from "@/types/product.types"
 
 type SortMode = "recent" | "price_asc" | "popular"
@@ -59,6 +64,8 @@ export function Products() {
   const deferredSearch = useDeferredValue(search)
   const { data: products, isLoading, isError, error, refetch } = usePublishedProducts()
   const { data: categoriesFromDb } = usePublishedProductCategories()
+  const { data: faqCategoriesFromDb } = usePublishedFaqCategories()
+  const { data: faqsFromDb } = usePublishedFaqs()
   const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
 
   const categories = useMemo(() => {
@@ -76,6 +83,18 @@ export function Products() {
   const categoriesBySlug = useMemo(() => {
     return new Map(categories.map((category) => [category.slug, category]))
   }, [categories])
+
+  const faqCategories = useMemo<FaqCategorySummary[]>(() => {
+    return faqCategoriesFromDb && faqCategoriesFromDb.length > 0 ? faqCategoriesFromDb : buildDefaultFaqCategories()
+  }, [faqCategoriesFromDb])
+
+  const faqCategoryById = useMemo(() => {
+    return new Map(faqCategories.map((category) => [category.id, category]))
+  }, [faqCategories])
+
+  const faqs = useMemo<FaqSummary[]>(() => {
+    return faqsFromDb && faqsFromDb.length > 0 ? faqsFromDb : buildDefaultFaqs(faqCategories)
+  }, [faqCategories, faqsFromDb])
 
   const currentCategorySlug = searchParams.get("categoria")?.trim().toLowerCase() ?? ""
   const selectedCategorySlug = currentCategorySlug && categoriesBySlug.has(currentCategorySlug) ? currentCategorySlug : "all"
@@ -200,7 +219,7 @@ export function Products() {
                 {filteredProducts.length} resultado{filteredProducts.length === 1 ? "" : "s"}
               </p>
               <Button variant="outline" asChild className="w-full rounded-full border-[#c5d7e2] bg-white/90 md:w-auto">
-                <Link to="/suporte">Precisas de ajuda para escolher?</Link>
+                <Link to={ROUTES.SUPPORT}>Precisas de ajuda para escolher?</Link>
               </Button>
             </div>
           </div>
@@ -242,6 +261,83 @@ export function Products() {
               })}
             </div>
           ) : null}
+        </section>
+
+        <section className="mx-auto mt-16 max-w-6xl">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-[1.75rem] border border-white/70 bg-white/55 p-8 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#4e6880]">Suporte rapido</p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1b2644]">
+                Dúvidas? Estou aqui para ajudar!
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-8 text-[#41586c]">
+                Seja uma questão sobre as sebentas ou um problema técnico, encontras aqui as respostas rápidas.
+                Se não resolver, fala diretamente comigo.
+              </p>
+
+              <div className="mt-8 grid gap-5 md:grid-cols-2">
+                <div className="rounded-[1.5rem] border border-[#e7eff5] bg-[#f8fbfe] p-6 text-center shadow-sm">
+                  <p className="font-display text-xl font-bold text-[#1b2644]">Quando recebes resposta?</p>
+                  <p className="mt-5 text-base font-semibold leading-8 text-[#304a61]">
+                    Pagamentos /Acesso: Até 5 horas úteis.
+                    <br />
+                    <br />
+                    Dúvidas/Apoio Técnico: Até 24 horas úteis.
+                  </p>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-[#b7c9d8] bg-[#bacad8] p-6 text-center shadow-sm">
+                  <p className="font-display text-xl font-bold text-[#1b2644]">S.O.S. Acadêmico!</p>
+                  <p className="mt-5 text-base font-semibold leading-8 text-[#304a61]">
+                    Pagamento duplicado ou bloqueio total de acesso? Abre um pedido prioritário para resolvermos isso
+                    agora mesmo.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-center">
+                <Button asChild className="rounded-full bg-[#28304f] px-6 text-white hover:bg-[#1d2340]">
+                  <Link to={ROUTES.SUPPORT}>Preciso de ajuda!</Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-white/70 bg-white/55 p-8 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#4e6880]">Perguntas Frequentes</p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1b2644]">
+                Perguntas Frequentes
+              </h2>
+              <div className="mt-6 space-y-4">
+                {faqs.slice(0, 4).map((faq) => {
+                  const category = faqCategoryById.get(faq.category_id)
+
+                  return (
+                    <details
+                      key={faq.id}
+                      className="rounded-[1.1rem] border border-white/70 bg-white/90 px-4 py-3 shadow-sm"
+                    >
+                      <summary className="cursor-pointer list-none font-semibold text-[#1b2644]">
+                        {faq.question}
+                      </summary>
+                      <div className="mt-3 space-y-2 text-sm leading-7 text-[#41586c]">
+                        <p>{faq.answer}</p>
+                        {category ? (
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#7b94a7]">
+                            {category.title}
+                          </p>
+                        ) : null}
+                      </div>
+                    </details>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col items-center gap-2 text-center text-xs font-semibold uppercase tracking-[0.22em] text-[#5a7386] md:flex-row md:justify-center md:gap-6">
+            <span>{supportBusinessHours}</span>
+            <span>{supportPublicNote}</span>
+          </div>
         </section>
       </main>
     </div>
