@@ -15,11 +15,14 @@ import { FooterCopyright } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES } from "@/lib/constants"
+import { formatNif, isValidNif, stripNifDigits } from "@/lib/nif"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
+import { useProfilePreferences } from "@/hooks/useDashboard"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
+import { useRef } from "react"
 
 const CHECKOUT_DRAFT_STORAGE_KEY = "mariana-explica:checkout-draft"
 
@@ -105,32 +108,8 @@ function getCheckoutBadge(productType: string) {
   return "CURSO COMPLETO"
 }
 
-function stripDigits(value: string) {
-  return value.replace(/\D/g, "")
-}
-
-function formatNif(value: string) {
-  const digits = stripDigits(value).slice(0, 9)
-  return digits
-    .replace(/^(\d{3})(\d)/, "$1 $2")
-    .replace(/^(\d{3}) (\d{3})(\d)/, "$1 $2 $3")
-}
-
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
-
-function isValidNif(value: string) {
-  const digits = stripDigits(value)
-  if (digits.length !== 9) {
-    return false
-  }
-
-  if (/^(\d)\1{8}$/.test(digits)) {
-    return false
-  }
-
-  return true
 }
 
 function TermsModal({
@@ -193,7 +172,8 @@ export function Checkout() {
   const slug = searchParams.get("slug") ?? undefined
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, profile } = useAuth()
+  const { session, profile: authProfile } = useAuth()
+  const profileQuery = useProfilePreferences({ enabled: Boolean(session) })
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
   const [activeAuthTab, setActiveAuthTab] = useState<AuthTab>("login")
   const [submitting, setSubmitting] = useState(false)
@@ -206,6 +186,10 @@ export function Checkout() {
   const [registerPassword, setRegisterPassword] = useState("")
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
   const [draft, setDraft] = useState<CheckoutDraft>(() => loadCheckoutDraft())
+  const nifDirtyRef = useRef(false)
+  const syncedProfileNifRef = useRef<string | null>(null)
+
+  const profile = profileQuery.data ?? authProfile
 
   useEffect(() => {
     persistCheckoutDraft(draft)
@@ -216,15 +200,26 @@ export function Checkout() {
       return
     }
 
-    setDraft((current) => ({
-      ...current,
-      fullName: current.fullName || profile.full_name || "",
-      email: current.email || profile.email || "",
-      confirmEmail: current.confirmEmail || profile.email || current.email || "",
-      invoiceWithNif: current.invoiceWithNif || Boolean(profile.nif),
-      nif: current.nif || profile.nif || "",
-      contentUpdatesConsent: current.contentUpdatesConsent || profile.content_updates_consent || false,
-    }))
+    const profileNif = profile.nif?.trim() || ""
+
+    setDraft((current) => {
+      const previousSyncedNif = syncedProfileNifRef.current ?? ""
+      const currentNif = current.nif.trim()
+      const shouldSyncNif = !nifDirtyRef.current || currentNif === previousSyncedNif
+      const nextNif = shouldSyncNif ? profileNif : currentNif
+
+      syncedProfileNifRef.current = profileNif || null
+
+      return {
+        ...current,
+        fullName: current.fullName || profile.full_name || "",
+        email: current.email || profile.email || "",
+        confirmEmail: current.confirmEmail || profile.email || current.email || "",
+        invoiceWithNif: shouldSyncNif ? Boolean(profileNif) : current.invoiceWithNif,
+        nif: nextNif,
+        contentUpdatesConsent: current.contentUpdatesConsent || profile.content_updates_consent || false,
+      }
+    })
   }, [profile])
 
   const checkoutIdentifier = product?.slug?.trim() || product?.id || ""
@@ -317,7 +312,7 @@ export function Checkout() {
         productId: product.id,
         customerEmail: emailToUse,
         pendingUserId: pendingUserId ?? null,
-        customerNif: draft.invoiceWithNif ? stripDigits(draft.nif) : null,
+        customerNif: draft.invoiceWithNif ? stripNifDigits(draft.nif) : null,
         invoiceWithNif: draft.invoiceWithNif,
         contentUpdatesConsent: draft.contentUpdatesConsent,
         successUrl,
@@ -738,9 +733,10 @@ export function Checkout() {
                                 </span>
                                 <input
                                   value={formatNif(draft.nif)}
-                                  onChange={(event) =>
-                                    setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
-                                  }
+                                  onChange={(event) => {
+                                    nifDirtyRef.current = true
+                                    setDraft((current) => ({ ...current, nif: stripNifDigits(event.target.value) }))
+                                  }}
                                   placeholder="Número de Identificação Fiscal"
                                   inputMode="numeric"
                                   autoComplete="off"
@@ -920,9 +916,10 @@ export function Checkout() {
                             </span>
                             <input
                               value={formatNif(draft.nif)}
-                              onChange={(event) =>
-                                setDraft((current) => ({ ...current, nif: stripDigits(event.target.value) }))
-                              }
+                              onChange={(event) => {
+                                nifDirtyRef.current = true
+                                setDraft((current) => ({ ...current, nif: stripNifDigits(event.target.value) }))
+                              }}
                               placeholder="Número de Identificação Fiscal"
                               inputMode="numeric"
                               autoComplete="off"

@@ -3,6 +3,7 @@ import { Camera } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
+import { formatNif, isValidNif, stripNifDigits } from "@/lib/nif"
 import {
   useProfilePreferences,
   useUpdateAccountPassword,
@@ -18,6 +19,7 @@ export function DashboardProfile() {
   const [draft, setDraft] = useState<{
     fullName: string
     phone: string
+    nif: string
     notificationsEnabled: boolean
     marketingConsent: boolean
   } | null>(null)
@@ -25,17 +27,31 @@ export function DashboardProfile() {
     password: "",
     confirmPassword: "",
   })
+  const [profileMessage, setProfileMessage] = useState<string | null>(null)
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
   const [avatarMessage, setAvatarMessage] = useState<string | null>(null)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    await updateProfile.mutateAsync({
-      fullName: formState.fullName,
-      phone: formState.phone,
-      notificationsEnabled: formState.notificationsEnabled,
-      marketingConsent: formState.marketingConsent,
-    })
+    setProfileMessage(null)
+
+    if (formState.nif && !isValidNif(formState.nif)) {
+      setProfileMessage("Indica um NIF valido.")
+      return
+    }
+
+    try {
+      await updateProfile.mutateAsync({
+        fullName: formState.fullName,
+        phone: formState.phone,
+        nif: formState.nif,
+        notificationsEnabled: formState.notificationsEnabled,
+        marketingConsent: formState.marketingConsent,
+      })
+      setProfileMessage("Preferencias atualizadas com sucesso.")
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "Nao foi possivel guardar as preferencias.")
+    }
   }
 
   const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -96,6 +112,7 @@ export function DashboardProfile() {
   const formState = draft ?? {
     fullName: profile.full_name,
     phone: profile.phone ?? "",
+    nif: profile.nif ?? "",
     notificationsEnabled: profile.notifications_enabled,
     marketingConsent: profile.marketing_consent,
   }
@@ -164,6 +181,20 @@ export function DashboardProfile() {
               placeholder="Telefone"
               className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
+            <label className="grid gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">NIF</span>
+              <input
+                value={formatNif(formState.nif)}
+                onChange={(event) => updateDraft({ nif: stripNifDigits(event.target.value) })}
+                placeholder="Número de Identificação Fiscal"
+                inputMode="numeric"
+                autoComplete="off"
+                className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              />
+              <span className="text-xs leading-5 text-slate-500">
+                O mesmo NIF usado no checkout para faturação.
+              </span>
+            </label>
             <label className="flex items-center gap-3 rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <input
                 type="checkbox"
@@ -184,6 +215,7 @@ export function DashboardProfile() {
           <Button type="submit" className="mt-6 rounded-full" disabled={updateProfile.isPending}>
             {updateProfile.isPending ? "A guardar..." : "Guardar alteracoes"}
           </Button>
+          {profileMessage ? <p className="mt-3 text-sm font-medium text-slate-700">{profileMessage}</p> : null}
         </form>
       </div>
 

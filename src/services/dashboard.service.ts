@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
+import { isValidNif, stripNifDigits } from "@/lib/nif"
 import { getFreshFunctionAuthContext, getFunctionAuthHeaders } from "@/services/supabase-auth"
 import type {
   AccessGrantSummary,
@@ -824,7 +825,12 @@ export function fetchStudentOrderReceiptUrl(orderId: string) {
 }
 
 export function requestStudentOrderRefund(input: { orderId: string; message?: string | null }) {
-  return invokeStudentOrderAction<{ success: true; ticket: SupportTicketSummary }>({
+  return invokeStudentOrderAction<{
+    success: true
+    replayed?: boolean
+    order_id?: string
+    ticket?: SupportTicketSummary
+  }>({
     action: "request_refund",
     ...input,
   })
@@ -965,16 +971,23 @@ export async function fetchProfilePreferences() {
 export async function updateProfilePreferences(input: {
   fullName: string
   phone?: string | null
+  nif?: string | null
   avatarUrl?: string | null
   notificationsEnabled: boolean
   marketingConsent: boolean
 }) {
   const userId = await getCurrentUserId()
+  const rawNif = input.nif === undefined ? undefined : String(input.nif ?? "").trim()
+  if (rawNif && !isValidNif(rawNif)) {
+    throw new Error("Indica um NIF valido.")
+  }
+
   const { data, error } = await supabase
     .from("profiles")
     .update({
       full_name: input.fullName.trim(),
       phone: input.phone?.trim() || null,
+      ...(rawNif !== undefined ? { nif: rawNif ? stripNifDigits(rawNif) : null } : {}),
       ...(input.avatarUrl !== undefined ? { avatar_url: input.avatarUrl } : {}),
       notifications_enabled: input.notificationsEnabled,
       marketing_consent: input.marketingConsent,

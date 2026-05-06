@@ -452,10 +452,11 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
   return query
 }
 
-export function useProfilePreferences() {
+export function useProfilePreferences(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["dashboard", "profile"],
     queryFn: fetchProfilePreferences,
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -550,7 +551,8 @@ export function useUpdateProfilePreferences() {
 
   return useMutation({
     mutationFn: updateProfilePreferences,
-    onSuccess: () => {
+    onSuccess: (profile) => {
+      queryClient.setQueryData(["dashboard", "profile"], profile)
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "profile"] })
     },
   })
