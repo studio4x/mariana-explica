@@ -762,8 +762,7 @@ Rota: `/suporte`
 Objetivo:
 
 - Oferecer FAQ publico.
-- Explicar SLA.
-- Direcionar usuario autenticado a abrir chamado.
+- Direcionar usuario autenticado a abrir chamado quando a FAQ nao resolver.
 
 ### 14.1 Hero
 
@@ -775,32 +774,7 @@ Visual:
 - Texto: "Encontre respostas rapidas ou abra um chamado..."
 - Campo de busca central em pill.
 
-### 14.2 SLA
-
-Grid:
-
-- Coluna principal: SLA por categoria.
-- Sidebar/card vermelho: casos urgentes.
-
-Categorias:
-
-- Pagamentos
-- Tecnico
-- Conta
-- Geral
-
-Cada categoria mostra:
-
-- label
-- descricao
-- prazo de primeira resposta em horas uteis
-
-Card urgente:
-
-- Fala sobre fraude, pagamento duplicado, bloqueio de acesso ou risco imediato.
-- CTA "Abrir chamado" para `/aluno/chamados?openTicketModal=1&ticketStep=form`.
-
-### 14.3 FAQ
+### 14.2 FAQ
 
 Desktop:
 
@@ -816,9 +790,14 @@ Perguntas atuais:
 - Paguei e ainda nao tenho acesso ao curso. O que faco?
 - O material nao abre no dashboard.
 - Esqueci a senha.
-- Como acompanho meus chamados?
+- A FAQ ainda nao resolveu a minha duvida. O que faco?
 
-### 14.4 CTA final
+Na resposta dessa ultima FAQ:
+
+- texto curto indicando que o utilizador pode abrir um chamado;
+- botao "Abrir chamado" para `/aluno/chamados?openTicketModal=1&ticketStep=form`.
+
+### 14.3 CTA final
 
 Card escuro:
 
@@ -830,7 +809,7 @@ Card escuro:
 
 Pontos para Stitch considerar:
 
-- Suporte pode ficar mais humano e menos operacional, mas precisa manter SLA e FAQ claros.
+- Suporte pode ficar mais humano e menos operacional, mantendo FAQ clara e o CTA de chamado acessivel.
 - CTA de chamado deve continuar indo para `/aluno/chamados?openTicketModal=1&ticketStep=form`.
 
 ## 15. Login e criar conta no contexto publico

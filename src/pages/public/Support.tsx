@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { HelpCircle, LifeBuoy, Search, ShieldAlert } from "lucide-react"
+import { HelpCircle, LifeBuoy, Search } from "lucide-react"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
 import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
-import { supportBusinessHours, supportCategories, supportPublicNote } from "@/lib/support-sla"
 import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
+import type { FaqSummary } from "@/types/faq.types"
+
+type SupportFaq = FaqSummary & {
+  ctaLabel?: string
+  ctaTo?: string
+}
 
 export function Support() {
   const [query, setQuery] = useState("")
@@ -24,15 +29,40 @@ export function Support() {
     [faqCategories],
   )
 
-  const faqs = useMemo(() => {
-    if (faqsFromDb && faqsFromDb.length > 0) return faqsFromDb
-    return buildDefaultFaqs(faqCategories)
+  const faqs = useMemo<SupportFaq[]>(() => {
+    if (faqsFromDb && faqsFromDb.length > 0) {
+      return faqsFromDb.map((faq) => ({ ...faq }))
+    }
+
+    return buildDefaultFaqs(faqCategories).map((faq) => ({ ...faq }))
   }, [faqCategories, faqsFromDb])
+
+  const supportFaq = useMemo<SupportFaq>(() => {
+    const supportCategory = faqCategories.find((category) => category.slug === "general") ?? faqCategories[0]
+
+    return {
+      id: "support-escalation",
+      category_id: supportCategory?.id ?? "support-escalation",
+      question: "A FAQ ainda nao resolveu a minha duvida. O que faco?",
+      answer:
+        "Se a resposta nao foi suficiente, abre um chamado e a equipa acompanha o caso no dashboard do aluno.",
+      sort_order: 999,
+      is_active: true,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      ctaLabel: "Abrir chamado",
+      ctaTo: `${ROUTES.DASHBOARD_SUPPORT}?openTicketModal=1&ticketStep=form`,
+    }
+  }, [faqCategories])
+
+  const faqsWithEscalation = useMemo<SupportFaq[]>(() => {
+    return [...faqs, supportFaq]
+  }, [faqs, supportFaq])
 
   const activeFaqs = useMemo(() => {
     const term = query.trim().toLowerCase()
 
-    return faqs.filter((faq) => {
+    return faqsWithEscalation.filter((faq) => {
       const category = faqCategoryById.get(faq.category_id)
       const matchesCategory = activeCategory === "all" || category?.slug === activeCategory
       const matchesQuery =
@@ -40,7 +70,7 @@ export function Support() {
 
       return matchesCategory && matchesQuery
     })
-  }, [activeCategory, faqCategoryById, faqs, query])
+  }, [activeCategory, faqCategoryById, faqsWithEscalation, query])
 
   const filteredFaqs = useMemo(() => {
     return [...activeFaqs].sort((left, right) => left.sort_order - right.sort_order || left.question.localeCompare(right.question))
@@ -55,7 +85,7 @@ export function Support() {
           </div>
           <h1 className="mt-6 font-display text-4xl font-black md:text-6xl">Como podemos ajudar?</h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            Encontre respostas rapidas ou abra um chamado para a equipa acompanhar o seu caso.
+            Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.
           </p>
           <label className="relative mx-auto mt-8 block max-w-2xl">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -66,34 +96,6 @@ export function Support() {
               className="h-14 w-full rounded-full border border-slate-200 bg-slate-50 pl-14 pr-5 text-base outline-none focus:border-sky-500 focus:bg-white"
             />
           </label>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="font-display text-2xl font-black">SLA de primeira resposta</h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {supportCategories.map((category) => (
-                <article key={category.key} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-black text-slate-950">{category.label}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{category.description}</p>
-                  <span className="mt-3 inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-sky-800">
-                    ate {category.firstResponseHours} horas uteis
-                  </span>
-                </article>
-              ))}
-            </div>
-            <p className="mt-5 text-sm leading-7 text-slate-600">{supportBusinessHours} {supportPublicNote}</p>
-          </div>
-          <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
-            <ShieldAlert className="h-8 w-8 text-red-700" />
-            <h2 className="mt-4 font-display text-2xl font-black text-red-950">Casos urgentes</h2>
-            <p className="mt-3 text-sm leading-7 text-red-900">
-              Para fraude, pagamento duplicado, bloqueio de acesso ou risco imediato, abra um chamado com o maximo de detalhes.
-            </p>
-            <Button asChild className="mt-5 rounded-full">
-              <Link to={`${ROUTES.DASHBOARD_SUPPORT}?openTicketModal=1&ticketStep=form`}>Abrir chamado</Link>
-            </Button>
-          </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -134,7 +136,14 @@ export function Support() {
               {filteredFaqs.map((faq) => (
                 <details key={faq.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                   <summary className="cursor-pointer font-black text-slate-950">{faq.question}</summary>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{faq.answer}</p>
+                  <div className="mt-3 space-y-4 text-sm leading-7 text-slate-600">
+                    <p>{faq.answer}</p>
+                    {faq.ctaTo ? (
+                      <Button asChild className="rounded-full">
+                        <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir chamado"}</Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </details>
               ))}
               {filteredFaqs.length === 0 ? (
