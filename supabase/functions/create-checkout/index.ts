@@ -62,7 +62,7 @@ function buildFallbackSuccessUrl() {
 }
 
 function buildFallbackCancelUrl(productSlug: string) {
-  return `${getAppBaseUrl()}/cursos/${productSlug}?checkout=cancelled`
+  return `${getAppBaseUrl()}/materiais/${productSlug}?checkout=cancelled`
 }
 
 function assertStripeMinimumAmount(currency: string, amountCents: number) {

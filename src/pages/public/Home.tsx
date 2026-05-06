@@ -106,7 +106,7 @@ export function Home() {
               asChild
               className="rounded-full bg-[#242742] px-12 py-6 text-sm font-bold uppercase tracking-widest text-white shadow-lg hover:bg-[#1d2036]"
             >
-              <Link to={ROUTES.COURSES}>Começar!</Link>
+              <Link to={ROUTES.COURSES}>Explorar materiais</Link>
             </Button>
           </div>
         </div>
@@ -201,7 +201,7 @@ export function Home() {
 
             <div className="mt-12 flex flex-wrap gap-4">
               <Button asChild variant="outline" className="rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm">
-                <Link to={ROUTES.COURSES}>Explorar sebentas</Link>
+                <Link to={ROUTES.COURSES}>Explorar materiais</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm">
                 <Link to={ROUTES.REGISTER}>Criar Conta</Link>
@@ -239,7 +239,7 @@ export function Home() {
                 Ainda não existem reviews publicadas para mostrar aqui.
               </p>
               <Button asChild className="mt-5 rounded-full bg-[#242742] hover:bg-[#1d2036]">
-                <Link to={ROUTES.COURSES}>Explorar sebentas</Link>
+                <Link to={ROUTES.COURSES}>Explorar materiais</Link>
               </Button>
             </div>
           ) : null}

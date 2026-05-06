@@ -6,10 +6,10 @@ export const APP_DESCRIPTION =
 // Routes
 export const ROUTES = {
   HOME: "/",
-  COURSES: "/cursos",
-  COURSE: "/cursos",
-  PRODUCTS: "/cursos",
-  PRODUCT: "/cursos",
+  COURSES: "/materiais",
+  COURSE: "/materiais",
+  PRODUCTS: "/materiais",
+  PRODUCT: "/materiais",
   CHECKOUT: "/checkout",
   CHECKOUT_SUCCESS: "/checkout/confirmacao",
   PRIVACY: "/privacidade",

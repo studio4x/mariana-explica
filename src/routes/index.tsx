@@ -10,6 +10,7 @@ import {
 import { ProtectedRoute, AdminRoute } from "@/components/common"
 import { ErrorState } from "@/components/feedback/ErrorState"
 import { BUILD_VERSION } from "@/lib/build"
+import { ROUTES } from "@/lib/constants"
 import { isDynamicImportError, reloadAfterRuntimeCleanup } from "@/lib/runtime-recovery"
 
 const Home = lazy(() => import("@/pages/public").then((module) => ({ default: module.Home })))
@@ -206,7 +207,7 @@ function RouteErrorBoundary() {
 
 function LegacyPublicCourseRedirect() {
   const { slug } = useParams<{ slug: string }>()
-  return <Navigate to={`/cursos/${slug}`} replace />
+  return <Navigate to={slug ? `${ROUTES.COURSES}/${slug}` : ROUTES.COURSES} replace />
 }
 
 function LegacyStudentCourseRedirect() {
@@ -236,12 +237,20 @@ export const router = createBrowserRouter(
           element: withSuspense(<Home />),
         },
         {
-          path: "cursos",
+          path: "materiais",
           element: withSuspense(<Products />),
         },
         {
-          path: "cursos/:slug",
+          path: "materiais/:slug",
           element: withSuspense(<Product />),
+        },
+        {
+          path: "cursos",
+          element: <Navigate to={ROUTES.COURSES} replace />,
+        },
+        {
+          path: "cursos/:slug",
+          element: <LegacyPublicCourseRedirect />,
         },
         {
           path: "checkout",
@@ -269,7 +278,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "produtos",
-          element: <Navigate to="/cursos" replace />,
+          element: <Navigate to={ROUTES.COURSES} replace />,
         },
         {
           path: "produto/:slug",
