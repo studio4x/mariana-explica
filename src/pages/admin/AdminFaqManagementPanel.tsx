@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
+import { FolderOpen, GripVertical, Pencil, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui"
 import {
   useAdminFaqCategories,
@@ -134,6 +135,35 @@ export function AdminFaqManagementPanel() {
     }
     return counts
   }, [faqs])
+
+  const groupedFaqs = useMemo(() => {
+    const groups: Array<{ category: FaqCategorySummary | null; faqs: FaqSummary[] }> = []
+    const sortedCategories = [...categories].sort(
+      (left, right) => left.sort_order - right.sort_order || left.title.localeCompare(right.title),
+    )
+
+    for (const category of sortedCategories) {
+      groups.push({
+        category,
+        faqs: faqs
+          .filter((faq) => faq.category_id === category.id)
+          .sort((left, right) => left.sort_order - right.sort_order || left.question.localeCompare(right.question)),
+      })
+    }
+
+    const uncategorizedFaqs = faqs
+      .filter((faq) => !categoryById.has(faq.category_id))
+      .sort((left, right) => left.sort_order - right.sort_order || left.question.localeCompare(right.question))
+
+    if (uncategorizedFaqs.length > 0) {
+      groups.push({
+        category: null,
+        faqs: uncategorizedFaqs,
+      })
+    }
+
+    return groups
+  }, [categories, categoryById, faqs])
 
   useEffect(() => {
     if (faqForm.categoryId || categories.length === 0) return
@@ -295,6 +325,14 @@ export function AdminFaqManagementPanel() {
     }
   }
 
+  const prepareNewFaqForCategory = (categoryId: string) => {
+    setActiveTab("questions")
+    setEditingFaqId(null)
+    setFaqError(null)
+    setFaqForm(buildDefaultFaqForm(categoryId))
+    document.getElementById("faq-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   if (categoriesQuery.isLoading || faqsQuery.isLoading) {
     return <FaqSkeleton />
   }
@@ -325,7 +363,7 @@ export function AdminFaqManagementPanel() {
   }
 
   return (
-    <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+    <section className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">FAQ</p>
@@ -346,28 +384,32 @@ export function AdminFaqManagementPanel() {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant={activeTab === "questions" ? "default" : "outline"}
-          className="rounded-full"
-          onClick={() => setActiveTab("questions")}
-        >
-          Perguntas
-        </Button>
-        <Button
-          type="button"
-          variant={activeTab === "categories" ? "default" : "outline"}
-          className="rounded-full"
-          onClick={() => setActiveTab("categories")}
-        >
-          Categorias
-        </Button>
+      <div className="mt-6">
+        <div className="grid w-full max-w-md grid-cols-2 rounded-md bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("questions")}
+            className={`rounded-sm px-3 py-2 text-sm font-medium transition ${
+              activeTab === "questions" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            FAQs
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("categories")}
+            className={`rounded-sm px-3 py-2 text-sm font-medium transition ${
+              activeTab === "categories" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            Categorias
+          </button>
+        </div>
       </div>
 
       {activeTab === "questions" ? (
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-          <form onSubmit={handleFaqSubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
+          <form id="faq-form" onSubmit={handleFaqSubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
@@ -460,53 +502,113 @@ export function AdminFaqManagementPanel() {
             </div>
           </form>
 
-          <div className="space-y-3">
-            {faqs.map((faq) => {
-              const category = categoryById.get(faq.category_id)
+          <div className="space-y-6">
+            {groupedFaqs.map((group) => {
+              const categoryKey = group.category?.id ?? "uncategorized"
+              const categoryTitle = group.category?.title ?? "Sem categoria"
+              const totalFaqs = group.faqs.length
+
               return (
-                <article key={faq.id} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">
-                        {category?.title ?? "Sem categoria"}
-                      </p>
-                      <h4 className="mt-2 text-lg font-bold text-slate-950">{faq.question}</h4>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">{faq.answer}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                      <span
-                        className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
-                          faq.is_active
-                            ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border border-slate-200 bg-slate-50 text-slate-500"
-                        }`}
+                <article key={categoryKey} className="rounded-xl border bg-slate-50/40 shadow-sm">
+                  <div className="flex flex-col justify-between gap-4 p-6 pb-3 sm:flex-row sm:items-center">
+                    <div className="flex items-center gap-2">
+                      <h3 className="flex items-center gap-2 text-base font-bold uppercase tracking-[0.12em] text-sky-700">
+                        <FolderOpen className="h-4 w-4" />
+                        {categoryTitle}
+                        <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-mono text-slate-700">
+                          {totalFaqs}
+                        </span>
+                      </h3>
+                      <button
+                        type="button"
+                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                        title="Editar categoria"
+                        onClick={() => group.category && handleEditCategory(group.category)}
+                        disabled={!group.category}
                       >
-                        {faq.is_active ? "Ativa" : "Inativa"}
-                      </span>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                        Ordem {faq.sort_order}
-                      </span>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                     </div>
+                    {group.category ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 rounded-lg border-sky-200 px-3 text-sky-700 hover:bg-sky-50"
+                        onClick={() => prepareNewFaqForCategory(group.category!.id)}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Adicionar nesta categoria
+                      </Button>
+                    ) : null}
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-slate-200 px-4"
-                      onClick={() => handleEditFaq(faq)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-rose-200 px-4 text-rose-700 hover:bg-rose-50"
-                      onClick={() => void handleDeleteFaq(faq)}
-                      disabled={deleteFaq.isPending}
-                    >
-                      Excluir
-                    </Button>
+                  <div className="px-6 pb-6">
+                    <div className="overflow-x-auto rounded-md border bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="border-b bg-slate-50 text-left text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                          <tr>
+                            <th className="px-4 py-3">Ordem</th>
+                            <th className="px-4 py-3">Pergunta</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3 text-right">Acoes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.faqs.map((faq) => (
+                            <tr key={faq.id} className="border-b last:border-b-0 hover:bg-slate-50/80">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-slate-400"
+                                    title="Ordenacao manual"
+                                    disabled
+                                  >
+                                    <GripVertical className="h-4 w-4" />
+                                  </button>
+                                  <span className="font-mono text-xs text-slate-500">{faq.sort_order}</span>
+                                </div>
+                              </td>
+                              <td className="max-w-[520px] truncate px-4 py-3 font-medium text-slate-900">
+                                {faq.question}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    faq.is_active
+                                      ? "bg-emerald-500 text-white"
+                                      : "border border-slate-300 bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  {faq.is_active ? "Publicado" : "Inativo"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                                    onClick={() => handleEditFaq(faq)}
+                                    title="Editar pergunta"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded-md p-2 text-rose-600 transition hover:bg-rose-50"
+                                    onClick={() => void handleDeleteFaq(faq)}
+                                    title="Excluir pergunta"
+                                    disabled={deleteFaq.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </article>
               )
@@ -523,7 +625,7 @@ export function AdminFaqManagementPanel() {
 
       {activeTab === "categories" ? (
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-          <form onSubmit={handleCategorySubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
+          <form id="faq-category-form" onSubmit={handleCategorySubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
