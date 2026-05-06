@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom"
-import { Plus } from "lucide-react"
 import { PageHeader } from "@/components/common"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
@@ -14,12 +13,6 @@ export function AdminFaq() {
           description="Gerencie FAQs e categorias de dúvidas consumidas nas páginas públicas."
         />
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild type="button" className="rounded-lg shadow-sm">
-            <a href="#faq-form">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova FAQ
-            </a>
-          </Button>
           <Button asChild type="button" variant="outline" className="rounded-lg">
             <Link to={ROUTES.ADMIN_SUPPORT}>Ver tickets</Link>
           </Button>

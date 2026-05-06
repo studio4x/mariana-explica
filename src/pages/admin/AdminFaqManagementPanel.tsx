@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
-import { FolderOpen, GripVertical, Pencil, Plus, Trash2 } from "lucide-react"
+import { FolderOpen, GripVertical, Pencil, Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui"
 import {
   useAdminFaqCategories,
@@ -120,6 +120,7 @@ export function AdminFaqManagementPanel() {
   const [editingFaqId, setEditingFaqId] = useState<string | null>(null)
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [faqError, setFaqError] = useState<string | null>(null)
+  const [isFaqModalOpen, setIsFaqModalOpen] = useState(false)
 
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data])
   const faqs = useMemo(() => faqsQuery.data ?? [], [faqsQuery.data])
@@ -184,6 +185,20 @@ export function AdminFaqManagementPanel() {
   const resetFaqForm = () => {
     setEditingFaqId(null)
     setFaqForm(buildDefaultFaqForm(categories[0]?.id ?? ""))
+  }
+
+  const openFaqModal = (categoryId?: string) => {
+    setActiveTab("questions")
+    setEditingFaqId(null)
+    setFaqError(null)
+    setFaqForm(buildDefaultFaqForm(categoryId ?? categories[0]?.id ?? ""))
+    setIsFaqModalOpen(true)
+  }
+
+  const closeFaqModal = () => {
+    setIsFaqModalOpen(false)
+    setFaqError(null)
+    resetFaqForm()
   }
 
   const handleCategorySubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -259,7 +274,7 @@ export function AdminFaqManagementPanel() {
         })
       }
 
-      resetFaqForm()
+      closeFaqModal()
     } catch (err) {
       setFaqError(err instanceof Error ? err.message : "Nao foi possivel guardar a pergunta frequente.")
     }
@@ -309,6 +324,7 @@ export function AdminFaqManagementPanel() {
       isActive: faq.is_active,
     })
     setFaqError(null)
+    setIsFaqModalOpen(true)
   }
 
   const handleDeleteFaq = async (faq: FaqSummary) => {
@@ -326,11 +342,7 @@ export function AdminFaqManagementPanel() {
   }
 
   const prepareNewFaqForCategory = (categoryId: string) => {
-    setActiveTab("questions")
-    setEditingFaqId(null)
-    setFaqError(null)
-    setFaqForm(buildDefaultFaqForm(categoryId))
-    document.getElementById("faq-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    openFaqModal(categoryId)
   }
 
   if (categoriesQuery.isLoading || faqsQuery.isLoading) {
@@ -384,7 +396,7 @@ export function AdminFaqManagementPanel() {
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="grid w-full max-w-md grid-cols-2 rounded-md bg-slate-100 p-1">
           <button
             type="button"
@@ -405,221 +417,130 @@ export function AdminFaqManagementPanel() {
             Categorias
           </button>
         </div>
+        <Button type="button" className="rounded-lg" onClick={() => openFaqModal()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Pergunta
+        </Button>
       </div>
 
       {activeTab === "questions" ? (
-        <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-          <form id="faq-form" onSubmit={handleFaqSubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                  {editingFaqId ? "Editar pergunta" : "Nova pergunta"}
-                </p>
-                <h3 className="mt-2 text-lg font-bold text-slate-950">
-                  {editingFaqId ? "Ajustar FAQ" : "Criar FAQ"}
-                </h3>
-              </div>
-              {editingFaqId ? (
-                <Button type="button" variant="ghost" className="rounded-full text-slate-500" onClick={resetFaqForm}>
-                  Limpar
-                </Button>
-              ) : null}
-            </div>
+        <div className="mt-6 space-y-6">
+          {groupedFaqs.map((group) => {
+            const categoryKey = group.category?.id ?? "uncategorized"
+            const categoryTitle = group.category?.title ?? "Sem categoria"
+            const totalFaqs = group.faqs.length
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Categoria">
-                <select
-                  value={faqForm.categoryId}
-                  onChange={(event) => setFaqForm((current) => ({ ...current, categoryId: event.target.value }))}
-                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                >
-                  <option value="">Seleciona uma categoria</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.title}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Ordem">
-                <input
-                  value={faqForm.sortOrder}
-                  onChange={(event) => setFaqForm((current) => ({ ...current, sortOrder: event.target.value }))}
-                  inputMode="numeric"
-                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                />
-              </Field>
-              <Field label="Pergunta" fullWidth>
-                <input
-                  value={faqForm.question}
-                  onChange={(event) => setFaqForm((current) => ({ ...current, question: event.target.value }))}
-                  placeholder="Paguei, mas a sebenta ainda nao aparece. O que faco?"
-                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                />
-              </Field>
-              <Field label="Resposta" fullWidth>
-                <textarea
-                  value={faqForm.answer}
-                  onChange={(event) => setFaqForm((current) => ({ ...current, answer: event.target.value }))}
-                  rows={6}
-                  placeholder="Escreve a resposta curta e direta que queres mostrar ao publico."
-                  className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
-                />
-              </Field>
-              <label className="flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700 md:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={faqForm.isActive}
-                  onChange={(event) => setFaqForm((current) => ({ ...current, isActive: event.target.checked }))}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block font-semibold text-slate-950">Ativa</span>
-                  <span className="mt-1 block text-slate-500">Perguntas inativas ficam escondidas da area publica.</span>
-                </span>
-              </label>
-            </div>
-
-            {faqError ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {faqError}
-              </div>
-            ) : null}
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button type="submit" className="rounded-full" disabled={createFaq.isPending || updateFaq.isPending}>
-                {createFaq.isPending || updateFaq.isPending
-                  ? "A guardar..."
-                  : editingFaqId
-                    ? "Atualizar pergunta"
-                    : "Criar pergunta"}
-              </Button>
-              {editingFaqId ? (
-                <Button type="button" variant="outline" className="rounded-full" onClick={resetFaqForm}>
-                  Cancelar edicao
-                </Button>
-              ) : null}
-            </div>
-          </form>
-
-          <div className="space-y-6">
-            {groupedFaqs.map((group) => {
-              const categoryKey = group.category?.id ?? "uncategorized"
-              const categoryTitle = group.category?.title ?? "Sem categoria"
-              const totalFaqs = group.faqs.length
-
-              return (
-                <article key={categoryKey} className="rounded-xl border bg-slate-50/40 shadow-sm">
-                  <div className="flex flex-col justify-between gap-4 p-6 pb-3 sm:flex-row sm:items-center">
-                    <div className="flex items-center gap-2">
-                      <h3 className="flex items-center gap-2 text-base font-bold uppercase tracking-[0.12em] text-sky-700">
-                        <FolderOpen className="h-4 w-4" />
-                        {categoryTitle}
-                        <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-mono text-slate-700">
-                          {totalFaqs}
-                        </span>
-                      </h3>
-                      <button
-                        type="button"
-                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
-                        title="Editar categoria"
-                        onClick={() => group.category && handleEditCategory(group.category)}
-                        disabled={!group.category}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    {group.category ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-8 rounded-lg border-sky-200 px-3 text-sky-700 hover:bg-sky-50"
-                        onClick={() => prepareNewFaqForCategory(group.category!.id)}
-                      >
-                        <Plus className="mr-1 h-3 w-3" />
-                        Adicionar nesta categoria
-                      </Button>
-                    ) : null}
+            return (
+              <article key={categoryKey} className="rounded-xl border bg-slate-50/40 shadow-sm">
+                <div className="flex flex-col justify-between gap-4 p-6 pb-3 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-2">
+                    <h3 className="flex items-center gap-2 text-base font-bold uppercase tracking-[0.12em] text-sky-700">
+                      <FolderOpen className="h-4 w-4" />
+                      {categoryTitle}
+                      <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-mono text-slate-700">
+                        {totalFaqs}
+                      </span>
+                    </h3>
+                    <button
+                      type="button"
+                      className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                      title="Editar categoria"
+                      onClick={() => group.category && handleEditCategory(group.category)}
+                      disabled={!group.category}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                   </div>
+                  {group.category ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 rounded-lg border-sky-200 px-3 text-sky-700 hover:bg-sky-50"
+                      onClick={() => prepareNewFaqForCategory(group.category!.id)}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Adicionar nesta categoria
+                    </Button>
+                  ) : null}
+                </div>
 
-                  <div className="px-6 pb-6">
-                    <div className="overflow-x-auto rounded-md border bg-white">
-                      <table className="w-full text-sm">
-                        <thead className="border-b bg-slate-50 text-left text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                          <tr>
-                            <th className="px-4 py-3">Ordem</th>
-                            <th className="px-4 py-3">Pergunta</th>
-                            <th className="px-4 py-3">Status</th>
-                            <th className="px-4 py-3 text-right">Acoes</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {group.faqs.map((faq) => (
-                            <tr key={faq.id} className="border-b last:border-b-0 hover:bg-slate-50/80">
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-slate-400"
-                                    title="Ordenacao manual"
-                                    disabled
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                  </button>
-                                  <span className="font-mono text-xs text-slate-500">{faq.sort_order}</span>
-                                </div>
-                              </td>
-                              <td className="max-w-[520px] truncate px-4 py-3 font-medium text-slate-900">
-                                {faq.question}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                    faq.is_active
-                                      ? "bg-emerald-500 text-white"
-                                      : "border border-slate-300 bg-slate-100 text-slate-600"
-                                  }`}
+                <div className="px-6 pb-6">
+                  <div className="overflow-x-auto rounded-md border bg-white">
+                    <table className="w-full text-sm">
+                      <thead className="border-b bg-slate-50 text-left text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Ordem</th>
+                          <th className="px-4 py-3">Pergunta</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3 text-right">Acoes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.faqs.map((faq) => (
+                          <tr key={faq.id} className="border-b last:border-b-0 hover:bg-slate-50/80">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-slate-400"
+                                  title="Ordenacao manual"
+                                  disabled
                                 >
-                                  {faq.is_active ? "Publicado" : "Inativo"}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex justify-end gap-1">
-                                  <button
-                                    type="button"
-                                    className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                                    onClick={() => handleEditFaq(faq)}
-                                    title="Editar pergunta"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="rounded-md p-2 text-rose-600 transition hover:bg-rose-50"
-                                    onClick={() => void handleDeleteFaq(faq)}
-                                    title="Excluir pergunta"
-                                    disabled={deleteFaq.isPending}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                  <GripVertical className="h-4 w-4" />
+                                </button>
+                                <span className="font-mono text-xs text-slate-500">{faq.sort_order}</span>
+                              </div>
+                            </td>
+                            <td className="max-w-[520px] truncate px-4 py-3 font-medium text-slate-900">
+                              {faq.question}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                  faq.is_active
+                                    ? "bg-emerald-500 text-white"
+                                    : "border border-slate-300 bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {faq.is_active ? "Publicado" : "Inativo"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex justify-end gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                                  onClick={() => handleEditFaq(faq)}
+                                  title="Editar pergunta"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-md p-2 text-rose-600 transition hover:bg-rose-50"
+                                  onClick={() => void handleDeleteFaq(faq)}
+                                  title="Excluir pergunta"
+                                  disabled={deleteFaq.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </article>
-              )
-            })}
+                </div>
+              </article>
+            )
+          })}
 
-            {!faqs.length ? (
-              <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
-                Ainda nao existem perguntas frequentes. Cria a primeira para alimentar a pagina publica.
-              </div>
-            ) : null}
-          </div>
+          {!faqs.length ? (
+            <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
+              Ainda nao existem perguntas frequentes. Cria a primeira para alimentar a pagina publica.
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -787,6 +708,129 @@ export function AdminFaqManagementPanel() {
                 Ainda nao existem categorias. Cria a primeira para organizar as perguntas.
               </div>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {isFaqModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-300 bg-slate-100 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-950">{editingFaqId ? "Editar FAQ" : "Nova FAQ"}</h3>
+                <p className="mt-1 text-sm text-slate-500">Organize perguntas frequentes para busca rapida dos usuarios.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeFaqModal}
+                className="rounded-md p-1 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                title="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFaqSubmit} className="space-y-5 px-6 py-5">
+              <Field label="Pergunta" fullWidth>
+                <input
+                  value={faqForm.question}
+                  onChange={(event) => setFaqForm((current) => ({ ...current, question: event.target.value }))}
+                  placeholder="Paguei, mas a sebenta ainda nao aparece. O que faco?"
+                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                />
+              </Field>
+
+              <Field label="Resposta" fullWidth>
+                <textarea
+                  value={faqForm.answer}
+                  onChange={(event) => setFaqForm((current) => ({ ...current, answer: event.target.value }))}
+                  rows={6}
+                  placeholder="Escreve a resposta curta e direta que queres mostrar ao publico."
+                  className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
+                />
+              </Field>
+
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_132px_132px]">
+                <Field label="Categoria">
+                  <select
+                    value={faqForm.categoryId}
+                    onChange={(event) => setFaqForm((current) => ({ ...current, categoryId: event.target.value }))}
+                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                  >
+                    <option value="">Seleciona uma categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.title}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <div className="mt-7">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full rounded-xl"
+                    onClick={() => {
+                      setActiveTab("categories")
+                      setIsFaqModalOpen(false)
+                      document.getElementById("faq-category-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }}
+                  >
+                    Nova
+                  </Button>
+                </div>
+
+                <Field label="Posicao na Lista">
+                  <input
+                    value={faqForm.sortOrder}
+                    onChange={(event) => setFaqForm((current) => ({ ...current, sortOrder: event.target.value }))}
+                    inputMode="numeric"
+                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                  />
+                </Field>
+              </div>
+
+              <label className="flex items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
+                <div>
+                  <span className="block font-semibold text-slate-950">Visibilidade</span>
+                  <span className="mt-1 block text-xs text-slate-500">Define se a pergunta aparece na area publica.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFaqForm((current) => ({ ...current, isActive: !current.isActive }))}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
+                    faqForm.isActive ? "bg-blue-600" : "bg-slate-300"
+                  }`}
+                  aria-pressed={faqForm.isActive}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                      faqForm.isActive ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </label>
+
+              {faqError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {faqError}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <Button type="button" variant="ghost" className="rounded-lg" onClick={closeFaqModal}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="rounded-lg" disabled={createFaq.isPending || updateFaq.isPending}>
+                  {createFaq.isPending || updateFaq.isPending
+                    ? "A guardar..."
+                    : editingFaqId
+                      ? "Salvar FAQ"
+                      : "Salvar FAQ"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}
