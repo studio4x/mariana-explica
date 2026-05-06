@@ -1,4 +1,5 @@
 import { publicSupabase, supabase } from "@/integrations/supabase"
+import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
 import type { FaqCategorySummary, FaqSummary } from "@/types/faq.types"
 
 const faqCategorySelect = `
@@ -23,6 +24,18 @@ const faqSelect = `
   updated_at
 `
 
+function isSchemaMismatch(error: unknown, ...hints: string[]) {
+  if (!error || typeof error !== "object") return false
+  const asRecord = error as Record<string, unknown>
+  const fullText = `${asRecord.code ?? ""} ${asRecord.message ?? ""} ${asRecord.details ?? ""} ${asRecord.hint ?? ""}`.toLowerCase()
+
+  if (fullText.includes("schema cache") || fullText.includes("does not exist") || fullText.includes("not found")) {
+    return true
+  }
+
+  return hints.some((hint) => fullText.includes(hint.toLowerCase()))
+}
+
 export async function fetchPublishedFaqCategories() {
   const { data, error } = await publicSupabase
     .from("faq_categories")
@@ -30,6 +43,10 @@ export async function fetchPublishedFaqCategories() {
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("title", { ascending: true })
+
+  if (error && isSchemaMismatch(error, "faq_categories")) {
+    return buildDefaultFaqCategories()
+  }
 
   if (error) throw error
   return (data ?? []) as FaqCategorySummary[]
@@ -43,6 +60,10 @@ export async function fetchPublishedFaqs() {
     .order("sort_order", { ascending: true })
     .order("question", { ascending: true })
 
+  if (error && isSchemaMismatch(error, "faqs")) {
+    return buildDefaultFaqs()
+  }
+
   if (error) throw error
   return (data ?? []) as FaqSummary[]
 }
@@ -54,6 +75,10 @@ export async function fetchAdminFaqCategories() {
     .order("sort_order", { ascending: true })
     .order("title", { ascending: true })
 
+  if (error && isSchemaMismatch(error, "faq_categories")) {
+    return buildDefaultFaqCategories()
+  }
+
   if (error) throw error
   return (data ?? []) as FaqCategorySummary[]
 }
@@ -64,6 +89,10 @@ export async function fetchAdminFaqs() {
     .select(faqSelect)
     .order("sort_order", { ascending: true })
     .order("question", { ascending: true })
+
+  if (error && isSchemaMismatch(error, "faqs")) {
+    return buildDefaultFaqs()
+  }
 
   if (error) throw error
   return (data ?? []) as FaqSummary[]

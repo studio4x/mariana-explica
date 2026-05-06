@@ -47,6 +47,11 @@ function isSchemaMismatch(error: unknown, hint: string) {
   if (!error || typeof error !== "object") return false
   const asRecord = error as Record<string, unknown>
   const fullText = `${asRecord.code ?? ""} ${asRecord.message ?? ""} ${asRecord.details ?? ""} ${asRecord.hint ?? ""}`.toLowerCase()
+
+  if (fullText.includes("schema cache") || fullText.includes("does not exist") || fullText.includes("not found")) {
+    return true
+  }
+
   return fullText.includes(hint.toLowerCase())
 }
 
