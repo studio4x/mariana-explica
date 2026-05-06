@@ -14,7 +14,6 @@ import { ROUTES } from "@/lib/constants"
 import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
-import { supportBusinessHours, supportPublicNote } from "@/lib/support-sla"
 import type { FaqCategorySummary, FaqSummary } from "@/types/faq.types"
 import type { ProductCategorySummary, ProductSummary } from "@/types/product.types"
 
@@ -214,7 +213,7 @@ export function Products() {
               </select>
             </div>
 
-            <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-white/70 pt-4 text-center md:flex-row md:text-left">
+          <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-white/70 pt-4 text-center md:flex-row md:text-left">
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#5a7386]">
                 {filteredProducts.length} resultado{filteredProducts.length === 1 ? "" : "s"}
               </p>
@@ -334,10 +333,6 @@ export function Products() {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col items-center gap-2 text-center text-xs font-semibold uppercase tracking-[0.22em] text-[#5a7386] md:flex-row md:justify-center md:gap-6">
-            <span>{supportBusinessHours}</span>
-            <span>{supportPublicNote}</span>
-          </div>
         </section>
       </main>
     </div>
