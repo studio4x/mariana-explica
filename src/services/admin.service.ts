@@ -43,6 +43,13 @@ import type { ProductSummary } from "@/types/product.types"
 import type { ProductCategorySummary } from "@/types/product.types"
 import type { CheckoutMode } from "@/lib/admin-checkout"
 
+function isSchemaMismatch(error: unknown, hint: string) {
+  if (!error || typeof error !== "object") return false
+  const asRecord = error as Record<string, unknown>
+  const fullText = `${asRecord.code ?? ""} ${asRecord.message ?? ""} ${asRecord.details ?? ""} ${asRecord.hint ?? ""}`.toLowerCase()
+  return fullText.includes(hint.toLowerCase())
+}
+
 async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
@@ -457,12 +464,29 @@ export async function fetchAdminUsers() {
 }
 
 export async function fetchAdminProducts() {
+  const selectWithCategories =
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,category_id,published_at"
+  const selectLegacy =
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at"
+
   const { data, error } = await supabase
     .from("products")
-    .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,category_id,published_at",
-    )
+    .select(selectWithCategories)
     .order("updated_at", { ascending: false })
+
+  if (error && isSchemaMismatch(error, "category_id")) {
+    const legacy = await supabase
+      .from("products")
+      .select(selectLegacy)
+      .order("updated_at", { ascending: false })
+
+    if (legacy.error) {
+      throw legacy.error
+    }
+
+    const normalized = ((legacy.data ?? []) as Record<string, unknown>[]).map((item) => ({ ...item, category_id: null }))
+    return normalized as ProductSummary[]
+  }
 
   if (error) {
     throw error
@@ -477,6 +501,10 @@ export async function fetchAdminProductCategories() {
     .select("id,slug,title,description,sort_order,is_active,created_at,updated_at")
     .order("sort_order", { ascending: true })
     .order("title", { ascending: true })
+
+  if (error && isSchemaMismatch(error, "product_categories")) {
+    return []
+  }
 
   if (error) {
     throw error

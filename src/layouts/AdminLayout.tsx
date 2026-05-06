@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Bell,
+  CircleHelp,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -15,7 +16,8 @@ import {
   Settings,
   UserCircle2,
 } from "lucide-react"
-import { Link, NavLink, Outlet } from "react-router-dom"
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
+import type { Location as RouterLocation } from "react-router-dom"
 import { CookieConsentBanner, ScrollToTop, SiteBrandingManager, SiteLogo, SiteTrackingManager, StatusBadge } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
@@ -39,14 +41,40 @@ import {
   useMarkAllAdminNotificationsAsRead,
 } from "@/hooks/useAdmin"
 
-const items = [
+interface AdminNavItem {
+  to: string
+  label: string
+  icon: typeof LayoutDashboard
+  activeMatcher?: (location: RouterLocation) => boolean
+}
+
+const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
-  { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
+  {
+    to: ROUTES.ADMIN_SUPPORT,
+    label: "Tickets",
+    icon: LifeBuoy,
+    activeMatcher: (location) => {
+      if (!location.pathname.startsWith("/admin/suporte")) return false
+      const tab = new URLSearchParams(location.search).get("tab")
+      return tab !== "faq"
+    },
+  },
+  {
+    to: ROUTES.ADMIN_FAQ,
+    label: "Perguntas frequentes",
+    icon: CircleHelp,
+    activeMatcher: (location) => {
+      if (location.pathname !== "/admin/suporte") return false
+      const tab = new URLSearchParams(location.search).get("tab")
+      return tab === "faq"
+    },
+  },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
   { to: ROUTES.ADMIN_ACCOUNT, label: "Minha Conta", icon: UserCircle2 },
@@ -65,6 +93,7 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 export function AdminLayout() {
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { profile, signOut } = useAuth()
   const notificationsQuery = useAdminNotifications()
@@ -204,12 +233,15 @@ export function AdminLayout() {
                   to={item.to}
                   end={item.to === ROUTES.ADMIN}
                   className={({ isActive }) =>
-                    cn(
-                      "flex items-center rounded-2xl px-4 py-3 text-sm font-bold transition-all",
-                      isActive
-                        ? "bg-gradient-to-r from-sky-700 to-slate-950 text-white shadow-[0_14px_30px_rgba(2,132,199,0.22)]"
-                        : "text-slate-600 hover:bg-[#F2F7F9] hover:text-[#163138]",
-                    )
+                    {
+                      const isCurrent = item.activeMatcher ? item.activeMatcher(location) : isActive
+                      return cn(
+                        "flex items-center rounded-2xl px-4 py-3 text-sm font-bold transition-all",
+                        isCurrent
+                          ? "bg-gradient-to-r from-sky-700 to-slate-950 text-white shadow-[0_14px_30px_rgba(2,132,199,0.22)]"
+                          : "text-slate-600 hover:bg-[#F2F7F9] hover:text-[#163138]",
+                      )
+                    }
                   }
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
