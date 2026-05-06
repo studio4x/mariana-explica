@@ -28,6 +28,7 @@ import {
   fetchAdminEmailStatus,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
+  fetchAdminProductCategories,
   fetchAdminNotifications,
   markAdminNotificationAsRead,
   markAllAdminNotificationsAsRead,
@@ -70,6 +71,9 @@ import {
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
   updateAdminProduct,
+  createAdminProductCategory,
+  deleteAdminProductCategory,
+  updateAdminProductCategory,
   updateAdminModuleAsset,
   updateAdminProductAssessment,
   updateAdminProductLesson,
@@ -199,6 +203,14 @@ export function useAdminProducts() {
   })
 }
 
+export function useAdminProductCategories() {
+  return useQuery({
+    queryKey: ["admin", "product-categories"],
+    queryFn: fetchAdminProductCategories,
+    ...getAdminQueryOptions(),
+  })
+}
+
 export function useAdminProductModules(productId: string | undefined) {
   return useQuery({
     queryKey: ["admin", "products", productId, "modules"],
@@ -232,6 +244,46 @@ export function useAdminProductAssessments(productId: string | undefined) {
     queryFn: () => fetchAdminProductAssessments(productId ?? ""),
     enabled: Boolean(productId),
     ...getAdminQueryOptions(),
+  })
+}
+
+export function useCreateAdminProductCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminProductCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "product-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["products", "categories"] })
+    },
+  })
+}
+
+export function useUpdateAdminProductCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminProductCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "product-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["products", "categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "products"] })
+      void queryClient.invalidateQueries({ queryKey: ["products", "published"] })
+    },
+  })
+}
+
+export function useDeleteAdminProductCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: deleteAdminProductCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "product-categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["products", "categories"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "products"] })
+      void queryClient.invalidateQueries({ queryKey: ["products", "published"] })
+    },
   })
 }
 
@@ -523,6 +575,7 @@ function useAdminInvalidation() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: ["admin"] })
     void queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+    void queryClient.invalidateQueries({ queryKey: ["products"] })
   }
 }
 

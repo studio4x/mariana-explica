@@ -1,5 +1,5 @@
 import { publicSupabase, supabase } from "@/integrations/supabase"
-import type { ProductDetails, ProductSummary } from "@/types/product.types"
+import type { ProductCategorySummary, ProductDetails, ProductSummary } from "@/types/product.types"
 
 const productSelect = `
   id,
@@ -25,7 +25,19 @@ const productSelect = `
   is_featured,
   allow_affiliate,
   sort_order,
+  category_id,
   published_at
+`
+
+const productCategorySelect = `
+  id,
+  slug,
+  title,
+  description,
+  sort_order,
+  is_active,
+  created_at,
+  updated_at
 `
 
 export async function fetchPublishedProducts() {
@@ -42,6 +54,21 @@ export async function fetchPublishedProducts() {
   }
 
   return (data ?? []) as ProductSummary[]
+}
+
+export async function fetchPublishedProductCategories() {
+  const { data, error } = await publicSupabase
+    .from("product_categories")
+    .select(productCategorySelect)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("title", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ProductCategorySummary[]
 }
 
 export async function fetchFeaturedProducts() {

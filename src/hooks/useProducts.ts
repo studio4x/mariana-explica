@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import {
   fetchAdminPreviewProductBySlug,
   fetchFeaturedProducts,
+  fetchPublishedProductCategories,
   fetchPublishedProductBySlug,
   fetchPublishedProducts,
 } from "@/services"
@@ -17,6 +18,13 @@ export function usePublishedProducts() {
   return useQuery({
     queryKey: ["products", "published"],
     queryFn: fetchPublishedProducts,
+  })
+}
+
+export function usePublishedProductCategories() {
+  return useQuery({
+    queryKey: ["products", "categories"],
+    queryFn: fetchPublishedProductCategories,
   })
 }
 

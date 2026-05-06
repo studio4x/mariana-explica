@@ -40,6 +40,7 @@ import type {
   SupportAttachmentUploadResult,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
+import type { ProductCategorySummary } from "@/types/product.types"
 import type { CheckoutMode } from "@/lib/admin-checkout"
 
 async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
@@ -459,7 +460,7 @@ export async function fetchAdminProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,category_id,published_at",
     )
     .order("updated_at", { ascending: false })
 
@@ -468,6 +469,86 @@ export async function fetchAdminProducts() {
   }
 
   return (data ?? []) as ProductSummary[]
+}
+
+export async function fetchAdminProductCategories() {
+  const { data, error } = await supabase
+    .from("product_categories")
+    .select("id,slug,title,description,sort_order,is_active,created_at,updated_at")
+    .order("sort_order", { ascending: true })
+    .order("title", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ProductCategorySummary[]
+}
+
+export async function createAdminProductCategory(input: {
+  slug: string
+  title: string
+  description?: string | null
+  sortOrder?: number
+  isActive?: boolean
+}) {
+  const { data, error } = await supabase
+    .from("product_categories")
+    .insert({
+      slug: input.slug.trim().toLowerCase(),
+      title: input.title.trim(),
+      description: input.description ?? null,
+      sort_order: input.sortOrder ?? 0,
+      is_active: input.isActive ?? true,
+    })
+    .select("id,slug,title,description,sort_order,is_active,created_at,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as ProductCategorySummary
+}
+
+export async function updateAdminProductCategory(input: {
+  categoryId: string
+  slug?: string
+  title?: string
+  description?: string | null
+  sortOrder?: number
+  isActive?: boolean
+}) {
+  const updates: Record<string, unknown> = {}
+
+  if (input.slug !== undefined) updates.slug = input.slug.trim().toLowerCase()
+  if (input.title !== undefined) updates.title = input.title.trim()
+  if (input.description !== undefined) updates.description = input.description
+  if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder
+  if (input.isActive !== undefined) updates.is_active = input.isActive
+
+  const { data, error } = await supabase
+    .from("product_categories")
+    .update(updates)
+    .eq("id", input.categoryId)
+    .select("id,slug,title,description,sort_order,is_active,created_at,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as ProductCategorySummary
+}
+
+export async function deleteAdminProductCategory(categoryId: string) {
+  const { error } = await supabase.from("product_categories").delete().eq("id", categoryId)
+
+  if (error) {
+    throw error
+  }
+
+  return { success: true as const }
 }
 
 export async function fetchAdminOrders() {
@@ -1430,6 +1511,7 @@ export function createAdminProduct(input: {
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
+  categoryId?: string | null
   launchDate?: string | null
   isPublic?: boolean
   creatorId?: string | null
@@ -1461,6 +1543,7 @@ export function updateAdminProduct(input: {
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
+  categoryId?: string | null
   launchDate?: string | null
   isPublic?: boolean
   creatorId?: string | null

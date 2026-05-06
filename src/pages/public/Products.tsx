@@ -6,33 +6,26 @@ import { ProductCard } from "@/components/product"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { usePublishedProducts } from "@/hooks/useProducts"
+import { usePublishedProductCategories, usePublishedProducts } from "@/hooks/useProducts"
 import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
+import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
-import type { ProductSummary } from "@/types/product.types"
+import type { ProductCategorySummary, ProductSummary } from "@/types/product.types"
 
-type QuickFilter = "all" | "packs" | "sebentas" | "free" | "services"
 type SortMode = "recent" | "price_asc" | "popular"
 
-const quickFilterFromCategory: Record<string, QuickFilter> = {
-  all: "all",
-  cursos: "all",
-  materiais: "all",
-  packs: "packs",
-  sebentas: "sebentas",
-  gratis: "free",
-  gratuitos: "free",
-  explicacoes: "services",
-}
+type PublicCategoryOption = Pick<
+  ProductCategorySummary,
+  "id" | "slug" | "title" | "description" | "sort_order" | "is_active"
+>
 
-const filterLabels: Record<QuickFilter, string> = {
-  all: "Todos",
-  packs: "Packs poupança",
-  sebentas: "Sebentas individuais",
-  services: "Explicações",
-  free: "Gratuitos",
-}
+const DEFAULT_PUBLIC_CATEGORIES: PublicCategoryOption[] = [
+  { id: "packs-poupanca", slug: "packs-poupanca", title: "Packs poupança", description: null, sort_order: 1, is_active: true },
+  { id: "sebentas-individuais", slug: "sebentas-individuais", title: "Sebentas individuais", description: null, sort_order: 2, is_active: true },
+  { id: "explicacoes", slug: "explicacoes", title: "Explicações", description: null, sort_order: 3, is_active: true },
+  { id: "gratuitos", slug: "gratuitos", title: "Gratuitos", description: null, sort_order: 4, is_active: true },
+]
 
 const sortLabels: Record<SortMode, string> = {
   recent: "Mais recentes",
@@ -65,45 +58,65 @@ export function Products() {
   const [sortMode, setSortMode] = useState<SortMode>("recent")
   const deferredSearch = useDeferredValue(search)
   const { data: products, isLoading, isError, error, refetch } = usePublishedProducts()
+  const { data: categoriesFromDb } = usePublishedProductCategories()
   const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
 
-  const quickFilter = useMemo(() => {
-    const category = searchParams.get("categoria")?.trim().toLowerCase() ?? ""
-    return quickFilterFromCategory[category] ?? "all"
-  }, [searchParams])
+  const categories = useMemo(() => {
+    if (!categoriesFromDb) {
+      return DEFAULT_PUBLIC_CATEGORIES
+    }
 
-  const setCategoryFilter = (filter: QuickFilter) => {
-    if (filter === "all") {
+    return categoriesFromDb.filter((category) => category.is_active)
+  }, [categoriesFromDb])
+
+  const categoriesById = useMemo(() => {
+    return new Map(categories.map((category) => [category.id, category]))
+  }, [categories])
+
+  const categoriesBySlug = useMemo(() => {
+    return new Map(categories.map((category) => [category.slug, category]))
+  }, [categories])
+
+  const currentCategorySlug = searchParams.get("categoria")?.trim().toLowerCase() ?? ""
+  const selectedCategorySlug = currentCategorySlug && categoriesBySlug.has(currentCategorySlug) ? currentCategorySlug : "all"
+
+  const setCategoryFilter = (categorySlug: string) => {
+    if (categorySlug === "all") {
       setSearchParams({})
       return
     }
 
-    const category = filter === "free" ? "gratuitos" : filter === "services" ? "explicacoes" : filter
-    setSearchParams({ categoria: category })
+    setSearchParams({ categoria: categorySlug })
+  }
+
+  const resolveCategorySlugForProduct = (product: ProductSummary) => {
+    if (product.category_id && categoriesById.has(product.category_id)) {
+      return categoriesById.get(product.category_id)?.slug ?? inferProductCategorySlug(product)
+    }
+
+    return inferProductCategorySlug(product)
   }
 
   const filteredProducts = sortProducts(
     (products ?? []).filter((product) => {
+      const categorySlug = resolveCategorySlugForProduct(product)
+      const categoryTitle = categoriesBySlug.get(categorySlug)?.title ?? ""
       const haystack = [
         product.title,
         product.short_description ?? "",
         product.description ?? "",
         product.product_type,
         getProductFamilyLabel(product),
+        categorySlug,
+        categoryTitle,
       ]
         .join(" ")
         .toLowerCase()
 
       const matchesSearch = haystack.includes(deferredSearch.trim().toLowerCase())
-      const familyLabel = getProductFamilyLabel(product).toLowerCase()
-      const matchesQuickFilter =
-        quickFilter === "all" ||
-        (quickFilter === "packs" && familyLabel.includes("pack")) ||
-        (quickFilter === "sebentas" && familyLabel.includes("sebenta")) ||
-        (quickFilter === "free" && product.product_type === "free") ||
-        (quickFilter === "services" && product.product_type === "external_service")
+      const matchesCategory = selectedCategorySlug === "all" || categorySlug === selectedCategorySlug
 
-      return matchesSearch && matchesQuickFilter
+      return matchesSearch && matchesCategory
     }),
     sortMode,
   )
@@ -131,18 +144,29 @@ export function Products() {
         <section className="mx-auto mt-10 max-w-6xl">
           <div className="rounded-[2rem] border border-white/80 bg-white/50 p-5 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
             <div className="flex flex-wrap justify-center gap-3">
-              {(Object.keys(filterLabels) as QuickFilter[]).map((filterKey) => (
+              <button
+                type="button"
+                onClick={() => setCategoryFilter("all")}
+                className={`min-w-[110px] rounded-full px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${
+                  selectedCategorySlug === "all"
+                    ? "bg-[#1d2340] text-white shadow-sm ring-2 ring-white/55 ring-offset-2 ring-offset-transparent"
+                    : "bg-[#28304f] text-white hover:bg-[#1d2340]"
+                }`}
+              >
+                Todos
+              </button>
+              {categories.map((category) => (
                 <button
-                  key={filterKey}
+                  key={category.slug}
                   type="button"
-                  onClick={() => setCategoryFilter(filterKey)}
+                  onClick={() => setCategoryFilter(category.slug)}
                   className={`min-w-[110px] rounded-full px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${
-                    quickFilter === filterKey
+                    selectedCategorySlug === category.slug
                       ? "bg-[#1d2340] text-white shadow-sm ring-2 ring-white/55 ring-offset-2 ring-offset-transparent"
                       : "bg-[#28304f] text-white hover:bg-[#1d2340]"
                   }`}
                 >
-                  {filterLabels[filterKey]}
+                  {category.title}
                 </button>
               ))}
             </div>

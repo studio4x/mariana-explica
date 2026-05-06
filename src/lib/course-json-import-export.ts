@@ -21,6 +21,7 @@ interface NormalizedCourseJson {
   slug: string
   coverImageUrl: string
   status: ProductSummary["status"]
+  categoryId: string
   launchDate: string
   priceCents: number
   currency: string
@@ -460,6 +461,7 @@ export function normalizeCourseImport(raw: unknown): NormalizedCourseJson {
       title: asText(course.title),
       slug: asText(course.slug),
       coverImageUrl: asText(course.cover_image_url ?? course.coverImageUrl),
+      categoryId: asText(course.category_id ?? course.categoryId),
       status:
         asText(course.status) === "published" || asText(course.status) === "archived"
           ? (asText(course.status) as ProductSummary["status"])
@@ -500,6 +502,7 @@ export function normalizeCourseImport(raw: unknown): NormalizedCourseJson {
     title: asText(payload.title),
     slug: asText(payload.slug),
     coverImageUrl: asText(payload.thumbnail_url),
+    categoryId: asText(payload.category_id ?? payload.categoryId),
     status:
       asText(payload.status) === "published" || asText(payload.status) === "archived"
         ? (asText(payload.status) as ProductSummary["status"])
@@ -612,6 +615,7 @@ export function exportCourseToJson(
     description: course.description ?? "",
     workload_minutes: course.workload_minutes,
     thumbnail_url: course.cover_image_url ?? "",
+    category_id: course.category_id ?? "",
     status: course.status,
     quiz_type_settings:
       (asRecord(course.quiz_type_settings) as Record<string, boolean> | null) ?? QUIZ_TYPE_SETTINGS_DEFAULT,

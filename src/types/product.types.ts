@@ -1,6 +1,17 @@
 export type ProductType = "paid" | "free" | "hybrid" | "external_service"
 export type ProductStatus = "draft" | "published" | "archived"
 
+export interface ProductCategorySummary {
+  id: string
+  slug: string
+  title: string
+  description: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface CoursePublicPageFeature {
   title: string
   description: string
@@ -57,6 +68,7 @@ export interface ProductSummary {
   is_featured: boolean
   allow_affiliate: boolean
   sort_order: number
+  category_id: string | null
   published_at: string | null
 }
 

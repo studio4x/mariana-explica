@@ -3,7 +3,8 @@ import { Link } from "react-router-dom"
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
 import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
-import { useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
+import { useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
+import { ROUTES } from "@/lib/constants"
 import { adminCourseBuilderPath } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 
@@ -59,6 +60,7 @@ function Field({
 
 export function CourseSettingsPanel() {
   const { product } = useAdminCourseBuilderContext()
+  const { data: categories = [] } = useAdminProductCategories()
   const updateProduct = useUpdateAdminProduct()
   const uploadCover = useUploadAdminProductCover()
   const [error, setError] = useState<string | null>(null)
@@ -76,6 +78,7 @@ export function CourseSettingsPanel() {
         : "",
     productType: product.product_type,
     status: product.status,
+    categoryId: product.category_id ?? "",
     price: formatPriceInput(product.price_cents),
     currency: product.currency,
     salesPageEnabled: product.sales_page_enabled,
@@ -102,6 +105,7 @@ export function CourseSettingsPanel() {
           : "",
       productType: product.product_type,
       status: product.status,
+      categoryId: product.category_id ?? "",
       price: formatPriceInput(product.price_cents),
       currency: product.currency,
       salesPageEnabled: product.sales_page_enabled,
@@ -166,6 +170,7 @@ export function CourseSettingsPanel() {
         creatorCommissionPercent: form.creatorCommissionPercent ? Number(form.creatorCommissionPercent) : null,
         productType: form.productType,
         status: form.status,
+        categoryId: form.categoryId.trim() || null,
         priceCents: parsePriceInput(form.price),
         currency: form.currency.trim().toUpperCase() || "EUR",
         salesPageEnabled: form.salesPageEnabled,
@@ -192,9 +197,14 @@ export function CourseSettingsPanel() {
         title="Configuracoes do material"
         description="Identidade publica, capa comercial, progressao linear e quiz objetivo disponivel neste material."
         actions={
-          <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-            <Link to={adminCourseBuilderPath(product.id)}>Abrir construtor</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+              <Link to={adminCourseBuilderPath(product.id)}>Abrir construtor</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+              <Link to={`${ROUTES.ADMIN_COURSES}?tab=categorias`}>Gerir categorias</Link>
+            </Button>
+          </div>
         }
       />
 
@@ -226,6 +236,20 @@ export function CourseSettingsPanel() {
               placeholder="slug-do-material"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
+          </Field>
+          <Field label="Categoria do material" helper="Categorias usadas no catalogo publico e nos filtros.">
+            <select
+              value={form.categoryId}
+              onChange={(event) => setForm((prev) => ({ ...prev, categoryId: event.target.value }))}
+              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="">Sem categoria</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.title}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Data de lancamento" helper="Data de referencia comercial do material.">
             <input

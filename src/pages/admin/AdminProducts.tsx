@@ -6,7 +6,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -25,17 +25,20 @@ import { EmptyState, ErrorState } from "@/components/feedback"
 import { StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
+  useAdminProductCategories,
   useAdminProducts,
   useCreateAdminProduct,
   useDeleteAdminProduct,
   useUpdateAdminProduct,
 } from "@/hooks/useAdmin"
+import { AdminProductCategoriesPanel } from "./AdminProductCategoriesPanel"
 import {
   adminCourseAssessmentsPath,
   adminCourseBuilderPath,
   adminCourseSettingsPath,
   adminCourseStudentsPath,
 } from "@/lib/routes"
+import { inferProductCategorySlug } from "@/lib/product-categories"
 import {
   createAdminProductAssessment,
   createAdminModuleAsset,
@@ -62,6 +65,7 @@ interface CourseDraft {
   slug: string
   coverImageUrl: string
   status: ProductSummary["status"]
+  categoryId: string
   launchDate: string
   price: string
   currency: string
@@ -139,6 +143,7 @@ function buildDefaultCourseDraft(sortOrder: number): CourseDraft {
     slug: "",
     coverImageUrl: "",
     status: "draft",
+    categoryId: "",
     launchDate: "",
     price: "0.00",
     currency: "EUR",
@@ -249,8 +254,10 @@ function ImportConfirmationModal({
 
 export function AdminProducts() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const productsQuery = useAdminProducts()
+  const categoriesQuery = useAdminProductCategories()
   const createCourse = useCreateAdminProduct()
   const updateCourse = useUpdateAdminProduct()
   const deleteCourse = useDeleteAdminProduct()
@@ -262,6 +269,13 @@ export function AdminProducts() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null)
   const deferredQuery = useDeferredValue(query)
+  const activeTab = searchParams.get("tab") === "categorias" ? "categorias" : "materiais"
+  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data])
+  const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
+  const categoryBySlug = useMemo(
+    () => new Map(categories.map((category) => [category.slug, category])),
+    [categories],
+  )
 
   const products = useMemo(() => {
     const items = [...(productsQuery.data ?? [])]
@@ -283,12 +297,23 @@ export function AdminProducts() {
         course.status,
         course.currency,
         course.product_type,
+        categoryById.get(course.category_id ?? "")?.title ?? "",
+        inferProductCategorySlug(course),
       ]
         .join(" ")
         .toLowerCase()
         .includes(q),
     )
-  }, [deferredQuery, products])
+  }, [categoryById, deferredQuery, products])
+
+  const getCategoryLabel = (course: ProductSummary) => {
+    if (course.category_id && categoryById.has(course.category_id)) {
+      return categoryById.get(course.category_id)?.title ?? "Sem categoria"
+    }
+
+    const inferredSlug = inferProductCategorySlug(course)
+    return categoryBySlug.get(inferredSlug)?.title ?? "Sem categoria"
+  }
 
   if (productsQuery.isLoading) {
     return <AdminCoursesSkeleton />
@@ -311,12 +336,28 @@ export function AdminProducts() {
   const publishedCount = products.filter((course) => course.status === "published").length
   const draftCount = products.filter((course) => course.status === "draft").length
 
+  const resolveCategoryIdFromDraft = (draft: CourseDraft) => {
+    const inferredSlug = inferProductCategorySlug({
+      title: draft.title,
+      slug: draft.slug,
+      product_type: draft.productType,
+      short_description: draft.description,
+      description: draft.description,
+    })
+
+    return categoryBySlug.get(inferredSlug)?.id ?? ""
+  }
+
   const openCreateEditor = (draft?: CourseDraft, importedStructure?: ExportedCoursePackage | null) => {
     setSubmitError(null)
+    const nextDraft = draft ?? buildDefaultCourseDraft(products.length + 1)
     setEditorState({
       mode: importedStructure ? "import" : "create",
       courseId: null,
-      draft: draft ?? buildDefaultCourseDraft(products.length + 1),
+      draft: {
+        ...nextDraft,
+        categoryId: nextDraft.categoryId || resolveCategoryIdFromDraft(nextDraft),
+      },
       importedStructure: importedStructure ?? null,
     })
   }
@@ -333,6 +374,7 @@ export function AdminProducts() {
         {
           title: imported.title,
           slug: imported.slug,
+          categoryId: imported.categoryId,
           coverImageUrl: imported.coverImageUrl,
           status: imported.status,
           launchDate: imported.launchDate,
@@ -509,6 +551,7 @@ export function AdminProducts() {
       coverImageUrl: draft.coverImageUrl.trim() || null,
       description: draft.description.trim() || null,
       shortDescription: draft.description.trim().slice(0, 160) || null,
+      categoryId: draft.categoryId.trim() || null,
       productType,
       priceCents,
       currency: draft.currency.trim().toUpperCase() || "EUR",
@@ -685,7 +728,41 @@ export function AdminProducts() {
         </div>
       </div>
 
-      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+      <section className="rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={activeTab === "materiais" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setSearchParams((params) => {
+              const next = new URLSearchParams(params)
+              next.delete("tab")
+              return next
+            })}
+          >
+            Materiais
+          </Button>
+          <Button
+            type="button"
+            variant={activeTab === "categorias" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() =>
+              setSearchParams((params) => {
+                const next = new URLSearchParams(params)
+                next.set("tab", "categorias")
+                return next
+              })
+            }
+          >
+            Categorias
+          </Button>
+        </div>
+      </section>
+
+      {activeTab === "categorias" ? (
+        <AdminProductCategoriesPanel products={products} />
+      ) : (
+        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Ordem de exibicao dos materiais</h2>
@@ -796,6 +873,9 @@ export function AdminProducts() {
                     <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-blue-700">
                       {course.is_public ? "Publico" : "Privado"}
                     </span>
+                    <span className="inline-flex items-center rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-amber-700">
+                      {getCategoryLabel(course)}
+                    </span>
                     <span className="inline-flex items-center rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-slate-500">
                       {typeLabels[course.product_type]}
                     </span>
@@ -859,7 +939,8 @@ export function AdminProducts() {
             ))}
           </div>
         )}
-      </section>
+        </section>
+      )}
 
       {editorState ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4">
@@ -909,6 +990,18 @@ export function AdminProducts() {
                 placeholder="slug-do-material"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
+              <select
+                value={editorState.draft.categoryId}
+                onChange={(event) => handleEditorDraft("categoryId", event.target.value)}
+                className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              >
+                <option value="">Sem categoria</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.title}
+                  </option>
+                ))}
+              </select>
               <input
                 value={editorState.draft.coverImageUrl}
                 onChange={(event) => handleEditorDraft("coverImageUrl", event.target.value)}

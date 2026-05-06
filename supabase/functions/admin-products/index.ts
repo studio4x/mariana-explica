@@ -12,6 +12,7 @@ import {
   requireAdmin,
   writeAuditLog,
 } from "../_shared/mod.ts"
+import type { SupabaseClient } from "../_shared/supabase.ts"
 
 type ProductType = "paid" | "free" | "hybrid" | "external_service"
 type ProductStatus = "draft" | "published" | "archived"
@@ -30,6 +31,7 @@ interface ProductPayload {
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
+  categoryId?: string | null
   launchDate?: string | null
   isPublic?: boolean
   creatorId?: string | null
@@ -63,6 +65,7 @@ function mapPayload(payload: Partial<ProductPayload>) {
   if (payload.isFeatured !== undefined) updates.is_featured = payload.isFeatured
   if (payload.allowAffiliate !== undefined) updates.allow_affiliate = payload.allowAffiliate
   if (payload.sortOrder !== undefined) updates.sort_order = payload.sortOrder
+  if (payload.categoryId !== undefined) updates.category_id = payload.categoryId?.trim() || null
   if (payload.launchDate !== undefined) updates.launch_date = payload.launchDate
   if (payload.isPublic !== undefined) updates.is_public = payload.isPublic
   if (payload.creatorId !== undefined) updates.creator_id = payload.creatorId
@@ -77,6 +80,24 @@ function mapPayload(payload: Partial<ProductPayload>) {
   if (payload.publicPageContent !== undefined) updates.public_page_content = payload.publicPageContent ?? {}
 
   return updates
+}
+
+async function requireExistingCategoryId(serviceClient: SupabaseClient, categoryId: string | null | undefined) {
+  if (!categoryId) return
+
+  const { data, error } = await serviceClient
+    .from("product_categories")
+    .select("id")
+    .eq("id", categoryId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data) {
+    throw badRequest("Categoria de material nao encontrada")
+  }
 }
 
 Deno.serve(async (req) => {
@@ -96,6 +117,7 @@ Deno.serve(async (req) => {
     const auditMeta = extractRequestAuditContext(req)
 
     if (body.action === "create") {
+      await requireExistingCategoryId(context.serviceClient, body.categoryId?.trim() || null)
       const payload = mapPayload(body)
       if (!payload.slug || !payload.title) {
         throw badRequest("slug e title sÃ£o obrigatÃ³rios")
@@ -207,6 +229,7 @@ Deno.serve(async (req) => {
     }
 
     const updates = mapPayload(body)
+    await requireExistingCategoryId(context.serviceClient, body.categoryId?.trim() || null)
     if (body.status) {
       updates.status = body.status
       if (body.status === "published") {
