@@ -1,12 +1,11 @@
 import { useDeferredValue, useMemo, useState } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, Navigate, useSearchParams } from "react-router-dom"
 import { MessageSquare, RefreshCw, Search, Trash2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useAdminSupportTickets, useAdminUsers, useDeleteAdminSupportTicket } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
-import { AdminFaqManagementPanel } from "./AdminFaqManagementPanel"
 import {
   getSupportCategoryMeta,
   getSupportDueLabel,
@@ -21,7 +20,7 @@ import { formatDateTime } from "@/utils/date"
 type SortMode = "sla" | "priority" | "date"
 
 export function AdminSupport() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | SupportTicketSummary["status"]>("all")
   const [categoryFilter, setCategoryFilter] = useState<"all" | SupportTicketSummary["category"]>("all")
@@ -32,7 +31,9 @@ export function AdminSupport() {
   const usersQuery = useAdminUsers()
   const deleteTicket = useDeleteAdminSupportTicket()
   const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data])
-  const activeTab = searchParams.get("tab") === "faq" ? "faq" : "tickets"
+  if (searchParams.get("tab") === "faq") {
+    return <Navigate to={ROUTES.ADMIN_FAQ} replace />
+  }
 
   const userMap = useMemo(
     () => new Map((usersQuery.data ?? []).map((user) => [user.id, user])),
@@ -81,35 +82,6 @@ export function AdminSupport() {
       })
   }, [categoryFilter, deferredQuery, sortMode, statusFilter, tickets, userMap])
 
-  if (activeTab === "faq") {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <PageHeader
-            title="Central de atendimento"
-            description="Fila operacional de chamados com busca, filtros, SLA e resposta por detalhe."
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            onClick={() =>
-              setSearchParams((params) => {
-                const next = new URLSearchParams(params)
-                next.delete("tab")
-                return next
-              })
-            }
-          >
-            Ver chamados
-          </Button>
-        </div>
-
-        <AdminFaqManagementPanel />
-      </div>
-    )
-  }
-
   if (ticketsQuery.isLoading || usersQuery.isLoading) return <LoadingState message="A carregar suporte..." />
 
   if (ticketsQuery.isError || usersQuery.isError) {
@@ -151,37 +123,6 @@ export function AdminSupport() {
         >
           <RefreshCw className="mr-2 h-4 w-4" />
           Atualizar lista
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="default"
-          className="rounded-full"
-          onClick={() =>
-            setSearchParams((params) => {
-              const next = new URLSearchParams(params)
-              next.delete("tab")
-              return next
-            })
-          }
-        >
-          Chamados
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="rounded-full"
-          onClick={() =>
-            setSearchParams((params) => {
-              const next = new URLSearchParams(params)
-              next.set("tab", "faq")
-              return next
-            })
-          }
-        >
-          Perguntas frequentes
         </Button>
       </div>
 

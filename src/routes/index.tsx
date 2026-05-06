@@ -78,6 +78,7 @@ const AdminAffiliates = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAffiliates })),
 )
 const AdminCoupons = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminCoupons })))
+const AdminFaq = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminFaq })))
 const AdminNotifications = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminNotifications })),
 )
@@ -507,6 +508,10 @@ export const router = createBrowserRouter(
         {
           path: "suporte",
           element: withSuspense(<AdminSupport />),
+        },
+        {
+          path: "perguntas-frequentes",
+          element: withSuspense(<AdminFaq />),
         },
         {
           path: "suporte/:ticketId",

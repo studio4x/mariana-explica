@@ -12,6 +12,8 @@ import {
 } from "@/hooks/useAdmin"
 import type { FaqCategorySummary, FaqSummary } from "@/types/faq.types"
 
+type AdminFaqTab = "questions" | "categories"
+
 interface FaqCategoryFormState {
   slug: string
   title: string
@@ -110,6 +112,7 @@ export function AdminFaqManagementPanel() {
   const createFaq = useCreateAdminFaq()
   const updateFaq = useUpdateAdminFaq()
   const deleteFaq = useDeleteAdminFaq()
+  const [activeTab, setActiveTab] = useState<AdminFaqTab>("questions")
   const [categoryForm, setCategoryForm] = useState<FaqCategoryFormState>(() => buildDefaultCategoryForm(1))
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [faqForm, setFaqForm] = useState<FaqFormState>(() => buildDefaultFaqForm())
@@ -233,6 +236,7 @@ export function AdminFaqManagementPanel() {
   }
 
   const handleEditCategory = (category: FaqCategorySummary) => {
+    setActiveTab("categories")
     setEditingCategoryId(category.id)
     setCategoryForm({
       slug: category.slug,
@@ -265,6 +269,7 @@ export function AdminFaqManagementPanel() {
   }
 
   const handleEditFaq = (faq: FaqSummary) => {
+    setActiveTab("questions")
     setEditingFaqId(faq.id)
     setFaqForm({
       categoryId: faq.category_id,
@@ -341,172 +346,27 @@ export function AdminFaqManagementPanel() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <form onSubmit={handleCategorySubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                  {editingCategoryId ? "Editar categoria" : "Nova categoria"}
-                </p>
-                <h3 className="mt-2 text-lg font-bold text-slate-950">
-                  {editingCategoryId ? "Ajustar categoria" : "Criar categoria"}
-                </h3>
-              </div>
-              {editingCategoryId ? (
-                <Button type="button" variant="ghost" className="rounded-full text-slate-500" onClick={resetCategoryForm}>
-                  Limpar
-                </Button>
-              ) : null}
-            </div>
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant={activeTab === "questions" ? "default" : "outline"}
+          className="rounded-full"
+          onClick={() => setActiveTab("questions")}
+        >
+          Perguntas
+        </Button>
+        <Button
+          type="button"
+          variant={activeTab === "categories" ? "default" : "outline"}
+          className="rounded-full"
+          onClick={() => setActiveTab("categories")}
+        >
+          Categorias
+        </Button>
+      </div>
 
-            <div className="mt-5 grid gap-4">
-              <Field label="Titulo">
-                <input
-                  value={categoryForm.title}
-                  onChange={(event) =>
-                    setCategoryForm((current) => {
-                      const nextTitle = event.target.value
-                      const shouldAutoUpdateSlug = !current.slug.trim() || current.slug === slugify(current.title)
-
-                      return {
-                        ...current,
-                        title: nextTitle,
-                        slug: shouldAutoUpdateSlug ? slugify(nextTitle) : current.slug,
-                      }
-                    })
-                  }
-                  placeholder="Pagamentos"
-                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                />
-              </Field>
-              <Field label="Slug">
-                <input
-                  value={categoryForm.slug}
-                  onChange={(event) => setCategoryForm((current) => ({ ...current, slug: slugify(event.target.value) }))}
-                  placeholder="pagamentos"
-                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                />
-              </Field>
-              <Field label="Descricao" fullWidth>
-                <textarea
-                  value={categoryForm.description}
-                  onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))}
-                  rows={4}
-                  placeholder="Texto curto para contextualizar a categoria"
-                  className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
-                />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Ordem">
-                  <input
-                    value={categoryForm.sortOrder}
-                    onChange={(event) => setCategoryForm((current) => ({ ...current, sortOrder: event.target.value }))}
-                    inputMode="numeric"
-                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                  />
-                </Field>
-                <label className="flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={categoryForm.isActive}
-                    onChange={(event) => setCategoryForm((current) => ({ ...current, isActive: event.target.checked }))}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="block font-semibold text-slate-950">Ativa</span>
-                    <span className="mt-1 block text-slate-500">Categorias inativas saem dos filtros publicos.</span>
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {categoryError ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {categoryError}
-              </div>
-            ) : null}
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button
-                type="submit"
-                className="rounded-full"
-                disabled={createCategory.isPending || updateCategory.isPending}
-              >
-                {createCategory.isPending || updateCategory.isPending
-                  ? "A guardar..."
-                  : editingCategoryId
-                    ? "Atualizar categoria"
-                    : "Criar categoria"}
-              </Button>
-              {editingCategoryId ? (
-                <Button type="button" variant="outline" className="rounded-full" onClick={resetCategoryForm}>
-                  Cancelar edicao
-                </Button>
-              ) : null}
-            </div>
-          </form>
-
-          <div className="space-y-3">
-            {categories.map((category) => {
-              const count = faqCountByCategory.get(category.id) ?? 0
-
-              return (
-                <article key={category.id} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-base font-bold text-slate-950">{category.title}</p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        {category.slug}
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
-                        category.is_active
-                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border border-slate-200 bg-slate-50 text-slate-500"
-                      }`}
-                    >
-                      {category.is_active ? "Ativa" : "Inativa"}
-                    </span>
-                  </div>
-
-                  <p className="mt-3 text-sm leading-6 text-slate-500">
-                    {category.description ?? "Sem descricao."}
-                  </p>
-
-                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Perguntas</p>
-                      <p className="mt-1 text-xl font-bold text-slate-950">{count}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full border-slate-200 px-4"
-                        onClick={() => handleEditCategory(category)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full border-rose-200 px-4 text-rose-700 hover:bg-rose-50"
-                        onClick={() => void handleDeleteCategory(category)}
-                        disabled={(faqCountByCategory.get(category.id) ?? 0) > 0 || deleteCategory.isPending}
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="space-y-5">
+      {activeTab === "questions" ? (
+        <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
           <form onSubmit={handleFaqSubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -603,7 +463,6 @@ export function AdminFaqManagementPanel() {
           <div className="space-y-3">
             {faqs.map((faq) => {
               const category = categoryById.get(faq.category_id)
-
               return (
                 <article key={faq.id} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -660,7 +519,175 @@ export function AdminFaqManagementPanel() {
             ) : null}
           </div>
         </div>
-      </div>
+      ) : null}
+
+      {activeTab === "categories" ? (
+        <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+          <form onSubmit={handleCategorySubmit} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                  {editingCategoryId ? "Editar categoria" : "Nova categoria"}
+                </p>
+                <h3 className="mt-2 text-lg font-bold text-slate-950">
+                  {editingCategoryId ? "Ajustar categoria" : "Criar categoria"}
+                </h3>
+              </div>
+              {editingCategoryId ? (
+                <Button type="button" variant="ghost" className="rounded-full text-slate-500" onClick={resetCategoryForm}>
+                  Limpar
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="mt-5 grid gap-4">
+              <Field label="Titulo">
+                <input
+                  value={categoryForm.title}
+                  onChange={(event) =>
+                    setCategoryForm((current) => {
+                      const nextTitle = event.target.value
+                      const shouldAutoUpdateSlug = !current.slug.trim() || current.slug === slugify(current.title)
+                      return {
+                        ...current,
+                        title: nextTitle,
+                        slug: shouldAutoUpdateSlug ? slugify(nextTitle) : current.slug,
+                      }
+                    })
+                  }
+                  placeholder="Pagamentos"
+                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                />
+              </Field>
+              <Field label="Slug">
+                <input
+                  value={categoryForm.slug}
+                  onChange={(event) => setCategoryForm((current) => ({ ...current, slug: slugify(event.target.value) }))}
+                  placeholder="pagamentos"
+                  className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                />
+              </Field>
+              <Field label="Descricao" fullWidth>
+                <textarea
+                  value={categoryForm.description}
+                  onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))}
+                  rows={4}
+                  placeholder="Texto curto para contextualizar a categoria"
+                  className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Ordem">
+                  <input
+                    value={categoryForm.sortOrder}
+                    onChange={(event) => setCategoryForm((current) => ({ ...current, sortOrder: event.target.value }))}
+                    inputMode="numeric"
+                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                  />
+                </Field>
+                <label className="flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={categoryForm.isActive}
+                    onChange={(event) => setCategoryForm((current) => ({ ...current, isActive: event.target.checked }))}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-950">Ativa</span>
+                    <span className="mt-1 block text-slate-500">Categorias inativas saem dos filtros publicos.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {categoryError ? (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {categoryError}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button
+                type="submit"
+                className="rounded-full"
+                disabled={createCategory.isPending || updateCategory.isPending}
+              >
+                {createCategory.isPending || updateCategory.isPending
+                  ? "A guardar..."
+                  : editingCategoryId
+                    ? "Atualizar categoria"
+                    : "Criar categoria"}
+              </Button>
+              {editingCategoryId ? (
+                <Button type="button" variant="outline" className="rounded-full" onClick={resetCategoryForm}>
+                  Cancelar edicao
+                </Button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className="space-y-3">
+            {categories.map((category) => {
+              const count = faqCountByCategory.get(category.id) ?? 0
+              return (
+                <article key={category.id} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-bold text-slate-950">{category.title}</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {category.slug}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                        category.is_active
+                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border border-slate-200 bg-slate-50 text-slate-500"
+                      }`}
+                    >
+                      {category.is_active ? "Ativa" : "Inativa"}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm leading-6 text-slate-500">{category.description ?? "Sem descricao."}</p>
+
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Perguntas</p>
+                      <p className="mt-1 text-xl font-bold text-slate-950">{count}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full border-slate-200 px-4"
+                        onClick={() => handleEditCategory(category)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full border-rose-200 px-4 text-rose-700 hover:bg-rose-50"
+                        onClick={() => void handleDeleteCategory(category)}
+                        disabled={(faqCountByCategory.get(category.id) ?? 0) > 0 || deleteCategory.isPending}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+
+            {!categories.length ? (
+              <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
+                Ainda nao existem categorias. Cria a primeira para organizar as perguntas.
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
