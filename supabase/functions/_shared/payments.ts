@@ -358,7 +358,94 @@ export async function getStripeCharge(
     refunded: boolean
     amount: number
     amount_refunded: number
+    receipt_url: string | null
     currency: string | null
     payment_intent: string | null
+  }
+}
+
+export async function getStripeChargeByPaymentIntent(
+  paymentIntentId: string,
+  options?: { mode?: StripeEnvironment },
+) {
+  const secret = getStripeSecret(options?.mode)
+  const response = await fetch(
+    `https://api.stripe.com/v1/charges?payment_intent=${encodeURIComponent(paymentIntentId)}&limit=1`,
+    {
+      headers: {
+        Authorization: `Bearer ${secret}`,
+      },
+    },
+  )
+
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Falha ao consultar charge Stripe por payment intent")
+  }
+
+  const firstCharge = Array.isArray(payload?.data) ? payload.data[0] : null
+  if (!firstCharge) {
+    return null
+  }
+
+  return firstCharge as {
+    id: string
+    livemode: boolean
+    refunded: boolean
+    amount: number
+    amount_refunded: number
+    receipt_url: string | null
+    currency: string | null
+    payment_intent: string | null
+  }
+}
+
+export async function createStripeRefund(
+  params: {
+    paymentIntentId: string
+    amountCents?: number
+    reason?: "duplicate" | "fraudulent" | "requested_by_customer"
+    metadata?: Record<string, string>
+  },
+  options?: { mode?: StripeEnvironment; idempotencyKey?: string },
+) {
+  const secret = getStripeSecret(options?.mode)
+  const form = new URLSearchParams()
+
+  form.set("payment_intent", params.paymentIntentId)
+  if (typeof params.amountCents === "number" && Number.isFinite(params.amountCents)) {
+    form.set("amount", String(Math.max(0, Math.floor(params.amountCents))))
+  }
+  if (params.reason) {
+    form.set("reason", params.reason)
+  }
+  if (params.metadata) {
+    for (const [key, value] of Object.entries(params.metadata)) {
+      form.set(`metadata[${key}]`, value)
+    }
+  }
+
+  const response = await fetch("https://api.stripe.com/v1/refunds", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+    },
+    body: form.toString(),
+  })
+
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Falha ao criar reembolso Stripe")
+  }
+
+  return payload as {
+    id: string
+    status: "pending" | "succeeded" | "failed" | "canceled"
+    payment_intent: string | null
+    amount: number
+    currency: string | null
+    reason: string | null
   }
 }

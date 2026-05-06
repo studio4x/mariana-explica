@@ -8,10 +8,16 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  cancelAffiliateReferralForOrder,
+  createStripeRefund,
+  getStripeCharge,
+  getStripeChargeByPaymentIntent,
   extractRequestAuditContext,
   getStripeCheckoutSession,
   getStripePaymentIntent,
+  revokeActiveGrantForOrder,
   requireActiveUser,
+  updateOrderStatus,
   writeAuditLog,
 } from "../_shared/mod.ts"
 
@@ -110,7 +116,23 @@ async function resolveReceiptUrl(order: StudentOrderRow) {
   const intent = await getStripePaymentIntent(paymentIntentId, {
     mode: order.payment_environment,
   })
-  const charge = typeof intent.latest_charge === "object" ? intent.latest_charge : null
+  let charge = typeof intent.latest_charge === "object" ? intent.latest_charge : null
+
+  if (!charge?.receipt_url && typeof intent.latest_charge === "string") {
+    const expandedCharge = await getStripeCharge(intent.latest_charge, {
+      mode: order.payment_environment,
+    })
+    charge = expandedCharge
+  }
+
+  if (!charge?.receipt_url) {
+    const fallbackCharge = await getStripeChargeByPaymentIntent(intent.id, {
+      mode: order.payment_environment,
+    })
+    if (fallbackCharge?.receipt_url) {
+      charge = fallbackCharge
+    }
+  }
 
   if (!charge?.receipt_url) {
     throw notFound("Fatura Stripe ainda nao disponivel para este pedido.")
@@ -121,6 +143,25 @@ async function resolveReceiptUrl(order: StudentOrderRow) {
     payment_intent: intent.id,
     charge_id: charge.id,
   }
+}
+
+async function resolvePaymentIntentId(order: StudentOrderRow) {
+  let paymentIntentId = order.payment_reference?.startsWith("pi_")
+    ? order.payment_reference
+    : null
+
+  if (!paymentIntentId && order.checkout_session_id) {
+    const session = await getStripeCheckoutSession(order.checkout_session_id, {
+      mode: order.payment_environment,
+    })
+    paymentIntentId = session.payment_intent
+  }
+
+  if (!paymentIntentId) {
+    throw notFound("Pagamento Stripe nao encontrado para este pedido.")
+  }
+
+  return paymentIntentId
 }
 
 Deno.serve(async (req) => {
@@ -158,11 +199,57 @@ Deno.serve(async (req) => {
       throw badRequest("Acao invalida")
     }
 
+    if (order.status === "refunded") {
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        replayed: true,
+        order_id: order.id,
+      })
+    }
+
     assertRefundWindow(order)
+    const paymentIntentId = await resolvePaymentIntentId(order)
+
+    const refund = await createStripeRefund(
+      {
+        paymentIntentId,
+        reason: "requested_by_customer",
+        metadata: {
+          order_id: order.id,
+          user_id: context.user.id,
+        },
+      },
+      {
+        mode: order.payment_environment,
+        idempotencyKey: `student-refund-${order.id}`,
+      },
+    )
+
+    if (refund.status === "failed" || refund.status === "canceled") {
+      throw unprocessable("Nao foi possivel concluir o reembolso no gateway de pagamento.")
+    }
+
+    const refundedAt = new Date().toISOString()
+    const updatedOrder = await updateOrderStatus(context.serviceClient, {
+      orderId: order.id,
+      status: "refunded",
+      paymentReference: paymentIntentId,
+      refundedAt,
+    })
+
+    const revokedGrants = await revokeActiveGrantForOrder(context.serviceClient, {
+      orderId: updatedOrder.id,
+      reason: "Acesso revogado apos reembolso solicitado pelo aluno",
+    })
+
+    const cancelledReferrals = await cancelAffiliateReferralForOrder(context.serviceClient, {
+      orderId: updatedOrder.id,
+    })
 
     const productTitle = getProductTitle(order)
     const message = [
-      `Solicitacao de reembolso do pedido ${order.id}.`,
+      `Reembolso solicitado para o pedido ${order.id}.`,
       `Curso: ${productTitle}.`,
       `Valor: ${order.final_price_cents} ${order.currency}.`,
       body.message?.trim() ? `Mensagem do aluno: ${body.message.trim()}` : null,
@@ -170,62 +257,98 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join("\n")
 
-    const { data: ticket, error: ticketError } = await context.serviceClient
-      .from("support_tickets")
-      .insert({
-        user_id: context.user.id,
-        subject: `Solicitacao de reembolso - ${productTitle}`,
-        message,
-        category: "payment",
-        priority: "high",
-      })
-      .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
-      .single()
+    let ticket: {
+      id: string
+      product_id: string | null
+      subject: string
+      message: string
+      status: string
+      priority: string
+      category: string
+      assigned_admin_id: string | null
+      last_reply_at: string | null
+      first_response_due_at: string | null
+      first_response_at: string | null
+      sla_status: string | null
+      attachment_bucket: string | null
+      attachment_path: string | null
+      attachment_name: string | null
+      attachment_mime_type: string | null
+      attachment_size_bytes: number | null
+      created_at: string
+      updated_at: string
+    } | null = null
 
-    if (ticketError) {
-      throw ticketError
-    }
+    try {
+      const { data: createdTicket, error: ticketError } = await context.serviceClient
+        .from("support_tickets")
+        .insert({
+          user_id: context.user.id,
+          subject: `Reembolso processado - ${productTitle}`,
+          message,
+          category: "payment",
+          priority: "high",
+        })
+        .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+        .single()
 
-    const { data: admins, error: adminsError } = await context.serviceClient
-      .from("profiles")
-      .select("id")
-      .eq("role", "admin")
-      .eq("is_admin", true)
-      .eq("status", "active")
-
-    if (adminsError) {
-      throw adminsError
-    }
-
-    if ((admins ?? []).length > 0) {
-      const { error: notificationError } = await context.serviceClient
-        .from("notifications")
-        .insert(
-          (admins ?? []).map((admin) => ({
-            user_id: admin.id,
-            type: "transactional",
-            title: "Solicitacao de reembolso",
-            message: `${context.profile.full_name || context.profile.email || "Aluno"} solicitou reembolso de ${productTitle}.`,
-            link: `/admin/suporte/${ticket.id}`,
-            status: "unread",
-            sent_via_email: false,
-            sent_via_in_app: true,
-          })),
-        )
-
-      if (notificationError) {
-        throw notificationError
+      if (ticketError) {
+        throw ticketError
       }
+
+      ticket = createdTicket
+
+      const { data: admins, error: adminsError } = await context.serviceClient
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin")
+        .eq("is_admin", true)
+        .eq("status", "active")
+
+      if (adminsError) {
+        throw adminsError
+      }
+
+      if ((admins ?? []).length > 0) {
+        const { error: notificationError } = await context.serviceClient
+          .from("notifications")
+          .insert(
+            (admins ?? []).map((admin) => ({
+              user_id: admin.id,
+              type: "transactional",
+              title: "Reembolso processado",
+              message: `${context.profile.full_name || context.profile.email || "Aluno"} recebeu reembolso de ${productTitle}.`,
+              link: `/admin/suporte/${createdTicket.id}`,
+              status: "unread",
+              sent_via_email: false,
+              sent_via_in_app: true,
+            })),
+          )
+
+        if (notificationError) {
+          throw notificationError
+        }
+      }
+    } catch (ticketWorkflowError) {
+      logError("Refund support notification workflow failed", {
+        request_id: requestId,
+        order_id: order.id,
+        error: String(ticketWorkflowError),
+      })
     }
 
     await writeAuditLog(context.serviceClient, context, {
-      action: "student.refund_requested",
+      action: "student.refund_processed",
       entityType: "order",
       entityId: order.id,
       metadata: {
-        ticket_id: ticket.id,
+        ticket_id: ticket?.id ?? null,
         product_id: order.product_id,
-        payment_reference: order.payment_reference,
+        payment_reference: paymentIntentId,
+        stripe_refund_id: refund.id,
+        refund_status: refund.status,
+        revoked_grant_ids: revokedGrants.map((grant) => grant.id),
+        cancelled_referral_ids: cancelledReferrals.map((referral) => referral.id),
       },
       ...extractRequestAuditContext(req),
     })
@@ -233,6 +356,10 @@ Deno.serve(async (req) => {
     return jsonResponse({
       success: true,
       request_id: requestId,
+      order: updatedOrder,
+      revoked_grants: revokedGrants,
+      cancelled_referrals: cancelledReferrals,
+      stripe_refund: refund,
       ticket,
     })
   } catch (error) {

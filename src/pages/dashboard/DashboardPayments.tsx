@@ -65,7 +65,7 @@ export function DashboardPayments() {
       receiptWindow.opener = null
       receiptWindow.document.title = "A preparar fatura"
       receiptWindow.document.body.innerHTML = `
-        <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a;">
+        <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a; background: #ffffff; min-height: 100vh;">
           <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #64748b;">Mariana Explica</p>
           <h1 style="font-size: 24px; margin: 12px 0;">A preparar a tua fatura...</h1>
           <p style="color: #475569;">Esta janela vai abrir automaticamente dentro de instantes.</p>
@@ -85,7 +85,7 @@ export function DashboardPayments() {
     } catch {
       if (receiptWindow) {
         receiptWindow.document.body.innerHTML = `
-          <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a;">
+          <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a; background: #ffffff; min-height: 100vh;">
             <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #b91c1c;">Erro</p>
             <h1 style="font-size: 24px; margin: 12px 0;">Nao foi possivel abrir a fatura</h1>
             <p style="color: #475569;">Volta a pagina anterior e tenta novamente.</p>
@@ -242,7 +242,7 @@ export function DashboardPayments() {
                     className="rounded-full"
                     onClick={() => setConfirmRefund(true)}
                   >
-                    Solicitar reembolso
+                    Reembolsar agora
                   </Button>
                 </div>
                 <Button
@@ -257,13 +257,13 @@ export function DashboardPayments() {
             ) : (
               <>
                 <p className="text-sm font-semibold uppercase tracking-[0.22em] text-rose-700">
-                  Confirmar solicitacao
+                  Confirmar reembolso
                 </p>
                 <h2 className="mt-3 font-display text-3xl font-bold text-slate-950">
                   Tens certeza que queres pedir o reembolso?
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  Vamos abrir uma solicitacao para a equipa analisar. Se aprovada, o acesso ao curso sera removido.
+                  O reembolso sera processado agora no pagamento. O acesso ao curso sera removido em seguida.
                 </p>
                 <label className="mt-5 block">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Mensagem opcional</span>
@@ -291,14 +291,14 @@ export function DashboardPayments() {
                     onClick={() => void submitRefundRequest()}
                     disabled={refundMutation.isPending}
                   >
-                    {refundMutation.isPending ? "A enviar..." : "Confirmar reembolso"}
+                    {refundMutation.isPending ? "A processar..." : "Confirmar reembolso"}
                   </Button>
                 </div>
                 {refundMutation.isError ? (
                   <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                     {refundMutation.error instanceof Error
                       ? refundMutation.error.message
-                      : "Nao foi possivel solicitar o reembolso."}
+                      : "Nao foi possivel processar o reembolso."}
                   </p>
                 ) : null}
               </>
