@@ -44,7 +44,7 @@ const items = [
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
-  { to: ROUTES.ADMIN_PRODUCTS, label: "Cursos", icon: Package },
+  { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },

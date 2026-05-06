@@ -563,7 +563,7 @@ export function CourseLessonDetailPanel() {
               <span>
                 <span className="block font-semibold text-slate-950">Aula obrigatoria</span>
                 <span className="mt-1 block text-slate-500">
-                  Mantem esta aula dentro do percurso minimo para concluir o modulo.
+                  Mantem esta aula dentro do percurso minimo para concluir o material.
                 </span>
               </span>
             </label>

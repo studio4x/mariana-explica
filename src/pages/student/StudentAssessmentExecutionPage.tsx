@@ -226,7 +226,7 @@ export function StudentAssessmentExecutionPage() {
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-950">{assessment.title}</h1>
             <RichTextContent
               value={assessment.description}
-              fallback="Avaliacao ligada ao curso, com score validado no backend."
+              fallback="Avaliacao ligada ao material, com score validado no backend."
               className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
             />
           </div>

@@ -8,13 +8,13 @@ import { supportBusinessHours, supportCategories, supportPublicNote } from "@/li
 const faqs = [
   {
     category: "payment",
-    question: "Paguei e ainda nao tenho acesso ao curso. O que faco?",
+    question: "Paguei e ainda nao tenho acesso ao material. O que faco?",
     answer: "Confirme se esta a usar o mesmo email do checkout. Se o acesso nao aparecer, abra um chamado em Pagamentos.",
   },
   {
     category: "technical",
     question: "O material nao abre no dashboard.",
-    answer: "Atualize a pagina, verifique a sessao e tente outro navegador. Se continuar, envie o erro e o curso afetado.",
+    answer: "Atualize a pagina, verifique a sessao e tente outro navegador. Se continuar, envie o erro e o material afetado.",
   },
   {
     category: "account",

@@ -189,13 +189,13 @@ export function DashboardSupport() {
                   </div>
                   <div className="mt-5 grid gap-4 md:grid-cols-2">
                     <label className="text-sm font-black text-slate-700 md:col-span-2">
-                      Curso relacionado
+                      Material relacionado
                       <select
                         value={productId}
                         onChange={(event) => setProductId(event.target.value)}
                         className="mt-2 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white"
                       >
-                        <option value="">Nenhum curso especifico</option>
+                        <option value="">Nenhum material especifico</option>
                         {products.map((product) => (
                           <option key={product.id} value={product.id}>{product.title}</option>
                         ))}

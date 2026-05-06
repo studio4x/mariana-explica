@@ -103,7 +103,7 @@ function getScheduleSummary(module: ProductModuleSummary) {
   if (module.release_days_after_enrollment !== null) {
     return `Abre ${module.release_days_after_enrollment} dia(s) apos a inscricao`
   }
-  return "Disponivel conforme grant e regras do curso"
+  return "Disponivel conforme grant e regras do material"
 }
 
 function getAssessmentTone(assessment: ProductAssessmentSummary): "success" | "warning" | "neutral" {
@@ -313,7 +313,7 @@ export function AdminProductContent() {
     setModuleSubmitError(null)
 
     if (!productId) {
-      setModuleSubmitError("Curso invalido.")
+      setModuleSubmitError("Material invalido.")
       return
     }
 
@@ -691,18 +691,18 @@ export function AdminProductContent() {
         },
       })
     } catch (err) {
-      setCourseSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do curso.")
+      setCourseSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do material.")
     }
   }
 
   if (isLoading) {
-    return <LoadingState message="A carregar builder do curso..." />
+    return <LoadingState message="A carregar builder do material..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar a estrutura do curso"
+        title="Nao foi possivel carregar a estrutura do material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void productsQuery.refetch()
@@ -718,8 +718,8 @@ export function AdminProductContent() {
   if (!id || !product) {
     return (
       <EmptyState
-        title="Curso nao encontrado"
-        message="Volta a lista de cursos e abre um item valido para continuar."
+        title="Material nao encontrado"
+        message="Volta a lista de materiais e abre um item valido para continuar."
       />
     )
   }
@@ -727,8 +727,8 @@ export function AdminProductContent() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Builder do curso: ${product.title}`}
-        description="Organiza o curso como trilha academica, com modulos, aulas, materiais e regras de liberacao por etapa."
+        title={`Builder do material: ${product.title}`}
+        description="Organiza o material como trilha academica, com modulos, aulas, materiais e regras de liberacao por etapa."
         backTo="/admin/cursos"
         actions={
           <Button
@@ -746,7 +746,7 @@ export function AdminProductContent() {
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Modulos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{modules.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Base da trilha academica e comercial do curso.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Base da trilha academica e comercial do material.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-900">
@@ -771,7 +771,7 @@ export function AdminProductContent() {
           </div>
           <p className="mt-3 text-3xl font-bold">{assessments.length}</p>
           <p className="mt-2 text-sm leading-6 text-white/80">
-            Quizzes por modulo e prova final associados ao curso.
+            Quizzes por modulo e prova final associados ao material.
           </p>
         </div>
       </section>
@@ -779,10 +779,10 @@ export function AdminProductContent() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Configuracoes do curso</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Configuracoes do material</p>
             <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Identidade academica e comercial</h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
-              Ajusta os campos centrais do curso sem sair do builder: titulo, slug, carga horaria, lancamento,
+              Ajusta os campos centrais do material sem sair do builder: titulo, slug, carga horaria, lancamento,
               progressao linear e tipos de quiz permitidos.
             </p>
           </div>
@@ -795,13 +795,13 @@ export function AdminProductContent() {
           <input
             value={courseForm.title}
             onChange={(event) => handleCourseTitleChange(event.target.value)}
-            placeholder="Titulo do curso"
+            placeholder="Titulo do material"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <input
             value={courseForm.slug}
             onChange={(event) => handleCourseSlugChange(event.target.value)}
-            placeholder="slug-do-curso"
+            placeholder="slug-do-material"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <input
@@ -837,7 +837,7 @@ export function AdminProductContent() {
               checked={courseForm.isPublic}
               onChange={(event) => updateCourseDraftField("isPublic", event.target.checked)}
             />
-            Curso publico no catalogo
+            Material publico no catalogo
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -885,9 +885,9 @@ export function AdminProductContent() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Estrutura lateral</p>
-              <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Modulos do curso</h2>
+              <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Modulos do material</h2>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                Esta coluna funciona como o mapa do curso. Define ordem, agenda, acesso e o modulo ativo do
+                Esta coluna funciona como o mapa do material. Define ordem, agenda, acesso e o modulo ativo do
                 builder.
               </p>
             </div>
@@ -1043,7 +1043,7 @@ export function AdminProductContent() {
             <div className="mt-6">
               <EmptyState
                 title="Sem modulos ainda"
-                message="Cria o primeiro modulo para comecar a montar a arvore academica do curso."
+                message="Cria o primeiro modulo para comecar a montar a arvore academica do material."
               />
             </div>
           ) : (
@@ -1519,7 +1519,7 @@ export function AdminProductContent() {
                     {lessons.length === 0 ? (
                       <EmptyState
                         title="Sem aulas neste modulo"
-                        message="Cria a primeira aula para comecar a experiencia do aluno dentro do curso."
+                        message="Cria a primeira aula para comecar a experiencia do aluno dentro do material."
                       />
                     ) : (
                       lessons.map((lesson) => {
@@ -1871,7 +1871,7 @@ export function AdminProductContent() {
                     {assets.length === 0 ? (
                       <EmptyState
                         title="Sem materiais neste modulo"
-                        message="Liga PDFs, videos ou links protegidos para completar esta etapa do curso."
+                        message="Liga PDFs, videos ou links protegidos para completar esta etapa do material."
                       />
                     ) : (
                       assets.map((asset) => {
@@ -2104,7 +2104,7 @@ export function AdminProductContent() {
               <section className="rounded-[1.5rem] border bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Avaliacoes ligadas ao curso</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Avaliacoes ligadas ao material</p>
                     <h3 className="mt-2 font-display text-xl font-bold text-slate-950">Resumo de quizzes</h3>
                     <p className="mt-2 text-sm leading-7 text-slate-600">
                       A avaliacao final e os quizzes por modulo continuam centralizados no backend.

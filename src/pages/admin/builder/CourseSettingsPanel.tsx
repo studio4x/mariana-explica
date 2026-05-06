@@ -144,7 +144,7 @@ export function CourseSettingsPanel() {
       }))
       setUploadMessage("Capa enviada com sucesso. Guarde as configuracoes para publicar a nova imagem.")
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar a capa do curso.")
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar a capa do material.")
     } finally {
       event.target.value = ""
     }
@@ -182,15 +182,15 @@ export function CourseSettingsPanel() {
         },
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do curso.")
+      setError(err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do material.")
     }
   }
 
   return (
     <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
       <PageHeader
-        title="Configuracoes do curso"
-        description="Identidade publica, capa comercial, progressao linear e quiz objetivo disponivel neste curso."
+        title="Configuracoes do material"
+        description="Identidade publica, capa comercial, progressao linear e quiz objetivo disponivel neste material."
         actions={
           <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
             <Link to={adminCourseBuilderPath(product.id)}>Abrir construtor</Link>
@@ -200,7 +200,7 @@ export function CourseSettingsPanel() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         <section className="grid gap-4 md:grid-cols-2">
-          <Field label="Titulo do curso" helper="Nome principal mostrado no admin, no catalogo e no checkout.">
+          <Field label="Titulo do material" helper="Nome principal mostrado no admin, no catalogo e no checkout.">
             <input
               value={form.title}
               onChange={(event) =>
@@ -215,19 +215,19 @@ export function CourseSettingsPanel() {
                   }
                 })
               }
-              placeholder="Titulo do curso"
+              placeholder="Titulo do material"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
-          <Field label="Slug do curso" helper="Identificador da URL publica. Use texto curto e estavel.">
+          <Field label="Slug do material" helper="Identificador da URL publica. Use texto curto e estavel.">
             <input
               value={form.slug}
               onChange={(event) => setForm((prev) => ({ ...prev, slug: slugify(event.target.value) }))}
-              placeholder="slug-do-curso"
+              placeholder="slug-do-material"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
-          <Field label="Data de lancamento" helper="Data de referencia comercial do curso.">
+          <Field label="Data de lancamento" helper="Data de referencia comercial do material.">
             <input
               type="date"
               value={form.launchDate}
@@ -270,13 +270,13 @@ export function CourseSettingsPanel() {
           </Field>
           <Field
             label="Resumo curto / area de texto"
-            helper="Texto curto usado em cards, paginas de curso e contexto comercial."
+            helper="Texto curto usado em cards, paginas de material e contexto comercial."
             fullWidth
           >
             <RichTextEditor
               value={form.shortDescription}
               onChange={(value) => setForm((prev) => ({ ...prev, shortDescription: value }))}
-              placeholder="Descreva o curso com hierarquia, listas e destaques."
+              placeholder="Descreva o material com hierarquia, listas e destaques."
               minHeightPx={180}
             />
           </Field>
@@ -306,7 +306,7 @@ export function CourseSettingsPanel() {
                 <option value="external_service">Servico externo</option>
               </select>
             </Field>
-            <Field label="Estado do curso" helper="A pagina publica e o checkout exigem curso publicado.">
+            <Field label="Estado do material" helper="A pagina publica e o checkout exigem material publicado.">
               <select
                 value={form.status}
                 onChange={(event) =>
@@ -355,7 +355,7 @@ export function CourseSettingsPanel() {
                 />
                 <span>
                   <span className="block font-semibold text-slate-950">Ativar pagina publica e checkout</span>
-                  <span className="mt-1 block text-slate-500">Permite abrir a pagina do curso e seguir pelo botao de compra.</span>
+                  <span className="mt-1 block text-slate-500">Permite abrir a pagina do material e seguir pelo botao de compra.</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
@@ -379,7 +379,7 @@ export function CourseSettingsPanel() {
                 />
                 <span>
                   <span className="block font-semibold text-slate-950">Destacar no catalogo</span>
-                  <span className="mt-1 block text-slate-500">Marca o curso como destaque nas areas publicas.</span>
+                  <span className="mt-1 block text-slate-500">Marca o material como destaque nas areas publicas.</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
@@ -391,7 +391,7 @@ export function CourseSettingsPanel() {
                 />
                 <span>
                   <span className="block font-semibold text-slate-950">Permitir afiliacao</span>
-                  <span className="mt-1 block text-slate-500">Mantem o curso elegivel para fluxos de afiliados quando ativos.</span>
+                  <span className="mt-1 block text-slate-500">Mantem o material elegivel para fluxos de afiliados quando ativos.</span>
                 </span>
               </label>
             </div>
@@ -401,10 +401,10 @@ export function CourseSettingsPanel() {
         <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Capa do curso</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Capa do material</p>
               <h2 className="mt-2 text-lg font-bold text-slate-950">Upload de imagem</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                A capa alimenta cards e paginas publicas. O upload gera um asset publico apenas para a imagem comercial do curso.
+                A capa alimenta cards e paginas publicas. O upload gera um asset publico apenas para a imagem comercial do material.
               </p>
             </div>
             {form.coverImageUrl ? <StatusBadge label="Capa configurada" tone="success" /> : null}
@@ -457,7 +457,7 @@ export function CourseSettingsPanel() {
             />
             <span>
               <span className="block font-semibold text-slate-950">Exibir no catalogo publico</span>
-              <span className="mt-1 block text-slate-500">Mantem o curso visivel na area comercial da plataforma.</span>
+              <span className="mt-1 block text-slate-500">Mantem o material visivel na area comercial da plataforma.</span>
             </span>
           </label>
           <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">

@@ -93,7 +93,7 @@ function buildModuleCurriculum(
         lessons: lessonCount > 0 ? `${lessonCount} aulas` : "Aulas organizadas",
         description:
           richTextToPlainText(module.description) ||
-          "Conteudo estruturado para avancar com clareza dentro da trilha do curso.",
+          "Conteudo estruturado para avancar com clareza dentro da trilha do material.",
       }
     })
 }
@@ -121,11 +121,11 @@ export function buildCoursePublicPageView(
     eyebrow: chooseText(content.eyebrow, narrative.familyLabel.toUpperCase()),
     headline: chooseText(content.headline, product.title),
     intro: chooseText(content.intro, intro),
-    aboutTitle: chooseText(content.aboutTitle, "Sobre o curso"),
+    aboutTitle: chooseText(content.aboutTitle, "Sobre o material"),
     aboutParagraphs: normalizeTextList(content.aboutParagraphs, [description, narrative.valueLine], 1),
     learnTitle: chooseText(content.learnTitle, "O que vais aprender"),
     learnItems: normalizeFeatures(content.learnItems, defaultLearnItems),
-    curriculumTitle: chooseText(content.curriculumTitle, "Conteudo do curso"),
+    curriculumTitle: chooseText(content.curriculumTitle, "Conteudo do material"),
     curriculumItems: normalizeCurriculumItems(
       content.curriculumItems,
       curriculumFromModules.length
@@ -133,7 +133,7 @@ export function buildCoursePublicPageView(
         : [
             {
               label: "Modulo 1",
-              title: "Fundamentos do curso",
+              title: "Fundamentos do material",
               lessons: "Aulas organizadas",
               description: "Base inicial para compreender o conteudo com mais seguranca.",
             },

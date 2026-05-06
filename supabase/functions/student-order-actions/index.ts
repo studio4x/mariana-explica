@@ -52,7 +52,7 @@ const REFUND_WINDOW_DAYS = 7
 
 function getProductTitle(order: StudentOrderRow) {
   const product = Array.isArray(order.products) ? order.products[0] : order.products
-  return product?.title ?? "Curso"
+  return product?.title ?? "Material"
 }
 
 function assertRefundWindow(order: StudentOrderRow) {
@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
     const productTitle = getProductTitle(order)
     const message = [
       `Reembolso solicitado para o pedido ${order.id}.`,
-      `Curso: ${productTitle}.`,
+      `Material: ${productTitle}.`,
       `Valor: ${order.final_price_cents} ${order.currency}.`,
       body.message?.trim() ? `Mensagem do aluno: ${body.message.trim()}` : null,
     ]

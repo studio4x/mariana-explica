@@ -161,7 +161,7 @@ export function Dashboard() {
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Cursos liberados" value={products.length} tone="slate" />
+        <MetricCard label="Materiais liberados" value={products.length} tone="slate" />
         <MetricCard label="Em andamento" value={inProgressCourses.length} tone="blue" />
         <MetricCard label="Prova final pendente" value={finalPendingCourses} tone="amber" />
         <MetricCard label="Concluidos" value={completedCourses.length} tone="emerald" />
@@ -175,7 +175,7 @@ export function Dashboard() {
             <QuickLink
               to={ROUTES.DASHBOARD_PRODUCTS}
               icon={<BookOpen className="h-5 w-5" />}
-              title="Explorar meus cursos"
+              title="Explorar meus materiais"
               description="Acesse todos os materiais liberados para sua conta."
             />
             {featuredCourse ? (
@@ -190,7 +190,7 @@ export function Dashboard() {
               <QuickLink
                 to={ROUTES.COURSES}
                 icon={<GraduationCap className="h-5 w-5" />}
-                title="Conhecer cursos disponiveis"
+                title="Conhecer materiais disponiveis"
                 description="Veja o catalogo publico e escolha o proximo material."
                 variant="slate"
               />
@@ -241,7 +241,7 @@ export function Dashboard() {
         <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Status da jornada</h2>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           <div className="flex items-center justify-between rounded-[20px] border border-sky-100 bg-sky-50 p-4">
-            <span className="text-sm font-bold text-slate-700">Cursos em andamento</span>
+            <span className="text-sm font-bold text-slate-700">Materiais em andamento</span>
             <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-black text-sky-700">
               {inProgressCourses.length}
             </span>
@@ -253,7 +253,7 @@ export function Dashboard() {
             </span>
           </div>
           <div className="flex items-center justify-between rounded-[20px] border border-emerald-100 bg-emerald-50 p-4">
-            <span className="text-sm font-bold text-slate-700">Cursos concluidos</span>
+            <span className="text-sm font-bold text-slate-700">Materiais concluidos</span>
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-700">
               {completedCourses.length}
             </span>

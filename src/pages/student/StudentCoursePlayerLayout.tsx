@@ -44,7 +44,7 @@ export function StudentCoursePlayerLayout() {
   const { data, isLoading, isError, error, refetch } = useDashboardProductContent(courseId)
 
   if (isLoading) {
-    return <LoadingState message="A abrir o player do curso..." />
+    return <LoadingState message="A abrir o player do material..." />
   }
 
   if (isError) {
@@ -60,8 +60,8 @@ export function StudentCoursePlayerLayout() {
   if (!data?.product) {
     return (
       <EmptyState
-        title="Curso indisponivel"
-        message="Este curso nao esta acessivel na tua conta neste momento."
+        title="Material indisponivel"
+        message="Este material nao esta acessivel na tua conta neste momento."
       />
     )
   }
@@ -113,7 +113,7 @@ export function StudentCoursePlayerLayout() {
                 <Button asChild variant="ghost" className="rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-950">
                   <Link to={studentCoursePath(product.id)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar ao curso
+                    Voltar ao material
                   </Link>
                 </Button>
               ) : null}
@@ -363,12 +363,12 @@ export function StudentCoursePlayerLayout() {
                 variant="outline"
                 onClick={() => setSidebarOpen((value) => !value)}
                 className="hidden h-10 w-10 rounded-2xl p-0 lg:inline-flex"
-                aria-label={sidebarOpen ? "Recolher navegacao do curso" : "Abrir navegacao do curso"}
+                aria-label={sidebarOpen ? "Recolher navegacao do material" : "Abrir navegacao do material"}
               >
                 <PanelLeftClose className="h-4 w-4" />
               </Button>
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Curso em andamento</p>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Material em andamento</p>
                 <h2 className="mt-1 truncate font-display text-xl font-black text-slate-950 md:text-2xl">{product.title}</h2>
               </div>
             </div>

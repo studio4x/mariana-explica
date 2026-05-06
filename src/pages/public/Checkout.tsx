@@ -143,7 +143,7 @@ function TermsModal({
         <div className="space-y-4 px-6 py-6 text-sm leading-7 text-slate-600">
           <p>
             Ao continuar, confirmas que leste e aceitas os termos de uso, a política de privacidade e as condições
-            comerciais apresentadas para este curso.
+            comerciais apresentadas para este material.
           </p>
           <ul className="space-y-2">
             <li>• O pagamento é processado pela Stripe e validado no backend.</li>
@@ -468,8 +468,8 @@ export function Checkout() {
   if (!slug) {
     return (
       <EmptyState
-        title="Checkout sem curso"
-        message="Abre um curso primeiro e segue para o checkout para continuar."
+        title="Checkout sem material"
+        message="Abre um material primeiro e segue para o checkout para continuar."
       />
     )
   }
@@ -491,7 +491,7 @@ export function Checkout() {
   if (!product) {
     return (
       <EmptyState
-        title="Curso nao encontrado"
+        title="Material nao encontrado"
         message="O item escolhido nao esta publicado ou deixou de estar disponivel."
       />
     )
@@ -518,7 +518,7 @@ export function Checkout() {
               className="inline-flex items-center gap-2 text-sm font-semibold text-[#3a618b] transition hover:opacity-80"
             >
               <ArrowLeft className="h-4 w-4" />
-              Voltar ao curso
+              Voltar ao material
             </Link>
           </div>
 

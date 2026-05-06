@@ -16,7 +16,7 @@ export function CourseFinalAssessmentDetailPanel() {
   const finalAssessment = assessments.find((item) => item.assessment_type === "final") ?? null
 
   if (!courseId) {
-    return <EmptyState title="Curso invalido" message="Abra um curso valido para editar a avaliacao final." />
+    return <EmptyState title="Material invalido" message="Abra um material valido para editar a avaliacao final." />
   }
 
   const handleCreateFinalAssessment = async () => {
@@ -53,7 +53,7 @@ export function CourseFinalAssessmentDetailPanel() {
 
         <div className="mt-6 rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
           <p className="text-sm leading-7 text-slate-600">
-            Ainda nao existe avaliacao final para este curso. O fluxo oficial do builder pede uma prova final unica,
+            Ainda nao existe avaliacao final para este material. O fluxo oficial do builder pede uma prova final unica,
             editavel nesta rota dedicada.
           </p>
           <div className="mt-4">
@@ -77,7 +77,7 @@ export function CourseFinalAssessmentDetailPanel() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
           title={finalAssessment.title}
-          description="Workspace profundo da avaliacao final do curso, separado do hub agregador de quizzes."
+          description="Workspace profundo da avaliacao final do material, separado do hub agregador de quizzes."
         />
 
         <div className="mt-6 flex flex-wrap gap-2">

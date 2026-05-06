@@ -11,7 +11,7 @@ const sections: LegalSection[] = [
   {
     title: "2. Que dados pessoais podemos recolher",
     body: [
-      "Podemos recolher dados de identificacao e contacto, como nome, endereco de email, dados da conta de utilizador e informacoes fornecidas em formularios, tickets de suporte, pedidos de contacto ou inscricoes em cursos e materiais digitais.",
+      "Podemos recolher dados de identificacao e contacto, como nome, endereco de email, dados da conta de utilizador e informacoes fornecidas em formularios, tickets de suporte, pedidos de contacto ou inscricoes em materiais digitais.",
       "Tambem podemos tratar dados de utilizacao da plataforma, incluindo acessos, progresso de aprendizagem, historico de compras, historico de pedidos, registos tecnicos de seguranca, notificacoes, interacoes com paginas publicas e preferencias associadas ao servico.",
       "Quando existe pagamento, os dados de faturacao e de pagamento sao tratados principalmente pelo prestador de pagamentos contratado. A plataforma conserva os dados estritamente necessarios para reconciliacao comercial, suporte, auditoria e cumprimento legal.",
     ],
@@ -19,7 +19,7 @@ const sections: LegalSection[] = [
   {
     title: "3. Finalidades e bases legais do tratamento",
     body: [
-      "Tratamos dados pessoais para criar e gerir contas, autenticar utilizadores, disponibilizar cursos e materiais, processar compras, conceder acessos, responder a pedidos de suporte, prevenir fraude, assegurar a seguranca da plataforma e cumprir deveres legais e fiscais.",
+      "Tratamos dados pessoais para criar e gerir contas, autenticar utilizadores, disponibilizar materiais, processar compras, conceder acessos, responder a pedidos de suporte, prevenir fraude, assegurar a seguranca da plataforma e cumprir deveres legais e fiscais.",
       "As bases juridicas utilizadas podem incluir a execucao de diligencias pre-contratuais e do contrato, o cumprimento de obrigacoes legais, o interesse legitimo na seguranca, operacao e melhoria do servico, e o consentimento quando este for exigido, nomeadamente para determinadas categorias de cookies ou comunicacoes nao essenciais.",
     ],
   },

@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (productError) throw productError
-    if (!productRow) throw forbidden("Curso indisponivel")
+    if (!productRow) throw forbidden("Material indisponivel")
 
     const watermarkConfig = await getWatermarkConfig(context.serviceClient)
     const sourcePdfBytes = await readStorageObject(

@@ -287,7 +287,7 @@ export function StudentLessonPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Navegacao do player</h2>
-            <p className="mt-1 text-sm text-slate-600">Avanca pela trilha respeitando a estrutura do curso.</p>
+            <p className="mt-1 text-sm text-slate-600">Avanca pela trilha respeitando a estrutura do material.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             {previousEntry ? (

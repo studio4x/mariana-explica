@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     }
 
     if (!product || product.status !== "published") {
-      throw forbidden("Curso indisponivel para avaliacao")
+      throw forbidden("Material indisponivel para avaliacao")
     }
 
     const { data: grant, error: grantError } = await context.serviceClient
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     }
 
     if (!grant && !context.profile.is_admin) {
-      throw forbidden("Apenas alunos com acesso ativo podem avaliar este curso")
+      throw forbidden("Apenas alunos com acesso ativo podem avaliar este material")
     }
 
     const moderationStatus = needsModeration(title, content) ? "pending" : "approved"

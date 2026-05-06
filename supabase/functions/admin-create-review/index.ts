@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     if (!product) {
-      throw notFound("Curso nao encontrado")
+      throw notFound("Material nao encontrado")
     }
 
     const { data: authorProfile, error: authorError } = await context.serviceClient

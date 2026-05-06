@@ -109,7 +109,7 @@ function formatWorkloadMinutes(minutes: number) {
 }
 
 function clampDescription(value: string | null | undefined) {
-  const text = value?.trim() || "Curso sem descricao detalhada definida."
+  const text = value?.trim() || "Material sem descricao detalhada definida."
   if (text.length <= 108) return text
   return `${text.slice(0, 105).trimEnd()}...`
 }
@@ -297,7 +297,7 @@ export function AdminProducts() {
   if (productsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os cursos"
+        title="Nao foi possivel carregar os materiais"
         message={
           productsQuery.error instanceof Error
             ? productsQuery.error.message
@@ -347,7 +347,7 @@ export function AdminProducts() {
         imported.importedStructure,
       )
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel ler o JSON do curso.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel ler o JSON do material.")
     } finally {
       event.target.value = ""
     }
@@ -391,7 +391,7 @@ export function AdminProducts() {
 
       triggerJsonDownload(makeCourseExportFileName(course), exported)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel exportar o curso.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel exportar o material.")
     } finally {
       setExportingCourseId(null)
     }
@@ -492,7 +492,7 @@ export function AdminProducts() {
     const slug = slugify(draft.slug || draft.title)
 
     if (!title || !slug) {
-      setSubmitError("Titulo e slug do curso sao obrigatorios.")
+      setSubmitError("Titulo e slug do material sao obrigatorios.")
       return
     }
 
@@ -545,17 +545,17 @@ export function AdminProducts() {
       await importStructureIntoCourse(createdCourseId, editorState.importedStructure)
       setEditorState(null)
       if (editorState.importedStructure) {
-        setImportSuccessMessage(`O curso "${title}" foi criado e a estrutura JSON foi importada com sucesso.`)
+        setImportSuccessMessage(`O material "${title}" foi criado e a estrutura JSON foi importada com sucesso.`)
       }
       navigate(adminCourseBuilderPath(createdCourseId))
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel guardar o curso.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel guardar o material.")
     }
   }
 
   const handleDeleteCourse = async (course: ProductSummary) => {
     const confirmed = window.confirm(
-      `Queres excluir o curso "${course.title}"? Esta acao remove o curso apenas quando nao existem pedidos vinculados.`,
+      `Queres excluir o material "${course.title}"? Esta acao remove o material apenas quando nao existem pedidos vinculados.`,
     )
     if (!confirmed) return
 
@@ -564,7 +564,7 @@ export function AdminProducts() {
     try {
       await deleteCourse.mutateAsync(course.id)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel excluir o curso.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel excluir o material.")
     }
   }
 
@@ -596,7 +596,7 @@ export function AdminProducts() {
         })
       }
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel reordenar os cursos.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel reordenar os materiais.")
     } finally {
       setDraggingCourseId(null)
       setReorderPending(false)
@@ -619,7 +619,7 @@ export function AdminProducts() {
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-700">Catalogo academico</p>
             <div className="space-y-2">
               <h1 className="font-display text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                Catalogo de Cursos
+                Catalogo de Materiais
               </h1>
               <p className="max-w-3xl text-base leading-8 text-slate-600">
                 Gerencie seu curriculo, organize a ordem de exibicao e acompanhe rapidamente o status de cada treinamento.
@@ -643,7 +643,7 @@ export function AdminProducts() {
               onClick={() => openCreateEditor()}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Adicionar novo curso
+                Adicionar novo material
             </Button>
           </div>
         </div>
@@ -688,7 +688,7 @@ export function AdminProducts() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Ordem de exibicao dos cursos</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Ordem de exibicao dos materiais</h2>
             <p className="mt-1 text-sm text-slate-600">
               Recurso recolhido por padrao para nao ocupar a tela. Arraste os cards para reposicionar quando a pesquisa estiver vazia.
             </p>
@@ -729,8 +729,8 @@ export function AdminProducts() {
         {filteredCourses.length === 0 ? (
           <div className="mt-6">
             <EmptyState
-              title="Sem cursos nesta vista"
-              message="Cria um novo curso, ajusta a pesquisa ou importa um JSON para comecar."
+              title="Sem materiais nesta vista"
+              message="Cria um novo material, ajusta a pesquisa ou importa um JSON para comecar."
             />
           </div>
         ) : (
@@ -829,7 +829,7 @@ export function AdminProducts() {
                       className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-blue-50 hover:text-blue-600"
                       onClick={() => void handleExportCourse(course)}
                       disabled={exportingCourseId === course.id}
-                      title="Exportar curso"
+                      title="Exportar material"
                     >
                       <ArrowDownToLine className="h-5 w-5" />
                     </Button>
@@ -837,7 +837,7 @@ export function AdminProducts() {
                       asChild
                       variant="ghost"
                       className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-amber-50 hover:text-amber-600"
-                      title="Editar curso"
+                      title="Editar material"
                     >
                       <Link to={adminCourseSettingsPath(course.id)}>
                         <Pencil className="h-5 w-5" />
@@ -849,7 +849,7 @@ export function AdminProducts() {
                       className="h-10 w-10 rounded-xl p-0 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
                       onClick={() => void handleDeleteCourse(course)}
                       disabled={deleteCourse.isPending}
-                      title="Excluir curso"
+                      title="Excluir material"
                     >
                       <Trash2 className="h-5 w-5" />
                     </Button>
@@ -871,13 +871,13 @@ export function AdminProducts() {
                     ? "Edicao basica"
                     : editorState.mode === "import"
                       ? "Importacao JSON"
-                      : "Criacao de curso"}
+                      : "Criacao de material"}
                 </p>
                 <h2 className="mt-3 font-display text-3xl font-bold text-slate-950">
-                  {editorState.mode === "edit" ? "Editar curso" : "Novo curso"}
+                  {editorState.mode === "edit" ? "Editar material" : "Novo material"}
                 </h2>
                 <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Dados basicos do curso no catalogo. O conteudo real de LMS continua no construtor.
+                  Dados basicos do material no catalogo. O conteudo real de LMS continua no construtor.
                 </p>
               </div>
               <Button type="button" variant="ghost" className="rounded-full" onClick={() => setEditorState(null)}>
@@ -887,7 +887,7 @@ export function AdminProducts() {
 
             {editorState.importedStructure ? (
               <div className="mt-5 rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-700">
-                O JSON importado vai recriar o curso com modulos, aulas, materiais e avaliacoes assim que o cadastro basico for confirmado.
+                O JSON importado vai recriar o material com modulos, aulas, materiais e avaliacoes assim que o cadastro basico for confirmado.
               </div>
             ) : null}
 
@@ -900,13 +900,13 @@ export function AdminProducts() {
                     handleEditorDraft("slug", slugify(event.target.value))
                   }
                 }}
-                placeholder="Titulo do curso"
+                placeholder="Titulo do material"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
               <input
                 value={editorState.draft.slug}
                 onChange={(event) => handleEditorDraft("slug", slugify(event.target.value))}
-                placeholder="slug-do-curso"
+                placeholder="slug-do-material"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
               <input
@@ -970,7 +970,7 @@ export function AdminProducts() {
                 value={editorState.draft.description}
                 onChange={(event) => handleEditorDraft("description", event.target.value)}
                 rows={8}
-                placeholder="Descricao detalhada do curso"
+                placeholder="Descricao detalhada do material"
                 className="md:col-span-2 rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
 
@@ -983,8 +983,8 @@ export function AdminProducts() {
                   {createCourse.isPending || updateCourse.isPending
                     ? "A guardar..."
                     : editorState.mode === "edit"
-                      ? "Guardar curso"
-                      : "Criar curso"}
+                      ? "Guardar material"
+                      : "Criar material"}
                 </Button>
                 <Button
                   type="button"

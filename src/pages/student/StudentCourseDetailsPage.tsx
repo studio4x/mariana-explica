@@ -67,13 +67,13 @@ export function StudentCourseDetailsPage() {
   const modulePdfAccess = useRequestModulePdfAccess()
 
   if (isLoading) {
-    return <LoadingState message="A carregar detalhes do curso..." />
+    return <LoadingState message="A carregar detalhes do material..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar este curso"
+        title="Nao foi possivel carregar este material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -83,8 +83,8 @@ export function StudentCourseDetailsPage() {
   if (!data?.product) {
     return (
       <EmptyState
-        title="Curso indisponivel"
-        message="Este curso nao esta liberado na tua conta neste momento."
+        title="Material indisponivel"
+        message="Este material nao esta liberado na tua conta neste momento."
       />
     )
   }
@@ -105,7 +105,7 @@ export function StudentCourseDetailsPage() {
   const description =
     richTextToPlainText(product.description) ||
     richTextToPlainText(product.short_description) ||
-    "Curso pronto para continuares o estudo com clareza."
+    "Material pronto para continuares o estudo com clareza."
 
   return (
     <section className="rounded-[34px] border border-[#D8E6EB] bg-white p-5 shadow-[0_20px_50px_rgba(22,49,56,0.04)] sm:p-7">
@@ -123,9 +123,9 @@ export function StudentCourseDetailsPage() {
           <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
           <div className="relative z-20 max-w-4xl space-y-6">
             <div className="space-y-4">
-              <Link to="/aluno/cursos" className="inline-flex text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:text-white">
-                Voltar aos cursos
-              </Link>
+            <Link to="/aluno/cursos" className="inline-flex text-xs font-black uppercase tracking-[0.22em] text-white/55 transition hover:text-white">
+              Voltar aos materiais
+            </Link>
               <h1 className="font-display text-4xl font-black leading-tight tracking-tight text-white md:text-6xl">
                 {product.title}
               </h1>
@@ -169,7 +169,7 @@ export function StudentCourseDetailsPage() {
                 <h5 className="text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400">
                   Resumo da jornada
                 </h5>
-                <p className="text-sm font-bold text-slate-900">O teu progresso atual neste curso</p>
+                <p className="text-sm font-bold text-slate-900">O teu progresso atual neste material</p>
                 <div className="flex h-1.5 w-32 overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
                 </div>
@@ -191,7 +191,7 @@ export function StudentCourseDetailsPage() {
 
         <section className="space-y-8 rounded-[40px] border border-slate-100 bg-white p-10 shadow-sm animate-in slide-in-from-bottom-4 duration-700 md:p-14">
           <div className="flex items-center gap-4">
-            <h3 className="text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400">Sobre este curso</h3>
+              <h3 className="text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400">Sobre este material</h3>
             <div className="h-px flex-1 bg-slate-100" />
           </div>
           <RichTextContent
@@ -272,7 +272,7 @@ export function StudentCourseDetailsPage() {
 
                         <RichTextContent
                           value={module.description}
-                          fallback="Modulo organizado para avancares com clareza dentro da trilha do curso."
+                          fallback="Modulo organizado para avancares com clareza dentro da trilha do material."
                           className="mb-8 text-sm font-medium leading-relaxed text-slate-500"
                         />
 
@@ -383,7 +383,7 @@ export function StudentCourseDetailsPage() {
           <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
             <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
               <p className="text-sm font-medium text-slate-500">
-                Voce ainda nao criou anotacoes neste curso. Abra uma aula e use o bloco de notas ao final da pagina.
+                Voce ainda nao criou anotacoes neste material. Abra uma aula e use o bloco de notas ao final da pagina.
               </p>
             </div>
           </div>

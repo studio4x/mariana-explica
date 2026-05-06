@@ -98,7 +98,7 @@ function CoursePublicPageForm() {
   return (
     <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
       <PageHeader
-        title="Pagina publica do curso"
+        title="Pagina publica do material"
         description="Conteudo comercial exibido ao visitante antes da compra, com base no layout de referencia."
         actions={
           <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
@@ -146,7 +146,7 @@ function CoursePublicPageForm() {
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 p-5">
-          <h2 className="text-lg font-bold text-slate-950">Sobre o curso</h2>
+          <h2 className="text-lg font-bold text-slate-950">Sobre o material</h2>
           <div className="mt-5 space-y-4">
             <Field label="Titulo da secao">
               <TextInput
@@ -270,7 +270,7 @@ function CoursePublicPageForm() {
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 p-5">
-          <h2 className="text-lg font-bold text-slate-950">Conteudo do curso</h2>
+          <h2 className="text-lg font-bold text-slate-950">Conteudo do material</h2>
           <div className="mt-5 space-y-4">
             <Field label="Titulo da secao">
               <TextInput

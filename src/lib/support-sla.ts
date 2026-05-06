@@ -16,13 +16,13 @@ export const supportCategories = [
   {
     key: "account",
     label: "Conta e acesso",
-    description: "Dados da conta, senha, acesso a cursos ou permissao.",
+    description: "Dados da conta, senha, acesso a materiais ou permissao.",
     firstResponseHours: 24,
   },
   {
     key: "general",
     label: "Duvida geral",
-    description: "Perguntas sobre cursos, materiais ou funcionamento.",
+    description: "Perguntas sobre materiais ou funcionamento.",
     firstResponseHours: 24,
   },
 ] as const

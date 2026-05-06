@@ -155,7 +155,7 @@ export function CourseModuleDetailPanel() {
   }
 
   if (!module) {
-    return <EmptyState title="Modulo nao encontrado" message="Este modulo nao esta ligado ao curso atual." />
+    return <EmptyState title="Modulo nao encontrado" message="Este modulo nao esta ligado ao material atual." />
   }
 
   const lessons = lessonsQuery.data ?? []
@@ -390,7 +390,7 @@ export function CourseModuleDetailPanel() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Modulo do curso</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Modulo do material</p>
             <h1 className="font-display text-3xl font-extrabold text-slate-950">Configuracoes do Modulo</h1>
             <p className="max-w-3xl text-sm leading-7 text-slate-600">
               Atualiza os metadados, as restricoes de liberacao e o PDF base licenciado deste modulo.
@@ -411,7 +411,7 @@ export function CourseModuleDetailPanel() {
       >
         <div className="space-y-6 p-6 md:p-8">
           <section className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr]">
-            <ModuleField label="Capa / Titulo do Modulo" helper="Nome principal usado na arvore lateral e no mapa do curso.">
+            <ModuleField label="Capa / Titulo do Modulo" helper="Nome principal usado na arvore lateral e no mapa do material.">
               <input
                 value={String(values.title)}
                 onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
@@ -787,7 +787,7 @@ export function CourseModuleDetailPanel() {
             value={jsonImport}
             onChange={(event) => setJsonImport(event.target.value)}
             rows={10}
-            placeholder="Cole aqui o JSON do modulo ou de curso (sera usado o primeiro modulo)."
+            placeholder="Cole aqui o JSON do modulo ou de material (sera usado o primeiro modulo)."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <div className="flex flex-wrap items-center gap-3">

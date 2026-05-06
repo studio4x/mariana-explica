@@ -32,7 +32,7 @@ const items = [
   },
   {
     to: ROUTES.DASHBOARD_PRODUCTS,
-    label: "Cursos",
+    label: "Materiais",
     description: "Materiais liberados",
     icon: BookOpen,
   },

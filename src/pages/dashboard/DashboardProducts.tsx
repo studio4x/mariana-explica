@@ -12,13 +12,13 @@ export function DashboardProducts() {
   const { data, isLoading, isError, error, refetch } = useMyProducts()
 
   if (isLoading) {
-    return <LoadingState message="A carregar os teus cursos..." />
+    return <LoadingState message="A carregar os teus materiais..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os cursos"
+        title="Nao foi possivel carregar os materiais"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -36,12 +36,12 @@ export function DashboardProducts() {
     return (
       <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <EmptyState
-          title="Ainda sem cursos ativos"
-          message="Quando ativares um curso, ele vai aparecer aqui com acesso organizado."
+          title="Ainda sem materiais ativos"
+          message="Quando ativares um material, ele vai aparecer aqui com acesso organizado."
         />
         <div className="mt-2 flex justify-center">
           <Button asChild className="rounded-full">
-            <Link to={ROUTES.COURSES}>Ver cursos disponiveis</Link>
+            <Link to={ROUTES.COURSES}>Ver materiais disponiveis</Link>
           </Button>
         </div>
       </div>
@@ -51,20 +51,20 @@ export function DashboardProducts() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Meus cursos"
-        description="Todos os cursos e conteudos disponiveis na tua conta, organizados para ser facil retomar o estudo."
+        title="Meus materiais"
+        description="Todos os materiais e conteudos disponiveis na tua conta, organizados para ser facil retomar o estudo."
       />
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Cursos ativos</p>
+          <p className="text-sm font-medium text-slate-500">Materiais ativos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que tens pronto para abrir agora.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Materiais gratuitos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{freeProducts}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Cursos e materiais de entrada para consulta e rotina de estudo.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Materiais de entrada para consulta e rotina de estudo.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Modulos organizados</p>
@@ -88,7 +88,7 @@ export function DashboardProducts() {
           <div key={product.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Curso disponivel</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Material disponivel</p>
                 <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{product.title}</h2>
                 <p className="mt-2 text-sm leading-7 text-slate-600">{getDashboardProductNote(product)}</p>
               </div>

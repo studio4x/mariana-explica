@@ -76,7 +76,7 @@ function assertStripeMinimumAmount(currency: string, amountCents: number) {
     })
 
     throw unprocessable(
-      `O valor minimo para pagamento Stripe em ${currency.toUpperCase()} e ${formattedMinimum}. Ajuste o preco do curso ou marque como gratuito.`,
+      `O valor minimo para pagamento Stripe em ${currency.toUpperCase()} e ${formattedMinimum}. Ajuste o preco do material ou marque como gratuito.`,
     )
   }
 }
@@ -272,7 +272,7 @@ Deno.serve(async (req) => {
       productId: product.id,
     })
     if (existingGrant) {
-      throw unprocessable("Ja tens acesso ativo a este curso.")
+      throw unprocessable("Ja tens acesso ativo a este material.")
     }
 
     if (body.affiliateCode && !product.allow_affiliate) {

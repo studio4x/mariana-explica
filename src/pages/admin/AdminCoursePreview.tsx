@@ -60,11 +60,11 @@ export function AdminCoursePreview() {
     lessonQueries.some((query) => query.isLoading)
 
   if (!courseId) {
-    return <EmptyState title="Curso invalido" message="Abra um curso valido para visualizar o conteudo." />
+    return <EmptyState title="Material invalido" message="Abra um material valido para visualizar o conteudo." />
   }
 
   if (loading) {
-    return <LoadingState message="A preparar a visualizacao administrativa do curso..." />
+    return <LoadingState message="A preparar a visualizacao administrativa do material..." />
   }
 
   const lessonError = lessonQueries.find((query) => query.isError)?.error
@@ -77,7 +77,7 @@ export function AdminCoursePreview() {
   ) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir o visualizador do curso"
+        title="Nao foi possivel abrir o visualizador do material"
         message={error instanceof Error ? error.message : "Tente novamente dentro de instantes."}
         onRetry={() => {
           void productsQuery.refetch()
@@ -90,7 +90,7 @@ export function AdminCoursePreview() {
   }
 
   if (!product) {
-    return <EmptyState title="Curso nao encontrado" message="Este curso nao esta disponivel no admin." />
+    return <EmptyState title="Material nao encontrado" message="Este material nao esta disponivel no admin." />
   }
 
   const moduleAssets = moduleAssetsQuery.data ?? []

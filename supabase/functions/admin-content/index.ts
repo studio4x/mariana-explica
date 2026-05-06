@@ -175,7 +175,7 @@ async function ensureProductExists(serviceClient: ReturnType<typeof createServic
     .maybeSingle()
 
   if (error) throw error
-  if (!data) throw badRequest("Curso nao encontrado")
+  if (!data) throw badRequest("Material nao encontrado")
   return data
 }
 
@@ -192,7 +192,7 @@ async function ensureModuleBelongsToProduct(
 
   if (error) throw error
   if (!data || data.product_id !== productId) {
-    throw badRequest("Modulo nao encontrado para este curso")
+    throw badRequest("Modulo nao encontrado para este material")
   }
 
   return data

@@ -20,7 +20,7 @@ interface CourseReleasesManagerProps {
 export function CourseReleasesManager({
   courseId,
   title = "Alunos adicionados e liberacoes",
-  description = "Concessao e revogacao operacional de acesso real ao curso com trilha de auditoria no backend.",
+  description = "Concessao e revogacao operacional de acesso real ao material com trilha de auditoria no backend.",
   actions,
 }: CourseReleasesManagerProps) {
   const releasesQuery = useAdminCourseReleases(courseId)
@@ -77,7 +77,7 @@ export function CourseReleasesManager({
   }
 
   if (releasesQuery.isLoading || usersQuery.isLoading) {
-    return <LoadingState message="A carregar liberacoes do curso..." />
+    return <LoadingState message="A carregar liberacoes do material..." />
   }
 
   if (releasesQuery.isError || usersQuery.isError) {
@@ -143,8 +143,8 @@ export function CourseReleasesManager({
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         {releases.length === 0 ? (
           <EmptyState
-            title="Sem liberacoes neste curso"
-            message="Quando o curso for concedido por compra, fluxo gratuito ou acao manual, os registros aparecem aqui."
+            title="Sem liberacoes neste material"
+            message="Quando o material for concedido por compra, fluxo gratuito ou acao manual, os registros aparecem aqui."
           />
         ) : (
           <div className="space-y-4">

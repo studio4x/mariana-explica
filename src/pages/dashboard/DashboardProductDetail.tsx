@@ -113,13 +113,13 @@ export function DashboardProductDetail() {
   }
 
   if (isLoading) {
-    return <LoadingState message="A carregar conteudo do curso..." />
+    return <LoadingState message="A carregar conteudo do material..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar este curso"
+        title="Nao foi possivel carregar este material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -129,7 +129,7 @@ export function DashboardProductDetail() {
   if (!data?.product) {
     return (
       <EmptyState
-        title="Curso indisponivel"
+        title="Material indisponivel"
         message="Este item nao esta acessivel na tua conta neste momento."
       />
     )
@@ -145,14 +145,14 @@ export function DashboardProductDetail() {
     <div className="space-y-6">
       <PageHeader
         title={data.product.title}
-        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Conteudo do curso."}
+        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Conteudo do material."}
         backTo="/aluno/cursos"
       />
 
       <section className="rounded-[1.75rem] border bg-[linear-gradient(135deg,#242742_0%,#365d87_100%)] p-6 text-white shadow-sm">
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-white/65">{narrative?.familyLabel ?? "Curso"}</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-white/65">{narrative?.familyLabel ?? "Material"}</p>
             <h2 className="mt-3 font-display text-3xl font-bold">{data.product.title}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">
               {narrative?.accessLabel ?? "Acesso organizado para continuares o estudo."}
@@ -182,7 +182,7 @@ export function DashboardProductDetail() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Trilha do curso</h2>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Trilha do material</h2>
               <p className="mt-2 text-sm leading-7 text-slate-600">Escolhe um modulo e abre a aula que queres continuar.</p>
             </div>
             <StatusBadge label={`${progressPercent}%`} tone={getProgressTone(progressPercent)} />
@@ -436,7 +436,7 @@ export function DashboardProductDetail() {
                         </div>
                         <RichTextContent
                           value={assessment.description}
-                          fallback="Avaliacao disponivel neste curso."
+                          fallback="Avaliacao disponivel neste material."
                           className="mt-2 text-sm leading-6 text-slate-600"
                         />
                         {assessment.is_locked && assessment.lock_reason ? (
@@ -449,7 +449,7 @@ export function DashboardProductDetail() {
               </div>
             </>
           ) : (
-            <EmptyState title="Sem aulas disponiveis" message="As aulas publicadas deste curso vao aparecer aqui." />
+            <EmptyState title="Sem aulas disponiveis" message="As aulas publicadas deste material vao aparecer aqui." />
           )}
         </section>
       </div>

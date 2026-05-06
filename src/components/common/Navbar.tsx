@@ -7,40 +7,22 @@ import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/cn"
 
-const courseCategories = [
-  { to: `${ROUTES.COURSES}?categoria=sebentas`, label: "Sebentas" },
-  { to: `${ROUTES.COURSES}?categoria=packs`, label: "Packs" },
-  { to: `${ROUTES.COURSES}?categoria=gratis`, label: "Gratuitos" },
-  { to: `${ROUTES.COURSES}?categoria=explicacoes`, label: "Explicacoes" },
-] as const
-
 export function Navbar() {
   const location = useLocation()
   const { isAuthenticated, isAdmin, signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const searchParams = new URLSearchParams(location.search)
-  const currentCategory = searchParams.get("categoria")
 
   const navItems = useMemo(
     () =>
       [
-        { to: ROUTES.COURSES, label: "Cursos" },
-        ...courseCategories,
-        isAdmin ? { to: ROUTES.ADMIN, label: "Admin" } : null,
+        { to: ROUTES.COURSES, label: "Materiais" },
+        { to: ROUTES.SUPPORT, label: "Suporte" },
       ].filter(Boolean) as Array<{ to: string; label: string }>,
-    [isAdmin],
+    [],
   )
 
   const closeMenu = () => setMobileOpen(false)
   const isActiveItem = (itemTo: string) => {
-    if (itemTo === ROUTES.COURSES) {
-      return location.pathname === ROUTES.COURSES && !currentCategory
-    }
-
-    if (itemTo.startsWith(`${ROUTES.COURSES}?categoria=`)) {
-      return location.pathname === ROUTES.COURSES && itemTo.includes(`categoria=${currentCategory ?? ""}`)
-    }
-
     return location.pathname.startsWith(itemTo)
   }
 
@@ -50,7 +32,7 @@ export function Navbar() {
         <div className="container flex items-center justify-between gap-3 py-2 text-xs font-semibold text-[#21485e]">
           <p className="truncate">Tens dificuldades a Portugues ou Filosofia? Comeca com um plano claro de estudo.</p>
           <Link to={ROUTES.COURSES} className="hidden items-center gap-1 text-[#163d56] sm:inline-flex">
-            Ver cursos
+            Ver materiais
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -91,7 +73,7 @@ export function Navbar() {
               </Button>
               <Button asChild size="sm" className="rounded-full bg-[#123f59] hover:bg-[#0f3247]">
                 <Link to={ROUTES.COURSES}>
-                  Ver cursos
+                  Ver materiais
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -149,7 +131,19 @@ export function Navbar() {
                       : "border-slate-200 bg-white text-slate-700",
                   )}
                 >
-                  Cursos
+                  Materiais
+                </Link>
+                <Link
+                  to={ROUTES.SUPPORT}
+                  onClick={closeMenu}
+                  className={cn(
+                    "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                    isActiveItem(ROUTES.SUPPORT)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-slate-200 bg-white text-slate-700",
+                  )}
+                >
+                  Suporte
                 </Link>
                 {isAdmin ? (
                   <Link
@@ -168,33 +162,12 @@ export function Navbar() {
               </nav>
             </section>
 
-            <section className="space-y-3">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Categorias</p>
-              <div className="grid grid-cols-2 gap-2">
-                {courseCategories.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={closeMenu}
-                    className={cn(
-                      "rounded-2xl border px-3 py-3 text-center text-sm font-semibold transition",
-                      isActiveItem(item.to)
-                        ? "border-[#123f59] bg-[#123f59] text-white"
-                        : "border-slate-200 bg-[#f8fbfd] text-slate-700",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            </section>
-
             <div className="grid gap-3">
               {!isAuthenticated ? (
                 <>
                   <Button asChild className="w-full rounded-full">
                     <Link to={ROUTES.COURSES} onClick={closeMenu}>
-                      Ver cursos
+                      Ver materiais
                     </Link>
                   </Button>
                   <Button asChild variant="outline" className="w-full rounded-full">
@@ -214,7 +187,7 @@ export function Navbar() {
                   ) : (
                     <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
-                        Area do aluno
+                        Area do Aluno
                       </Link>
                     </Button>
                   )}

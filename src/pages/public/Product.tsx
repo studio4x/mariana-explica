@@ -40,13 +40,13 @@ export function Product() {
   }
 
   if (isLoading) {
-    return <LoadingState message="A carregar curso..." />
+    return <LoadingState message="A carregar material..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir este curso"
+        title="Nao foi possivel abrir este material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -56,8 +56,8 @@ export function Product() {
   if (!product) {
     return (
       <EmptyState
-        title="Curso nao encontrado"
-        message="O curso pedido nao esta publicado ou deixou de estar disponivel."
+        title="Material nao encontrado"
+        message="O material pedido nao esta publicado ou deixou de estar disponivel."
       />
     )
   }

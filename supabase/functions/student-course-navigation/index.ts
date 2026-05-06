@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (productError) throw productError
-    if (!product) throw notFound("Curso nao encontrado")
+    if (!product) throw notFound("Material nao encontrado")
 
     const { data: grant, error: grantError } = await context.serviceClient
       .from("access_grants")
@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 
     if (grantError) throw grantError
     if (!grant || !isGrantActive(grant.granted_at, grant.expires_at)) {
-      throw forbidden("Curso indisponivel para este usuario")
+      throw forbidden("Material indisponivel para este usuario")
     }
 
     const { data: modules, error: modulesError } = await context.serviceClient

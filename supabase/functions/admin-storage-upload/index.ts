@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
         .maybeSingle()
 
       if (productError) throw productError
-      if (!productRow) throw badRequest("Curso nao encontrado")
+      if (!productRow) throw badRequest("Material nao encontrado")
 
       await ensureStorageBucket(context.serviceClient, COURSE_COVER_BUCKET, {
         public: true,

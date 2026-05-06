@@ -113,7 +113,7 @@ export function Products() {
         <header className="space-y-5">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#577286]">Catalogo Mariana Explica</p>
           <h1 className="max-w-4xl font-display text-4xl font-bold leading-tight text-[#102b3c] md:text-5xl">
-            Escolhe o curso certo para o teu momento de estudo.
+            Escolhe o material certo para o teu momento de estudo.
           </h1>
           <p className="max-w-3xl text-base leading-8 text-[#46687d] md:text-lg">
             Encontra packs, sebentas, materiais gratuitos e apoio especializado com uma navegacao simples e orientada
@@ -147,7 +147,7 @@ export function Products() {
                   type="search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Pesquisar por curso, tema ou descricao..."
+                  placeholder="Pesquisar por material, tema ou descricao..."
                   className="h-11 w-full rounded-full border border-[#c9dde8] bg-[#f8fcff] pl-10 pr-4 text-sm outline-none transition focus:border-[#33729a] focus:bg-white"
                 />
               </div>
@@ -186,11 +186,11 @@ export function Products() {
           ) : null}
           {!isLoading && !isError && filteredProducts.length === 0 ? (
             <EmptyState
-              title="Nenhum curso encontrado"
+              title="Nenhum material encontrado"
               message={
                 search.trim()
                   ? "Experimenta outro termo de pesquisa ou limpa os filtros."
-                  : "Ainda nao ha cursos publicados para mostrar."
+                  : "Ainda nao ha materiais publicados para mostrar."
               }
             />
           ) : null}

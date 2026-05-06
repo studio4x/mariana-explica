@@ -14,7 +14,7 @@ export function CourseModuleAssessmentDetailPanel() {
   )
 
   if (!assessment || !courseId) {
-    return <EmptyState title="Avaliacao nao encontrada" message="Esta avaliacao nao esta ligada ao curso atual." />
+    return <EmptyState title="Avaliacao nao encontrada" message="Esta avaliacao nao esta ligada ao material atual." />
   }
 
   const module = assessment.module_id

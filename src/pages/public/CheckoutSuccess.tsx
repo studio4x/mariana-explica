@@ -84,7 +84,7 @@ export function CheckoutSuccess() {
                   A tua inscricao foi recebida com sucesso.
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-8 text-white/78">
-                  O acesso ao curso sera apresentado na area do aluno assim que a confirmacao de pagamento estiver
+                  O acesso ao material sera apresentado na area do aluno assim que a confirmacao de pagamento estiver
                   refletida na plataforma.
                 </p>
               </div>
@@ -102,7 +102,7 @@ export function CheckoutSuccess() {
                   <div>
                     <h2 className="font-display text-xl font-bold text-[#0f122c]">Proximo passo</h2>
                     <p className="mt-2 text-sm leading-7 text-[#46464d]">
-                      Entra diretamente no curso para verificar o acesso e continuar a tua jornada de estudo.
+                      Entra diretamente no material para verificar o acesso e continuar a tua jornada de estudo.
                     </p>
                   </div>
                 </div>
@@ -111,7 +111,7 @@ export function CheckoutSuccess() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-[#dee3e5] p-4">
                   <BookOpenCheck className="h-5 w-5 text-[#3a618b]" />
-                  <p className="mt-3 text-sm font-bold text-[#0f122c]">Curso organizado</p>
+                  <p className="mt-3 text-sm font-bold text-[#0f122c]">Material organizado</p>
                   <p className="mt-1 text-sm leading-6 text-[#46464d]">
                     Aulas e materiais ficam reunidos na area do aluno.
                   </p>
@@ -131,7 +131,7 @@ export function CheckoutSuccess() {
               <div className="mt-5 space-y-3">
                 <Button asChild className="h-12 w-full rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]">
                   <Link to={courseHref}>
-                    Ir para o curso
+                    Ir para o material
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -140,7 +140,7 @@ export function CheckoutSuccess() {
                 </Button>
               </div>
               <p className="mt-5 text-xs leading-6 text-[#46464d]">
-                Se o curso ainda nao aparecer, aguarda alguns segundos e atualiza a area do aluno. A confirmacao depende
+                Se o material ainda nao aparecer, aguarda alguns segundos e atualiza a area do aluno. A confirmacao depende
                 do retorno do Stripe.
               </p>
             </aside>

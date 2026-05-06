@@ -4,7 +4,7 @@ const sections: LegalSection[] = [
   {
     title: "1. Objeto e ambito",
     body: [
-      "Os presentes Termos de Uso regulam o acesso e a utilizacao do site, da area autenticada e dos conteudos digitais disponibilizados pela Mariana Explica. Ao navegar, criar conta, adquirir um curso ou utilizar qualquer funcionalidade da plataforma, o utilizador aceita estes termos na medida aplicavel.",
+      "Os presentes Termos de Uso regulam o acesso e a utilizacao do site, da area autenticada e dos conteudos digitais disponibilizados pela Mariana Explica. Ao navegar, criar conta, adquirir um material ou utilizar qualquer funcionalidade da plataforma, o utilizador aceita estes termos na medida aplicavel.",
       "Se alguma funcionalidade especifica tiver condicoes proprias, essas condicoes complementam estes termos no respetivo ambito.",
     ],
   },
@@ -18,7 +18,7 @@ const sections: LegalSection[] = [
   {
     title: "3. Produtos digitais e acesso aos conteudos",
     body: [
-      "A Mariana Explica disponibiliza cursos, materiais de apoio e outros conteudos digitais de natureza educativa. As condicoes comerciais, como preco, modalidade, acesso gratuito ou pago e eventuais limitacoes de utilizacao, sao apresentadas na pagina do produto e no checkout.",
+      "A Mariana Explica disponibiliza materiais, materiais de apoio e outros conteudos digitais de natureza educativa. As condicoes comerciais, como preco, modalidade, acesso gratuito ou pago e eventuais limitacoes de utilizacao, sao apresentadas na pagina do produto e no checkout.",
       "O acesso efetivo ao conteudo depende da confirmacao interna do direito de acesso na plataforma. A compra ou ativacao comercial pode exigir validacao adicional de pagamento, concessao de acesso, verificacoes antifraude ou aplicacao das regras operacionais do servico.",
     ],
   },
@@ -47,7 +47,7 @@ const sections: LegalSection[] = [
     title: "7. Propriedade intelectual",
     body: [
       "Os conteudos, marcas, textos, imagens, organizacao pedagogica, materiais descarregaveis, interface e demais elementos da Mariana Explica estao protegidos por direitos de propriedade intelectual e nao podem ser reproduzidos, comunicados, distribuidos, alterados ou explorados fora das permissoes expressamente concedidas.",
-      "A aquisicao de um curso ou material concede apenas um direito de utilizacao pessoal, limitado e nao exclusivo, de acordo com as condicoes do servico.",
+      "A aquisicao de um material concede apenas um direito de utilizacao pessoal, limitado e nao exclusivo, de acordo com as condicoes do servico.",
     ],
   },
   {

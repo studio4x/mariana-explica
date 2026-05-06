@@ -42,7 +42,7 @@ export function Footer() {
           </div>
           <p className="text-sm leading-7 text-slate-600">
             Uma experiencia pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e
-            confiavel aos cursos e materiais.
+            confiavel aos materiais e ao estudo.
           </p>
         </div>
 
@@ -54,7 +54,7 @@ export function Footer() {
                 Home
               </Link>
               <Link to={ROUTES.COURSES} className="hover:text-slate-950">
-                Cursos
+                Materiais
               </Link>
               <Link to={ROUTES.SUPPORT} className="hover:text-slate-950">
                 Suporte

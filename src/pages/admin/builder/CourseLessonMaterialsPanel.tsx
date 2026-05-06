@@ -227,7 +227,7 @@ export function CourseLessonMaterialsPanel() {
               <div className="md:col-span-2 rounded-2xl border bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-950">Ficheiro privado</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Faz upload para o storage privado do curso. O backend grava bucket e path automaticamente.
+                  Faz upload para o storage privado do material. O backend grava bucket e path automaticamente.
                 </p>
                 <input type="file" onChange={handleDraftFileSelection} className="mt-4 text-sm" />
                 {draft.storage_path ? (

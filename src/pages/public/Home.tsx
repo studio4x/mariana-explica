@@ -29,7 +29,7 @@ const featureBlocks = [
 const steps = [
   {
     eyebrow: "ENCONTRA O TEU APOIO",
-    text: "Explora as sebentas e cursos disponíveis. Cada material foi criado para resolver uma dor específica, por isso vais perceber logo qual é o ideal para o teu momento.",
+    text: "Explora as sebentas e materiais disponíveis. Cada material foi criado para resolver uma dor específica, por isso vais perceber logo qual é o ideal para o teu momento.",
   },
   {
     eyebrow: "ACESSO RÁPIDO E SEGURO",

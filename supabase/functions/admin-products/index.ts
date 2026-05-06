@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
       }
 
       if ((ordersCount ?? 0) > 0) {
-        throw badRequest("Nao e possivel excluir curso com pedidos vinculados")
+        throw badRequest("Nao e possivel excluir material com pedidos vinculados")
       }
 
       const { data: existingProduct, error: lookupError } = await context.serviceClient
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       }
 
       if (!existingProduct) {
-        throw badRequest("Curso nao encontrado")
+        throw badRequest("Material nao encontrado")
       }
 
       const { error: deleteError } = await context.serviceClient

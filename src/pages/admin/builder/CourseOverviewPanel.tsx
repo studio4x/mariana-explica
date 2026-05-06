@@ -60,7 +60,7 @@ export function CourseOverviewPanel() {
 
       navigate(adminCourseModulePath(courseId, firstModule.id))
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel abrir o construtor do curso.")
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel abrir o construtor do material.")
     }
   }
 
@@ -124,9 +124,9 @@ export function CourseOverviewPanel() {
   return (
     <div className="w-full space-y-8 pb-12">
       <section className="border-b border-slate-200 pb-5">
-        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Visao Geral do Curso</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Visao Geral do Material</h2>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-          Este e o centro de controlo do curso. Usa o painel lateral para navegar, editar e construir a estrutura pedagogica.
+          Este e o centro de controlo do material. Usa o painel lateral para navegar, editar e construir a estrutura pedagogica.
         </p>
         {builderError ? <p className="mt-4 text-sm text-rose-700">{builderError}</p> : null}
       </section>
@@ -160,7 +160,7 @@ export function CourseOverviewPanel() {
           <div>
             <h3 className="text-lg font-bold text-slate-900">Avaliacao Final</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Prova final do curso em rota dedicada, separada dos quizzes por modulo.
+              Prova final do material em rota dedicada, separada dos quizzes por modulo.
             </p>
           </div>
           <Button type="button" variant="outline" className="rounded-xl" onClick={() => void handleOpenFinalAssessment()}>
@@ -184,7 +184,7 @@ export function CourseOverviewPanel() {
           ) : (
             <EmptyState
               title="Sem avaliacao final"
-              message="Crie a prova final do curso para cumprir o fluxo profundo previsto no builder."
+              message="Crie a prova final do material para cumprir o fluxo profundo previsto no builder."
             />
           )}
         </div>
@@ -193,7 +193,7 @@ export function CourseOverviewPanel() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/50 p-6 sm:flex-row sm:items-center">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Mapa do Curso</h3>
+            <h3 className="text-lg font-bold text-slate-900">Mapa do Material</h3>
             <p className="mt-1 text-sm text-slate-500">A hierarquia atual de aprendizagem.</p>
           </div>
           <Button
@@ -214,7 +214,7 @@ export function CourseOverviewPanel() {
           <div className="p-6">
             <EmptyState
               title="Sem modulos ainda"
-              message="Cria o primeiro modulo para iniciar o construtor e montar a estrutura do curso."
+              message="Cria o primeiro modulo para iniciar o construtor e montar a estrutura do material."
             />
             <div className="flex justify-center">
               <Button type="button" className="rounded-full" onClick={() => void handleOpenCourseBuilder()} disabled={createModule.isPending}>

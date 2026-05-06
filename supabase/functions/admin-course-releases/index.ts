@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       }
 
       if (!product) {
-        throw notFound("Curso não encontrado")
+        throw notFound("Material não encontrado")
       }
 
       const ensuredGrant = await ensureActiveGrant(context.serviceClient, {

@@ -142,7 +142,7 @@ export function DashboardPayments() {
           />
           <div className="mt-2 flex justify-center">
             <Button asChild className="rounded-full">
-              <Link to={ROUTES.COURSES}>Ver cursos disponiveis</Link>
+              <Link to={ROUTES.COURSES}>Ver materiais disponiveis</Link>
             </Button>
           </div>
         </div>
@@ -155,7 +155,7 @@ export function DashboardPayments() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4 text-slate-500" />
-                      <p className="font-semibold text-slate-950">{payment.product_title ?? "Curso"}</p>
+                      <p className="font-semibold text-slate-950">{payment.product_title ?? "Material"}</p>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">
                       Criado em {formatDate(payment.created_at)}
@@ -222,11 +222,11 @@ export function DashboardPayments() {
                   Podemos tentar resolver isto contigo?
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  O reembolso remove o acesso ao curso. Se o problema for acesso, pagamento, conteudo ou duvida de uso,
+                  O reembolso remove o acesso ao material. Se o problema for acesso, pagamento, conteudo ou duvida de uso,
                   o suporte pode ajudar rapidamente sem perderes o material.
                 </p>
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-950">{refundPayment.product_title ?? "Curso"}</p>
+                  <p className="font-semibold text-slate-950">{refundPayment.product_title ?? "Material"}</p>
                   <p className="mt-1 text-sm text-slate-600">
                     Pedido {refundPayment.id.slice(0, 8)} · {formatProductPrice(refundPayment.final_price_cents, refundPayment.currency)}
                   </p>
@@ -263,7 +263,7 @@ export function DashboardPayments() {
                   Tens certeza que queres pedir o reembolso?
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  O reembolso sera processado agora no pagamento. O acesso ao curso sera removido em seguida.
+                  O reembolso sera processado agora no pagamento. O acesso ao material sera removido em seguida.
                 </p>
                 <label className="mt-5 block">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Mensagem opcional</span>

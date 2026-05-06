@@ -71,7 +71,7 @@ export function InstallPrompt() {
       <p className="pr-6 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">App de estudo</p>
       <h2 className="mt-2 text-base font-semibold text-slate-950">Instalar Mariana Explica</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        Adiciona o app ao telemovel para regressar mais depressa ao dashboard e aos teus cursos.
+        Adiciona o app ao telemovel para regressar mais depressa ao dashboard e aos teus materiais.
       </p>
       <div className="mt-4 flex gap-2">
         <Button

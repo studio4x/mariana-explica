@@ -171,7 +171,7 @@ export function AdminCourseBuilderLayout() {
     assessmentsQuery.isLoading ||
     lessonQueries.some((query) => query.isLoading)
   ) {
-    return <LoadingState message="A carregar o builder do curso..." />
+    return <LoadingState message="A carregar o builder do material..." />
   }
 
   const lessonError = lessonQueries.find((query) => query.isError)?.error
@@ -198,8 +198,8 @@ export function AdminCourseBuilderLayout() {
   if (!courseId || !product) {
     return (
       <EmptyState
-        title="Curso nao encontrado"
-        message="Este curso nao esta disponivel no catalogo administrativo."
+        title="Material nao encontrado"
+        message="Este material nao esta disponivel no catalogo administrativo."
       />
     )
   }
@@ -423,7 +423,7 @@ export function AdminCourseBuilderLayout() {
       const payload = exportCourseToJson(product, modulePayload, assessments)
       triggerJsonDownload(makeCourseExportFileName(product), payload)
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel exportar o conteudo do curso.")
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel exportar o conteudo do material.")
     }
   }
 
@@ -635,11 +635,11 @@ export function AdminCourseBuilderLayout() {
       setReplaceModuleId("")
       setImportSuccessMessage(
         clearCourseBeforeImport
-          ? "O curso foi reconstruido a partir do JSON enviado."
+          ? "O material foi reconstruido a partir do JSON enviado."
           : "A importacao do conteudo foi concluida com sucesso.",
       )
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel importar o conteudo do curso.")
+      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel importar o conteudo do material.")
     } finally {
       setIsImporting(false)
     }
@@ -683,7 +683,7 @@ export function AdminCourseBuilderLayout() {
               />
             </div>
             <p className="hidden text-xs uppercase tracking-[0.28em] text-slate-500 md:block">
-              Builder do curso
+              Builder do material
             </p>
           </div>
         </div>
@@ -695,7 +695,7 @@ export function AdminCourseBuilderLayout() {
           <Button asChild variant="outline" size="sm" className="rounded-full">
             <Link to={adminCoursePreviewPath(courseId)}>
               <ExternalLink className="mr-2 h-4 w-4" />
-              Visualizar curso
+              Visualizar material
             </Link>
           </Button>
         </div>
@@ -712,7 +712,7 @@ export function AdminCourseBuilderLayout() {
               <NavLink
                 to={adminCourseBuilderPath(courseId)}
                 end
-                title="Visao Geral do Curso"
+                title="Visao Geral do Material"
                 className={({ isActive }) =>
                   `flex items-center rounded-lg border text-sm font-semibold transition ${
                     isSidebarOpen ? "gap-2.5 px-3 py-4" : "justify-center px-0 py-3"
@@ -726,7 +726,7 @@ export function AdminCourseBuilderLayout() {
                 <div className="rounded-md bg-blue-100 p-1.5 text-blue-700">
                   <BookOpen className="h-4 w-4 shrink-0" />
                 </div>
-                {isSidebarOpen ? "Visao Geral do Curso" : null}
+                {isSidebarOpen ? "Visao Geral do Material" : null}
               </NavLink>
             </nav>
 
@@ -979,7 +979,7 @@ export function AdminCourseBuilderLayout() {
                 }`}
               >
                 <Cog className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Configuracoes do Curso" : null}
+                {isSidebarOpen ? "Configuracoes do Material" : null}
               </NavLink>
               <NavLink
                 to={adminCoursePublicPagePath(courseId)}
@@ -1142,11 +1142,11 @@ export function AdminCourseBuilderLayout() {
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-amber-900">Limpar TODO o curso primeiro</span>
+                    <span className="text-sm font-black text-amber-900">Limpar TODO o material primeiro</span>
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
                   </div>
                   <p className="mt-0.5 text-[11px] font-bold text-amber-600">
-                    Apaga absolutamente todos os modulos atuais e recomeca o curso do zero.
+                    Apaga absolutamente todos os modulos atuais e recomeca o material do zero.
                   </p>
                 </div>
               </label>

@@ -10,17 +10,17 @@ export function AdminCourseStudents() {
   const productsQuery = useAdminProducts()
 
   if (!courseId) {
-    return <EmptyState title="Curso invalido" message="Abra um curso valido para gerenciar alunos." />
+    return <EmptyState title="Material invalido" message="Abra um material valido para gerenciar alunos." />
   }
 
   if (productsQuery.isLoading) {
-    return <LoadingState message="A carregar curso..." />
+    return <LoadingState message="A carregar material..." />
   }
 
   if (productsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o curso"
+        title="Nao foi possivel carregar o material"
         message={productsQuery.error instanceof Error ? productsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void productsQuery.refetch()}
       />
@@ -30,17 +30,17 @@ export function AdminCourseStudents() {
   const product = (productsQuery.data ?? []).find((item) => item.id === courseId)
 
   if (!product) {
-    return <EmptyState title="Curso nao encontrado" message="Este curso nao esta disponivel no admin." />
+    return <EmptyState title="Material nao encontrado" message="Este material nao esta disponivel no admin." />
   }
 
   return (
     <CourseReleasesManager
       courseId={courseId}
       title={`Alunos de ${product.title}`}
-      description="Gerencie acessos manuais e liberacoes do curso sem abrir o construtor pedagogico."
+      description="Gerencie acessos manuais e liberacoes do material sem abrir o construtor pedagogico."
       actions={
         <Button asChild variant="outline" className="rounded-full">
-          <Link to={ROUTES.ADMIN_COURSES}>Voltar aos cursos</Link>
+          <Link to={ROUTES.ADMIN_COURSES}>Voltar aos materiais</Link>
         </Button>
       }
     />

@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
         .maybeSingle()
 
       if (productError) throw productError
-      if (!product) throw badRequest("Curso nao encontrado")
+      if (!product) throw badRequest("Material nao encontrado")
 
       const { data: grant, error: grantError } = await context.serviceClient
         .from("access_grants")
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
 
       if (grantError) throw grantError
       if (!grant && !context.profile.is_admin) {
-        throw badRequest("Este curso nao esta vinculado a tua conta")
+        throw badRequest("Este material nao esta vinculado a tua conta")
       }
     }
 
