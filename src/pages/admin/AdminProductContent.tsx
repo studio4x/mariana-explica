@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   CalendarClock,
@@ -7,7 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { LessonPrimaryMedia, PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAdminModuleAssets,
@@ -25,7 +25,9 @@ import {
   useUpdateAdminProduct,
   useUpdateAdminProductLesson,
   useUpdateAdminProductModule,
+  useUploadAdminModuleAssetFile,
 } from "@/hooks/useAdmin"
+import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { publicCoursePath } from "@/lib/routes"
 import type {
   ModuleAssetSummary,
@@ -112,6 +114,58 @@ function getAssessmentTone(assessment: ProductAssessmentSummary): "success" | "w
   return "warning"
 }
 
+function getLessonVideoSourceSummary(mode: "url" | "upload", source: string) {
+  const trimmed = source.trim()
+  const hasAsset = trimmed.toLowerCase().startsWith("asset:")
+
+  if (mode === "upload") {
+    if (!trimmed) {
+      return {
+        label: "Aguardando upload protegido",
+        message: "Carrega um video para guardar a aula com ficheiro privado e URL assinada temporaria.",
+        tone: "warning" as const,
+      }
+    }
+
+    if (hasAsset) {
+      return {
+        label: "Video protegido na plataforma",
+        message: "O player usa storage privado e nao expoe um ficheiro publico permanente.",
+        tone: "success" as const,
+      }
+    }
+
+    return {
+      label: "Origem de video incompleta",
+      message: "Seleciona um ficheiro para upload protegido antes de guardar.",
+      tone: "danger" as const,
+    }
+  }
+
+  if (!trimmed) {
+    return {
+      label: "Sem URL de video",
+      message: "Define um link do YouTube ou de um video direto enquanto o modo de URL estiver ativo.",
+      tone: "neutral" as const,
+    }
+  }
+
+  if (hasAsset) {
+    return {
+      label: "Video protegido na plataforma",
+      message: "Este material usa storage privado e o player recebe apenas URL assinada temporaria.",
+      tone: "success" as const,
+    }
+  }
+
+  return {
+    label: "URL externa configurada",
+    message:
+      "Links externos podem ser partilhados fora da plataforma. Use upload protegido para maior controlo.",
+    tone: "warning" as const,
+  }
+}
+
 export function AdminProductContent() {
   const { id, courseId, moduleId, lessonId } = useParams<{
     id?: string
@@ -153,6 +207,7 @@ export function AdminProductContent() {
   const createLesson = useCreateAdminProductLesson()
   const updateLesson = useUpdateAdminProductLesson()
   const deleteLesson = useDeleteAdminProductLesson()
+  const uploadLessonVideoFile = useUploadAdminModuleAssetFile()
 
   const [moduleDraft, setModuleDraft] = useState({
     title: "",
@@ -194,6 +249,9 @@ export function AdminProductContent() {
     ends_at: "",
     status: "published" as ProductLessonSummary["status"],
   })
+  const [lessonVideoSourceMode, setLessonVideoSourceMode] = useState<"url" | "upload">("url")
+  const [lessonVideoUrlDraft, setLessonVideoUrlDraft] = useState("")
+  const [lessonUploadedVideoAssetValue, setLessonUploadedVideoAssetValue] = useState<string | null>(null)
   const [courseDraft, setCourseDraft] = useState<{
     title: string
     slug: string
@@ -220,6 +278,9 @@ export function AdminProductContent() {
   >({})
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
   const [editingLesson, setEditingLesson] = useState<Partial<ProductLessonSummary>>({})
+  const [editingLessonVideoSourceMode, setEditingLessonVideoSourceMode] = useState<"url" | "upload">("url")
+  const [editingLessonVideoUrlDraft, setEditingLessonVideoUrlDraft] = useState("")
+  const [editingLessonUploadedVideoAssetValue, setEditingLessonUploadedVideoAssetValue] = useState<string | null>(null)
 
   const isLoading =
     productsQuery.isLoading ||
@@ -298,17 +359,70 @@ export function AdminProductContent() {
 
   useEffect(() => {
     if (moduleId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs route-driven module selection into the legacy admin workspace state.
       setSelectedModuleId(moduleId)
     }
   }, [moduleId])
 
   useEffect(() => {
     if (lessonId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs route-driven lesson editing state into the legacy admin workspace.
       setEditingLessonId(lessonId)
     }
   }, [lessonId])
+
+  const currentCreateLessonVideoSource =
+    lessonVideoSourceMode === "upload"
+      ? lessonUploadedVideoAssetValue ??
+        (lessonDraft.youtube_url.trim().toLowerCase().startsWith("asset:") ? lessonDraft.youtube_url.trim() : "")
+      : lessonVideoUrlDraft
+  const createLessonVideoSummary = getLessonVideoSourceSummary(
+    lessonVideoSourceMode,
+    currentCreateLessonVideoSource,
+  )
+
+  const currentEditingLessonStoredVideoSource = String(editingLesson.youtube_url ?? "").trim()
+  const currentEditingLessonVideoSource =
+    editingLessonVideoSourceMode === "upload"
+      ? editingLessonUploadedVideoAssetValue ??
+        (currentEditingLessonStoredVideoSource.toLowerCase().startsWith("asset:")
+          ? currentEditingLessonStoredVideoSource
+          : "")
+      : editingLessonVideoUrlDraft
+  const editingLessonVideoSummary = getLessonVideoSourceSummary(
+    editingLessonVideoSourceMode,
+    currentEditingLessonVideoSource,
+  )
+
+  const handleLessonVideoSourceModeChange = (nextMode: "url" | "upload") => {
+    setLessonSubmitError(null)
+
+    if (nextMode === "upload") {
+      const currentValue = lessonVideoUrlDraft.trim() || lessonDraft.youtube_url.trim()
+      if (currentValue && !currentValue.toLowerCase().startsWith("asset:")) {
+        setLessonVideoUrlDraft(currentValue)
+      }
+      if (lessonUploadedVideoAssetValue) {
+        setLessonDraft((prev) => ({ ...prev, youtube_url: lessonUploadedVideoAssetValue }))
+      }
+    }
+
+    setLessonVideoSourceMode(nextMode)
+  }
+
+  const handleEditingLessonVideoSourceModeChange = (nextMode: "url" | "upload") => {
+    setLessonSubmitError(null)
+
+    if (nextMode === "upload") {
+      const currentValue = editingLessonVideoUrlDraft.trim() || String(editingLesson.youtube_url ?? "").trim()
+      if (currentValue && !currentValue.toLowerCase().startsWith("asset:")) {
+        setEditingLessonVideoUrlDraft(currentValue)
+      }
+      if (editingLessonUploadedVideoAssetValue) {
+        setEditingLesson((prev) => ({ ...prev, youtube_url: editingLessonUploadedVideoAssetValue }))
+      }
+    }
+
+    setEditingLessonVideoSourceMode(nextMode)
+  }
 
   const handleCreateModule = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -460,6 +574,38 @@ export function AdminProductContent() {
     }
 
     try {
+      const normalizedYoutube =
+        lessonDraft.lesson_type === "video" || lessonDraft.lesson_type === "hybrid"
+          ? lessonVideoSourceMode === "upload"
+            ? lessonUploadedVideoAssetValue ??
+              (lessonDraft.youtube_url.trim().toLowerCase().startsWith("asset:")
+                ? lessonDraft.youtube_url.trim()
+                : null)
+            : lessonVideoUrlDraft.trim() || null
+          : null
+      const normalizedText =
+        lessonDraft.lesson_type === "text" || lessonDraft.lesson_type === "hybrid"
+          ? lessonDraft.text_content.trim() || null
+          : null
+
+      if (
+        (lessonDraft.lesson_type === "video" || lessonDraft.lesson_type === "hybrid") &&
+        lessonVideoSourceMode === "upload" &&
+        !normalizedYoutube
+      ) {
+        setLessonSubmitError("Seleciona e envia um video protegido antes de criar a aula.")
+        return
+      }
+
+      if (
+        (lessonDraft.lesson_type === "video" || lessonDraft.lesson_type === "hybrid") &&
+        lessonVideoSourceMode === "url" &&
+        !normalizedYoutube
+      ) {
+        setLessonSubmitError("Define a URL do video antes de criar a aula.")
+        return
+      }
+
       await createLesson.mutateAsync({
         moduleId: selectedModuleIdSafe,
         title,
@@ -467,8 +613,8 @@ export function AdminProductContent() {
         position: lessonDraft.position || nextOrder(lessons),
         is_required: lessonDraft.is_required,
         lesson_type: lessonDraft.lesson_type,
-        youtube_url: lessonDraft.youtube_url.trim() || null,
-        text_content: lessonDraft.text_content.trim() || null,
+        youtube_url: normalizedYoutube,
+        text_content: normalizedText,
         estimated_minutes: Number(lessonDraft.estimated_minutes || 0),
         starts_at: lessonDraft.starts_at || null,
         ends_at: lessonDraft.ends_at || null,
@@ -488,6 +634,9 @@ export function AdminProductContent() {
         ends_at: "",
         status: "published",
       })
+      setLessonVideoSourceMode("url")
+      setLessonVideoUrlDraft("")
+      setLessonUploadedVideoAssetValue(null)
     } catch (err) {
       setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel criar a aula.")
     }
@@ -508,6 +657,11 @@ export function AdminProductContent() {
       ends_at: toDateTimeLocal(lesson.ends_at),
       status: lesson.status,
     })
+    const currentSource = lesson.youtube_url?.trim() ?? ""
+    const isAssetSource = currentSource.toLowerCase().startsWith("asset:")
+    setEditingLessonVideoSourceMode(isAssetSource ? "upload" : "url")
+    setEditingLessonVideoUrlDraft(isAssetSource ? "" : currentSource)
+    setEditingLessonUploadedVideoAssetValue(isAssetSource ? currentSource : null)
   }
 
   const handleSaveLesson = async () => {
@@ -515,6 +669,38 @@ export function AdminProductContent() {
     setLessonSubmitError(null)
 
     try {
+      const normalizedYoutube =
+        editingLesson.lesson_type === "video" || editingLesson.lesson_type === "hybrid"
+          ? editingLessonVideoSourceMode === "upload"
+            ? editingLessonUploadedVideoAssetValue ??
+              (currentEditingLessonStoredVideoSource.toLowerCase().startsWith("asset:")
+                ? currentEditingLessonStoredVideoSource
+                : null)
+            : editingLessonVideoUrlDraft.trim() || null
+          : null
+      const normalizedText =
+        editingLesson.lesson_type === "text" || editingLesson.lesson_type === "hybrid"
+          ? editingLesson.text_content?.trim() || null
+          : null
+
+      if (
+        (editingLesson.lesson_type === "video" || editingLesson.lesson_type === "hybrid") &&
+        editingLessonVideoSourceMode === "upload" &&
+        !normalizedYoutube
+      ) {
+        setLessonSubmitError("Seleciona e envia um video protegido antes de guardar a aula.")
+        return
+      }
+
+      if (
+        (editingLesson.lesson_type === "video" || editingLesson.lesson_type === "hybrid") &&
+        editingLessonVideoSourceMode === "url" &&
+        !normalizedYoutube
+      ) {
+        setLessonSubmitError("Define a URL do video antes de guardar a aula.")
+        return
+      }
+
       await updateLesson.mutateAsync({
         lessonId: editingLessonId,
         title: editingLesson.title?.trim() ?? undefined,
@@ -525,8 +711,8 @@ export function AdminProductContent() {
         position: editingLesson.position,
         is_required: editingLesson.is_required,
         lesson_type: editingLesson.lesson_type,
-        youtube_url: editingLesson.youtube_url?.trim() || null,
-        text_content: editingLesson.text_content?.trim() || null,
+        youtube_url: normalizedYoutube,
+        text_content: normalizedText,
         estimated_minutes: editingLesson.estimated_minutes,
         starts_at: editingLesson.starts_at || null,
         ends_at: editingLesson.ends_at || null,
@@ -535,8 +721,96 @@ export function AdminProductContent() {
 
       setEditingLessonId(null)
       setEditingLesson({})
+      setEditingLessonVideoSourceMode("url")
+      setEditingLessonVideoUrlDraft("")
+      setEditingLessonUploadedVideoAssetValue(null)
     } catch (err) {
       setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar a aula.")
+    }
+  }
+
+  const handleCreateLessonVideoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    setLessonSubmitError(null)
+
+    if (!selectedModuleIdSafe) {
+      setLessonSubmitError("Seleciona um modulo primeiro.")
+      return
+    }
+
+    try {
+      const upload = await uploadLessonVideoFile.mutateAsync({ moduleId: selectedModuleIdSafe, file })
+      const asset = await createAsset.mutateAsync({
+        moduleId: selectedModuleIdSafe,
+        asset_type: "video_file",
+        title: `${lessonDraft.title.trim() || file.name.replace(/\.[^.]+$/, "")} - video`,
+        sort_order_asset: nextOrder(assets),
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        external_url: null,
+        mime_type: upload.mime_type,
+        file_size_bytes: upload.file_size_bytes,
+        allow_download: false,
+        allow_stream: true,
+        watermark_enabled: false,
+        asset_status: "active",
+      })
+      const assetValue = makeLessonVideoAssetValue(asset.id)
+      setLessonVideoSourceMode("upload")
+      setLessonUploadedVideoAssetValue(assetValue)
+      setLessonVideoUrlDraft("")
+      setLessonDraft((prev) => ({ ...prev, youtube_url: assetValue }))
+    } catch (uploadError) {
+      setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o video.")
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  const handleEditingLessonVideoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    setLessonSubmitError(null)
+
+    if (!selectedModuleIdSafe) {
+      setLessonSubmitError("Seleciona um modulo primeiro.")
+      return
+    }
+
+    try {
+      const upload = await uploadLessonVideoFile.mutateAsync({ moduleId: selectedModuleIdSafe, file })
+      const lessonTitle = String(
+        editingLesson.title ??
+          lessons.find((item) => item.id === editingLessonId)?.title ??
+          "",
+      ).trim()
+      const asset = await createAsset.mutateAsync({
+        moduleId: selectedModuleIdSafe,
+        asset_type: "video_file",
+        title: `${lessonTitle || file.name.replace(/\.[^.]+$/, "")} - video`,
+        sort_order_asset: nextOrder(assets),
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        external_url: null,
+        mime_type: upload.mime_type,
+        file_size_bytes: upload.file_size_bytes,
+        allow_download: false,
+        allow_stream: true,
+        watermark_enabled: false,
+        asset_status: "active",
+      })
+      const assetValue = makeLessonVideoAssetValue(asset.id)
+      setEditingLessonVideoSourceMode("upload")
+      setEditingLessonUploadedVideoAssetValue(assetValue)
+      setEditingLessonVideoUrlDraft("")
+      setEditingLesson((prev) => ({ ...prev, youtube_url: assetValue }))
+    } catch (uploadError) {
+      setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o video.")
+    } finally {
+      event.target.value = ""
     }
   }
 
@@ -1442,14 +1716,70 @@ export function AdminProductContent() {
                       />
 
                       {lessonDraft.lesson_type !== "text" ? (
-                        <input
-                          value={lessonDraft.youtube_url}
-                          onChange={(event) =>
-                            setLessonDraft((prev) => ({ ...prev, youtube_url: event.target.value }))
-                          }
-                          placeholder="URL do video"
-                          className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                        />
+                        <div className="space-y-3 rounded-[1.35rem] border border-slate-200 bg-white p-4">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleLessonVideoSourceModeChange("url")}
+                              className={`rounded-full border px-4 py-2 text-sm transition ${
+                                lessonVideoSourceMode === "url"
+                                  ? "border-sky-300 bg-sky-50 text-sky-900"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              Usar URL do video
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleLessonVideoSourceModeChange("upload")}
+                              className={`rounded-full border px-4 py-2 text-sm transition ${
+                                lessonVideoSourceMode === "upload"
+                                  ? "border-sky-300 bg-sky-50 text-sky-900"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              Usar upload protegido
+                            </button>
+                          </div>
+
+                          <div className="rounded-[1.15rem] border border-slate-200 bg-slate-50 p-3">
+                            <StatusBadge label={createLessonVideoSummary.label} tone={createLessonVideoSummary.tone} />
+                            <p className="mt-2 text-sm leading-6 text-slate-700">{createLessonVideoSummary.message}</p>
+                            <p className="mt-2 text-xs leading-6 text-slate-500">
+                              Links externos podem ser partilhados. O upload protegido usa storage privado e URL
+                              assinada temporaria.
+                            </p>
+                          </div>
+
+                          {lessonVideoSourceMode === "url" ? (
+                            <input
+                              value={lessonVideoUrlDraft}
+                              onChange={(event) => setLessonVideoUrlDraft(event.target.value)}
+                              placeholder="URL do video"
+                              className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                            />
+                          ) : (
+                            <div className="space-y-2">
+                              <input
+                                type="file"
+                                accept="video/*"
+                                onChange={(event) => void handleCreateLessonVideoUpload(event)}
+                                className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
+                              />
+                              {lessonUploadedVideoAssetValue ? (
+                                <p className="text-sm text-emerald-700">
+                                  Video protegido pronto para ser usado nesta aula.
+                                </p>
+                              ) : (
+                                <p className="text-sm text-slate-600">
+                                  Carrega o ficheiro da aula para gerar o video protegido.
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <LessonPrimaryMedia source={currentCreateLessonVideoSource} title="Preview do video da aula" />
+                        </div>
                       ) : null}
 
                       {lessonDraft.lesson_type !== "video" ? (
@@ -1526,6 +1856,7 @@ export function AdminProductContent() {
                     ) : (
                       lessons.map((lesson) => {
                         const isEditing = editingLessonId === lesson.id
+                        const hasProtectedVideo = lesson.youtube_url?.trim().toLowerCase().startsWith("asset:")
 
                         return (
                           <div key={lesson.id} className="rounded-[1.5rem] border bg-white p-4">
@@ -1566,7 +1897,9 @@ export function AdminProductContent() {
                               <div className="flex flex-wrap gap-2">
                                 <StatusBadge label={`Posicao ${lesson.position}`} tone="neutral" />
                                 <StatusBadge label={`${lesson.estimated_minutes} min`} tone="warning" />
-                                {lesson.youtube_url ? <StatusBadge label="Video" tone="info" /> : null}
+                                {lesson.youtube_url ? (
+                                  <StatusBadge label={hasProtectedVideo ? "Video protegido" : "Video"} tone="info" />
+                                ) : null}
                                 {lesson.text_content ? <StatusBadge label="Texto" tone="success" /> : null}
                               </div>
 
@@ -1634,14 +1967,78 @@ export function AdminProductContent() {
                                   />
 
                                   {(editingLesson.lesson_type ?? lesson.lesson_type) !== "text" ? (
-                                    <input
-                                      value={String(editingLesson.youtube_url ?? "")}
-                                      onChange={(event) =>
-                                        setEditingLesson((prev) => ({ ...prev, youtube_url: event.target.value }))
-                                      }
-                                      placeholder="URL do video"
-                                      className="mt-3 h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
-                                    />
+                                    <div className="mt-3 space-y-3 rounded-[1.35rem] border border-slate-200 bg-white p-4">
+                                      <div className="flex flex-wrap gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEditingLessonVideoSourceModeChange("url")}
+                                          className={`rounded-full border px-4 py-2 text-sm transition ${
+                                            editingLessonVideoSourceMode === "url"
+                                              ? "border-sky-300 bg-sky-50 text-sky-900"
+                                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                          }`}
+                                        >
+                                          Usar URL do video
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEditingLessonVideoSourceModeChange("upload")}
+                                          className={`rounded-full border px-4 py-2 text-sm transition ${
+                                            editingLessonVideoSourceMode === "upload"
+                                              ? "border-sky-300 bg-sky-50 text-sky-900"
+                                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                          }`}
+                                        >
+                                          Usar upload protegido
+                                        </button>
+                                      </div>
+
+                                      <div className="rounded-[1.15rem] border border-slate-200 bg-slate-50 p-3">
+                                        <StatusBadge
+                                          label={editingLessonVideoSummary.label}
+                                          tone={editingLessonVideoSummary.tone}
+                                        />
+                                        <p className="mt-2 text-sm leading-6 text-slate-700">
+                                          {editingLessonVideoSummary.message}
+                                        </p>
+                                        <p className="mt-2 text-xs leading-6 text-slate-500">
+                                          Links externos podem ser partilhados. O upload protegido usa storage
+                                          privado e URL assinada temporaria.
+                                        </p>
+                                      </div>
+
+                                      {editingLessonVideoSourceMode === "url" ? (
+                                        <input
+                                          value={editingLessonVideoUrlDraft}
+                                          onChange={(event) => setEditingLessonVideoUrlDraft(event.target.value)}
+                                          placeholder="URL do video"
+                                          className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                                        />
+                                      ) : (
+                                        <div className="space-y-2">
+                                          <input
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={(event) => void handleEditingLessonVideoUpload(event)}
+                                            className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
+                                          />
+                                          {editingLessonUploadedVideoAssetValue ? (
+                                            <p className="text-sm text-emerald-700">
+                                              Video protegido carregado para esta aula.
+                                            </p>
+                                          ) : (
+                                            <p className="text-sm text-slate-600">
+                                              Carrega o ficheiro da aula para gerar o video protegido.
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      <LessonPrimaryMedia
+                                        source={currentEditingLessonVideoSource}
+                                        title="Preview do video da aula"
+                                      />
+                                    </div>
                                   ) : null}
 
                                   {(editingLesson.lesson_type ?? lesson.lesson_type) !== "video" ? (
