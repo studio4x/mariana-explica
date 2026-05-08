@@ -162,7 +162,7 @@ export function CourseSettingsPanel() {
     setFeedback(null)
 
     try {
-      await updateProduct.mutateAsync({
+      const updatedProduct = await updateProduct.mutateAsync({
         productId: product.id,
         title: form.title.trim(),
         slug: form.slug.trim(),
@@ -189,6 +189,10 @@ export function CourseSettingsPanel() {
           case_study_ai: false,
         },
       })
+      setForm((prev) => ({
+        ...prev,
+        categoryId: updatedProduct.product.category_id ?? "",
+      }))
     } catch (err) {
       setFeedback({
         tone: "error",

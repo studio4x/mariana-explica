@@ -97,6 +97,7 @@ import type {
   ProductAssessmentSummary,
   SupportTicketMessage,
 } from "@/types/app.types"
+import type { ProductSummary } from "@/types/product.types"
 
 const ADMIN_QUERY_STALE_TIME = 60_000
 const ADMIN_QUERY_GC_TIME = 15 * 60_000
@@ -128,6 +129,24 @@ function upsertById<TItem extends { id: string }>(
 
 function removeById<TItem extends { id: string }>(current: TItem[] | undefined, itemId: string) {
   return (current ?? []).filter((item) => item.id !== itemId)
+}
+
+function upsertAdminProductCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  product: ProductSummary,
+) {
+  queryClient.setQueryData<ProductSummary[]>(["admin", "products"], (current) => {
+    const next = current ? [...current] : []
+    const existingIndex = next.findIndex((item) => item.id === product.id)
+
+    if (existingIndex >= 0) {
+      next[existingIndex] = product
+    } else {
+      next.unshift(product)
+    }
+
+    return next
+  })
 }
 
 function sortAdminNotifications(items: AdminNotificationSummary[]) {
@@ -803,7 +822,15 @@ export function useCreateAdminProduct() {
 
 export function useUpdateAdminProduct() {
   const invalidate = useAdminInvalidation()
-  return useMutation({ mutationFn: updateAdminProduct, onSuccess: invalidate })
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminProduct,
+    onSuccess: (response) => {
+      upsertAdminProductCache(queryClient, response.product)
+      invalidate()
+    },
+  })
 }
 
 export function usePublishAdminProduct() {
