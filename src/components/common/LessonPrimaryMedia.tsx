@@ -15,6 +15,7 @@ export function LessonPrimaryMedia({
   const assetId = getLessonVideoAssetId(source)
   const youtubeEmbedUrl = getYoutubeEmbedUrl(source)
   const externalVideoUrl = getExternalVideoUrl(source)
+  const localVideoUrl = source?.trim().startsWith("blob:") || source?.trim().startsWith("data:") ? source.trim() : null
   const [assetUrl, setAssetUrl] = useState<string | null>(null)
   const [assetError, setAssetError] = useState<string | null>(null)
   const [isLoadingAsset, setIsLoadingAsset] = useState(false)
@@ -84,6 +85,22 @@ export function LessonPrimaryMedia({
           <div className="aspect-video w-full">
             <video
               src={externalVideoUrl}
+              controls
+              controlsList="nodownload noplaybackrate"
+              disablePictureInPicture
+              disableRemotePlayback
+              playsInline
+              className="h-full w-full bg-black"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {localVideoUrl ? (
+        <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
+          <div className="aspect-video w-full">
+            <video
+              src={localVideoUrl}
               controls
               controlsList="nodownload noplaybackrate"
               disablePictureInPicture

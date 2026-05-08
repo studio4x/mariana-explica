@@ -253,6 +253,7 @@ export function AdminProductContent() {
   const [lessonVideoUrlDraft, setLessonVideoUrlDraft] = useState("")
   const [lessonUploadedVideoAssetValue, setLessonUploadedVideoAssetValue] = useState<string | null>(null)
   const [lessonVideoPendingFile, setLessonVideoPendingFile] = useState<File | null>(null)
+  const [lessonVideoLocalPreviewUrl, setLessonVideoLocalPreviewUrl] = useState<string | null>(null)
   const [courseDraft, setCourseDraft] = useState<{
     title: string
     slug: string
@@ -283,6 +284,7 @@ export function AdminProductContent() {
   const [editingLessonVideoUrlDraft, setEditingLessonVideoUrlDraft] = useState("")
   const [editingLessonUploadedVideoAssetValue, setEditingLessonUploadedVideoAssetValue] = useState<string | null>(null)
   const [editingLessonVideoPendingFile, setEditingLessonVideoPendingFile] = useState<File | null>(null)
+  const [editingLessonVideoLocalPreviewUrl, setEditingLessonVideoLocalPreviewUrl] = useState<string | null>(null)
 
   const isLoading =
     productsQuery.isLoading ||
@@ -373,9 +375,40 @@ export function AdminProductContent() {
     }
   }, [lessonId])
 
+  useEffect(() => {
+    if (!lessonVideoPendingFile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza a preview local com o ficheiro selecionado.
+      setLessonVideoLocalPreviewUrl(null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(lessonVideoPendingFile)
+    setLessonVideoLocalPreviewUrl(objectUrl)
+
+    return () => {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [lessonVideoPendingFile])
+
+  useEffect(() => {
+    if (!editingLessonVideoPendingFile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza a preview local com o ficheiro selecionado.
+      setEditingLessonVideoLocalPreviewUrl(null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(editingLessonVideoPendingFile)
+    setEditingLessonVideoLocalPreviewUrl(objectUrl)
+
+    return () => {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [editingLessonVideoPendingFile])
+
   const currentCreateLessonVideoSource =
     lessonVideoSourceMode === "upload"
       ? lessonUploadedVideoAssetValue ??
+        lessonVideoLocalPreviewUrl ??
         (lessonDraft.youtube_url.trim().toLowerCase().startsWith("asset:") ? lessonDraft.youtube_url.trim() : "")
       : lessonVideoUrlDraft
   const createLessonVideoSummary = getLessonVideoSourceSummary(
@@ -387,6 +420,7 @@ export function AdminProductContent() {
   const currentEditingLessonVideoSource =
     editingLessonVideoSourceMode === "upload"
       ? editingLessonUploadedVideoAssetValue ??
+        editingLessonVideoLocalPreviewUrl ??
         (currentEditingLessonStoredVideoSource.toLowerCase().startsWith("asset:")
           ? currentEditingLessonStoredVideoSource
           : "")
@@ -1791,29 +1825,43 @@ export function AdminProductContent() {
                                 onChange={handleCreateLessonVideoSelection}
                                 className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
                               />
-                              <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                className="w-full rounded-full"
+                                onClick={() => void handleInsertCreateLessonVideo()}
+                                disabled={uploadLessonVideoFile.isPending || !lessonVideoPendingFile}
+                              >
+                                {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir video no preview"}
+                              </Button>
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm text-slate-600">
+                                  O video aparece no preview local apos selecionar o ficheiro e pode depois ser guardado.
+                                </p>
                                 <Button
                                   type="button"
                                   variant="outline"
                                   className="rounded-full"
-                                  onClick={() => void handleInsertCreateLessonVideo()}
-                                  disabled={uploadLessonVideoFile.isPending || !lessonVideoPendingFile}
+                                  onClick={() => {
+                                    setLessonVideoPendingFile(null)
+                                    setLessonUploadedVideoAssetValue(null)
+                                  }}
+                                  disabled={!lessonVideoPendingFile && !lessonUploadedVideoAssetValue}
                                 >
-                                  {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir video"}
+                                  Limpar video
                                 </Button>
-                                {lessonVideoPendingFile ? (
-                                  <p className="text-sm text-slate-600">
-                                    Ficheiro selecionado: <span className="font-medium">{lessonVideoPendingFile.name}</span>
-                                  </p>
-                                ) : null}
                               </div>
+                              {lessonVideoPendingFile ? (
+                                <p className="text-sm text-slate-600">
+                                  Ficheiro selecionado: <span className="font-medium">{lessonVideoPendingFile.name}</span>
+                                </p>
+                              ) : null}
                               {lessonUploadedVideoAssetValue ? (
                                 <p className="text-sm text-emerald-700">
                                   Video protegido pronto para ser usado nesta aula.
                                 </p>
                               ) : (
                                 <p className="text-sm text-slate-600">
-                                  Seleciona o ficheiro e clica em "Inserir video" para gerar o video protegido.
+                                  Seleciona o ficheiro e clica em "Inserir video no preview" para gerar o video protegido.
                                 </p>
                               )}
                             </div>
@@ -2063,30 +2111,47 @@ export function AdminProductContent() {
                                             onChange={handleEditingLessonVideoSelection}
                                             className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
                                           />
-                                          <div className="flex flex-wrap items-center gap-2">
+                                          <Button
+                                            type="button"
+                                            className="w-full rounded-full"
+                                            onClick={() => void handleInsertEditingLessonVideo()}
+                                            disabled={uploadLessonVideoFile.isPending || !editingLessonVideoPendingFile}
+                                          >
+                                            {uploadLessonVideoFile.isPending
+                                              ? "A inserir..."
+                                              : "Inserir video no preview"}
+                                          </Button>
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-sm text-slate-600">
+                                              O video aparece no preview local apos selecionar o ficheiro e pode depois
+                                              ser guardado.
+                                            </p>
                                             <Button
                                               type="button"
                                               variant="outline"
                                               className="rounded-full"
-                                              onClick={() => void handleInsertEditingLessonVideo()}
-                                              disabled={uploadLessonVideoFile.isPending || !editingLessonVideoPendingFile}
+                                              onClick={() => {
+                                                setEditingLessonVideoPendingFile(null)
+                                                setEditingLessonUploadedVideoAssetValue(null)
+                                              }}
+                                              disabled={!editingLessonVideoPendingFile && !editingLessonUploadedVideoAssetValue}
                                             >
-                                              {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir video"}
+                                              Limpar video
                                             </Button>
-                                            {editingLessonVideoPendingFile ? (
-                                              <p className="text-sm text-slate-600">
-                                                Ficheiro selecionado:{" "}
-                                                <span className="font-medium">{editingLessonVideoPendingFile.name}</span>
-                                              </p>
-                                            ) : null}
                                           </div>
+                                          {editingLessonVideoPendingFile ? (
+                                            <p className="text-sm text-slate-600">
+                                              Ficheiro selecionado:{" "}
+                                              <span className="font-medium">{editingLessonVideoPendingFile.name}</span>
+                                            </p>
+                                          ) : null}
                                           {editingLessonUploadedVideoAssetValue ? (
                                             <p className="text-sm text-emerald-700">
                                               Video protegido carregado para esta aula.
                                             </p>
                                           ) : (
                                             <p className="text-sm text-slate-600">
-                                              Seleciona o ficheiro e clica em "Inserir video" para gerar o video
+                                              Seleciona o ficheiro e clica em "Inserir video no preview" para gerar o video
                                               protegido.
                                             </p>
                                           )}
