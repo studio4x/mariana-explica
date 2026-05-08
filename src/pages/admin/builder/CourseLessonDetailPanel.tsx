@@ -75,7 +75,7 @@ function getVideoSourceSummary(mode: "url" | "upload", source: string | null | u
 
     return {
       label: "Upload protegido selecionado",
-      message: "Envia um ficheiro de video para concluir esta aula sem depender de um link externo.",
+      message: "Seleciona um ficheiro e clica em Enviar video protegido para concluir esta aula sem depender de link externo.",
       tone: "neutral" as const,
     }
   }
@@ -123,6 +123,7 @@ export function CourseLessonDetailPanel() {
   const [videoSourceMode, setVideoSourceMode] = useState<"url" | "upload">("url")
   const [videoUrlDraft, setVideoUrlDraft] = useState("")
   const [uploadedVideoAssetValue, setUploadedVideoAssetValue] = useState<string | null>(null)
+  const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const textContentEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const lessons = useMemo(() => lessonsQuery.data ?? [], [lessonsQuery.data])
@@ -130,6 +131,18 @@ export function CourseLessonDetailPanel() {
     () => lessons.find((item) => item.id === lessonId) ?? null,
     [lessonId, lessons],
   )
+  const pendingVideoPreviewUrl = useMemo(
+    () => (pendingVideoFile ? URL.createObjectURL(pendingVideoFile) : null),
+    [pendingVideoFile],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (pendingVideoPreviewUrl) {
+        URL.revokeObjectURL(pendingVideoPreviewUrl)
+      }
+    }
+  }, [pendingVideoPreviewUrl])
 
   useEffect(() => {
     if (!lesson) {
@@ -142,6 +155,7 @@ export function CourseLessonDetailPanel() {
     setVideoSourceMode(hasUploadedVideo ? "upload" : "url")
     setVideoUrlDraft(hasUploadedVideo ? "" : currentSource)
     setUploadedVideoAssetValue(hasUploadedVideo ? currentSource : null)
+    setPendingVideoFile(null)
   }, [lesson])
 
   if (!courseId || !moduleId || !lessonId) {
@@ -182,7 +196,9 @@ export function CourseLessonDetailPanel() {
   const currentStoredVideoSource = String(values.youtube_url ?? "").trim()
   const activeVideoSource =
     videoSourceMode === "upload"
-      ? uploadedVideoAssetValue ?? (currentStoredVideoSource.toLowerCase().startsWith("asset:") ? currentStoredVideoSource : "")
+      ? uploadedVideoAssetValue
+        ?? pendingVideoPreviewUrl
+        ?? (currentStoredVideoSource.toLowerCase().startsWith("asset:") ? currentStoredVideoSource : "")
       : videoUrlDraft
   const videoSourceSummary = getVideoSourceSummary(videoSourceMode, activeVideoSource)
 
@@ -219,10 +235,7 @@ export function CourseLessonDetailPanel() {
       values.lesson_type === "text" || values.lesson_type === "hybrid" ? textContentToSave?.trim() || null : null
 
     if ((values.lesson_type === "video" || values.lesson_type === "hybrid") && videoSourceMode === "upload" && !normalizedYoutube) {
-      setFeedback({
-        tone: "error",
-        message: "Seleciona e envia um video protegido antes de guardar esta aula.",
-      })
+      setFeedback({ tone: "error", message: "Seleciona o ficheiro e clica em Enviar video protegido antes de guardar." })
       return
     }
 
@@ -248,6 +261,7 @@ export function CourseLessonDetailPanel() {
       setVideoSourceMode(savedSourceIsAsset ? "upload" : "url")
       setVideoUrlDraft(savedSourceIsAsset ? "" : savedSource)
       setUploadedVideoAssetValue(savedSourceIsAsset ? savedSource : null)
+      setPendingVideoFile(null)
     } catch (submitError) {
       setFeedback({
         tone: "error",
@@ -304,9 +318,22 @@ export function CourseLessonDetailPanel() {
     }
   }
 
-  const handleVideoUploadSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleVideoUploadSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     if (!file) return
+
+    setError(null)
+    setUploadMessage(null)
+    setPendingVideoFile(file)
+    event.target.value = ""
+  }
+
+  const handleInsertProtectedVideo = async () => {
+    const file = pendingVideoFile
+    if (!file) {
+      setFeedback({ tone: "error", message: "Seleciona um ficheiro de video antes de enviar." })
+      return
+    }
 
     setError(null)
     setUploadMessage(null)
@@ -332,21 +359,15 @@ export function CourseLessonDetailPanel() {
       const assetValue = makeLessonVideoAssetValue(asset.id)
       setForm((prev) => ({ ...prev, youtube_url: assetValue }))
       setUploadedVideoAssetValue(assetValue)
-      await updateLesson.mutateAsync({
-        lessonId: lesson.id,
-        lesson_type: values.lesson_type,
-        youtube_url: assetValue,
-      })
       setVideoSourceMode("upload")
-      setUploadMessage("Video protegido enviado com sucesso. O player da aula ja vai usar este ficheiro.")
+      setPendingVideoFile(null)
+      setUploadMessage("Video protegido enviado. Agora clica em Guardar aula para persistir esta configuracao.")
       setFeedback({
         tone: "success",
-        message: "Video protegido enviado com sucesso. A aula agora usa o ficheiro privado da plataforma.",
+        message: "Video protegido inserido com sucesso no preview. Guarda a aula para concluir.",
       })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o video.")
-    } finally {
-      event.target.value = ""
     }
   }
 
@@ -587,6 +608,19 @@ export function CourseLessonDetailPanel() {
                     onChange={handleVideoUploadSelection}
                     className="mt-4 text-sm"
                   />
+                  <Button
+                    type="button"
+                    className="mt-4 rounded-full"
+                    onClick={() => void handleInsertProtectedVideo()}
+                    disabled={uploadAssetFile.isPending || !pendingVideoFile}
+                  >
+                    {uploadAssetFile.isPending ? "A enviar..." : "Enviar video protegido"}
+                  </Button>
+                  {pendingVideoFile ? (
+                    <p className="mt-3 text-sm text-slate-600">
+                      Ficheiro selecionado: <span className="font-medium">{pendingVideoFile.name}</span>
+                    </p>
+                  ) : null}
                   {uploadMessage ? (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                       {uploadMessage}
