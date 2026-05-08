@@ -1,8 +1,8 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react"
+import { useState, type ChangeEvent, type FormEvent } from "react"
 import { useParams } from "react-router-dom"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
 import {
   useAdminModuleAssets,
   useAdminProductLessons,
@@ -22,6 +22,7 @@ export function CourseLessonMaterialsPanel() {
   const deleteAsset = useDeleteAdminModuleAsset()
   const uploadAssetFile = useUploadAdminModuleAssetFile()
   const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [draft, setDraft] = useState({
     title: "",
     asset_type: "pdf" as ModuleAssetSummary["asset_type"],
@@ -64,10 +65,7 @@ export function CourseLessonMaterialsPanel() {
   }
 
   const assets = assetsQuery.data ?? []
-  const lesson = useMemo(
-    () => (lessonsQuery.data ?? []).find((item) => item.id === lessonId) ?? null,
-    [lessonId, lessonsQuery.data],
-  )
+  const lesson = (lessonsQuery.data ?? []).find((item) => item.id === lessonId) ?? null
 
   if (!lesson) {
     return <EmptyState title="Aula nao encontrada" message="A aula pedida nao pertence a este modulo." />
@@ -78,6 +76,7 @@ export function CourseLessonMaterialsPanel() {
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
+    setFeedback(null)
 
     try {
       await createAsset.mutateAsync({
@@ -110,8 +109,12 @@ export function CourseLessonMaterialsPanel() {
         mime_type: "",
         file_size_bytes: null,
       })
+      setFeedback({ tone: "success", message: "Material criado com sucesso." })
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar o material.")
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel criar o material.",
+      })
     }
   }
 
@@ -165,6 +168,7 @@ export function CourseLessonMaterialsPanel() {
 
   const handleSaveAsset = async (assetId: string) => {
     setError(null)
+    setFeedback(null)
 
     try {
       await updateAsset.mutateAsync({
@@ -182,8 +186,27 @@ export function CourseLessonMaterialsPanel() {
       })
       setEditingAssetId(null)
       setEditingAsset({})
+      setFeedback({ tone: "success", message: "Material guardado com sucesso." })
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel guardar o material.")
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel guardar o material.",
+      })
+    }
+  }
+
+  const handleDeleteAsset = async (assetId: string) => {
+    setError(null)
+    setFeedback(null)
+
+    try {
+      await deleteAsset.mutateAsync(assetId)
+      setFeedback({ tone: "success", message: "Material removido com sucesso." })
+    } catch (submitError) {
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel remover o material.",
+      })
     }
   }
 
@@ -333,7 +356,7 @@ export function CourseLessonMaterialsPanel() {
                         variant="outline"
                         className="rounded-full"
                         disabled={deleteAsset.isPending}
-                        onClick={() => void deleteAsset.mutateAsync(asset.id)}
+                        onClick={() => void handleDeleteAsset(asset.id)}
                       >
                         Remover
                       </Button>
@@ -442,6 +465,13 @@ export function CourseLessonMaterialsPanel() {
           )}
         </div>
       </section>
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={() => setFeedback(null)}
+      />
     </div>
   )
 }

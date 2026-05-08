@@ -1,7 +1,7 @@
 import { ExternalLink, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useState, type FormEvent, type ReactNode } from "react"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { buildCoursePublicPageView, sanitizeCoursePublicPageContent, type CoursePublicPageView } from "@/lib/course-public-page"
 import { publicCoursePath } from "@/lib/routes"
@@ -73,25 +73,26 @@ function CoursePublicPageForm() {
   const [form, setForm] = useState<CoursePublicPageView>(() =>
     buildCoursePublicPageView(product, modules, lessonsByModule),
   )
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
 
   const updateListItem = <T,>(items: T[], index: number, updater: (item: T) => T) =>
     items.map((item, currentIndex) => (currentIndex === index ? updater(item) : item))
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError(null)
-    setSuccessMessage(null)
+    setFeedback(null)
 
     try {
       await updateProduct.mutateAsync({
         productId: product.id,
         publicPageContent: sanitizeCoursePublicPageContent(form),
       })
-      setSuccessMessage("Pagina publica guardada com sucesso.")
+      setFeedback({ tone: "success", message: "Pagina publica guardada com sucesso." })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel guardar a pagina publica.")
+      setFeedback({
+        tone: "error",
+        message: err instanceof Error ? err.message : "Nao foi possivel guardar a pagina publica.",
+      })
     }
   }
 
@@ -465,10 +466,15 @@ function CoursePublicPageForm() {
           <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>
             {updateProduct.isPending ? "A guardar..." : "Guardar pagina publica"}
           </Button>
-          {successMessage ? <p className="text-sm text-emerald-700">{successMessage}</p> : null}
-          {error ? <p className="text-sm text-rose-700">{error}</p> : null}
         </div>
       </form>
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={() => setFeedback(null)}
+      />
     </section>
   )
 }

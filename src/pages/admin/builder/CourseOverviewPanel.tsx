@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Clock3, FileText, ShieldCheck, Video } from "lucide-react"
 import { EmptyState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, StatusBadge } from "@/components/common"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import {
   adminCourseFinalAssessmentPath,
@@ -30,14 +30,27 @@ export function CourseOverviewPanel() {
   const navigate = useNavigate()
   const createModule = useCreateAdminProductModule()
   const createAssessment = useCreateAdminProductAssessment()
-  const [builderError, setBuilderError] = useState<string | null>(null)
+  const [, setBuilderError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null)
   const totalEstimatedMinutes =
     Object.values(lessonsByModule)
       .flat()
       .reduce((sum, lesson) => sum + (lesson.estimated_minutes || 0), 0) || product.workload_minutes || 0
 
+  const closeFeedback = () => {
+    const nextRoute = pendingRoute
+    setFeedback(null)
+    setPendingRoute(null)
+    if (nextRoute) {
+      navigate(nextRoute)
+    }
+  }
+
   const handleOpenCourseBuilder = async () => {
     setBuilderError(null)
+    setFeedback(null)
+    setPendingRoute(null)
 
     if (modules.length > 0) {
       navigate(adminCourseModulePath(courseId, modules[0].id))
@@ -58,9 +71,13 @@ export function CourseOverviewPanel() {
         status: "draft",
       })
 
-      navigate(adminCourseModulePath(courseId, firstModule.id))
+      setPendingRoute(adminCourseModulePath(courseId, firstModule.id))
+      setFeedback({ tone: "success", message: `Modulo "${firstModule.title}" criado com sucesso.` })
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel abrir o construtor do material.")
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel abrir o construtor do material.",
+      })
     }
   }
 
@@ -68,6 +85,8 @@ export function CourseOverviewPanel() {
 
   const handleCreateModuleAssessment = async (moduleId: string, moduleTitle: string) => {
     setBuilderError(null)
+    setFeedback(null)
+    setPendingRoute(null)
 
     try {
       const createdAssessment = await createAssessment.mutateAsync({
@@ -84,14 +103,20 @@ export function CourseOverviewPanel() {
         builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
       })
 
-      navigate(adminCourseModuleAssessmentPath(courseId, moduleId, createdAssessment.id))
+      setPendingRoute(adminCourseModuleAssessmentPath(courseId, moduleId, createdAssessment.id))
+      setFeedback({ tone: "success", message: `Quiz "${createdAssessment.title}" criado com sucesso.` })
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o quiz do modulo.")
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel criar o quiz do modulo.",
+      })
     }
   }
 
   const handleOpenFinalAssessment = async () => {
     setBuilderError(null)
+    setFeedback(null)
+    setPendingRoute(null)
 
     if (finalAssessment) {
       navigate(adminCourseFinalAssessmentPath(courseId))
@@ -113,11 +138,13 @@ export function CourseOverviewPanel() {
         builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
       })
 
-      navigate(adminCourseFinalAssessmentPath(courseId))
+      setPendingRoute(adminCourseFinalAssessmentPath(courseId))
+      setFeedback({ tone: "success", message: "Avaliacao final criada com sucesso." })
     } catch (error) {
-      setBuilderError(
-        error instanceof Error ? error.message : "Nao foi possivel preparar a avaliacao final.",
-      )
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel preparar a avaliacao final.",
+      })
     }
   }
 
@@ -128,7 +155,6 @@ export function CourseOverviewPanel() {
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
           Este e o centro de controlo do material. Usa o painel lateral para navegar, editar e construir a estrutura pedagogica.
         </p>
-        {builderError ? <p className="mt-4 text-sm text-rose-700">{builderError}</p> : null}
       </section>
 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -299,6 +325,13 @@ export function CourseOverviewPanel() {
           </div>
         )}
       </section>
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={closeFeedback}
+      />
     </div>
   )
 }

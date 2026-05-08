@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useParams } from "react-router-dom"
 import { EmptyState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useCreateAdminProductAssessment } from "@/hooks/useAdmin"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
@@ -12,7 +12,7 @@ export function CourseFinalAssessmentDetailPanel() {
   const { courseId } = useParams<{ courseId: string }>()
   const { assessments, modules } = useAdminCourseBuilderContext()
   const createAssessment = useCreateAdminProductAssessment()
-  const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const finalAssessment = assessments.find((item) => item.assessment_type === "final") ?? null
 
   if (!courseId) {
@@ -20,7 +20,7 @@ export function CourseFinalAssessmentDetailPanel() {
   }
 
   const handleCreateFinalAssessment = async () => {
-    setError(null)
+    setFeedback(null)
 
     try {
       await createAssessment.mutateAsync({
@@ -37,10 +37,14 @@ export function CourseFinalAssessmentDetailPanel() {
         builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
       })
     } catch (submitError) {
-      setError(
-        submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao final.",
-      )
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao final.",
+      })
+      return
     }
+
+    setFeedback({ tone: "success", message: "Avaliacao final criada com sucesso." })
   }
 
   if (!finalAssessment) {
@@ -66,7 +70,6 @@ export function CourseFinalAssessmentDetailPanel() {
               {createAssessment.isPending ? "A criar avaliacao final..." : "Criar avaliacao final"}
             </Button>
           </div>
-          {error ? <p className="mt-4 text-sm text-rose-700">{error}</p> : null}
         </div>
       </section>
     )
@@ -102,6 +105,13 @@ export function CourseFinalAssessmentDetailPanel() {
         productId={courseId}
         assessment={finalAssessment}
         modules={modules}
+      />
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={() => setFeedback(null)}
       />
     </div>
   )

@@ -2,7 +2,7 @@ import { ImagePlus, Link2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
-import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
 import { adminCourseBuilderPath } from "@/lib/routes"
@@ -63,8 +63,8 @@ export function CourseSettingsPanel() {
   const { data: categories = [] } = useAdminProductCategories()
   const updateProduct = useUpdateAdminProduct()
   const uploadCover = useUploadAdminProductCover()
-  const [error, setError] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [form, setForm] = useState({
     title: product.title,
     slug: product.slug,
@@ -126,11 +126,11 @@ export function CourseSettingsPanel() {
     const file = event.target.files?.[0] ?? null
     if (!file) return
 
-    setError(null)
+    setFeedback(null)
     setUploadMessage(null)
 
     if (file.size > 10 * 1024 * 1024) {
-      setError("A capa deve ter no maximo 10MB.")
+      setFeedback({ tone: "error", message: "A capa deve ter no maximo 10MB." })
       event.target.value = ""
       return
     }
@@ -148,7 +148,10 @@ export function CourseSettingsPanel() {
       }))
       setUploadMessage("Capa enviada com sucesso. Guarde as configuracoes para publicar a nova imagem.")
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar a capa do material.")
+      setFeedback({
+        tone: "error",
+        message: uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar a capa do material.",
+      })
     } finally {
       event.target.value = ""
     }
@@ -156,7 +159,7 @@ export function CourseSettingsPanel() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError(null)
+    setFeedback(null)
 
     try {
       await updateProduct.mutateAsync({
@@ -187,8 +190,14 @@ export function CourseSettingsPanel() {
         },
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do material.")
+      setFeedback({
+        tone: "error",
+        message: err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do material.",
+      })
+      return
     }
+
+    setFeedback({ tone: "success", message: "Configuracoes do material guardadas com sucesso." })
   }
 
   return (
@@ -516,9 +525,15 @@ export function CourseSettingsPanel() {
           <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>
             {updateProduct.isPending ? "A guardar..." : "Guardar configuracoes"}
           </Button>
-          {error ? <p className="text-sm text-rose-700">{error}</p> : null}
         </div>
       </form>
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={() => setFeedback(null)}
+      />
     </section>
   )
 }

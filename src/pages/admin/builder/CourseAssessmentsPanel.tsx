@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import {
@@ -36,7 +36,8 @@ export function CourseAssessmentsPanel() {
   const updateAssessment = useUpdateAdminProductAssessment()
   const deleteAssessment = useDeleteAdminProductAssessment()
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null)
   const [createDraft, setCreateDraft] = useState<{
     title: string
     assessmentType: "module" | "final"
@@ -56,6 +57,15 @@ export function CourseAssessmentsPanel() {
     [assessments, selectedAssessmentId],
   )
 
+  const closeFeedback = () => {
+    const nextRoute = pendingRoute
+    setFeedback(null)
+    setPendingRoute(null)
+    if (nextRoute) {
+      navigate(nextRoute)
+    }
+  }
+
   useEffect(() => {
     if (!selectedAssessmentId && assessments[0]) {
       setSelectedAssessmentId(assessments[0].id)
@@ -68,7 +78,8 @@ export function CourseAssessmentsPanel() {
   }, [assessments, selectedAssessmentId])
 
   const handleCreateAssessment = async () => {
-    setError(null)
+    setFeedback(null)
+    setPendingRoute(null)
 
     try {
       if (createDraft.assessmentType === "final" && finalAssessments[0]) {
@@ -97,17 +108,25 @@ export function CourseAssessmentsPanel() {
       setSelectedAssessmentId(created.id)
 
       if (created.assessment_type === "final") {
-        navigate(adminCourseFinalAssessmentPath(courseId))
+        setPendingRoute(adminCourseFinalAssessmentPath(courseId))
       } else if (created.module_id) {
-        navigate(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
+        setPendingRoute(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
       }
+      setFeedback({
+        tone: "success",
+        message: "Avaliacao criada com sucesso.",
+      })
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao.")
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao.",
+      })
     }
   }
 
   const handleImportAssessment = async () => {
-    setError(null)
+    setFeedback(null)
+    setPendingRoute(null)
 
     try {
       const parsed = parseJsonInput(importJson)
@@ -137,6 +156,7 @@ export function CourseAssessmentsPanel() {
           isActive: selectedAssessment.is_active,
           builderPayload,
         })
+        setFeedback({ tone: "success", message: "Avaliacao atualizada com sucesso." })
       } else {
         const created = await createAssessment.mutateAsync({
           productId: courseId,
@@ -157,15 +177,35 @@ export function CourseAssessmentsPanel() {
         setSelectedAssessmentId(created.id)
 
         if (created.assessment_type === "final") {
-          navigate(adminCourseFinalAssessmentPath(courseId))
+          setPendingRoute(adminCourseFinalAssessmentPath(courseId))
         } else if (created.module_id) {
-          navigate(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
+          setPendingRoute(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
         }
+        setFeedback({ tone: "success", message: "Avaliacao importada com sucesso." })
       }
 
       setImportJson("")
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel importar o JSON.")
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel importar o JSON.",
+      })
+    }
+  }
+
+  const handleDeleteAssessment = async (assessmentId: string, assessmentTitle: string) => {
+    if (!window.confirm(`Excluir a avaliacao "${assessmentTitle}"?`)) return
+
+    try {
+      setFeedback(null)
+      setPendingRoute(null)
+      await deleteAssessment.mutateAsync(assessmentId)
+      setFeedback({ tone: "success", message: "Avaliacao excluida com sucesso." })
+    } catch (submitError) {
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel excluir a avaliacao.",
+      })
     }
   }
 
@@ -278,7 +318,6 @@ export function CourseAssessmentsPanel() {
               </div>
             </div>
 
-            {error ? <p className="text-sm text-rose-700">{error}</p> : null}
           </aside>
 
           <div className="space-y-4">
@@ -340,15 +379,7 @@ export function CourseAssessmentsPanel() {
                           variant={isSelected ? "secondary" : "outline"}
                           className="rounded-full text-rose-700"
                           disabled={deleteAssessment.isPending}
-                          onClick={async () => {
-                            if (!window.confirm(`Excluir a avaliacao "${assessment.title}"?`)) return
-                            try {
-                              setError(null)
-                              await deleteAssessment.mutateAsync(assessment.id)
-                            } catch (submitError) {
-                              setError(submitError instanceof Error ? submitError.message : "Nao foi possivel excluir a avaliacao.")
-                            }
-                          }}
+                          onClick={() => void handleDeleteAssessment(assessment.id, assessment.title)}
                         >
                           Excluir
                         </Button>
@@ -365,6 +396,13 @@ export function CourseAssessmentsPanel() {
       {selectedAssessment ? (
         <AssessmentBuilderWorkspace productId={courseId} assessment={selectedAssessment} modules={modules} />
       ) : null}
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={closeFeedback}
+      />
     </div>
   )
 }

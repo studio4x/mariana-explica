@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import {
@@ -31,7 +31,7 @@ export function CourseReleasesManager({
   const [selectedUserId, setSelectedUserId] = useState("")
   const [expiresAt, setExpiresAt] = useState("")
   const [notes, setNotes] = useState("")
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [revokeReason, setRevokeReason] = useState<Record<string, string>>({})
 
   const eligibleUsers = useMemo(
@@ -42,10 +42,10 @@ export function CourseReleasesManager({
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSubmitError(null)
+    setFeedback(null)
 
     if (!selectedUserId) {
-      setSubmitError("Seleciona um aluno para conceder o acesso.")
+      setFeedback({ tone: "error", message: "Seleciona um aluno para conceder o acesso." })
       return
     }
 
@@ -60,19 +60,28 @@ export function CourseReleasesManager({
       setSelectedUserId("")
       setExpiresAt("")
       setNotes("")
+      setFeedback({ tone: "success", message: "Acesso concedido com sucesso." })
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel conceder a liberacao.")
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel conceder a liberacao.",
+      })
     }
   }
 
   const handleRevoke = async (grantId: string) => {
+    setFeedback(null)
     try {
       await revokeRelease.mutateAsync({
         grantId,
         reason: revokeReason[grantId]?.trim() || null,
       })
+      setFeedback({ tone: "success", message: "Liberacao revogada com sucesso." })
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel revogar a liberacao.")
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel revogar a liberacao.",
+      })
     }
   }
 
@@ -135,9 +144,6 @@ export function CourseReleasesManager({
           </Button>
         </form>
 
-        {submitError ? (
-          <p className="mt-4 text-sm text-rose-700">{submitError}</p>
-        ) : null}
       </section>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -224,6 +230,13 @@ export function CourseReleasesManager({
           </div>
         )}
       </section>
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={() => setFeedback(null)}
+      />
     </div>
   )
 }

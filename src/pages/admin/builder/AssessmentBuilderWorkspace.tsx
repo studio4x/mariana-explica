@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react"
+import { useMemo, useState, type ChangeEvent } from "react"
 import { Button } from "@/components/ui"
-import { RichTextEditor, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, RichTextEditor, StatusBadge } from "@/components/common"
 import { createAssessmentDraft, createEmptyQuestionDraft, buildAssessmentPayload, assessmentQuestionTypeOptions, type AssessmentBuilderDraft } from "@/lib/assessment-builder"
 import { useUpdateAdminProductAssessment } from "@/hooks/useAdmin"
 import type { ProductAssessmentSummary, ProductModuleSummary } from "@/types/app.types"
@@ -23,16 +23,11 @@ export function AssessmentBuilderWorkspace({
 }: AssessmentBuilderWorkspaceProps) {
   const updateAssessment = useUpdateAdminProductAssessment()
   const [draft, setDraft] = useState<AssessmentBuilderDraft>(() => createAssessmentDraft(assessment))
-  const [error, setError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const selectedModule = useMemo(
     () => (draft.moduleId ? modules.find((item) => item.id === draft.moduleId) ?? null : null),
     [draft.moduleId, modules],
   )
-
-  useEffect(() => {
-    setDraft(createAssessmentDraft(assessment))
-    setError(null)
-  }, [assessment])
 
   const handleQuestionKindChange = (questionId: string, nextKind: AssessmentBuilderDraft["questions"][number]["kind"]) => {
     setDraft((prev) => ({
@@ -134,10 +129,10 @@ export function AssessmentBuilderWorkspace({
   }
 
   const handleSubmit = async () => {
-    setError(null)
+    setFeedback(null)
 
     if (draft.assessmentType === "module" && !draft.moduleId) {
-      setError("Selecione um modulo antes de guardar o quiz.")
+      setFeedback({ tone: "error", message: "Selecione um modulo antes de guardar o quiz." })
       return
     }
 
@@ -157,8 +152,14 @@ export function AssessmentBuilderWorkspace({
         builderPayload: buildAssessmentPayload(draft.questions),
       })
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel guardar a avaliacao.")
+      setFeedback({
+        tone: "error",
+        message: submitError instanceof Error ? submitError.message : "Nao foi possivel guardar a avaliacao.",
+      })
+      return
     }
+
+    setFeedback({ tone: "success", message: "Avaliacao guardada com sucesso." })
   }
 
   return (
@@ -454,7 +455,6 @@ export function AssessmentBuilderWorkspace({
           <Button type="button" className="rounded-full" disabled={updateAssessment.isPending} onClick={handleSubmit}>
             {updateAssessment.isPending ? "A guardar..." : "Guardar avaliacao"}
           </Button>
-          {error ? <p className="text-sm text-rose-700">{error}</p> : null}
         </div>
       </section>
 
@@ -468,6 +468,13 @@ export function AssessmentBuilderWorkspace({
           {updateAssessment.isPending ? "A guardar..." : "Salvar configuracoes"}
         </Button>
       </div>
+
+      <OperationFeedbackModal
+        open={Boolean(feedback)}
+        tone={feedback?.tone ?? "success"}
+        message={feedback?.message ?? ""}
+        onClose={() => setFeedback(null)}
+      />
     </div>
   )
 }
