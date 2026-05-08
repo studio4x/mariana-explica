@@ -15,7 +15,12 @@ import { CourseReviews } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { useAdminPreviewProductBySlug, usePublishedProductBySlug } from "@/hooks/useProducts"
+import {
+  useAdminPreviewCourseOutlineByProductId,
+  useAdminPreviewProductBySlug,
+  usePublishedCourseOutlineByProductId,
+  usePublishedProductBySlug,
+} from "@/hooks/useProducts"
 import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
 import { formatProductPrice } from "@/utils/currency"
 import { buildCoursePublicPageView } from "@/lib/course-public-page"
@@ -27,16 +32,25 @@ export function Product() {
   const adminPreviewQuery = useAdminPreviewProductBySlug(slug, Boolean(session && isAdmin))
   const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
   const product = publicProductQuery.data ?? adminPreviewQuery.data ?? null
+  const isAdminPreview = Boolean(session && isAdmin && !publicProductQuery.data && adminPreviewQuery.data)
+  const publishedOutlineQuery = usePublishedCourseOutlineByProductId(product?.id, Boolean(product?.id) && !isAdminPreview)
+  const adminOutlineQuery = useAdminPreviewCourseOutlineByProductId(product?.id, Boolean(product?.id) && isAdminPreview)
+  const outlineQuery = isAdminPreview ? adminOutlineQuery : publishedOutlineQuery
   const isLoading =
-    publicProductQuery.isLoading || (Boolean(session && isAdmin) && !publicProductQuery.data && adminPreviewQuery.isLoading)
+    publicProductQuery.isLoading ||
+    (Boolean(session && isAdmin) && !publicProductQuery.data && adminPreviewQuery.isLoading) ||
+    outlineQuery.isLoading
   const isError =
-    publicProductQuery.isError || (Boolean(session && isAdmin) && !publicProductQuery.data && adminPreviewQuery.isError)
-  const error = publicProductQuery.error ?? adminPreviewQuery.error ?? null
+    publicProductQuery.isError ||
+    (Boolean(session && isAdmin) && !publicProductQuery.data && adminPreviewQuery.isError) ||
+    outlineQuery.isError
+  const error = publicProductQuery.error ?? adminPreviewQuery.error ?? outlineQuery.error ?? null
   const refetch = async () => {
     await publicProductQuery.refetch()
     if (session && isAdmin) {
       await adminPreviewQuery.refetch()
     }
+    await outlineQuery.refetch()
   }
 
   if (isLoading) {
@@ -62,7 +76,8 @@ export function Product() {
     )
   }
 
-  const page = buildCoursePublicPageView(product)
+  const outline = outlineQuery.data ?? { modules: [], lessonsByModule: {}, assessments: [] }
+  const page = buildCoursePublicPageView(product, outline.modules, outline.lessonsByModule, outline.assessments)
   const checkoutIdentifier = product.slug?.trim() || product.id
   const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
 
@@ -118,23 +133,58 @@ export function Product() {
 
             <section>
               <h2 className="font-display text-3xl font-black text-slate-950">{page.curriculumTitle}</h2>
-              <div className="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white shadow-sm">
-                {page.curriculumItems.map((item, index) => (
-                  <article key={`${item.title}-${index}`} className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">
-                          {item.label}
-                        </p>
-                        <h3 className="mt-2 text-lg font-black text-slate-950">{item.title}</h3>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">{item.lessons}</p>
+              {page.curriculumMode === "real" && page.curriculumSections.length > 0 ? (
+                <div className="mt-6 space-y-4">
+                  {page.curriculumSections.map((section) => (
+                    <article key={`${section.label}-${section.title}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">
+                            {section.label}
+                          </p>
+                          <h3 className="mt-2 text-lg font-black text-slate-950">{section.title}</h3>
+                          <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{section.description}</p>
+                        </div>
+                        <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">
+                          {section.countLabel}
+                        </span>
                       </div>
-                      <ChevronDown className="mt-2 h-5 w-5 shrink-0 text-slate-400" />
-                    </div>
-                    <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">{item.description}</p>
-                  </article>
-                ))}
-              </div>
+
+                      <div className="mt-4 space-y-2">
+                        {section.items.map((item, index) => (
+                          <div key={`${item.kind}-${item.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+                                {item.label}
+                              </span>
+                              <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white shadow-sm">
+                  {page.curriculumItems.map((item, index) => (
+                    <article key={`${item.title}-${index}`} className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">
+                            {item.label}
+                          </p>
+                          <h3 className="mt-2 text-lg font-black text-slate-950">{item.title}</h3>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">{item.lessons}</p>
+                        </div>
+                        <ChevronDown className="mt-2 h-5 w-5 shrink-0 text-slate-400" />
+                      </div>
+                      <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">{item.description}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
 
             <CourseReviews productId={product.id} />

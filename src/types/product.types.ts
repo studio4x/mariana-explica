@@ -17,6 +17,8 @@ export interface CoursePublicPageFeature {
   description: string
 }
 
+export type CoursePublicPageCurriculumMode = "real" | "custom"
+
 export interface CoursePublicPageCurriculumItem {
   label: string
   title: string
@@ -32,6 +34,7 @@ export interface CoursePublicPageContent {
   aboutParagraphs?: string[]
   learnTitle?: string
   learnItems?: CoursePublicPageFeature[]
+  curriculumMode?: CoursePublicPageCurriculumMode
   curriculumTitle?: string
   curriculumItems?: CoursePublicPageCurriculumItem[]
   instructorName?: string

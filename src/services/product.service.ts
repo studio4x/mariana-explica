@@ -1,5 +1,12 @@
 import { publicSupabase, supabase } from "@/integrations/supabase"
+import type { ProductAssessmentSummary, ProductLessonSummary, ProductModuleSummary } from "@/types/app.types"
 import type { ProductCategorySummary, ProductDetails, ProductSummary } from "@/types/product.types"
+
+export interface PublishedCourseOutline {
+  modules: ProductModuleSummary[]
+  lessonsByModule: Record<string, ProductLessonSummary[]>
+  assessments: ProductAssessmentSummary[]
+}
 
 const productSelectWithCategories = `
   id,
@@ -56,6 +63,60 @@ const productSelectLegacy = `
   published_at
 `
 
+const productModuleSelect = `
+  id,
+  product_id,
+  title,
+  description,
+  module_type,
+  access_type,
+  sort_order,
+  position,
+  is_preview,
+  is_required,
+  starts_at,
+  ends_at,
+  release_days_after_enrollment,
+  module_pdf_storage_path,
+  module_pdf_file_name,
+  module_pdf_uploaded_at,
+  status
+`
+
+const productLessonSelect = `
+  id,
+  module_id,
+  title,
+  description,
+  position,
+  is_required,
+  lesson_type,
+  youtube_url,
+  text_content,
+  estimated_minutes,
+  starts_at,
+  ends_at,
+  status
+`
+
+const productAssessmentSelect = `
+  id,
+  product_id,
+  module_id,
+  assessment_type,
+  title,
+  description,
+  is_required,
+  passing_score,
+  max_attempts,
+  estimated_minutes,
+  is_active,
+  builder_payload,
+  created_by,
+  created_at,
+  updated_at
+`
+
 const productCategorySelect = `
   id,
   slug,
@@ -81,6 +142,81 @@ function isSchemaMismatch(error: unknown, hint: string) {
 
 function withCategoryFallback(items: Omit<ProductSummary, "category_id">[]): ProductSummary[] {
   return items.map((item) => ({ ...item, category_id: null }))
+}
+
+function groupLessonsByModule(lessons: ProductLessonSummary[]) {
+  return lessons.reduce<Record<string, ProductLessonSummary[]>>((accumulator, lesson) => {
+    const list = accumulator[lesson.module_id] ?? []
+    list.push(lesson)
+    accumulator[lesson.module_id] = list
+    return accumulator
+  }, {})
+}
+
+async function fetchCourseOutlineByProductId(
+  client: typeof publicSupabase,
+  productId: string,
+  publishedOnly: boolean,
+): Promise<PublishedCourseOutline> {
+  let modulesQuery = client
+    .from("product_modules")
+    .select(productModuleSelect)
+    .eq("product_id", productId)
+
+  if (publishedOnly) {
+    modulesQuery = modulesQuery.eq("status", "published")
+  }
+
+  const { data: modulesData, error: modulesError } = await modulesQuery
+    .order("position", { ascending: true })
+    .order("sort_order", { ascending: true })
+
+  if (modulesError) {
+    throw modulesError
+  }
+
+  const modules = (modulesData ?? []) as ProductModuleSummary[]
+  const moduleIds = modules.map((module) => module.id)
+
+  let lessonsQuery = moduleIds.length
+    ? client
+        .from("product_lessons")
+        .select(productLessonSelect)
+        .in("module_id", moduleIds)
+    : null
+
+  if (lessonsQuery && publishedOnly) {
+    lessonsQuery = lessonsQuery.eq("status", "published")
+  }
+
+  let assessmentsQuery = client
+    .from("product_assessments")
+    .select(productAssessmentSelect)
+    .eq("product_id", productId)
+
+  if (publishedOnly) {
+    assessmentsQuery = assessmentsQuery.eq("is_active", true)
+  }
+
+  const [{ data: lessonsData, error: lessonsError }, { data: assessmentsData, error: assessmentsError }] =
+    await Promise.all([
+      lessonsQuery ? lessonsQuery.order("position", { ascending: true }) : Promise.resolve({ data: [], error: null }),
+      assessmentsQuery.order("created_at", { ascending: true }),
+    ])
+
+  if (lessonsError) {
+    throw lessonsError
+  }
+
+  if (assessmentsError) {
+    throw assessmentsError
+  }
+
+  return {
+    modules,
+    lessonsByModule: groupLessonsByModule((lessonsData ?? []) as ProductLessonSummary[]),
+    assessments: (assessmentsData ?? []) as ProductAssessmentSummary[],
+  }
 }
 
 export async function fetchPublishedProducts() {
@@ -270,6 +406,14 @@ export async function fetchAdminPreviewProductBySlug(slug: string): Promise<Prod
   if (error) throw error
 
   return (data ?? null) as ProductSummary | null
+}
+
+export async function fetchPublishedCourseOutlineByProductId(productId: string): Promise<PublishedCourseOutline> {
+  return fetchCourseOutlineByProductId(publicSupabase, productId, true)
+}
+
+export async function fetchAdminPreviewCourseOutlineByProductId(productId: string): Promise<PublishedCourseOutline> {
+  return fetchCourseOutlineByProductId(supabase, productId, false)
 }
 
 export async function fetchPublishedProductDetailsBySlug(slug: string): Promise<ProductDetails | null> {

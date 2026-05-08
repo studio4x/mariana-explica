@@ -1,4 +1,4 @@
-import { ExternalLink, Plus, Trash2 } from "lucide-react"
+import { BookOpen, ExternalLink, Layers3, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useState, type FormEvent, type ReactNode } from "react"
 import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
@@ -67,13 +67,57 @@ function TextArea({
   )
 }
 
+function ModeCard({
+  active,
+  title,
+  description,
+  icon,
+  onClick,
+}: {
+  active: boolean
+  title: string
+  description: string
+  icon: ReactNode
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "w-full rounded-[1.5rem] border p-4 text-left transition",
+        active
+          ? "border-sky-300 bg-sky-50/70 shadow-[0_0_0_1px_rgba(14,165,233,0.14)]"
+          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+      ].join(" ")}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={[
+            "mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl",
+            active ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-600",
+          ].join(" ")}
+        >
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-base font-black text-slate-950">{title}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+        </div>
+      </div>
+    </button>
+  )
+}
+
 function CoursePublicPageForm() {
-  const { product, modules, lessonsByModule } = useAdminCourseBuilderContext()
+  const { product, modules, lessonsByModule, assessments } = useAdminCourseBuilderContext()
   const updateProduct = useUpdateAdminProduct()
+  const preview = buildCoursePublicPageView(product, modules, lessonsByModule, assessments)
   const [form, setForm] = useState<CoursePublicPageView>(() =>
-    buildCoursePublicPageView(product, modules, lessonsByModule),
+    preview,
   )
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
+  const isRealMode = form.curriculumMode === "real"
 
   const updateListItem = <T,>(items: T[], index: number, updater: (item: T) => T) =>
     items.map((item, currentIndex) => (currentIndex === index ? updater(item) : item))
@@ -271,99 +315,174 @@ function CoursePublicPageForm() {
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 p-5">
-          <h2 className="text-lg font-bold text-slate-950">Conteudo do material</h2>
-          <div className="mt-5 space-y-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Conteudo do curso</p>
+          <h2 className="mt-2 text-lg font-bold text-slate-950">Escolha entre conteudo real ou conteudo personalizado</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+            No modo real, a pagina publica lista apenas os nomes dos modulos, aulas e quizzes cadastrados no construtor.
+            No modo personalizado, voce controla os cards manualmente.
+          </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <ModeCard
+              active={isRealMode}
+              title="Mostrar conteudo real do curso"
+              description="Exibe dinamicamente os modulos, aulas e quizzes publicados no construtor."
+              icon={<Layers3 className="h-5 w-5" />}
+              onClick={() => setForm((prev) => ({ ...prev, curriculumMode: "real" }))}
+            />
+            <ModeCard
+              active={!isRealMode}
+              title="Mostrar conteudo personalizado"
+              description="Mantem a estrutura atual da pagina publica com cards editados manualmente."
+              icon={<BookOpen className="h-5 w-5" />}
+              onClick={() => setForm((prev) => ({ ...prev, curriculumMode: "custom" }))}
+            />
+          </div>
+
+          <div className="mt-6">
             <Field label="Titulo da secao">
               <TextInput
                 value={form.curriculumTitle}
                 onChange={(curriculumTitle) => setForm((prev) => ({ ...prev, curriculumTitle }))}
               />
             </Field>
-            {form.curriculumItems.map((item, index) => (
-              <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <div className="grid gap-4 md:grid-cols-4">
-                  <Field label="Rotulo">
-                    <TextInput
-                      value={item.label}
-                      onChange={(label) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({ ...current, label })),
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field label="Titulo">
-                    <TextInput
-                      value={item.title}
-                      onChange={(title) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({ ...current, title })),
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field label="Quantidade">
-                    <TextInput
-                      value={item.lessons}
-                      onChange={(lessons) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({ ...current, lessons })),
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="mt-8 rounded-xl"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        curriculumItems: prev.curriculumItems.filter((_, currentIndex) => currentIndex !== index),
-                      }))
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="mt-4">
-                  <Field label="Descricao">
-                    <TextArea
-                      value={item.description}
-                      onChange={(description) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({
-                            ...current,
-                            description,
-                          })),
-                        }))
-                      }
-                      rows={3}
-                    />
-                  </Field>
-                </div>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() =>
-                setForm((prev) => ({
-                  ...prev,
-                  curriculumItems: [...prev.curriculumItems, { label: "", title: "", lessons: "", description: "" }],
-                }))
-              }
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar modulo publico
-            </Button>
           </div>
+
+          {isRealMode ? (
+            <div className="mt-6 space-y-4">
+              <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50/60 p-4">
+                <p className="text-sm font-semibold text-sky-900">Pre-visualizacao do conteudo real</p>
+                <p className="mt-2 text-sm leading-6 text-sky-800">
+                  Esta secao usa os modulos, aulas e quizzes publicados no construtor. Se nao houver conteudo publicado,
+                  a pagina publica ainda mantem a estrutura personalizada guardada.
+                </p>
+              </div>
+
+              {preview.curriculumSections.length > 0 ? (
+                <div className="space-y-4">
+                  {preview.curriculumSections.map((section) => (
+                    <article key={`${section.label}-${section.title}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">{section.label}</p>
+                          <h3 className="mt-2 text-lg font-black text-slate-950">{section.title}</h3>
+                          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{section.description}</p>
+                        </div>
+                        <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">
+                          {section.countLabel}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 space-y-2">
+                        {section.items.map((item, index) => (
+                          <div key={`${item.kind}-${item.title}-${index}`} className="rounded-xl border border-white bg-white px-4 py-3 shadow-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+                                {item.label}
+                              </span>
+                              <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-sm leading-6 text-slate-600">
+                  Nenhum modulo publicado foi encontrado para a pre-visualizacao real.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              {form.curriculumItems.map((item, index) => (
+                <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Field label="Rotulo">
+                      <TextInput
+                        value={item.label}
+                        onChange={(label) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({ ...current, label })),
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Titulo">
+                      <TextInput
+                        value={item.title}
+                        onChange={(title) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({ ...current, title })),
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Quantidade">
+                      <TextInput
+                        value={item.lessons}
+                        onChange={(lessons) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({ ...current, lessons })),
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="mt-8 rounded-xl"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          curriculumItems: prev.curriculumItems.filter((_, currentIndex) => currentIndex !== index),
+                        }))
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="mt-4">
+                    <Field label="Descricao">
+                      <TextArea
+                        value={item.description}
+                        onChange={(description) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({
+                              ...current,
+                              description,
+                            })),
+                          }))
+                        }
+                        rows={3}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    curriculumItems: [...prev.curriculumItems, { label: "", title: "", lessons: "", description: "" }],
+                  }))
+                }
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar modulo publico
+              </Button>
+            </div>
+          )}
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 p-5">

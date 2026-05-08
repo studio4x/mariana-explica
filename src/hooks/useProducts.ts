@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   fetchAdminPreviewProductBySlug,
+  fetchAdminPreviewCourseOutlineByProductId,
   fetchFeaturedProducts,
+  fetchPublishedCourseOutlineByProductId,
   fetchPublishedProductCategories,
   fetchPublishedProductBySlug,
   fetchPublishedProducts,
@@ -41,6 +43,22 @@ export function useAdminPreviewProductBySlug(slug: string | undefined, enabled =
     queryKey: ["products", "admin-preview", slug],
     queryFn: () => fetchAdminPreviewProductBySlug(slug ?? ""),
     enabled: enabled && Boolean(slug),
+  })
+}
+
+export function usePublishedCourseOutlineByProductId(productId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["products", "outline", "published", productId],
+    queryFn: () => fetchPublishedCourseOutlineByProductId(productId ?? ""),
+    enabled: enabled && Boolean(productId),
+  })
+}
+
+export function useAdminPreviewCourseOutlineByProductId(productId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["products", "outline", "admin-preview", productId],
+    queryFn: () => fetchAdminPreviewCourseOutlineByProductId(productId ?? ""),
+    enabled: enabled && Boolean(productId),
   })
 }
 
