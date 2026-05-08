@@ -252,6 +252,7 @@ export function AdminProductContent() {
   const [lessonVideoSourceMode, setLessonVideoSourceMode] = useState<"url" | "upload">("url")
   const [lessonVideoUrlDraft, setLessonVideoUrlDraft] = useState("")
   const [lessonUploadedVideoAssetValue, setLessonUploadedVideoAssetValue] = useState<string | null>(null)
+  const [lessonVideoPendingFile, setLessonVideoPendingFile] = useState<File | null>(null)
   const [courseDraft, setCourseDraft] = useState<{
     title: string
     slug: string
@@ -281,6 +282,7 @@ export function AdminProductContent() {
   const [editingLessonVideoSourceMode, setEditingLessonVideoSourceMode] = useState<"url" | "upload">("url")
   const [editingLessonVideoUrlDraft, setEditingLessonVideoUrlDraft] = useState("")
   const [editingLessonUploadedVideoAssetValue, setEditingLessonUploadedVideoAssetValue] = useState<string | null>(null)
+  const [editingLessonVideoPendingFile, setEditingLessonVideoPendingFile] = useState<File | null>(null)
 
   const isLoading =
     productsQuery.isLoading ||
@@ -359,12 +361,14 @@ export function AdminProductContent() {
 
   useEffect(() => {
     if (moduleId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs route-driven module selection into the legacy admin workspace state.
       setSelectedModuleId(moduleId)
     }
   }, [moduleId])
 
   useEffect(() => {
     if (lessonId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs route-driven lesson editing state into the legacy admin workspace.
       setEditingLessonId(lessonId)
     }
   }, [lessonId])
@@ -593,7 +597,7 @@ export function AdminProductContent() {
         lessonVideoSourceMode === "upload" &&
         !normalizedYoutube
       ) {
-        setLessonSubmitError("Seleciona e envia um video protegido antes de criar a aula.")
+        setLessonSubmitError("Seleciona o ficheiro e clica em Inserir video antes de criar a aula.")
         return
       }
 
@@ -637,6 +641,7 @@ export function AdminProductContent() {
       setLessonVideoSourceMode("url")
       setLessonVideoUrlDraft("")
       setLessonUploadedVideoAssetValue(null)
+      setLessonVideoPendingFile(null)
     } catch (err) {
       setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel criar a aula.")
     }
@@ -662,6 +667,7 @@ export function AdminProductContent() {
     setEditingLessonVideoSourceMode(isAssetSource ? "upload" : "url")
     setEditingLessonVideoUrlDraft(isAssetSource ? "" : currentSource)
     setEditingLessonUploadedVideoAssetValue(isAssetSource ? currentSource : null)
+    setEditingLessonVideoPendingFile(null)
   }
 
   const handleSaveLesson = async () => {
@@ -688,7 +694,7 @@ export function AdminProductContent() {
         editingLessonVideoSourceMode === "upload" &&
         !normalizedYoutube
       ) {
-        setLessonSubmitError("Seleciona e envia um video protegido antes de guardar a aula.")
+        setLessonSubmitError("Seleciona o ficheiro e clica em Inserir video antes de guardar a aula.")
         return
       }
 
@@ -724,14 +730,32 @@ export function AdminProductContent() {
       setEditingLessonVideoSourceMode("url")
       setEditingLessonVideoUrlDraft("")
       setEditingLessonUploadedVideoAssetValue(null)
+      setEditingLessonVideoPendingFile(null)
     } catch (err) {
       setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar a aula.")
     }
   }
 
-  const handleCreateLessonVideoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleCreateLessonVideoSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
-    if (!file) return
+    setLessonSubmitError(null)
+    setLessonVideoPendingFile(file)
+    event.target.value = ""
+  }
+
+  const handleEditingLessonVideoSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    setLessonSubmitError(null)
+    setEditingLessonVideoPendingFile(file)
+    event.target.value = ""
+  }
+
+  const handleInsertCreateLessonVideo = async () => {
+    const file = lessonVideoPendingFile
+    if (!file) {
+      setLessonSubmitError("Seleciona um ficheiro de video primeiro.")
+      return
+    }
 
     setLessonSubmitError(null)
 
@@ -762,16 +786,18 @@ export function AdminProductContent() {
       setLessonUploadedVideoAssetValue(assetValue)
       setLessonVideoUrlDraft("")
       setLessonDraft((prev) => ({ ...prev, youtube_url: assetValue }))
+      setLessonVideoPendingFile(null)
     } catch (uploadError) {
       setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o video.")
-    } finally {
-      event.target.value = ""
     }
   }
 
-  const handleEditingLessonVideoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
+  const handleInsertEditingLessonVideo = async () => {
+    const file = editingLessonVideoPendingFile
+    if (!file) {
+      setLessonSubmitError("Seleciona um ficheiro de video primeiro.")
+      return
+    }
 
     setLessonSubmitError(null)
 
@@ -807,10 +833,9 @@ export function AdminProductContent() {
       setEditingLessonUploadedVideoAssetValue(assetValue)
       setEditingLessonVideoUrlDraft("")
       setEditingLesson((prev) => ({ ...prev, youtube_url: assetValue }))
+      setEditingLessonVideoPendingFile(null)
     } catch (uploadError) {
       setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o video.")
-    } finally {
-      event.target.value = ""
     }
   }
 
@@ -1763,16 +1788,32 @@ export function AdminProductContent() {
                               <input
                                 type="file"
                                 accept="video/*"
-                                onChange={(event) => void handleCreateLessonVideoUpload(event)}
+                                onChange={handleCreateLessonVideoSelection}
                                 className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
                               />
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  onClick={() => void handleInsertCreateLessonVideo()}
+                                  disabled={uploadLessonVideoFile.isPending || !lessonVideoPendingFile}
+                                >
+                                  {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir video"}
+                                </Button>
+                                {lessonVideoPendingFile ? (
+                                  <p className="text-sm text-slate-600">
+                                    Ficheiro selecionado: <span className="font-medium">{lessonVideoPendingFile.name}</span>
+                                  </p>
+                                ) : null}
+                              </div>
                               {lessonUploadedVideoAssetValue ? (
                                 <p className="text-sm text-emerald-700">
                                   Video protegido pronto para ser usado nesta aula.
                                 </p>
                               ) : (
                                 <p className="text-sm text-slate-600">
-                                  Carrega o ficheiro da aula para gerar o video protegido.
+                                  Seleciona o ficheiro e clica em "Inserir video" para gerar o video protegido.
                                 </p>
                               )}
                             </div>
@@ -2019,16 +2060,34 @@ export function AdminProductContent() {
                                           <input
                                             type="file"
                                             accept="video/*"
-                                            onChange={(event) => void handleEditingLessonVideoUpload(event)}
+                                            onChange={handleEditingLessonVideoSelection}
                                             className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
                                           />
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              className="rounded-full"
+                                              onClick={() => void handleInsertEditingLessonVideo()}
+                                              disabled={uploadLessonVideoFile.isPending || !editingLessonVideoPendingFile}
+                                            >
+                                              {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir video"}
+                                            </Button>
+                                            {editingLessonVideoPendingFile ? (
+                                              <p className="text-sm text-slate-600">
+                                                Ficheiro selecionado:{" "}
+                                                <span className="font-medium">{editingLessonVideoPendingFile.name}</span>
+                                              </p>
+                                            ) : null}
+                                          </div>
                                           {editingLessonUploadedVideoAssetValue ? (
                                             <p className="text-sm text-emerald-700">
                                               Video protegido carregado para esta aula.
                                             </p>
                                           ) : (
                                             <p className="text-sm text-slate-600">
-                                              Carrega o ficheiro da aula para gerar o video protegido.
+                                              Seleciona o ficheiro e clica em "Inserir video" para gerar o video
+                                              protegido.
                                             </p>
                                           )}
                                         </div>
