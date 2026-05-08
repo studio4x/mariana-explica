@@ -1,8 +1,8 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { LessonContentBlocksEditor, OperationFeedbackModal, StatusBadge } from "@/components/common"
+import { LessonContentBlocksEditor, LessonPrimaryMedia, OperationFeedbackModal, StatusBadge } from "@/components/common"
 import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import {
   useAdminProductLessons,
@@ -60,17 +60,35 @@ function inferAssetType(file: File): ModuleAssetSummary["asset_type"] {
   return "pdf"
 }
 
-function getVideoSourceSummary(source: string | null | undefined) {
+function getVideoSourceSummary(mode: "url" | "upload", source: string | null | undefined) {
   const trimmed = source?.trim() ?? ""
-  if (!trimmed) {
+  const hasAsset = trimmed.toLowerCase().startsWith("asset:")
+
+  if (mode === "upload") {
+    if (hasAsset) {
+      return {
+        label: "Video protegido na plataforma",
+        message: "Este ficheiro usa storage privado e o player recebe apenas URL assinada temporaria.",
+        tone: "success" as const,
+      }
+    }
+
     return {
-      label: "Sem video configurado",
-      message: "Defina uma URL externa ou envie um video protegido para esta aula.",
+      label: "Upload protegido selecionado",
+      message: "Envia um ficheiro de video para concluir esta aula sem depender de um link externo.",
       tone: "neutral" as const,
     }
   }
 
-  if (trimmed.toLowerCase().startsWith("asset:")) {
+  if (!trimmed) {
+    return {
+      label: "Sem URL de video",
+      message: "Define um link do YouTube ou de um video direto enquanto o modo de URL estiver ativo.",
+      tone: "neutral" as const,
+    }
+  }
+
+  if (hasAsset) {
     return {
       label: "Video protegido na plataforma",
       message: "Este ficheiro usa storage privado e o player recebe apenas URL assinada temporaria.",
@@ -80,7 +98,8 @@ function getVideoSourceSummary(source: string | null | undefined) {
 
   return {
     label: "URL externa configurada",
-    message: "Links externos podem ser partilhados fora da plataforma. Use upload protegido para o nivel mais alto de controlo disponivel.",
+    message:
+      "Links externos podem ser partilhados fora da plataforma. Use upload protegido para o nivel mais alto de controlo disponivel.",
     tone: "warning" as const,
   }
 }
@@ -101,6 +120,9 @@ export function CourseLessonDetailPanel() {
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [form, setForm] = useState<Partial<ProductLessonSummary>>({})
+  const [videoSourceMode, setVideoSourceMode] = useState<"url" | "upload">("url")
+  const [videoUrlDraft, setVideoUrlDraft] = useState("")
+  const [uploadedVideoAssetValue, setUploadedVideoAssetValue] = useState<string | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const textContentEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const lessons = useMemo(() => lessonsQuery.data ?? [], [lessonsQuery.data])
@@ -108,6 +130,19 @@ export function CourseLessonDetailPanel() {
     () => lessons.find((item) => item.id === lessonId) ?? null,
     [lessonId, lessons],
   )
+
+  useEffect(() => {
+    if (!lesson) {
+      return
+    }
+
+    const currentSource = lesson.youtube_url?.trim() ?? ""
+    const hasUploadedVideo = currentSource.toLowerCase().startsWith("asset:")
+
+    setVideoSourceMode(hasUploadedVideo ? "upload" : "url")
+    setVideoUrlDraft(hasUploadedVideo ? "" : currentSource)
+    setUploadedVideoAssetValue(hasUploadedVideo ? currentSource : null)
+  }, [lesson])
 
   if (!courseId || !moduleId || !lessonId) {
     return <EmptyState title="Aula invalida" message="Seleciona uma aula valida na arvore do builder." />
@@ -144,7 +179,26 @@ export function CourseLessonDetailPanel() {
     is_required: form.is_required ?? lesson.is_required,
     status: form.status ?? lesson.status,
   }
-  const videoSourceSummary = getVideoSourceSummary(values.youtube_url)
+  const currentStoredVideoSource = String(values.youtube_url ?? "").trim()
+  const activeVideoSource =
+    videoSourceMode === "upload"
+      ? uploadedVideoAssetValue ?? (currentStoredVideoSource.toLowerCase().startsWith("asset:") ? currentStoredVideoSource : "")
+      : videoUrlDraft
+  const videoSourceSummary = getVideoSourceSummary(videoSourceMode, activeVideoSource)
+
+  const handleVideoSourceModeChange = (nextMode: "url" | "upload") => {
+    setError(null)
+    setUploadMessage(null)
+
+    if (nextMode === "upload") {
+      const currentValue = String(form.youtube_url ?? lesson.youtube_url ?? "").trim()
+      if (currentValue && !currentValue.toLowerCase().startsWith("asset:")) {
+        setVideoUrlDraft(currentValue)
+      }
+    }
+
+    setVideoSourceMode(nextMode)
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -156,9 +210,21 @@ export function CourseLessonDetailPanel() {
     const textContentToSave = latestTextContent ?? values.text_content
 
     const normalizedYoutube =
-      values.lesson_type === "video" || values.lesson_type === "hybrid" ? values.youtube_url?.trim() || null : null
+      values.lesson_type === "video" || values.lesson_type === "hybrid"
+        ? videoSourceMode === "upload"
+          ? uploadedVideoAssetValue ?? (values.youtube_url?.trim().toLowerCase().startsWith("asset:") ? values.youtube_url.trim() : null)
+          : videoUrlDraft.trim() || null
+        : null
     const normalizedText =
       values.lesson_type === "text" || values.lesson_type === "hybrid" ? textContentToSave?.trim() || null : null
+
+    if ((values.lesson_type === "video" || values.lesson_type === "hybrid") && videoSourceMode === "upload" && !normalizedYoutube) {
+      setFeedback({
+        tone: "error",
+        message: "Seleciona e envia um video protegido antes de guardar esta aula.",
+      })
+      return
+    }
 
     try {
       const updatedLesson = await updateLesson.mutateAsync({
@@ -175,8 +241,13 @@ export function CourseLessonDetailPanel() {
         is_required: Boolean(values.is_required),
         status: values.status,
       })
-      setForm({})
+      const savedSource = updatedLesson.youtube_url?.trim() ?? ""
+      const savedSourceIsAsset = savedSource.toLowerCase().startsWith("asset:")
+      setForm({ youtube_url: savedSource })
       setFeedback({ tone: "success", message: `A aula "${updatedLesson.title}" foi guardada com sucesso.` })
+      setVideoSourceMode(savedSourceIsAsset ? "upload" : "url")
+      setVideoUrlDraft(savedSourceIsAsset ? "" : savedSource)
+      setUploadedVideoAssetValue(savedSourceIsAsset ? savedSource : null)
     } catch (submitError) {
       setFeedback({
         tone: "error",
@@ -260,11 +331,13 @@ export function CourseLessonDetailPanel() {
 
       const assetValue = makeLessonVideoAssetValue(asset.id)
       setForm((prev) => ({ ...prev, youtube_url: assetValue }))
+      setUploadedVideoAssetValue(assetValue)
       await updateLesson.mutateAsync({
         lessonId: lesson.id,
         lesson_type: values.lesson_type,
         youtube_url: assetValue,
       })
+      setVideoSourceMode("upload")
       setUploadMessage("Video protegido enviado com sucesso. O player da aula ja vai usar este ficheiro.")
       setFeedback({
         tone: "success",
@@ -407,17 +480,41 @@ export function CourseLessonDetailPanel() {
                 <h2 className="mt-2 text-lg font-bold text-slate-950">Fonte audiovisual</h2>
               </div>
 
-              <LessonField
-                label="URL do video"
-                helper="Aceita links do YouTube ou URLs diretas de ficheiro de video como .mp4, .webm, .mov e .m4v."
-              >
-                <input
-                  value={String(values.youtube_url)}
-                  onChange={(event) => setForm((prev) => ({ ...prev, youtube_url: event.target.value }))}
-                  placeholder="https://youtube.com/watch?v=... ou https://cdn.exemplo.com/video.mp4"
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-sky-300"
-                />
-              </LessonField>
+              <div className="rounded-2xl border border-slate-200 bg-white p-1.5">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => handleVideoSourceModeChange("url")}
+                    className={[
+                      "rounded-[1.1rem] px-4 py-4 text-left transition",
+                      videoSourceMode === "url"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50",
+                    ].join(" ")}
+                  >
+                    <span className="block text-sm font-bold">Usar URL do video</span>
+                    <span className="mt-1 block text-sm leading-6">
+                      Usa YouTube ou outro link direto quando queres apontar para um ficheiro externo.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVideoSourceModeChange("upload")}
+                    className={[
+                      "rounded-[1.1rem] px-4 py-4 text-left transition",
+                      videoSourceMode === "upload"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50",
+                    ].join(" ")}
+                  >
+                    <span className="block text-sm font-bold">Usar upload protegido</span>
+                    <span className="mt-1 block text-sm leading-6">
+                      Envia o video para a plataforma e publica apenas a URL assinada temporaria.
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               <div
                 className={[
@@ -433,6 +530,31 @@ export function CourseLessonDetailPanel() {
                 <p className="mt-1 leading-6">{videoSourceSummary.message}</p>
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">Preview do video</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Esta visualizacao usa a origem selecionada no toggle acima.
+                    </p>
+                  </div>
+                  <StatusBadge
+                    label={videoSourceMode === "upload" ? "Upload protegido" : "URL externa"}
+                    tone={videoSourceMode === "upload" ? "success" : "info"}
+                  />
+                </div>
+
+                {activeVideoSource ? (
+                  <div className="mt-4">
+                    <LessonPrimaryMedia source={activeVideoSource} title="Preview do video da aula" />
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[1.25rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                    Ainda nao existe video para pre-visualizar neste modo.
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <p className="font-semibold">Nota de protecao</p>
                 <p className="mt-1 leading-6">
@@ -441,23 +563,37 @@ export function CourseLessonDetailPanel() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-sm font-semibold text-slate-950">Upload protegido de video</p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Recomendado para aulas pagas. O video fica em storage privado e o aluno recebe apenas acesso temporario assinado no player.
-                </p>
-                <input
-                  type="file"
-                  accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v"
-                  onChange={handleVideoUploadSelection}
-                  className="mt-4 text-sm"
-                />
-                {uploadMessage ? (
-                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    {uploadMessage}
-                  </div>
-                ) : null}
-              </div>
+              {videoSourceMode === "url" ? (
+                <LessonField
+                  label="URL do video"
+                  helper="Aceita links do YouTube ou URLs diretas de ficheiro de video como .mp4, .webm, .mov e .m4v."
+                >
+                  <input
+                    value={videoUrlDraft}
+                    onChange={(event) => setVideoUrlDraft(event.target.value)}
+                    placeholder="https://youtube.com/watch?v=... ou https://cdn.exemplo.com/video.mp4"
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-sky-300"
+                  />
+                </LessonField>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-slate-950">Upload protegido de video</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    Recomendado para aulas pagas. O video fica em storage privado e o aluno recebe apenas acesso temporario assinado no player.
+                  </p>
+                  <input
+                    type="file"
+                    accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v"
+                    onChange={handleVideoUploadSelection}
+                    className="mt-4 text-sm"
+                  />
+                  {uploadMessage ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      {uploadMessage}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </section>
           ) : null}
 
