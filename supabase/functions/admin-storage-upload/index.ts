@@ -137,23 +137,33 @@ Deno.serve(async (req) => {
     const moduleId = String(formData.get("moduleId") ?? "").trim()
     const productId = String(formData.get("productId") ?? "").trim()
     const assetRole = sanitizeSegment(String(formData.get("assetRole") ?? "").trim())
+    const requestedFileName = String(formData.get("fileName") ?? "").trim()
+    const requestedMimeType = String(formData.get("mimeType") ?? "").trim().toLowerCase()
     const replacePath = String(formData.get("replacePath") ?? "").trim() || null
     const file = formData.get("file")
+    const isSignedUploadRequest = kind === "module_asset_signed_url"
 
-    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset"].includes(kind)) {
+    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset", "module_asset_signed_url"].includes(kind)) {
       throw badRequest("kind invalido")
     }
-    if (!(file instanceof File)) {
+    if (!isSignedUploadRequest && !(file instanceof File)) {
       throw badRequest("file e obrigatorio")
     }
-    if (file.size === 0) {
+    if (!isSignedUploadRequest && file.size === 0) {
       throw badRequest("O ficheiro enviado esta vazio")
     }
 
-    const safeExtension = getFileExtension(file.name)
-    const rawContentType = file.type || null
+    const fileNameForSanitization =
+      isSignedUploadRequest
+        ? requestedFileName || "video.mp4"
+        : file.name
+    const safeExtension = getFileExtension(fileNameForSanitization)
+    const rawContentType =
+      isSignedUploadRequest
+        ? (requestedMimeType || null)
+        : (file.type || null)
     let contentType = rawContentType || inferImageMimeType(safeExtension) || null
-    const fileNameBase = sanitizeSegment(file.name.replace(/\.[^.]+$/, "")) || "arquivo"
+    const fileNameBase = sanitizeSegment(fileNameForSanitization.replace(/\.[^.]+$/, "")) || "arquivo"
     const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
     let objectPath = ""
     let auditAction = ""
@@ -161,9 +171,9 @@ Deno.serve(async (req) => {
     let auditEntityId = moduleId || productId || context.user.id
     let targetBucket = COURSE_STORAGE_BUCKET
     let auditMetadata: Record<string, unknown> = {
-      file_name: file.name,
+      file_name: fileNameForSanitization,
       mime_type: contentType,
-      file_size_bytes: file.size,
+      file_size_bytes: isSignedUploadRequest ? null : file.size,
     }
 
     if (kind === "watermark_logo") {
@@ -266,13 +276,68 @@ Deno.serve(async (req) => {
           ? `products/${moduleRow.product_id}/modules/${moduleId}/module-pdf/${timeStamp}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
           : `products/${moduleRow.product_id}/modules/${moduleId}/assets/${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
 
-      auditAction = kind === "module_pdf" ? "admin.module_pdf_uploaded" : "admin.module_asset_uploaded"
-      auditEntityType = kind === "module_pdf" ? "product_module" : "module_asset_upload"
+      auditAction =
+        kind === "module_pdf"
+          ? "admin.module_pdf_uploaded"
+          : kind === "module_asset_signed_url"
+            ? "admin.module_asset_signed_url_created"
+            : "admin.module_asset_uploaded"
+      auditEntityType =
+        kind === "module_pdf"
+          ? "product_module"
+          : kind === "module_asset_signed_url"
+            ? "module_asset_upload_url"
+            : "module_asset_upload"
       auditMetadata = {
         ...auditMetadata,
         module_id: moduleId,
         product_id: moduleRow.product_id,
       }
+    }
+
+    if (kind === "module_asset_signed_url") {
+      if (!contentType || !PRIVATE_ASSET_ALLOWED_MIME_TYPES.includes(contentType)) {
+        throw badRequest("Formato de video invalido. Use MP4, WEBM, OGG, MOV ou M4V.")
+      }
+
+      const { data: signedUpload, error: signedUploadError } = await context.serviceClient.storage
+        .from(targetBucket)
+        .createSignedUploadUrl(objectPath)
+
+      if (signedUploadError) {
+        throw signedUploadError
+      }
+
+      await writeAuditLog(context.serviceClient, context, {
+        action: auditAction,
+        entityType: auditEntityType,
+        entityId: auditEntityId,
+        metadata: {
+          ...auditMetadata,
+          bucket: targetBucket,
+          path: objectPath,
+        },
+        ...auditMeta,
+      })
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        upload: {
+          bucket: targetBucket,
+          path: objectPath,
+          file_name: fileNameForSanitization,
+          mime_type: contentType,
+          file_size_bytes: null,
+          uploaded_at: null,
+          public_url: null,
+          signed_upload: {
+            path: signedUpload.path,
+            token: signedUpload.token,
+            signed_url: signedUpload.signedUrl,
+          },
+        },
+      })
     }
 
     const arrayBuffer = await file.arrayBuffer()

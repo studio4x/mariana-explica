@@ -8,6 +8,7 @@ import {
   createAdminCoupon,
   createAdminCourseRelease,
   createAdminNotification,
+  createAdminModuleAssetSignedUpload,
   deleteAdminSupportTicket,
   createAdminProduct,
   createAdminUser,
@@ -877,6 +878,10 @@ export function useUploadAdminProductCover() {
 export function useUploadAdminModuleAssetFile() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: uploadAdminModuleAssetFile, onSuccess: invalidate })
+}
+
+export function useCreateAdminModuleAssetSignedUpload() {
+  return useMutation({ mutationFn: createAdminModuleAssetSignedUpload })
 }
 
 export function useUploadAdminWatermarkLogoFile() {

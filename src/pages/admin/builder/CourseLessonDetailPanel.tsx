@@ -5,12 +5,14 @@ import { Button } from "@/components/ui"
 import { LessonContentBlocksEditor, LessonPrimaryMedia, OperationFeedbackModal, StatusBadge } from "@/components/common"
 import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import {
+  useCreateAdminModuleAssetSignedUpload,
   useAdminProductLessons,
   useCreateAdminModuleAsset,
   useDeleteAdminProductLesson,
   useUpdateAdminProductLesson,
   useUploadAdminModuleAssetFile,
 } from "@/hooks/useAdmin"
+import { supabase } from "@/integrations/supabase"
 import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { adminCourseLessonMaterialsPath, adminCourseModulePath } from "@/lib/routes"
 import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
@@ -115,6 +117,7 @@ export function CourseLessonDetailPanel() {
   const updateLesson = useUpdateAdminProductLesson()
   const deleteLesson = useDeleteAdminProductLesson()
   const uploadAssetFile = useUploadAdminModuleAssetFile()
+  const createSignedVideoUpload = useCreateAdminModuleAssetSignedUpload()
   const createAsset = useCreateAdminModuleAsset()
   const [error, setError] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
@@ -339,17 +342,33 @@ export function CourseLessonDetailPanel() {
     setUploadMessage(null)
 
     try {
-      const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
+      const signedUpload = await createSignedVideoUpload.mutateAsync({
+        moduleId,
+        fileName: file.name,
+        mimeType: file.type || "video/mp4",
+      })
+      const signed = signedUpload.signed_upload
+      const { error: signedUploadError } = await supabase.storage
+        .from(signedUpload.bucket)
+        .uploadToSignedUrl(signed.path, signed.token, file, {
+          contentType: file.type || "video/mp4",
+          upsert: false,
+        })
+
+      if (signedUploadError) {
+        throw signedUploadError
+      }
+
       const asset = await createAsset.mutateAsync({
         moduleId,
         asset_type: "video_file",
         title: `${values.title?.trim() || lesson.title} - video principal`,
         sort_order_asset: Date.now(),
-        storage_bucket: upload.bucket,
-        storage_path: upload.path,
+        storage_bucket: signedUpload.bucket,
+        storage_path: signedUpload.path,
         external_url: null,
-        mime_type: upload.mime_type,
-        file_size_bytes: upload.file_size_bytes,
+        mime_type: file.type || signedUpload.mime_type,
+        file_size_bytes: file.size,
         allow_download: false,
         allow_stream: true,
         watermark_enabled: false,
@@ -612,9 +631,9 @@ export function CourseLessonDetailPanel() {
                     type="button"
                     className="mt-4 rounded-full"
                     onClick={() => void handleInsertProtectedVideo()}
-                    disabled={uploadAssetFile.isPending || !pendingVideoFile}
+                    disabled={createSignedVideoUpload.isPending || !pendingVideoFile}
                   >
-                    {uploadAssetFile.isPending ? "A enviar..." : "Enviar video protegido"}
+                    {createSignedVideoUpload.isPending ? "A enviar..." : "Enviar video protegido"}
                   </Button>
                   {pendingVideoFile ? (
                     <p className="mt-3 text-sm text-slate-600">

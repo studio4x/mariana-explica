@@ -9,6 +9,15 @@ interface RealtimeChannelLike {
   subscribe: (callback?: (status: string) => void) => RealtimeChannelLike
 }
 
+interface StorageBucketLike {
+  uploadToSignedUrl: (
+    path: string,
+    token: string,
+    fileBody: Blob | ArrayBuffer | File | FormData | string,
+    fileOptions?: { cacheControl?: string; contentType?: string; upsert?: boolean },
+  ) => Promise<{ data: { path: string; fullPath: string } | null; error: Error | null }>
+}
+
 interface NoopQueryBuilder {
   select(..._args: unknown[]): NoopQueryBuilder
   eq(..._args: unknown[]): NoopQueryBuilder
@@ -59,6 +68,9 @@ type SupabaseLike = {
       name: string,
       options?: { body?: unknown; headers?: Record<string, string> },
     ) => Promise<{ data: unknown; error: Error | null }>
+  }
+  storage: {
+    from: (bucket: string) => StorageBucketLike
   }
   channel: (topic: string) => RealtimeChannelLike
   removeChannel: (channel: unknown) => Promise<unknown> | unknown
@@ -165,6 +177,14 @@ function createNoopSupabaseClient() {
       invoke: async () => ({
         data: null,
         error: new Error("Supabase nao configurado"),
+      }),
+    },
+    storage: {
+      from: () => ({
+        uploadToSignedUrl: async () => ({
+          data: null,
+          error: new Error("Supabase nao configurado"),
+        }),
       }),
     },
     channel: () => {

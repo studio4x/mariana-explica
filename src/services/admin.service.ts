@@ -120,6 +120,21 @@ const CHECKOUT_MODE_CONFIG_KEY = "checkout_environment"
 const BRANDING_CONFIG_KEY = "site_branding"
 const TRACKING_CONFIG_KEY = "site_tracking"
 
+export interface AdminModuleAssetSignedUploadResult {
+  bucket: string
+  path: string
+  file_name: string
+  mime_type: string | null
+  file_size_bytes: number | null
+  uploaded_at: string | null
+  public_url?: string | null
+  signed_upload: {
+    path: string
+    token: string
+    signed_url: string
+  }
+}
+
 function normalizeBrandingAsset(value: unknown): AdminBrandingAsset {
   const asset = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
 
@@ -377,6 +392,46 @@ export async function uploadAdminModuleAssetFile(input: {
   }
 
   return (data as { success: true; upload: AdminStorageUploadResult }).upload
+}
+
+export async function createAdminModuleAssetSignedUpload(input: {
+  moduleId: string
+  fileName: string
+  mimeType: string
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "module_asset_signed_url")
+  formData.append("moduleId", input.moduleId)
+  formData.append("fileName", input.fileName)
+  formData.append("mimeType", input.mimeType)
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; upload: AdminModuleAssetSignedUploadResult }).upload
 }
 
 export async function uploadAdminWatermarkLogoFile(input: {
