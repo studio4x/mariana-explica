@@ -189,9 +189,10 @@ export function CourseSettingsPanel() {
           case_study_ai: false,
         },
       })
+      const selectedCategoryId = form.categoryId.trim()
       setForm((prev) => ({
         ...prev,
-        categoryId: updatedProduct.product.category_id ?? "",
+        categoryId: updatedProduct.product.category_id ?? selectedCategoryId,
       }))
     } catch (err) {
       setFeedback({

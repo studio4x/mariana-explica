@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
+import { RichTextContent } from "@/components/common"
 import { CourseReviews } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
@@ -102,16 +103,21 @@ export function Product() {
               <h1 className="mt-6 max-w-4xl font-display text-4xl font-black leading-tight text-slate-950 md:text-6xl">
                 {page.headline}
               </h1>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-xl">
-                {page.intro}
-              </p>
+              <RichTextContent
+                value={page.intro}
+                className="rich-text-content mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-xl"
+              />
             </section>
 
             <section className="max-w-3xl">
               <h2 className="font-display text-3xl font-black text-slate-950">{page.aboutTitle}</h2>
               <div className="mt-5 space-y-5 text-base leading-8 text-slate-600">
                 {page.aboutParagraphs.map((paragraph, index) => (
-                  <p key={`${paragraph}-${index}`}>{paragraph}</p>
+                  <RichTextContent
+                    key={`${paragraph}-${index}`}
+                    value={paragraph}
+                    className="prose prose-slate max-w-none"
+                  />
                 ))}
               </div>
             </section>
@@ -125,7 +131,10 @@ export function Product() {
                       <BookOpenCheck className="h-5 w-5" />
                     </div>
                     <h3 className="mt-4 text-lg font-black text-slate-950">{item.title}</h3>
-                    <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                    <RichTextContent
+                      value={item.description}
+                      className="rich-text-content mt-2 text-sm leading-7 text-slate-600"
+                    />
                   </article>
                 ))}
               </div>
@@ -143,7 +152,10 @@ export function Product() {
                             {section.label}
                           </p>
                           <h3 className="mt-2 text-lg font-black text-slate-950">{section.title}</h3>
-                          <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{section.description}</p>
+                          <RichTextContent
+                            value={section.description}
+                            className="rich-text-content mt-2 max-w-3xl text-sm leading-7 text-slate-600"
+                          />
                         </div>
                         <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">
                           {section.countLabel}
@@ -159,7 +171,10 @@ export function Product() {
                               </span>
                               <p className="text-sm font-semibold text-slate-950">{item.title}</p>
                             </div>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+                            <RichTextContent
+                              value={item.description}
+                              className="rich-text-content mt-2 text-sm leading-6 text-slate-600"
+                            />
                           </div>
                         ))}
                       </div>
@@ -180,7 +195,10 @@ export function Product() {
                         </div>
                         <ChevronDown className="mt-2 h-5 w-5 shrink-0 text-slate-400" />
                       </div>
-                      <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">{item.description}</p>
+                      <RichTextContent
+                        value={item.description}
+                        className="rich-text-content mt-4 max-w-3xl text-sm leading-7 text-slate-600"
+                      />
                     </article>
                   ))}
                 </div>
@@ -246,7 +264,10 @@ export function Product() {
                     <ShieldCheck className="h-4 w-4 text-sky-700" />
                     <p className="text-sm font-black text-slate-950">{page.previewTitle}</p>
                   </div>
-                  <p className="mt-2 text-sm leading-7 text-slate-600">{page.previewText}</p>
+                  <RichTextContent
+                    value={page.previewText}
+                    className="rich-text-content mt-2 text-sm leading-7 text-slate-600"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">

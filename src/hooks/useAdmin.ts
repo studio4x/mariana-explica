@@ -826,8 +826,11 @@ export function useUpdateAdminProduct() {
 
   return useMutation({
     mutationFn: updateAdminProduct,
-    onSuccess: (response) => {
-      upsertAdminProductCache(queryClient, response.product)
+    onSuccess: (response, variables) => {
+      upsertAdminProductCache(queryClient, {
+        ...response.product,
+        category_id: response.product.category_id ?? variables.categoryId ?? null,
+      })
       invalidate()
     },
   })

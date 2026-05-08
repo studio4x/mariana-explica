@@ -1,7 +1,7 @@
 import { BookOpen, ExternalLink, Layers3, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useState, type FormEvent, type ReactNode } from "react"
-import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { buildCoursePublicPageView, sanitizeCoursePublicPageContent, type CoursePublicPageView } from "@/lib/course-public-page"
 import { publicCoursePath } from "@/lib/routes"
@@ -41,28 +41,6 @@ function TextInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-    />
-  )
-}
-
-function TextArea({
-  value,
-  onChange,
-  rows = 4,
-  placeholder,
-}: {
-  value: string
-  onChange: (value: string) => void
-  rows?: number
-  placeholder?: string
-}) {
-  return (
-    <textarea
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      rows={rows}
-      placeholder={placeholder}
-      className="w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm leading-6 outline-none focus:border-slate-400 focus:bg-white"
     />
   )
 }
@@ -180,10 +158,11 @@ function CoursePublicPageForm() {
             </Field>
             <div className="md:col-span-2">
               <Field label="Texto de abertura">
-                <TextArea
+                <RichTextEditor
                   value={form.intro}
                   onChange={(intro) => setForm((prev) => ({ ...prev, intro }))}
-                  rows={3}
+                  placeholder="Escreva a abertura da pagina publica..."
+                  minHeightPx={140}
                 />
               </Field>
             </div>
@@ -202,7 +181,7 @@ function CoursePublicPageForm() {
             {form.aboutParagraphs.map((paragraph, index) => (
               <div key={index} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                 <Field label={`Paragrafo ${index + 1}`}>
-                  <TextArea
+                  <RichTextEditor
                     value={paragraph}
                     onChange={(value) =>
                       setForm((prev) => ({
@@ -210,6 +189,8 @@ function CoursePublicPageForm() {
                         aboutParagraphs: updateListItem(prev.aboutParagraphs, index, () => value),
                       }))
                     }
+                    placeholder="Escreva o paragrafo..."
+                    minHeightPx={180}
                   />
                 </Field>
                 <Button
@@ -269,7 +250,7 @@ function CoursePublicPageForm() {
                     />
                   </Field>
                   <Field label="Descricao">
-                    <TextArea
+                    <RichTextEditor
                       value={item.description}
                       onChange={(description) =>
                         setForm((prev) => ({
@@ -277,7 +258,9 @@ function CoursePublicPageForm() {
                           learnItems: updateListItem(prev.learnItems, index, (current) => ({ ...current, description })),
                         }))
                       }
-                      rows={2}
+                      placeholder="Descreva o que o aluno aprende neste bloco..."
+                      minHeightPx={150}
+                      toolbarVariant="compact"
                     />
                   </Field>
                   <Button
@@ -449,22 +432,23 @@ function CoursePublicPageForm() {
                     </Button>
                   </div>
                   <div className="mt-4">
-                    <Field label="Descricao">
-                      <TextArea
-                        value={item.description}
-                        onChange={(description) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({
-                              ...current,
-                              description,
-                            })),
-                          }))
-                        }
-                        rows={3}
-                      />
-                    </Field>
-                  </div>
+                  <Field label="Descricao">
+                    <RichTextEditor
+                      value={item.description}
+                      onChange={(description) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          curriculumItems: updateListItem(prev.curriculumItems, index, (current) => ({
+                            ...current,
+                            description,
+                          })),
+                        }))
+                      }
+                      placeholder="Descreva este modulo publico..."
+                      minHeightPx={180}
+                    />
+                  </Field>
+                </div>
                 </div>
               ))}
               <Button
@@ -526,10 +510,12 @@ function CoursePublicPageForm() {
             </Field>
             <div className="md:col-span-2">
               <Field label="Texto do bloco incluso">
-                <TextArea
+                <RichTextEditor
                   value={form.previewText}
                   onChange={(previewText) => setForm((prev) => ({ ...prev, previewText }))}
-                  rows={3}
+                  placeholder="Explique o que esta incluido no material..."
+                  minHeightPx={150}
+                  toolbarVariant="compact"
                 />
               </Field>
             </div>

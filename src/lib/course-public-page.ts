@@ -1,5 +1,5 @@
 import { getProductNarrative } from "@/lib/product-presentation"
-import { richTextToPlainText } from "@/lib/rich-text"
+import { isRichTextEmpty, richTextToPlainText, sanitizeRichTextHtml } from "@/lib/rich-text"
 import type { ProductAssessmentSummary, ProductModuleSummary, ProductLessonSummary } from "@/types/app.types"
 import type {
   CoursePublicPageContent,
@@ -48,6 +48,12 @@ export interface CoursePublicPageView {
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
+}
+
+function cleanRichText(value: unknown) {
+  if (typeof value !== "string") return ""
+  const html = sanitizeRichTextHtml(value)
+  return isRichTextEmpty(html) ? "" : html
 }
 
 function chooseText(value: unknown, fallback: string) {
@@ -263,14 +269,14 @@ export function sanitizeCoursePublicPageContent(
   return {
     eyebrow: cleanText(content.eyebrow),
     headline: cleanText(content.headline),
-    intro: cleanText(content.intro),
+    intro: cleanRichText(content.intro),
     aboutTitle: cleanText(content.aboutTitle),
-    aboutParagraphs: content.aboutParagraphs.map(cleanText).filter(Boolean),
+    aboutParagraphs: content.aboutParagraphs.map(cleanRichText).filter(Boolean),
     learnTitle: cleanText(content.learnTitle),
     learnItems: content.learnItems
       .map((item) => ({
         title: cleanText(item.title),
-        description: cleanText(item.description),
+        description: cleanRichText(item.description),
       }))
       .filter((item) => item.title || item.description),
     curriculumTitle: cleanText(content.curriculumTitle),
@@ -280,7 +286,7 @@ export function sanitizeCoursePublicPageContent(
         label: cleanText(item.label),
         title: cleanText(item.title),
         lessons: cleanText(item.lessons),
-        description: cleanText(item.description),
+        description: cleanRichText(item.description),
       }))
       .filter((item) => item.label || item.title || item.lessons || item.description),
     instructorName: cleanText(content.instructorName),
@@ -290,6 +296,6 @@ export function sanitizeCoursePublicPageContent(
     ctaLabel: cleanText(content.ctaLabel),
     sidebarFeatures: content.sidebarFeatures.map(cleanText).filter(Boolean),
     previewTitle: cleanText(content.previewTitle),
-    previewText: cleanText(content.previewText),
+    previewText: cleanRichText(content.previewText),
   }
 }
