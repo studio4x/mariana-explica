@@ -62,6 +62,41 @@ function inferAssetType(file: File): ModuleAssetSummary["asset_type"] {
   return "pdf"
 }
 
+const LOCAL_PROTECTED_VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
+  const units = ["B", "KB", "MB", "GB", "TB"]
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** exponent
+  const precision = exponent <= 1 ? 0 : exponent === 2 ? 1 : 2
+  return `${value.toFixed(precision)} ${units[exponent]}`
+}
+
+function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
+  if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
+    return `O video excede o limite permitido (${formatBytes(limitBytes)}). Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase.`
+  }
+
+  return "O video excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase."
+}
+
+function normalizeProtectedVideoUploadErrorMessage(error: unknown) {
+  const rawMessage = error instanceof Error ? error.message : "Nao foi possivel enviar o video."
+  const normalized = rawMessage.toLowerCase()
+
+  if (
+    normalized.includes("exceeded the maximum allowed size")
+    || normalized.includes("file too large")
+    || normalized.includes("payload too large")
+    || normalized.includes("entity too large")
+  ) {
+    return buildProtectedVideoTooLargeMessage()
+  }
+
+  return rawMessage
+}
+
 function getVideoSourceSummary(mode: "url" | "upload", source: string | null | undefined) {
   const trimmed = source?.trim() ?? ""
   const hasAsset = trimmed.toLowerCase().startsWith("asset:")
@@ -331,10 +366,23 @@ export function CourseLessonDetailPanel() {
 
     setError(null)
     setUploadMessage(null)
+
+    if (file.size > LOCAL_PROTECTED_VIDEO_MAX_BYTES) {
+      const message = buildProtectedVideoTooLargeMessage(LOCAL_PROTECTED_VIDEO_MAX_BYTES)
+      setPendingVideoFile(null)
+      setFeedback({ tone: "error", message })
+      setVideoUploadStatus({
+        tone: "error",
+        message,
+      })
+      event.target.value = ""
+      return
+    }
+
     setPendingVideoFile(file)
     setVideoUploadStatus({
       tone: "info",
-      message: `Ficheiro selecionado: ${file.name}. Clica em "Enviar video protegido" para concluir o envio.`,
+      message: `Ficheiro selecionado: ${file.name} (${formatBytes(file.size)}). Clica em "Enviar video protegido" para concluir o envio.`,
     })
     event.target.value = ""
   }
@@ -363,6 +411,13 @@ export function CourseLessonDetailPanel() {
         fileName: file.name,
         mimeType: file.type || "video/mp4",
       })
+      if (
+        signedUpload.max_file_size_bytes
+        && Number.isFinite(signedUpload.max_file_size_bytes)
+        && file.size > signedUpload.max_file_size_bytes
+      ) {
+        throw new Error(buildProtectedVideoTooLargeMessage(signedUpload.max_file_size_bytes))
+      }
       const signed = signedUpload.signed_upload
       const { error: signedUploadError } = await supabase.storage
         .from(signedUpload.bucket)
@@ -406,7 +461,7 @@ export function CourseLessonDetailPanel() {
         message: "Envio concluido com sucesso. O video protegido ja esta pronto no preview desta aula.",
       })
     } catch (uploadError) {
-      const uploadErrorMessage = uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o video."
+      const uploadErrorMessage = normalizeProtectedVideoUploadErrorMessage(uploadError)
       setError(uploadErrorMessage)
       setFeedback({ tone: "error", message: uploadErrorMessage })
       setVideoUploadStatus({

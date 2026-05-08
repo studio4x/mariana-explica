@@ -126,6 +126,7 @@ export interface AdminModuleAssetSignedUploadResult {
   file_name: string
   mime_type: string | null
   file_size_bytes: number | null
+  max_file_size_bytes?: number | null
   uploaded_at: string | null
   public_url?: string | null
   signed_upload: {

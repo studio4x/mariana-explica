@@ -33,6 +33,8 @@ const PRIVATE_ASSET_ALLOWED_MIME_TYPES = [
   "image/png",
   "image/jpeg",
 ]
+const PRIVATE_ASSET_FILE_SIZE_LIMIT = "5GB"
+const PRIVATE_ASSET_MAX_BYTES = 5 * 1024 * 1024 * 1024
 
 function sanitizeSegment(value: string) {
   return value
@@ -183,7 +185,7 @@ Deno.serve(async (req) => {
       auditEntityId = null
       await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
-        fileSizeLimit: "500MB",
+        fileSizeLimit: PRIVATE_ASSET_FILE_SIZE_LIMIT,
         allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
       })
       auditMetadata = {
@@ -267,7 +269,7 @@ Deno.serve(async (req) => {
 
       await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
-        fileSizeLimit: "500MB",
+        fileSizeLimit: PRIVATE_ASSET_FILE_SIZE_LIMIT,
         allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
       })
 
@@ -329,6 +331,7 @@ Deno.serve(async (req) => {
           file_name: fileNameForSanitization,
           mime_type: contentType,
           file_size_bytes: null,
+          max_file_size_bytes: PRIVATE_ASSET_MAX_BYTES,
           uploaded_at: null,
           public_url: null,
           signed_upload: {
