@@ -122,6 +122,10 @@ export function CourseLessonDetailPanel() {
   const [error, setError] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
+  const [videoUploadStatus, setVideoUploadStatus] = useState<{
+    tone: "info" | "success" | "error"
+    message: string
+  } | null>(null)
   const [form, setForm] = useState<Partial<ProductLessonSummary>>({})
   const [videoSourceMode, setVideoSourceMode] = useState<"url" | "upload">("url")
   const [videoUrlDraft, setVideoUrlDraft] = useState("")
@@ -328,6 +332,10 @@ export function CourseLessonDetailPanel() {
     setError(null)
     setUploadMessage(null)
     setPendingVideoFile(file)
+    setVideoUploadStatus({
+      tone: "info",
+      message: `Ficheiro selecionado: ${file.name}. Clica em "Enviar video protegido" para concluir o envio.`,
+    })
     event.target.value = ""
   }
 
@@ -335,11 +343,19 @@ export function CourseLessonDetailPanel() {
     const file = pendingVideoFile
     if (!file) {
       setFeedback({ tone: "error", message: "Seleciona um ficheiro de video antes de enviar." })
+      setVideoUploadStatus({
+        tone: "error",
+        message: "Nenhum ficheiro selecionado. Escolhe um video antes de enviar.",
+      })
       return
     }
 
     setError(null)
     setUploadMessage(null)
+    setVideoUploadStatus({
+      tone: "info",
+      message: `A enviar "${file.name}" para storage protegido...`,
+    })
 
     try {
       const signedUpload = await createSignedVideoUpload.mutateAsync({
@@ -385,8 +401,18 @@ export function CourseLessonDetailPanel() {
         tone: "success",
         message: "Video protegido inserido com sucesso no preview. Guarda a aula para concluir.",
       })
+      setVideoUploadStatus({
+        tone: "success",
+        message: "Envio concluido com sucesso. O video protegido ja esta pronto no preview desta aula.",
+      })
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o video.")
+      const uploadErrorMessage = uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o video."
+      setError(uploadErrorMessage)
+      setFeedback({ tone: "error", message: uploadErrorMessage })
+      setVideoUploadStatus({
+        tone: "error",
+        message: `Falha no envio: ${uploadErrorMessage}`,
+      })
     }
   }
 
@@ -638,6 +664,20 @@ export function CourseLessonDetailPanel() {
                   {pendingVideoFile ? (
                     <p className="mt-3 text-sm text-slate-600">
                       Ficheiro selecionado: <span className="font-medium">{pendingVideoFile.name}</span>
+                    </p>
+                  ) : null}
+                  {videoUploadStatus ? (
+                    <p
+                      className={[
+                        "mt-3 text-sm",
+                        videoUploadStatus.tone === "success"
+                          ? "text-emerald-700"
+                          : videoUploadStatus.tone === "error"
+                            ? "text-rose-700"
+                            : "text-slate-600",
+                      ].join(" ")}
+                    >
+                      {videoUploadStatus.message}
                     </p>
                   ) : null}
                   {uploadMessage ? (
