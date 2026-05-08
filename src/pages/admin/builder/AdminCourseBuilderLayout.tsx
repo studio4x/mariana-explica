@@ -1183,7 +1183,7 @@ export function AdminCourseBuilderLayout() {
         onClose={() => setImportSuccessMessage(null)}
       />
 
-      <div className="pointer-events-none absolute bottom-4 right-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+      <div className="pointer-events-none fixed bottom-3 left-4 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 shadow-sm backdrop-blur md:bottom-4 md:left-6">
         Build {BUILD_VERSION}
       </div>
     </div>
