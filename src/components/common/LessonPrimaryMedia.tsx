@@ -20,6 +20,7 @@ export function LessonPrimaryMedia({
 
   useEffect(() => {
     if (!assetId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears stale protected-video state when the source switches away from an asset.
       setAssetUrl(null)
       setAssetError(null)
       setIsLoadingAsset(false)
@@ -67,9 +68,11 @@ export function LessonPrimaryMedia({
             <iframe
               src={youtubeEmbedUrl}
               title={title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-              className="h-full w-full"
+              className="h-full w-full bg-black"
             />
           </div>
         </div>
