@@ -23,6 +23,16 @@ const BRANDING_ALLOWED_MIME_TYPES = [
   "image/vnd.microsoft.icon",
 ]
 const BRANDING_ALLOWED_EXTENSIONS = new Set(["svg", "png", "jpg", "jpeg", "webp", "gif", "avif", "ico"])
+const PRIVATE_ASSET_ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
+  "video/x-m4v",
+  "image/png",
+  "image/jpeg",
+]
 
 function sanitizeSegment(value: string) {
   return value
@@ -163,8 +173,8 @@ Deno.serve(async (req) => {
       auditEntityId = null
       await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
-        fileSizeLimit: "50MB",
-        allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
+        fileSizeLimit: "500MB",
+        allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
       })
       auditMetadata = {
         ...auditMetadata,
@@ -247,8 +257,8 @@ Deno.serve(async (req) => {
 
       await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
-        fileSizeLimit: "50MB",
-        allowedMimeTypes: ["application/pdf", "video/mp4", "video/webm", "image/png", "image/jpeg"],
+        fileSizeLimit: "500MB",
+        allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
       })
 
       objectPath =

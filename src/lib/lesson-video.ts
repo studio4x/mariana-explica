@@ -13,6 +13,7 @@ export function makeLessonVideoAssetValue(assetId: string) {
 }
 
 const YOUTUBE_EMBED_BASE_URL = "https://www.youtube-nocookie.com/embed"
+const DIRECT_VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogg", "ogv", "m4v", "mov"])
 
 function parseYoutubeTimestamp(rawValue: string | null) {
   if (!rawValue) return null
@@ -121,6 +122,33 @@ export function getYoutubeEmbedUrl(value: string | null | undefined) {
     }
 
     return null
+  } catch {
+    return null
+  }
+}
+
+export function getExternalVideoUrl(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? ""
+  if (!trimmed || getLessonVideoAssetId(trimmed) || getYoutubeEmbedUrl(trimmed)) {
+    return null
+  }
+
+  try {
+    const normalized = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`
+    const url = new URL(normalized)
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return null
+    }
+
+    const extension = url.pathname.split(".").at(-1)?.toLowerCase() ?? ""
+    if (!DIRECT_VIDEO_EXTENSIONS.has(extension)) {
+      return null
+    }
+
+    return url.toString()
   } catch {
     return null
   }

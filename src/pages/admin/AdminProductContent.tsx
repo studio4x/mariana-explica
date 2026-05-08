@@ -298,12 +298,14 @@ export function AdminProductContent() {
 
   useEffect(() => {
     if (moduleId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs route-driven module selection into the legacy admin workspace state.
       setSelectedModuleId(moduleId)
     }
   }, [moduleId])
 
   useEffect(() => {
     if (lessonId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs route-driven lesson editing state into the legacy admin workspace.
       setEditingLessonId(lessonId)
     }
   }, [lessonId])
@@ -1445,7 +1447,7 @@ export function AdminProductContent() {
                           onChange={(event) =>
                             setLessonDraft((prev) => ({ ...prev, youtube_url: event.target.value }))
                           }
-                          placeholder="URL do YouTube"
+                          placeholder="URL do video"
                           className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                         />
                       ) : null}
@@ -1564,7 +1566,7 @@ export function AdminProductContent() {
                               <div className="flex flex-wrap gap-2">
                                 <StatusBadge label={`Posicao ${lesson.position}`} tone="neutral" />
                                 <StatusBadge label={`${lesson.estimated_minutes} min`} tone="warning" />
-                                {lesson.youtube_url ? <StatusBadge label="YouTube" tone="info" /> : null}
+                                {lesson.youtube_url ? <StatusBadge label="Video" tone="info" /> : null}
                                 {lesson.text_content ? <StatusBadge label="Texto" tone="success" /> : null}
                               </div>
 
@@ -1637,7 +1639,7 @@ export function AdminProductContent() {
                                       onChange={(event) =>
                                         setEditingLesson((prev) => ({ ...prev, youtube_url: event.target.value }))
                                       }
-                                      placeholder="URL do YouTube"
+                                      placeholder="URL do video"
                                       className="mt-3 h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                                     />
                                   ) : null}

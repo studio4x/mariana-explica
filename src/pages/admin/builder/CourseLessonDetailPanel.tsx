@@ -60,6 +60,31 @@ function inferAssetType(file: File): ModuleAssetSummary["asset_type"] {
   return "pdf"
 }
 
+function getVideoSourceSummary(source: string | null | undefined) {
+  const trimmed = source?.trim() ?? ""
+  if (!trimmed) {
+    return {
+      label: "Sem video configurado",
+      message: "Defina uma URL externa ou envie um video protegido para esta aula.",
+      tone: "neutral" as const,
+    }
+  }
+
+  if (trimmed.toLowerCase().startsWith("asset:")) {
+    return {
+      label: "Video protegido na plataforma",
+      message: "Este ficheiro usa storage privado e o player recebe apenas URL assinada temporaria.",
+      tone: "success" as const,
+    }
+  }
+
+  return {
+    label: "URL externa configurada",
+    message: "Links externos podem ser partilhados fora da plataforma. Use upload protegido para o nivel mais alto de controlo disponivel.",
+    tone: "warning" as const,
+  }
+}
+
 export function CourseLessonDetailPanel() {
   const navigate = useNavigate()
   const { courseId, moduleId, lessonId } = useParams<{
@@ -119,6 +144,7 @@ export function CourseLessonDetailPanel() {
     is_required: form.is_required ?? lesson.is_required,
     status: form.status ?? lesson.status,
   }
+  const videoSourceSummary = getVideoSourceSummary(values.youtube_url)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -240,6 +266,10 @@ export function CourseLessonDetailPanel() {
         youtube_url: assetValue,
       })
       setUploadMessage("Video protegido enviado com sucesso. O player da aula ja vai usar este ficheiro.")
+      setFeedback({
+        tone: "success",
+        message: "Video protegido enviado com sucesso. A aula agora usa o ficheiro privado da plataforma.",
+      })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o video.")
     } finally {
@@ -379,27 +409,54 @@ export function CourseLessonDetailPanel() {
 
               <LessonField
                 label="URL do video"
-                helper="Aceita links do YouTube ou o identificador interno do video protegido enviado abaixo."
+                helper="Aceita links do YouTube ou URLs diretas de ficheiro de video como .mp4, .webm, .mov e .m4v."
               >
                 <input
                   value={String(values.youtube_url)}
                   onChange={(event) => setForm((prev) => ({ ...prev, youtube_url: event.target.value }))}
-                  placeholder="https://youtube.com/watch?v=..."
+                  placeholder="https://youtube.com/watch?v=... ou https://cdn.exemplo.com/video.mp4"
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-sky-300"
                 />
               </LessonField>
 
+              <div
+                className={[
+                  "rounded-2xl border px-4 py-3 text-sm",
+                  videoSourceSummary.tone === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : videoSourceSummary.tone === "warning"
+                      ? "border-amber-200 bg-amber-50 text-amber-900"
+                      : "border-slate-200 bg-white text-slate-700",
+                ].join(" ")}
+              >
+                <p className="font-semibold">{videoSourceSummary.label}</p>
+                <p className="mt-1 leading-6">{videoSourceSummary.message}</p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="font-semibold">Nota de protecao</p>
+                <p className="mt-1 leading-6">
+                  Nenhum player web garante protecao total contra pirataria. O upload protegido reduz bastante o risco com bucket privado,
+                  URL assinada temporaria e player sem download explicito. Links externos continuam dependentes da seguranca do provedor de origem.
+                </p>
+              </div>
+
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-sm font-semibold text-slate-950">Upload seguro de video</p>
+                <p className="text-sm font-semibold text-slate-950">Upload protegido de video</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  O video enviado fica protegido por URL assinada e sem opcao de download no player do aluno.
+                  Recomendado para aulas pagas. O video fica em storage privado e o aluno recebe apenas acesso temporario assinado no player.
                 </p>
                 <input
                   type="file"
-                  accept="video/mp4,video/webm"
+                  accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v"
                   onChange={handleVideoUploadSelection}
                   className="mt-4 text-sm"
                 />
+                {uploadMessage ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    {uploadMessage}
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}

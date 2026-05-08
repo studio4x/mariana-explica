@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { AlertCircle, Loader2, PlayCircle } from "lucide-react"
 import { requestAssetAccess } from "@/services"
-import { getLessonVideoAssetId, getYoutubeEmbedUrl } from "@/lib/lesson-video"
+import { getExternalVideoUrl, getLessonVideoAssetId, getYoutubeEmbedUrl } from "@/lib/lesson-video"
 
 interface LessonPrimaryMediaProps {
   source: string | null | undefined
@@ -14,6 +14,7 @@ export function LessonPrimaryMedia({
 }: LessonPrimaryMediaProps) {
   const assetId = getLessonVideoAssetId(source)
   const youtubeEmbedUrl = getYoutubeEmbedUrl(source)
+  const externalVideoUrl = getExternalVideoUrl(source)
   const [assetUrl, setAssetUrl] = useState<string | null>(null)
   const [assetError, setAssetError] = useState<string | null>(null)
   const [isLoadingAsset, setIsLoadingAsset] = useState(false)
@@ -78,6 +79,22 @@ export function LessonPrimaryMedia({
         </div>
       ) : null}
 
+      {externalVideoUrl ? (
+        <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
+          <div className="aspect-video w-full">
+            <video
+              src={externalVideoUrl}
+              controls
+              controlsList="nodownload noplaybackrate"
+              disablePictureInPicture
+              disableRemotePlayback
+              playsInline
+              className="h-full w-full bg-black"
+            />
+          </div>
+        </div>
+      ) : null}
+
       {assetId ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
           <div className="aspect-video w-full">
@@ -97,6 +114,7 @@ export function LessonPrimaryMedia({
                 controls
                 controlsList="nodownload noplaybackrate"
                 disablePictureInPicture
+                disableRemotePlayback
                 playsInline
                 className="h-full w-full bg-black"
               />
@@ -105,7 +123,7 @@ export function LessonPrimaryMedia({
         </div>
       ) : null}
 
-      {!youtubeEmbedUrl && !assetId ? (
+      {!youtubeEmbedUrl && !externalVideoUrl && !assetId ? (
         <div className="mt-4 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
           <p className="font-semibold text-slate-950">URL configurada</p>
           <p className="mt-2 break-all leading-7">{source}</p>

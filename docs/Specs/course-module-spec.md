@@ -229,7 +229,7 @@ Campos principais:
 - `position`
 - `is_required`
 - `lesson_type`: `video`, `text` ou `hybrid`
-- `youtube_url`
+- `youtube_url` (campo legado usado como fonte do video)
 - `text_content`
 - `estimated_minutes`
 - `starts_at`
@@ -239,13 +239,14 @@ Campos principais:
 
 Regras:
 
-- `video`: aula centrada em YouTube.
+- `video`: aula centrada em media embed, com suporte a YouTube, URL direta de video ou ficheiro privado da plataforma.
 - `text`: aula centrada em blocos de conteudo.
 - `hybrid`: combina video e blocos.
 - Aula obrigatoria entra na progressao.
 - Aula pode ser liberada/expirada por data.
 - Aula fora da janela fica bloqueada mesmo quando modulo esta liberado.
 - O conteudo textual e salvo em `text_content`, com blocos serializados.
+- Quando `youtube_url` armazena `asset:<uuid>`, a aula usa video privado servido por URL assinada temporaria.
 
 ### 4.4 Assessment
 
@@ -699,7 +700,8 @@ Campos:
 - titulo;
 - descricao curta;
 - tipo de aula;
-- URL do YouTube;
+- URL do video;
+- upload protegido de video;
 - conteudo textual;
 - carga horaria estimada;
 - aula obrigatoria;
@@ -711,6 +713,9 @@ Campos:
 Video:
 
 - usa `youtube_url`;
+- aceita link do YouTube;
+- aceita URL direta de ficheiro de video;
+- aceita ficheiro privado enviado para a plataforma, persistido como `asset:<uuid>`;
 - pode ou nao ter descricao;
 - foco principal e media embed.
 
