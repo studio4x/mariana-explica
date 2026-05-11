@@ -34,7 +34,13 @@ export function errorResponse(error: unknown, requestId: string) {
     )
   }
 
-  const message = error instanceof Error ? error.message : "Erro inesperado"
+  const fallbackMessage = "Erro inesperado"
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message?: unknown }).message ?? fallbackMessage)
+        : fallbackMessage
   return jsonResponse(
     {
       success: false,

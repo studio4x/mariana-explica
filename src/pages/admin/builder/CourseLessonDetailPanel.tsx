@@ -63,6 +63,11 @@ function inferAssetType(file: File): ModuleAssetSummary["asset_type"] {
   return "pdf"
 }
 
+function buildAssetSortOrder() {
+  // `module_assets.sort_order` is an integer column; epoch seconds stay within range.
+  return Math.floor(Date.now() / 1000)
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
   const units = ["B", "KB", "MB", "GB", "TB"]
@@ -357,7 +362,7 @@ export function CourseLessonDetailPanel() {
         moduleId,
         asset_type: inferAssetType(file),
         title: `${values.title?.trim() || lesson.title} - ${upload.file_name.replace(/\.[^.]+$/, "")}`,
-        sort_order_asset: Date.now(),
+        sort_order_asset: buildAssetSortOrder(),
         storage_bucket: upload.bucket,
         storage_path: upload.path,
         external_url: null,
@@ -456,7 +461,7 @@ export function CourseLessonDetailPanel() {
         moduleId,
         asset_type: "video_file",
         title: `${values.title?.trim() || lesson.title} - video principal`,
-        sort_order_asset: Date.now(),
+        sort_order_asset: buildAssetSortOrder(),
         storage_bucket: signedUpload.bucket,
         storage_path: signedUpload.path,
         external_url: null,
