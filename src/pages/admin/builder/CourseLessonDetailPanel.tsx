@@ -5,6 +5,7 @@ import { Button } from "@/components/ui"
 import { LessonContentBlocksEditor, LessonPrimaryMedia, OperationFeedbackModal, StatusBadge } from "@/components/common"
 import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import {
+  useAdminModuleAssetUploadLimit,
   useCreateAdminModuleAssetSignedUpload,
   useAdminProductLessons,
   useCreateAdminModuleAsset,
@@ -62,8 +63,6 @@ function inferAssetType(file: File): ModuleAssetSummary["asset_type"] {
   return "pdf"
 }
 
-const LOCAL_PROTECTED_VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024
-
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
   const units = ["B", "KB", "MB", "GB", "TB"]
@@ -81,7 +80,15 @@ function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
   return "O video excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase."
 }
 
-function normalizeProtectedVideoUploadErrorMessage(error: unknown) {
+function getProtectedVideoLimitInstruction(limitBytes?: number | null) {
+  if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
+    return `Limite maximo atual no Supabase: ${formatBytes(limitBytes)} por ficheiro.`
+  }
+
+  return "Limite maximo por ficheiro definido no Storage do Supabase. O valor pode variar por configuracao do projeto."
+}
+
+function normalizeProtectedVideoUploadErrorMessage(error: unknown, limitBytes?: number | null) {
   const rawMessage = error instanceof Error ? error.message : "Nao foi possivel enviar o video."
   const normalized = rawMessage.toLowerCase()
 
@@ -91,7 +98,7 @@ function normalizeProtectedVideoUploadErrorMessage(error: unknown) {
     || normalized.includes("payload too large")
     || normalized.includes("entity too large")
   ) {
-    return buildProtectedVideoTooLargeMessage()
+    return buildProtectedVideoTooLargeMessage(limitBytes)
   }
 
   return rawMessage
@@ -152,6 +159,7 @@ export function CourseLessonDetailPanel() {
   const updateLesson = useUpdateAdminProductLesson()
   const deleteLesson = useDeleteAdminProductLesson()
   const uploadAssetFile = useUploadAdminModuleAssetFile()
+  const moduleAssetUploadLimitQuery = useAdminModuleAssetUploadLimit(moduleId)
   const createSignedVideoUpload = useCreateAdminModuleAssetSignedUpload()
   const createAsset = useCreateAdminModuleAsset()
   const [error, setError] = useState<string | null>(null)
@@ -166,6 +174,7 @@ export function CourseLessonDetailPanel() {
   const [videoUrlDraft, setVideoUrlDraft] = useState("")
   const [uploadedVideoAssetValue, setUploadedVideoAssetValue] = useState<string | null>(null)
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
+  const [resolvedProtectedVideoMaxBytes, setResolvedProtectedVideoMaxBytes] = useState<number | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const textContentEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const lessons = useMemo(() => lessonsQuery.data ?? [], [lessonsQuery.data])
@@ -235,6 +244,10 @@ export function CourseLessonDetailPanel() {
     is_required: form.is_required ?? lesson.is_required,
     status: form.status ?? lesson.status,
   }
+  const protectedVideoMaxBytes =
+    resolvedProtectedVideoMaxBytes
+    ?? moduleAssetUploadLimitQuery.data?.max_file_size_bytes
+    ?? null
   const currentStoredVideoSource = String(values.youtube_url ?? "").trim()
   const activeVideoSource =
     videoSourceMode === "upload"
@@ -367,8 +380,8 @@ export function CourseLessonDetailPanel() {
     setError(null)
     setUploadMessage(null)
 
-    if (file.size > LOCAL_PROTECTED_VIDEO_MAX_BYTES) {
-      const message = buildProtectedVideoTooLargeMessage(LOCAL_PROTECTED_VIDEO_MAX_BYTES)
+    if (protectedVideoMaxBytes && file.size > protectedVideoMaxBytes) {
+      const message = buildProtectedVideoTooLargeMessage(protectedVideoMaxBytes)
       setPendingVideoFile(null)
       setFeedback({ tone: "error", message })
       setVideoUploadStatus({
@@ -411,6 +424,11 @@ export function CourseLessonDetailPanel() {
         fileName: file.name,
         mimeType: file.type || "video/mp4",
       })
+      setResolvedProtectedVideoMaxBytes(
+        typeof signedUpload.max_file_size_bytes === "number" && Number.isFinite(signedUpload.max_file_size_bytes)
+          ? signedUpload.max_file_size_bytes
+          : null,
+      )
       if (
         signedUpload.max_file_size_bytes
         && Number.isFinite(signedUpload.max_file_size_bytes)
@@ -461,7 +479,7 @@ export function CourseLessonDetailPanel() {
         message: "Envio concluido com sucesso. O video protegido ja esta pronto no preview desta aula.",
       })
     } catch (uploadError) {
-      const uploadErrorMessage = normalizeProtectedVideoUploadErrorMessage(uploadError)
+      const uploadErrorMessage = normalizeProtectedVideoUploadErrorMessage(uploadError, protectedVideoMaxBytes)
       setError(uploadErrorMessage)
       setFeedback({ tone: "error", message: uploadErrorMessage })
       setVideoUploadStatus({
@@ -701,6 +719,9 @@ export function CourseLessonDetailPanel() {
                   <p className="text-sm font-semibold text-slate-950">Upload protegido de video</p>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
                     Recomendado para aulas pagas. O video fica em storage privado e o aluno recebe apenas acesso temporario assinado no player.
+                  </p>
+                  <p className="mt-1 text-xs leading-6 text-slate-500">
+                    {getProtectedVideoLimitInstruction(protectedVideoMaxBytes)}
                   </p>
                   <input
                     type="file"

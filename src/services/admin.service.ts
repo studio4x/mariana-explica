@@ -136,6 +136,11 @@ export interface AdminModuleAssetSignedUploadResult {
   }
 }
 
+export interface AdminModuleAssetUploadLimitResult {
+  bucket: string
+  max_file_size_bytes: number | null
+}
+
 function normalizeBrandingAsset(value: unknown): AdminBrandingAsset {
   const asset = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
 
@@ -433,6 +438,48 @@ export async function createAdminModuleAssetSignedUpload(input: {
   }
 
   return (data as { success: true; upload: AdminModuleAssetSignedUploadResult }).upload
+}
+
+export async function fetchAdminModuleAssetUploadLimit(moduleId: string) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("kind", "module_asset_limits")
+  formData.append("moduleId", moduleId)
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  const upload = (data as { success: true; upload: Partial<AdminModuleAssetUploadLimitResult> }).upload
+
+  return {
+    bucket: String(upload.bucket ?? "").trim(),
+    max_file_size_bytes:
+      typeof upload.max_file_size_bytes === "number" && Number.isFinite(upload.max_file_size_bytes)
+        ? upload.max_file_size_bytes
+        : null,
+  } satisfies AdminModuleAssetUploadLimitResult
 }
 
 export async function uploadAdminWatermarkLogoFile(input: {

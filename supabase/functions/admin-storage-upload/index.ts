@@ -34,7 +34,23 @@ const PRIVATE_ASSET_ALLOWED_MIME_TYPES = [
   "image/jpeg",
 ]
 const PRIVATE_ASSET_FILE_SIZE_LIMIT = "5GB"
-const PRIVATE_ASSET_MAX_BYTES = 5 * 1024 * 1024 * 1024
+
+function toPositiveNumber(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null
+  }
+
+  return Math.trunc(value)
+}
+
+function readBucketFileSizeLimitBytes(bucket: unknown) {
+  if (!bucket || typeof bucket !== "object") {
+    return null
+  }
+
+  const asRecord = bucket as Record<string, unknown>
+  return toPositiveNumber(asRecord.file_size_limit ?? asRecord.fileSizeLimit ?? null)
+}
 
 function sanitizeSegment(value: string) {
   return value
@@ -100,7 +116,9 @@ async function ensureStorageBucket(
   const { data: buckets, error: bucketsError } = await serviceClient.storage.listBuckets()
   if (bucketsError) throw bucketsError
 
-  if ((buckets ?? []).some((bucket) => bucket.name === bucketName)) {
+  const existingBucket = (buckets ?? []).find((bucket) => bucket.name === bucketName)
+
+  if (existingBucket) {
     const { error: updateBucketError } = await serviceClient.storage.updateBucket(bucketName, options)
 
     if (updateBucketError) {
@@ -110,7 +128,17 @@ async function ensureStorageBucket(
       })
     }
 
-    return
+    const { data: refreshedBucket, error: refreshedBucketError } = await serviceClient.storage.getBucket(bucketName)
+
+    if (refreshedBucketError) {
+      logError("Admin storage bucket read failed", {
+        bucket: bucketName,
+        error: String(refreshedBucketError),
+      })
+      return readBucketFileSizeLimitBytes(existingBucket)
+    }
+
+    return readBucketFileSizeLimitBytes(refreshedBucket) ?? readBucketFileSizeLimitBytes(existingBucket)
   }
 
   const { error: createBucketError } = await serviceClient.storage.createBucket(bucketName, options)
@@ -118,6 +146,18 @@ async function ensureStorageBucket(
   if (createBucketError && !String(createBucketError.message).toLowerCase().includes("already exists")) {
     throw createBucketError
   }
+
+  const { data: createdBucket, error: createdBucketError } = await serviceClient.storage.getBucket(bucketName)
+
+  if (createdBucketError) {
+    logError("Admin storage bucket post-create read failed", {
+      bucket: bucketName,
+      error: String(createdBucketError),
+    })
+    return null
+  }
+
+  return readBucketFileSizeLimitBytes(createdBucket)
 }
 
 Deno.serve(async (req) => {
@@ -144,26 +184,31 @@ Deno.serve(async (req) => {
     const replacePath = String(formData.get("replacePath") ?? "").trim() || null
     const file = formData.get("file")
     const isSignedUploadRequest = kind === "module_asset_signed_url"
+    const isModuleLimitRequest = kind === "module_asset_limits"
 
-    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset", "module_asset_signed_url"].includes(kind)) {
+    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset", "module_asset_signed_url", "module_asset_limits"].includes(kind)) {
       throw badRequest("kind invalido")
     }
-    if (!isSignedUploadRequest && !(file instanceof File)) {
+    if (!isSignedUploadRequest && !isModuleLimitRequest && !(file instanceof File)) {
       throw badRequest("file e obrigatorio")
     }
-    if (!isSignedUploadRequest && file.size === 0) {
+    if (!isSignedUploadRequest && !isModuleLimitRequest && file.size === 0) {
       throw badRequest("O ficheiro enviado esta vazio")
     }
 
     const fileNameForSanitization =
       isSignedUploadRequest
         ? requestedFileName || "video.mp4"
-        : file.name
+        : isModuleLimitRequest
+          ? "video.mp4"
+          : file.name
     const safeExtension = getFileExtension(fileNameForSanitization)
     const rawContentType =
       isSignedUploadRequest
         ? (requestedMimeType || null)
-        : (file.type || null)
+        : isModuleLimitRequest
+          ? "video/mp4"
+          : (file.type || null)
     let contentType = rawContentType || inferImageMimeType(safeExtension) || null
     const fileNameBase = sanitizeSegment(fileNameForSanitization.replace(/\.[^.]+$/, "")) || "arquivo"
     const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
@@ -172,10 +217,11 @@ Deno.serve(async (req) => {
     let auditEntityType = ""
     let auditEntityId = moduleId || productId || context.user.id
     let targetBucket = COURSE_STORAGE_BUCKET
+    let targetBucketFileSizeLimitBytes: number | null = null
     let auditMetadata: Record<string, unknown> = {
       file_name: fileNameForSanitization,
       mime_type: contentType,
-      file_size_bytes: isSignedUploadRequest ? null : file.size,
+      file_size_bytes: isSignedUploadRequest || isModuleLimitRequest ? null : file.size,
     }
 
     if (kind === "watermark_logo") {
@@ -183,7 +229,7 @@ Deno.serve(async (req) => {
       auditAction = "admin.watermark_logo_uploaded"
       auditEntityType = "site_config"
       auditEntityId = null
-      await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
+      targetBucketFileSizeLimitBytes = await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
         fileSizeLimit: PRIVATE_ASSET_FILE_SIZE_LIMIT,
         allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
@@ -267,7 +313,7 @@ Deno.serve(async (req) => {
       if (moduleError) throw moduleError
       if (!moduleRow) throw badRequest("Modulo nao encontrado")
 
-      await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
+      targetBucketFileSizeLimitBytes = await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
         fileSizeLimit: PRIVATE_ASSET_FILE_SIZE_LIMIT,
         allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
@@ -295,6 +341,23 @@ Deno.serve(async (req) => {
         module_id: moduleId,
         product_id: moduleRow.product_id,
       }
+    }
+
+    if (kind === "module_asset_limits") {
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        upload: {
+          bucket: targetBucket,
+          path: "",
+          file_name: null,
+          mime_type: null,
+          file_size_bytes: null,
+          max_file_size_bytes: targetBucketFileSizeLimitBytes,
+          uploaded_at: null,
+          public_url: null,
+        },
+      })
     }
 
     if (kind === "module_asset_signed_url") {
@@ -331,7 +394,7 @@ Deno.serve(async (req) => {
           file_name: fileNameForSanitization,
           mime_type: contentType,
           file_size_bytes: null,
-          max_file_size_bytes: PRIVATE_ASSET_MAX_BYTES,
+          max_file_size_bytes: targetBucketFileSizeLimitBytes,
           uploaded_at: null,
           public_url: null,
           signed_upload: {

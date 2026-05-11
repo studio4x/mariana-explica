@@ -8,6 +8,7 @@ import {
   createAdminCoupon,
   createAdminCourseRelease,
   createAdminNotification,
+  fetchAdminModuleAssetUploadLimit,
   createAdminModuleAssetSignedUpload,
   deleteAdminSupportTicket,
   createAdminProduct,
@@ -882,6 +883,15 @@ export function useUploadAdminModuleAssetFile() {
 
 export function useCreateAdminModuleAssetSignedUpload() {
   return useMutation({ mutationFn: createAdminModuleAssetSignedUpload })
+}
+
+export function useAdminModuleAssetUploadLimit(moduleId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "modules", moduleId, "asset-upload-limit"],
+    queryFn: () => fetchAdminModuleAssetUploadLimit(moduleId ?? ""),
+    enabled: Boolean(moduleId),
+    ...getAdminQueryOptions(),
+  })
 }
 
 export function useUploadAdminWatermarkLogoFile() {
