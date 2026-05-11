@@ -74,7 +74,9 @@ function formatBytes(bytes: number) {
 
 function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
-    return `O video excede o limite permitido (${formatBytes(limitBytes)}). Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase.`
+    const maxMb = limitBytes / (1024 * 1024)
+    const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
+    return `O video excede o limite permitido (${mbLabel} MB). Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase.`
   }
 
   return "O video excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase."
@@ -82,7 +84,9 @@ function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
 
 function getProtectedVideoLimitInstruction(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
-    return `Limite maximo atual no Supabase: ${formatBytes(limitBytes)} por ficheiro.`
+    const maxMb = limitBytes / (1024 * 1024)
+    const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
+    return `Limite maximo atual no Supabase: ${mbLabel} MB por ficheiro.`
   }
 
   return "Limite maximo por ficheiro definido no Storage do Supabase. O valor pode variar por configuracao do projeto."

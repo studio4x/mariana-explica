@@ -33,7 +33,12 @@ const PRIVATE_ASSET_ALLOWED_MIME_TYPES = [
   "image/png",
   "image/jpeg",
 ]
-const PRIVATE_ASSET_FILE_SIZE_LIMIT = "5GB"
+const BRANDING_FILE_SIZE_LIMIT_BYTES = 5 * 1024 * 1024
+const COURSE_COVER_FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024
+const PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES = 50 * 1024 * 1024
+const STORAGE_SETTINGS_CACHE_MS = 60_000
+let cachedGlobalStorageFileSizeLimitBytes: number | null = null
+let cachedGlobalStorageFileSizeLimitReadAt = 0
 
 function toPositiveNumber(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -50,6 +55,74 @@ function readBucketFileSizeLimitBytes(bucket: unknown) {
 
   const asRecord = bucket as Record<string, unknown>
   return toPositiveNumber(asRecord.file_size_limit ?? asRecord.fileSizeLimit ?? null)
+}
+
+function getProjectRefFromSupabaseUrl() {
+  const rawUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("PROJECT_URL") ?? ""
+
+  try {
+    const host = new URL(rawUrl).hostname
+    return host.split(".")[0] ?? ""
+  } catch {
+    return ""
+  }
+}
+
+async function resolveGlobalStorageFileSizeLimitBytes() {
+  const now = Date.now()
+  if (
+    cachedGlobalStorageFileSizeLimitBytes
+    && now - cachedGlobalStorageFileSizeLimitReadAt < STORAGE_SETTINGS_CACHE_MS
+  ) {
+    return cachedGlobalStorageFileSizeLimitBytes
+  }
+
+  const managementToken =
+    Deno.env.get("MANAGEMENT_API_ACCESS_TOKEN")
+    ?? Deno.env.get("SUPABASE_MANAGEMENT_ACCESS_TOKEN")
+    ?? Deno.env.get("SUPABASE_ACCESS_TOKEN")
+    ?? ""
+  const projectRef = getProjectRefFromSupabaseUrl()
+
+  if (!managementToken || !projectRef) {
+    cachedGlobalStorageFileSizeLimitBytes = PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
+    cachedGlobalStorageFileSizeLimitReadAt = now
+    return cachedGlobalStorageFileSizeLimitBytes
+  }
+
+  try {
+    const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/config/storage`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${managementToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      logError("Supabase storage settings fetch failed", {
+        status: response.status,
+        project_ref: projectRef,
+      })
+      cachedGlobalStorageFileSizeLimitBytes = PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
+      cachedGlobalStorageFileSizeLimitReadAt = now
+      return cachedGlobalStorageFileSizeLimitBytes
+    }
+
+    const payload = await response.json().catch(() => null)
+    const parsedLimit = toPositiveNumber((payload as Record<string, unknown> | null)?.fileSizeLimit ?? null)
+
+    cachedGlobalStorageFileSizeLimitBytes = parsedLimit ?? PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
+    cachedGlobalStorageFileSizeLimitReadAt = now
+    return cachedGlobalStorageFileSizeLimitBytes
+  } catch (error) {
+    logError("Supabase storage settings request exception", {
+      error: String(error),
+      project_ref: projectRef,
+    })
+    cachedGlobalStorageFileSizeLimitBytes = PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
+    cachedGlobalStorageFileSizeLimitReadAt = now
+    return cachedGlobalStorageFileSizeLimitBytes
+  }
 }
 
 function sanitizeSegment(value: string) {
@@ -111,7 +184,7 @@ function normalizeBrandingMimeType(rawMimeType: string | null, extension: string
 async function ensureStorageBucket(
   serviceClient: ReturnType<typeof createServiceClient>,
   bucketName: string,
-  options: { public: boolean; fileSizeLimit: string; allowedMimeTypes: string[] },
+  options: { public: boolean; fileSizeLimit: number; allowedMimeTypes: string[] },
 ) {
   const { data: buckets, error: bucketsError } = await serviceClient.storage.listBuckets()
   if (bucketsError) throw bucketsError
@@ -125,6 +198,7 @@ async function ensureStorageBucket(
       logError("Admin storage bucket update failed", {
         bucket: bucketName,
         error: String(updateBucketError),
+        requested_file_size_limit: options.fileSizeLimit,
       })
     }
 
@@ -185,6 +259,7 @@ Deno.serve(async (req) => {
     const file = formData.get("file")
     const isSignedUploadRequest = kind === "module_asset_signed_url"
     const isModuleLimitRequest = kind === "module_asset_limits"
+    const privateAssetFileSizeLimitBytes = await resolveGlobalStorageFileSizeLimitBytes()
 
     if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset", "module_asset_signed_url", "module_asset_limits"].includes(kind)) {
       throw badRequest("kind invalido")
@@ -231,9 +306,9 @@ Deno.serve(async (req) => {
       auditEntityId = null
       targetBucketFileSizeLimitBytes = await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
-        fileSizeLimit: PRIVATE_ASSET_FILE_SIZE_LIMIT,
+        fileSizeLimit: privateAssetFileSizeLimitBytes,
         allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
-      })
+      }) ?? privateAssetFileSizeLimitBytes
       auditMetadata = {
         ...auditMetadata,
         config_key: "module_pdf_watermark",
@@ -251,7 +326,7 @@ Deno.serve(async (req) => {
 
       await ensureStorageBucket(context.serviceClient, SITE_BRANDING_BUCKET, {
         public: true,
-        fileSizeLimit: "5MB",
+        fileSizeLimit: BRANDING_FILE_SIZE_LIMIT_BYTES,
         allowedMimeTypes: BRANDING_ALLOWED_MIME_TYPES,
       })
 
@@ -283,7 +358,7 @@ Deno.serve(async (req) => {
 
       await ensureStorageBucket(context.serviceClient, COURSE_COVER_BUCKET, {
         public: true,
-        fileSizeLimit: "10MB",
+        fileSizeLimit: COURSE_COVER_FILE_SIZE_LIMIT_BYTES,
         allowedMimeTypes: COURSE_COVER_ALLOWED_MIME_TYPES,
       })
 
@@ -315,9 +390,9 @@ Deno.serve(async (req) => {
 
       targetBucketFileSizeLimitBytes = await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
         public: false,
-        fileSizeLimit: PRIVATE_ASSET_FILE_SIZE_LIMIT,
+        fileSizeLimit: privateAssetFileSizeLimitBytes,
         allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
-      })
+      }) ?? privateAssetFileSizeLimitBytes
 
       objectPath =
         kind === "module_pdf"
