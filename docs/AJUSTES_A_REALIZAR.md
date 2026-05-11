@@ -8,4 +8,6 @@
 
 [OK] T3 - nos campos da página "/builder/pagina-publica", insira em todos os campos de área de texto, o editor rico. o mesmo inserido nos blocos de texto das aulas...
 
+[OK] T4 - Na página de admin/reviews, insira a possibilidade de inserir o nome do Aluno ao invés de ter que selecionar o usuário.. Mantenha as duas opções: selecionar usuário e inserir apenas um nome sem vincular a um usuário..
+
 # REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

@@ -381,6 +381,7 @@ export interface CourseReviewAuthor {
 export interface CourseReviewSummary {
   id: string
   author_id: string
+  author_name: string | null
   target_id: string
   target_type: "course" | "product"
   target_resource_id: string | null

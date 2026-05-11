@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
     const moderationStatus = needsModeration(title, content) ? "pending" : "approved"
     const reviewPayload = {
       author_id: context.user.id,
+      author_name: null,
       target_id: targetId,
       target_type: targetType,
       target_resource_id: targetId,
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
     }
 
     const reviewSelect = `
-      id,author_id,target_id,target_type,target_resource_id,rating,title,content,
+      id,author_id,author_name,target_id,target_type,target_resource_id,rating,title,content,
       is_verified_purchase,is_moderated,moderation_status,moderation_reason,
       helpful_count,unhelpful_count,created_at,updated_at,
       profiles:author_id(full_name,avatar_url)
@@ -133,6 +134,7 @@ Deno.serve(async (req) => {
       .eq("author_id", context.user.id)
       .eq("target_id", targetId)
       .eq("target_type", targetType)
+      .is("author_name", null)
       .is("deleted_at", null)
       .maybeSingle()
 

@@ -13,6 +13,8 @@ const statusTone = {
   rejected: "danger",
 } as const
 
+type AuthorMode = "user" | "manual"
+
 export function AdminReviews() {
   const reviewsQuery = useAdminReviews()
   const productsQuery = useAdminProducts()
@@ -21,7 +23,9 @@ export function AdminReviews() {
   const moderateReview = useModerateCourseReview()
 
   const [productId, setProductId] = useState("")
+  const [authorMode, setAuthorMode] = useState<AuthorMode>("user")
   const [authorId, setAuthorId] = useState("")
+  const [manualAuthorName, setManualAuthorName] = useState("")
   const [rating, setRating] = useState(5)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
@@ -73,7 +77,8 @@ export function AdminReviews() {
     try {
       const response = await createReview.mutateAsync({
         productId,
-        authorId: authorId.trim() || null,
+        authorId: authorMode === "user" ? authorId.trim() || null : null,
+        authorName: authorMode === "manual" ? manualAuthorName.trim() : null,
         rating,
         title,
         content,
@@ -82,6 +87,7 @@ export function AdminReviews() {
 
       setTitle("")
       setContent("")
+      setManualAuthorName("")
       setRating(5)
       setIsVerifiedPurchase(false)
       setFeedback(response.saved_as === "updated" ? "Review atualizada e publicada." : "Review criada e publicada.")
@@ -131,7 +137,8 @@ export function AdminReviews() {
               <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">Criação manual</p>
               <h2 className="mt-2 text-2xl font-black text-slate-950">Publicar review no admin</h2>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                Escolhe o material, associa um usuário se necessário e publica a review já aprovada.
+                Escolhe o material, seleciona um usuario ou informa apenas o nome do aluno, e publica a review ja
+                aprovada.
               </p>
             </div>
           </div>
@@ -155,22 +162,78 @@ export function AdminReviews() {
             </label>
 
             <label className="grid gap-2">
-              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
-                Usuario opcional
-              </span>
-              <select
-                value={authorId}
-                onChange={(event) => setAuthorId(event.target.value)}
-                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-              >
-                <option value="">Usar a conta do admin</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name} - {user.email}
-                  </option>
-                ))}
-              </select>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Autor da review</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthorMode("user")
+                    setFeedback(null)
+                  }}
+                  className={`h-10 rounded-xl border px-3 text-xs font-black uppercase tracking-[0.14em] transition ${
+                    authorMode === "user"
+                      ? "border-sky-500 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  Selecionar usuario
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthorMode("manual")
+                    setAuthorId("")
+                    setFeedback(null)
+                  }}
+                  className={`h-10 rounded-xl border px-3 text-xs font-black uppercase tracking-[0.14em] transition ${
+                    authorMode === "manual"
+                      ? "border-sky-500 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  Inserir nome
+                </button>
+              </div>
             </label>
+
+            {authorMode === "user" ? (
+              <label className="grid gap-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Usuario opcional</span>
+                <select
+                  value={authorId}
+                  onChange={(event) => setAuthorId(event.target.value)}
+                  className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                >
+                  <option value="">Usar a conta do admin</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.full_name} - {user.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="grid gap-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Nome do aluno (sem vinculo de usuario)
+                </span>
+                <input
+                  value={manualAuthorName}
+                  onChange={(event) => setManualAuthorName(event.target.value)}
+                  placeholder="Ex: Joana Silva"
+                  minLength={2}
+                  maxLength={120}
+                  required={authorMode === "manual"}
+                  className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                />
+              </label>
+            )}
+
+            {authorMode === "manual" ? (
+              <p className="text-xs leading-5 text-slate-500">
+                Este modo publica a review com nome manual e sem ligar a um perfil real de aluno.
+              </p>
+            ) : null}
 
             <label className="grid gap-2">
               <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Rating</span>
@@ -223,7 +286,15 @@ export function AdminReviews() {
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="submit" className="rounded-full" disabled={createReview.isPending || !productId}>
+            <Button
+              type="submit"
+              className="rounded-full"
+              disabled={
+                createReview.isPending ||
+                !productId ||
+                (authorMode === "manual" && manualAuthorName.trim().length < 2)
+              }
+            >
               {createReview.isPending ? "A publicar..." : "Publicar review"}
             </Button>
           </div>
@@ -273,7 +344,7 @@ export function AdminReviews() {
       ) : (
         <section className="grid gap-4">
           {reviews.map((review) => {
-            const authorName = review.profiles?.full_name?.trim() || "Aluno"
+            const authorName = review.author_name?.trim() || review.profiles?.full_name?.trim() || "Aluno"
             const courseTitle = productMap.get(review.target_id)?.title ?? review.target_id
             const courseStatus = productMap.get(review.target_id)?.status
             const isPending = review.moderation_status === "pending"

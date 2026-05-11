@@ -6,6 +6,7 @@ import type { CourseReviewStats, CourseReviewSummary } from "@/types/app.types"
 const reviewSelect = `
   id,
   author_id,
+  author_name,
   target_id,
   target_type,
   target_resource_id,
@@ -164,6 +165,7 @@ export function createCourseReview(input: {
 export function createAdminCourseReview(input: {
   productId: string
   authorId?: string | null
+  authorName?: string | null
   rating: number
   title: string
   content: string
@@ -174,6 +176,7 @@ export function createAdminCourseReview(input: {
     {
       productId: input.productId,
       authorId: input.authorId ?? null,
+      authorName: input.authorName ?? null,
       rating: input.rating,
       title: input.title,
       content: input.content,

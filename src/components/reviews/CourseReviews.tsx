@@ -41,7 +41,7 @@ function ReviewCard({
   onVote: (reviewId: string, isHelpful: boolean) => void
   voting: boolean
 }) {
-  const authorName = review.profiles?.full_name?.trim() || "Aluno Mariana Explica"
+  const authorName = review.author_name?.trim() || review.profiles?.full_name?.trim() || "Aluno Mariana Explica"
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

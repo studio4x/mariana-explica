@@ -16,6 +16,7 @@ import {
 interface AdminCreateReviewInput {
   productId?: string
   authorId?: string | null
+  authorName?: string | null
   rating: number
   title: string
   content: string
@@ -23,7 +24,7 @@ interface AdminCreateReviewInput {
 }
 
 const reviewSelect = `
-  id,author_id,target_id,target_type,target_resource_id,rating,title,content,
+  id,author_id,author_name,target_id,target_type,target_resource_id,rating,title,content,
   is_verified_purchase,is_moderated,moderation_status,moderation_reason,
   helpful_count,unhelpful_count,created_at,updated_at,
   profiles:author_id(full_name,avatar_url)
@@ -44,14 +45,26 @@ Deno.serve(async (req) => {
     const context = await requireAdmin(req)
     const body = await readJsonBody<AdminCreateReviewInput>(req)
     const productId = (body.productId ?? "").trim()
-    const authorId = (body.authorId ?? context.user.id).trim()
+    const authorIdInput = (body.authorId ?? "").trim()
+    const authorNameInput = (body.authorName ?? "").trim()
     const rating = Number(body.rating)
     const title = body.title?.trim() ?? ""
     const content = body.content?.trim() ?? ""
     const isVerifiedPurchase = Boolean(body.isVerifiedPurchase)
+    const isManualAuthor = authorNameInput.length > 0
+    const authorId = (isManualAuthor ? context.user.id : authorIdInput || context.user.id).trim()
+    const authorName = isManualAuthor ? authorNameInput : null
 
     if (!productId) {
       throw badRequest("productId e obrigatorio")
+    }
+
+    if (isManualAuthor && authorIdInput) {
+      throw badRequest("Escolhe apenas um modo de autor: usuario vinculado ou nome manual")
+    }
+
+    if (authorName && (authorName.length < 2 || authorName.length > 120)) {
+      throw badRequest("authorName deve ter entre 2 e 120 caracteres")
     }
 
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -96,6 +109,7 @@ Deno.serve(async (req) => {
 
     const reviewPayload = {
       author_id: authorId,
+      author_name: authorName,
       target_id: productId,
       target_type: "course",
       target_resource_id: productId,
@@ -115,6 +129,7 @@ Deno.serve(async (req) => {
       .eq("author_id", authorId)
       .eq("target_id", productId)
       .eq("target_type", "course")
+      .is("author_name", null)
       .is("deleted_at", null)
       .maybeSingle()
 
@@ -122,11 +137,32 @@ Deno.serve(async (req) => {
       throw existingReviewError
     }
 
-    const reviewQuery = existingReview
+    let existingManualReview: { id: string } | null = null
+    if (authorName) {
+      const { data: manualReview, error: manualReviewError } = await context.serviceClient
+        .from("reviews")
+        .select("id")
+        .eq("author_id", authorId)
+        .eq("target_id", productId)
+        .eq("target_type", "course")
+        .eq("author_name", authorName)
+        .is("deleted_at", null)
+        .maybeSingle()
+
+      if (manualReviewError) {
+        throw manualReviewError
+      }
+
+      existingManualReview = manualReview
+    }
+
+    const recordToUpdate = authorName ? existingManualReview : existingReview
+
+    const reviewQuery = recordToUpdate
       ? context.serviceClient
           .from("reviews")
           .update(reviewPayload)
-          .eq("id", existingReview.id)
+          .eq("id", recordToUpdate.id)
           .select(reviewSelect)
       : context.serviceClient
           .from("reviews")
@@ -146,8 +182,10 @@ Deno.serve(async (req) => {
       metadata: {
         target_id: productId,
         author_id: authorId,
+        author_name: authorName,
+        author_mode: authorName ? "manual_name" : "linked_user",
         is_verified_purchase: isVerifiedPurchase,
-        saved_as: existingReview ? "updated" : "inserted",
+        saved_as: recordToUpdate ? "updated" : "inserted",
       },
       ...extractRequestAuditContext(req),
     })
@@ -156,7 +194,7 @@ Deno.serve(async (req) => {
       success: true,
       request_id: requestId,
       review,
-      saved_as: existingReview ? "updated" : "inserted",
+      saved_as: recordToUpdate ? "updated" : "inserted",
     })
   } catch (error) {
     logError("Admin review creation failed", { request_id: requestId, error: String(error) })

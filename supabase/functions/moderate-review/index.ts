@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", reviewId)
       .select(`
-        id,author_id,target_id,target_type,target_resource_id,rating,title,content,
+        id,author_id,author_name,target_id,target_type,target_resource_id,rating,title,content,
         is_verified_purchase,is_moderated,moderation_status,moderation_reason,
         helpful_count,unhelpful_count,created_at,updated_at,
         profiles:author_id(full_name,avatar_url)
