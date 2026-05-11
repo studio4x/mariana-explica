@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method !== "POST") {
-      throw badRequest("Método não suportado")
+      throw badRequest("Metodo nao suportado")
     }
 
     const optionalContext = await getOptionalAuth(req)
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const body = await readJsonBody<GenerateAssetAccessInput>(req)
 
     if (!body.assetId) {
-      throw badRequest("assetId é obrigatório")
+      throw badRequest("assetId e obrigatorio")
     }
 
     const client = createServiceClient()
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     }
 
     if (!asset) {
-      throw forbidden("Asset indisponível")
+      throw forbidden("Asset indisponivel")
     }
 
     const { data: moduleRow, error: moduleError } = await client
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     }
 
     if (!moduleRow) {
-      throw forbidden("Módulo indisponível")
+      throw forbidden("Modulo indisponivel")
     }
 
     const { data: productRow, error: productError } = await client
@@ -126,29 +126,33 @@ Deno.serve(async (req) => {
     }
 
     if (!productRow) {
-      throw forbidden("Produto indisponível")
+      throw forbidden("Produto indisponivel")
     }
 
     const module = moduleRow as ModuleRow
     const product = productRow as ProductRow
+    const activeContext = optionalContext ? await requireActiveUser(req) : null
+    const isAdminRequester = Boolean(
+      activeContext?.profile.is_admin && activeContext.profile.role === "admin",
+    )
 
-    if (asset.status !== "active" || module.status !== "published" || product.status !== "published") {
-      throw forbidden("Conteúdo indisponível")
+    if (!isAdminRequester && (asset.status !== "active" || module.status !== "published" || product.status !== "published")) {
+      throw forbidden("Conteudo indisponivel")
     }
 
     const moduleAllowsPublicAccess = module.access_type === "public" || module.is_preview
-    const activeContext = optionalContext ? await requireActiveUser(req) : null
     const userHasPaidAccess = Boolean(
       activeContext && (await hasPaidAccess(client, activeContext.user.id, product.id)),
     )
 
     const canAccess =
+      isAdminRequester ||
       moduleAllowsPublicAccess ||
       (module.access_type === "registered" && activeContext?.profile.status === "active") ||
       (module.access_type === "paid_only" && userHasPaidAccess)
 
     if (!canAccess) {
-      throw forbidden("Você não possui acesso a este conteúdo")
+      throw forbidden("Voce nao possui acesso a este conteudo")
     }
 
     if (asset.external_url) {
@@ -199,7 +203,7 @@ Deno.serve(async (req) => {
       })
 
     if (signed.error || !signed.data?.signedUrl) {
-      throw signed.error ?? forbidden("Não foi possível gerar acesso temporário")
+      throw signed.error ?? forbidden("Nao foi possivel gerar acesso temporario")
     }
 
     if (activeContext) {
