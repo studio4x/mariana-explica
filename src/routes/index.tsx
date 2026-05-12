@@ -157,6 +157,9 @@ const CourseFinalAssessmentDetailPanel = lazy(() =>
   })),
 )
 const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminSupport })))
+const AdminPublicForms = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminPublicForms })),
+)
 const AdminSupportTicketDetail = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.AdminSupportTicketDetail })),
 )
@@ -513,6 +516,10 @@ export const router = createBrowserRouter(
         {
           path: "suporte",
           element: withSuspense(<AdminSupport />),
+        },
+        {
+          path: "formularios",
+          element: withSuspense(<AdminPublicForms />),
         },
         {
           path: "perguntas-frequentes",

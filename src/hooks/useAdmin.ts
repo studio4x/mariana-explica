@@ -30,6 +30,8 @@ import {
   fetchAdminEmailStatus,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
+  fetchAdminPublicFormNotificationsConfig,
+  fetchAdminPublicFormSubmissions,
   fetchAdminProductCategories,
   fetchAdminFaqCategories,
   fetchAdminFaqs,
@@ -74,6 +76,7 @@ import {
   updateAdminCoupon,
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
+  updateAdminPublicFormNotificationsConfig,
   updateAdminProduct,
   createAdminProductCategory,
   createAdminFaqCategory,
@@ -97,6 +100,7 @@ import type {
   ProductLessonSummary,
   ProductModuleSummary,
   ProductAssessmentSummary,
+  PublicFormSubmissionSummary,
   SupportTicketMessage,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
@@ -211,6 +215,14 @@ export function useAdminPendingInfoConfig() {
   return useQuery({
     queryKey: ["admin", "pending-info"],
     queryFn: fetchAdminPendingInfoConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminPublicFormNotificationsConfig() {
+  return useQuery({
+    queryKey: ["admin", "public-forms", "notifications-config"],
+    queryFn: fetchAdminPublicFormNotificationsConfig,
     ...getAdminQueryOptions(),
   })
 }
@@ -701,6 +713,62 @@ function useAdminInvalidation() {
   }
 }
 
+export function useAdminPublicFormSubmissions() {
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: ["admin", "public-forms", "submissions"],
+    queryFn: fetchAdminPublicFormSubmissions,
+    staleTime: 0,
+    gcTime: ADMIN_QUERY_GC_TIME,
+    refetchOnMount: "always",
+    refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  })
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-public-form-submissions")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "public_form_submissions",
+        },
+        (payload: RealtimePayload) => {
+          const nextSubmission = payload.new as PublicFormSubmissionSummary | undefined
+          const oldSubmission = payload.old as PublicFormSubmissionSummary | undefined
+
+          if (payload.eventType === "DELETE" && oldSubmission?.id) {
+            queryClient.setQueryData<PublicFormSubmissionSummary[]>(["admin", "public-forms", "submissions"], (current) =>
+              removeById(current, oldSubmission.id),
+            )
+          } else if (nextSubmission?.id) {
+            queryClient.setQueryData<PublicFormSubmissionSummary[]>(
+              ["admin", "public-forms", "submissions"],
+              (current) => upsertById(current, nextSubmission),
+            )
+          }
+
+          refetchActive(queryClient, ["admin", "public-forms", "submissions"])
+        },
+      )
+      .subscribe()
+
+    const initialSync = window.setTimeout(() => {
+      refetchActive(queryClient, ["admin", "public-forms", "submissions"])
+    }, 250)
+
+    return () => {
+      window.clearTimeout(initialSync)
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+
+  return query
+}
+
 function upsertAdminProductAssessmentCache(
   queryClient: ReturnType<typeof useQueryClient>,
   assessment: ProductAssessmentSummary,
@@ -1096,6 +1164,11 @@ export function useUpdateAdminModulePdfWatermarkConfig() {
 export function useUpdateAdminPendingInfoConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminPendingInfoConfig, onSuccess: invalidate })
+}
+
+export function useUpdateAdminPublicFormNotificationsConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminPublicFormNotificationsConfig, onSuccess: invalidate })
 }
 
 export function useCreateAdminCourseRelease() {

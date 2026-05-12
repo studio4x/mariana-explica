@@ -148,6 +148,16 @@ export interface AdminTrackingConfig {
   updated_at: string | null
 }
 
+export interface AdminPublicFormNotificationsConfig {
+  config_key: string
+  config_value: {
+    notification_email: string
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface AdminEmailStatus {
   providerName: string | null
   transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
@@ -598,6 +608,21 @@ export interface AdminCronStatusOverview {
 
 export interface AdminSupportTicketSummary extends SupportTicketSummary {
   user_id: string
+}
+
+export interface PublicFormSubmissionSummary {
+  id: string
+  form_type: string
+  source_page: string
+  full_name: string
+  email: string
+  subject: string
+  message: string
+  metadata: Record<string, unknown>
+  notified_email_to: string | null
+  notified_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface AdminNotificationSummary extends NotificationItem {

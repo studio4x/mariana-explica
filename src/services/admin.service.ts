@@ -26,10 +26,12 @@ import type {
   AdminCronStatusOverview,
   AdminEmailStatus,
   AdminPendingInfoConfig,
+  AdminPublicFormNotificationsConfig,
   AdminTrackingConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
   AdminSupportTicketSummary,
+  PublicFormSubmissionSummary,
   AdminUserSummary,
   ModuleAssetSummary,
   AdminAssessmentMutationInput,
@@ -119,6 +121,7 @@ const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
 const CHECKOUT_MODE_CONFIG_KEY = "checkout_environment"
 const BRANDING_CONFIG_KEY = "site_branding"
 const TRACKING_CONFIG_KEY = "site_tracking"
+const PUBLIC_FORM_NOTIFICATIONS_KEY = "public_form_notifications"
 
 export interface AdminModuleAssetSignedUploadResult {
   bucket: string
@@ -270,6 +273,29 @@ function normalizeAdminTrackingConfig(
       row?.description ??
       "Configuracao publica de rastreamento e codigos personalizados do site, respeitando consentimento quando aplicavel.",
     is_public: row?.is_public ?? true,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminPublicFormNotificationsConfig(
+  row?: Partial<AdminPublicFormNotificationsConfig> | null,
+): AdminPublicFormNotificationsConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const notificationEmail = String(value.notification_email ?? "").trim().toLowerCase()
+
+  return {
+    config_key: row?.config_key ?? PUBLIC_FORM_NOTIFICATIONS_KEY,
+    config_value: {
+      notification_email: notificationEmail,
+    },
+    description:
+      row?.description ??
+      "Endereco de email que recebe alertas dos formularios enviados no site publico.",
+    is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
 }
@@ -1075,6 +1101,68 @@ export async function updateAdminPendingInfoConfig(
   return normalizeAdminPendingInfoConfig(data as Partial<AdminPendingInfoConfig>)
 }
 
+export async function updateAdminPublicFormNotificationsConfig(
+  input: AdminPublicFormNotificationsConfig["config_value"],
+) {
+  const notificationEmail = String(input.notification_email ?? "").trim().toLowerCase()
+  const payload = {
+    config_key: PUBLIC_FORM_NOTIFICATIONS_KEY,
+    config_value: {
+      notification_email: notificationEmail,
+    },
+    description: "Endereco de email que recebe alertas dos formularios enviados no site publico.",
+    is_public: false,
+  }
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (
+      values: {
+        config_key: string
+        config_value: { notification_email: string }
+        description: string
+        is_public: boolean
+      },
+      options: { onConflict: "config_key" },
+    ) => {
+      select: (
+        fields: string,
+      ) => Promise<{ data: Partial<AdminPublicFormNotificationsConfig> | null; error: Error | null }>
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: PUBLIC_FORM_NOTIFICATIONS_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: payload.is_public,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminPublicFormNotificationsConfig(data ?? payload)
+}
+
+export async function fetchAdminPublicFormNotificationsConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", PUBLIC_FORM_NOTIFICATIONS_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminPublicFormNotificationsConfig(data as Partial<AdminPublicFormNotificationsConfig>)
+}
+
 export async function fetchAdminProductModules(productId: string) {
   const response = await invokeAdminFunction<{ success: true; modules: ProductModuleSummary[] }>("admin-content", {
     action: "list_modules",
@@ -1388,6 +1476,19 @@ export async function fetchAdminSupportTickets() {
   }
 
   return (data ?? []) as AdminSupportTicketSummary[]
+}
+
+export async function fetchAdminPublicFormSubmissions() {
+  const { data, error } = await supabase
+    .from("public_form_submissions")
+    .select("id,form_type,source_page,full_name,email,subject,message,metadata,notified_email_to,notified_at,created_at,updated_at")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as PublicFormSubmissionSummary[]
 }
 
 export async function fetchAdminSupportTicket(ticketId: string) {

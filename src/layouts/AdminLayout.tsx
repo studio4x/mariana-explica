@@ -13,6 +13,7 @@ import {
   TicketPercent,
   Users,
   CreditCard,
+  ClipboardList,
   Settings,
   UserCircle2,
 } from "lucide-react"
@@ -29,6 +30,7 @@ import {
   fetchAdminNotifications,
   fetchAdminOperations,
   fetchAdminOrdersView,
+  fetchAdminPublicFormSubmissions,
   fetchAdminProducts,
   fetchAdminSupportTickets,
   fetchAdminUsers,
@@ -54,6 +56,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
+  { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formularios", icon: ClipboardList },
   { to: ROUTES.ADMIN_FAQ, label: "Perguntas frequentes", icon: CircleHelp },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
@@ -111,6 +114,11 @@ export function AdminLayout() {
     void queryClient.prefetchQuery({
       queryKey: ["admin", "support", "tickets"],
       queryFn: fetchAdminSupportTickets,
+      staleTime: 60_000,
+    })
+    void queryClient.prefetchQuery({
+      queryKey: ["admin", "public-forms", "submissions"],
+      queryFn: fetchAdminPublicFormSubmissions,
       staleTime: 60_000,
     })
     void queryClient.prefetchQuery({

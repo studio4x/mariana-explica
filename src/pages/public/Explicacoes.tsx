@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { MessageCircleHeart, Send } from "lucide-react"
 import { OperationFeedbackModal } from "@/components/common"
 import { Button } from "@/components/ui"
+import { submitPublicForm } from "@/services"
 
 interface ExplicacoesFormState {
   nome: string
@@ -20,11 +21,31 @@ const initialFormState: ExplicacoesFormState = {
 export function Explicacoes() {
   const [form, setForm] = useState<ExplicacoesFormState>(initialFormState)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setIsSuccessModalOpen(true)
-    setForm(initialFormState)
+    setSubmitError(null)
+    setIsSubmitting(true)
+
+    try {
+      await submitPublicForm({
+        formType: "explicacoes",
+        sourcePage: "/explicacoes",
+        fullName: form.nome,
+        email: form.email,
+        subject: form.assunto,
+        message: form.mensagem,
+      })
+
+      setIsSuccessModalOpen(true)
+      setForm(initialFormState)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel enviar o formulario.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -115,11 +136,21 @@ export function Explicacoes() {
             </div>
 
             <div className="flex flex-wrap justify-end gap-3">
-              <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
-                Enviar formulario
+              <Button
+                type="submit"
+                className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "A enviar..." : "Enviar formulario"}
                 <Send className="ml-2 h-4 w-4" />
               </Button>
             </div>
+
+            {submitError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                {submitError}
+              </div>
+            ) : null}
           </form>
         </section>
       </div>
