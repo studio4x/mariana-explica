@@ -8,7 +8,7 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
-  buildManualNotificationEmail,
+  buildPublicFormSubmissionAdminEmail,
   queueEmailDelivery,
 } from "../_shared/mod.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
@@ -152,17 +152,13 @@ Deno.serve(async (req) => {
     const notificationEmail = resolveNotificationEmail(configRow?.config_value ?? null)
 
     if (notificationEmail) {
-      const shortMessage = [
-        `Origem: ${sourcePage}`,
-        `Nome: ${fullName}`,
-        `Email: ${email}`,
-        `Assunto: ${subject}`,
-        `Mensagem: ${message.slice(0, 500)}`,
-      ].join("\n")
-
-      const delivery = buildManualNotificationEmail({
-        title: "Novo formulario publico recebido",
-        message: shortMessage,
+      const delivery = buildPublicFormSubmissionAdminEmail({
+        sourcePage,
+        formType,
+        fullName,
+        email,
+        subject,
+        message,
         ctaUrl: "/admin/formularios",
       })
 

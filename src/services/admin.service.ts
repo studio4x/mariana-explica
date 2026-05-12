@@ -1491,6 +1491,27 @@ export async function fetchAdminPublicFormSubmissions() {
   return (data ?? []) as PublicFormSubmissionSummary[]
 }
 
+export async function replyAdminPublicFormSubmission(input: {
+  submissionId: string
+  message: string
+  subject?: string | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    request_id: string
+    submission_id: string
+    email_to: string
+    queued: boolean
+  }>("admin-public-forms", {
+    action: "reply",
+    submissionId: input.submissionId,
+    subject: input.subject ?? null,
+    message: input.message,
+  })
+
+  return response
+}
+
 export async function fetchAdminSupportTicket(ticketId: string) {
   const { data, error } = await supabase
     .from("support_tickets")

@@ -65,6 +65,7 @@ import {
   scheduleAdminCronJobs,
   revokeAdminCourseRelease,
   replyAdminSupportTicket,
+  replyAdminPublicFormSubmission,
   queueAdminCronTestEmail,
   fetchSupportAttachmentUrl,
   uploadSupportAttachment,
@@ -1169,6 +1170,19 @@ export function useUpdateAdminPendingInfoConfig() {
 export function useUpdateAdminPublicFormNotificationsConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminPublicFormNotificationsConfig, onSuccess: invalidate })
+}
+
+export function useReplyAdminPublicFormSubmission() {
+  const invalidate = useAdminInvalidation()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: replyAdminPublicFormSubmission,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "public-forms", "submissions"] })
+      invalidate()
+    },
+  })
 }
 
 export function useCreateAdminCourseRelease() {

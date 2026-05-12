@@ -1,13 +1,15 @@
 ﻿import { useEffect, useMemo, useState } from "react"
-import { Mail, RefreshCw, Search, Settings2, Table2 } from "lucide-react"
+import { Mail, RefreshCw, Search, Settings2, Table2, X } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAdminPublicFormNotificationsConfig,
   useAdminPublicFormSubmissions,
+  useReplyAdminPublicFormSubmission,
   useUpdateAdminPublicFormNotificationsConfig,
 } from "@/hooks/useAdmin"
+import type { PublicFormSubmissionSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
@@ -29,12 +31,18 @@ export function AdminPublicForms() {
   const submissionsQuery = useAdminPublicFormSubmissions()
   const configQuery = useAdminPublicFormNotificationsConfig()
   const updateConfig = useUpdateAdminPublicFormNotificationsConfig()
+  const replySubmission = useReplyAdminPublicFormSubmission()
 
   const [tab, setTab] = useState<FormsTab>("submissions")
   const [query, setQuery] = useState("")
   const [formTypeFilter, setFormTypeFilter] = useState<"all" | string>("all")
   const [draftEmail, setDraftEmail] = useState("")
+  const [submissionFeedback, setSubmissionFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
+  const [replyTarget, setReplyTarget] = useState<PublicFormSubmissionSummary | null>(null)
+  const [replySubject, setReplySubject] = useState("")
+  const [replyMessage, setReplyMessage] = useState("")
+  const [replyError, setReplyError] = useState<string | null>(null)
 
   useEffect(() => {
     if (configQuery.data) {
@@ -78,6 +86,8 @@ export function AdminPublicForms() {
   }, [formTypeFilter, query, submissions])
 
   const validEmail = draftEmail.trim().length === 0 || EMAIL_PATTERN.test(draftEmail.trim())
+  const validReplySubject = replySubject.trim().length === 0 || replySubject.trim().length >= 2
+  const validReplyMessage = replyMessage.trim().length >= 2
 
   const handleRefresh = () => {
     void submissionsQuery.refetch()
@@ -108,6 +118,57 @@ export function AdminPublicForms() {
         tone: "danger",
         message: error instanceof Error ? error.message : "Nao foi possivel salvar a configuracao.",
       })
+    }
+  }
+
+  const openReplyModal = (submission: PublicFormSubmissionSummary) => {
+    setReplyTarget(submission)
+    setReplySubject(`Re: ${submission.subject}`.slice(0, 180))
+    setReplyMessage("")
+    setReplyError(null)
+  }
+
+  const closeReplyModal = () => {
+    setReplyTarget(null)
+    setReplySubject("")
+    setReplyMessage("")
+    setReplyError(null)
+  }
+
+  const handleReplySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!replyTarget) return
+
+    const message = replyMessage.trim()
+    const subject = replySubject.trim()
+
+    if (!message || message.length < 2) {
+      setReplyError("A mensagem precisa ter pelo menos 2 caracteres.")
+      return
+    }
+
+    if (subject && subject.length < 2) {
+      setReplyError("Informe um assunto valido ou deixe em branco.")
+      return
+    }
+
+    setReplyError(null)
+
+    try {
+      const response = await replySubmission.mutateAsync({
+        submissionId: replyTarget.id,
+        subject: subject || null,
+        message,
+      })
+
+      closeReplyModal()
+      setSubmissionFeedback({
+        tone: "success",
+        message: `Resposta enfileirada para ${response.email_to}.`,
+      })
+    } catch (error) {
+      setReplyError(error instanceof Error ? error.message : "Nao foi possivel enviar a resposta por email.")
     }
   }
 
@@ -223,6 +284,19 @@ export function AdminPublicForms() {
               </div>
             </div>
 
+            {submissionFeedback ? (
+              <div
+                className={[
+                  "rounded-2xl border px-4 py-3 text-sm font-medium",
+                  submissionFeedback.tone === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : "border-rose-200 bg-rose-50 text-rose-900",
+                ].join(" ")}
+              >
+                {submissionFeedback.message}
+              </div>
+            ) : null}
+
             {filteredSubmissions.length === 0 ? (
               <EmptyState
                 title="Sem envios para mostrar"
@@ -239,6 +313,7 @@ export function AdminPublicForms() {
                       <th className="px-4 py-4">Assunto</th>
                       <th className="px-4 py-4">Mensagem</th>
                       <th className="px-4 py-4">Notificacao</th>
+                      <th className="px-4 py-4 text-right">Acoes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -264,6 +339,18 @@ export function AdminPublicForms() {
                           ) : (
                             <StatusBadge label="Sem envio" tone="warning" />
                           )}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            onClick={() => openReplyModal(submission)}
+                          >
+                            <Mail className="mr-2 h-4 w-4" />
+                            Responder
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -335,6 +422,82 @@ export function AdminPublicForms() {
           </div>
         )}
       </section>
+
+      {replyTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.26)]">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-950">Responder formulario</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Envia uma resposta para {replyTarget.full_name} ({replyTarget.email}).
+                </p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                onClick={closeReplyModal}
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form className="space-y-4 px-6 py-6" onSubmit={(event) => void handleReplySubmit(event)}>
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Assunto do email</span>
+                <input
+                  type="text"
+                  value={replySubject}
+                  onChange={(event) => setReplySubject(event.target.value)}
+                  maxLength={180}
+                  placeholder={`Re: ${replyTarget.subject}`}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-slate-400"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Mensagem da resposta</span>
+                <textarea
+                  value={replyMessage}
+                  onChange={(event) => setReplyMessage(event.target.value)}
+                  rows={8}
+                  maxLength={5000}
+                  placeholder="Escreve aqui a resposta que sera enviada por email."
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-400"
+                />
+              </label>
+
+              {!validReplySubject ? (
+                <p className="text-sm text-rose-700">O assunto deve ter pelo menos 2 caracteres.</p>
+              ) : null}
+
+              {replyError ? (
+                <p className="text-sm text-rose-700">{replyError}</p>
+              ) : null}
+
+              <div className="flex flex-wrap justify-end gap-3 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={closeReplyModal}
+                  disabled={replySubmission.isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="rounded-full"
+                  disabled={replySubmission.isPending || !validReplySubject || !validReplyMessage}
+                >
+                  {replySubmission.isPending ? "A enviar..." : "Enviar resposta"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

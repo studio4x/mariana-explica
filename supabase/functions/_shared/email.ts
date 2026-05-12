@@ -792,10 +792,10 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
                 <h1 style="margin:0;color:#242742;font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:1.15;">${escapeHtml(input.title)}</h1>
                 <div style="margin:24px 0 0;">
                   ${greeting}
-                  <p style="margin:0;color:#24324a;font-size:16px;line-height:1.8;">${escapeHtml(input.intro)}</p>
+                  <p style="margin:0;color:#24324a;font-size:16px;line-height:1.8;white-space:pre-line;">${escapeHtml(input.intro)}</p>
                   ${bullets}
                   ${cta}
-                  <p style="margin:28px 0 0;color:#5b6d84;font-size:13px;line-height:1.7;">${escapeHtml(footer)}</p>
+                  <p style="margin:28px 0 0;color:#5b6d84;font-size:13px;line-height:1.7;white-space:pre-line;">${escapeHtml(footer)}</p>
                 </div>
               </td>
             </tr>
@@ -941,6 +941,60 @@ export function buildManualNotificationEmail(input: {
   return {
     ...content,
     subject: `${input.title} | Mariana Explica`,
+  }
+}
+
+export function buildPublicFormSubmissionAdminEmail(input: {
+  sourcePage: string
+  formType: string
+  fullName: string
+  email: string
+  subject: string
+  message: string
+  ctaUrl?: string | null
+}) {
+  const content = renderEmailLayout({
+    eyebrow: "Comunicacao Mariana Explica",
+    title: "Novo formulario publico recebido",
+    greeting: "Ola,",
+    intro: "Chegou um novo formulario publico e o registo ja esta disponivel no painel admin.",
+    bullets: [
+      `Origem: ${input.sourcePage}`,
+      `Tipo: ${input.formType}`,
+      `Nome: ${input.fullName}`,
+      `Email: ${input.email}`,
+      `Assunto: ${input.subject}`,
+      `Mensagem: ${input.message.slice(0, 900)}`,
+    ],
+    ctaLabel: "Abrir plataforma",
+    ctaUrl: input.ctaUrl ?? "/admin/formularios",
+  })
+
+  return {
+    ...content,
+    subject: "Novo formulario publico recebido | Mariana Explica",
+  }
+}
+
+export function buildPublicFormReplyEmail(input: {
+  fullName?: string | null
+  originalSubject: string
+  message: string
+  ctaUrl?: string | null
+}) {
+  const content = renderEmailLayout({
+    eyebrow: "Resposta da equipa Mariana Explica",
+    title: "Respondemos ao teu formulario",
+    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
+    intro: `Recebemos o teu contacto "${input.originalSubject}" e enviamos a nossa resposta abaixo.`,
+    bullets: [input.message],
+    ctaLabel: input.ctaUrl ? "Abrir plataforma" : null,
+    ctaUrl: input.ctaUrl ?? null,
+  })
+
+  return {
+    ...content,
+    subject: `Resposta ao teu formulario | Mariana Explica`,
   }
 }
 
