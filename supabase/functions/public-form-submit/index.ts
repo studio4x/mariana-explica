@@ -27,6 +27,7 @@ const FORM_NOTIFICATION_CONFIG_KEY = "public_form_notifications"
 const DEFAULT_FORM_TYPE = "explicacoes"
 const DEFAULT_SOURCE_PAGE = "/explicacoes"
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
+const DEFAULT_EMAIL_PROCESS_BATCH_SIZE = 10
 
 function normalizeText(value: unknown, maxLength: number) {
   return String(value ?? "")
@@ -80,6 +81,53 @@ function resolveNotificationEmail(configValue: unknown) {
   }
 
   return rawEmail
+}
+
+function readCronSecret() {
+  return (
+    Deno.env.get("CRON_SECRET")?.trim() ||
+    Deno.env.get("INTERNAL_CRON_SECRET")?.trim() ||
+    Deno.env.get("JOB_RUNNER_SECRET")?.trim() ||
+    null
+  )
+}
+
+function readSupabaseProjectUrl() {
+  return (
+    Deno.env.get("SUPABASE_URL")?.trim() ||
+    Deno.env.get("PROJECT_URL")?.trim() ||
+    null
+  )
+}
+
+async function triggerEmailProcessingNow(input: { requestId: string; batchSize?: number }) {
+  const cronSecret = readCronSecret()
+  const projectUrl = readSupabaseProjectUrl()
+
+  if (!cronSecret || !projectUrl) {
+    return
+  }
+
+  const targetUrl = `${projectUrl.replace(/\/$/, "")}/functions/v1/cron-process-email-deliveries`
+
+  const response = await fetch(targetUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-cron-secret": cronSecret,
+      "x-request-id": input.requestId,
+    },
+    body: JSON.stringify({
+      batchSize: Math.max(1, Math.min(50, Math.trunc(input.batchSize ?? DEFAULT_EMAIL_PROCESS_BATCH_SIZE))),
+    }),
+  })
+
+  if (!response.ok) {
+    const rawError = await response.text().catch(() => "")
+    throw new Error(
+      rawError.trim() || `cron-process-email-deliveries retornou status ${response.status}`,
+    )
+  }
 }
 
 Deno.serve(async (req) => {
@@ -189,6 +237,19 @@ Deno.serve(async (req) => {
 
       if (markNotifiedError) {
         throw markNotifiedError
+      }
+
+      try {
+        await triggerEmailProcessingNow({
+          requestId,
+          batchSize: DEFAULT_EMAIL_PROCESS_BATCH_SIZE,
+        })
+      } catch (processingError) {
+        logError("Public form immediate email processing trigger failed", {
+          request_id: requestId,
+          submission_id: submission.id,
+          error: String(processingError),
+        })
       }
     }
 
