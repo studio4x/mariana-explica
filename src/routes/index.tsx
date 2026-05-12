@@ -17,6 +17,7 @@ const Home = lazy(() => import("@/pages/public").then((module) => ({ default: mo
 const Products = lazy(() => import("@/pages/public").then((module) => ({ default: module.Products })))
 const Product = lazy(() => import("@/pages/public").then((module) => ({ default: module.Product })))
 const Support = lazy(() => import("@/pages/public").then((module) => ({ default: module.Support })))
+const Explicacoes = lazy(() => import("@/pages/public").then((module) => ({ default: module.Explicacoes })))
 const Checkout = lazy(() => import("@/pages/public").then((module) => ({ default: module.Checkout })))
 const CheckoutSuccess = lazy(() => import("@/pages/public").then((module) => ({ default: module.CheckoutSuccess })))
 const PrivacyPolicy = lazy(() =>
@@ -264,6 +265,10 @@ export const router = createBrowserRouter(
         {
           path: "suporte",
           element: withSuspense(<Support />),
+        },
+        {
+          path: "explicacoes",
+          element: withSuspense(<Explicacoes />),
         },
         {
           path: "privacidade",

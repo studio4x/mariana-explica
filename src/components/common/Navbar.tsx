@@ -16,6 +16,7 @@ export function Navbar() {
     () =>
       [
         { to: ROUTES.COURSES, label: "Materiais" },
+        { to: ROUTES.EXPLANATIONS, label: "Explicações" },
         { to: ROUTES.SUPPORT, label: "Suporte" },
       ].filter(Boolean) as Array<{ to: string; label: string }>,
     [],
@@ -121,30 +122,21 @@ export function Navbar() {
             <section className="space-y-3">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Menu principal</p>
               <nav className="grid gap-2">
-                <Link
-                  to={ROUTES.COURSES}
-                  onClick={closeMenu}
-                  className={cn(
-                    "rounded-2xl border px-4 py-3 text-sm font-medium transition",
-                    isActiveItem(ROUTES.COURSES)
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-slate-200 bg-white text-slate-700",
-                  )}
-                >
-                  Materiais
-                </Link>
-                <Link
-                  to={ROUTES.SUPPORT}
-                  onClick={closeMenu}
-                  className={cn(
-                    "rounded-2xl border px-4 py-3 text-sm font-medium transition",
-                    isActiveItem(ROUTES.SUPPORT)
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-slate-200 bg-white text-slate-700",
-                  )}
-                >
-                  Suporte
-                </Link>
+                {navItems.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={closeMenu}
+                    className={cn(
+                      "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                      isActiveItem(item.to)
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-slate-200 bg-white text-slate-700",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
                 {isAdmin ? (
                   <Link
                     to={ROUTES.ADMIN}

@@ -16,6 +16,7 @@ export const ROUTES = {
   COOKIES: "/cookies",
   TERMS: "/termos-de-uso",
   SUPPORT: "/suporte",
+  EXPLANATIONS: "/explicacoes",
   LOGIN: "/login",
   REGISTER: "/register",
   CREATE_ACCOUNT: "/criar-conta",
