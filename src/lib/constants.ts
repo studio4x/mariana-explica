@@ -17,6 +17,7 @@ export const ROUTES = {
   TERMS: "/termos-de-uso",
   SUPPORT: "/suporte",
   EXPLANATIONS: "/explicacoes",
+  ABOUT: "/sobre",
   LOGIN: "/login",
   REGISTER: "/register",
   CREATE_ACCOUNT: "/criar-conta",
