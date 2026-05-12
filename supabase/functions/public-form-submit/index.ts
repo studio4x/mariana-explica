@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       throw badRequest("Assunto invalido")
     }
 
-    if (message.length < 8) {
+    if (message.length < 2) {
       throw badRequest("Mensagem invalida")
     }
 
