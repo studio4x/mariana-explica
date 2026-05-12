@@ -14,6 +14,7 @@ import {
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
 import { buildCoursePlayerEntries } from "@/lib/course-helpers"
+import { getLessonVideoAssetId, makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { getAssetActionLabel, getAssetTypeLabel } from "@/lib/product-presentation"
 import {
   studentCourseAssessmentPath,
@@ -83,6 +84,22 @@ export function StudentLessonPage() {
 
   const lesson = lessonQuery.data
   const assets = assetsQuery.data ?? []
+  const streamableVideoAssets = assets.filter(
+    (asset) => asset.asset_type === "video_file" && asset.allow_stream && asset.status === "active",
+  )
+  const streamableVideoAssetIds = new Set(streamableVideoAssets.map((asset) => asset.id))
+  const lessonVideoSource = lesson?.youtube_url?.trim() ?? ""
+  const lessonVideoAssetId = getLessonVideoAssetId(lessonVideoSource)
+  const fallbackVideoAsset =
+    streamableVideoAssets.find((asset) =>
+      lesson ? asset.title.toLowerCase().includes(lesson.title.trim().toLowerCase()) : false,
+    ) ?? streamableVideoAssets[0] ?? null
+  const shouldUseModuleVideoFallback =
+    (!lessonVideoSource || (lessonVideoAssetId !== null && !streamableVideoAssetIds.has(lessonVideoAssetId)))
+    && Boolean(fallbackVideoAsset)
+  const resolvedPrimaryVideoSource = shouldUseModuleVideoFallback && fallbackVideoAsset
+    ? makeLessonVideoAssetValue(fallbackVideoAsset.id)
+    : lessonVideoSource || null
 
   if (!lesson) {
     return (
@@ -159,7 +176,12 @@ export function StudentLessonPage() {
         </div>
 
         <div className="mt-6 space-y-4">
-          <LessonPrimaryMedia source={lesson.youtube_url} />
+          <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
+          {shouldUseModuleVideoFallback && fallbackVideoAsset ? (
+            <p className="text-xs text-slate-500">
+              Video principal carregado a partir dos materiais protegidos do modulo.
+            </p>
+          ) : null}
           {lesson.text_content ? (
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
               <div className="flex items-center gap-2 text-slate-900">

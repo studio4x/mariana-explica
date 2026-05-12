@@ -15,6 +15,7 @@ import {
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
 import type { ModuleAssetSummary } from "@/types/app.types"
+import { getLessonVideoAssetId, makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import {
   getAssetActionLabel,
   getAssetTypeLabel,
@@ -140,6 +141,22 @@ export function DashboardProductDetail() {
   const selectedLesson = selectedLessonQuery.data ?? null
   const selectedAssets = selectedAssetsQuery.data ?? []
   const selectedLessonBlocked = Boolean(selectedLessonSummary?.is_locked || selectedModule?.is_locked)
+  const streamableVideoAssets = selectedAssets.filter(
+    (asset) => asset.asset_type === "video_file" && asset.allow_stream && asset.status === "active",
+  )
+  const streamableVideoAssetIds = new Set(streamableVideoAssets.map((asset) => asset.id))
+  const selectedLessonVideoSource = selectedLesson?.youtube_url?.trim() ?? ""
+  const selectedLessonVideoAssetId = getLessonVideoAssetId(selectedLessonVideoSource)
+  const fallbackVideoAsset =
+    streamableVideoAssets.find((asset) =>
+      selectedLesson ? asset.title.toLowerCase().includes(selectedLesson.title.trim().toLowerCase()) : false,
+    ) ?? streamableVideoAssets[0] ?? null
+  const shouldUseModuleVideoFallback =
+    (!selectedLessonVideoSource || (selectedLessonVideoAssetId !== null && !streamableVideoAssetIds.has(selectedLessonVideoAssetId)))
+    && Boolean(fallbackVideoAsset)
+  const resolvedPrimaryVideoSource = shouldUseModuleVideoFallback && fallbackVideoAsset
+    ? makeLessonVideoAssetValue(fallbackVideoAsset.id)
+    : selectedLessonVideoSource || null
 
   return (
     <div className="space-y-6">
@@ -299,7 +316,12 @@ export function DashboardProductDetail() {
                 ) : selectedLesson ? (
                   <>
                     <div className="mt-5 space-y-3">
-                      <LessonPrimaryMedia source={selectedLesson.youtube_url} />
+                      <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
+                      {shouldUseModuleVideoFallback && fallbackVideoAsset ? (
+                        <p className="text-xs text-slate-500">
+                          Video principal carregado a partir dos materiais protegidos do modulo.
+                        </p>
+                      ) : null}
                       {selectedLesson.text_content ? (
                         <div className="rounded-2xl border bg-slate-50/80 p-4">
                           <div className="flex items-center gap-2 text-slate-900">
