@@ -6,16 +6,23 @@ import { ErrorState } from "@/components/feedback"
 import { applySiteFavicon, broadcastBrandingUpdate, StatusBadge } from "@/components/common"
 import {
   fetchAdminBrandingConfig,
+  fetchAdminSiteMaintenanceConfig,
   fetchAdminTrackingConfig,
   updateAdminBrandingConfig,
+  updateAdminSiteMaintenanceConfig,
   updateAdminTrackingConfig,
   uploadAdminBrandingAssetFile,
 } from "@/services/admin.service"
-import type { AdminBrandingAsset, AdminBrandingConfig, AdminTrackingConfig } from "@/types/app.types"
+import type {
+  AdminBrandingAsset,
+  AdminBrandingConfig,
+  AdminSiteMaintenanceConfig,
+  AdminTrackingConfig,
+} from "@/types/app.types"
 import { AdminOperations } from "./AdminOperations"
 
 type BrandingRole = keyof AdminBrandingConfig["config_value"]
-type SettingsTab = "branding" | "tracking" | "operations"
+type SettingsTab = "branding" | "tracking" | "maintenance" | "operations"
 
 const assetCards: Array<{
   role: BrandingRole
@@ -172,9 +179,16 @@ export function AdminSettings() {
   const [uploadingRole, setUploadingRole] = useState<BrandingRole | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [trackingDraft, setTrackingDraft] = useState<AdminTrackingConfig["config_value"] | null>(null)
+  const [maintenanceDraft, setMaintenanceDraft] = useState<AdminSiteMaintenanceConfig["config_value"] | null>(null)
   const currentTab = searchParams.get("tab")
   const activeTab: SettingsTab =
-    currentTab === "operacoes" ? "operations" : currentTab === "rastreamento" ? "tracking" : "branding"
+    currentTab === "operacoes"
+      ? "operations"
+      : currentTab === "rastreamento"
+        ? "tracking"
+        : currentTab === "manutencao"
+          ? "maintenance"
+          : "branding"
 
   const brandingQuery = useQuery({
     queryKey: ["admin", "branding"],
@@ -185,6 +199,11 @@ export function AdminSettings() {
     queryKey: ["admin", "tracking"],
     queryFn: fetchAdminTrackingConfig,
     staleTime: 60_000,
+  })
+  const maintenanceQuery = useQuery({
+    queryKey: ["admin", "site-maintenance"],
+    queryFn: fetchAdminSiteMaintenanceConfig,
+    staleTime: 30_000,
   })
 
   const saveBranding = useMutation({
@@ -201,6 +220,13 @@ export function AdminSettings() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "tracking"] })
       await queryClient.invalidateQueries({ queryKey: ["site", "tracking"] })
+    },
+  })
+  const saveMaintenance = useMutation({
+    mutationFn: updateAdminSiteMaintenanceConfig,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "site-maintenance"] })
+      await queryClient.invalidateQueries({ queryKey: ["site", "maintenance"] })
     },
   })
 
@@ -269,6 +295,16 @@ export function AdminSettings() {
     )
   }
 
+  if (maintenanceQuery.isError) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar as configuracoes"
+        message={maintenanceQuery.error instanceof Error ? maintenanceQuery.error.message : "Tenta novamente dentro de instantes."}
+        onRetry={() => void maintenanceQuery.refetch()}
+      />
+    )
+  }
+
   const branding = brandingQuery.data
   const trackingConfig = trackingQuery.data ?? {
     config_key: "site_tracking",
@@ -284,10 +320,22 @@ export function AdminSettings() {
     updated_at: null,
   }
   const trackingState = trackingDraft ?? trackingConfig.config_value
+  const maintenanceConfig = maintenanceQuery.data ?? {
+    config_key: "site_maintenance_mode",
+    config_value: {
+      enabled: false,
+      message: "Estamos em manutencao para melhorar a tua experiencia. Voltamos em breve.",
+    },
+    description: null,
+    is_public: true,
+    updated_at: null,
+  }
+  const maintenanceState = maintenanceDraft ?? maintenanceConfig.config_value
   const readyCount = branding ? countReady(branding) : 0
   const tabs: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
     { key: "branding", label: "Branding", icon: Palette },
     { key: "tracking", label: "Rastreamento", icon: Code2 as typeof Palette },
+    { key: "maintenance", label: "Manutencao", icon: Activity },
     { key: "operations", label: "Operacoes", icon: Activity },
   ]
   const sectionCopy = {
@@ -300,6 +348,11 @@ export function AdminSettings() {
       title: "Rastreamento e codigos globais",
       description:
         "Configure GTM, Meta Pixel e codigos personalizados do site. Os identificadores de rastreamento respeitam o centro de preferencias de cookies da plataforma.",
+    },
+    maintenance: {
+      title: "Modo manutencao",
+      description:
+        "Ative este modo para restringir o acesso da plataforma durante ajustes operacionais. Admins autenticados continuam com acesso total.",
     },
     operations: {
       title: "Operacoes do ambiente",
@@ -332,13 +385,17 @@ export function AdminSettings() {
                 void trackingQuery.refetch()
                 return
               }
+              if (activeTab === "maintenance") {
+                void maintenanceQuery.refetch()
+                return
+              }
               void brandingQuery.refetch()
             }}
-            disabled={brandingQuery.isFetching || trackingQuery.isFetching}
+            disabled={brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 disabled:opacity-60"
           >
             <RefreshCw className="h-4 w-4" />
-            {brandingQuery.isFetching || trackingQuery.isFetching ? "A atualizar..." : "Atualizar"}
+            {brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching ? "A atualizar..." : "Atualizar"}
           </button>
         </div>
       </div>
@@ -357,6 +414,8 @@ export function AdminSettings() {
                   setSearchParams({})
                 } else if (tab.key === "tracking") {
                   setSearchParams({ tab: "rastreamento" })
+                } else if (tab.key === "maintenance") {
+                  setSearchParams({ tab: "manutencao" })
                 } else {
                   setSearchParams({ tab: "operacoes" })
                 }
@@ -375,7 +434,121 @@ export function AdminSettings() {
         })}
       </div>
 
-      {activeTab === "operations" ? (
+      {activeTab === "maintenance" ? (
+        <>
+          {feedback ? (
+            <div
+              className={[
+                "rounded-2xl border px-4 py-3 text-sm font-medium",
+                feedback.tone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-rose-200 bg-rose-50 text-rose-900",
+              ].join(" ")}
+            >
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Estado atual</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">{maintenanceState.enabled ? "Ativo" : "Inativo"}</p>
+              <p className="mt-2 text-sm text-slate-600">
+                Quando ativo, visitantes e alunos veem a pagina de manutencao.
+              </p>
+            </div>
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Acesso admin</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Liberado</p>
+              <p className="mt-2 text-sm text-slate-600">Administradores autenticados mantem acesso completo.</p>
+            </div>
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Visibilidade</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Publica</p>
+              <p className="mt-2 text-sm text-slate-600">Configuracao lida pelo frontend em tempo quase real.</p>
+            </div>
+          </div>
+
+          <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="rounded-2xl border border-slate-200 bg-[#f4f9fb] p-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Controle</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFeedback(null)
+                  setMaintenanceDraft({
+                    ...maintenanceState,
+                    enabled: !maintenanceState.enabled,
+                  })
+                }}
+                className={[
+                  "mt-3 inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-bold transition",
+                  maintenanceState.enabled
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700",
+                ].join(" ")}
+              >
+                {maintenanceState.enabled ? "Desativar modo manutencao" : "Ativar modo manutencao"}
+              </button>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Salva a configuracao para aplicar imediatamente o comportamento no site.
+              </p>
+            </div>
+
+            <label className="block">
+              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                Mensagem exibida na pagina de manutencao
+              </span>
+              <textarea
+                value={maintenanceState.message}
+                onChange={(event) => {
+                  setFeedback(null)
+                  setMaintenanceDraft({
+                    ...maintenanceState,
+                    message: event.target.value,
+                  })
+                }}
+                rows={5}
+                placeholder="Escreve aqui o recado para os visitantes durante a manutencao."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+              />
+            </label>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setMaintenanceDraft(maintenanceConfig.config_value)
+                  setFeedback(null)
+                }}
+                className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300"
+              >
+                Repor alteracoes
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setFeedback(null)
+                  try {
+                    await saveMaintenance.mutateAsync(maintenanceState)
+                    setMaintenanceDraft(null)
+                    setFeedback({ tone: "success", message: "Modo manutencao atualizado com sucesso." })
+                  } catch (error) {
+                    setFeedback({
+                      tone: "danger",
+                      message: error instanceof Error ? error.message : "Nao foi possivel atualizar o modo manutencao.",
+                    })
+                  }
+                }}
+                disabled={saveMaintenance.isPending}
+                className="inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60"
+              >
+                {saveMaintenance.isPending ? "A guardar..." : "Guardar manutencao"}
+              </button>
+            </div>
+          </section>
+        </>
+      ) : activeTab === "operations" ? (
         <AdminOperations embedded />
       ) : activeTab === "tracking" ? (
         <>

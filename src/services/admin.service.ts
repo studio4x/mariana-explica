@@ -27,6 +27,7 @@ import type {
   AdminEmailStatus,
   AdminPendingInfoConfig,
   AdminPublicFormNotificationsConfig,
+  AdminSiteMaintenanceConfig,
   AdminTrackingConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
@@ -122,6 +123,7 @@ const CHECKOUT_MODE_CONFIG_KEY = "checkout_environment"
 const BRANDING_CONFIG_KEY = "site_branding"
 const TRACKING_CONFIG_KEY = "site_tracking"
 const PUBLIC_FORM_NOTIFICATIONS_KEY = "public_form_notifications"
+const SITE_MAINTENANCE_KEY = "site_maintenance_mode"
 
 export interface AdminModuleAssetSignedUploadResult {
   bucket: string
@@ -296,6 +298,31 @@ function normalizeAdminPublicFormNotificationsConfig(
       row?.description ??
       "Endereco de email que recebe alertas dos formularios enviados no site publico.",
     is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminSiteMaintenanceConfig(
+  row?: Partial<AdminSiteMaintenanceConfig> | null,
+): AdminSiteMaintenanceConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const message = String(value.message ?? "").trim()
+
+  return {
+    config_key: row?.config_key ?? SITE_MAINTENANCE_KEY,
+    config_value: {
+      enabled: value.enabled === true,
+      message:
+        message || "Estamos em manutencao para melhorar a tua experiencia. Voltamos em breve.",
+    },
+    description:
+      row?.description ??
+      "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicacao.",
+    is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
 }
@@ -837,6 +864,21 @@ export async function fetchPublicBrandingConfig() {
   return normalizeAdminBrandingConfig(data as Partial<AdminBrandingConfig> | null)
 }
 
+export async function fetchPublicSiteMaintenanceConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", SITE_MAINTENANCE_KEY)
+    .eq("is_public", true)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
+}
+
 export async function fetchAdminModulePdfWatermarkConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -1149,6 +1191,55 @@ export async function updateAdminPublicFormNotificationsConfig(
   return normalizeAdminPublicFormNotificationsConfig(data ?? payload)
 }
 
+export async function updateAdminSiteMaintenanceConfig(
+  input: AdminSiteMaintenanceConfig["config_value"],
+) {
+  const payload = normalizeAdminSiteMaintenanceConfig({
+    config_key: SITE_MAINTENANCE_KEY,
+    config_value: {
+      enabled: input.enabled,
+      message: input.message,
+    },
+    description:
+      "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicacao.",
+    is_public: true,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (
+      values: {
+        config_key: string
+        config_value: { enabled: boolean; message: string }
+        description: string
+        is_public: boolean
+      },
+      options: { onConflict: "config_key" },
+    ) => {
+      select: (
+        fields: string,
+      ) => Promise<{ data: Partial<AdminSiteMaintenanceConfig> | null; error: Error | null }>
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: SITE_MAINTENANCE_KEY,
+        config_value: payload.config_value,
+        description: payload.description ?? "",
+        is_public: true,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminSiteMaintenanceConfig(data ?? payload)
+}
+
 export async function fetchAdminPublicFormNotificationsConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -1161,6 +1252,20 @@ export async function fetchAdminPublicFormNotificationsConfig() {
   }
 
   return normalizeAdminPublicFormNotificationsConfig(data as Partial<AdminPublicFormNotificationsConfig>)
+}
+
+export async function fetchAdminSiteMaintenanceConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", SITE_MAINTENANCE_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
 }
 
 export async function fetchAdminProductModules(productId: string) {

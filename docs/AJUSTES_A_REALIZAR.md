@@ -12,5 +12,6 @@
 
 [OK] T5 - o envio do formulÃ¡rio da pÃ¡gina https://www.mariana-explica.pt/explicacoes mostra a mensagem de enviou feito com sucesso porÃ©m o envio nÃ£o Ã© de fato feito.. nÃ£o aparece nenhum log no console e o envio nÃ£o aparece na pÃ¡gina de formularios no admin...
 
-# REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].
+[OK] T6 - Crie uma funcionalidade para ativar o modo de manutenção. Insira uma página de manutenção bonita e de acordo com a id visual do site. Insira tb um botão para fazer login de admin. Quando o admin estiver logado, ele terá acesso a tudo. Deverá ter um toggle no painel admin para ativar e desativar o modo de manutenção.
 
+# REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

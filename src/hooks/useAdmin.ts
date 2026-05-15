@@ -31,6 +31,7 @@ import {
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
   fetchAdminPublicFormNotificationsConfig,
+  fetchAdminSiteMaintenanceConfig,
   fetchAdminPublicFormSubmissions,
   fetchAdminProductCategories,
   fetchAdminFaqCategories,
@@ -78,6 +79,7 @@ import {
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
   updateAdminPublicFormNotificationsConfig,
+  updateAdminSiteMaintenanceConfig,
   updateAdminProduct,
   createAdminProductCategory,
   createAdminFaqCategory,
@@ -224,6 +226,14 @@ export function useAdminPublicFormNotificationsConfig() {
   return useQuery({
     queryKey: ["admin", "public-forms", "notifications-config"],
     queryFn: fetchAdminPublicFormNotificationsConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminSiteMaintenanceConfig() {
+  return useQuery({
+    queryKey: ["admin", "site-maintenance"],
+    queryFn: fetchAdminSiteMaintenanceConfig,
     ...getAdminQueryOptions(),
   })
 }
@@ -1170,6 +1180,11 @@ export function useUpdateAdminPendingInfoConfig() {
 export function useUpdateAdminPublicFormNotificationsConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminPublicFormNotificationsConfig, onSuccess: invalidate })
+}
+
+export function useUpdateAdminSiteMaintenanceConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminSiteMaintenanceConfig, onSuccess: invalidate })
 }
 
 export function useReplyAdminPublicFormSubmission() {

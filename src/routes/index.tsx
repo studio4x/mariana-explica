@@ -7,7 +7,7 @@ import {
   AdminLayout,
   AuthLayout,
 } from "@/layouts"
-import { ProtectedRoute, AdminRoute } from "@/components/common"
+import { ProtectedRoute, AdminRoute, SiteMaintenanceGate } from "@/components/common"
 import { ErrorState } from "@/components/feedback/ErrorState"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
@@ -235,7 +235,11 @@ export const router = createBrowserRouter(
   [
     {
       path: "/",
-      element: <PublicLayout />,
+      element: (
+        <SiteMaintenanceGate>
+          <PublicLayout />
+        </SiteMaintenanceGate>
+      ),
       errorElement: <RouteErrorBoundary />,
       children: [
         {
@@ -335,9 +339,11 @@ export const router = createBrowserRouter(
       path: "/aluno",
       errorElement: <RouteErrorBoundary />,
       element: (
-        <ProtectedRoute>
-          <DashboardLayout />
-        </ProtectedRoute>
+        <SiteMaintenanceGate>
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        </SiteMaintenanceGate>
       ),
       children: [
         {
@@ -402,9 +408,11 @@ export const router = createBrowserRouter(
       path: "/aluno/cursos/:courseId/player",
       errorElement: <RouteErrorBoundary />,
       element: (
-        <ProtectedRoute>
-          {withSuspense(<StudentCoursePlayerLayout />)}
-        </ProtectedRoute>
+        <SiteMaintenanceGate>
+          <ProtectedRoute>
+            {withSuspense(<StudentCoursePlayerLayout />)}
+          </ProtectedRoute>
+        </SiteMaintenanceGate>
       ),
       children: [
         {

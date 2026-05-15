@@ -158,6 +158,17 @@ export interface AdminPublicFormNotificationsConfig {
   updated_at: string | null
 }
 
+export interface AdminSiteMaintenanceConfig {
+  config_key: string
+  config_value: {
+    enabled: boolean
+    message: string
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface AdminEmailStatus {
   providerName: string | null
   transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
