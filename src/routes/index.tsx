@@ -306,7 +306,11 @@ export const router = createBrowserRouter(
     },
     {
       path: "/",
-      element: <AuthLayout />,
+      element: (
+        <SiteMaintenanceGate>
+          <AuthLayout />
+        </SiteMaintenanceGate>
+      ),
       errorElement: <RouteErrorBoundary />,
       children: [
         {

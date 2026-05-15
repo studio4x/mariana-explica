@@ -2,12 +2,89 @@ import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Lock, ShieldCheck, Wrench, X } from "lucide-react"
 import { SiteLogo } from "@/components/common/SiteLogo"
-import { ROUTES } from "@/lib/constants"
+import { ROUTES, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { supabase } from "@/integrations/supabase"
 
 interface MaintenancePageProps {
   message: string
+}
+
+function extractErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (typeof error === "string") {
+    return error
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "")
+  }
+
+  return "Nao foi possivel concluir o login agora."
+}
+
+function isNetworkLikeAuthError(message: string) {
+  const normalized = message.trim().toLowerCase()
+  return (
+    normalized.includes("networkerror when attempting to fetch resource") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("fetch failed")
+  )
+}
+
+async function fallbackPasswordGrant(email: string, password: string) {
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const payload = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof payload === "object" && payload
+        ? String(
+            (payload as { msg?: unknown; error_description?: unknown; error?: unknown }).msg ??
+              (payload as { error_description?: unknown }).error_description ??
+              (payload as { error?: unknown }).error ??
+              `Erro ${response.status}`,
+          )
+        : typeof payload === "string" && payload
+          ? payload
+          : `Erro ${response.status}`
+
+    throw new Error(message)
+  }
+
+  const data = payload as { access_token?: string; refresh_token?: string }
+  const accessToken = String(data.access_token ?? "").trim()
+  const refreshToken = String(data.refresh_token ?? "").trim()
+
+  if (!accessToken || !refreshToken) {
+    throw new Error("Sessao de autenticacao invalida. Tenta novamente.")
+  }
+
+  const { error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  })
+
+  if (error) {
+    throw error
+  }
 }
 
 export function MaintenancePage({ message }: MaintenancePageProps) {
@@ -23,20 +100,60 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
     setError(null)
     setLoading(true)
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const normalizedEmail = email.trim()
+      const normalizedPassword = password.trim()
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      })
 
-    setLoading(false)
+      if (signInError) {
+        if (isNetworkLikeAuthError(signInError.message)) {
+          await fallbackPasswordGrant(normalizedEmail, normalizedPassword)
+        } else {
+          throw signInError
+        }
+      }
 
-    if (signInError) {
-      setError(mapAuthErrorMessage(signInError.message))
-      return
+      const { data: sessionData } = await supabase.auth.getSession()
+      const userId = sessionData.session?.user?.id
+
+      if (!userId) {
+        throw new Error("Sessao nao foi criada. Tenta novamente.")
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("is_admin,role,status")
+        .eq("id", userId)
+        .maybeSingle()
+
+      if (profileError) {
+        throw profileError
+      }
+
+      const isAdmin =
+        profile &&
+        typeof profile === "object" &&
+        (profile as { is_admin?: unknown }).is_admin === true &&
+        (profile as { role?: unknown }).role === "admin" &&
+        (profile as { status?: unknown }).status === "active"
+
+      if (!isAdmin) {
+        await supabase.auth.signOut()
+        setError("Este acesso e exclusivo para administradores ativos.")
+        return
+      }
+
+      setShowLoginModal(false)
+      navigate(ROUTES.ADMIN, { replace: true })
+    } catch (authError) {
+      const message = extractErrorMessage(authError)
+      setError(mapAuthErrorMessage(message))
+    } finally {
+      setLoading(false)
     }
-
-    setShowLoginModal(false)
-    navigate(ROUTES.ADMIN, { replace: true })
   }
 
   return (
