@@ -169,6 +169,60 @@ export interface AdminSiteMaintenanceConfig {
   updated_at: string | null
 }
 
+export type SitePageSlug = "home" | "sobre" | "privacidade" | "cookies" | "termos"
+
+export interface AdminSitePageSummary {
+  id: string
+  slug: SitePageSlug | string
+  title: string
+  status: "draft" | "published" | "archived"
+  published_version_id: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminSitePageVersion {
+  id: string
+  page_id: string
+  version_number: number
+  status: "draft" | "published" | "archived"
+  layout_json: Record<string, unknown>
+  style_json: Record<string, unknown>
+  metadata: Record<string, unknown>
+  created_by: string | null
+  created_at: string
+}
+
+export interface AdminSitePageAsset {
+  id: string
+  page_id: string
+  bucket: string
+  path: string
+  public_url: string
+  file_name: string
+  mime_type: string | null
+  file_size_bytes: number | null
+  uploaded_by: string | null
+  created_at: string
+}
+
+export interface AdminSitePageDetail {
+  page: AdminSitePageSummary
+  versions: AdminSitePageVersion[]
+  published_version: AdminSitePageVersion | null
+  latest_draft: AdminSitePageVersion | null
+  assets: AdminSitePageAsset[]
+}
+
+export interface PublicSitePagePayload {
+  page: Pick<AdminSitePageSummary, "id" | "slug" | "title" | "updated_at" | "published_version_id">
+  version: Pick<
+    AdminSitePageVersion,
+    "id" | "page_id" | "version_number" | "layout_json" | "style_json" | "metadata" | "created_at"
+  >
+}
+
 export interface AdminEmailStatus {
   providerName: string | null
   transport: "smtp" | "resend" | "postmark" | "sendgrid" | null

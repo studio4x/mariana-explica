@@ -28,6 +28,12 @@ import type {
   AdminPendingInfoConfig,
   AdminPublicFormNotificationsConfig,
   AdminSiteMaintenanceConfig,
+  AdminSitePageAsset,
+  AdminSitePageDetail,
+  AdminSitePageSummary,
+  AdminSitePageVersion,
+  PublicSitePagePayload,
+  SitePageSlug,
   AdminTrackingConfig,
   AdminStorageUploadResult,
   ProductLessonSummary,
@@ -879,6 +885,90 @@ export async function fetchPublicSiteMaintenanceConfig() {
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
 }
 
+export async function fetchPublicSitePageBySlug(slug: SitePageSlug | string) {
+  const normalizedSlug = String(slug ?? "").trim()
+  if (!normalizedSlug) {
+    throw new Error("slug e obrigatorio")
+  }
+
+  const { data: page, error: pageError } = await supabase
+    .from("site_pages")
+    .select("id,slug,title,updated_at,published_version_id")
+    .eq("slug", normalizedSlug)
+    .eq("status", "published")
+    .maybeSingle()
+
+  if (pageError) {
+    throw pageError
+  }
+  const typedPage = page as
+    | {
+      id: string
+      slug: string
+      title: string
+      updated_at: string
+      published_version_id: string | null
+    }
+    | null
+
+  if (!typedPage?.published_version_id) {
+    return null
+  }
+
+  const { data: version, error: versionError } = await supabase
+    .from("site_page_versions")
+    .select("id,page_id,version_number,layout_json,style_json,metadata,created_at")
+    .eq("id", typedPage.published_version_id)
+    .maybeSingle()
+
+  if (versionError) {
+    throw versionError
+  }
+  const typedVersion = version as
+    | {
+      id: string
+      page_id: string
+      version_number: number
+      layout_json: unknown
+      style_json: unknown
+      metadata: unknown
+      created_at: string
+    }
+    | null
+
+  if (!typedVersion) {
+    return null
+  }
+
+  return {
+    page: {
+      id: String(typedPage.id),
+      slug: String(typedPage.slug),
+      title: String(typedPage.title),
+      updated_at: String(typedPage.updated_at),
+      published_version_id: String(typedPage.published_version_id),
+    },
+    version: {
+      id: String(typedVersion.id),
+      page_id: String(typedVersion.page_id),
+      version_number: Number(typedVersion.version_number),
+      layout_json:
+        typedVersion.layout_json && typeof typedVersion.layout_json === "object"
+          ? (typedVersion.layout_json as Record<string, unknown>)
+          : {},
+      style_json:
+        typedVersion.style_json && typeof typedVersion.style_json === "object"
+          ? (typedVersion.style_json as Record<string, unknown>)
+          : {},
+      metadata:
+        typedVersion.metadata && typeof typedVersion.metadata === "object"
+          ? (typedVersion.metadata as Record<string, unknown>)
+          : {},
+      created_at: String(typedVersion.created_at),
+    },
+  } satisfies PublicSitePagePayload
+}
+
 export async function fetchAdminModulePdfWatermarkConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -1266,6 +1356,151 @@ export async function fetchAdminSiteMaintenanceConfig() {
   }
 
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
+}
+
+export async function fetchAdminSitePages() {
+  const response = await invokeAdminFunction<{
+    success: true
+    pages: AdminSitePageSummary[]
+  }>("admin-page-builder", {
+    action: "list_pages",
+  })
+
+  return response.pages ?? []
+}
+
+export async function fetchAdminSitePageDetail(slug: SitePageSlug | string) {
+  const normalizedSlug = String(slug ?? "").trim()
+  if (!normalizedSlug) {
+    throw new Error("slug e obrigatorio")
+  }
+
+  const response = await invokeAdminFunction<{
+    success: true
+    page: AdminSitePageSummary
+    versions: AdminSitePageVersion[]
+    published_version: AdminSitePageVersion | null
+    latest_draft: AdminSitePageVersion | null
+    assets: AdminSitePageAsset[]
+  }>("admin-page-builder", {
+    action: "get_page",
+    slug: normalizedSlug,
+  })
+
+  return {
+    page: response.page,
+    versions: response.versions ?? [],
+    published_version: response.published_version ?? null,
+    latest_draft: response.latest_draft ?? null,
+    assets: response.assets ?? [],
+  } satisfies AdminSitePageDetail
+}
+
+export async function saveAdminSitePageDraft(input: {
+  slug: SitePageSlug | string
+  title?: string
+  layoutJson: Record<string, unknown>
+  styleJson?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    page: AdminSitePageSummary
+    version: AdminSitePageVersion
+  }>("admin-page-builder", {
+    action: "save_draft",
+    slug: input.slug,
+    title: input.title,
+    layoutJson: input.layoutJson,
+    styleJson: input.styleJson ?? {},
+    metadata: input.metadata ?? {},
+  })
+
+  return {
+    page: response.page,
+    version: response.version,
+  }
+}
+
+export async function publishAdminSitePageVersion(input: {
+  slug: SitePageSlug | string
+  versionId: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    page: AdminSitePageSummary
+    version: AdminSitePageVersion
+  }>("admin-page-builder", {
+    action: "publish",
+    slug: input.slug,
+    versionId: input.versionId,
+  })
+
+  return {
+    page: response.page,
+    version: response.version,
+  }
+}
+
+export async function rollbackAdminSitePageVersion(input: {
+  slug: SitePageSlug | string
+  versionId: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    page: AdminSitePageSummary
+    version: AdminSitePageVersion
+  }>("admin-page-builder", {
+    action: "rollback",
+    slug: input.slug,
+    versionId: input.versionId,
+  })
+
+  return {
+    page: response.page,
+    version: response.version,
+  }
+}
+
+export async function uploadAdminSitePageAssetFile(input: {
+  slug: SitePageSlug | string
+  file: File
+  replacePath?: string | null
+}) {
+  const auth = await requireFreshAuth()
+  const formData = new FormData()
+  formData.append("slug", String(input.slug ?? "").trim())
+  formData.append("file", input.file)
+  if (input.replacePath) {
+    formData.append("replacePath", input.replacePath)
+  }
+
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-page-assets`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+    },
+    body: formData,
+  })
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const data = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => "")
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data && "message" in data
+        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+        : typeof data === "string" && data
+          ? data
+          : `Edge Function returned ${response.status}`
+
+    throw new Error(message)
+  }
+
+  return (data as { success: true; asset: AdminSitePageAsset; upload: AdminStorageUploadResult })
 }
 
 export async function fetchAdminProductModules(productId: string) {

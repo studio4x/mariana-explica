@@ -14,4 +14,6 @@
 
 [OK] T6 - Crie uma funcionalidade para ativar o modo de manutenção. Insira uma página de manutenção bonita e de acordo com a id visual do site. Insira tb um botão para fazer login de admin. Quando o admin estiver logado, ele terá acesso a tudo. Deverá ter um toggle no painel admin para ativar e desativar o modo de manutenção.
 
+[ ] T7 - Implementar editor visual de páginas com GrapesJS (fase 1): incluir páginas institucionais e Home, com edição de layout, edição de texto com experiência TinyMCE, upload/substituição de imagens, rascunho/publicação e histórico de versões.
+
 # REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

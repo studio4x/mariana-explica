@@ -32,6 +32,8 @@ import {
   fetchAdminPendingInfoConfig,
   fetchAdminPublicFormNotificationsConfig,
   fetchAdminSiteMaintenanceConfig,
+  fetchAdminSitePageDetail,
+  fetchAdminSitePages,
   fetchAdminPublicFormSubmissions,
   fetchAdminProductCategories,
   fetchAdminFaqCategories,
@@ -80,6 +82,10 @@ import {
   updateAdminPendingInfoConfig,
   updateAdminPublicFormNotificationsConfig,
   updateAdminSiteMaintenanceConfig,
+  publishAdminSitePageVersion,
+  rollbackAdminSitePageVersion,
+  saveAdminSitePageDraft,
+  uploadAdminSitePageAssetFile,
   updateAdminProduct,
   createAdminProductCategory,
   createAdminFaqCategory,
@@ -98,6 +104,7 @@ import {
   updateAdminUserPassword,
 } from "@/services"
 import type {
+  AdminSitePageDetail,
   AdminNotificationSummary,
   AdminSupportTicketSummary,
   ProductLessonSummary,
@@ -234,6 +241,23 @@ export function useAdminSiteMaintenanceConfig() {
   return useQuery({
     queryKey: ["admin", "site-maintenance"],
     queryFn: fetchAdminSiteMaintenanceConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminSitePages() {
+  return useQuery({
+    queryKey: ["admin", "site-pages"],
+    queryFn: fetchAdminSitePages,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminSitePageDetail(slug: string | undefined) {
+  return useQuery<AdminSitePageDetail>({
+    queryKey: ["admin", "site-pages", slug],
+    queryFn: () => fetchAdminSitePageDetail(slug ?? ""),
+    enabled: Boolean(slug),
     ...getAdminQueryOptions(),
   })
 }
@@ -1185,6 +1209,64 @@ export function useUpdateAdminPublicFormNotificationsConfig() {
 export function useUpdateAdminSiteMaintenanceConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminSiteMaintenanceConfig, onSuccess: invalidate })
+}
+
+export function useSaveAdminSitePageDraft() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+
+  return useMutation({
+    mutationFn: saveAdminSitePageDraft,
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages", variables.slug] })
+      void queryClient.invalidateQueries({ queryKey: ["site", "page", variables.slug] })
+      invalidate()
+    },
+  })
+}
+
+export function usePublishAdminSitePageVersion() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+
+  return useMutation({
+    mutationFn: publishAdminSitePageVersion,
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages", variables.slug] })
+      void queryClient.invalidateQueries({ queryKey: ["site", "page", variables.slug] })
+      invalidate()
+    },
+  })
+}
+
+export function useRollbackAdminSitePageVersion() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+
+  return useMutation({
+    mutationFn: rollbackAdminSitePageVersion,
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages", variables.slug] })
+      void queryClient.invalidateQueries({ queryKey: ["site", "page", variables.slug] })
+      invalidate()
+    },
+  })
+}
+
+export function useUploadAdminSitePageAssetFile() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+
+  return useMutation({
+    mutationFn: uploadAdminSitePageAssetFile,
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages", variables.slug] })
+      invalidate()
+    },
+  })
 }
 
 export function useReplyAdminPublicFormSubmission() {
