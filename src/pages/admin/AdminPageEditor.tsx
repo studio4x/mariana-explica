@@ -55,17 +55,8 @@ const DEFAULT_PAGE_TITLES: Record<SitePageSlug, string> = {
   termos: "Termos de uso",
 }
 
-const DEFAULT_PROJECT_DATA = {
-  assets: [],
-  styles: [],
-  pages: [
-    {
-      name: "Pagina",
-      component:
-        '<section class="me-section"><div class="me-container"><h2>Nova secao</h2><p>Edite os blocos desta pagina visualmente.</p></div></section>',
-    },
-  ],
-}
+const DEFAULT_CANVAS_HTML =
+  '<section class="me-section"><div class="me-container"><h2>Nova secao</h2><p>Edite os blocos desta pagina visualmente.</p></div></section>'
 
 function normalizeProjectData(layoutJson: Record<string, unknown>) {
   const projectDataCandidate =
@@ -73,12 +64,10 @@ function normalizeProjectData(layoutJson: Record<string, unknown>) {
       ? (layoutJson.projectData as Record<string, unknown>)
       : layoutJson
 
-  const hasPages =
-    Array.isArray(projectDataCandidate.pages) ||
-    (Array.isArray(projectDataCandidate.pages) && projectDataCandidate.pages.length > 0)
+  const hasPages = Array.isArray(projectDataCandidate.pages) && projectDataCandidate.pages.length > 0
 
   if (!hasPages) {
-    return DEFAULT_PROJECT_DATA
+    return null
   }
 
   return projectDataCandidate
@@ -100,6 +89,41 @@ function extractCss(styleJson: Record<string, unknown> | undefined) {
   if (!styleJson || typeof styleJson !== "object") return ""
   const css = styleJson.css
   if (typeof css === "string") return css
+  return ""
+}
+
+function extractHtml(layoutJson: Record<string, unknown> | undefined) {
+  if (!layoutJson || typeof layoutJson !== "object") return ""
+
+  const htmlFromRoot = layoutJson.html
+  if (typeof htmlFromRoot === "string" && htmlFromRoot.trim().length > 0) {
+    return htmlFromRoot
+  }
+
+  const projectData =
+    layoutJson.projectData && typeof layoutJson.projectData === "object"
+      ? (layoutJson.projectData as Record<string, unknown>)
+      : layoutJson
+
+  const pages = Array.isArray(projectData.pages) ? projectData.pages : []
+  const firstPage = pages[0]
+  if (!firstPage || typeof firstPage !== "object") return ""
+
+  const pageAsRecord = firstPage as Record<string, unknown>
+  const component = pageAsRecord.component
+  if (typeof component === "string" && component.trim().length > 0) {
+    return component
+  }
+
+  const frames = Array.isArray(pageAsRecord.frames) ? pageAsRecord.frames : []
+  const firstFrame = frames[0]
+  if (!firstFrame || typeof firstFrame !== "object") return ""
+
+  const frameComponent = (firstFrame as Record<string, unknown>).component
+  if (typeof frameComponent === "string" && frameComponent.trim().length > 0) {
+    return frameComponent
+  }
+
   return ""
 }
 
@@ -235,7 +259,7 @@ export function AdminPageEditor() {
     isApplyingRemoteStateRef.current = true
     try {
       if (!version) {
-        editor.loadProjectData(DEFAULT_PROJECT_DATA as never)
+        editor.setComponents(DEFAULT_CANVAS_HTML)
         editor.setStyle("")
         setSelectedVersionId("")
         setIsDirty(false)
@@ -244,7 +268,12 @@ export function AdminPageEditor() {
       }
 
       const projectData = normalizeProjectData(version.layout_json)
-      editor.loadProjectData(projectData as never)
+      if (projectData) {
+        editor.loadProjectData(projectData as never)
+      } else {
+        const fallbackHtml = extractHtml(version.layout_json) || DEFAULT_CANVAS_HTML
+        editor.setComponents(fallbackHtml)
+      }
       editor.setStyle(extractCss(version.style_json))
       setSelectedVersionId(version.id)
       setIsDirty(false)
@@ -724,13 +753,12 @@ export function AdminPageEditor() {
             </p>
           </div>
           <div className="me-page-editor-canvas">
+            <div ref={editorContainerRef} className="h-full w-full" />
             {detailQuery.isLoading ? (
-              <div className="flex h-full items-center justify-center">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
                 <LoadingState message="A carregar conteudo da pagina..." />
               </div>
-            ) : (
-              <div ref={editorContainerRef} className="h-full w-full" />
-            )}
+            ) : null}
           </div>
         </article>
 

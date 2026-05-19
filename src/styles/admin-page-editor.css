@@ -1,4 +1,5 @@
 .me-page-editor-canvas {
+  position: relative;
   height: 78vh;
   min-height: 680px;
 }
