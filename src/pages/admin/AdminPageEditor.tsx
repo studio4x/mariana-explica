@@ -5,6 +5,8 @@ import {
   Eye,
   FileClock,
   ImagePlus,
+  Maximize2,
+  Minimize2,
   RefreshCw,
   RotateCcw,
   Save,
@@ -150,6 +152,7 @@ export function AdminPageEditor() {
   const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
   const [isDirty, setIsDirty] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(true)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [editorData, setEditorData] = useState<Data>(() => createFallbackPuckDataFromHtml(getEditorBaselineHtml("home")))
@@ -213,6 +216,17 @@ export function AdminPageEditor() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (!isFullscreen) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isFullscreen])
 
   useEffect(() => {
     if (!detailQuery.data) return
@@ -416,7 +430,14 @@ export function AdminPageEditor() {
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      className={[
+        "space-y-6",
+        isFullscreen
+          ? "fixed inset-0 z-[90] overflow-auto bg-[#f3f7fa] p-4 sm:p-6 lg:p-8"
+          : "",
+      ].join(" ")}
+    >
       <PageHeader
         title="Editor Visual de Paginas"
         description="Editor moderno com Puck para Home e paginas institucionais, com rascunho, publicacao e historico."
@@ -462,6 +483,10 @@ export function AdminPageEditor() {
               <Eye className="mr-2 h-4 w-4" />
               Preview
             </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsFullscreen((current) => !current)}>
+              {isFullscreen ? <Minimize2 className="mr-2 h-4 w-4" /> : <Maximize2 className="mr-2 h-4 w-4" />}
+              {isFullscreen ? "Fechar tela cheia" : "Abrir tela cheia"}
+            </Button>
           </div>
 
           <div className="flex flex-col items-start gap-2 lg:items-end">
@@ -505,7 +530,7 @@ export function AdminPageEditor() {
         ) : null}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="space-y-6">
         <article className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
@@ -513,7 +538,7 @@ export function AdminPageEditor() {
             </p>
           </div>
 
-          <div className="me-page-editor-puck-shell">
+          <div className={["me-page-editor-puck-shell", isFullscreen ? "me-page-editor-puck-shell--fullscreen" : ""].join(" ")}>
             <Puck
               key={`${selectedSlug}:${editorRemountKey}`}
               config={sitePagePuckConfig}
@@ -528,118 +553,118 @@ export function AdminPageEditor() {
             ) : null}
           </div>
         </article>
+      </section>
 
-        <aside className="space-y-6">
-          <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Biblioteca de imagens</p>
-                <h2 className="mt-1 text-lg font-bold text-slate-950">Assets</h2>
-              </div>
-              <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
-                <UploadCloud className="mr-2 h-4 w-4" />
-                {uploadingAsset ? "A enviar..." : "Upload"}
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
-                  className="sr-only"
-                  disabled={uploadingAsset}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    event.target.value = ""
-                    if (file) {
-                      void handleUploadAsset(file)
-                    }
-                  }}
-                />
-              </label>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Biblioteca de imagens</p>
+              <h2 className="mt-1 text-lg font-bold text-slate-950">Assets</h2>
             </div>
+            <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
+              <UploadCloud className="mr-2 h-4 w-4" />
+              {uploadingAsset ? "A enviar..." : "Upload"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                className="sr-only"
+                disabled={uploadingAsset}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ""
+                  if (file) {
+                    void handleUploadAsset(file)
+                  }
+                }}
+              />
+            </label>
+          </div>
 
-            <div className="space-y-3">
-              {assets.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                  Ainda nao existem imagens para esta pagina.
-                </p>
-              ) : (
-                assets.map((asset) => (
-                  <div key={asset.id} className="rounded-2xl border border-slate-200 p-3">
-                    <div className="h-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                      <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
-                    </div>
-                    <p className="mt-2 truncate text-sm font-semibold text-slate-900">{asset.file_name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{formatDateTime(asset.created_at)}</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 w-full rounded-full"
-                      onClick={() => appendImageBlock(asset)}
-                    >
-                      <ImagePlus className="mr-2 h-4 w-4" />
-                      Inserir bloco de imagem
-                    </Button>
+          <div className="space-y-3">
+            {assets.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                Ainda nao existem imagens para esta pagina.
+              </p>
+            ) : (
+              assets.map((asset) => (
+                <div key={asset.id} className="rounded-2xl border border-slate-200 p-3">
+                  <div className="h-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
                   </div>
-                ))
-              )}
-            </div>
-          </article>
+                  <p className="mt-2 truncate text-sm font-semibold text-slate-900">{asset.file_name}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatDateTime(asset.created_at)}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full rounded-full"
+                    onClick={() => appendImageBlock(asset)}
+                  >
+                    <ImagePlus className="mr-2 h-4 w-4" />
+                    Inserir bloco de imagem
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
 
-          <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <FileClock className="h-4 w-4 text-slate-500" />
-              <h2 className="text-lg font-bold text-slate-950">Historico de versoes</h2>
-            </div>
+        <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <FileClock className="h-4 w-4 text-slate-500" />
+            <h2 className="text-lg font-bold text-slate-950">Historico de versoes</h2>
+          </div>
 
-            <div className="space-y-3">
-              {versions.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                  Ainda nao ha versoes para esta pagina.
-                </p>
-              ) : (
-                versions.map((version) => {
-                  const isPublished = version.id === publishedVersionId
-                  const isLoaded = version.id === selectedVersion?.id
+          <div className="space-y-3">
+            {versions.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                Ainda nao ha versoes para esta pagina.
+              </p>
+            ) : (
+              versions.map((version) => {
+                const isPublished = version.id === publishedVersionId
+                const isLoaded = version.id === selectedVersion?.id
 
-                  return (
-                    <div key={version.id} className="rounded-2xl border border-slate-200 p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-bold text-slate-900">Versao {version.version_number}</p>
-                        {isPublished ? (
-                          <StatusBadge label="Publicada" tone="success" />
-                        ) : version.status === "draft" ? (
-                          <StatusBadge label="Draft" tone="warning" />
-                        ) : (
-                          <StatusBadge label="Arquivada" tone="neutral" />
-                        )}
-                      </div>
-                      <p className="mt-2 text-xs text-slate-500">{formatDateTime(version.created_at)}</p>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full"
-                          onClick={() => handleLoadVersion(version)}
-                        >
-                          {isLoaded ? "Carregada" : "Carregar"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full"
-                          onClick={() => setSelectedVersionId(version.id)}
-                        >
-                          Selecionar
-                        </Button>
-                      </div>
+                return (
+                  <div key={version.id} className="rounded-2xl border border-slate-200 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-slate-900">Versao {version.version_number}</p>
+                      {isPublished ? (
+                        <StatusBadge label="Publicada" tone="success" />
+                      ) : version.status === "draft" ? (
+                        <StatusBadge label="Draft" tone="warning" />
+                      ) : (
+                        <StatusBadge label="Arquivada" tone="neutral" />
+                      )}
                     </div>
-                  )
-                })
-              )}
-            </div>
-          </article>
-        </aside>
+                    <p className="mt-2 text-xs text-slate-500">{formatDateTime(version.created_at)}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => handleLoadVersion(version)}
+                      >
+                        {isLoaded ? "Carregada" : "Carregar"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => setSelectedVersionId(version.id)}
+                      >
+                        Selecionar
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </article>
       </section>
 
       <footer className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-xs leading-6 text-slate-600">

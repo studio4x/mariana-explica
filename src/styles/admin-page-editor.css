@@ -1,7 +1,7 @@
 .me-page-editor-puck-shell {
   position: relative;
-  height: 78vh;
-  min-height: 680px;
+  height: 84vh;
+  min-height: 720px;
 }
 
 .me-page-editor-puck-shell .Puck {
@@ -12,15 +12,29 @@
   min-height: 100%;
 }
 
+.me-page-editor-puck-shell--fullscreen {
+  height: calc(100vh - 250px);
+  min-height: 760px;
+}
+
 @media (max-width: 1280px) {
   .me-page-editor-puck-shell {
-    min-height: 620px;
+    min-height: 640px;
+  }
+
+  .me-page-editor-puck-shell--fullscreen {
+    min-height: 680px;
   }
 }
 
 @media (max-width: 768px) {
   .me-page-editor-puck-shell {
-    height: 70vh;
-    min-height: 540px;
+    height: 74vh;
+    min-height: 560px;
+  }
+
+  .me-page-editor-puck-shell--fullscreen {
+    height: calc(100vh - 230px);
+    min-height: 600px;
   }
 }
