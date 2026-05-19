@@ -1,4 +1,5 @@
 import { Render, type Config, type Data } from "@puckeditor/core"
+import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 
 function createBlockId() {
@@ -21,6 +22,18 @@ function safeRichText(html: string) {
   const normalized = String(html ?? "").trim()
   if (!normalized) return "<p></p>"
   return sanitizeInlineHtml(normalized)
+}
+
+function renderRichNode(value: unknown): ReactNode {
+  if (typeof value === "string") {
+    return <div dangerouslySetInnerHTML={{ __html: safeRichText(value) }} />
+  }
+
+  if (value == null) {
+    return <div dangerouslySetInnerHTML={{ __html: "<p></p>" }} />
+  }
+
+  return value as ReactNode
 }
 
 export const sitePagePuckConfig: Config = {
@@ -92,10 +105,7 @@ export const sitePagePuckConfig: Config = {
 
         return (
           <section className="py-6 md:py-8">
-            <div
-              className={`mx-auto max-w-[1200px] px-6 text-[#24324a] ${alignmentClass}`}
-              dangerouslySetInnerHTML={{ __html: safeRichText(content) }}
-            />
+            <div className={`mx-auto max-w-[1200px] px-6 text-[#24324a] ${alignmentClass}`}>{renderRichNode(content)}</div>
           </section>
         )
       },
@@ -176,10 +186,10 @@ export const sitePagePuckConfig: Config = {
           <section className="py-6 md:py-10">
             <div className="mx-auto grid max-w-[1200px] gap-6 px-6 md:grid-cols-2">
               <article className="rounded-2xl bg-[#e8f0f4] px-6 py-6 text-[#24324a] md:px-8 md:py-8">
-                <div dangerouslySetInnerHTML={{ __html: safeRichText(left) }} />
+                {renderRichNode(left)}
               </article>
               <article className="rounded-2xl bg-[#e8f0f4] px-6 py-6 text-[#24324a] md:px-8 md:py-8">
-                <div dangerouslySetInnerHTML={{ __html: safeRichText(right) }} />
+                {renderRichNode(right)}
               </article>
             </div>
           </section>
