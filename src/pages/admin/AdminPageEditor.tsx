@@ -129,10 +129,15 @@ function extractHtml(layoutJson: Record<string, unknown> | undefined) {
 }
 
 function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: string | null) {
+  if (publishedId) {
+    const publishedVersion = versions.find((item) => item.id === publishedId)
+    if (publishedVersion) return publishedVersion
+  }
+
   const latestDraft = versions.find((item) => item.status === "draft")
   if (latestDraft) return latestDraft
-  if (!publishedId) return versions[0] ?? null
-  return versions.find((item) => item.id === publishedId) ?? versions[0] ?? null
+
+  return versions[0] ?? null
 }
 
 function registerDefaultBlocks(editor: Editor) {
