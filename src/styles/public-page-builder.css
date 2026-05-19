@@ -1,0 +1,13 @@
+.me-public-page-builder {
+  min-height: 40vh;
+  background: #ffffff;
+}
+
+.me-public-page-builder img {
+  max-width: 100%;
+  height: auto;
+}
+
+.me-public-page-builder a {
+  color: inherit;
+}

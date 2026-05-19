@@ -168,6 +168,13 @@ function registerDefaultBlocks(editor: Editor) {
     category: "Conteudo",
     content: '<div class="me-spacer" style="height:32px"></div>',
   })
+
+  blockManager.add("me-widget-home-reviews", {
+    label: "Widget Reviews (Home)",
+    category: "Widgets",
+    content:
+      '<section data-me-widget="home-reviews" class="me-widget-slot"><div class="me-widget-slot__label">Widget dinamico: reviews da Home</div></section>',
+  })
 }
 
 function upsertEditorAssets(editor: Editor, assets: AdminSitePageAsset[]) {
@@ -271,6 +278,8 @@ export function AdminPageEditor() {
           ".me-btn { display:inline-flex; align-items:center; justify-content:center; border-radius:9999px; padding: 12px 22px; background:#0f172a; color:#ffffff; text-decoration:none; font-weight:700; }",
           ".me-divider { border: 0; border-top: 1px solid #cbd5e1; }",
           ".me-spacer { width:100%; }",
+          ".me-widget-slot { border:1px dashed #0f172a; border-radius:16px; padding:16px; background:#f8fafc; }",
+          ".me-widget-slot__label { font-family: Inter, sans-serif; font-size: 13px; font-weight:700; color:#0f172a; text-align:center; }",
           "@media (max-width: 767px) { .me-columns { grid-template-columns: 1fr; } }",
         ],
       },
@@ -877,6 +886,10 @@ export function AdminPageEditor() {
         <p>
           Dica: para substituir uma imagem, seleciona um bloco de imagem no canvas e depois clica em{" "}
           <strong>Inserir / substituir</strong> na biblioteca de assets.
+        </p>
+        <p>
+          Home: para manter as reviews dinamicas, usa o bloco <strong>Widget Reviews (Home)</strong> ou o placeholder{" "}
+          <code>{"{{ME_WIDGET:home-reviews}}"}</code>.
         </p>
         <p>
           Preview publico:{" "}

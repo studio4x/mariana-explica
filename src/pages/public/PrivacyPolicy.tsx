@@ -1,4 +1,5 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 const sections: LegalSection[] = [
   {
@@ -72,7 +73,7 @@ const sections: LegalSection[] = [
   },
 ]
 
-export function PrivacyPolicy() {
+function PrivacyPolicyFallback() {
   return (
     <LegalPageLayout
       eyebrow="Privacidade"
@@ -82,4 +83,8 @@ export function PrivacyPolicy() {
       sections={sections}
     />
   )
+}
+
+export function PrivacyPolicy() {
+  return <PublicManagedPage slug="privacidade" fallback={<PrivacyPolicyFallback />} />
 }
