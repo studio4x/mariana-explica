@@ -1,6 +1,14 @@
 import { Render, type Config, type Data } from "@puckeditor/core"
 import { renderToStaticMarkup } from "react-dom/server"
 
+function createBlockId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+
+  return `puck-${Math.random().toString(36).slice(2, 10)}`
+}
+
 function sanitizeInlineHtml(html: string) {
   return html
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
@@ -238,6 +246,246 @@ export const sitePagePuckConfig: Config = {
   },
 }
 
+function createStructuredBlock(type: string, props: Record<string, unknown>) {
+  return {
+    type,
+    props: {
+      id: createBlockId(),
+      ...props,
+    },
+  }
+}
+
+function normalizeText(value: string | null | undefined) {
+  return String(value ?? "").replace(/\s+/g, " ").trim()
+}
+
+function hasDirectText(element: Element) {
+  return Array.from(element.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && normalizeText(node.textContent).length > 0)
+}
+
+function unwrapLegacyWrapper(element: Element): Element {
+  let current = element
+
+  while (
+    ["DIV", "MAIN", "SECTION", "ARTICLE"].includes(current.tagName) &&
+    current.children.length === 1 &&
+    !hasDirectText(current) &&
+    !current.querySelector('[data-me-widget="home-reviews"]')
+  ) {
+    const next = current.children[0]
+    if (!(next instanceof Element)) break
+    current = next
+  }
+
+  return current
+}
+
+function looksLikeTwoColumns(element: Element) {
+  if (element.children.length !== 2) return false
+
+  const [left, right] = Array.from(element.children)
+  if (!(left instanceof Element) || !(right instanceof Element)) return false
+
+  const className = (element.getAttribute("class") ?? "").toLowerCase()
+  const hasGridHint =
+    className.includes("grid") ||
+    className.includes("columns") ||
+    className.includes("col-") ||
+    className.includes("md:grid-cols-2") ||
+    className.includes("lg:grid-cols-2")
+
+  const leftText = normalizeText(left.textContent)
+  const rightText = normalizeText(right.textContent)
+  const hasEnoughText = leftText.length > 36 && rightText.length > 36
+
+  return hasGridHint || hasEnoughText
+}
+
+function pickMainImage(element: Element) {
+  if (element.tagName === "IMG") {
+    return element as HTMLImageElement
+  }
+
+  const images = element.querySelectorAll("img")
+  if (images.length !== 1) return null
+  return images[0] as HTMLImageElement
+}
+
+function pickPrimaryButton(element: Element) {
+  if (element.tagName === "A") {
+    return element as HTMLAnchorElement
+  }
+
+  const candidates = Array.from(element.querySelectorAll("a")) as HTMLAnchorElement[]
+  const buttonLike = candidates.find((anchor) => {
+    const className = (anchor.getAttribute("class") ?? "").toLowerCase()
+    return className.includes("btn") || className.includes("button") || className.includes("rounded") || className.includes("bg-")
+  })
+
+  if (buttonLike) return buttonLike
+  if (candidates.length === 1) return candidates[0]
+
+  return null
+}
+
+function extractDirectHeading(element: Element) {
+  const heading = element.querySelector(":scope > h1, :scope > h2, :scope > h3")
+  if (!heading) return null
+  const text = normalizeText(heading.textContent)
+  if (!text) return null
+  return heading
+}
+
+function addConvertedBlocksFromElement(element: Element, blocks: Array<{ type: string; props: Record<string, unknown> }>) {
+  const normalizedElement = unwrapLegacyWrapper(element)
+
+  if (normalizedElement.matches('[data-me-widget="home-reviews"]') || normalizedElement.querySelector('[data-me-widget="home-reviews"]')) {
+    blocks.push(
+      createStructuredBlock("HomeReviewsWidget", {
+        title: "Widget dinamico: reviews da Home",
+        note: "Este bloco e renderizado dinamicamente no site publico.",
+      }),
+    )
+    return
+  }
+
+  const spacerMatch = /(?:height|min-height)\s*:\s*(\d+)px/i.exec(normalizedElement.getAttribute("style") ?? "")
+  if (spacerMatch && normalizedElement.children.length === 0) {
+    blocks.push(
+      createStructuredBlock("Spacer", {
+        height: Number(spacerMatch[1]),
+      }),
+    )
+    return
+  }
+
+  if (looksLikeTwoColumns(normalizedElement)) {
+    const [left, right] = Array.from(normalizedElement.children) as Element[]
+    blocks.push(
+      createStructuredBlock("TwoColumnsText", {
+        left: sanitizeInlineHtml(left.innerHTML || left.outerHTML),
+        right: sanitizeInlineHtml(right.innerHTML || right.outerHTML),
+      }),
+    )
+    return
+  }
+
+  const image = pickMainImage(normalizedElement)
+  if (image) {
+    blocks.push(
+      createStructuredBlock("ImageBlock", {
+        src: image.getAttribute("src") ?? "https://placehold.co/1280x720?text=Imagem",
+        alt: image.getAttribute("alt") ?? "Imagem",
+        caption: "",
+      }),
+    )
+    return
+  }
+
+  const heading = extractDirectHeading(normalizedElement)
+  if (heading) {
+    const title = normalizeText(heading.textContent)
+    const subtitleParts = Array.from(normalizedElement.querySelectorAll(":scope > p"))
+      .map((paragraph) => normalizeText(paragraph.textContent))
+      .filter(Boolean)
+
+    blocks.push(
+      createStructuredBlock("SectionTitle", {
+        eyebrow: "Secao",
+        title,
+        subtitle: subtitleParts.join(" "),
+        align: "center",
+      }),
+    )
+
+    const clone = normalizedElement.cloneNode(true) as Element
+    clone.querySelectorAll("h1,h2,h3").forEach((node) => node.remove())
+    const remainder = sanitizeInlineHtml(clone.innerHTML).trim()
+    if (remainder.length > 0) {
+      blocks.push(
+        createStructuredBlock("RichTextBlock", {
+          content: remainder,
+          align: "left",
+        }),
+      )
+    }
+
+    return
+  }
+
+  const button = pickPrimaryButton(normalizedElement)
+  if (button && normalizeText(button.textContent).length > 0) {
+    blocks.push(
+      createStructuredBlock("ButtonBlock", {
+        label: normalizeText(button.textContent),
+        href: button.getAttribute("href") ?? "#",
+        align: "left",
+      }),
+    )
+    return
+  }
+
+  const childElements = Array.from(normalizedElement.children)
+  const canUnrollChildren =
+    ["DIV", "MAIN", "SECTION"].includes(normalizedElement.tagName) &&
+    childElements.length > 1 &&
+    !hasDirectText(normalizedElement)
+
+  if (canUnrollChildren) {
+    childElements.forEach((child) => {
+      if (child instanceof Element) {
+        addConvertedBlocksFromElement(child, blocks)
+      }
+    })
+    return
+  }
+
+  blocks.push(
+    createStructuredBlock("RichTextBlock", {
+      content: sanitizeInlineHtml(normalizedElement.outerHTML),
+      align: "left",
+    }),
+  )
+}
+
+export function convertLegacyHtmlToPuckData(html: string): Data {
+  const sanitized = sanitizeInlineHtml(String(html ?? "")).trim()
+  if (!sanitized) return createFallbackPuckDataFromHtml(html)
+
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return createFallbackPuckDataFromHtml(sanitized)
+  }
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(`<div id="me-legacy-root">${sanitized}</div>`, "text/html")
+  const root = doc.getElementById("me-legacy-root")
+
+  if (!root) {
+    return createFallbackPuckDataFromHtml(sanitized)
+  }
+
+  const topLevelElements = Array.from(root.children).filter((node): node is Element => node instanceof Element)
+  const blocks: Array<{ type: string; props: Record<string, unknown> }> = []
+
+  topLevelElements.forEach((element) => {
+    addConvertedBlocksFromElement(element, blocks)
+  })
+
+  if (blocks.length === 0) {
+    return createFallbackPuckDataFromHtml(sanitized)
+  }
+
+  return {
+    root: {
+      props: {
+        title: "Pagina institucional",
+      },
+    },
+    content: blocks,
+  } as Data
+}
+
 export function createFallbackPuckDataFromHtml(html: string): Data {
   return {
     root: {
@@ -249,7 +497,7 @@ export function createFallbackPuckDataFromHtml(html: string): Data {
       {
         type: "RawHtml",
         props: {
-          id: crypto.randomUUID(),
+          id: createBlockId(),
           html: sanitizeInlineHtml(String(html ?? "")),
         },
       },

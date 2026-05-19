@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
 import {
+  convertLegacyHtmlToPuckData,
   createFallbackPuckDataFromHtml,
   extractPuckDataFromLayout,
   renderPuckHtmlSnapshot,
@@ -139,7 +140,7 @@ function buildDataFromVersion(version: AdminSitePageVersion | null, baselineHtml
   const legacyHtml = extractHtml(version.layout_json) || safeBaselineHtml
 
   return {
-    data: createFallbackPuckDataFromHtml(legacyHtml),
+    data: convertLegacyHtmlToPuckData(legacyHtml),
     css: extractCss(version.style_json),
     versionId: version.id,
   }
@@ -643,7 +644,7 @@ export function AdminPageEditor() {
 
       <footer className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-xs leading-6 text-slate-600">
         <p>
-          Legado: conteudos antigos aparecem como bloco <strong>HTML livre (legado)</strong>. Podes manter ou substituir gradualmente por blocos Puck.
+          Legado: o editor converte automaticamente HTML antigo para blocos Puck. O que nao for convertido com seguranca permanece em <strong>HTML livre (legado)</strong>.
         </p>
         <p>
           Home: para manter as reviews dinamicas, usa o bloco <strong>Widget Reviews (Home)</strong>.
