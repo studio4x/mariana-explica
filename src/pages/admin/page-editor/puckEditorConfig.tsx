@@ -2,6 +2,8 @@ import { Render, type Config, type Data } from "@puckeditor/core"
 import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 
+type PuckBlock = { type: string; props: Record<string, unknown> }
+
 function createBlockId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()
@@ -36,11 +38,87 @@ function renderRichNode(value: unknown): ReactNode {
   return value as ReactNode
 }
 
+const HOME_DEFAULTS = {
+  hero: {
+    imageSrc: "/assets/home-hero-illustration.svg",
+    imageAlt: "Ilustracao de materiais de estudo para Portugues e Filosofia",
+    heading: "Tens dificuldades a Portugues ou Filosofia?",
+    subheading: "Nunca tiveste a disciplina e vais fazer exame?",
+    body: "Entao fica aqui que este local e para ti!",
+    ctaLabel: "Explorar materiais",
+    ctaHref: "/materiais",
+  },
+  objective: {
+    badge: "Objetivo Principal",
+    text:
+      "Criei este espaco para te dar o apoio que os manuais nao dao: leveza, clareza e uma estrategia real para brilhares nos exames de Filosofia e Portugues. Vamo-nos simplificar?",
+    feature1Eyebrow: "EM BREVE - AULAS GRAVADAS",
+    feature1Text:
+      "Domina temas complexos ao teu ritmo, com aulas organizadas e flexiveis, prontas quando tu estiveres.",
+    feature2Eyebrow: "EXPLICACOES",
+    feature2Text:
+      "Acompanhamento personalizado e focado nas tuas duvidas especificas para garantires resultados.",
+    feature3Eyebrow: "MATERIAIS DIGITAIS",
+    feature3Text:
+      "Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota maxima sem complicacoes.",
+    feature4Eyebrow: "MATERIAIS DIGITAIS - GRATUITOS",
+    feature4Text: "Dicas flash e recursos rapidos para descarregar e dares um boost imediato no teu estudo.",
+  },
+  steps: {
+    title: "O teu caminho para o sucesso e simples",
+    subtitle:
+      "Esquece as complicacoes burocraticas. Aqui, o foco e o teu estudo. Em tres passos rapidos, tens tudo o que precisas para comecar a brilhar.",
+    step1Eyebrow: "ENCONTRA O TEU APOIO",
+    step1Text:
+      "Explora as sebentas e materiais disponiveis. Cada material foi criado para resolver uma dor especifica, por isso vais perceber logo qual e o ideal para o teu momento.",
+    step2Eyebrow: "ACESSO RAPIDO E SEGURO",
+    step2Text:
+      "O processo e direto e transparente. Sem taxas escondidas ou passos desnecessarios. Pagas de forma segura e o material e teu no segundo seguinte.",
+    step3Eyebrow: "FOCA-TE NO QUE IMPORTA",
+    step3Text:
+      "Tudo fica organizado na tua Area do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.",
+  },
+  trust: {
+    leftTitle: "Vantagens de trabalhares comigo",
+    left1Title: "Linguagem Direta:",
+    left1Text:
+      "Falamos a mesma lingua. Esquece os termos impossiveis dos manuais e entende a materia a primeira.",
+    left2Title: "Foco no Exame:",
+    left2Text: "Materiais desenhados apenas com o que realmente sai. Sem distracoes.",
+    left3Title: "Resumos Visuais:",
+    left3Text: "Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.",
+    rightTitle: "Leveza e Confianca em cada passo",
+    right1Text:
+      'Suporte Real: Nao recebes so um PDF. Tens uma "amiga" (eu!) nas DMs para te apoiar sempre que precisares.',
+    right2Text:
+      "Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Area do Aluno.",
+    right3Text:
+      "Pes na Terra: Filosofia e Portugues deixam de ser abstratos e passam a ser ferramentas que dominas com seguranca.",
+    primaryCtaLabel: "Explorar materiais",
+    primaryCtaHref: "/materiais",
+    secondaryCtaLabel: "Criar Conta",
+    secondaryCtaHref: "/criar-conta",
+  },
+  reviews: {
+    title: "Widget dinamico: reviews da Home",
+    note: "Este bloco e renderizado dinamicamente no site publico.",
+  },
+}
+
 export const sitePagePuckConfig: Config = {
   categories: {
     estrutura: {
       title: "Estrutura",
-      components: ["SectionTitle", "Spacer", "TwoColumnsText", "RawHtml"],
+      components: [
+        "HomeHeroSection",
+        "HomeObjectiveSection",
+        "HomeStepsSection",
+        "HomeTrustSection",
+        "SectionTitle",
+        "Spacer",
+        "TwoColumnsText",
+        "RawHtml",
+      ],
     },
     conteudo: {
       title: "Conteudo",
@@ -48,6 +126,271 @@ export const sitePagePuckConfig: Config = {
     },
   },
   components: {
+    HomeHeroSection: {
+      label: "Hero Home (foto + texto)",
+      defaultProps: {
+        imageSrc: "https://placehold.co/900x900?text=Foto+Home",
+        imageAlt: "Imagem principal",
+        heading: "Titulo principal",
+        subheading: "Subtitulo",
+        body: "Texto de apoio.",
+        ctaLabel: "Explorar materiais",
+        ctaHref: "/materiais",
+      },
+      fields: {
+        imageSrc: { type: "text", label: "Imagem (URL)" },
+        imageAlt: { type: "text", label: "Alt da imagem" },
+        heading: { type: "text", label: "Titulo principal (H1)" },
+        subheading: { type: "text", label: "Subtitulo (H2)" },
+        body: { type: "textarea", label: "Texto de apoio" },
+        ctaLabel: { type: "text", label: "Texto do botao" },
+        ctaHref: { type: "text", label: "Link do botao" },
+      },
+      render: ({ imageSrc, imageAlt, heading, subheading, body, ctaLabel, ctaHref }) => {
+        return (
+          <header className="bg-[#f5fafc] py-20 lg:py-32">
+            <div className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-16 px-6 lg:grid-cols-2">
+              <div className="order-2 lg:order-1">
+                <div className="aspect-[4/5] w-full rounded-xl bg-white shadow-sm ring-1 ring-black/5 lg:aspect-square">
+                  <img
+                    src={String(imageSrc ?? "").trim() || "https://placehold.co/900x900?text=Foto+Home"}
+                    alt={String(imageAlt ?? "").trim() || "Imagem principal"}
+                    className="h-full w-full rounded-xl object-contain p-6"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+
+              <div className="order-1 space-y-8 lg:order-2">
+                <div className="space-y-4">
+                  <h1 className="max-w-[12ch] font-display text-5xl font-bold leading-[1.1] tracking-[-0.02em] text-[#0f122c] lg:text-6xl">
+                    {heading}
+                  </h1>
+                  <h2 className="max-w-[14ch] font-display text-3xl font-bold leading-[1.3] tracking-[-0.02em] text-[#0f122c]/80 lg:text-4xl">
+                    {subheading}
+                  </h2>
+                  <p className="max-w-[18ch] font-sans text-xl leading-[1.6] text-[#46464d]">{body}</p>
+                </div>
+
+                <a
+                  href={String(ctaHref ?? "").trim() || "#"}
+                  className="inline-flex rounded-full bg-[#242742] px-12 py-6 text-sm font-bold uppercase tracking-widest text-white shadow-lg transition hover:bg-[#1d2036]"
+                >
+                  {ctaLabel}
+                </a>
+              </div>
+            </div>
+          </header>
+        )
+      },
+    },
+    HomeObjectiveSection: {
+      label: "Home: Objetivo + Blocos",
+      defaultProps: { ...HOME_DEFAULTS.objective },
+      fields: {
+        badge: { type: "text", label: "Selo principal" },
+        text: { type: "textarea", label: "Texto principal" },
+        feature1Eyebrow: { type: "text", label: "Bloco 1 - Titulo" },
+        feature1Text: { type: "textarea", label: "Bloco 1 - Texto" },
+        feature2Eyebrow: { type: "text", label: "Bloco 2 - Titulo" },
+        feature2Text: { type: "textarea", label: "Bloco 2 - Texto" },
+        feature3Eyebrow: { type: "text", label: "Bloco 3 - Titulo" },
+        feature3Text: { type: "textarea", label: "Bloco 3 - Texto" },
+        feature4Eyebrow: { type: "text", label: "Bloco 4 - Titulo" },
+        feature4Text: { type: "textarea", label: "Bloco 4 - Texto" },
+      },
+      render: ({
+        badge,
+        text,
+        feature1Eyebrow,
+        feature1Text,
+        feature2Eyebrow,
+        feature2Text,
+        feature3Eyebrow,
+        feature3Text,
+        feature4Eyebrow,
+        feature4Text,
+      }) => {
+        const features = [
+          { eyebrow: feature1Eyebrow, text: feature1Text },
+          { eyebrow: feature2Eyebrow, text: feature2Text },
+          { eyebrow: feature3Eyebrow, text: feature3Text },
+          { eyebrow: feature4Eyebrow, text: feature4Text },
+        ]
+
+        return (
+          <section className="bg-[rgba(239,244,246,0.5)] py-24">
+            <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
+              <div className="flex flex-col items-center rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 text-center shadow-sm">
+                <span className="mb-8 inline-flex rounded-full bg-[#242742] px-6 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
+                  {badge}
+                </span>
+                <p className="max-w-2xl font-display text-2xl leading-relaxed text-[#0f122c]">{text}</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                {features.map((feature, index) => (
+                  <div
+                    key={`${String(feature.eyebrow ?? "")}-${index}`}
+                    className="flex flex-col items-center rounded border border-[rgba(71,71,77,0.12)] bg-white p-8 text-center shadow-sm"
+                  >
+                    <span className="mb-4 inline-flex rounded-full bg-[#242742] px-4 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-white">
+                      {feature.eyebrow}
+                    </span>
+                    <p className="text-xs leading-relaxed text-[#46464d]">{feature.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+      },
+    },
+    HomeStepsSection: {
+      label: "Home: 3 passos",
+      defaultProps: { ...HOME_DEFAULTS.steps },
+      fields: {
+        title: { type: "text", label: "Titulo da secao" },
+        subtitle: { type: "textarea", label: "Subtitulo da secao" },
+        step1Eyebrow: { type: "text", label: "Passo 1 - Titulo" },
+        step1Text: { type: "textarea", label: "Passo 1 - Texto" },
+        step2Eyebrow: { type: "text", label: "Passo 2 - Titulo" },
+        step2Text: { type: "textarea", label: "Passo 2 - Texto" },
+        step3Eyebrow: { type: "text", label: "Passo 3 - Titulo" },
+        step3Text: { type: "textarea", label: "Passo 3 - Texto" },
+      },
+      render: ({ title, subtitle, step1Eyebrow, step1Text, step2Eyebrow, step2Text, step3Eyebrow, step3Text }) => {
+        const steps = [
+          { eyebrow: step1Eyebrow, text: step1Text },
+          { eyebrow: step2Eyebrow, text: step2Text },
+          { eyebrow: step3Eyebrow, text: step3Text },
+        ]
+
+        return (
+          <section className="bg-[#eff4f6] py-24">
+            <div className="mx-auto max-w-[1200px] px-6">
+              <div className="mb-16 max-w-2xl">
+                <h2 className="mb-6 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">{title}</h2>
+                <p className="text-lg leading-8 text-[#46464d]">{subtitle}</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+                {steps.map((step, index) => (
+                  <div
+                    key={`${String(step.eyebrow ?? "")}-${index}`}
+                    className="flex flex-col rounded border border-[rgba(71,71,77,0.12)] bg-white p-10 shadow-sm"
+                  >
+                    <span className="mb-8 inline-flex self-start rounded-full bg-[#242742] px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
+                      {step.eyebrow}
+                    </span>
+                    <p className="text-base leading-7 text-[#46464d]">{step.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+      },
+    },
+    HomeTrustSection: {
+      label: "Home: Vantagens + CTAs",
+      defaultProps: { ...HOME_DEFAULTS.trust },
+      fields: {
+        leftTitle: { type: "text", label: "Titulo coluna esquerda" },
+        left1Title: { type: "text", label: "Esq 1 - Titulo" },
+        left1Text: { type: "textarea", label: "Esq 1 - Texto" },
+        left2Title: { type: "text", label: "Esq 2 - Titulo" },
+        left2Text: { type: "textarea", label: "Esq 2 - Texto" },
+        left3Title: { type: "text", label: "Esq 3 - Titulo" },
+        left3Text: { type: "textarea", label: "Esq 3 - Texto" },
+        rightTitle: { type: "text", label: "Titulo coluna direita" },
+        right1Text: { type: "textarea", label: "Dir 1 - Texto" },
+        right2Text: { type: "textarea", label: "Dir 2 - Texto" },
+        right3Text: { type: "textarea", label: "Dir 3 - Texto" },
+        primaryCtaLabel: { type: "text", label: "CTA 1 - Texto" },
+        primaryCtaHref: { type: "text", label: "CTA 1 - Link" },
+        secondaryCtaLabel: { type: "text", label: "CTA 2 - Texto" },
+        secondaryCtaHref: { type: "text", label: "CTA 2 - Link" },
+      },
+      render: ({
+        leftTitle,
+        left1Title,
+        left1Text,
+        left2Title,
+        left2Text,
+        left3Title,
+        left3Text,
+        rightTitle,
+        right1Text,
+        right2Text,
+        right3Text,
+        primaryCtaLabel,
+        primaryCtaHref,
+        secondaryCtaLabel,
+        secondaryCtaHref,
+      }) => {
+        const leftItems = [
+          { title: left1Title, text: left1Text },
+          { title: left2Title, text: left2Text },
+          { title: left3Title, text: left3Text },
+        ]
+        const rightItems = [right1Text, right2Text, right3Text]
+
+        return (
+          <section className="bg-[rgba(239,244,246,0.5)] py-24">
+            <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
+              <div className="rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 shadow-sm">
+                <h3 className="mb-12 inline-flex rounded-full bg-[rgba(169,207,255,0.35)] px-6 py-2 text-lg font-display text-[#0f122c]">
+                  {leftTitle}
+                </h3>
+                <ul className="space-y-8">
+                  {leftItems.map((item, index) => (
+                    <li key={`${String(item.title ?? "")}-${index}`} className="flex items-start gap-3">
+                      <span className="mt-1 text-xs text-[#242742]">•</span>
+                      <div>
+                        <span className="block text-base font-bold text-[#242742]">{item.title}</span>
+                        <span className="text-sm text-[#46464d]">{item.text}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="flex flex-col justify-between rounded bg-[rgba(169,207,255,0.2)] p-12">
+                <div>
+                  <h3 className="mb-12 inline-flex rounded-full bg-white px-6 py-2 text-lg font-display text-[#0f122c]">
+                    {rightTitle}
+                  </h3>
+                  <ul className="space-y-6">
+                    {rightItems.map((item, index) => (
+                      <li key={`${String(item ?? "")}-${index}`} className="flex items-start gap-3">
+                        <span className="mt-1 text-xs text-[#242742]">•</span>
+                        <span className="text-sm font-medium leading-6 text-[#242742]">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-12 flex flex-wrap gap-4">
+                  <a
+                    href={String(primaryCtaHref ?? "").trim() || "#"}
+                    className="inline-flex rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm"
+                  >
+                    {primaryCtaLabel}
+                  </a>
+                  <a
+                    href={String(secondaryCtaHref ?? "").trim() || "#"}
+                    className="inline-flex rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm"
+                  >
+                    {secondaryCtaLabel}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+        )
+      },
+    },
     SectionTitle: {
       label: "Titulo de secao",
       defaultProps: {
@@ -347,6 +690,44 @@ function extractDirectHeading(element: Element) {
   return heading
 }
 
+function extractHomeHeroSectionProps(element: Element) {
+  const image = element.querySelector("img")
+  const heading = element.querySelector("h1")
+  const subheading = element.querySelector("h2")
+  const body = element.querySelector("p")
+  const button = pickPrimaryButton(element)
+
+  if (!image || !heading || !subheading || !body || !button) return null
+
+  const headingText = normalizeText(heading.textContent)
+  const subheadingText = normalizeText(subheading.textContent)
+  const bodyText = normalizeText(body.textContent)
+  const buttonText = normalizeText(button.textContent)
+
+  if (!headingText || !subheadingText || !bodyText || !buttonText) return null
+
+  const className = (element.getAttribute("class") ?? "").toLowerCase()
+  const hasHeroHint =
+    element.tagName === "HEADER" ||
+    className.includes("lg:py-32") ||
+    className.includes("py-20") ||
+    className.includes("f5fafc")
+
+  if (!hasHeroHint && !headingText.includes("?")) {
+    return null
+  }
+
+  return {
+    imageSrc: image.getAttribute("src") ?? "https://placehold.co/900x900?text=Foto+Home",
+    imageAlt: image.getAttribute("alt") ?? "Imagem principal",
+    heading: headingText,
+    subheading: subheadingText,
+    body: bodyText,
+    ctaLabel: buttonText,
+    ctaHref: button.getAttribute("href") ?? "#",
+  }
+}
+
 function addConvertedBlocksFromElement(element: Element, blocks: Array<{ type: string; props: Record<string, unknown> }>) {
   const normalizedElement = unwrapLegacyWrapper(element)
 
@@ -367,6 +748,12 @@ function addConvertedBlocksFromElement(element: Element, blocks: Array<{ type: s
         height: Number(spacerMatch[1]),
       }),
     )
+    return
+  }
+
+  const homeHeroProps = extractHomeHeroSectionProps(normalizedElement)
+  if (homeHeroProps) {
+    blocks.push(createStructuredBlock("HomeHeroSection", homeHeroProps))
     return
   }
 
@@ -459,6 +846,136 @@ function addConvertedBlocksFromElement(element: Element, blocks: Array<{ type: s
   )
 }
 
+function selectText(element: ParentNode, selector: string) {
+  const found = element.querySelector(selector)
+  if (!found) return ""
+  return normalizeText(found.textContent)
+}
+
+function selectAttr(element: ParentNode, selector: string, attribute: string) {
+  const found = element.querySelector(selector)
+  if (!(found instanceof Element)) return ""
+  return String(found.getAttribute(attribute) ?? "").trim()
+}
+
+function buildHomeStructuredDataFromDefaults(): Data {
+  const blocks: PuckBlock[] = [
+    createStructuredBlock("HomeHeroSection", { ...HOME_DEFAULTS.hero }),
+    createStructuredBlock("HomeObjectiveSection", { ...HOME_DEFAULTS.objective }),
+    createStructuredBlock("HomeStepsSection", { ...HOME_DEFAULTS.steps }),
+    createStructuredBlock("HomeTrustSection", { ...HOME_DEFAULTS.trust }),
+    createStructuredBlock("HomeReviewsWidget", { ...HOME_DEFAULTS.reviews }),
+  ]
+
+  return {
+    root: {
+      props: {
+        title: "Home",
+      },
+    },
+    content: blocks,
+  } as Data
+}
+
+function convertHomeHtmlToStructuredData(html: string): Data {
+  const sanitized = sanitizeInlineHtml(String(html ?? "")).trim()
+  if (!sanitized) {
+    return buildHomeStructuredDataFromDefaults()
+  }
+
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return buildHomeStructuredDataFromDefaults()
+  }
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(`<div id="me-home-root">${sanitized}</div>`, "text/html")
+  const root = doc.getElementById("me-home-root")
+  if (!root) {
+    return buildHomeStructuredDataFromDefaults()
+  }
+
+  const heroNode = root.querySelector("header")
+  const sectionNodes = Array.from(root.querySelectorAll("section"))
+  const objectiveNode = sectionNodes[0] ?? null
+  const stepsNode = sectionNodes[1] ?? null
+  const trustNode = sectionNodes[2] ?? null
+  const reviewsNode = root.querySelector('[data-me-widget="home-reviews"], section[data-me-widget="home-reviews"]')
+
+  const heroProps = heroNode ? extractHomeHeroSectionProps(heroNode) : null
+
+  const objectiveProps = {
+    badge:
+      selectText(objectiveNode ?? root, "div > span") ||
+      selectText(objectiveNode ?? root, "span") ||
+      HOME_DEFAULTS.objective.badge,
+    text:
+      selectText(objectiveNode ?? root, "div > p") ||
+      selectText(objectiveNode ?? root, "p") ||
+      HOME_DEFAULTS.objective.text,
+    feature1Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > span") || HOME_DEFAULTS.objective.feature1Eyebrow,
+    feature1Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > p") || HOME_DEFAULTS.objective.feature1Text,
+    feature2Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > span") || HOME_DEFAULTS.objective.feature2Eyebrow,
+    feature2Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > p") || HOME_DEFAULTS.objective.feature2Text,
+    feature3Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > span") || HOME_DEFAULTS.objective.feature3Eyebrow,
+    feature3Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > p") || HOME_DEFAULTS.objective.feature3Text,
+    feature4Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(4) > span") || HOME_DEFAULTS.objective.feature4Eyebrow,
+    feature4Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(4) > p") || HOME_DEFAULTS.objective.feature4Text,
+  }
+
+  const stepsProps = {
+    title: selectText(stepsNode ?? root, "h2") || HOME_DEFAULTS.steps.title,
+    subtitle: selectText(stepsNode ?? root, "div > p") || HOME_DEFAULTS.steps.subtitle,
+    step1Eyebrow: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > span") || HOME_DEFAULTS.steps.step1Eyebrow,
+    step1Text: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > p") || HOME_DEFAULTS.steps.step1Text,
+    step2Eyebrow: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > span") || HOME_DEFAULTS.steps.step2Eyebrow,
+    step2Text: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > p") || HOME_DEFAULTS.steps.step2Text,
+    step3Eyebrow: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > span") || HOME_DEFAULTS.steps.step3Eyebrow,
+    step3Text: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > p") || HOME_DEFAULTS.steps.step3Text,
+  }
+
+  const trustProps = {
+    leftTitle: selectText(trustNode ?? root, "div:nth-of-type(1) h3") || HOME_DEFAULTS.trust.leftTitle,
+    left1Title: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(1) span:first-of-type") || HOME_DEFAULTS.trust.left1Title,
+    left1Text: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(1) span:last-of-type") || HOME_DEFAULTS.trust.left1Text,
+    left2Title: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(2) span:first-of-type") || HOME_DEFAULTS.trust.left2Title,
+    left2Text: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(2) span:last-of-type") || HOME_DEFAULTS.trust.left2Text,
+    left3Title: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(3) span:first-of-type") || HOME_DEFAULTS.trust.left3Title,
+    left3Text: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(3) span:last-of-type") || HOME_DEFAULTS.trust.left3Text,
+    rightTitle: selectText(trustNode ?? root, "div:nth-of-type(2) h3") || HOME_DEFAULTS.trust.rightTitle,
+    right1Text: selectText(trustNode ?? root, "div:nth-of-type(2) ul li:nth-of-type(1) span:last-of-type") || HOME_DEFAULTS.trust.right1Text,
+    right2Text: selectText(trustNode ?? root, "div:nth-of-type(2) ul li:nth-of-type(2) span:last-of-type") || HOME_DEFAULTS.trust.right2Text,
+    right3Text: selectText(trustNode ?? root, "div:nth-of-type(2) ul li:nth-of-type(3) span:last-of-type") || HOME_DEFAULTS.trust.right3Text,
+    primaryCtaLabel: selectText(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(1)") || HOME_DEFAULTS.trust.primaryCtaLabel,
+    primaryCtaHref:
+      selectAttr(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(1)", "href") || HOME_DEFAULTS.trust.primaryCtaHref,
+    secondaryCtaLabel: selectText(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(2)") || HOME_DEFAULTS.trust.secondaryCtaLabel,
+    secondaryCtaHref:
+      selectAttr(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(2)", "href") || HOME_DEFAULTS.trust.secondaryCtaHref,
+  }
+
+  const blocks: PuckBlock[] = [
+    createStructuredBlock("HomeHeroSection", heroProps ?? { ...HOME_DEFAULTS.hero }),
+    createStructuredBlock("HomeObjectiveSection", objectiveProps),
+    createStructuredBlock("HomeStepsSection", stepsProps),
+    createStructuredBlock("HomeTrustSection", trustProps),
+  ]
+
+  if (reviewsNode) {
+    blocks.push(createStructuredBlock("HomeReviewsWidget", { ...HOME_DEFAULTS.reviews }))
+  } else {
+    blocks.push(createStructuredBlock("HomeReviewsWidget", { ...HOME_DEFAULTS.reviews }))
+  }
+
+  return {
+    root: {
+      props: {
+        title: "Home",
+      },
+    },
+    content: blocks,
+  } as Data
+}
+
 export function convertLegacyHtmlToPuckData(html: string): Data {
   const sanitized = sanitizeInlineHtml(String(html ?? "")).trim()
   if (!sanitized) return createFallbackPuckDataFromHtml(html)
@@ -535,6 +1052,33 @@ export function extractPuckDataFromLayout(layoutJson: Record<string, unknown> | 
   }
 
   return null
+}
+
+function hasBlockType(content: unknown[], type: string) {
+  return content.some((block) => block && typeof block === "object" && (block as { type?: unknown }).type === type)
+}
+
+function hasStructuredHomeBlocks(data: Data) {
+  const content = Array.isArray(data.content) ? data.content : []
+  return (
+    hasBlockType(content, "HomeHeroSection") &&
+    hasBlockType(content, "HomeObjectiveSection") &&
+    hasBlockType(content, "HomeStepsSection") &&
+    hasBlockType(content, "HomeTrustSection")
+  )
+}
+
+export function ensureHomeStructuredLayout(data: Data, htmlSource: string): Data {
+  if (hasStructuredHomeBlocks(data)) return data
+
+  const candidate = convertHomeHtmlToStructuredData(htmlSource)
+  if (hasStructuredHomeBlocks(candidate)) return candidate
+
+  return buildHomeStructuredDataFromDefaults()
+}
+
+export function buildHomeBaselinePuckData() {
+  return buildHomeStructuredDataFromDefaults()
 }
 
 export function renderPuckHtmlSnapshot(data: Data) {

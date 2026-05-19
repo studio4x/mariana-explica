@@ -26,8 +26,10 @@ import {
 } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
 import {
+  buildHomeBaselinePuckData,
   convertLegacyHtmlToPuckData,
   createFallbackPuckDataFromHtml,
+  ensureHomeStructuredLayout,
   extractPuckDataFromLayout,
   renderPuckHtmlSnapshot,
   sitePagePuckConfig,
@@ -119,30 +121,34 @@ function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: st
   return versions[0] ?? null
 }
 
-function buildDataFromVersion(version: AdminSitePageVersion | null, baselineHtml: string) {
+function buildDataFromVersion(version: AdminSitePageVersion | null, baselineHtml: string, slug: SitePageSlug) {
   const safeBaselineHtml = baselineHtml.trim().length > 0 ? baselineHtml : "<section><div><p>Pagina vazia.</p></div></section>"
 
   if (!version) {
+    const fallbackData = slug === "home" ? buildHomeBaselinePuckData() : createFallbackPuckDataFromHtml(safeBaselineHtml)
     return {
-      data: createFallbackPuckDataFromHtml(safeBaselineHtml),
+      data: slug === "home" ? ensureHomeStructuredLayout(fallbackData, safeBaselineHtml) : fallbackData,
       css: "",
       versionId: "",
     }
   }
 
+  const versionHtml = extractHtml(version.layout_json) || safeBaselineHtml
+
   const puckData = extractPuckDataFromLayout(version.layout_json)
   if (puckData) {
     return {
-      data: puckData,
+      data: slug === "home" ? ensureHomeStructuredLayout(puckData, versionHtml) : puckData,
       css: extractCss(version.style_json),
       versionId: version.id,
     }
   }
 
-  const legacyHtml = extractHtml(version.layout_json) || safeBaselineHtml
+  const legacyHtml = versionHtml
+  const converted = convertLegacyHtmlToPuckData(legacyHtml)
 
   return {
-    data: convertLegacyHtmlToPuckData(legacyHtml),
+    data: slug === "home" ? ensureHomeStructuredLayout(converted, versionHtml) : converted,
     css: extractCss(version.style_json),
     versionId: version.id,
   }
@@ -155,7 +161,7 @@ export function AdminPageEditor() {
   const [isFullscreen, setIsFullscreen] = useState(true)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
-  const [editorData, setEditorData] = useState<Data>(() => createFallbackPuckDataFromHtml(getEditorBaselineHtml("home")))
+  const [editorData, setEditorData] = useState<Data>(() => buildHomeBaselinePuckData())
   const [editorRemountKey, setEditorRemountKey] = useState(0)
   const [currentStyleCss, setCurrentStyleCss] = useState("")
 
@@ -198,7 +204,7 @@ export function AdminPageEditor() {
 
   const applyVersionIntoEditor = useCallback(
     (version: AdminSitePageVersion | null, baselineHtml: string) => {
-      const next = buildDataFromVersion(version, baselineHtml)
+      const next = buildDataFromVersion(version, baselineHtml, selectedSlug)
       remountEditorWithData(next.data)
 
       setCurrentStyleCss(next.css)
@@ -206,7 +212,7 @@ export function AdminPageEditor() {
       setIsDirty(false)
       loadedVersionIdRef.current = next.versionId
     },
-    [remountEditorWithData],
+    [remountEditorWithData, selectedSlug],
   )
 
   useEffect(() => {
