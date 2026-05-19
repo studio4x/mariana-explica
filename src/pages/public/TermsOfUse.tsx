@@ -73,7 +73,7 @@ const sections: LegalSection[] = [
   },
 ]
 
-function TermsOfUseFallback() {
+export function TermsOfUseFallback() {
   return (
     <LegalPageLayout
       eyebrow="Termos"

@@ -1,6 +1,6 @@
 import { PublicManagedPage } from "./PublicManagedPage"
 
-function AboutFallback() {
+export function AboutFallback() {
   return (
     <section className="bg-[#d8e8ef] py-14 md:py-20">
       <div className="mx-auto max-w-[1200px] px-6">

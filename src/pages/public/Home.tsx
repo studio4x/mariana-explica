@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { CheckCircle2, MessageCircleHeart } from "lucide-react"
 import { Button } from "@/components/ui"
@@ -143,7 +144,23 @@ function HomeReviewsSection() {
   )
 }
 
-function HomeFallback() {
+function HomeReviewsWidgetPlaceholder() {
+  return (
+    <section data-me-widget="home-reviews" className="bg-[#f5fafc] py-24">
+      <div className="mx-auto max-w-[1200px] px-6 text-center">
+        <div className="mx-auto max-w-2xl rounded-xl border border-dashed border-[rgba(71,71,77,0.25)] bg-white p-8 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#567085]">Widget dinamico</p>
+          <h3 className="mt-3 font-display text-2xl font-bold text-[#0f122c]">Reviews da Home</h3>
+          <p className="mt-2 text-sm leading-7 text-[#46464d]">
+            Este bloco e renderizado dinamicamente no site publico.
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HomeStaticSections({ reviewsNode }: { reviewsNode: ReactNode }) {
   return (
     <div className="flex flex-col">
       <header className="bg-[#f5fafc] py-20 lg:py-32">
@@ -281,9 +298,17 @@ function HomeFallback() {
         </div>
       </section>
 
-      <HomeReviewsSection />
+      {reviewsNode}
     </div>
   )
+}
+
+export function HomeFallback() {
+  return <HomeStaticSections reviewsNode={<HomeReviewsSection />} />
+}
+
+export function HomeEditorBaseline() {
+  return <HomeStaticSections reviewsNode={<HomeReviewsWidgetPlaceholder />} />
 }
 
 export function Home() {

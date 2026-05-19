@@ -37,6 +37,7 @@ import {
 import { ROUTES } from "@/lib/constants"
 import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
+import { getEditorBaselineHtml } from "@/pages/public/editorBaseline"
 import "@/styles/admin-page-editor.css"
 
 const PAGE_OPTIONS: Array<{ slug: SitePageSlug; label: string; publicPath: string }> = [
@@ -252,14 +253,15 @@ export function AdminPageEditor() {
 
   const publishTargetVersionId = selectedVersionId || resolveInitialVersion(versions, publishedVersionId)?.id || ""
 
-  const applyVersionIntoEditor = useCallback((version: AdminSitePageVersion | null) => {
+  const applyVersionIntoEditor = useCallback((version: AdminSitePageVersion | null, baselineHtml?: string) => {
     const editor = editorRef.current
     if (!editor) return
+    const safeBaselineHtml = baselineHtml && baselineHtml.trim().length > 0 ? baselineHtml : DEFAULT_CANVAS_HTML
 
     isApplyingRemoteStateRef.current = true
     try {
       if (!version) {
-        editor.setComponents(DEFAULT_CANVAS_HTML)
+        editor.setComponents(safeBaselineHtml)
         editor.setStyle("")
         setSelectedVersionId("")
         setIsDirty(false)
@@ -271,7 +273,7 @@ export function AdminPageEditor() {
       if (projectData) {
         editor.loadProjectData(projectData as never)
       } else {
-        const fallbackHtml = extractHtml(version.layout_json) || DEFAULT_CANVAS_HTML
+        const fallbackHtml = extractHtml(version.layout_json) || safeBaselineHtml
         editor.setComponents(fallbackHtml)
       }
       editor.setStyle(extractCss(version.style_json))
@@ -346,13 +348,13 @@ export function AdminPageEditor() {
     })
 
     editorRef.current = editor
-    applyVersionIntoEditor(null)
+    applyVersionIntoEditor(null, getEditorBaselineHtml(selectedSlug))
 
     return () => {
       editor.destroy()
       editorRef.current = null
     }
-  }, [applyVersionIntoEditor])
+  }, [applyVersionIntoEditor, selectedSlug])
 
   useEffect(() => {
     if (!editorRef.current) return
@@ -361,11 +363,12 @@ export function AdminPageEditor() {
 
   useEffect(() => {
     if (!detailQuery.data || !editorRef.current) return
+    const baselineHtml = getEditorBaselineHtml(selectedSlug)
 
     const versionToLoad = resolveInitialVersion(versions, publishedVersionId)
     if (!versionToLoad) {
       loadedSlugRef.current = selectedSlug
-      applyVersionIntoEditor(null)
+      applyVersionIntoEditor(null, baselineHtml)
       return
     }
 
@@ -374,7 +377,7 @@ export function AdminPageEditor() {
     }
 
     loadedSlugRef.current = selectedSlug
-    applyVersionIntoEditor(versionToLoad)
+    applyVersionIntoEditor(versionToLoad, baselineHtml)
   }, [applyVersionIntoEditor, detailQuery.data, publishedVersionId, selectedSlug, versions])
 
   useEffect(() => {
@@ -553,7 +556,7 @@ export function AdminPageEditor() {
   }
 
   const handleLoadVersion = (version: AdminSitePageVersion) => {
-    applyVersionIntoEditor(version)
+    applyVersionIntoEditor(version, getEditorBaselineHtml(selectedSlug))
     setFeedback({ tone: "success", message: `Versao ${version.version_number} carregada no editor.` })
   }
 

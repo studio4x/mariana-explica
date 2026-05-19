@@ -73,7 +73,7 @@ const sections: LegalSection[] = [
   },
 ]
 
-function PrivacyPolicyFallback() {
+export function PrivacyPolicyFallback() {
   return (
     <LegalPageLayout
       eyebrow="Privacidade"

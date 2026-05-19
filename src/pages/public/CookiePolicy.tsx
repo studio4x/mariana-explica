@@ -53,7 +53,7 @@ const sections: LegalSection[] = [
   },
 ]
 
-function CookiePolicyFallback() {
+export function CookiePolicyFallback() {
   return (
     <LegalPageLayout
       eyebrow="Cookies"
