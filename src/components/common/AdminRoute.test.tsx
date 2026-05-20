@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import { AdminRoute } from "./AdminRoute"
 
 const mockUseAuth = vi.fn()
@@ -93,16 +93,18 @@ describe("AdminRoute", () => {
     expect(screen.getByText("Home")).toBeInTheDocument()
   })
 
-  it("renders nothing while recovering a missing profile", () => {
+  it("shows recovery state while trying to restore a missing profile", () => {
+    const refreshSession = vi.fn().mockResolvedValue(false)
+
     mockUseAuth.mockReturnValue({
       session: { access_token: "token" },
       profile: null,
       loading: false,
-      refreshSession: vi.fn().mockResolvedValue(false),
+      refreshSession,
       isAdmin: false,
     })
 
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={["/admin"]}>
         <Routes>
           <Route
@@ -117,7 +119,48 @@ describe("AdminRoute", () => {
       </MemoryRouter>,
     )
 
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByText("A validar acesso administrativo...")).toBeInTheDocument()
+    expect(refreshSession).toHaveBeenCalledTimes(1)
+  })
+
+  it("redirects to login when profile cannot be recovered", async () => {
+    const refreshSession = vi.fn().mockResolvedValue(false)
+
+    mockUseAuth
+      .mockReturnValueOnce({
+        session: { access_token: "token" },
+        profile: null,
+        loading: false,
+        refreshSession,
+        isAdmin: false,
+      })
+      .mockReturnValue({
+        session: null,
+        profile: null,
+        loading: false,
+        refreshSession,
+        isAdmin: false,
+      })
+
+    render(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <Routes>
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <div>Painel admin</div>
+              </AdminRoute>
+            }
+          />
+          <Route path="/login" element={<div>Login</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText("Login")).toBeInTheDocument()
+    })
   })
 
   it("keeps rendering admin while session refreshes in the background", () => {
