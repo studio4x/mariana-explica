@@ -1,4 +1,4 @@
-import { Render, type Config, type Data } from "@puckeditor/core"
+﻿import { FieldLabel, Render, type Config, type Data } from "@puckeditor/core"
 import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 
@@ -38,70 +38,102 @@ function renderRichNode(value: unknown): ReactNode {
   return value as ReactNode
 }
 
+function toPlainText(value: unknown) {
+  const raw = String(value ?? "").trim()
+  if (!raw) return ""
+
+  if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+    try {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(raw, "text/html")
+      const text = normalizeText(doc.body.textContent)
+      if (text) return text
+    } catch {
+      return normalizeText(raw.replace(/<[^>]+>/g, " "))
+    }
+  }
+
+  return normalizeText(raw.replace(/<[^>]+>/g, " "))
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(new Error("Falha ao ler imagem."))
+    reader.readAsDataURL(file)
+  })
+}
+
 const HOME_DEFAULTS = {
   hero: {
     imageSrc: "/assets/home-hero-illustration.svg",
     imageAlt: "Ilustracao de materiais de estudo para Portugues e Filosofia",
-    heading: "Tens dificuldades a Portugues ou Filosofia?",
-    subheading: "Nunca tiveste a disciplina e vais fazer exame?",
-    body: "Entao fica aqui que este local e para ti!",
-    ctaLabel: "Explorar materiais",
+    heading: "<p>Tens dificuldades a Portugues ou Filosofia?</p>",
+    headingTag: "h1",
+    subheading: "<p>Nunca tiveste a disciplina e vais fazer exame?</p>",
+    subheadingTag: "h2",
+    body: "<p>Entao fica aqui que este local e para ti!</p>",
+    ctaLabel: "<p>Explorar materiais</p>",
     ctaHref: "/materiais",
   },
   objective: {
-    badge: "Objetivo Principal",
+    badge: "<p>Objetivo Principal</p>",
     text:
-      "Criei este espaco para te dar o apoio que os manuais nao dao: leveza, clareza e uma estrategia real para brilhares nos exames de Filosofia e Portugues. Vamo-nos simplificar?",
-    feature1Eyebrow: "EM BREVE - AULAS GRAVADAS",
+      "<p>Criei este espaco para te dar o apoio que os manuais nao dao: leveza, clareza e uma estrategia real para brilhares nos exames de Filosofia e Portugues. Vamo-nos simplificar?</p>",
+    feature1Eyebrow: "<p>EM BREVE - AULAS GRAVADAS</p>",
     feature1Text:
-      "Domina temas complexos ao teu ritmo, com aulas organizadas e flexiveis, prontas quando tu estiveres.",
-    feature2Eyebrow: "EXPLICACOES",
+      "<p>Domina temas complexos ao teu ritmo, com aulas organizadas e flexiveis, prontas quando tu estiveres.</p>",
+    feature2Eyebrow: "<p>EXPLICACOES</p>",
     feature2Text:
-      "Acompanhamento personalizado e focado nas tuas duvidas especificas para garantires resultados.",
-    feature3Eyebrow: "MATERIAIS DIGITAIS",
+      "<p>Acompanhamento personalizado e focado nas tuas duvidas especificas para garantires resultados.</p>",
+    feature3Eyebrow: "<p>MATERIAIS DIGITAIS</p>",
     feature3Text:
-      "Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota maxima sem complicacoes.",
-    feature4Eyebrow: "MATERIAIS DIGITAIS - GRATUITOS",
-    feature4Text: "Dicas flash e recursos rapidos para descarregar e dares um boost imediato no teu estudo.",
+      "<p>Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota maxima sem complicacoes.</p>",
+    feature4Eyebrow: "<p>MATERIAIS DIGITAIS - GRATUITOS</p>",
+    feature4Text: "<p>Dicas flash e recursos rapidos para descarregar e dares um boost imediato no teu estudo.</p>",
   },
   steps: {
-    title: "O teu caminho para o sucesso e simples",
+    title: "<p>O teu caminho para o sucesso e simples</p>",
+    titleTag: "h2",
     subtitle:
-      "Esquece as complicacoes burocraticas. Aqui, o foco e o teu estudo. Em tres passos rapidos, tens tudo o que precisas para comecar a brilhar.",
-    step1Eyebrow: "ENCONTRA O TEU APOIO",
+      "<p>Esquece as complicacoes burocraticas. Aqui, o foco e o teu estudo. Em tres passos rapidos, tens tudo o que precisas para comecar a brilhar.</p>",
+    step1Eyebrow: "<p>ENCONTRA O TEU APOIO</p>",
     step1Text:
-      "Explora as sebentas e materiais disponiveis. Cada material foi criado para resolver uma dor especifica, por isso vais perceber logo qual e o ideal para o teu momento.",
-    step2Eyebrow: "ACESSO RAPIDO E SEGURO",
+      "<p>Explora as sebentas e materiais disponiveis. Cada material foi criado para resolver uma dor especifica, por isso vais perceber logo qual e o ideal para o teu momento.</p>",
+    step2Eyebrow: "<p>ACESSO RAPIDO E SEGURO</p>",
     step2Text:
-      "O processo e direto e transparente. Sem taxas escondidas ou passos desnecessarios. Pagas de forma segura e o material e teu no segundo seguinte.",
-    step3Eyebrow: "FOCA-TE NO QUE IMPORTA",
+      "<p>O processo e direto e transparente. Sem taxas escondidas ou passos desnecessarios. Pagas de forma segura e o material e teu no segundo seguinte.</p>",
+    step3Eyebrow: "<p>FOCA-TE NO QUE IMPORTA</p>",
     step3Text:
-      "Tudo fica organizado na tua Area do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.",
+      "<p>Tudo fica organizado na tua Area do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.</p>",
   },
   trust: {
-    leftTitle: "Vantagens de trabalhares comigo",
-    left1Title: "Linguagem Direta:",
+    leftTitle: "<p>Vantagens de trabalhares comigo</p>",
+    leftTitleTag: "h3",
+    left1Title: "<p>Linguagem Direta:</p>",
     left1Text:
-      "Falamos a mesma lingua. Esquece os termos impossiveis dos manuais e entende a materia a primeira.",
-    left2Title: "Foco no Exame:",
-    left2Text: "Materiais desenhados apenas com o que realmente sai. Sem distracoes.",
-    left3Title: "Resumos Visuais:",
-    left3Text: "Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.",
-    rightTitle: "Leveza e Confianca em cada passo",
+      "<p>Falamos a mesma lingua. Esquece os termos impossiveis dos manuais e entende a materia a primeira.</p>",
+    left2Title: "<p>Foco no Exame:</p>",
+    left2Text: "<p>Materiais desenhados apenas com o que realmente sai. Sem distracoes.</p>",
+    left3Title: "<p>Resumos Visuais:</p>",
+    left3Text: "<p>Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.</p>",
+    rightTitle: "<p>Leveza e Confianca em cada passo</p>",
+    rightTitleTag: "h3",
     right1Text:
-      'Suporte Real: Nao recebes so um PDF. Tens uma "amiga" (eu!) nas DMs para te apoiar sempre que precisares.',
+      '<p>Suporte Real: Nao recebes so um PDF. Tens uma "amiga" (eu!) nas DMs para te apoiar sempre que precisares.</p>',
     right2Text:
-      "Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Area do Aluno.",
+      "<p>Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Area do Aluno.</p>",
     right3Text:
-      "Pes na Terra: Filosofia e Portugues deixam de ser abstratos e passam a ser ferramentas que dominas com seguranca.",
-    primaryCtaLabel: "Explorar materiais",
+      "<p>Pes na Terra: Filosofia e Portugues deixam de ser abstratos e passam a ser ferramentas que dominas com seguranca.</p>",
+    primaryCtaLabel: "<p>Explorar materiais</p>",
     primaryCtaHref: "/materiais",
-    secondaryCtaLabel: "Criar Conta",
+    secondaryCtaLabel: "<p>Criar Conta</p>",
     secondaryCtaHref: "/criar-conta",
   },
   reviews: {
-    title: "Widget dinamico: reviews da Home",
-    note: "Este bloco e renderizado dinamicamente no site publico.",
+    title: "<p>Widget dinamico: reviews da Home</p>",
+    note: "<p>Este bloco e renderizado dinamicamente no site publico.</p>",
   },
 }
 
@@ -131,22 +163,85 @@ export const sitePagePuckConfig: Config = {
       defaultProps: {
         imageSrc: "https://placehold.co/900x900?text=Foto+Home",
         imageAlt: "Imagem principal",
-        heading: "Titulo principal",
-        subheading: "Subtitulo",
-        body: "Texto de apoio.",
-        ctaLabel: "Explorar materiais",
+        heading: "<p>Titulo principal</p>",
+        headingTag: "h1",
+        subheading: "<p>Subtitulo</p>",
+        subheadingTag: "h2",
+        body: "<p>Texto de apoio.</p>",
+        ctaLabel: "<p>Explorar materiais</p>",
         ctaHref: "/materiais",
       },
       fields: {
-        imageSrc: { type: "text", label: "Imagem (URL)" },
+        imageSrc: {
+          type: "custom",
+          label: "Imagem",
+          render: ({ id, value, onChange, readOnly }) => (
+            <FieldLabel label="Imagem" el="div" readOnly={readOnly}>
+              <div className="space-y-2">
+                <input
+                  id={id}
+                  type="url"
+                  value={String(value ?? "")}
+                  readOnly={readOnly}
+                  onChange={(event) => onChange(event.target.value)}
+                  placeholder="https://..."
+                  className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+                />
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                  Upload imagem
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={readOnly}
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ""
+                      if (!file) return
+                      const dataUrl = await readFileAsDataUrl(file)
+                      onChange(dataUrl)
+                    }}
+                  />
+                </label>
+              </div>
+            </FieldLabel>
+          ),
+        },
         imageAlt: { type: "text", label: "Alt da imagem" },
-        heading: { type: "text", label: "Titulo principal (H1)" },
-        subheading: { type: "text", label: "Subtitulo (H2)" },
-        body: { type: "textarea", label: "Texto de apoio" },
-        ctaLabel: { type: "text", label: "Texto do botao" },
+        heading: { type: "richtext", label: "Titulo principal" },
+        headingTag: {
+          type: "select",
+          label: "Tag do titulo",
+          options: [
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
+        subheading: { type: "richtext", label: "Subtitulo" },
+        subheadingTag: {
+          type: "select",
+          label: "Tag do subtitulo",
+          options: [
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
+        body: { type: "richtext", label: "Texto de apoio" },
+        ctaLabel: { type: "richtext", label: "Texto do botao" },
         ctaHref: { type: "text", label: "Link do botao" },
       },
-      render: ({ imageSrc, imageAlt, heading, subheading, body, ctaLabel, ctaHref }) => {
+      render: ({ imageSrc, imageAlt, heading, headingTag, subheading, subheadingTag, body, ctaLabel, ctaHref }) => {
+        const HeadingTag = String(headingTag ?? "h1") as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+        const SubheadingTag = String(subheadingTag ?? "h2") as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+
         return (
           <header className="bg-[#f5fafc] py-20 lg:py-32">
             <div className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-16 px-6 lg:grid-cols-2">
@@ -163,20 +258,20 @@ export const sitePagePuckConfig: Config = {
 
               <div className="order-1 space-y-8 lg:order-2">
                 <div className="space-y-4">
-                  <h1 className="max-w-[12ch] font-display text-5xl font-bold leading-[1.1] tracking-[-0.02em] text-[#0f122c] lg:text-6xl">
-                    {heading}
-                  </h1>
-                  <h2 className="max-w-[14ch] font-display text-3xl font-bold leading-[1.3] tracking-[-0.02em] text-[#0f122c]/80 lg:text-4xl">
-                    {subheading}
-                  </h2>
-                  <p className="max-w-[18ch] font-sans text-xl leading-[1.6] text-[#46464d]">{body}</p>
+                  <HeadingTag className="max-w-[12ch] font-display text-5xl font-bold leading-[1.1] tracking-[-0.02em] text-[#0f122c] lg:text-6xl">
+                    {toPlainText(heading)}
+                  </HeadingTag>
+                  <SubheadingTag className="max-w-[14ch] font-display text-3xl font-bold leading-[1.3] tracking-[-0.02em] text-[#0f122c]/80 lg:text-4xl">
+                    {toPlainText(subheading)}
+                  </SubheadingTag>
+                  <div className="max-w-[18ch] font-sans text-xl leading-[1.6] text-[#46464d]">{renderRichNode(body)}</div>
                 </div>
 
                 <a
                   href={String(ctaHref ?? "").trim() || "#"}
                   className="inline-flex rounded-full bg-[#242742] px-12 py-6 text-sm font-bold uppercase tracking-widest text-white shadow-lg transition hover:bg-[#1d2036]"
                 >
-                  {ctaLabel}
+                  {toPlainText(ctaLabel)}
                 </a>
               </div>
             </div>
@@ -188,16 +283,16 @@ export const sitePagePuckConfig: Config = {
       label: "Home: Objetivo + Blocos",
       defaultProps: { ...HOME_DEFAULTS.objective },
       fields: {
-        badge: { type: "text", label: "Selo principal" },
-        text: { type: "textarea", label: "Texto principal" },
-        feature1Eyebrow: { type: "text", label: "Bloco 1 - Titulo" },
-        feature1Text: { type: "textarea", label: "Bloco 1 - Texto" },
-        feature2Eyebrow: { type: "text", label: "Bloco 2 - Titulo" },
-        feature2Text: { type: "textarea", label: "Bloco 2 - Texto" },
-        feature3Eyebrow: { type: "text", label: "Bloco 3 - Titulo" },
-        feature3Text: { type: "textarea", label: "Bloco 3 - Texto" },
-        feature4Eyebrow: { type: "text", label: "Bloco 4 - Titulo" },
-        feature4Text: { type: "textarea", label: "Bloco 4 - Texto" },
+        badge: { type: "richtext", label: "Selo principal" },
+        text: { type: "richtext", label: "Texto principal" },
+        feature1Eyebrow: { type: "richtext", label: "Bloco 1 - Titulo" },
+        feature1Text: { type: "richtext", label: "Bloco 1 - Texto" },
+        feature2Eyebrow: { type: "richtext", label: "Bloco 2 - Titulo" },
+        feature2Text: { type: "richtext", label: "Bloco 2 - Texto" },
+        feature3Eyebrow: { type: "richtext", label: "Bloco 3 - Titulo" },
+        feature3Text: { type: "richtext", label: "Bloco 3 - Texto" },
+        feature4Eyebrow: { type: "richtext", label: "Bloco 4 - Titulo" },
+        feature4Text: { type: "richtext", label: "Bloco 4 - Texto" },
       },
       render: ({
         badge,
@@ -223,9 +318,9 @@ export const sitePagePuckConfig: Config = {
             <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
               <div className="flex flex-col items-center rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 text-center shadow-sm">
                 <span className="mb-8 inline-flex rounded-full bg-[#242742] px-6 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
-                  {badge}
+                  {toPlainText(badge)}
                 </span>
-                <p className="max-w-2xl font-display text-2xl leading-relaxed text-[#0f122c]">{text}</p>
+                <div className="max-w-2xl font-display text-2xl leading-relaxed text-[#0f122c]">{renderRichNode(text)}</div>
               </div>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -235,9 +330,9 @@ export const sitePagePuckConfig: Config = {
                     className="flex flex-col items-center rounded border border-[rgba(71,71,77,0.12)] bg-white p-8 text-center shadow-sm"
                   >
                     <span className="mb-4 inline-flex rounded-full bg-[#242742] px-4 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-white">
-                      {feature.eyebrow}
+                      {toPlainText(feature.eyebrow)}
                     </span>
-                    <p className="text-xs leading-relaxed text-[#46464d]">{feature.text}</p>
+                    <div className="text-xs leading-relaxed text-[#46464d]">{renderRichNode(feature.text)}</div>
                   </div>
                 ))}
               </div>
@@ -250,16 +345,29 @@ export const sitePagePuckConfig: Config = {
       label: "Home: 3 passos",
       defaultProps: { ...HOME_DEFAULTS.steps },
       fields: {
-        title: { type: "text", label: "Titulo da secao" },
-        subtitle: { type: "textarea", label: "Subtitulo da secao" },
-        step1Eyebrow: { type: "text", label: "Passo 1 - Titulo" },
-        step1Text: { type: "textarea", label: "Passo 1 - Texto" },
-        step2Eyebrow: { type: "text", label: "Passo 2 - Titulo" },
-        step2Text: { type: "textarea", label: "Passo 2 - Texto" },
-        step3Eyebrow: { type: "text", label: "Passo 3 - Titulo" },
-        step3Text: { type: "textarea", label: "Passo 3 - Texto" },
+        title: { type: "richtext", label: "Titulo da secao" },
+        titleTag: {
+          type: "select",
+          label: "Tag do titulo",
+          options: [
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
+        subtitle: { type: "richtext", label: "Subtitulo da secao" },
+        step1Eyebrow: { type: "richtext", label: "Passo 1 - Titulo" },
+        step1Text: { type: "richtext", label: "Passo 1 - Texto" },
+        step2Eyebrow: { type: "richtext", label: "Passo 2 - Titulo" },
+        step2Text: { type: "richtext", label: "Passo 2 - Texto" },
+        step3Eyebrow: { type: "richtext", label: "Passo 3 - Titulo" },
+        step3Text: { type: "richtext", label: "Passo 3 - Texto" },
       },
-      render: ({ title, subtitle, step1Eyebrow, step1Text, step2Eyebrow, step2Text, step3Eyebrow, step3Text }) => {
+      render: ({ title, titleTag, subtitle, step1Eyebrow, step1Text, step2Eyebrow, step2Text, step3Eyebrow, step3Text }) => {
+        const TitleTag = String(titleTag ?? "h2") as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
         const steps = [
           { eyebrow: step1Eyebrow, text: step1Text },
           { eyebrow: step2Eyebrow, text: step2Text },
@@ -270,8 +378,10 @@ export const sitePagePuckConfig: Config = {
           <section className="bg-[#eff4f6] py-24">
             <div className="mx-auto max-w-[1200px] px-6">
               <div className="mb-16 max-w-2xl">
-                <h2 className="mb-6 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">{title}</h2>
-                <p className="text-lg leading-8 text-[#46464d]">{subtitle}</p>
+                <TitleTag className="mb-6 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">
+                  {toPlainText(title)}
+                </TitleTag>
+                <div className="text-lg leading-8 text-[#46464d]">{renderRichNode(subtitle)}</div>
               </div>
 
               <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
@@ -281,9 +391,9 @@ export const sitePagePuckConfig: Config = {
                     className="flex flex-col rounded border border-[rgba(71,71,77,0.12)] bg-white p-10 shadow-sm"
                   >
                     <span className="mb-8 inline-flex self-start rounded-full bg-[#242742] px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
-                      {step.eyebrow}
+                      {toPlainText(step.eyebrow)}
                     </span>
-                    <p className="text-base leading-7 text-[#46464d]">{step.text}</p>
+                    <div className="text-base leading-7 text-[#46464d]">{renderRichNode(step.text)}</div>
                   </div>
                 ))}
               </div>
@@ -296,24 +406,49 @@ export const sitePagePuckConfig: Config = {
       label: "Home: Vantagens + CTAs",
       defaultProps: { ...HOME_DEFAULTS.trust },
       fields: {
-        leftTitle: { type: "text", label: "Titulo coluna esquerda" },
-        left1Title: { type: "text", label: "Esq 1 - Titulo" },
-        left1Text: { type: "textarea", label: "Esq 1 - Texto" },
-        left2Title: { type: "text", label: "Esq 2 - Titulo" },
-        left2Text: { type: "textarea", label: "Esq 2 - Texto" },
-        left3Title: { type: "text", label: "Esq 3 - Titulo" },
-        left3Text: { type: "textarea", label: "Esq 3 - Texto" },
-        rightTitle: { type: "text", label: "Titulo coluna direita" },
-        right1Text: { type: "textarea", label: "Dir 1 - Texto" },
-        right2Text: { type: "textarea", label: "Dir 2 - Texto" },
-        right3Text: { type: "textarea", label: "Dir 3 - Texto" },
-        primaryCtaLabel: { type: "text", label: "CTA 1 - Texto" },
+        leftTitle: { type: "richtext", label: "Titulo coluna esquerda" },
+        leftTitleTag: {
+          type: "select",
+          label: "Tag titulo esquerdo",
+          options: [
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
+        left1Title: { type: "richtext", label: "Esq 1 - Titulo" },
+        left1Text: { type: "richtext", label: "Esq 1 - Texto" },
+        left2Title: { type: "richtext", label: "Esq 2 - Titulo" },
+        left2Text: { type: "richtext", label: "Esq 2 - Texto" },
+        left3Title: { type: "richtext", label: "Esq 3 - Titulo" },
+        left3Text: { type: "richtext", label: "Esq 3 - Texto" },
+        rightTitle: { type: "richtext", label: "Titulo coluna direita" },
+        rightTitleTag: {
+          type: "select",
+          label: "Tag titulo direito",
+          options: [
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
+        right1Text: { type: "richtext", label: "Dir 1 - Texto" },
+        right2Text: { type: "richtext", label: "Dir 2 - Texto" },
+        right3Text: { type: "richtext", label: "Dir 3 - Texto" },
+        primaryCtaLabel: { type: "richtext", label: "CTA 1 - Texto" },
         primaryCtaHref: { type: "text", label: "CTA 1 - Link" },
-        secondaryCtaLabel: { type: "text", label: "CTA 2 - Texto" },
+        secondaryCtaLabel: { type: "richtext", label: "CTA 2 - Texto" },
         secondaryCtaHref: { type: "text", label: "CTA 2 - Link" },
       },
       render: ({
         leftTitle,
+        leftTitleTag,
         left1Title,
         left1Text,
         left2Title,
@@ -321,6 +456,7 @@ export const sitePagePuckConfig: Config = {
         left3Title,
         left3Text,
         rightTitle,
+        rightTitleTag,
         right1Text,
         right2Text,
         right3Text,
@@ -329,60 +465,59 @@ export const sitePagePuckConfig: Config = {
         secondaryCtaLabel,
         secondaryCtaHref,
       }) => {
+        const LeftTitleTag = String(leftTitleTag ?? "h3") as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+        const RightTitleTag = String(rightTitleTag ?? "h3") as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
         const leftItems = [
           { title: left1Title, text: left1Text },
           { title: left2Title, text: left2Text },
           { title: left3Title, text: left3Text },
         ]
         const rightItems = [right1Text, right2Text, right3Text]
-
         return (
           <section className="bg-[rgba(239,244,246,0.5)] py-24">
             <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
               <div className="rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 shadow-sm">
-                <h3 className="mb-12 inline-flex rounded-full bg-[rgba(169,207,255,0.35)] px-6 py-2 text-lg font-display text-[#0f122c]">
-                  {leftTitle}
-                </h3>
+                <LeftTitleTag className="mb-12 inline-flex rounded-full bg-[rgba(169,207,255,0.35)] px-6 py-2 text-lg font-display text-[#0f122c]">
+                  {toPlainText(leftTitle)}
+                </LeftTitleTag>
                 <ul className="space-y-8">
                   {leftItems.map((item, index) => (
                     <li key={`${String(item.title ?? "")}-${index}`} className="flex items-start gap-3">
                       <span className="mt-1 text-xs text-[#242742]">•</span>
                       <div>
-                        <span className="block text-base font-bold text-[#242742]">{item.title}</span>
-                        <span className="text-sm text-[#46464d]">{item.text}</span>
+                        <span className="block text-base font-bold text-[#242742]">{toPlainText(item.title)}</span>
+                        <span className="text-sm text-[#46464d]">{renderRichNode(item.text)}</span>
                       </div>
                     </li>
                   ))}
                 </ul>
               </div>
-
               <div className="flex flex-col justify-between rounded bg-[rgba(169,207,255,0.2)] p-12">
                 <div>
-                  <h3 className="mb-12 inline-flex rounded-full bg-white px-6 py-2 text-lg font-display text-[#0f122c]">
-                    {rightTitle}
-                  </h3>
+                  <RightTitleTag className="mb-12 inline-flex rounded-full bg-white px-6 py-2 text-lg font-display text-[#0f122c]">
+                    {toPlainText(rightTitle)}
+                  </RightTitleTag>
                   <ul className="space-y-6">
                     {rightItems.map((item, index) => (
                       <li key={`${String(item ?? "")}-${index}`} className="flex items-start gap-3">
                         <span className="mt-1 text-xs text-[#242742]">•</span>
-                        <span className="text-sm font-medium leading-6 text-[#242742]">{item}</span>
+                        <span className="text-sm font-medium leading-6 text-[#242742]">{renderRichNode(item)}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-
                 <div className="mt-12 flex flex-wrap gap-4">
                   <a
                     href={String(primaryCtaHref ?? "").trim() || "#"}
                     className="inline-flex rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm"
                   >
-                    {primaryCtaLabel}
+                    {toPlainText(primaryCtaLabel)}
                   </a>
                   <a
                     href={String(secondaryCtaHref ?? "").trim() || "#"}
                     className="inline-flex rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm"
                   >
-                    {secondaryCtaLabel}
+                    {toPlainText(secondaryCtaLabel)}
                   </a>
                 </div>
               </div>
@@ -394,15 +529,42 @@ export const sitePagePuckConfig: Config = {
     SectionTitle: {
       label: "Titulo de secao",
       defaultProps: {
-        eyebrow: "Secao",
-        title: "Titulo da secao",
-        subtitle: "Subtitulo opcional.",
+        eyebrow: "<p>Secao</p>",
+        title: "<p>Titulo da secao</p>",
+        titleTag: "h2",
+        subtitle: "<p>Subtitulo opcional.</p>",
+        subtitleTag: "p",
         align: "center",
       },
       fields: {
-        eyebrow: { type: "text", label: "Eyebrow" },
-        title: { type: "text", label: "Titulo" },
-        subtitle: { type: "textarea", label: "Subtitulo" },
+        eyebrow: { type: "richtext", label: "Eyebrow" },
+        title: { type: "richtext", label: "Titulo" },
+        titleTag: {
+          type: "select",
+          label: "Tag do titulo",
+          options: [
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
+        subtitle: { type: "richtext", label: "Subtitulo" },
+        subtitleTag: {
+          type: "select",
+          label: "Tag do subtitulo",
+          options: [
+            { label: "Paragrafo", value: "p" },
+            { label: "H1", value: "h1" },
+            { label: "H2", value: "h2" },
+            { label: "H3", value: "h3" },
+            { label: "H4", value: "h4" },
+            { label: "H5", value: "h5" },
+            { label: "H6", value: "h6" },
+          ],
+        },
         align: {
           type: "select",
           label: "Alinhamento",
@@ -412,15 +574,17 @@ export const sitePagePuckConfig: Config = {
           ],
         },
       },
-      render: ({ eyebrow, title, subtitle, align }) => {
+      render: ({ eyebrow, title, titleTag, subtitle, subtitleTag, align }) => {
         const alignmentClass = align === "left" ? "text-left" : "text-center"
+        const TitleTag = String(titleTag ?? "h2") as "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+        const SubtitleTag = String(subtitleTag ?? "p") as "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
 
         return (
           <section className="py-6 md:py-10">
             <div className={`mx-auto max-w-[1200px] px-6 ${alignmentClass}`}>
-              {eyebrow ? <p className="text-xs font-black uppercase tracking-[0.22em] text-[#567085]">{eyebrow}</p> : null}
-              {title ? <h2 className="mt-2 font-display text-3xl font-bold text-[#0f122c] md:text-5xl">{title}</h2> : null}
-              {subtitle ? <p className="mt-4 text-base leading-7 text-[#24324a] md:text-lg">{subtitle}</p> : null}
+              {eyebrow ? <p className="text-xs font-black uppercase tracking-[0.22em] text-[#567085]">{toPlainText(eyebrow)}</p> : null}
+              {title ? <TitleTag className="mt-2 font-display text-3xl font-bold text-[#0f122c] md:text-5xl">{toPlainText(title)}</TitleTag> : null}
+              {subtitle ? <SubtitleTag className="mt-4 text-base leading-7 text-[#24324a] md:text-lg">{toPlainText(subtitle)}</SubtitleTag> : null}
             </div>
           </section>
         )
@@ -461,9 +625,43 @@ export const sitePagePuckConfig: Config = {
         caption: "",
       },
       fields: {
-        src: { type: "text", label: "URL da imagem" },
+        src: {
+          type: "custom",
+          label: "URL da imagem",
+          render: ({ id, value, onChange, readOnly }) => (
+            <FieldLabel label="Imagem" el="div" readOnly={readOnly}>
+              <div className="space-y-2">
+                <input
+                  id={id}
+                  type="url"
+                  value={String(value ?? "")}
+                  readOnly={readOnly}
+                  onChange={(event) => onChange(event.target.value)}
+                  placeholder="https://..."
+                  className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+                />
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                  Upload imagem
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={readOnly}
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ""
+                      if (!file) return
+                      const dataUrl = await readFileAsDataUrl(file)
+                      onChange(dataUrl)
+                    }}
+                  />
+                </label>
+              </div>
+            </FieldLabel>
+          ),
+        },
         alt: { type: "text", label: "Texto alternativo" },
-        caption: { type: "text", label: "Legenda" },
+        caption: { type: "richtext", label: "Legenda" },
       },
       render: ({ src, alt, caption }) => {
         return (
@@ -471,7 +669,7 @@ export const sitePagePuckConfig: Config = {
             <div className="mx-auto max-w-[1200px] px-6">
               <figure className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
                 <img src={src} alt={alt || "Imagem"} className="h-auto w-full object-cover" loading="lazy" />
-                {caption ? <figcaption className="px-4 py-3 text-sm text-[#4f5f76]">{caption}</figcaption> : null}
+                {caption ? <figcaption className="px-4 py-3 text-sm text-[#4f5f76]">{renderRichNode(caption)}</figcaption> : null}
               </figure>
             </div>
           </section>
@@ -481,12 +679,12 @@ export const sitePagePuckConfig: Config = {
     ButtonBlock: {
       label: "Botao",
       defaultProps: {
-        label: "Abrir link",
+        label: "<p>Abrir link</p>",
         href: "#",
         align: "left",
       },
       fields: {
-        label: { type: "text", label: "Texto do botao" },
+        label: { type: "richtext", label: "Texto do botao" },
         href: { type: "text", label: "Link" },
         align: {
           type: "select",
@@ -507,7 +705,7 @@ export const sitePagePuckConfig: Config = {
                 href={href || "#"}
                 className="inline-flex items-center justify-center rounded-full bg-[#242742] px-8 py-3 text-sm font-bold uppercase tracking-[0.12em] text-white transition hover:bg-[#1d2036]"
               >
-                {label || "Abrir link"}
+                {toPlainText(label) || "Abrir link"}
               </a>
             </div>
           </section>
@@ -565,16 +763,16 @@ export const sitePagePuckConfig: Config = {
         note: "Este bloco e renderizado dinamicamente no site publico.",
       },
       fields: {
-        title: { type: "text", label: "Titulo" },
-        note: { type: "textarea", label: "Nota" },
+        title: { type: "richtext", label: "Titulo" },
+        note: { type: "richtext", label: "Nota" },
       },
       render: ({ title, note }) => {
         return (
           <section data-me-widget="home-reviews" className="bg-[#f5fafc] py-20">
             <div className="mx-auto max-w-[1200px] px-6 text-center">
               <div className="mx-auto max-w-2xl rounded-2xl border border-dashed border-[rgba(71,71,77,0.24)] bg-white p-8 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#567085]">{title}</p>
-                <p className="mt-3 text-sm leading-7 text-[#46464d]">{note}</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#567085]">{toPlainText(title)}</p>
+                <div className="mt-3 text-sm leading-7 text-[#46464d]">{renderRichNode(note)}</div>
               </div>
             </div>
           </section>
@@ -683,7 +881,7 @@ function pickPrimaryButton(element: Element) {
 }
 
 function extractDirectHeading(element: Element) {
-  const heading = element.querySelector(":scope > h1, :scope > h2, :scope > h3")
+  const heading = element.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6")
   if (!heading) return null
   const text = normalizeText(heading.textContent)
   if (!text) return null
@@ -720,9 +918,11 @@ function extractHomeHeroSectionProps(element: Element) {
   return {
     imageSrc: image.getAttribute("src") ?? "https://placehold.co/900x900?text=Foto+Home",
     imageAlt: image.getAttribute("alt") ?? "Imagem principal",
-    heading: headingText,
-    subheading: subheadingText,
-    body: bodyText,
+    heading: `<p>${headingText}</p>`,
+    headingTag: heading.tagName.toLowerCase(),
+    subheading: `<p>${subheadingText}</p>`,
+    subheadingTag: subheading.tagName.toLowerCase(),
+    body: `<p>${bodyText}</p>`,
     ctaLabel: buttonText,
     ctaHref: button.getAttribute("href") ?? "#",
   }
@@ -783,21 +983,37 @@ function addConvertedBlocksFromElement(element: Element, blocks: Array<{ type: s
   const heading = extractDirectHeading(normalizedElement)
   if (heading) {
     const title = normalizeText(heading.textContent)
+    const titleTag = heading.tagName.toLowerCase()
     const subtitleParts = Array.from(normalizedElement.querySelectorAll(":scope > p"))
       .map((paragraph) => normalizeText(paragraph.textContent))
       .filter(Boolean)
 
     blocks.push(
       createStructuredBlock("SectionTitle", {
-        eyebrow: "Secao",
-        title,
-        subtitle: subtitleParts.join(" "),
+        eyebrow: "<p>Secao</p>",
+        title: `<p>${title}</p>`,
+        titleTag,
+        subtitle: subtitleParts.length > 0 ? `<p>${subtitleParts.join(" ")}</p>` : "<p></p>",
+        subtitleTag: "p",
         align: "center",
       }),
     )
 
     const clone = normalizedElement.cloneNode(true) as Element
     clone.querySelectorAll("h1,h2,h3").forEach((node) => node.remove())
+    const directAnchors = Array.from(clone.querySelectorAll(":scope > a")) as HTMLAnchorElement[]
+    directAnchors.forEach((anchor) => {
+      const label = normalizeText(anchor.textContent)
+      if (!label) return
+      blocks.push(
+        createStructuredBlock("ButtonBlock", {
+          label,
+          href: anchor.getAttribute("href") ?? "#",
+          align: "left",
+        }),
+      )
+      anchor.remove()
+    })
     const remainder = sanitizeInlineHtml(clone.innerHTML).trim()
     if (remainder.length > 0) {
       blocks.push(
@@ -1194,3 +1410,4 @@ export function buildHomeBaselinePuckData() {
 export function renderPuckHtmlSnapshot(data: Data) {
   return renderToStaticMarkup(<Render config={sitePagePuckConfig} data={data} />)
 }
+

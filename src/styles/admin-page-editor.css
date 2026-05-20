@@ -12,6 +12,18 @@
   min-height: 100%;
 }
 
+.me-page-editor-puck-shell [class*="_PuckCanvas_"] {
+  overflow: auto !important;
+}
+
+.me-page-editor-puck-shell [class*="_PuckCanvas--fullScreen_"] {
+  overflow: auto !important;
+}
+
+.me-page-editor-puck-shell [class*="_PuckCanvas-root_"] {
+  bottom: auto !important;
+}
+
 .me-page-editor-puck-shell--fullscreen {
   height: calc(100vh - 250px);
   min-height: 760px;
