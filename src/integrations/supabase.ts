@@ -210,29 +210,36 @@ function createSerializedAuthClient(client: ReturnType<typeof createClient>): Su
     return run
   }
 
-  const wrappedClient = Object.create(client) as typeof client
-  wrappedClient.auth = {
-    ...client.auth,
-    getSession: () => enqueueAuthOperation(() => client.auth.getSession()),
-    refreshSession: () => enqueueAuthOperation(() => client.auth.refreshSession()),
-    exchangeCodeForSession: (code: string) =>
-      enqueueAuthOperation(() => client.auth.exchangeCodeForSession(code)),
-    verifyOtp: (...args: Parameters<typeof client.auth.verifyOtp>) =>
-      enqueueAuthOperation(() => client.auth.verifyOtp(...args)),
-    setSession: (...args: Parameters<typeof client.auth.setSession>) =>
-      enqueueAuthOperation(() => client.auth.setSession(...args)),
-    signInWithPassword: (...args: Parameters<typeof client.auth.signInWithPassword>) =>
-      enqueueAuthOperation(() => client.auth.signInWithPassword(...args)),
-    signUp: (...args: Parameters<typeof client.auth.signUp>) =>
-      enqueueAuthOperation(() => client.auth.signUp(...args)),
-    resetPasswordForEmail: (...args: Parameters<typeof client.auth.resetPasswordForEmail>) =>
-      enqueueAuthOperation(() => client.auth.resetPasswordForEmail(...args)),
-    updateUser: (...args: Parameters<typeof client.auth.updateUser>) =>
-      enqueueAuthOperation(() => client.auth.updateUser(...args)),
-    signOut: () => enqueueAuthOperation(() => client.auth.signOut()),
-  } as typeof client.auth
+  const originalGetSession = client.auth.getSession.bind(client.auth)
+  const originalRefreshSession = client.auth.refreshSession.bind(client.auth)
+  const originalExchangeCodeForSession = client.auth.exchangeCodeForSession.bind(client.auth)
+  const originalVerifyOtp = client.auth.verifyOtp.bind(client.auth)
+  const originalSetSession = client.auth.setSession.bind(client.auth)
+  const originalSignInWithPassword = client.auth.signInWithPassword.bind(client.auth)
+  const originalSignUp = client.auth.signUp.bind(client.auth)
+  const originalResetPasswordForEmail = client.auth.resetPasswordForEmail.bind(client.auth)
+  const originalUpdateUser = client.auth.updateUser.bind(client.auth)
+  const originalSignOut = client.auth.signOut.bind(client.auth)
 
-  return wrappedClient as unknown as SupabaseLike
+  client.auth.getSession = () => enqueueAuthOperation(() => originalGetSession())
+  client.auth.refreshSession = () => enqueueAuthOperation(() => originalRefreshSession())
+  client.auth.exchangeCodeForSession = (code: string) =>
+    enqueueAuthOperation(() => originalExchangeCodeForSession(code))
+  client.auth.verifyOtp = (...args: Parameters<typeof client.auth.verifyOtp>) =>
+    enqueueAuthOperation(() => originalVerifyOtp(...args))
+  client.auth.setSession = (...args: Parameters<typeof client.auth.setSession>) =>
+    enqueueAuthOperation(() => originalSetSession(...args))
+  client.auth.signInWithPassword = (...args: Parameters<typeof client.auth.signInWithPassword>) =>
+    enqueueAuthOperation(() => originalSignInWithPassword(...args))
+  client.auth.signUp = (...args: Parameters<typeof client.auth.signUp>) =>
+    enqueueAuthOperation(() => originalSignUp(...args))
+  client.auth.resetPasswordForEmail = (...args: Parameters<typeof client.auth.resetPasswordForEmail>) =>
+    enqueueAuthOperation(() => originalResetPasswordForEmail(...args))
+  client.auth.updateUser = (...args: Parameters<typeof client.auth.updateUser>) =>
+    enqueueAuthOperation(() => originalUpdateUser(...args))
+  client.auth.signOut = () => enqueueAuthOperation(() => originalSignOut())
+
+  return client as unknown as SupabaseLike
 }
 
 export const supabase: SupabaseLike =
