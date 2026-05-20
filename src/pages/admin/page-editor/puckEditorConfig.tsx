@@ -1,5 +1,5 @@
 ﻿import { FieldLabel, Render, type Config, type Data } from "@puckeditor/core"
-import type { ReactNode } from "react"
+import { isValidElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 
 type PuckBlock = { type: string; props: Record<string, unknown> }
@@ -26,6 +26,39 @@ function safeRichText(html: string) {
   return sanitizeInlineHtml(normalized)
 }
 
+function extractTextFromStructuredValue(value: unknown): string {
+  if (value == null || typeof value === "boolean") return ""
+
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value)
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => extractTextFromStructuredValue(item)).join(" ")
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(value)) {
+    return extractTextFromStructuredValue(value.props?.children)
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>
+
+    const prioritizedText = [record.text, record.children, record.content, record.root]
+      .map((item) => extractTextFromStructuredValue(item))
+      .find((item) => item.trim().length > 0)
+
+    if (prioritizedText) return prioritizedText
+
+    return Object.values(record)
+      .map((item) => extractTextFromStructuredValue(item))
+      .filter((item) => item.trim().length > 0)
+      .join(" ")
+  }
+
+  return ""
+}
+
 function renderRichNode(value: unknown): ReactNode {
   if (typeof value === "string") {
     return <div dangerouslySetInnerHTML={{ __html: safeRichText(value) }} />
@@ -35,12 +68,25 @@ function renderRichNode(value: unknown): ReactNode {
     return <div dangerouslySetInnerHTML={{ __html: "<p></p>" }} />
   }
 
-  return value as ReactNode
+  if (isValidElement(value)) {
+    return value
+  }
+
+  const fallback = toPlainText(value)
+  if (!fallback) {
+    return <div dangerouslySetInnerHTML={{ __html: "<p></p>" }} />
+  }
+
+  return <p>{fallback}</p>
 }
 
 function toPlainText(value: unknown) {
-  const raw = String(value ?? "").trim()
+  const raw = extractTextFromStructuredValue(value).trim()
   if (!raw) return ""
+
+  if (!raw.includes("<") || !raw.includes(">")) {
+    return normalizeText(raw)
+  }
 
   if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
     try {
