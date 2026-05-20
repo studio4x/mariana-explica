@@ -56,11 +56,13 @@ function resolvePublishedHtml(payload: unknown) {
     return null
   }
 
+  const cssFromStyleJson = typeof styleJson?.css === "string" ? styleJson.css : ""
+
   const htmlCandidate = layoutJson.html
   if (typeof htmlCandidate === "string" && htmlCandidate.trim().length > 0) {
     return {
       html: sanitizeHtmlSnapshot(htmlCandidate),
-      css: sanitizeCssSnapshot(typeof styleJson?.css === "string" ? styleJson.css : ""),
+      css: sanitizeCssSnapshot(cssFromStyleJson),
     }
   }
 
@@ -84,9 +86,13 @@ function resolvePublishedHtml(payload: unknown) {
     return null
   }
 
+  const pageStyles = (firstPage as { styles?: unknown }).styles
+  const resolvedCss =
+    cssFromStyleJson || (typeof pageStyles === "string" && pageStyles.trim().length > 0 ? pageStyles : "")
+
   return {
     html: sanitizeHtmlSnapshot(component),
-    css: sanitizeCssSnapshot(typeof styleJson?.css === "string" ? styleJson.css : ""),
+    css: sanitizeCssSnapshot(resolvedCss),
   }
 }
 

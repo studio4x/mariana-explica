@@ -162,7 +162,7 @@ const AdminPublicForms = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPublicForms })),
 )
 const AdminPageEditor = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminPageEditor })),
+  import("@/pages/admin/AdminPageEditor").then((module) => ({ default: module.AdminPageEditor })),
 )
 const AdminSupportTicketDetail = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.AdminSupportTicketDetail })),

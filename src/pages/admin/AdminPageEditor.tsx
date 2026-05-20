@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Puck, type Data } from "@puckeditor/core"
-import "@puckeditor/core/puck.css"
+import grapesjs, { type Editor as GrapesEditor } from "grapesjs"
+import "grapesjs/dist/css/grapes.min.css"
+import "tinymce/skins/ui/oxide/skin.css"
+import "tinymce/skins/content/default/content.css"
 import {
   Eye,
   FileClock,
@@ -26,14 +28,14 @@ import {
 } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
 import {
-  buildHomeBaselinePuckData,
-  convertLegacyHtmlToPuckData,
-  createFallbackPuckDataFromHtml,
-  ensureHomeStructuredLayout,
-  extractPuckDataFromLayout,
-  renderPuckHtmlSnapshot,
-  sitePagePuckConfig,
-} from "@/pages/admin/page-editor/puckEditorConfig"
+  appendImageSection,
+  createCanvasStyleLinks,
+  extractProjectDataFromVersion,
+  getGrapesSnapshot,
+  registerDefaultBlocks,
+  registerTinyMceRte,
+  syncEditorAssets,
+} from "@/pages/admin/page-editor/grapesEditor"
 import { getEditorBaselineHtml } from "@/pages/public/editorBaseline"
 import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
@@ -67,48 +69,6 @@ function getPublicPathForSlug(slug: SitePageSlug | string) {
   return "/"
 }
 
-function extractCss(styleJson: Record<string, unknown> | undefined) {
-  if (!styleJson || typeof styleJson !== "object") return ""
-  const css = styleJson.css
-  if (typeof css === "string") return css
-  return ""
-}
-
-function extractHtml(layoutJson: Record<string, unknown> | undefined) {
-  if (!layoutJson || typeof layoutJson !== "object") return ""
-
-  const htmlFromRoot = layoutJson.html
-  if (typeof htmlFromRoot === "string" && htmlFromRoot.trim().length > 0) {
-    return htmlFromRoot
-  }
-
-  const projectData =
-    layoutJson.projectData && typeof layoutJson.projectData === "object"
-      ? (layoutJson.projectData as Record<string, unknown>)
-      : layoutJson
-
-  const pages = Array.isArray(projectData.pages) ? projectData.pages : []
-  const firstPage = pages[0]
-  if (!firstPage || typeof firstPage !== "object") return ""
-
-  const pageAsRecord = firstPage as Record<string, unknown>
-  const component = pageAsRecord.component
-  if (typeof component === "string" && component.trim().length > 0) {
-    return component
-  }
-
-  const frames = Array.isArray(pageAsRecord.frames) ? pageAsRecord.frames : []
-  const firstFrame = frames[0]
-  if (!firstFrame || typeof firstFrame !== "object") return ""
-
-  const frameComponent = (firstFrame as Record<string, unknown>).component
-  if (typeof frameComponent === "string" && frameComponent.trim().length > 0) {
-    return frameComponent
-  }
-
-  return ""
-}
-
 function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: string | null) {
   if (publishedId) {
     const publishedVersion = versions.find((item) => item.id === publishedId)
@@ -121,54 +81,21 @@ function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: st
   return versions[0] ?? null
 }
 
-function buildDataFromVersion(version: AdminSitePageVersion | null, baselineHtml: string, slug: SitePageSlug) {
-  const safeBaselineHtml = baselineHtml.trim().length > 0 ? baselineHtml : "<section><div><p>Pagina vazia.</p></div></section>"
-
-  if (!version) {
-    const fallbackData = slug === "home" ? buildHomeBaselinePuckData() : createFallbackPuckDataFromHtml(safeBaselineHtml)
-    return {
-      data: slug === "home" ? ensureHomeStructuredLayout(fallbackData, safeBaselineHtml) : fallbackData,
-      css: "",
-      versionId: "",
-    }
-  }
-
-  const versionHtml = extractHtml(version.layout_json) || safeBaselineHtml
-
-  const puckData = extractPuckDataFromLayout(version.layout_json)
-  if (puckData) {
-    return {
-      data: slug === "home" ? ensureHomeStructuredLayout(puckData, versionHtml) : puckData,
-      css: extractCss(version.style_json),
-      versionId: version.id,
-    }
-  }
-
-  const legacyHtml = versionHtml
-  const converted = convertLegacyHtmlToPuckData(legacyHtml)
-
-  return {
-    data: slug === "home" ? ensureHomeStructuredLayout(converted, versionHtml) : converted,
-    css: extractCss(version.style_json),
-    versionId: version.id,
-  }
-}
-
 export function AdminPageEditor() {
   const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
   const [isDirty, setIsDirty] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(true)
+  const [editorReady, setEditorReady] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
-  const [editorData, setEditorData] = useState<Data>(() => buildHomeBaselinePuckData())
-  const [editorRemountKey, setEditorRemountKey] = useState(0)
-  const [currentStyleCss, setCurrentStyleCss] = useState("")
 
+  const editorRef = useRef<GrapesEditor | null>(null)
+  const editorContainerRef = useRef<HTMLDivElement | null>(null)
+  const richTextToolbarRef = useRef<HTMLDivElement | null>(null)
   const loadedVersionIdRef = useRef<string>("")
   const loadedSlugRef = useRef<string>("")
-  const suppressOnChangeRef = useRef(false)
-  const suppressTimeoutRef = useRef<number | null>(null)
+  const hydratingEditorRef = useRef(false)
 
   const pagesQuery = useAdminSitePages()
   const detailQuery = useAdminSitePageDetail(selectedSlug)
@@ -186,42 +113,149 @@ export function AdminPageEditor() {
   const publishedVersionId = detailQuery.data?.page.published_version_id ?? null
 
   const publishTargetVersionId = selectedVersionId || resolveInitialVersion(versions, publishedVersionId)?.id || ""
+  const selectedVersion = useMemo(
+    () => versions.find((version) => version.id === selectedVersionId) ?? null,
+    [selectedVersionId, versions],
+  )
 
-  const remountEditorWithData = useCallback((nextData: Data) => {
-    suppressOnChangeRef.current = true
-    setEditorData(nextData)
-    setEditorRemountKey((current) => current + 1)
+  const destroyEditor = useCallback(() => {
+    const editor = editorRef.current
+    if (!editor) return
 
-    if (suppressTimeoutRef.current) {
-      window.clearTimeout(suppressTimeoutRef.current)
-    }
-
-    suppressTimeoutRef.current = window.setTimeout(() => {
-      suppressOnChangeRef.current = false
-      suppressTimeoutRef.current = null
-    }, 0)
+    editor.destroy()
+    editorRef.current = null
+    setEditorReady(false)
   }, [])
 
-  const applyVersionIntoEditor = useCallback(
-    (version: AdminSitePageVersion | null, baselineHtml: string) => {
-      const next = buildDataFromVersion(version, baselineHtml, selectedSlug)
-      remountEditorWithData(next.data)
+  const mountEditorForVersion = useCallback(
+    (version: AdminSitePageVersion | null) => {
+      const container = editorContainerRef.current
+      if (!container) return
 
-      setCurrentStyleCss(next.css)
-      setSelectedVersionId(next.versionId)
-      setIsDirty(false)
-      loadedVersionIdRef.current = next.versionId
+      const fallbackHtml = getEditorBaselineHtml(selectedSlug)
+      const pageTitle = detailQuery.data?.page.title ?? pageSummary?.title ?? DEFAULT_PAGE_TITLES[selectedSlug]
+      const projectData = extractProjectDataFromVersion({
+        slug: selectedSlug,
+        title: pageTitle,
+        layoutJson: version?.layout_json,
+        styleJson: version?.style_json,
+        fallbackHtml,
+      })
+
+      destroyEditor()
+      hydratingEditorRef.current = true
+      setEditorReady(false)
+      container.innerHTML = ""
+
+      const editor = grapesjs.init({
+        container,
+        height: "100%",
+        width: "auto",
+        storageManager: false,
+        noticeOnUnload: false,
+        selectorManager: {
+          componentFirst: true,
+        },
+        assetManager: {
+          upload: false,
+          autoAdd: false,
+          assets: [],
+        },
+        deviceManager: {
+          devices: [
+            { id: "desktop", name: "Desktop", width: "" },
+            { id: "tablet", name: "Tablet", width: "768px", widthMedia: "992px" },
+            { id: "mobile", name: "Mobile", width: "390px", widthMedia: "575px" },
+          ],
+        },
+        styleManager: {
+          sectors: [
+            {
+              name: "Layout",
+              open: true,
+              properties: ["display", "position", "top", "right", "bottom", "left"],
+            },
+            {
+              name: "Espacamento",
+              open: true,
+              properties: [
+                "margin",
+                "padding",
+                "width",
+                "height",
+                "max-width",
+                "min-height",
+              ],
+            },
+            {
+              name: "Tipografia",
+              open: true,
+              properties: [
+                "font-family",
+                "font-size",
+                "font-weight",
+                "line-height",
+                "letter-spacing",
+                "color",
+                "text-align",
+                "text-decoration",
+                "text-transform",
+              ],
+            },
+            {
+              name: "Decoracao",
+              open: false,
+              properties: [
+                "background-color",
+                "border",
+                "border-radius",
+                "box-shadow",
+                "opacity",
+              ],
+            },
+          ],
+        },
+        canvas: {
+          styles: createCanvasStyleLinks(),
+        },
+        plugins: [
+          (instance) => {
+            registerTinyMceRte(instance, richTextToolbarRef.current)
+            registerDefaultBlocks(instance)
+          },
+        ],
+      })
+
+      editorRef.current = editor
+
+      editor.on("load", () => {
+        editor.loadProjectData(projectData)
+        syncEditorAssets(editor, assets)
+
+        window.setTimeout(() => {
+          if (editorRef.current !== editor) return
+
+          editor.clearDirtyCount()
+          editor.refresh({ tools: true })
+          hydratingEditorRef.current = false
+          setEditorReady(true)
+          setIsDirty(false)
+        }, 0)
+      })
+
+      editor.on("update", () => {
+        if (hydratingEditorRef.current) return
+        setIsDirty(true)
+      })
     },
-    [remountEditorWithData, selectedSlug],
+    [assets, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
   )
 
   useEffect(() => {
     return () => {
-      if (suppressTimeoutRef.current) {
-        window.clearTimeout(suppressTimeoutRef.current)
-      }
+      destroyEditor()
     }
-  }, [])
+  }, [destroyEditor])
 
   useEffect(() => {
     if (!isFullscreen) return
@@ -237,12 +271,13 @@ export function AdminPageEditor() {
   useEffect(() => {
     if (!detailQuery.data) return
 
-    const baselineHtml = getEditorBaselineHtml(selectedSlug)
     const versionToLoad = resolveInitialVersion(versions, publishedVersionId)
 
     if (!versionToLoad) {
       loadedSlugRef.current = selectedSlug
-      applyVersionIntoEditor(null, baselineHtml)
+      loadedVersionIdRef.current = ""
+      setSelectedVersionId("")
+      mountEditorForVersion(null)
       return
     }
 
@@ -251,43 +286,57 @@ export function AdminPageEditor() {
     }
 
     loadedSlugRef.current = selectedSlug
-    applyVersionIntoEditor(versionToLoad, baselineHtml)
-  }, [applyVersionIntoEditor, detailQuery.data, publishedVersionId, selectedSlug, versions])
+    loadedVersionIdRef.current = versionToLoad.id
+    setSelectedVersionId(versionToLoad.id)
+    mountEditorForVersion(versionToLoad)
+  }, [detailQuery.data, mountEditorForVersion, publishedVersionId, selectedSlug, versions])
 
-  const selectedVersion = useMemo(
-    () => versions.find((version) => version.id === selectedVersionId) ?? null,
-    [selectedVersionId, versions],
-  )
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
 
-  const handlePuckChange = useCallback((nextData: Data) => {
-    setEditorData(nextData)
-    if (suppressOnChangeRef.current) return
-    setIsDirty(true)
-  }, [])
+    syncEditorAssets(editor, assets)
+  }, [assets])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor || !editorReady) return
+
+    window.setTimeout(() => {
+      editor.refresh({ tools: true })
+    }, 0)
+  }, [editorReady, isFullscreen])
 
   const handleSaveDraft = async () => {
-    setFeedback(null)
-    try {
-      const htmlSnapshot = renderPuckHtmlSnapshot(editorData)
+    const editor = editorRef.current
+    if (!editor) {
+      setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
+      return
+    }
 
+    setFeedback(null)
+
+    try {
+      const snapshot = getGrapesSnapshot(editor)
       const response = await saveDraftMutation.mutateAsync({
         slug: selectedSlug,
         title: detailQuery.data?.page.title ?? pageSummary?.title ?? DEFAULT_PAGE_TITLES[selectedSlug],
         layoutJson: {
-          editor: "puck",
-          schema_version: 1,
-          puckData: editorData as Record<string, unknown>,
-          html: htmlSnapshot,
+          editor: "grapesjs",
+          schema_version: 2,
+          projectData: snapshot.projectData,
+          html: snapshot.html,
         },
         styleJson: {
-          css: currentStyleCss,
+          css: snapshot.css,
         },
         metadata: {
-          editor: "puck",
+          editor: "grapesjs",
           updated_at: new Date().toISOString(),
         },
       })
 
+      editor.clearDirtyCount()
       loadedVersionIdRef.current = response.version.id
       setSelectedVersionId(response.version.id)
       setIsDirty(false)
@@ -339,6 +388,7 @@ export function AdminPageEditor() {
         slug: selectedSlug,
         versionId: selectedVersionId,
       })
+
       setFeedback({ tone: "success", message: "Rollback aplicado com sucesso." })
       await detailQuery.refetch()
       await pagesQuery.refetch()
@@ -352,19 +402,26 @@ export function AdminPageEditor() {
   }
 
   const handleLoadVersion = (version: AdminSitePageVersion) => {
-    const baselineHtml = getEditorBaselineHtml(selectedSlug)
-    applyVersionIntoEditor(version, baselineHtml)
+    loadedSlugRef.current = selectedSlug
+    loadedVersionIdRef.current = version.id
+    setSelectedVersionId(version.id)
+    mountEditorForVersion(version)
     setFeedback({ tone: "success", message: `Versao ${version.version_number} carregada no editor.` })
   }
 
   const handleUploadAsset = async (file: File) => {
     setUploadingAsset(true)
     setFeedback(null)
+
     try {
-      await uploadAssetMutation.mutateAsync({
+      const response = await uploadAssetMutation.mutateAsync({
         slug: selectedSlug,
         file,
       })
+
+      if (editorRef.current) {
+        syncEditorAssets(editorRef.current, [...assets, response.asset])
+      }
 
       setFeedback({ tone: "success", message: "Imagem enviada com sucesso." })
       await detailQuery.refetch()
@@ -379,23 +436,17 @@ export function AdminPageEditor() {
   }
 
   const appendImageBlock = (asset: AdminSitePageAsset) => {
-    const nextData: Data = {
-      ...editorData,
-      content: [
-        ...(editorData.content ?? []),
-        {
-          type: "ImageBlock",
-          props: {
-            id: crypto.randomUUID(),
-            src: asset.public_url,
-            alt: asset.file_name,
-            caption: asset.file_name,
-          },
-        },
-      ],
+    const editor = editorRef.current
+    if (!editor) {
+      setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
+      return
     }
 
-    remountEditorWithData(nextData)
+    appendImageSection(editor, {
+      publicUrl: asset.public_url,
+      fileName: asset.file_name,
+    })
+
     setIsDirty(true)
     setFeedback({ tone: "success", message: "Bloco de imagem inserido no fim da pagina." })
   }
@@ -446,7 +497,7 @@ export function AdminPageEditor() {
     >
       <PageHeader
         title="Editor Visual de Paginas"
-        description="Editor moderno com Puck para Home e paginas institucionais, com rascunho, publicacao e historico."
+        description="Editor com GrapesJS + TinyMCE para Home e paginas institucionais, com rascunho, publicacao e historico."
       />
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -540,19 +591,17 @@ export function AdminPageEditor() {
         <article className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-              Canvas Puck - {getTitleForSlug(selectedSlug)}
+              Canvas GrapesJS - {getTitleForSlug(selectedSlug)}
             </p>
+            <div
+              ref={richTextToolbarRef}
+              className="me-page-editor-rte-toolbar mt-3 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2"
+            />
           </div>
 
-          <div className={["me-page-editor-puck-shell", isFullscreen ? "me-page-editor-puck-shell--fullscreen" : ""].join(" ")}>
-            <Puck
-              key={`${selectedSlug}:${editorRemountKey}`}
-              config={sitePagePuckConfig}
-              data={editorData}
-              onChange={handlePuckChange}
-              headerTitle={`Editor - ${getTitleForSlug(selectedSlug)}`}
-            />
-            {detailQuery.isLoading ? (
+          <div className={["me-page-editor-grapes-shell", isFullscreen ? "me-page-editor-grapes-shell--fullscreen" : ""].join(" ")}>
+            <div ref={editorContainerRef} className="me-page-editor-grapes-root" />
+            {(detailQuery.isLoading || !editorReady) ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
                 <LoadingState message="A carregar conteudo da pagina..." />
               </div>
@@ -675,10 +724,10 @@ export function AdminPageEditor() {
 
       <footer className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-xs leading-6 text-slate-600">
         <p>
-          Legado: o editor converte automaticamente HTML antigo para blocos Puck. O que nao for convertido com seguranca permanece em <strong>HTML livre (legado)</strong>.
+          Migracao controlada: o editor usa <strong>GrapesJS</strong> com texto rico em <strong>TinyMCE</strong>, mas continua a publicar HTML/CSS compatibilizados com o renderer atual.
         </p>
         <p>
-          Home: para manter as reviews dinamicas, usa o bloco <strong>Widget Reviews (Home)</strong>.
+          Home: para manter as reviews dinamicas, usa o bloco <strong>Widget Reviews</strong>.
         </p>
         <p>
           Preview publico:{" "}
