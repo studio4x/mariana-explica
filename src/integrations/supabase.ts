@@ -199,41 +199,40 @@ function createNoopSupabaseClient() {
 }
 
 function createSerializedAuthClient(client: ReturnType<typeof createClient>): SupabaseLike {
-  let authOperationPromise: Promise<unknown> | null = null
+  let authQueue: Promise<void> = Promise.resolve()
 
-  const runSerializedAuthOperation = <T,>(operation: () => Promise<T>) => {
-    if (!authOperationPromise) {
-      authOperationPromise = operation().finally(() => {
-        authOperationPromise = null
-      })
-    }
-
-    return authOperationPromise as Promise<T>
+  const enqueueAuthOperation = <T,>(operation: () => Promise<T>) => {
+    const run = authQueue.then(operation, operation)
+    authQueue = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
   }
 
-  return {
-    ...client,
-    auth: {
-      ...client.auth,
-      getSession: () => runSerializedAuthOperation(() => client.auth.getSession()),
-      refreshSession: () => runSerializedAuthOperation(() => client.auth.refreshSession()),
-      exchangeCodeForSession: (code: string) =>
-        runSerializedAuthOperation(() => client.auth.exchangeCodeForSession(code)),
-      verifyOtp: (...args: Parameters<typeof client.auth.verifyOtp>) =>
-        runSerializedAuthOperation(() => client.auth.verifyOtp(...args)),
-      setSession: (...args: Parameters<typeof client.auth.setSession>) =>
-        runSerializedAuthOperation(() => client.auth.setSession(...args)),
-      signInWithPassword: (...args: Parameters<typeof client.auth.signInWithPassword>) =>
-        runSerializedAuthOperation(() => client.auth.signInWithPassword(...args)),
-      signUp: (...args: Parameters<typeof client.auth.signUp>) =>
-        runSerializedAuthOperation(() => client.auth.signUp(...args)),
-      resetPasswordForEmail: (...args: Parameters<typeof client.auth.resetPasswordForEmail>) =>
-        runSerializedAuthOperation(() => client.auth.resetPasswordForEmail(...args)),
-      updateUser: (...args: Parameters<typeof client.auth.updateUser>) =>
-        runSerializedAuthOperation(() => client.auth.updateUser(...args)),
-      signOut: () => runSerializedAuthOperation(() => client.auth.signOut()),
-    },
-  } as unknown as SupabaseLike
+  const wrappedClient = Object.create(client) as typeof client
+  wrappedClient.auth = {
+    ...client.auth,
+    getSession: () => enqueueAuthOperation(() => client.auth.getSession()),
+    refreshSession: () => enqueueAuthOperation(() => client.auth.refreshSession()),
+    exchangeCodeForSession: (code: string) =>
+      enqueueAuthOperation(() => client.auth.exchangeCodeForSession(code)),
+    verifyOtp: (...args: Parameters<typeof client.auth.verifyOtp>) =>
+      enqueueAuthOperation(() => client.auth.verifyOtp(...args)),
+    setSession: (...args: Parameters<typeof client.auth.setSession>) =>
+      enqueueAuthOperation(() => client.auth.setSession(...args)),
+    signInWithPassword: (...args: Parameters<typeof client.auth.signInWithPassword>) =>
+      enqueueAuthOperation(() => client.auth.signInWithPassword(...args)),
+    signUp: (...args: Parameters<typeof client.auth.signUp>) =>
+      enqueueAuthOperation(() => client.auth.signUp(...args)),
+    resetPasswordForEmail: (...args: Parameters<typeof client.auth.resetPasswordForEmail>) =>
+      enqueueAuthOperation(() => client.auth.resetPasswordForEmail(...args)),
+    updateUser: (...args: Parameters<typeof client.auth.updateUser>) =>
+      enqueueAuthOperation(() => client.auth.updateUser(...args)),
+    signOut: () => enqueueAuthOperation(() => client.auth.signOut()),
+  } as typeof client.auth
+
+  return wrappedClient as unknown as SupabaseLike
 }
 
 export const supabase: SupabaseLike =
