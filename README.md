@@ -1,82 +1,106 @@
-# React + TypeScript + Vite
+# Mariana Explica
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Plataforma de venda e entrega de conteudos educacionais digitais, com:
 
-Currently, two official plugins are available:
+- area publica comercial;
+- area autenticada do aluno;
+- painel administrativo;
+- backend serverless;
+- PostgreSQL com RLS;
+- Supabase Auth e Storage;
+- Stripe;
+- PWA;
+- deploy em Vercel + Supabase.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React + TypeScript + Vite
+- React Router
+- TanStack React Query
+- Tailwind CSS + shadcn/ui + Radix UI
+- Supabase (DB, Auth, Storage, Edge Functions)
+- Stripe
+- Vercel
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Fonte canonica
 
-## Expanding the ESLint configuration
+A documentacao oficial do produto esta em `docs/`.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Prioridade de leitura:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. `docs/02-regras-negocio.md`
+2. `docs/03-arquitetura.md`
+3. `docs/10-autenticacao-seguranca.md`
+4. `docs/04-banco-dados.md`
+5. `docs/05-backend-edge-functions.md`
+6. `docs/15-plano-de-implementacao.md`
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+`docs/Specs/` e material auxiliar. Em conflito, prevalecem os documentos canonicos acima.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Setup local
+
+1. Instalar dependencias:
+
+```bash
+npm install
 ```
 
-## Deploy de producao
+2. Configurar variaveis:
 
-Antes de fechar um release, valide em producao que:
+- criar/ajustar `.env.local` com credenciais de ambiente;
+- nunca versionar tokens e segredos.
 
-- o deploy publicado ficou com status `READY`;
-- o dominio canonico aponta para a revisao mais recente;
-- a revisao ativa corresponde ao `HEAD` que foi publicado;
-- o alias de producao nao ficou preso em uma revisao antiga.
+3. Rodar ambiente local:
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+4. Validar build:
+
+```bash
+npm run build
+```
+
+## Politica obrigatoria de entrega
+
+Para cada novo ajuste aprovado neste repositorio:
+
+1. executar validacao tecnica local (no minimo `npm run build`);
+2. gerar commit da alteracao;
+3. publicar no remoto (`git push`);
+4. garantir deploy em producao na Vercel;
+5. validar producao antes de encerrar.
+
+### Checklist de validacao de deploy (obrigatorio)
+
+Antes de concluir qualquer entrega:
+
+- deploy de producao com status `READY`;
+- dominio canonico (`https://www.mariana-explica.pt`) apontando para a revisao mais recente;
+- SHA ativo em producao igual ao commit publicado;
+- alias de producao nao preso em revisao antiga.
+
+## Operacao de deploy
+
+O fluxo padrao e CI na Vercel apos push para branch de release.
+
+Comandos uteis de verificacao:
+
+```bash
+npx vercel ls --token <TOKEN>
+npx vercel inspect <deployment-url-ou-id> --token <TOKEN>
+```
+
+Quando necessario, consultar a API da Vercel para confirmar `readyState`, `target`, `githubCommitSha` e `aliasAssigned`.
+
+## Seguranca e regras criticas
+
+- nunca expor `service_role` no frontend;
+- nunca confiar no frontend para autorizacao final;
+- toda alteracao estrutural de banco deve ser migration SQL versionada;
+- `access_grants` e a fonte real de autorizacao ao conteudo.
+
+## Observacao
+
+As regras operacionais detalhadas para agentes e automacoes estao em [AGENTS.md](AGENTS.md).
