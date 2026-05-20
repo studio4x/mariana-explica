@@ -111,8 +111,8 @@ export function AdminPageEditor() {
     return (pagesQuery.data ?? []).find((page) => page.slug === selectedSlug) ?? null
   }, [pagesQuery.data, selectedSlug])
 
-  const versions = detailQuery.data?.versions ?? []
-  const assets = detailQuery.data?.assets ?? []
+  const versions = useMemo(() => detailQuery.data?.versions ?? [], [detailQuery.data?.versions])
+  const assets = useMemo(() => detailQuery.data?.assets ?? [], [detailQuery.data?.assets])
   const publishedVersionId = detailQuery.data?.page.published_version_id ?? null
 
   const publishTargetVersionId = selectedVersionId || resolveInitialVersion(versions, publishedVersionId)?.id || ""

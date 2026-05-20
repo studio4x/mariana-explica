@@ -4,9 +4,7 @@ import TextAlign from "@tiptap/extension-text-align"
 import type { Editor as GrapesEditor } from "grapesjs"
 
 const DEFAULT_EMPTY_PAGE = "<section><div><p>Pagina vazia.</p></div></section>"
-const DEVICE_IDS = ["desktop", "tablet", "mobile"] as const
-
-type SupportedDeviceId = (typeof DEVICE_IDS)[number]
+type SupportedDeviceId = "desktop" | "tablet" | "mobile"
 
 interface AssetLike {
   getSrc: () => string
