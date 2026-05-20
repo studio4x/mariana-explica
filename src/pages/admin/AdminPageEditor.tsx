@@ -36,6 +36,7 @@ import {
   resetEditorToProjectData,
   setEditorDevice,
   syncEditorAssets,
+  renderStudioSidebars,
 } from "@/pages/admin/page-editor/grapesEditor"
 import { getEditorBaselineHtml } from "@/pages/public/editorBaseline"
 import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
@@ -96,6 +97,11 @@ export function AdminPageEditor() {
   const editorRef = useRef<GrapesEditor | null>(null)
   const editorContainerRef = useRef<HTMLDivElement | null>(null)
   const richTextToolbarRef = useRef<HTMLDivElement | null>(null)
+  const blocksSidebarRef = useRef<HTMLDivElement | null>(null)
+  const layersSidebarRef = useRef<HTMLDivElement | null>(null)
+  const stylesSidebarRef = useRef<HTMLDivElement | null>(null)
+  const traitCategoriesRef = useRef<HTMLDivElement | null>(null)
+  const traitsSidebarRef = useRef<HTMLDivElement | null>(null)
   const loadedVersionIdRef = useRef<string>("")
   const loadedSlugRef = useRef<string>("")
   const hydratingEditorRef = useRef(false)
@@ -120,6 +126,16 @@ export function AdminPageEditor() {
     () => versions.find((version) => version.id === selectedVersionId) ?? null,
     [selectedVersionId, versions],
   )
+
+  const activeDeviceLabel = useMemo(() => {
+    const labels = {
+      desktop: "Desktop",
+      tablet: "Tablet",
+      mobile: "Mobile",
+    } as const
+
+    return labels[activeDevice]
+  }, [activeDevice])
 
   const destroyEditor = useCallback(() => {
     const editor = editorRef.current
@@ -156,6 +172,9 @@ export function AdminPageEditor() {
         width: "auto",
         storageManager: false,
         noticeOnUnload: false,
+        panels: {
+          defaults: [],
+        },
         selectorManager: {
           componentFirst: true,
         },
@@ -240,6 +259,13 @@ export function AdminPageEditor() {
         window.setTimeout(() => {
           if (editorRef.current !== editor) return
 
+          renderStudioSidebars(editor, {
+            blocks: blocksSidebarRef.current,
+            layers: layersSidebarRef.current,
+            styles: stylesSidebarRef.current,
+            traitCategories: traitCategoriesRef.current,
+            traits: traitsSidebarRef.current,
+          })
           editor.clearDirtyCount()
           editor.refresh({ tools: true })
           hydratingEditorRef.current = false
@@ -255,11 +281,29 @@ export function AdminPageEditor() {
 
       editor.on("component:selected", (component) => {
         setSelectedComponentIsImage(Boolean(component?.is?.("image")))
+        window.setTimeout(() => {
+          renderStudioSidebars(editor, {
+            blocks: blocksSidebarRef.current,
+            layers: layersSidebarRef.current,
+            styles: stylesSidebarRef.current,
+            traitCategories: traitCategoriesRef.current,
+            traits: traitsSidebarRef.current,
+          })
+        }, 0)
       })
 
       editor.on("component:deselected", () => {
         const selected = editor.getSelected()
         setSelectedComponentIsImage(Boolean(selected?.is?.("image")))
+        window.setTimeout(() => {
+          renderStudioSidebars(editor, {
+            blocks: blocksSidebarRef.current,
+            layers: layersSidebarRef.current,
+            styles: stylesSidebarRef.current,
+            traitCategories: traitCategoriesRef.current,
+            traits: traitsSidebarRef.current,
+          })
+        }, 0)
       })
     },
     [assets, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
@@ -558,7 +602,7 @@ export function AdminPageEditor() {
     >
       <PageHeader
         title="Editor Visual de Paginas"
-        description="Editor com GrapesJS + TinyMCE para Home e paginas institucionais, com rascunho, publicacao e historico."
+        description="Editor com GrapesJS + Tiptap para Home e paginas institucionais, com rascunho, publicacao e historico."
       />
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -656,28 +700,12 @@ export function AdminPageEditor() {
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
-          <span className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Viewport</span>
-          {([
-            { id: "desktop", label: "Desktop" },
-            { id: "tablet", label: "Tablet" },
-            { id: "mobile", label: "Mobile" },
-          ] as const).map((device) => (
-            <button
-              key={device.id}
-              type="button"
-              onClick={() => handleSetDevice(device.id)}
-              className={[
-                "rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition",
-                activeDevice === device.id
-                  ? "border-[#242742] bg-[#242742] text-white"
-                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white",
-              ].join(" ")}
-            >
-              {device.label}
-            </button>
-          ))}
+          <span className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Viewport ativo</span>
+          <span className="rounded-full border border-[#242742] bg-[#242742] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white">
+            {activeDeviceLabel}
+          </span>
           <span className="ml-auto text-xs text-slate-500">
-            Dica: clica no texto para editar em linha e usa a biblioteca para substituir imagens sem mexer no HTML.
+            Dica: o seletor de viewport fica no topo do canvas e podes editar texto inline sem tocar no HTML.
           </span>
         </div>
       </section>
@@ -685,22 +713,98 @@ export function AdminPageEditor() {
       <section className="space-y-6">
         <article className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-              Canvas GrapesJS - {getTitleForSlug(selectedSlug)}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                Canvas GrapesJS - {getTitleForSlug(selectedSlug)}
+              </p>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+                Layout tipo Studio
+              </span>
+            </div>
             <div
               ref={richTextToolbarRef}
               className="me-page-editor-rte-toolbar mt-3 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2"
             />
           </div>
 
-          <div className={["me-page-editor-grapes-shell", isFullscreen ? "me-page-editor-grapes-shell--fullscreen" : ""].join(" ")}>
-            <div ref={editorContainerRef} className="me-page-editor-grapes-root" />
-            {(detailQuery.isLoading || !editorReady) ? (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-                <LoadingState message="A carregar conteudo da pagina..." />
+          <div className={["me-page-editor-studio-shell", isFullscreen ? "me-page-editor-studio-shell--fullscreen" : ""].join(" ")}>
+            <aside className="me-page-editor-sidebar me-page-editor-sidebar--left">
+              <div className="me-page-editor-sidebar__section">
+                <div className="me-page-editor-sidebar__header">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Blocks</p>
+                  <span className="text-[11px] text-[#7f8ba0]">Arrasta para o canvas</span>
+                </div>
+                <div ref={blocksSidebarRef} className="me-page-editor-panel-slot" />
               </div>
-            ) : null}
+
+              <div className="me-page-editor-sidebar__section">
+                <div className="me-page-editor-sidebar__header">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Layers</p>
+                  <span className="text-[11px] text-[#7f8ba0]">Estrutura da pagina</span>
+                </div>
+                <div ref={layersSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--layers" />
+              </div>
+            </aside>
+
+            <main className="me-page-editor-canvas">
+              <div className="me-page-editor-canvas__surface">
+                <div className="me-page-editor-canvas__topbar">
+                  <div className="me-page-editor-canvas__chip-row">
+                    {([
+                      { id: "desktop", label: "Desktop" },
+                      { id: "tablet", label: "Tablet" },
+                      { id: "mobile", label: "Mobile" },
+                    ] as const).map((device) => (
+                      <button
+                        key={device.id}
+                        type="button"
+                        onClick={() => handleSetDevice(device.id)}
+                        className={[
+                          "rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] transition",
+                          activeDevice === device.id
+                            ? "border-[#242742] bg-[#242742] text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                        ].join(" ")}
+                      >
+                        {device.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="me-page-editor-canvas__hint">
+                    Clique em texto para editar inline, arraste blocos para montar a pagina e use os painels laterais para ajustar.
+                  </div>
+                </div>
+
+                <div className={["me-page-editor-grapes-shell", isFullscreen ? "me-page-editor-grapes-shell--fullscreen" : ""].join(" ")}>
+                  <div ref={editorContainerRef} className="me-page-editor-grapes-root" />
+                  {detailQuery.isLoading || !editorReady ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+                      <LoadingState message="A carregar conteudo da pagina..." />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </main>
+
+            <aside className="me-page-editor-sidebar me-page-editor-sidebar--right">
+              <div className="me-page-editor-sidebar__section">
+                <div className="me-page-editor-sidebar__header">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Styles</p>
+                  <span className="text-[11px] text-[#7f8ba0]">Espaco, cor e tipografia</span>
+                </div>
+                <div ref={stylesSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--styles" />
+              </div>
+
+              <div className="me-page-editor-sidebar__section">
+                <div className="me-page-editor-sidebar__header">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Properties</p>
+                  <span className="text-[11px] text-[#7f8ba0]">Campo selecionado</span>
+                </div>
+                <div ref={traitCategoriesRef} className="me-page-editor-traits-categories" />
+                <div ref={traitsSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--traits" />
+              </div>
+            </aside>
           </div>
         </article>
       </section>
@@ -819,7 +923,7 @@ export function AdminPageEditor() {
 
       <footer className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-xs leading-6 text-slate-600">
         <p>
-          Migracao controlada: o editor usa <strong>GrapesJS</strong> com texto rico em <strong>TinyMCE</strong>, mas continua a publicar HTML/CSS compatibilizados com o renderer atual.
+          Migracao controlada: o editor usa <strong>GrapesJS</strong> com texto rico em <strong>Tiptap OSS</strong>, mas continua a publicar HTML/CSS compatibilizados com o renderer atual.
         </p>
         <p>
           Home: para manter as reviews dinamicas, usa o bloco <strong>Widget Reviews</strong>.

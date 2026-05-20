@@ -46,6 +46,11 @@ function focusTiptapEditor(rte?: TiptapRteInstance | null) {
   rte?.refreshToolbar()
 }
 
+function clearElement(element: HTMLElement | null) {
+  if (!element) return
+  element.innerHTML = ""
+}
+
 function getLayoutHtml(layoutJson: Record<string, unknown> | undefined) {
   if (!layoutJson || typeof layoutJson !== "object") return ""
 
@@ -605,6 +610,79 @@ export function registerDefaultBlocks(editor: GrapesEditor) {
       </section>
     `,
   })
+}
+
+export function renderBlocksSidebar(editor: GrapesEditor, container: HTMLElement | null) {
+  if (!container) return
+
+  const blocksEl = editor.Blocks.render(undefined, { external: true })
+  clearElement(container)
+  if (blocksEl instanceof HTMLElement) {
+    container.appendChild(blocksEl)
+  }
+}
+
+export function renderLayersSidebar(editor: GrapesEditor, container: HTMLElement | null) {
+  if (!container) return
+
+  const layersEl = editor.Layers.render()
+  clearElement(container)
+  if (layersEl instanceof HTMLElement) {
+    container.appendChild(layersEl)
+  }
+}
+
+export function renderTraitsSidebar(editor: GrapesEditor, categoriesContainer: HTMLElement | null, traitsContainer: HTMLElement | null) {
+  const traitManager = editor.Traits as unknown as {
+    render: () => void
+    getCategoriesEl?: () => HTMLElement
+    getTraitsEl?: () => HTMLElement
+  }
+
+  traitManager.render()
+
+  if (categoriesContainer) {
+    clearElement(categoriesContainer)
+    const categoriesEl = traitManager.getCategoriesEl?.()
+    if (categoriesEl) {
+      categoriesContainer.appendChild(categoriesEl)
+    }
+  }
+
+  if (traitsContainer) {
+    clearElement(traitsContainer)
+    const traitsEl = traitManager.getTraitsEl?.()
+    if (traitsEl) {
+      traitsContainer.appendChild(traitsEl)
+    }
+  }
+}
+
+export function renderStylesSidebar(editor: GrapesEditor, container: HTMLElement | null) {
+  if (!container) return
+
+  editor.StyleManager.render()
+  const styleContainer = (editor.StyleManager as unknown as { __ctn?: HTMLElement }).__ctn
+  clearElement(container)
+  if (styleContainer) {
+    container.appendChild(styleContainer)
+  }
+}
+
+export function renderStudioSidebars(
+  editor: GrapesEditor,
+  slots: {
+    blocks: HTMLElement | null
+    layers: HTMLElement | null
+    styles: HTMLElement | null
+    traitCategories: HTMLElement | null
+    traits: HTMLElement | null
+  },
+) {
+  renderBlocksSidebar(editor, slots.blocks)
+  renderLayersSidebar(editor, slots.layers)
+  renderStylesSidebar(editor, slots.styles)
+  renderTraitsSidebar(editor, slots.traitCategories, slots.traits)
 }
 
 export function syncEditorAssets(
