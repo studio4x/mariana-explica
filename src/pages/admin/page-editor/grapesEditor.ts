@@ -19,6 +19,14 @@ interface TinyMceRteInstance {
 }
 
 const DEFAULT_EMPTY_PAGE = "<section><div><p>Pagina vazia.</p></div></section>"
+const DEVICE_IDS = ["desktop", "tablet", "mobile"] as const
+
+type SupportedDeviceId = (typeof DEVICE_IDS)[number]
+
+interface AssetLike {
+  getSrc: () => string
+  get: (key: string) => unknown
+}
 
 function escapeHtmlAttribute(value: string) {
   return value
@@ -297,6 +305,79 @@ export function registerDefaultBlocks(editor: GrapesEditor) {
       </section>
     `,
   })
+
+  blockManager.add("me-home-hero", {
+    label: "Hero Mariana",
+    category: "Favoritos",
+    content: `
+      <section style="padding: 96px 24px; background: linear-gradient(135deg, #dff2f8 0%, #f8fcfd 100%);">
+        <div style="max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; align-items: center;">
+          <div>
+            <span style="display: inline-block; margin-bottom: 18px; border-radius: 999px; background: rgba(36, 39, 66, 0.08); padding: 10px 16px; color: #242742; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">Mariana Explica</span>
+            <h1 style="margin: 0 0 16px; color: #0f122c; font-size: 56px; line-height: 1.05; font-weight: 700;">Uma hero section pronta para editar</h1>
+            <p style="margin: 0 0 28px; color: #3f4a5e; font-size: 19px; line-height: 1.8;">Troque o titulo, ajuste o texto e mantenha a estrutura comercial da Home sem partir de um canvas vazio.</p>
+            <a href="/materiais" style="display: inline-block; border-radius: 999px; background: #242742; padding: 18px 30px; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; text-transform: uppercase; letter-spacing: 0.12em;">Explorar materiais</a>
+          </div>
+          <div style="padding: 20px; border-radius: 32px; background: rgba(255, 255, 255, 0.88); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);">
+            <img src="/assets/home-hero-illustration.svg" alt="Ilustracao Mariana Explica" style="display: block; width: 100%; max-width: 100%;" />
+          </div>
+        </div>
+      </section>
+    `,
+  })
+
+  blockManager.add("me-benefit-grid", {
+    label: "Beneficios 3 cards",
+    category: "Favoritos",
+    content: `
+      <section style="padding: 64px 24px; background: #ffffff;">
+        <div style="max-width: 1120px; margin: 0 auto;">
+          <h2 style="margin: 0 0 16px; color: #0f122c; font-size: 42px; line-height: 1.1; font-weight: 700;">Beneficios em destaque</h2>
+          <p style="margin: 0 0 28px; color: #475569; font-size: 18px; line-height: 1.8;">Use este bloco para apresentar provas de valor com leitura rapida.</p>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px;">
+            <div style="padding: 28px; border-radius: 24px; background: #f8fafc; border: 1px solid rgba(36, 39, 66, 0.08);">
+              <h3 style="margin: 0 0 12px; color: #242742; font-size: 22px; font-weight: 700;">Clareza</h3>
+              <p style="margin: 0; color: #475569; line-height: 1.8;">Explique aqui o primeiro beneficio principal.</p>
+            </div>
+            <div style="padding: 28px; border-radius: 24px; background: #f8fafc; border: 1px solid rgba(36, 39, 66, 0.08);">
+              <h3 style="margin: 0 0 12px; color: #242742; font-size: 22px; font-weight: 700;">Metodo</h3>
+              <p style="margin: 0; color: #475569; line-height: 1.8;">Explique aqui como a Mariana organiza o estudo.</p>
+            </div>
+            <div style="padding: 28px; border-radius: 24px; background: #f8fafc; border: 1px solid rgba(36, 39, 66, 0.08);">
+              <h3 style="margin: 0 0 12px; color: #242742; font-size: 22px; font-weight: 700;">Resultado</h3>
+              <p style="margin: 0; color: #475569; line-height: 1.8;">Feche com o ganho concreto para o aluno.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    `,
+  })
+
+  blockManager.add("me-legal-header", {
+    label: "Cabecalho legal",
+    category: "Favoritos",
+    content: `
+      <section style="padding: 72px 24px 32px; background: linear-gradient(180deg, #f8fbfd 0%, #ffffff 100%);">
+        <div style="max-width: 900px; margin: 0 auto;">
+          <span style="display: inline-block; margin-bottom: 16px; border-radius: 999px; background: rgba(36, 39, 66, 0.08); padding: 10px 16px; color: #242742; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">Informacao oficial</span>
+          <h1 style="margin: 0 0 12px; color: #0f122c; font-size: 48px; line-height: 1.08; font-weight: 700;">Titulo da pagina legal</h1>
+          <p style="margin: 0; color: #475569; font-size: 18px; line-height: 1.8;">Use este cabecalho para contextualizar a politica, os termos ou a informacao institucional.</p>
+        </div>
+      </section>
+    `,
+  })
+
+  blockManager.add("me-highlight-quote", {
+    label: "Destaque editorial",
+    category: "Favoritos",
+    content: `
+      <section style="padding: 40px 24px;">
+        <div style="max-width: 860px; margin: 0 auto; border-left: 6px solid #242742; border-radius: 0 24px 24px 0; background: #f8fafc; padding: 28px 28px 28px 24px;">
+          <p style="margin: 0; color: #0f122c; font-size: 28px; line-height: 1.5; font-weight: 700;">Uma cita, explicacao-chave ou mensagem da pagina para ganhar destaque visual.</p>
+        </div>
+      </section>
+    `,
+  })
 }
 
 export function syncEditorAssets(
@@ -342,4 +423,47 @@ export function appendImageSection(
   `
 
   editor.addComponents(imageMarkup)
+}
+
+export function setEditorDevice(editor: GrapesEditor, device: SupportedDeviceId) {
+  editor.setDevice(
+    device === "desktop" ? "Desktop" : device === "tablet" ? "Tablet" : "Mobile",
+  )
+}
+
+export function openImageAssetPicker(editor: GrapesEditor) {
+  const assetManager = editor.AssetManager
+
+  assetManager.open({
+    types: ["image"],
+    select(asset: AssetLike, complete: boolean) {
+      const selected = editor.getSelected()
+      const src = asset.getSrc()
+      const name = String(asset.get("name") ?? "").trim()
+
+      if (selected?.is("image")) {
+        selected.addAttributes({
+          src,
+          alt: name || "Imagem",
+        })
+      } else {
+        appendImageSection(editor, {
+          publicUrl: src,
+          fileName: name || "Imagem",
+        })
+      }
+
+      if (complete) {
+        assetManager.close()
+      }
+    },
+  })
+}
+
+export function resetEditorToProjectData(editor: GrapesEditor, projectData: Record<string, unknown>) {
+  editor.loadProjectData(projectData)
+  window.setTimeout(() => {
+    editor.clearDirtyCount()
+    editor.refresh({ tools: true })
+  }, 0)
 }

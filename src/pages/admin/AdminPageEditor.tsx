@@ -32,8 +32,11 @@ import {
   createCanvasStyleLinks,
   extractProjectDataFromVersion,
   getGrapesSnapshot,
+  openImageAssetPicker,
   registerDefaultBlocks,
   registerTinyMceRte,
+  resetEditorToProjectData,
+  setEditorDevice,
   syncEditorAssets,
 } from "@/pages/admin/page-editor/grapesEditor"
 import { getEditorBaselineHtml } from "@/pages/public/editorBaseline"
@@ -87,6 +90,8 @@ export function AdminPageEditor() {
   const [isDirty, setIsDirty] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(true)
   const [editorReady, setEditorReady] = useState(false)
+  const [activeDevice, setActiveDevice] = useState<"desktop" | "tablet" | "mobile">("desktop")
+  const [selectedComponentIsImage, setSelectedComponentIsImage] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
 
@@ -231,6 +236,8 @@ export function AdminPageEditor() {
       editor.on("load", () => {
         editor.loadProjectData(projectData)
         syncEditorAssets(editor, assets)
+        setEditorDevice(editor, "desktop")
+        setActiveDevice("desktop")
 
         window.setTimeout(() => {
           if (editorRef.current !== editor) return
@@ -246,6 +253,15 @@ export function AdminPageEditor() {
       editor.on("update", () => {
         if (hydratingEditorRef.current) return
         setIsDirty(true)
+      })
+
+      editor.on("component:selected", (component) => {
+        setSelectedComponentIsImage(Boolean(component?.is?.("image")))
+      })
+
+      editor.on("component:deselected", () => {
+        const selected = editor.getSelected()
+        setSelectedComponentIsImage(Boolean(selected?.is?.("image")))
       })
     },
     [assets, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
@@ -456,6 +472,53 @@ export function AdminPageEditor() {
     window.open(publicPath, "_blank", "noopener,noreferrer")
   }
 
+  const handleOpenAssetLibrary = () => {
+    const editor = editorRef.current
+    if (!editor) {
+      setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
+      return
+    }
+
+    openImageAssetPicker(editor)
+  }
+
+  const handleResetToBaseline = () => {
+    const editor = editorRef.current
+    if (!editor) {
+      setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
+      return
+    }
+
+    const projectData = extractProjectDataFromVersion({
+      slug: selectedSlug,
+      title: detailQuery.data?.page.title ?? pageSummary?.title ?? DEFAULT_PAGE_TITLES[selectedSlug],
+      fallbackHtml: getEditorBaselineHtml(selectedSlug),
+    })
+
+    hydratingEditorRef.current = true
+    resetEditorToProjectData(editor, projectData)
+
+    window.setTimeout(() => {
+      hydratingEditorRef.current = false
+      setIsDirty(true)
+      setFeedback({
+        tone: "success",
+        message: "Baseline da pagina reaplicada no editor. Guarda o rascunho quando estiveres pronta.",
+      })
+    }, 0)
+  }
+
+  const handleSetDevice = (device: "desktop" | "tablet" | "mobile") => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    setEditorDevice(editor, device)
+    setActiveDevice(device)
+    window.setTimeout(() => {
+      editor.refresh({ tools: true })
+    }, 0)
+  }
+
   const isSaving =
     saveDraftMutation.isPending ||
     publishMutation.isPending ||
@@ -540,6 +603,14 @@ export function AdminPageEditor() {
               <Eye className="mr-2 h-4 w-4" />
               Preview
             </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={handleOpenAssetLibrary} disabled={!editorReady}>
+              <ImagePlus className="mr-2 h-4 w-4" />
+              {selectedComponentIsImage ? "Trocar imagem" : "Biblioteca"}
+            </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={handleResetToBaseline} disabled={!editorReady || isSaving}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Resetar base
+            </Button>
             <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsFullscreen((current) => !current)}>
               {isFullscreen ? <Minimize2 className="mr-2 h-4 w-4" /> : <Maximize2 className="mr-2 h-4 w-4" />}
               {isFullscreen ? "Fechar tela cheia" : "Abrir tela cheia"}
@@ -585,6 +656,32 @@ export function AdminPageEditor() {
             {feedback.message}
           </div>
         ) : null}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+          <span className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Viewport</span>
+          {([
+            { id: "desktop", label: "Desktop" },
+            { id: "tablet", label: "Tablet" },
+            { id: "mobile", label: "Mobile" },
+          ] as const).map((device) => (
+            <button
+              key={device.id}
+              type="button"
+              onClick={() => handleSetDevice(device.id)}
+              className={[
+                "rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition",
+                activeDevice === device.id
+                  ? "border-[#242742] bg-[#242742] text-white"
+                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white",
+              ].join(" ")}
+            >
+              {device.label}
+            </button>
+          ))}
+          <span className="ml-auto text-xs text-slate-500">
+            Dica: clica no texto para editar em linha e usa a biblioteca para substituir imagens sem mexer no HTML.
+          </span>
+        </div>
       </section>
 
       <section className="space-y-6">
