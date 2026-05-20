@@ -852,10 +852,74 @@ function selectText(element: ParentNode, selector: string) {
   return normalizeText(found.textContent)
 }
 
-function selectAttr(element: ParentNode, selector: string, attribute: string) {
-  const found = element.querySelector(selector)
-  if (!(found instanceof Element)) return ""
-  return String(found.getAttribute(attribute) ?? "").trim()
+function selectFirstText(element: ParentNode, selectors: string[]) {
+  for (const selector of selectors) {
+    const value = selectText(element, selector)
+    if (value) return value
+  }
+  return ""
+}
+
+function findNodeByClassToken(scope: ParentNode, classToken: string) {
+  return scope.querySelector(`[class*="${classToken}"]`)
+}
+
+function getDirectChildren(element: Element | null) {
+  if (!element) return [] as Element[]
+  return Array.from(element.children).filter((child): child is Element => child instanceof Element)
+}
+
+type TextCard = { eyebrow: string; text: string; element: Element }
+
+function extractSpanParagraphCards(scope: ParentNode) {
+  const candidates = Array.from(scope.querySelectorAll("div,article,section")).filter((node): node is Element => node instanceof Element)
+  const cards: TextCard[] = []
+
+  candidates.forEach((node) => {
+    const span = node.querySelector(":scope > span")
+    const paragraph = node.querySelector(":scope > p")
+    if (!span || !paragraph) return
+
+    const eyebrow = normalizeText(span.textContent)
+    const text = normalizeText(paragraph.textContent)
+    if (!eyebrow || !text) return
+
+    cards.push({ eyebrow, text, element: node })
+  })
+
+  return cards
+}
+
+function stripBulletToken(value: string) {
+  return value.replace(/^[-•·\s]+/, "").trim()
+}
+
+function extractListItemTexts(item: Element) {
+  const spans = Array.from(item.querySelectorAll("span"))
+    .map((span) => stripBulletToken(normalizeText(span.textContent)))
+    .filter((value) => value.length > 0 && value !== "•")
+
+  if (spans.length >= 2) {
+    return {
+      first: spans[0],
+      second: spans[1],
+    }
+  }
+
+  const text = stripBulletToken(normalizeText(item.textContent))
+  if (!text) {
+    return { first: "", second: "" }
+  }
+
+  const separatorIndex = text.indexOf(":")
+  if (separatorIndex > -1) {
+    return {
+      first: `${text.slice(0, separatorIndex + 1).trim()}`,
+      second: text.slice(separatorIndex + 1).trim(),
+    }
+  }
+
+  return { first: text, second: "" }
 }
 
 function buildHomeStructuredDataFromDefaults(): Data {
@@ -903,54 +967,100 @@ function convertHomeHtmlToStructuredData(html: string): Data {
 
   const heroProps = heroNode ? extractHomeHeroSectionProps(heroNode) : null
 
+  const objectiveScope = objectiveNode ?? root
+  const objectiveTopGrid =
+    (findNodeByClassToken(objectiveScope, "lg:grid-cols-2") as Element | null) ??
+    (objectiveScope.querySelector("div") as Element | null)
+  const objectiveTopChildren = getDirectChildren(objectiveTopGrid)
+  const objectiveMainColumn = objectiveTopChildren[0] ?? null
+  const objectiveMainCards = objectiveMainColumn ? extractSpanParagraphCards(objectiveMainColumn) : []
+  const objectiveMainCard = objectiveMainCards[0] ?? null
+
+  const objectiveFeaturesGrid = findNodeByClassToken(objectiveScope, "sm:grid-cols-2")
+  const objectiveFeatureCards = objectiveFeaturesGrid ? extractSpanParagraphCards(objectiveFeaturesGrid) : []
+
+  const feature1 = objectiveFeatureCards[0] ?? null
+  const feature2 = objectiveFeatureCards[1] ?? null
+  const feature3 = objectiveFeatureCards[2] ?? null
+  const feature4 = objectiveFeatureCards[3] ?? null
+
   const objectiveProps = {
     badge:
-      selectText(objectiveNode ?? root, "div > span") ||
-      selectText(objectiveNode ?? root, "span") ||
+      objectiveMainCard?.eyebrow ||
+      selectFirstText(objectiveScope, ["div > span", "span"]) ||
       HOME_DEFAULTS.objective.badge,
     text:
-      selectText(objectiveNode ?? root, "div > p") ||
-      selectText(objectiveNode ?? root, "p") ||
+      objectiveMainCard?.text ||
+      selectFirstText(objectiveScope, ["div > p", "p"]) ||
       HOME_DEFAULTS.objective.text,
-    feature1Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > span") || HOME_DEFAULTS.objective.feature1Eyebrow,
-    feature1Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > p") || HOME_DEFAULTS.objective.feature1Text,
-    feature2Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > span") || HOME_DEFAULTS.objective.feature2Eyebrow,
-    feature2Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > p") || HOME_DEFAULTS.objective.feature2Text,
-    feature3Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > span") || HOME_DEFAULTS.objective.feature3Eyebrow,
-    feature3Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > p") || HOME_DEFAULTS.objective.feature3Text,
-    feature4Eyebrow: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(4) > span") || HOME_DEFAULTS.objective.feature4Eyebrow,
-    feature4Text: selectText(objectiveNode ?? root, "div:nth-of-type(2) > div:nth-of-type(4) > p") || HOME_DEFAULTS.objective.feature4Text,
+    feature1Eyebrow: feature1?.eyebrow || HOME_DEFAULTS.objective.feature1Eyebrow,
+    feature1Text: feature1?.text || HOME_DEFAULTS.objective.feature1Text,
+    feature2Eyebrow: feature2?.eyebrow || HOME_DEFAULTS.objective.feature2Eyebrow,
+    feature2Text: feature2?.text || HOME_DEFAULTS.objective.feature2Text,
+    feature3Eyebrow: feature3?.eyebrow || HOME_DEFAULTS.objective.feature3Eyebrow,
+    feature3Text: feature3?.text || HOME_DEFAULTS.objective.feature3Text,
+    feature4Eyebrow: feature4?.eyebrow || HOME_DEFAULTS.objective.feature4Eyebrow,
+    feature4Text: feature4?.text || HOME_DEFAULTS.objective.feature4Text,
   }
+
+  const stepsScope = stepsNode ?? root
+  const stepsGrid = findNodeByClassToken(stepsScope, "md:grid-cols-3")
+  const stepCards = stepsGrid ? extractSpanParagraphCards(stepsGrid) : []
+  const step1 = stepCards[0] ?? null
+  const step2 = stepCards[1] ?? null
+  const step3 = stepCards[2] ?? null
 
   const stepsProps = {
-    title: selectText(stepsNode ?? root, "h2") || HOME_DEFAULTS.steps.title,
-    subtitle: selectText(stepsNode ?? root, "div > p") || HOME_DEFAULTS.steps.subtitle,
-    step1Eyebrow: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > span") || HOME_DEFAULTS.steps.step1Eyebrow,
-    step1Text: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(1) > p") || HOME_DEFAULTS.steps.step1Text,
-    step2Eyebrow: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > span") || HOME_DEFAULTS.steps.step2Eyebrow,
-    step2Text: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(2) > p") || HOME_DEFAULTS.steps.step2Text,
-    step3Eyebrow: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > span") || HOME_DEFAULTS.steps.step3Eyebrow,
-    step3Text: selectText(stepsNode ?? root, "div:nth-of-type(2) > div:nth-of-type(3) > p") || HOME_DEFAULTS.steps.step3Text,
+    title: selectFirstText(stepsScope, ["h2", "h1"]) || HOME_DEFAULTS.steps.title,
+    subtitle: selectFirstText(stepsScope, ["div > p", "p"]) || HOME_DEFAULTS.steps.subtitle,
+    step1Eyebrow: step1?.eyebrow || HOME_DEFAULTS.steps.step1Eyebrow,
+    step1Text: step1?.text || HOME_DEFAULTS.steps.step1Text,
+    step2Eyebrow: step2?.eyebrow || HOME_DEFAULTS.steps.step2Eyebrow,
+    step2Text: step2?.text || HOME_DEFAULTS.steps.step2Text,
+    step3Eyebrow: step3?.eyebrow || HOME_DEFAULTS.steps.step3Eyebrow,
+    step3Text: step3?.text || HOME_DEFAULTS.steps.step3Text,
   }
 
+  const trustScope = trustNode ?? root
+  const trustTopGrid =
+    (findNodeByClassToken(trustScope, "lg:grid-cols-2") as Element | null) ??
+    (trustScope.querySelector("div") as Element | null)
+  const trustColumns = getDirectChildren(trustTopGrid)
+  const trustLeftColumn = trustColumns[0] ?? null
+  const trustRightColumn = trustColumns[1] ?? null
+
+  const trustLeftItems = trustLeftColumn
+    ? Array.from(trustLeftColumn.querySelectorAll("ul > li"))
+        .map((item) => extractListItemTexts(item))
+        .filter((item) => item.first.length > 0 || item.second.length > 0)
+    : []
+
+  const trustRightItems = trustRightColumn
+    ? Array.from(trustRightColumn.querySelectorAll("ul > li"))
+        .map((item) => stripBulletToken(normalizeText(item.textContent)))
+        .filter(Boolean)
+    : []
+
+  const trustRightLinks = trustRightColumn
+    ? Array.from(trustRightColumn.querySelectorAll("a[href]")).filter((link): link is HTMLAnchorElement => link instanceof HTMLAnchorElement)
+    : []
+
   const trustProps = {
-    leftTitle: selectText(trustNode ?? root, "div:nth-of-type(1) h3") || HOME_DEFAULTS.trust.leftTitle,
-    left1Title: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(1) span:first-of-type") || HOME_DEFAULTS.trust.left1Title,
-    left1Text: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(1) span:last-of-type") || HOME_DEFAULTS.trust.left1Text,
-    left2Title: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(2) span:first-of-type") || HOME_DEFAULTS.trust.left2Title,
-    left2Text: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(2) span:last-of-type") || HOME_DEFAULTS.trust.left2Text,
-    left3Title: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(3) span:first-of-type") || HOME_DEFAULTS.trust.left3Title,
-    left3Text: selectText(trustNode ?? root, "div:nth-of-type(1) ul li:nth-of-type(3) span:last-of-type") || HOME_DEFAULTS.trust.left3Text,
-    rightTitle: selectText(trustNode ?? root, "div:nth-of-type(2) h3") || HOME_DEFAULTS.trust.rightTitle,
-    right1Text: selectText(trustNode ?? root, "div:nth-of-type(2) ul li:nth-of-type(1) span:last-of-type") || HOME_DEFAULTS.trust.right1Text,
-    right2Text: selectText(trustNode ?? root, "div:nth-of-type(2) ul li:nth-of-type(2) span:last-of-type") || HOME_DEFAULTS.trust.right2Text,
-    right3Text: selectText(trustNode ?? root, "div:nth-of-type(2) ul li:nth-of-type(3) span:last-of-type") || HOME_DEFAULTS.trust.right3Text,
-    primaryCtaLabel: selectText(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(1)") || HOME_DEFAULTS.trust.primaryCtaLabel,
-    primaryCtaHref:
-      selectAttr(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(1)", "href") || HOME_DEFAULTS.trust.primaryCtaHref,
-    secondaryCtaLabel: selectText(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(2)") || HOME_DEFAULTS.trust.secondaryCtaLabel,
-    secondaryCtaHref:
-      selectAttr(trustNode ?? root, "div:nth-of-type(2) a:nth-of-type(2)", "href") || HOME_DEFAULTS.trust.secondaryCtaHref,
+    leftTitle: (trustLeftColumn && selectFirstText(trustLeftColumn, ["h3"])) || HOME_DEFAULTS.trust.leftTitle,
+    left1Title: trustLeftItems[0]?.first || HOME_DEFAULTS.trust.left1Title,
+    left1Text: trustLeftItems[0]?.second || HOME_DEFAULTS.trust.left1Text,
+    left2Title: trustLeftItems[1]?.first || HOME_DEFAULTS.trust.left2Title,
+    left2Text: trustLeftItems[1]?.second || HOME_DEFAULTS.trust.left2Text,
+    left3Title: trustLeftItems[2]?.first || HOME_DEFAULTS.trust.left3Title,
+    left3Text: trustLeftItems[2]?.second || HOME_DEFAULTS.trust.left3Text,
+    rightTitle: (trustRightColumn && selectFirstText(trustRightColumn, ["h3"])) || HOME_DEFAULTS.trust.rightTitle,
+    right1Text: trustRightItems[0] || HOME_DEFAULTS.trust.right1Text,
+    right2Text: trustRightItems[1] || HOME_DEFAULTS.trust.right2Text,
+    right3Text: trustRightItems[2] || HOME_DEFAULTS.trust.right3Text,
+    primaryCtaLabel: normalizeText(trustRightLinks[0]?.textContent) || HOME_DEFAULTS.trust.primaryCtaLabel,
+    primaryCtaHref: String(trustRightLinks[0]?.getAttribute("href") ?? "").trim() || HOME_DEFAULTS.trust.primaryCtaHref,
+    secondaryCtaLabel: normalizeText(trustRightLinks[1]?.textContent) || HOME_DEFAULTS.trust.secondaryCtaLabel,
+    secondaryCtaHref: String(trustRightLinks[1]?.getAttribute("href") ?? "").trim() || HOME_DEFAULTS.trust.secondaryCtaHref,
   }
 
   const blocks: PuckBlock[] = [
