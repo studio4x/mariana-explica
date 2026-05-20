@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import grapesjs, { type Editor as GrapesEditor } from "grapesjs"
 import "grapesjs/dist/css/grapes.min.css"
-import "tinymce/skins/ui/oxide/skin.css"
-import "tinymce/skins/content/default/content.css"
 import {
   Eye,
   FileClock,
@@ -34,7 +32,7 @@ import {
   getGrapesSnapshot,
   openImageAssetPicker,
   registerDefaultBlocks,
-  registerTinyMceRte,
+  registerTiptapRte,
   resetEditorToProjectData,
   setEditorDevice,
   syncEditorAssets,
@@ -225,7 +223,7 @@ export function AdminPageEditor() {
         },
         plugins: [
           (instance) => {
-            registerTinyMceRte(instance, richTextToolbarRef.current)
+            registerTiptapRte(instance, richTextToolbarRef.current)
             registerDefaultBlocks(instance)
           },
         ],
