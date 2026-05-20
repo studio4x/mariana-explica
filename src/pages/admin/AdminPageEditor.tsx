@@ -30,6 +30,7 @@ import {
   createCanvasStyleLinks,
   extractProjectDataFromVersion,
   getGrapesSnapshot,
+  getProjectLayoutKind,
   openImageAssetPicker,
   registerDefaultBlocks,
   registerTiptapRte,
@@ -126,6 +127,7 @@ export function AdminPageEditor() {
     () => versions.find((version) => version.id === selectedVersionId) ?? null,
     [selectedVersionId, versions],
   )
+  const activeVersionLayoutKind = getProjectLayoutKind(selectedVersion?.layout_json)
 
   const activeDeviceLabel = useMemo(() => {
     const labels = {
@@ -670,6 +672,11 @@ export function AdminPageEditor() {
               }
               tone={isDirty ? "warning" : publishedVersionId ? "success" : "neutral"}
             />
+            {activeVersionLayoutKind === "legacy" ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-800">
+                Conteudo legado convertido para GrapesJS
+              </span>
+            ) : null}
             <Button
               type="button"
               variant="outline"

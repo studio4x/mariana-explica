@@ -77,6 +77,23 @@ function getLayoutHtml(layoutJson: Record<string, unknown> | undefined) {
   return ""
 }
 
+function getLayoutVersionKind(layoutJson: Record<string, unknown> | undefined) {
+  if (!layoutJson || typeof layoutJson !== "object") return "unknown"
+
+  const schemaVersion = Number(layoutJson.schema_version ?? 0)
+  const editorKind = String(layoutJson.editor ?? "").trim().toLowerCase()
+
+  if (editorKind === "grapesjs" && schemaVersion >= 2) {
+    return "grapesjs"
+  }
+
+  if (typeof layoutJson.html === "string" || layoutJson.projectData || layoutJson.puckData || layoutJson.data) {
+    return "legacy"
+  }
+
+  return "unknown"
+}
+
 export function extractStyleCss(styleJson: Record<string, unknown> | undefined) {
   if (!styleJson || typeof styleJson !== "object") return ""
 
@@ -122,11 +139,13 @@ export function extractProjectDataFromVersion(input: {
   styleJson?: Record<string, unknown>
   fallbackHtml: string
 }) {
+  const layoutKind = getLayoutVersionKind(input.layoutJson)
   const html = getLayoutHtml(input.layoutJson) || input.fallbackHtml || DEFAULT_EMPTY_PAGE
   const css = extractStyleCss(input.styleJson)
 
   const directProjectData = input.layoutJson?.projectData
   if (
+    layoutKind === "grapesjs" &&
     directProjectData &&
     typeof directProjectData === "object" &&
     Array.isArray((directProjectData as { pages?: unknown }).pages)
@@ -140,6 +159,10 @@ export function extractProjectDataFromVersion(input: {
     html,
     css,
   })
+}
+
+export function getProjectLayoutKind(layoutJson: Record<string, unknown> | undefined) {
+  return getLayoutVersionKind(layoutJson)
 }
 
 export function getGrapesSnapshot(editor: GrapesEditor) {
