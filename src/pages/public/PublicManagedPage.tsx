@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import type { ReactNode } from "react"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
+import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import type { SitePageSlug } from "@/types/app.types"
 import "@/styles/public-page-builder.css"
 
@@ -106,7 +107,29 @@ export function PublicManagedPage({ slug, fallback, widgets = [] }: PublicManage
   const pageQuery = usePublicSitePage(slug)
   const widgetRootsRef = useRef<Root[]>([])
   const htmlContainerRef = useRef<HTMLDivElement | null>(null)
-  const rendered = resolvePublishedHtml(pageQuery.data)
+  const previewPayload = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null
+    }
+
+    return readSitePagePreviewFromSearch(slug, window.location.search)
+  }, [slug])
+  const rendered = resolvePublishedHtml(
+    previewPayload
+      ? {
+          version: {
+            layout_json: {
+              editor: "grapesjs",
+              schema_version: 2,
+              html: previewPayload.html,
+            },
+            style_json: {
+              css: previewPayload.css,
+            },
+          },
+        }
+      : pageQuery.data,
+  )
   const htmlWithWidgets = useMemo(
     () => (rendered ? injectWidgetPlaceholders(rendered.html, widgets) : ""),
     [rendered, widgets],
@@ -143,11 +166,11 @@ export function PublicManagedPage({ slug, fallback, widgets = [] }: PublicManage
     }
   }, [htmlWithWidgets, rendered, widgets])
 
-  if (pageQuery.isLoading) {
+  if (pageQuery.isLoading && !previewPayload) {
     return <>{fallback}</>
   }
 
-  if (pageQuery.isError) {
+  if (pageQuery.isError && !previewPayload) {
     return <>{fallback}</>
   }
 

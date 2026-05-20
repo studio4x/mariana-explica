@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import grapesjs, { type Editor as GrapesEditor } from "grapesjs"
 import "grapesjs/dist/css/grapes.min.css"
+import { useBlocker } from "react-router-dom"
 import {
   Eye,
   FileClock,
@@ -26,7 +27,12 @@ import {
 } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
 import {
+  createSitePagePreviewUrl,
+  storeSitePagePreview,
+} from "@/lib/site-page-preview"
+import {
   appendImageSection,
+  filterBlocksSidebar,
   createCanvasStyleLinks,
   extractProjectDataFromVersion,
   getGrapesSnapshot,
@@ -87,6 +93,7 @@ function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: st
 export function AdminPageEditor() {
   const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
+  const [blockSearch, setBlockSearch] = useState("")
   const [isDirty, setIsDirty] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(true)
   const [editorReady, setEditorReady] = useState(false)
@@ -138,6 +145,22 @@ export function AdminPageEditor() {
 
     return labels[activeDevice]
   }, [activeDevice])
+
+  const isSaving =
+    saveDraftMutation.isPending ||
+    publishMutation.isPending ||
+    rollbackMutation.isPending ||
+    uploadAssetMutation.isPending
+
+  const confirmDiscardChanges = useCallback((nextActionLabel: string) => {
+    if (!isDirty) {
+      return true
+    }
+
+    return window.confirm(
+      `Existem alteracoes nao guardadas. Queres mesmo continuar para ${nextActionLabel}?`,
+    )
+  }, [isDirty])
 
   const destroyEditor = useCallback(() => {
     const editor = editorRef.current
@@ -268,6 +291,7 @@ export function AdminPageEditor() {
             traitCategories: traitCategoriesRef.current,
             traits: traitsSidebarRef.current,
           })
+          filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
           editor.clearDirtyCount()
           editor.refresh({ tools: true })
           hydratingEditorRef.current = false
@@ -291,6 +315,7 @@ export function AdminPageEditor() {
             traitCategories: traitCategoriesRef.current,
             traits: traitsSidebarRef.current,
           })
+          filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
         }, 0)
       })
 
@@ -305,10 +330,11 @@ export function AdminPageEditor() {
             traitCategories: traitCategoriesRef.current,
             traits: traitsSidebarRef.current,
           })
+          filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
         }, 0)
       })
     },
-    [assets, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
+    [assets, blockSearch, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
   )
 
   useEffect(() => {
@@ -316,6 +342,14 @@ export function AdminPageEditor() {
       destroyEditor()
     }
   }, [destroyEditor])
+
+  useEffect(() => {
+    if (!editorReady) {
+      return
+    }
+
+    filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
+  }, [blockSearch, editorReady])
 
   useEffect(() => {
     if (!isFullscreen) return
@@ -366,6 +400,57 @@ export function AdminPageEditor() {
       editor.refresh({ tools: true })
     }, 0)
   }, [editorReady, isFullscreen])
+
+  useEffect(() => {
+    if (!isDirty) {
+      return
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [isDirty])
+
+  const navigationBlocker = useBlocker(isDirty)
+
+  useEffect(() => {
+    if (navigationBlocker.state !== "blocked") {
+      return
+    }
+
+    if (window.confirm("Existem alteracoes nao guardadas. Queres sair desta pagina mesmo assim?")) {
+      navigationBlocker.proceed()
+      return
+    }
+
+    navigationBlocker.reset()
+  }, [navigationBlocker])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        return
+      }
+
+      if (isSaving || !editorReady) {
+        return
+      }
+
+      event.preventDefault()
+      void handleSaveDraft()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [editorReady, isSaving])
 
   const handleSaveDraft = async () => {
     const editor = editorRef.current
@@ -462,6 +547,10 @@ export function AdminPageEditor() {
   }
 
   const handleLoadVersion = (version: AdminSitePageVersion) => {
+    if (!confirmDiscardChanges(`carregar a versao ${version.version_number}`)) {
+      return
+    }
+
     loadedSlugRef.current = selectedSlug
     loadedVersionIdRef.current = version.id
     setSelectedVersionId(version.id)
@@ -513,7 +602,22 @@ export function AdminPageEditor() {
 
   const handlePreview = () => {
     const publicPath = getPublicPathForSlug(selectedSlug)
-    window.open(publicPath, "_blank", "noopener,noreferrer")
+    const editor = editorRef.current
+
+    if (!editor) {
+      window.open(publicPath, "_blank", "noopener,noreferrer")
+      return
+    }
+
+    const snapshot = getGrapesSnapshot(editor)
+    const token = storeSitePagePreview({
+      slug: selectedSlug,
+      html: snapshot.html,
+      css: snapshot.css ?? "",
+    })
+
+    const targetUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
+    window.open(targetUrl, "_blank", "noopener,noreferrer")
   }
 
   const handleOpenAssetLibrary = () => {
@@ -530,6 +634,10 @@ export function AdminPageEditor() {
     const editor = editorRef.current
     if (!editor) {
       setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
+      return
+    }
+
+    if (!confirmDiscardChanges("resetar o canvas para a baseline da pagina")) {
       return
     }
 
@@ -562,12 +670,6 @@ export function AdminPageEditor() {
       editor.refresh({ tools: true })
     }, 0)
   }
-
-  const isSaving =
-    saveDraftMutation.isPending ||
-    publishMutation.isPending ||
-    rollbackMutation.isPending ||
-    uploadAssetMutation.isPending
 
   if (pagesQuery.isLoading && !pagesQuery.data) {
     return <LoadingState message="A carregar editor visual..." />
@@ -613,7 +715,20 @@ export function AdminPageEditor() {
             <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Pagina</span>
             <select
               value={selectedSlug}
-              onChange={(event) => setSelectedSlug(event.target.value as SitePageSlug)}
+              onChange={(event) => {
+                const nextSlug = event.target.value as SitePageSlug
+                if (nextSlug === selectedSlug) {
+                  return
+                }
+
+                if (!confirmDiscardChanges(`abrir a pagina ${getTitleForSlug(nextSlug)}`)) {
+                  event.target.value = selectedSlug
+                  return
+                }
+
+                setSelectedSlug(nextSlug)
+                setFeedback(null)
+              }}
               className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-slate-400"
             >
               {PAGE_OPTIONS.map((option) => (
@@ -741,6 +856,13 @@ export function AdminPageEditor() {
                   <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Blocks</p>
                   <span className="text-[11px] text-[#7f8ba0]">Arrasta para o canvas</span>
                 </div>
+                <input
+                  type="search"
+                  value={blockSearch}
+                  onChange={(event) => setBlockSearch(event.target.value)}
+                  placeholder="Buscar bloco"
+                  className="h-11 rounded-xl border border-white/10 bg-[#111827] px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/60"
+                />
                 <div ref={blocksSidebarRef} className="me-page-editor-panel-slot" />
               </div>
 

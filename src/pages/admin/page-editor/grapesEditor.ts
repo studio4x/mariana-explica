@@ -645,6 +645,27 @@ export function renderBlocksSidebar(editor: GrapesEditor, container: HTMLElement
   }
 }
 
+export function filterBlocksSidebar(container: HTMLElement | null, query: string) {
+  if (!container) return
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>(".gjs-block"))
+
+  blocks.forEach((block) => {
+    const label = block.textContent?.trim().toLowerCase() ?? ""
+    const matches = !normalizedQuery || label.includes(normalizedQuery)
+    block.style.display = matches ? "" : "none"
+  })
+
+  const categories = Array.from(container.querySelectorAll<HTMLElement>(".gjs-block-category"))
+  categories.forEach((category) => {
+    const hasVisibleBlock = Array.from(category.querySelectorAll<HTMLElement>(".gjs-block")).some(
+      (block) => block.style.display !== "none",
+    )
+    category.style.display = hasVisibleBlock ? "" : "none"
+  })
+}
+
 export function renderLayersSidebar(editor: GrapesEditor, container: HTMLElement | null) {
   if (!container) return
 
