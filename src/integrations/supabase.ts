@@ -198,9 +198,47 @@ function createNoopSupabaseClient() {
   }
 }
 
+function createSerializedAuthClient(client: ReturnType<typeof createClient>): SupabaseLike {
+  let authOperationPromise: Promise<unknown> | null = null
+
+  const runSerializedAuthOperation = <T,>(operation: () => Promise<T>) => {
+    if (!authOperationPromise) {
+      authOperationPromise = operation().finally(() => {
+        authOperationPromise = null
+      })
+    }
+
+    return authOperationPromise as Promise<T>
+  }
+
+  return {
+    ...client,
+    auth: {
+      ...client.auth,
+      getSession: () => runSerializedAuthOperation(() => client.auth.getSession()),
+      refreshSession: () => runSerializedAuthOperation(() => client.auth.refreshSession()),
+      exchangeCodeForSession: (code: string) =>
+        runSerializedAuthOperation(() => client.auth.exchangeCodeForSession(code)),
+      verifyOtp: (...args: Parameters<typeof client.auth.verifyOtp>) =>
+        runSerializedAuthOperation(() => client.auth.verifyOtp(...args)),
+      setSession: (...args: Parameters<typeof client.auth.setSession>) =>
+        runSerializedAuthOperation(() => client.auth.setSession(...args)),
+      signInWithPassword: (...args: Parameters<typeof client.auth.signInWithPassword>) =>
+        runSerializedAuthOperation(() => client.auth.signInWithPassword(...args)),
+      signUp: (...args: Parameters<typeof client.auth.signUp>) =>
+        runSerializedAuthOperation(() => client.auth.signUp(...args)),
+      resetPasswordForEmail: (...args: Parameters<typeof client.auth.resetPasswordForEmail>) =>
+        runSerializedAuthOperation(() => client.auth.resetPasswordForEmail(...args)),
+      updateUser: (...args: Parameters<typeof client.auth.updateUser>) =>
+        runSerializedAuthOperation(() => client.auth.updateUser(...args)),
+      signOut: () => runSerializedAuthOperation(() => client.auth.signOut()),
+    },
+  } as unknown as SupabaseLike
+}
+
 export const supabase: SupabaseLike =
   SUPABASE_URL && SUPABASE_ANON_KEY
-    ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY) as unknown as SupabaseLike)
+    ? createSerializedAuthClient(createClient(SUPABASE_URL, SUPABASE_ANON_KEY))
     : createNoopSupabaseClient()
 
 export const publicSupabase: SupabaseLike =
