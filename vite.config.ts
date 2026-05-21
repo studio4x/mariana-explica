@@ -60,6 +60,49 @@ const buildMetadata = {
   deployShort,
 }
 
+function resolveVendorChunk(id: string) {
+  if (!id.includes("node_modules")) {
+    return undefined
+  }
+
+  if (id.includes("node_modules/grapesjs")) {
+    return "vendor-editor-grapesjs"
+  }
+
+  if (
+    id.includes("node_modules/@tiptap") ||
+    id.includes("node_modules/prosemirror")
+  ) {
+    return "vendor-editor-tiptap"
+  }
+
+  if (id.includes("node_modules/@supabase")) {
+    return "vendor-supabase"
+  }
+
+  if (
+    id.includes("node_modules/react/") ||
+    id.includes("node_modules/react-dom/") ||
+    id.includes("node_modules/react-router/") ||
+    id.includes("node_modules/react-router-dom/") ||
+    id.includes("node_modules/@tanstack/react-query")
+  ) {
+    return "vendor-react"
+  }
+
+  if (
+    id.includes("node_modules/@radix-ui/") ||
+    id.includes("node_modules/lucide-react/") ||
+    id.includes("node_modules/clsx/") ||
+    id.includes("node_modules/class-variance-authority/") ||
+    id.includes("node_modules/tailwind-merge/")
+  ) {
+    return "vendor-ui"
+  }
+
+  return "vendor-misc"
+}
+
 export default defineConfig({
   base,
   define: {
@@ -70,6 +113,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          return resolveVendorChunk(id)
+        },
+      },
     },
   },
 })

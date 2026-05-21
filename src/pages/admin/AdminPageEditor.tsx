@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import grapesjs, { type Editor as GrapesEditor } from "grapesjs"
-import "grapesjs/dist/css/grapes.min.css"
+import type { Editor as GrapesEditor } from "grapesjs"
 import { useBlocker } from "react-router-dom"
 import {
   Eye,
@@ -39,16 +38,36 @@ import {
   getProjectLayoutKind,
   openImageAssetPicker,
   registerDefaultBlocks,
-  registerTiptapRte,
   resetEditorToProjectData,
   setEditorDevice,
   syncEditorAssets,
   renderStudioSidebars,
 } from "@/pages/admin/page-editor/grapesEditor"
 import { getEditorBaselineHtml } from "@/pages/public/editorBaseline"
+import type { registerTiptapRte as RegisterTiptapRte } from "@/pages/admin/page-editor/tiptapRte"
 import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
 import "@/styles/admin-page-editor.css"
+
+let visualEditorRuntimePromise: Promise<{
+  grapesjs: typeof import("grapesjs")["default"]
+  registerTiptapRte: typeof RegisterTiptapRte
+}> | null = null
+
+async function loadVisualEditorRuntime() {
+  if (!visualEditorRuntimePromise) {
+    visualEditorRuntimePromise = Promise.all([
+      import("grapesjs"),
+      import("grapesjs/dist/css/grapes.min.css"),
+      import("@/pages/admin/page-editor/tiptapRte"),
+    ]).then(([grapesModule, _styles, tiptapModule]) => ({
+      grapesjs: grapesModule.default,
+      registerTiptapRte: tiptapModule.registerTiptapRte,
+    }))
+  }
+
+  return visualEditorRuntimePromise
+}
 
 const PAGE_OPTIONS: Array<{ slug: SitePageSlug; label: string; publicPath: string }> = [
   { slug: "home", label: "Home", publicPath: "/" },
@@ -113,6 +132,7 @@ export function AdminPageEditor() {
   const loadedVersionIdRef = useRef<string>("")
   const loadedSlugRef = useRef<string>("")
   const hydratingEditorRef = useRef(false)
+  const editorInitRequestIdRef = useRef(0)
 
   const pagesQuery = useAdminSitePages()
   const detailQuery = useAdminSitePageDetail(selectedSlug)
@@ -172,9 +192,10 @@ export function AdminPageEditor() {
   }, [])
 
   const mountEditorForVersion = useCallback(
-    (version: AdminSitePageVersion | null) => {
+    async (version: AdminSitePageVersion | null) => {
       const container = editorContainerRef.current
       if (!container) return
+      const requestId = ++editorInitRequestIdRef.current
 
       const fallbackHtml = getEditorBaselineHtml(selectedSlug)
       const pageTitle = detailQuery.data?.page.title ?? pageSummary?.title ?? DEFAULT_PAGE_TITLES[selectedSlug]
@@ -191,148 +212,167 @@ export function AdminPageEditor() {
       setEditorReady(false)
       container.innerHTML = ""
 
-      const editor = grapesjs.init({
-        container,
-        height: "100%",
-        width: "auto",
-        storageManager: false,
-        noticeOnUnload: false,
-        panels: {
-          defaults: [],
-        },
-        selectorManager: {
-          componentFirst: true,
-        },
-        assetManager: {
-          upload: false,
-          autoAdd: false,
-          assets: [],
-        },
-        deviceManager: {
-          devices: [
-            { id: "desktop", name: "Desktop", width: "" },
-            { id: "tablet", name: "Tablet", width: "768px", widthMedia: "992px" },
-            { id: "mobile", name: "Mobile", width: "390px", widthMedia: "575px" },
-          ],
-        },
-        styleManager: {
-          sectors: [
-            {
-              name: "Layout",
-              open: true,
-              properties: ["display", "position", "top", "right", "bottom", "left"],
-            },
-            {
-              name: "Espacamento",
-              open: true,
-              properties: [
-                "margin",
-                "padding",
-                "width",
-                "height",
-                "max-width",
-                "min-height",
-              ],
-            },
-            {
-              name: "Tipografia",
-              open: true,
-              properties: [
-                "font-family",
-                "font-size",
-                "font-weight",
-                "line-height",
-                "letter-spacing",
-                "color",
-                "text-align",
-                "text-decoration",
-                "text-transform",
-              ],
-            },
-            {
-              name: "Decoracao",
-              open: false,
-              properties: [
-                "background-color",
-                "border",
-                "border-radius",
-                "box-shadow",
-                "opacity",
-              ],
-            },
-          ],
-        },
-        canvas: {
-          styles: createCanvasStyleLinks(),
-        },
-        plugins: [
-          (instance) => {
-            registerTiptapRte(instance, richTextToolbarRef.current)
-            registerDefaultBlocks(instance)
+      try {
+        const { grapesjs, registerTiptapRte } = await loadVisualEditorRuntime()
+
+        if (editorInitRequestIdRef.current !== requestId || editorContainerRef.current !== container) {
+          return
+        }
+
+        const editor = grapesjs.init({
+          container,
+          height: "100%",
+          width: "auto",
+          storageManager: false,
+          noticeOnUnload: false,
+          panels: {
+            defaults: [],
           },
-        ],
-      })
+          selectorManager: {
+            componentFirst: true,
+          },
+          assetManager: {
+            upload: false,
+            autoAdd: false,
+            assets: [],
+          },
+          deviceManager: {
+            devices: [
+              { id: "desktop", name: "Desktop", width: "" },
+              { id: "tablet", name: "Tablet", width: "768px", widthMedia: "992px" },
+              { id: "mobile", name: "Mobile", width: "390px", widthMedia: "575px" },
+            ],
+          },
+          styleManager: {
+            sectors: [
+              {
+                name: "Layout",
+                open: true,
+                properties: ["display", "position", "top", "right", "bottom", "left"],
+              },
+              {
+                name: "Espacamento",
+                open: true,
+                properties: [
+                  "margin",
+                  "padding",
+                  "width",
+                  "height",
+                  "max-width",
+                  "min-height",
+                ],
+              },
+              {
+                name: "Tipografia",
+                open: true,
+                properties: [
+                  "font-family",
+                  "font-size",
+                  "font-weight",
+                  "line-height",
+                  "letter-spacing",
+                  "color",
+                  "text-align",
+                  "text-decoration",
+                  "text-transform",
+                ],
+              },
+              {
+                name: "Decoracao",
+                open: false,
+                properties: [
+                  "background-color",
+                  "border",
+                  "border-radius",
+                  "box-shadow",
+                  "opacity",
+                ],
+              },
+            ],
+          },
+          canvas: {
+            styles: createCanvasStyleLinks(),
+          },
+          plugins: [
+            (instance) => {
+              registerTiptapRte(instance, richTextToolbarRef.current)
+              registerDefaultBlocks(instance)
+            },
+          ],
+        })
 
-      editorRef.current = editor
+        editorRef.current = editor
 
-      editor.on("load", () => {
-        editor.loadProjectData(projectData)
-        syncEditorAssets(editor, assets)
-        setEditorDevice(editor, "desktop")
-        setActiveDevice("desktop")
+        editor.on("load", () => {
+          editor.loadProjectData(projectData)
+          syncEditorAssets(editor, assets)
+          setEditorDevice(editor, "desktop")
+          setActiveDevice("desktop")
 
-        window.setTimeout(() => {
-          if (editorRef.current !== editor) return
+          window.setTimeout(() => {
+            if (editorRef.current !== editor) return
 
-          renderStudioSidebars(editor, {
-            blocks: blocksSidebarRef.current,
-            layers: layersSidebarRef.current,
-            styles: stylesSidebarRef.current,
-            traitCategories: traitCategoriesRef.current,
-            traits: traitsSidebarRef.current,
-          })
-          filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
-          editor.clearDirtyCount()
-          editor.refresh({ tools: true })
-          hydratingEditorRef.current = false
-          setEditorReady(true)
-          setIsDirty(false)
-        }, 0)
-      })
+            renderStudioSidebars(editor, {
+              blocks: blocksSidebarRef.current,
+              layers: layersSidebarRef.current,
+              styles: stylesSidebarRef.current,
+              traitCategories: traitCategoriesRef.current,
+              traits: traitsSidebarRef.current,
+            })
+            filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
+            editor.clearDirtyCount()
+            editor.refresh({ tools: true })
+            hydratingEditorRef.current = false
+            setEditorReady(true)
+            setIsDirty(false)
+          }, 0)
+        })
 
-      editor.on("update", () => {
-        if (hydratingEditorRef.current) return
-        setIsDirty(true)
-      })
+        editor.on("update", () => {
+          if (hydratingEditorRef.current) return
+          setIsDirty(true)
+        })
 
-      editor.on("component:selected", (component) => {
-        setSelectedComponentIsImage(Boolean(component?.is?.("image")))
-        window.setTimeout(() => {
-          renderStudioSidebars(editor, {
-            blocks: blocksSidebarRef.current,
-            layers: layersSidebarRef.current,
-            styles: stylesSidebarRef.current,
-            traitCategories: traitCategoriesRef.current,
-            traits: traitsSidebarRef.current,
-          })
-          filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
-        }, 0)
-      })
+        editor.on("component:selected", (component) => {
+          setSelectedComponentIsImage(Boolean(component?.is?.("image")))
+          window.setTimeout(() => {
+            renderStudioSidebars(editor, {
+              blocks: blocksSidebarRef.current,
+              layers: layersSidebarRef.current,
+              styles: stylesSidebarRef.current,
+              traitCategories: traitCategoriesRef.current,
+              traits: traitsSidebarRef.current,
+            })
+            filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
+          }, 0)
+        })
 
-      editor.on("component:deselected", () => {
-        const selected = editor.getSelected()
-        setSelectedComponentIsImage(Boolean(selected?.is?.("image")))
-        window.setTimeout(() => {
-          renderStudioSidebars(editor, {
-            blocks: blocksSidebarRef.current,
-            layers: layersSidebarRef.current,
-            styles: stylesSidebarRef.current,
-            traitCategories: traitCategoriesRef.current,
-            traits: traitsSidebarRef.current,
-          })
-          filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
-        }, 0)
-      })
+        editor.on("component:deselected", () => {
+          const selected = editor.getSelected()
+          setSelectedComponentIsImage(Boolean(selected?.is?.("image")))
+          window.setTimeout(() => {
+            renderStudioSidebars(editor, {
+              blocks: blocksSidebarRef.current,
+              layers: layersSidebarRef.current,
+              styles: stylesSidebarRef.current,
+              traitCategories: traitCategoriesRef.current,
+              traits: traitsSidebarRef.current,
+            })
+            filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
+          }, 0)
+        })
+      } catch (error) {
+        if (editorInitRequestIdRef.current !== requestId) {
+          return
+        }
+
+        hydratingEditorRef.current = false
+        setEditorReady(false)
+        setFeedback({
+          tone: "danger",
+          message: error instanceof Error ? error.message : "Nao foi possivel carregar o runtime do editor visual.",
+        })
+      }
     },
     [assets, blockSearch, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
   )
@@ -367,13 +407,13 @@ export function AdminPageEditor() {
 
     const versionToLoad = resolveInitialVersion(versions, publishedVersionId)
 
-    if (!versionToLoad) {
-      loadedSlugRef.current = selectedSlug
-      loadedVersionIdRef.current = ""
-      setSelectedVersionId("")
-      mountEditorForVersion(null)
-      return
-    }
+      if (!versionToLoad) {
+        loadedSlugRef.current = selectedSlug
+        loadedVersionIdRef.current = ""
+        setSelectedVersionId("")
+        void mountEditorForVersion(null)
+        return
+      }
 
     if (loadedVersionIdRef.current === versionToLoad.id && loadedSlugRef.current === selectedSlug) {
       return
@@ -382,7 +422,7 @@ export function AdminPageEditor() {
     loadedSlugRef.current = selectedSlug
     loadedVersionIdRef.current = versionToLoad.id
     setSelectedVersionId(versionToLoad.id)
-    mountEditorForVersion(versionToLoad)
+    void mountEditorForVersion(versionToLoad)
   }, [detailQuery.data, mountEditorForVersion, publishedVersionId, selectedSlug, versions])
 
   useEffect(() => {
@@ -554,7 +594,7 @@ export function AdminPageEditor() {
     loadedSlugRef.current = selectedSlug
     loadedVersionIdRef.current = version.id
     setSelectedVersionId(version.id)
-    mountEditorForVersion(version)
+    void mountEditorForVersion(version)
     setFeedback({ tone: "success", message: `Versao ${version.version_number} carregada no editor.` })
   }
 
