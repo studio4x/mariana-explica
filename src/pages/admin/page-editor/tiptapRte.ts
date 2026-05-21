@@ -1,6 +1,8 @@
 import { Editor as TiptapEditor } from "@tiptap/core"
+import Link from "@tiptap/extension-link"
 import StarterKit from "@tiptap/starter-kit"
 import TextAlign from "@tiptap/extension-text-align"
+import Underline from "@tiptap/extension-underline"
 import type { Editor as GrapesEditor } from "grapesjs"
 
 interface ToolbarActionConfig {
@@ -243,10 +245,11 @@ export function registerTiptapRte(editor: GrapesEditor, toolbarContainer: HTMLEl
             heading: {
               levels: [1, 2, 3, 4],
             },
-            link: {
-              openOnClick: false,
-            },
           }),
+          Link.configure({
+            openOnClick: false,
+          }),
+          Underline,
           TextAlign.configure({
             types: ["heading", "paragraph"],
           }),

@@ -355,16 +355,21 @@ export function renderLayersSidebar(editor: GrapesEditor, container: HTMLElement
 
 export function renderTraitsSidebar(editor: GrapesEditor, categoriesContainer: HTMLElement | null, traitsContainer: HTMLElement | null) {
   const traitManager = editor.Traits as unknown as {
-    render: () => void
+    render: () => HTMLElement
     getCategoriesEl?: () => HTMLElement
     getTraitsEl?: () => HTMLElement
+    getTraitsViewer?: () => {
+      getCategoriesEl?: () => HTMLElement
+      getTraitsEl?: () => HTMLElement
+    }
   }
 
   traitManager.render()
+  const traitsViewer = traitManager.getTraitsViewer?.()
 
   if (categoriesContainer) {
     clearElement(categoriesContainer)
-    const categoriesEl = traitManager.getCategoriesEl?.()
+    const categoriesEl = traitManager.getCategoriesEl?.() ?? traitsViewer?.getCategoriesEl?.()
     if (categoriesEl) {
       categoriesContainer.appendChild(categoriesEl)
     }
@@ -372,7 +377,7 @@ export function renderTraitsSidebar(editor: GrapesEditor, categoriesContainer: H
 
   if (traitsContainer) {
     clearElement(traitsContainer)
-    const traitsEl = traitManager.getTraitsEl?.()
+    const traitsEl = traitManager.getTraitsEl?.() ?? traitsViewer?.getTraitsEl?.()
     if (traitsEl) {
       traitsContainer.appendChild(traitsEl)
     }
@@ -382,10 +387,9 @@ export function renderTraitsSidebar(editor: GrapesEditor, categoriesContainer: H
 export function renderStylesSidebar(editor: GrapesEditor, container: HTMLElement | null) {
   if (!container) return
 
-  editor.StyleManager.render()
-  const styleContainer = (editor.StyleManager as unknown as { __ctn?: HTMLElement }).__ctn
   clearElement(container)
-  if (styleContainer) {
+  const styleContainer = editor.StyleManager.render()
+  if (styleContainer instanceof HTMLElement) {
     container.appendChild(styleContainer)
   }
 }

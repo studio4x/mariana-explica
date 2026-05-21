@@ -109,6 +109,23 @@ function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: st
   return versions[0] ?? null
 }
 
+function shouldAutoOpenInlineTextEditor(component: unknown) {
+  if (!component || typeof component !== "object") return false
+
+  const candidate = component as {
+    is?: (type: string) => boolean
+    get?: (key: string) => unknown
+  }
+
+  if (candidate.is?.("text")) return true
+  if (candidate.get?.("editable") === false) return false
+
+  const tagName = String(candidate.get?.("tagName") ?? "").trim().toLowerCase()
+  if (!tagName) return false
+
+  return ["p", "span", "a", "strong", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"].includes(tagName)
+}
+
 export function AdminPageEditor() {
   const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
@@ -344,6 +361,14 @@ export function AdminPageEditor() {
               traits: traitsSidebarRef.current,
             })
             filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
+
+            if (shouldAutoOpenInlineTextEditor(component)) {
+              try {
+                editor.runCommand("core:component-text-edit")
+              } catch {
+                // The command might not be available in some editor states.
+              }
+            }
           }, 0)
         })
 
