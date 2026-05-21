@@ -3,6 +3,7 @@ import type { Editor as GrapesEditor } from "grapesjs"
 import "grapesjs/dist/css/grapes.min.css"
 import { useBlocker } from "react-router-dom"
 import {
+  ExternalLink,
   Eye,
   FileClock,
   ImagePlus,
@@ -23,6 +24,7 @@ import {
   usePublishAdminSitePageVersion,
   useRollbackAdminSitePageVersion,
   useSaveAdminSitePageDraft,
+  useUnpublishAdminSitePage,
   useUploadAdminSitePageAssetFile,
 } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
@@ -126,6 +128,12 @@ function shouldAutoOpenInlineTextEditor(component: unknown) {
   return ["p", "span", "a", "strong", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"].includes(tagName)
 }
 
+type SaveDraftTrigger = "manual" | "autosave"
+
+interface SaveDraftOptions {
+  trigger?: SaveDraftTrigger
+}
+
 export function AdminPageEditor() {
   const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
@@ -137,6 +145,12 @@ export function AdminPageEditor() {
   const [selectedComponentIsImage, setSelectedComponentIsImage] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
+  const [editorMode, setEditorMode] = useState<"simple" | "advanced">("simple")
+  const [autosaveEnabled, setAutosaveEnabled] = useState(true)
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [autosaveSavedAt, setAutosaveSavedAt] = useState<string | null>(null)
+  const [livePreviewEnabled, setLivePreviewEnabled] = useState(false)
+  const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
 
   const editorRef = useRef<GrapesEditor | null>(null)
   const editorContainerRef = useRef<HTMLDivElement | null>(null)
@@ -150,12 +164,15 @@ export function AdminPageEditor() {
   const loadedSlugRef = useRef<string>("")
   const hydratingEditorRef = useRef(false)
   const editorInitRequestIdRef = useRef(0)
+  const autosaveTimerRef = useRef<number | null>(null)
+  const livePreviewTimerRef = useRef<number | null>(null)
 
   const pagesQuery = useAdminSitePages()
   const detailQuery = useAdminSitePageDetail(selectedSlug)
   const saveDraftMutation = useSaveAdminSitePageDraft()
   const publishMutation = usePublishAdminSitePageVersion()
   const rollbackMutation = useRollbackAdminSitePageVersion()
+  const unpublishMutation = useUnpublishAdminSitePage()
   const uploadAssetMutation = useUploadAdminSitePageAssetFile()
 
   const pageSummary = useMemo(() => {
@@ -183,10 +200,21 @@ export function AdminPageEditor() {
     return labels[activeDevice]
   }, [activeDevice])
 
+  const autosaveLabel = useMemo(() => {
+    if (!autosaveEnabled) return "Autosave desativado"
+    if (autosaveStatus === "saving") return "Autosave a guardar..."
+    if (autosaveStatus === "error") return "Erro no autosave"
+    if (autosaveStatus === "saved" && autosaveSavedAt) {
+      return `Autosave ${formatDateTime(autosaveSavedAt)}`
+    }
+    return "Autosave ativo"
+  }, [autosaveEnabled, autosaveSavedAt, autosaveStatus])
+
   const isSaving =
     saveDraftMutation.isPending ||
     publishMutation.isPending ||
     rollbackMutation.isPending ||
+    unpublishMutation.isPending ||
     uploadAssetMutation.isPending
 
   const confirmDiscardChanges = useCallback((nextActionLabel: string) => {
@@ -342,12 +370,44 @@ export function AdminPageEditor() {
             hydratingEditorRef.current = false
             setEditorReady(true)
             setIsDirty(false)
+            setAutosaveStatus("idle")
+            setAutosaveSavedAt(null)
+            if (livePreviewEnabled) {
+              const snapshot = getGrapesSnapshot(editor)
+              const token = storeSitePagePreview({
+                slug: selectedSlug,
+                html: snapshot.html,
+                css: snapshot.css ?? "",
+              })
+              const publicPath = getPublicPathForSlug(selectedSlug)
+              const nextUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
+              setLivePreviewUrl(nextUrl)
+            }
           }, 0)
         })
 
         editor.on("update", () => {
           if (hydratingEditorRef.current) return
           setIsDirty(true)
+          setAutosaveStatus((current) => (current === "saving" ? current : "idle"))
+          if (livePreviewEnabled) {
+            if (livePreviewTimerRef.current) {
+              window.clearTimeout(livePreviewTimerRef.current)
+            }
+
+            livePreviewTimerRef.current = window.setTimeout(() => {
+              const snapshot = getGrapesSnapshot(editor)
+              const token = storeSitePagePreview({
+                slug: selectedSlug,
+                html: snapshot.html,
+                css: snapshot.css ?? "",
+              })
+              const publicPath = getPublicPathForSlug(selectedSlug)
+              const nextUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
+              setLivePreviewUrl(nextUrl)
+              livePreviewTimerRef.current = null
+            }, 700)
+          }
         })
 
         editor.on("component:selected", (component) => {
@@ -399,11 +459,87 @@ export function AdminPageEditor() {
         })
       }
     },
-    [assets, blockSearch, destroyEditor, detailQuery.data?.page.title, pageSummary?.title, selectedSlug],
+    [
+      assets,
+      blockSearch,
+      destroyEditor,
+      detailQuery.data?.page.title,
+      livePreviewEnabled,
+      pageSummary?.title,
+      selectedSlug,
+    ],
   )
+
+  const handleSaveDraft = useCallback(async (options?: SaveDraftOptions) => {
+    const editor = editorRef.current
+    const trigger = options?.trigger ?? "manual"
+    const isAutosave = trigger === "autosave"
+
+    if (!editor) {
+      if (!isAutosave) {
+        setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
+      }
+      return
+    }
+
+    if (isAutosave) {
+      setAutosaveStatus("saving")
+    } else {
+      setFeedback(null)
+    }
+
+    try {
+      const snapshot = getGrapesSnapshot(editor)
+      const response = await saveDraftMutation.mutateAsync({
+        slug: selectedSlug,
+        title: detailQuery.data?.page.title ?? pageSummary?.title ?? DEFAULT_PAGE_TITLES[selectedSlug],
+        layoutJson: {
+          editor: "grapesjs",
+          schema_version: 2,
+          projectData: snapshot.projectData,
+          html: snapshot.html,
+        },
+        styleJson: {
+          css: snapshot.css,
+        },
+        metadata: {
+          editor: "grapesjs",
+          updated_at: new Date().toISOString(),
+        },
+      })
+
+      editor.clearDirtyCount()
+      loadedVersionIdRef.current = response.version.id
+      setSelectedVersionId(response.version.id)
+      setIsDirty(false)
+      setAutosaveStatus("saved")
+      setAutosaveSavedAt(new Date().toISOString())
+
+      if (!isAutosave) {
+        setFeedback({ tone: "success", message: "Rascunho guardado com sucesso." })
+      }
+
+      await detailQuery.refetch()
+      await pagesQuery.refetch()
+    } catch (error) {
+      setAutosaveStatus("error")
+      if (!isAutosave) {
+        setFeedback({
+          tone: "danger",
+          message: error instanceof Error ? error.message : "Nao foi possivel guardar o rascunho.",
+        })
+      }
+    }
+  }, [detailQuery, pageSummary?.title, pagesQuery, saveDraftMutation, selectedSlug])
 
   useEffect(() => {
     return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current)
+      }
+      if (livePreviewTimerRef.current) {
+        window.clearTimeout(livePreviewTimerRef.current)
+      }
       destroyEditor()
     }
   }, [destroyEditor])
@@ -482,6 +618,48 @@ export function AdminPageEditor() {
     }
   }, [isDirty])
 
+  useEffect(() => {
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+
+    if (!autosaveEnabled || !editorReady || !isDirty || isSaving) {
+      return
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      void handleSaveDraft({ trigger: "autosave" })
+      autosaveTimerRef.current = null
+    }, 5000)
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+    }
+  }, [autosaveEnabled, editorReady, handleSaveDraft, isDirty, isSaving])
+
+  useEffect(() => {
+    if (!livePreviewEnabled || !editorReady) {
+      return
+    }
+
+    const editor = editorRef.current
+    if (!editor) return
+
+    const snapshot = getGrapesSnapshot(editor)
+    const token = storeSitePagePreview({
+      slug: selectedSlug,
+      html: snapshot.html,
+      css: snapshot.css ?? "",
+    })
+    const publicPath = getPublicPathForSlug(selectedSlug)
+    const nextUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
+    setLivePreviewUrl(nextUrl)
+  }, [editorReady, livePreviewEnabled, selectedSlug])
+
   const navigationBlocker = useBlocker(isDirty)
 
   useEffect(() => {
@@ -515,51 +693,7 @@ export function AdminPageEditor() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [editorReady, isSaving])
-
-  const handleSaveDraft = async () => {
-    const editor = editorRef.current
-    if (!editor) {
-      setFeedback({ tone: "danger", message: "O editor ainda nao terminou de carregar." })
-      return
-    }
-
-    setFeedback(null)
-
-    try {
-      const snapshot = getGrapesSnapshot(editor)
-      const response = await saveDraftMutation.mutateAsync({
-        slug: selectedSlug,
-        title: detailQuery.data?.page.title ?? pageSummary?.title ?? DEFAULT_PAGE_TITLES[selectedSlug],
-        layoutJson: {
-          editor: "grapesjs",
-          schema_version: 2,
-          projectData: snapshot.projectData,
-          html: snapshot.html,
-        },
-        styleJson: {
-          css: snapshot.css,
-        },
-        metadata: {
-          editor: "grapesjs",
-          updated_at: new Date().toISOString(),
-        },
-      })
-
-      editor.clearDirtyCount()
-      loadedVersionIdRef.current = response.version.id
-      setSelectedVersionId(response.version.id)
-      setIsDirty(false)
-      setFeedback({ tone: "success", message: "Rascunho guardado com sucesso." })
-      await detailQuery.refetch()
-      await pagesQuery.refetch()
-    } catch (error) {
-      setFeedback({
-        tone: "danger",
-        message: error instanceof Error ? error.message : "Nao foi possivel guardar o rascunho.",
-      })
-    }
-  }
+  }, [editorReady, handleSaveDraft, isSaving])
 
   const handlePublish = async () => {
     if (!publishTargetVersionId) {
@@ -582,6 +716,34 @@ export function AdminPageEditor() {
       setFeedback({
         tone: "danger",
         message: error instanceof Error ? error.message : "Nao foi possivel publicar esta versao.",
+      })
+    }
+  }
+
+  const handleUnpublish = async () => {
+    if (!publishedVersionId) {
+      setFeedback({ tone: "danger", message: "Esta pagina ainda nao esta publicada." })
+      return
+    }
+
+    if (!window.confirm("Queres mesmo despublicar esta pagina? A rota publica voltara para o fallback em codigo.")) {
+      return
+    }
+
+    setFeedback(null)
+    try {
+      await unpublishMutation.mutateAsync({
+        slug: selectedSlug,
+      })
+
+      setFeedback({ tone: "success", message: "Pagina despublicada com sucesso." })
+      await detailQuery.refetch()
+      await pagesQuery.refetch()
+      setIsDirty(false)
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel despublicar esta pagina.",
       })
     }
   }
@@ -680,8 +842,8 @@ export function AdminPageEditor() {
       html: snapshot.html,
       css: snapshot.css ?? "",
     })
-
     const targetUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
+    setLivePreviewUrl(targetUrl)
     window.open(targetUrl, "_blank", "noopener,noreferrer")
   }
 
@@ -817,6 +979,16 @@ export function AdminPageEditor() {
               type="button"
               variant="outline"
               className="rounded-full"
+              onClick={() => void handleUnpublish()}
+              disabled={isSaving || !publishedVersionId}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {unpublishMutation.isPending ? "A despublicar..." : "Despublicar"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
               onClick={() => void handleRollback()}
               disabled={isSaving || !selectedVersionId}
             >
@@ -826,6 +998,17 @@ export function AdminPageEditor() {
             <Button type="button" variant="outline" className="rounded-full" onClick={handlePreview}>
               <Eye className="mr-2 h-4 w-4" />
               Preview
+            </Button>
+            <Button
+              type="button"
+              variant={livePreviewEnabled ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => {
+                setLivePreviewEnabled((current) => !current)
+              }}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {livePreviewEnabled ? "Preview ao vivo ligado" : "Preview ao vivo"}
             </Button>
             <Button type="button" variant="outline" className="rounded-full" onClick={handleOpenAssetLibrary} disabled={!editorReady}>
               <ImagePlus className="mr-2 h-4 w-4" />
@@ -838,6 +1021,26 @@ export function AdminPageEditor() {
             <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsFullscreen((current) => !current)}>
               {isFullscreen ? <Minimize2 className="mr-2 h-4 w-4" /> : <Maximize2 className="mr-2 h-4 w-4" />}
               {isFullscreen ? "Fechar tela cheia" : "Abrir tela cheia"}
+            </Button>
+            <Button
+              type="button"
+              variant={autosaveEnabled ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => {
+                setAutosaveEnabled((current) => !current)
+                setAutosaveStatus("idle")
+              }}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
+            </Button>
+            <Button
+              type="button"
+              variant={editorMode === "simple" ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => setEditorMode((current) => (current === "simple" ? "advanced" : "simple"))}
+            >
+              {editorMode === "simple" ? "Modo simplificado" : "Modo avancado"}
             </Button>
           </div>
 
@@ -852,6 +1055,19 @@ export function AdminPageEditor() {
               }
               tone={isDirty ? "warning" : publishedVersionId ? "success" : "neutral"}
             />
+            <span
+              className={[
+                "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+                autosaveStatus === "error"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-slate-200 bg-slate-50 text-slate-600",
+              ].join(" ")}
+            >
+              {autosaveLabel}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
+              {editorMode === "simple" ? "Layout simplificado para cliente final" : "Layout avancado tipo studio"}
+            </span>
             {activeVersionLayoutKind === "legacy" ? (
               <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-800">
                 Conteudo legado convertido para GrapesJS
@@ -914,7 +1130,13 @@ export function AdminPageEditor() {
             />
           </div>
 
-          <div className={["me-page-editor-studio-shell", isFullscreen ? "me-page-editor-studio-shell--fullscreen" : ""].join(" ")}>
+          <div
+            className={[
+              "me-page-editor-studio-shell",
+              isFullscreen ? "me-page-editor-studio-shell--fullscreen" : "",
+              editorMode === "simple" ? "me-page-editor-studio-shell--simple" : "",
+            ].join(" ")}
+          >
             <aside className="me-page-editor-sidebar me-page-editor-sidebar--left">
               <div className="me-page-editor-sidebar__section">
                 <div className="me-page-editor-sidebar__header">
@@ -931,13 +1153,31 @@ export function AdminPageEditor() {
                 <div ref={blocksSidebarRef} className="me-page-editor-panel-slot" />
               </div>
 
-              <div className="me-page-editor-sidebar__section">
-                <div className="me-page-editor-sidebar__header">
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Layers</p>
-                  <span className="text-[11px] text-[#7f8ba0]">Estrutura da pagina</span>
+              {editorMode === "advanced" ? (
+                <div className="me-page-editor-sidebar__section">
+                  <div className="me-page-editor-sidebar__header">
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Layers</p>
+                    <span className="text-[11px] text-[#7f8ba0]">Estrutura da pagina</span>
+                  </div>
+                  <div ref={layersSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--layers" />
                 </div>
-                <div ref={layersSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--layers" />
-              </div>
+              ) : (
+                <div className="me-page-editor-sidebar__section">
+                  <div className="me-page-editor-sidebar__header">
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Guia rapido</p>
+                    <span className="text-[11px] text-[#7f8ba0]">Edicao para cliente final</span>
+                  </div>
+                  <p className="text-xs leading-6 text-[#c7d3e7]">
+                    1) Clique no texto para editar.
+                  </p>
+                  <p className="text-xs leading-6 text-[#c7d3e7]">
+                    2) Arraste blocos para montar secoes.
+                  </p>
+                  <p className="text-xs leading-6 text-[#c7d3e7]">
+                    3) Use &quot;Guardar rascunho&quot; ou deixe o autosave ativo.
+                  </p>
+                </div>
+              )}
             </aside>
 
             <main className="me-page-editor-canvas">
@@ -981,26 +1221,82 @@ export function AdminPageEditor() {
               </div>
             </main>
 
-            <aside className="me-page-editor-sidebar me-page-editor-sidebar--right">
-              <div className="me-page-editor-sidebar__section">
-                <div className="me-page-editor-sidebar__header">
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Styles</p>
-                  <span className="text-[11px] text-[#7f8ba0]">Espaco, cor e tipografia</span>
+            {editorMode === "advanced" ? (
+              <aside className="me-page-editor-sidebar me-page-editor-sidebar--right">
+                <div className="me-page-editor-sidebar__section">
+                  <div className="me-page-editor-sidebar__header">
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Styles</p>
+                    <span className="text-[11px] text-[#7f8ba0]">Espaco, cor e tipografia</span>
+                  </div>
+                  <div ref={stylesSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--styles" />
                 </div>
-                <div ref={stylesSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--styles" />
-              </div>
 
-              <div className="me-page-editor-sidebar__section">
-                <div className="me-page-editor-sidebar__header">
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Properties</p>
-                  <span className="text-[11px] text-[#7f8ba0]">Campo selecionado</span>
+                <div className="me-page-editor-sidebar__section">
+                  <div className="me-page-editor-sidebar__header">
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#a7b4c8]">Properties</p>
+                    <span className="text-[11px] text-[#7f8ba0]">Campo selecionado</span>
+                  </div>
+                  <div ref={traitCategoriesRef} className="me-page-editor-traits-categories" />
+                  <div ref={traitsSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--traits" />
                 </div>
-                <div ref={traitCategoriesRef} className="me-page-editor-traits-categories" />
-                <div ref={traitsSidebarRef} className="me-page-editor-panel-slot me-page-editor-panel-slot--traits" />
-              </div>
-            </aside>
+              </aside>
+            ) : null}
           </div>
         </article>
+
+        {livePreviewEnabled ? (
+          <article className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Preview ao vivo</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => {
+                    const editor = editorRef.current
+                    if (!editor) return
+                    const snapshot = getGrapesSnapshot(editor)
+                    const token = storeSitePagePreview({
+                      slug: selectedSlug,
+                      html: snapshot.html,
+                      css: snapshot.css ?? "",
+                    })
+                    const publicPath = getPublicPathForSlug(selectedSlug)
+                    const nextUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
+                    setLivePreviewUrl(nextUrl)
+                  }}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Atualizar preview
+                </Button>
+                {livePreviewUrl ? (
+                  <a href={livePreviewUrl} target="_blank" rel="noreferrer" className="inline-flex">
+                    <Button type="button" variant="outline" size="sm" className="rounded-full">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Abrir em nova aba
+                    </Button>
+                  </a>
+                ) : null}
+              </div>
+            </div>
+            <div className="h-[58vh] min-h-[460px] bg-slate-100 p-4">
+              {livePreviewUrl ? (
+                <iframe
+                  key={livePreviewUrl}
+                  src={livePreviewUrl}
+                  title="Preview ao vivo da pagina"
+                  className="h-full w-full rounded-2xl border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-300 text-sm text-slate-600">
+                  Nenhum preview disponivel ainda. Faz uma alteracao no canvas para iniciar o preview ao vivo.
+                </div>
+              )}
+            </div>
+          </article>
+        ) : null}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">

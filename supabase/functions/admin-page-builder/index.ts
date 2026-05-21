@@ -4,7 +4,7 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody }
 import { logError } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 
-type Action = "list_pages" | "get_page" | "save_draft" | "publish" | "rollback"
+type Action = "list_pages" | "get_page" | "save_draft" | "publish" | "rollback" | "unpublish"
 
 interface Body {
   action: Action
@@ -281,6 +281,49 @@ Deno.serve(async (req) => {
         request_id: requestId,
         page: updatedPage,
         version: publishedVersion,
+      })
+    }
+
+    if (body.action === "unpublish") {
+      const slug = requireSlug(body.slug)
+      const page = await fetchPageBySlug(serviceClient, slug)
+
+      const { error: archivePreviousError } = await serviceClient
+        .from("site_page_versions")
+        .update({ status: "archived" })
+        .eq("page_id", page.id)
+        .eq("status", "published")
+
+      if (archivePreviousError) throw archivePreviousError
+
+      const { data: updatedPage, error: pageUpdateError } = await serviceClient
+        .from("site_pages")
+        .update({
+          status: "draft",
+          published_version_id: null,
+        })
+        .eq("id", page.id)
+        .select(pageSelect)
+        .single()
+
+      if (pageUpdateError) throw pageUpdateError
+
+      await writeAuditLog(serviceClient, context, {
+        action: "admin.page_builder_unpublished",
+        entityType: "site_page",
+        entityId: page.id,
+        metadata: {
+          slug,
+          page_id: page.id,
+        },
+        ...auditMeta,
+      })
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        page: updatedPage,
+        version: null,
       })
     }
 

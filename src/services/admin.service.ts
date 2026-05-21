@@ -1462,6 +1462,24 @@ export async function rollbackAdminSitePageVersion(input: {
   }
 }
 
+export async function unpublishAdminSitePage(input: {
+  slug: SitePageSlug | string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    page: AdminSitePageSummary
+    version: AdminSitePageVersion | null
+  }>("admin-page-builder", {
+    action: "unpublish",
+    slug: input.slug,
+  })
+
+  return {
+    page: response.page,
+    version: response.version,
+  }
+}
+
 export async function uploadAdminSitePageAssetFile(input: {
   slug: SitePageSlug | string
   file: File

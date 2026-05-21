@@ -85,6 +85,7 @@ import {
   publishAdminSitePageVersion,
   rollbackAdminSitePageVersion,
   saveAdminSitePageDraft,
+  unpublishAdminSitePage,
   uploadAdminSitePageAssetFile,
   updateAdminProduct,
   createAdminProductCategory,
@@ -1247,6 +1248,21 @@ export function useRollbackAdminSitePageVersion() {
 
   return useMutation({
     mutationFn: rollbackAdminSitePageVersion,
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages"] })
+      void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages", variables.slug] })
+      void queryClient.invalidateQueries({ queryKey: ["site", "page", variables.slug] })
+      invalidate()
+    },
+  })
+}
+
+export function useUnpublishAdminSitePage() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+
+  return useMutation({
+    mutationFn: unpublishAdminSitePage,
     onSuccess: (_result, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages"] })
       void queryClient.invalidateQueries({ queryKey: ["admin", "site-pages", variables.slug] })

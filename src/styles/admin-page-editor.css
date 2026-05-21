@@ -79,6 +79,10 @@
   min-height: 820px;
 }
 
+.me-page-editor-studio-shell--simple {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+
 .me-page-editor-sidebar {
   display: flex;
   flex-direction: column;
