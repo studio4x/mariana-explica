@@ -19,6 +19,7 @@ import {
   UserCircle2,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
+import { useLocation } from "react-router-dom"
 import { CookieConsentBanner, ScrollToTop, SiteBrandingManager, SiteLogo, SiteTrackingManager, StatusBadge } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
@@ -78,6 +79,7 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 export function AdminLayout() {
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { profile, signOut } = useAuth()
   const notificationsQuery = useAdminNotifications()
@@ -86,6 +88,7 @@ export function AdminLayout() {
   const markAllNotificationsAsRead = useMarkAllAdminNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Admin"
   const initials = getInitials(profile?.full_name, profile?.email)
+  const isPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
 
   useEffect(() => {
     void queryClient.prefetchQuery({
@@ -208,8 +211,14 @@ export function AdminLayout() {
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-73px)] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:px-8">
-        <aside className="hidden self-start lg:sticky lg:top-[92px] lg:block">
+      <div
+        className={cn(
+          "grid min-h-[calc(100vh-73px)] gap-6 px-4 py-5 sm:px-6 lg:px-8",
+          isPageEditorRoute ? "lg:grid-cols-[minmax(0,1fr)] lg:px-4 lg:py-3" : "lg:grid-cols-[220px_minmax(0,1fr)]",
+        )}
+      >
+        {!isPageEditorRoute ? (
+          <aside className="hidden self-start lg:sticky lg:top-[92px] lg:block">
           <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
             <div className="border-b border-slate-200 px-5 py-4">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Navegacao</p>
@@ -236,16 +245,23 @@ export function AdminLayout() {
               ))}
             </nav>
           </div>
-        </aside>
+          </aside>
+        ) : null}
 
         <main className="min-w-0">
-          <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-            <div className="min-h-[calc(100vh-225px)] p-4 sm:p-6 lg:p-7">
+          <div
+            className={cn(
+              "overflow-hidden border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]",
+              isPageEditorRoute ? "rounded-[24px]" : "rounded-[32px]",
+            )}
+          >
+            <div className={cn(isPageEditorRoute ? "min-h-[calc(100vh-145px)] p-3" : "min-h-[calc(100vh-225px)] p-4 sm:p-6 lg:p-7")}>
               <Outlet />
             </div>
           </div>
 
-          <footer className="mt-5 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+          {!isPageEditorRoute ? (
+            <footer className="mt-5 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-3 text-[#5F7077]">
                 <Link to={ROUTES.PRIVACY}>Privacidade</Link>
@@ -258,7 +274,8 @@ export function AdminLayout() {
                 Build {BUILD_VERSION}
               </span>
             </div>
-          </footer>
+            </footer>
+          ) : null}
         </main>
       </div>
       <CookieConsentBanner />

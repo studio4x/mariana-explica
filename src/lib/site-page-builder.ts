@@ -253,6 +253,134 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
   return blocks.length > 0 ? { blocks } : getDefaultDocumentForSlug(slug)
 }
 
+function getHeadingLevel(tagName: string): 1 | 2 | 3 | 4 {
+  if (tagName === "h1") return 1
+  if (tagName === "h2") return 2
+  if (tagName === "h3") return 3
+  return 4
+}
+
+function pushRichTextBlockFromHtml(blocks: PageBlock[], html: string) {
+  const content = sanitizeRichText(html).trim()
+  if (!content) return
+  blocks.push({
+    id: uid("text"),
+    type: "rich_text",
+    content,
+  })
+}
+
+function extractLegacyElements(node: Element, blocks: PageBlock[]) {
+  const children = Array.from(node.children)
+
+  for (const child of children) {
+    const tag = child.tagName.toLowerCase()
+
+    if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
+      const text = child.textContent?.trim() ?? ""
+      if (!text) continue
+      blocks.push({
+        id: uid("heading"),
+        type: "heading",
+        content: text,
+        level: getHeadingLevel(tag),
+        align: "left",
+        color: "#0f122c",
+      })
+      continue
+    }
+
+    if (tag === "img") {
+      const image = child as HTMLImageElement
+      const src = image.getAttribute("src")?.trim() ?? ""
+      if (!src) continue
+      blocks.push({
+        id: uid("image"),
+        type: "image",
+        src,
+        alt: image.getAttribute("alt")?.trim() ?? "Imagem",
+        radius: 18,
+      })
+      continue
+    }
+
+    if (tag === "hr") {
+      blocks.push({
+        id: uid("divider"),
+        type: "divider",
+        color: "rgba(36,39,66,0.18)",
+      })
+      continue
+    }
+
+    if (tag === "a") {
+      const href = child.getAttribute("href")?.trim() ?? "#"
+      const label = child.textContent?.trim() ?? ""
+      if (label && label.length <= 90) {
+        blocks.push({
+          id: uid("button"),
+          type: "button",
+          label,
+          href,
+          align: "left",
+        })
+      } else {
+        pushRichTextBlockFromHtml(blocks, child.outerHTML)
+      }
+      continue
+    }
+
+    if (tag === "p" || tag === "ul" || tag === "ol" || tag === "blockquote") {
+      pushRichTextBlockFromHtml(blocks, child.outerHTML)
+      continue
+    }
+
+    if (tag === "section" || tag === "article" || tag === "main" || tag === "div") {
+      const hasStructuredChildren = child.querySelector("h1,h2,h3,h4,p,ul,ol,img,a,hr")
+      if (hasStructuredChildren) {
+        extractLegacyElements(child, blocks)
+        continue
+      }
+
+      const text = child.textContent?.trim() ?? ""
+      if (text) {
+        pushRichTextBlockFromHtml(blocks, `<p>${escapeHtml(text)}</p>`)
+      }
+      continue
+    }
+  }
+}
+
+export function convertLegacyHtmlToBuilderDocument(
+  html: string | null | undefined,
+  slug: SitePageSlug,
+): SitePageBuilderDocument {
+  const source = typeof html === "string" ? html.trim() : ""
+  if (!source) return getDefaultDocumentForSlug(slug)
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return getDefaultDocumentForSlug(slug)
+  }
+
+  const parser = new DOMParser()
+  const parsed = parser.parseFromString(source, "text/html")
+  const blocks: PageBlock[] = []
+  extractLegacyElements(parsed.body, blocks)
+
+  if (blocks.length === 0) {
+    return {
+      blocks: [
+        {
+          id: uid("text"),
+          type: "rich_text",
+          content: sanitizeRichText(source),
+        },
+      ],
+    }
+  }
+
+  return { blocks }
+}
+
 export function renderDocumentToHtml(document: SitePageBuilderDocument) {
   const blocksHtml = document.blocks
     .map((block) => {

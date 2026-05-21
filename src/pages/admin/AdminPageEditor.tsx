@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { DragEvent, FocusEvent } from "react"
 import { useBlocker } from "react-router-dom"
 import {
   ArrowDown,
   ArrowUp,
   Eye,
   FileClock,
+  GripVertical,
   ImagePlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   Save,
   Send,
@@ -27,11 +33,9 @@ import {
   useUploadAdminSitePageAssetFile,
 } from "@/hooks/useAdmin"
 import { ROUTES } from "@/lib/constants"
+import { createSitePagePreviewUrl, storeSitePagePreview } from "@/lib/site-page-preview"
 import {
-  createSitePagePreviewUrl,
-  storeSitePagePreview,
-} from "@/lib/site-page-preview"
-import {
+  convertLegacyHtmlToBuilderDocument,
   createDefaultBlock,
   getDefaultDocumentForSlug,
   getDefaultStyleCss,
@@ -61,6 +65,10 @@ const BLOCK_LIBRARY: Array<{ type: PageBlockType; label: string }> = [
   { type: "spacer", label: "Espaco" },
 ]
 
+type DragPayload =
+  | { kind: "library"; blockType: PageBlockType }
+  | { kind: "block"; blockId: string }
+
 function getPublicPathForSlug(slug: SitePageSlug | string) {
   return PAGE_OPTIONS.find((item) => item.slug === slug)?.publicPath ?? "/"
 }
@@ -85,12 +93,30 @@ function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVe
     return getDefaultDocumentForSlug(slug)
   }
 
+  const record = json as Record<string, unknown>
   const projectData =
-    json.projectData && typeof json.projectData === "object"
-      ? (json.projectData as Record<string, unknown>)
-      : json
+    record.projectData && typeof record.projectData === "object"
+      ? (record.projectData as Record<string, unknown>)
+      : null
 
-  return normalizeBuilderDocument(projectData, slug)
+  const hasBlocks = Array.isArray(projectData?.blocks) && projectData.blocks.length > 0
+  if (hasBlocks && projectData) {
+    return normalizeBuilderDocument(projectData, slug)
+  }
+
+  const htmlFromRecord = typeof record.html === "string" ? record.html : null
+  const htmlFromProjectData = projectData && typeof projectData.html === "string" ? projectData.html : null
+  const legacyHtml = htmlFromRecord ?? htmlFromProjectData
+
+  if (legacyHtml) {
+    return convertLegacyHtmlToBuilderDocument(legacyHtml, slug)
+  }
+
+  if (projectData) {
+    return normalizeBuilderDocument(projectData, slug)
+  }
+
+  return getDefaultDocumentForSlug(slug)
 }
 
 function getBlockLabel(block: PageBlock) {
@@ -100,6 +126,18 @@ function getBlockLabel(block: PageBlock) {
   if (block.type === "button") return "Botao"
   if (block.type === "divider") return "Divisor"
   return "Espaco"
+}
+
+function moveBlockToIndex(blocks: PageBlock[], blockId: string, rawTargetIndex: number): PageBlock[] {
+  const fromIndex = blocks.findIndex((item) => item.id === blockId)
+  if (fromIndex < 0) return blocks
+  const targetIndex = Math.max(0, Math.min(rawTargetIndex, blocks.length - 1))
+  if (fromIndex === targetIndex) return blocks
+
+  const next = [...blocks]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(targetIndex, 0, moved)
+  return next
 }
 
 export function AdminPageEditor() {
@@ -114,11 +152,16 @@ export function AdminPageEditor() {
   const [autosaveSavedAt, setAutosaveSavedAt] = useState<string | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const loadedSlugRef = useRef<string>("")
   const loadedVersionRef = useRef<string>("")
   const autosaveTimerRef = useRef<number | null>(null)
+  const dragPayloadRef = useRef<DragPayload | null>(null)
 
   const pagesQuery = useAdminSitePages()
   const detailQuery = useAdminSitePageDetail(selectedSlug)
@@ -131,6 +174,7 @@ export function AdminPageEditor() {
   const pageSummary = useMemo(() => {
     return (pagesQuery.data ?? []).find((page) => page.slug === selectedSlug) ?? null
   }, [pagesQuery.data, selectedSlug])
+
   const versions = useMemo(() => detailQuery.data?.versions ?? [], [detailQuery.data?.versions])
   const assets = useMemo(() => detailQuery.data?.assets ?? [], [detailQuery.data?.assets])
   const publishedVersionId = detailQuery.data?.page.published_version_id ?? null
@@ -161,19 +205,95 @@ export function AdminPageEditor() {
     setAutosaveStatus((prev) => (prev === "saving" ? prev : "idle"))
   }, [])
 
-  const confirmDiscardChanges = useCallback((nextActionLabel: string) => {
-    if (!isDirty) return true
-    return window.confirm(`Existem alteracoes nao guardadas. Queres continuar para ${nextActionLabel}?`)
-  }, [isDirty])
+  const updateSelectedBlock = useCallback(
+    (updater: (block: PageBlock) => PageBlock) => {
+      if (!selectedBlockId) return
+      updateDocument((current) => ({
+        blocks: current.blocks.map((block) => (block.id === selectedBlockId ? updater(block) : block)),
+      }))
+    },
+    [selectedBlockId, updateDocument],
+  )
+
+  const confirmDiscardChanges = useCallback(
+    (nextActionLabel: string) => {
+      if (!isDirty) return true
+      return window.confirm(`Existem alteracoes nao guardadas. Queres continuar para ${nextActionLabel}?`)
+    },
+    [isDirty],
+  )
+
+  const createSnapshot = useCallback(() => {
+    const html = renderDocumentToHtml(documentDraft)
+    const css = getDefaultStyleCss()
+    return {
+      projectData: {
+        blocks: documentDraft.blocks,
+      },
+      html,
+      css,
+    }
+  }, [documentDraft])
+
+  const handleSaveDraft = useCallback(
+    async (trigger: "manual" | "autosave" = "manual") => {
+      const isAutosave = trigger === "autosave"
+      richTextRef.current?.flush()
+      if (isAutosave) {
+        setAutosaveStatus("saving")
+      } else {
+        setFeedback(null)
+      }
+
+      try {
+        const snapshot = createSnapshot()
+        const response = await saveDraftMutation.mutateAsync({
+          slug: selectedSlug,
+          title: detailQuery.data?.page.title ?? pageSummary?.title ?? getTitleForSlug(selectedSlug),
+          layoutJson: {
+            editor: "custom-block-builder",
+            schema_version: 1,
+            projectData: snapshot.projectData,
+            html: snapshot.html,
+          },
+          styleJson: {
+            css: snapshot.css,
+          },
+          metadata: {
+            editor: "custom-block-builder",
+            updated_at: new Date().toISOString(),
+          },
+        })
+
+        loadedVersionRef.current = response.version.id
+        setSelectedVersionId(response.version.id)
+        setIsDirty(false)
+        setAutosaveStatus("saved")
+        setAutosaveSavedAt(new Date().toISOString())
+        if (!isAutosave) {
+          setFeedback({ tone: "success", message: "Rascunho guardado com sucesso." })
+        }
+        await detailQuery.refetch()
+        await pagesQuery.refetch()
+      } catch (error) {
+        setAutosaveStatus("error")
+        if (!isAutosave) {
+          setFeedback({
+            tone: "danger",
+            message: error instanceof Error ? error.message : "Nao foi possivel guardar o rascunho.",
+          })
+        }
+      }
+    },
+    [createSnapshot, detailQuery, pageSummary?.title, pagesQuery, saveDraftMutation, selectedSlug],
+  )
 
   useEffect(() => {
     if (!detailQuery.data) return
 
     const initialVersion = resolveInitialVersion(versions, publishedVersionId)
     const initialDoc = extractDocumentFromVersion(selectedSlug, initialVersion)
-    const shouldReload =
-      loadedSlugRef.current !== selectedSlug ||
-      loadedVersionRef.current !== (initialVersion?.id ?? "")
+    const shouldReload = loadedSlugRef.current !== selectedSlug || loadedVersionRef.current !== (initialVersion?.id ?? "")
 
     if (!shouldReload) return
 
@@ -182,6 +302,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
     setSelectedBlockId(initialDoc.blocks[0]?.id ?? "")
+    setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
     setAutosaveSavedAt(null)
@@ -198,7 +319,7 @@ export function AdminPageEditor() {
     autosaveTimerRef.current = window.setTimeout(() => {
       void handleSaveDraft("autosave")
       autosaveTimerRef.current = null
-    }, 5000)
+    }, 4500)
 
     return () => {
       if (autosaveTimerRef.current) {
@@ -206,7 +327,7 @@ export function AdminPageEditor() {
         autosaveTimerRef.current = null
       }
     }
-  }, [autosaveEnabled, isDirty, isSaving])
+  }, [autosaveEnabled, handleSaveDraft, isDirty, isSaving])
 
   useEffect(() => {
     if (!isDirty) return
@@ -236,11 +357,27 @@ export function AdminPageEditor() {
     setSelectedBlockId(block.id)
   }
 
+  const insertBlockAtIndex = useCallback(
+    (type: PageBlockType, rawIndex: number) => {
+      const block = createDefaultBlock(type)
+      updateDocument((current) => {
+        const nextBlocks = [...current.blocks]
+        const index = Math.max(0, Math.min(rawIndex, nextBlocks.length))
+        nextBlocks.splice(index, 0, block)
+        return { blocks: nextBlocks }
+      })
+      setSelectedBlockId(block.id)
+      setInlineEditingBlockId(block.id)
+    },
+    [updateDocument],
+  )
+
   const handleRemoveBlock = (blockId: string) => {
     updateDocument((current) => ({
       blocks: current.blocks.filter((block) => block.id !== blockId),
     }))
     setSelectedBlockId((current) => (current === blockId ? "" : current))
+    setInlineEditingBlockId((current) => (current === blockId ? null : current))
   }
 
   const handleDuplicateBlock = (blockId: string) => {
@@ -266,75 +403,6 @@ export function AdminPageEditor() {
       return { blocks: nextBlocks }
     })
   }
-
-  const updateSelectedBlock = (updater: (block: PageBlock) => PageBlock) => {
-    if (!selectedBlockId) return
-    updateDocument((current) => ({
-      blocks: current.blocks.map((block) => (block.id === selectedBlockId ? updater(block) : block)),
-    }))
-  }
-
-  const createSnapshot = useCallback(() => {
-    const html = renderDocumentToHtml(documentDraft)
-    const css = getDefaultStyleCss()
-    return {
-      projectData: {
-        blocks: documentDraft.blocks,
-      },
-      html,
-      css,
-    }
-  }, [documentDraft])
-
-  const handleSaveDraft = useCallback(async (trigger: "manual" | "autosave" = "manual") => {
-    const isAutosave = trigger === "autosave"
-    richTextRef.current?.flush()
-    if (isAutosave) {
-      setAutosaveStatus("saving")
-    } else {
-      setFeedback(null)
-    }
-
-    try {
-      const snapshot = createSnapshot()
-      const response = await saveDraftMutation.mutateAsync({
-        slug: selectedSlug,
-        title: detailQuery.data?.page.title ?? pageSummary?.title ?? getTitleForSlug(selectedSlug),
-        layoutJson: {
-          editor: "custom-block-builder",
-          schema_version: 1,
-          projectData: snapshot.projectData,
-          html: snapshot.html,
-        },
-        styleJson: {
-          css: snapshot.css,
-        },
-        metadata: {
-          editor: "custom-block-builder",
-          updated_at: new Date().toISOString(),
-        },
-      })
-
-      loadedVersionRef.current = response.version.id
-      setSelectedVersionId(response.version.id)
-      setIsDirty(false)
-      setAutosaveStatus("saved")
-      setAutosaveSavedAt(new Date().toISOString())
-      if (!isAutosave) {
-        setFeedback({ tone: "success", message: "Rascunho guardado com sucesso." })
-      }
-      await detailQuery.refetch()
-      await pagesQuery.refetch()
-    } catch (error) {
-      setAutosaveStatus("error")
-      if (!isAutosave) {
-        setFeedback({
-          tone: "danger",
-          message: error instanceof Error ? error.message : "Nao foi possivel guardar o rascunho.",
-        })
-      }
-    }
-  }, [createSnapshot, detailQuery, pageSummary?.title, pagesQuery, saveDraftMutation, selectedSlug])
 
   const handlePublish = async () => {
     if (!selectedVersionId) {
@@ -408,6 +476,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
     setSelectedBlockId(nextDoc.blocks[0]?.id ?? "")
+    setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
     setAutosaveSavedAt(null)
@@ -467,6 +536,83 @@ export function AdminPageEditor() {
     setSelectedBlockId(newImage.id)
   }
 
+  const startDragFromLibrary = (blockType: PageBlockType, event: DragEvent<HTMLElement>) => {
+    dragPayloadRef.current = { kind: "library", blockType }
+    event.dataTransfer.effectAllowed = "copyMove"
+    event.dataTransfer.setData("text/plain", `library:${blockType}`)
+  }
+
+  const startDragBlock = (blockId: string, event: DragEvent<HTMLElement>) => {
+    dragPayloadRef.current = { kind: "block", blockId }
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", `block:${blockId}`)
+    setSelectedBlockId(blockId)
+  }
+
+  const clearDragState = useCallback(() => {
+    dragPayloadRef.current = null
+    setDragOverIndex(null)
+  }, [])
+
+  const handleDropAtIndex = useCallback(
+    (rawIndex: number, event: DragEvent<HTMLElement>) => {
+      event.preventDefault()
+      const payload = dragPayloadRef.current
+      clearDragState()
+      if (!payload) return
+
+      if (payload.kind === "library") {
+        insertBlockAtIndex(payload.blockType, rawIndex)
+        return
+      }
+
+      updateDocument((current) => {
+        const fromIndex = current.blocks.findIndex((item) => item.id === payload.blockId)
+        if (fromIndex < 0) return current
+        const targetIndex = Math.max(0, Math.min(rawIndex, current.blocks.length))
+        const normalizedTarget = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
+        const nextBlocks = moveBlockToIndex(current.blocks, payload.blockId, normalizedTarget)
+        return { blocks: nextBlocks }
+      })
+      setSelectedBlockId(payload.blockId)
+    },
+    [clearDragState, insertBlockAtIndex, updateDocument],
+  )
+
+  const onDropZoneDragOver = (index: number, event: DragEvent<HTMLElement>) => {
+    event.preventDefault()
+    setDragOverIndex(index)
+    event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+  }
+
+  const handleInlineTextCommit = (blockId: string, event: FocusEvent<HTMLElement>) => {
+    const nextValue = event.currentTarget.innerText.trim()
+    updateDocument((current) => ({
+      blocks: current.blocks.map((item) => {
+        if (item.id !== blockId || item.type !== "heading") return item
+        return {
+          ...item,
+          content: nextValue || "Titulo",
+        }
+      }),
+    }))
+    setInlineEditingBlockId(null)
+  }
+
+  const handleInlineRichTextCommit = (blockId: string, event: FocusEvent<HTMLDivElement>) => {
+    const html = event.currentTarget.innerHTML.trim()
+    updateDocument((current) => ({
+      blocks: current.blocks.map((item) => {
+        if (item.id !== blockId || item.type !== "rich_text") return item
+        return {
+          ...item,
+          content: html || "<p></p>",
+        }
+      }),
+    }))
+    setInlineEditingBlockId(null)
+  }
+
   if (pagesQuery.isLoading && !pagesQuery.data) {
     return <LoadingState message="A carregar editor visual..." />
   }
@@ -492,14 +638,14 @@ export function AdminPageEditor() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-[calc(100vh-110px)] flex-col gap-3">
       <PageHeader
         title="Editor Visual de Paginas"
-        description="Builder proprio por blocos com fluxo estilo Elementor: selecao, canvas e painel lateral de propriedades."
+        description="Fase 2: drag-and-drop real no canvas, edicao inline e layout expansivel estilo builder."
       />
 
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-[260px_1fr_auto] lg:items-end">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)_auto] xl:items-end">
           <label className="block">
             <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Pagina</span>
             <select
@@ -524,44 +670,41 @@ export function AdminPageEditor() {
             </select>
           </label>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold">{autosaveLabel}</span>
+            {publishedVersionId ? (
+              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800">
+                Publicada
+              </span>
+            ) : (
+              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-800">
+                Sem publicacao ativa
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" className="rounded-full" onClick={() => void handleSaveDraft("manual")} disabled={isSaving}>
               <Save className="mr-2 h-4 w-4" />
-              {saveDraftMutation.isPending ? "A guardar..." : "Guardar rascunho"}
+              {saveDraftMutation.isPending ? "A guardar..." : "Guardar"}
             </Button>
             <Button type="button" className="rounded-full" onClick={() => void handlePublish()} disabled={isSaving || !selectedVersionId}>
               <Send className="mr-2 h-4 w-4" />
               {publishMutation.isPending ? "A publicar..." : "Publicar"}
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleUnpublish()} disabled={isSaving || !publishedVersionId}>
-              <XCircle className="mr-2 h-4 w-4" />
-              {unpublishMutation.isPending ? "A despublicar..." : "Despublicar"}
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => handlePreview()} disabled={isSaving}>
+              <Eye className="mr-2 h-4 w-4" />
+              Preview
             </Button>
             <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleRollback()} disabled={isSaving || !selectedVersionId}>
               <FileClock className="mr-2 h-4 w-4" />
               Rollback
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={handlePreview}>
-              <Eye className="mr-2 h-4 w-4" />
-              Preview
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleUnpublish()} disabled={isSaving || !publishedVersionId}>
+              <XCircle className="mr-2 h-4 w-4" />
+              Despublicar
             </Button>
-          </div>
-
-          <div className="flex flex-col items-start gap-2 lg:items-end">
-            <StatusBadge
-              label={isDirty ? "Rascunho com alteracoes" : publishedVersionId ? "Publicado" : "Sem publicacao"}
-              tone={isDirty ? "warning" : publishedVersionId ? "success" : "neutral"}
-            />
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
-              {autosaveLabel}
-            </span>
-            <Button
-              type="button"
-              variant={autosaveEnabled ? "default" : "outline"}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setAutosaveEnabled((current) => !current)}
-            >
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => setAutosaveEnabled((current) => !current)}>
               {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
             </Button>
           </div>
@@ -570,7 +713,7 @@ export function AdminPageEditor() {
         {feedback ? (
           <div
             className={[
-              "mt-4 rounded-2xl border px-4 py-3 text-sm font-medium",
+              "mt-3 rounded-xl border px-4 py-3 text-sm font-medium",
               feedback.tone === "success"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-900"
                 : "border-rose-200 bg-rose-50 text-rose-900",
@@ -581,58 +724,96 @@ export function AdminPageEditor() {
         ) : null}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
-        <aside className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Blocos</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {BLOCK_LIBRARY.map((item) => (
-              <Button key={item.type} type="button" variant="outline" size="sm" className="justify-start rounded-xl" onClick={() => handleAddBlock(item.type)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {item.label}
-              </Button>
-            ))}
+      <section className="flex min-h-0 flex-1 gap-3">
+        <aside
+          className={[
+            "flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-slate-50 transition-all",
+            leftSidebarCollapsed ? "w-14" : "w-[300px]",
+          ].join(" ")}
+        >
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+            {!leftSidebarCollapsed ? (
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Blocos e estrutura</p>
+            ) : null}
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLeftSidebarCollapsed((current) => !current)}>
+              {leftSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
           </div>
 
-          <p className="mt-6 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Estrutura</p>
-          <div className="mt-3 space-y-2">
-            {documentDraft.blocks.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-600">Nenhum bloco ainda.</p>
-            ) : (
-              documentDraft.blocks.map((block, index) => (
-                <div
-                  key={block.id}
-                  className={[
-                    "rounded-xl border bg-white p-3",
-                    selectedBlockId === block.id ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200",
-                  ].join(" ")}
-                >
-                  <button type="button" className="w-full text-left" onClick={() => setSelectedBlockId(block.id)}>
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Bloco {index + 1}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{getBlockLabel(block)}</p>
+          {leftSidebarCollapsed ? (
+            <div className="flex flex-1 items-center justify-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 [writing-mode:vertical-rl]">
+              Blocos
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {BLOCK_LIBRARY.map((item) => (
+                  <button
+                    key={item.type}
+                    type="button"
+                    draggable
+                    onDragStart={(event) => startDragFromLibrary(item.type, event)}
+                    onClick={() => handleAddBlock(item.type)}
+                    className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{item.label}</span>
                   </button>
-                  <div className="mt-3 flex gap-2">
-                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-lg" onClick={() => handleMoveBlock(block.id, -1)} disabled={index === 0}>
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-lg" onClick={() => handleMoveBlock(block.id, 1)} disabled={index === documentDraft.blocks.length - 1}>
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-lg" onClick={() => handleDuplicateBlock(block.id)}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-lg text-rose-600" onClick={() => handleRemoveBlock(block.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))}
+              </div>
+
+              <p className="mt-6 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Estrutura</p>
+              <div className="mt-3 space-y-2">
+                {documentDraft.blocks.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-600">Nenhum bloco ainda.</p>
+                ) : (
+                  documentDraft.blocks.map((block, index) => (
+                    <div
+                      key={block.id}
+                      draggable
+                      onDragStart={(event) => startDragBlock(block.id, event)}
+                      onDragEnd={clearDragState}
+                      className={[
+                        "rounded-xl border bg-white p-2.5",
+                        selectedBlockId === block.id ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200",
+                      ].join(" ")}
+                    >
+                      <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={() => setSelectedBlockId(block.id)}>
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Bloco {index + 1}</span>
+                          <span className="block truncate text-xs font-semibold text-slate-900">{getBlockLabel(block)}</span>
+                        </span>
+                        <GripVertical className="h-4 w-4 text-slate-400" />
+                      </button>
+                      <div className="mt-2 flex gap-1.5">
+                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg" onClick={() => handleMoveBlock(block.id, -1)} disabled={index === 0}>
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg" onClick={() => handleMoveBlock(block.id, 1)} disabled={index === documentDraft.blocks.length - 1}>
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg" onClick={() => handleDuplicateBlock(block.id)}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg text-rose-600" onClick={() => handleRemoveBlock(block.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </aside>
 
-        <article className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Canvas visual</p>
+        <article className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Canvas visual</p>
+              <p className="text-xs text-slate-500">Arrasta blocos para dentro, reposiciona por drag-and-drop e edita em duplo clique.</p>
+            </div>
             {livePreviewUrl ? (
               <a href={livePreviewUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-sky-700 underline">
                 Ultimo preview
@@ -640,248 +821,406 @@ export function AdminPageEditor() {
             ) : null}
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 min-h-[620px]">
+          <div className="h-[calc(100vh-290px)] min-h-[540px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <div
+              onDragOver={(event) => onDropZoneDragOver(0, event)}
+              onDrop={(event) => handleDropAtIndex(0, event)}
+              className={[
+                "mb-2 h-2 rounded-full transition",
+                dragOverIndex === 0 ? "bg-sky-400" : "bg-transparent",
+              ].join(" ")}
+            />
+
             {documentDraft.blocks.length === 0 ? (
-              <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-600">
-                Adiciona blocos no painel da esquerda para montar a pagina.
+              <div
+                onDragOver={(event) => onDropZoneDragOver(0, event)}
+                onDrop={(event) => handleDropAtIndex(0, event)}
+                className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-600"
+              >
+                Arrasta blocos da esquerda para montar a pagina.
               </div>
             ) : (
-              documentDraft.blocks.map((block) => (
-                <button
-                  key={block.id}
-                  type="button"
-                  onClick={() => setSelectedBlockId(block.id)}
-                  className={[
-                    "w-full rounded-xl border bg-white p-4 text-left transition",
-                    selectedBlockId === block.id ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200",
-                  ].join(" ")}
-                >
-                  {block.type === "heading" ? (
-                    <p className="font-display text-3xl font-bold" style={{ color: block.color, textAlign: block.align }}>
-                      {block.content}
-                    </p>
-                  ) : null}
-                  {block.type === "rich_text" ? (
-                    <div className="rich-text-editor" dangerouslySetInnerHTML={{ __html: block.content }} />
-                  ) : null}
-                  {block.type === "image" ? (
-                    block.src ? (
-                      <img src={block.src} alt={block.alt} className="h-auto w-full object-cover" style={{ borderRadius: `${block.radius}px` }} />
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-100 p-8 text-center text-sm text-slate-500">
-                        Bloco de imagem sem URL
-                      </div>
-                    )
-                  ) : null}
-                  {block.type === "button" ? (
-                    <div style={{ textAlign: block.align }}>
-                      <span className="inline-flex rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white">
-                        {block.label}
-                      </span>
+              <div className="space-y-2">
+                {documentDraft.blocks.map((block, index) => {
+                  const isSelected = selectedBlockId === block.id
+                  const isInlineEditing = inlineEditingBlockId === block.id
+                  return (
+                    <div key={block.id}>
+                      <section
+                        draggable
+                        onDragStart={(event) => startDragBlock(block.id, event)}
+                        onDragEnd={clearDragState}
+                        onClick={() => {
+                          setSelectedBlockId(block.id)
+                        }}
+                        onDoubleClick={() => {
+                          setSelectedBlockId(block.id)
+                          setInlineEditingBlockId(block.id)
+                        }}
+                        className={[
+                          "group relative rounded-xl border bg-white px-5 py-4 text-left transition",
+                          isSelected ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200 hover:border-slate-300",
+                        ].join(" ")}
+                      >
+                        <div className="pointer-events-none absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                          <span className="inline-flex items-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
+                            <GripVertical className="mr-1 h-3 w-3" /> arrastar
+                          </span>
+                        </div>
+
+                        {block.type === "heading" ? (
+                          block.level === 1 ? (
+                            <h1
+                              contentEditable={isInlineEditing}
+                              suppressContentEditableWarning
+                              onBlur={(event) => handleInlineTextCommit(block.id, event)}
+                              className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
+                              style={{ color: block.color, textAlign: block.align, fontSize: "2.4rem", fontWeight: 800, lineHeight: 1.08 }}
+                            >
+                              {block.content}
+                            </h1>
+                          ) : block.level === 2 ? (
+                            <h2
+                              contentEditable={isInlineEditing}
+                              suppressContentEditableWarning
+                              onBlur={(event) => handleInlineTextCommit(block.id, event)}
+                              className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
+                              style={{ color: block.color, textAlign: block.align, fontSize: "2rem", fontWeight: 800, lineHeight: 1.1 }}
+                            >
+                              {block.content}
+                            </h2>
+                          ) : block.level === 3 ? (
+                            <h3
+                              contentEditable={isInlineEditing}
+                              suppressContentEditableWarning
+                              onBlur={(event) => handleInlineTextCommit(block.id, event)}
+                              className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
+                              style={{ color: block.color, textAlign: block.align, fontSize: "1.5rem", fontWeight: 800, lineHeight: 1.1 }}
+                            >
+                              {block.content}
+                            </h3>
+                          ) : (
+                            <h4
+                              contentEditable={isInlineEditing}
+                              suppressContentEditableWarning
+                              onBlur={(event) => handleInlineTextCommit(block.id, event)}
+                              className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
+                              style={{ color: block.color, textAlign: block.align, fontSize: "1.2rem", fontWeight: 800, lineHeight: 1.15 }}
+                            >
+                              {block.content}
+                            </h4>
+                          )
+                        ) : null}
+
+                        {block.type === "rich_text" ? (
+                          <div
+                            contentEditable={isInlineEditing}
+                            suppressContentEditableWarning
+                            onBlur={(event) => handleInlineRichTextCommit(block.id, event)}
+                            className={[
+                              "rich-text-editor min-h-[70px] leading-8",
+                              isInlineEditing ? "rounded-lg ring-2 ring-sky-200 outline-none" : "outline-none",
+                            ].join(" ")}
+                            dangerouslySetInnerHTML={{ __html: block.content }}
+                          />
+                        ) : null}
+
+                        {block.type === "image" ? (
+                          block.src ? (
+                            <img src={block.src} alt={block.alt} className="h-auto w-full object-cover" style={{ borderRadius: `${block.radius}px` }} />
+                          ) : (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-100 p-8 text-center text-sm text-slate-500">
+                              Bloco de imagem sem URL
+                            </div>
+                          )
+                        ) : null}
+
+                        {block.type === "button" ? (
+                          <div style={{ textAlign: block.align }}>
+                            <span
+                              contentEditable={isInlineEditing}
+                              suppressContentEditableWarning
+                              onBlur={(event) => {
+                                const value = event.currentTarget.innerText.trim()
+                                updateDocument((current) => ({
+                                  blocks: current.blocks.map((item) => {
+                                    if (item.id !== block.id || item.type !== "button") return item
+                                    return {
+                                      ...item,
+                                      label: value || "Call to action",
+                                    }
+                                  }),
+                                }))
+                                setInlineEditingBlockId(null)
+                              }}
+                              className={isInlineEditing ? "inline-flex rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white ring-2 ring-sky-200 outline-none" : "inline-flex rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white"}
+                            >
+                              {block.label}
+                            </span>
+                          </div>
+                        ) : null}
+
+                        {block.type === "divider" ? <hr style={{ borderColor: block.color }} /> : null}
+                        {block.type === "spacer" ? <div style={{ height: `${block.height}px` }} /> : null}
+                      </section>
+
+                      <div
+                        onDragOver={(event) => onDropZoneDragOver(index + 1, event)}
+                        onDrop={(event) => handleDropAtIndex(index + 1, event)}
+                        className={[
+                          "my-2 h-2 rounded-full transition",
+                          dragOverIndex === index + 1 ? "bg-sky-400" : "bg-transparent",
+                        ].join(" ")}
+                      />
                     </div>
-                  ) : null}
-                  {block.type === "divider" ? <hr style={{ borderColor: block.color }} /> : null}
-                  {block.type === "spacer" ? <div style={{ height: `${block.height}px` }} /> : null}
-                </button>
-              ))
+                  )
+                })}
+              </div>
             )}
           </div>
         </article>
 
-        <aside className="rounded-[1.5rem] border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Inspector</p>
-          {!selectedBlock ? (
-            <p className="mt-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-              Seleciona um bloco no canvas para editar as propriedades.
-            </p>
+        <aside
+          className={[
+            "flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white transition-all",
+            rightSidebarCollapsed ? "w-14" : "w-[350px]",
+          ].join(" ")}
+        >
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+            {!rightSidebarCollapsed ? <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Inspector</p> : null}
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRightSidebarCollapsed((current) => !current)}>
+              {rightSidebarCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {rightSidebarCollapsed ? (
+            <div className="flex flex-1 items-center justify-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 [writing-mode:vertical-rl]">
+              Inspector
+            </div>
           ) : (
-            <div className="mt-3 space-y-3">
-              <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
-              {selectedBlock.type === "heading" ? (
-                <>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Texto
-                    <input
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              {!selectedBlock ? (
+                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                  Seleciona um bloco no canvas para editar.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
+
+                  {selectedBlock.type === "heading" ? (
+                    <>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Texto
+                        <input
+                          value={selectedBlock.content}
+                          onChange={(event) => updateSelectedBlock((block) => (block.type === "heading" ? { ...block, content: event.target.value } : block))}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Nivel
+                          <select
+                            value={selectedBlock.level}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "heading" ? { ...block, level: Number(event.target.value) as 1 | 2 | 3 | 4 } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value={1}>H1</option>
+                            <option value={2}>H2</option>
+                            <option value={3}>H3</option>
+                            <option value={4}>H4</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento
+                          <select
+                            value={selectedBlock.align}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "heading" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                          </select>
+                        </label>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {selectedBlock.type === "rich_text" ? (
+                    <RichTextEditor
+                      ref={richTextRef}
                       value={selectedBlock.content}
-                      onChange={(event) => updateSelectedBlock((block) => block.type === "heading" ? { ...block, content: event.target.value } : block)}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                      onChange={(value) => updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: value } : block))}
+                      toolbarVariant="compact"
+                      minHeightPx={200}
                     />
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  ) : null}
+
+                  {selectedBlock.type === "image" ? (
+                    <>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        URL da imagem
+                        <input
+                          value={selectedBlock.src}
+                          onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, src: event.target.value } : block))}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Alt
+                        <input
+                          value={selectedBlock.alt}
+                          onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, alt: event.target.value } : block))}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Borda (px)
+                        <input
+                          type="number"
+                          min={0}
+                          max={60}
+                          value={selectedBlock.radius}
+                          onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, radius: Number(event.target.value) || 0 } : block))}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                    </>
+                  ) : null}
+
+                  {selectedBlock.type === "button" ? (
+                    <>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Label
+                        <input
+                          value={selectedBlock.label}
+                          onChange={(event) => updateSelectedBlock((block) => (block.type === "button" ? { ...block, label: event.target.value } : block))}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        URL
+                        <input
+                          value={selectedBlock.href}
+                          onChange={(event) => updateSelectedBlock((block) => (block.type === "button" ? { ...block, href: event.target.value } : block))}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Alinhamento
+                        <select
+                          value={selectedBlock.align}
+                          onChange={(event) =>
+                            updateSelectedBlock((block) =>
+                              block.type === "button" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block,
+                            )
+                          }
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        >
+                          <option value="left">Esquerda</option>
+                          <option value="center">Centro</option>
+                          <option value="right">Direita</option>
+                        </select>
+                      </label>
+                    </>
+                  ) : null}
+
+                  {selectedBlock.type === "divider" ? (
                     <label className="block text-xs font-semibold text-slate-600">
-                      Nivel
-                      <select
-                        value={selectedBlock.level}
-                        onChange={(event) => updateSelectedBlock((block) => block.type === "heading" ? { ...block, level: Number(event.target.value) as 1 | 2 | 3 | 4 } : block)}
+                      Cor (CSS)
+                      <input
+                        value={selectedBlock.color}
+                        onChange={(event) => updateSelectedBlock((block) => (block.type === "divider" ? { ...block, color: event.target.value } : block))}
                         className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                      >
-                        <option value={1}>H1</option>
-                        <option value={2}>H2</option>
-                        <option value={3}>H3</option>
-                        <option value={4}>H4</option>
-                      </select>
+                      />
                     </label>
+                  ) : null}
+
+                  {selectedBlock.type === "spacer" ? (
                     <label className="block text-xs font-semibold text-slate-600">
-                      Alinhamento
-                      <select
-                        value={selectedBlock.align}
-                        onChange={(event) => updateSelectedBlock((block) => block.type === "heading" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block)}
+                      Altura (px)
+                      <input
+                        type="number"
+                        value={selectedBlock.height}
+                        min={8}
+                        max={300}
+                        onChange={(event) =>
+                          updateSelectedBlock((block) => (block.type === "spacer" ? { ...block, height: Number(event.target.value) } : block))
+                        }
                         className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                      >
-                        <option value="left">Esquerda</option>
-                        <option value="center">Centro</option>
-                        <option value="right">Direita</option>
-                      </select>
+                      />
                     </label>
-                  </div>
-                </>
-              ) : null}
-              {selectedBlock.type === "rich_text" ? (
-                <RichTextEditor
-                  ref={richTextRef}
-                  value={selectedBlock.content}
-                  onChange={(value) => updateSelectedBlock((block) => block.type === "rich_text" ? { ...block, content: value } : block)}
-                  toolbarVariant="compact"
-                  minHeightPx={200}
-                />
-              ) : null}
-              {selectedBlock.type === "image" ? (
-                <>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    URL da imagem
+                  ) : null}
+                </div>
+              )}
+
+              <div className="mt-6 border-t border-slate-200 pt-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de imagens</p>
+                  <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
+                    <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
+                    {uploadingAsset ? "A enviar..." : "Upload"}
                     <input
-                      value={selectedBlock.src}
-                      onChange={(event) => updateSelectedBlock((block) => block.type === "image" ? { ...block, src: event.target.value } : block)}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                      className="sr-only"
+                      disabled={uploadingAsset}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ""
+                        if (file) {
+                          void handleUploadAsset(file)
+                        }
+                      }}
                     />
                   </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Alt
-                    <input
-                      value={selectedBlock.alt}
-                      onChange={(event) => updateSelectedBlock((block) => block.type === "image" ? { ...block, alt: event.target.value } : block)}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                    />
-                  </label>
-                </>
-              ) : null}
-              {selectedBlock.type === "button" ? (
-                <>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Label
-                    <input
-                      value={selectedBlock.label}
-                      onChange={(event) => updateSelectedBlock((block) => block.type === "button" ? { ...block, label: event.target.value } : block)}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    URL
-                    <input
-                      value={selectedBlock.href}
-                      onChange={(event) => updateSelectedBlock((block) => block.type === "button" ? { ...block, href: event.target.value } : block)}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Alinhamento
-                    <select
-                      value={selectedBlock.align}
-                      onChange={(event) => updateSelectedBlock((block) => block.type === "button" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block)}
-                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                    >
-                      <option value="left">Esquerda</option>
-                      <option value="center">Centro</option>
-                      <option value="right">Direita</option>
-                    </select>
-                  </label>
-                </>
-              ) : null}
-              {selectedBlock.type === "divider" ? (
-                <label className="block text-xs font-semibold text-slate-600">
-                  Cor (CSS)
-                  <input
-                    value={selectedBlock.color}
-                    onChange={(event) => updateSelectedBlock((block) => block.type === "divider" ? { ...block, color: event.target.value } : block)}
-                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                  />
-                </label>
-              ) : null}
-              {selectedBlock.type === "spacer" ? (
-                <label className="block text-xs font-semibold text-slate-600">
-                  Altura (px)
-                  <input
-                    type="number"
-                    value={selectedBlock.height}
-                    min={8}
-                    max={240}
-                    onChange={(event) => updateSelectedBlock((block) => block.type === "spacer" ? { ...block, height: Number(event.target.value) } : block)}
-                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                  />
-                </label>
-              ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  {assets.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                      Ainda nao existem imagens para esta pagina.
+                    </p>
+                  ) : (
+                    assets.map((asset) => (
+                      <div key={asset.id} className="rounded-xl border border-slate-200 p-2.5">
+                        <div className="h-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                          <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
+                        </div>
+                        <p className="mt-2 truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
+                        <p className="mt-1 text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
+                        <Button type="button" variant="outline" size="sm" className="mt-2 w-full rounded-full" onClick={() => handleInsertImage(asset)}>
+                          <ImagePlus className="mr-2 h-4 w-4" />
+                          Inserir no canvas
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </aside>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Biblioteca de imagens</p>
-              <h2 className="mt-1 text-lg font-bold text-slate-950">Assets</h2>
-            </div>
-            <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
-              <UploadCloud className="mr-2 h-4 w-4" />
-              {uploadingAsset ? "A enviar..." : "Upload"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
-                className="sr-only"
-                disabled={uploadingAsset}
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  event.target.value = ""
-                  if (file) {
-                    void handleUploadAsset(file)
-                  }
-                }}
-              />
-            </label>
-          </div>
-
-          <div className="space-y-3">
-            {assets.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                Ainda nao existem imagens para esta pagina.
-              </p>
-            ) : (
-              assets.map((asset) => (
-                <div key={asset.id} className="rounded-2xl border border-slate-200 p-3">
-                  <div className="h-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                    <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
-                  </div>
-                  <p className="mt-2 truncate text-sm font-semibold text-slate-900">{asset.file_name}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatDateTime(asset.created_at)}</p>
-                  <Button type="button" variant="outline" size="sm" className="mt-3 w-full rounded-full" onClick={() => handleInsertImage(asset)}>
-                    <ImagePlus className="mr-2 h-4 w-4" />
-                    Inserir no canvas
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
-
-        <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
+      <section className="grid gap-3 xl:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
             <FileClock className="h-4 w-4 text-slate-500" />
-            <h2 className="text-lg font-bold text-slate-950">Historico de versoes</h2>
+            <h2 className="text-sm font-bold text-slate-950">Historico de versoes</h2>
           </div>
-          <div className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-2">
             {versions.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
                 Ainda nao ha versoes para esta pagina.
               </p>
             ) : (
@@ -889,7 +1228,7 @@ export function AdminPageEditor() {
                 const isPublished = version.id === publishedVersionId
                 const isLoaded = version.id === selectedVersion?.id
                 return (
-                  <div key={version.id} className="rounded-2xl border border-slate-200 p-3">
+                  <div key={version.id} className="rounded-xl border border-slate-200 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-bold text-slate-900">Versao {version.version_number}</p>
                       {isPublished ? (
@@ -915,26 +1254,26 @@ export function AdminPageEditor() {
             )}
           </div>
         </article>
-      </section>
 
-      <footer className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-xs leading-6 text-slate-600">
-        <p>
-          Builder Fase 1: blocos nativos com inspetor lateral, autosave, preview, publicacao e rollback.
-        </p>
-        <p>
-          Preview publico:{" "}
-          <a href={getPublicPathForSlug(selectedSlug)} target="_blank" rel="noreferrer" className="font-semibold underline">
-            {window.location.origin}
-            {getPublicPathForSlug(selectedSlug)}
-          </a>
-        </p>
-        <p>
-          Atalho:{" "}
-          <a href={ROUTES.ADMIN_PAGE_EDITOR} className="font-semibold underline">
-            {ROUTES.ADMIN_PAGE_EDITOR}
-          </a>
-        </p>
-      </footer>
+        <article className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-6 text-slate-600">
+          <p>
+            Builder Fase 2: drag-and-drop no canvas, edicao inline em duplo clique, sidebars recolhiveis e canvas com scroll vertical.
+          </p>
+          <p>
+            Preview publico:{" "}
+            <a href={getPublicPathForSlug(selectedSlug)} target="_blank" rel="noreferrer" className="font-semibold underline">
+              {window.location.origin}
+              {getPublicPathForSlug(selectedSlug)}
+            </a>
+          </p>
+          <p>
+            Atalho:{" "}
+            <a href={ROUTES.ADMIN_PAGE_EDITOR} className="font-semibold underline">
+              {ROUTES.ADMIN_PAGE_EDITOR}
+            </a>
+          </p>
+        </article>
+      </section>
     </div>
   )
 }
