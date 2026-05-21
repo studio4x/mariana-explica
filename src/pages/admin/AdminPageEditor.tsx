@@ -4,6 +4,7 @@ import "grapesjs/dist/css/grapes.min.css"
 import { useBlocker } from "react-router-dom"
 import {
   ExternalLink,
+  Pencil,
   Eye,
   FileClock,
   ImagePlus,
@@ -120,12 +121,26 @@ function shouldAutoOpenInlineTextEditor(component: unknown) {
   }
 
   if (candidate.is?.("text")) return true
-  if (candidate.get?.("editable") === false) return false
 
   const tagName = String(candidate.get?.("tagName") ?? "").trim().toLowerCase()
   if (!tagName) return false
 
   return ["p", "span", "a", "strong", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"].includes(tagName)
+}
+
+function forceOpenTextEditing(editor: GrapesEditor, component: unknown) {
+  if (!shouldAutoOpenInlineTextEditor(component)) return
+
+  const target = component as {
+    set?: (key: string, value: unknown) => void
+  }
+
+  try {
+    target.set?.("editable", true)
+    editor.runCommand("core:component-text-edit")
+  } catch {
+    // Ignore command/state errors from transient canvas states.
+  }
 }
 
 type SaveDraftTrigger = "manual" | "autosave"
@@ -145,7 +160,7 @@ export function AdminPageEditor() {
   const [selectedComponentIsImage, setSelectedComponentIsImage] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
-  const [editorMode, setEditorMode] = useState<"simple" | "advanced">("simple")
+  const [editorMode, setEditorMode] = useState<"simple" | "advanced">("advanced")
   const [autosaveEnabled, setAutosaveEnabled] = useState(true)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [autosaveSavedAt, setAutosaveSavedAt] = useState<string | null>(null)
@@ -160,6 +175,7 @@ export function AdminPageEditor() {
   const stylesSidebarRef = useRef<HTMLDivElement | null>(null)
   const traitCategoriesRef = useRef<HTMLDivElement | null>(null)
   const traitsSidebarRef = useRef<HTMLDivElement | null>(null)
+  const selectedComponentRef = useRef<unknown>(null)
   const loadedVersionIdRef = useRef<string>("")
   const loadedSlugRef = useRef<string>("")
   const hydratingEditorRef = useRef(false)
@@ -354,6 +370,20 @@ export function AdminPageEditor() {
           setEditorDevice(editor, "desktop")
           setActiveDevice("desktop")
 
+          const frameDocument = editor.Canvas.getDocument()
+          frameDocument?.addEventListener(
+            "click",
+            (event) => {
+              const target = event.target as HTMLElement | null
+              if (!target) return
+              const anchor = target.closest("a")
+              if (anchor) {
+                event.preventDefault()
+              }
+            },
+            true,
+          )
+
           window.setTimeout(() => {
             if (editorRef.current !== editor) return
 
@@ -411,6 +441,7 @@ export function AdminPageEditor() {
         })
 
         editor.on("component:selected", (component) => {
+          selectedComponentRef.current = component ?? null
           setSelectedComponentIsImage(Boolean(component?.is?.("image")))
           window.setTimeout(() => {
             renderStudioSidebars(editor, {
@@ -422,17 +453,12 @@ export function AdminPageEditor() {
             })
             filterBlocksSidebar(blocksSidebarRef.current, blockSearch)
 
-            if (shouldAutoOpenInlineTextEditor(component)) {
-              try {
-                editor.runCommand("core:component-text-edit")
-              } catch {
-                // The command might not be available in some editor states.
-              }
-            }
+            forceOpenTextEditing(editor, component)
           }, 0)
         })
 
         editor.on("component:deselected", () => {
+          selectedComponentRef.current = null
           const selected = editor.getSelected()
           setSelectedComponentIsImage(Boolean(selected?.is?.("image")))
           window.setTimeout(() => {
@@ -998,6 +1024,25 @@ export function AdminPageEditor() {
             <Button type="button" variant="outline" className="rounded-full" onClick={handlePreview}>
               <Eye className="mr-2 h-4 w-4" />
               Preview
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => {
+                const editor = editorRef.current
+                if (!editor) return
+                const selected = editor.getSelected() ?? selectedComponentRef.current
+                if (!selected) {
+                  setFeedback({ tone: "danger", message: "Seleciona um bloco de texto para editar." })
+                  return
+                }
+                forceOpenTextEditing(editor, selected)
+              }}
+              disabled={!editorReady}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar texto selecionado
             </Button>
             <Button
               type="button"
