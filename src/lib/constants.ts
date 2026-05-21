@@ -60,6 +60,7 @@ export const ROUTES = {
   ADMIN_FAQ: "/admin/perguntas-frequentes",
   ADMIN_AFFILIATES: "/admin/afiliados",
   ADMIN_COUPONS: "/admin/cupons",
+  ADMIN_PAGE_EDITOR: "/admin/editor-paginas",
 } as const
 
 // API

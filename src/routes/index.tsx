@@ -30,6 +30,9 @@ const CookiePolicy = lazy(() =>
 const TermsOfUse = lazy(() =>
   import("@/pages/public").then((module) => ({ default: module.TermsOfUse })),
 )
+const PublicManagedPage = lazy(() =>
+  import("@/pages/public").then((module) => ({ default: module.PublicManagedPage })),
+)
 const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
 const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
 const AuthCallback = lazy(() => import("@/pages/auth").then((module) => ({ default: module.AuthCallback })))
@@ -165,6 +168,9 @@ const AdminSupportTicketDetail = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.AdminSupportTicketDetail })),
 )
 const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminUsers })))
+const AdminPageEditor = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminPageEditor })),
+)
 
 function withSuspense(node: ReactNode) {
   return (
@@ -244,7 +250,7 @@ export const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: withSuspense(<Home />),
+          element: withSuspense(<PublicManagedPage slug="home" fallback={<Home />} />),
         },
         {
           path: "materiais",
@@ -280,19 +286,19 @@ export const router = createBrowserRouter(
         },
         {
           path: "sobre",
-          element: withSuspense(<About />),
+          element: withSuspense(<PublicManagedPage slug="sobre" fallback={<About />} />),
         },
         {
           path: "privacidade",
-          element: withSuspense(<PrivacyPolicy />),
+          element: withSuspense(<PublicManagedPage slug="privacidade" fallback={<PrivacyPolicy />} />),
         },
         {
           path: "cookies",
-          element: withSuspense(<CookiePolicy />),
+          element: withSuspense(<PublicManagedPage slug="cookies" fallback={<CookiePolicy />} />),
         },
         {
           path: "termos-de-uso",
-          element: withSuspense(<TermsOfUse />),
+          element: withSuspense(<PublicManagedPage slug="termos" fallback={<TermsOfUse />} />),
         },
         {
           path: "produtos",
@@ -561,6 +567,10 @@ export const router = createBrowserRouter(
         {
           path: "cupons",
           element: withSuspense(<AdminCoupons />),
+        },
+        {
+          path: "editor-paginas",
+          element: withSuspense(<AdminPageEditor />),
         },
         {
           path: "produtos",
