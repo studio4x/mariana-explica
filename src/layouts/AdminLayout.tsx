@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import {
   Bell,
   CircleHelp,
-  FilePenLine,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -31,7 +30,6 @@ import {
   fetchAdminNotifications,
   fetchAdminOperations,
   fetchAdminOrdersView,
-  fetchAdminSitePages,
   fetchAdminPublicFormSubmissions,
   fetchAdminProducts,
   fetchAdminSupportTickets,
@@ -59,7 +57,6 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formularios", icon: ClipboardList },
-  { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor de Paginas", icon: FilePenLine },
   { to: ROUTES.ADMIN_FAQ, label: "Perguntas frequentes", icon: CircleHelp },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
@@ -127,11 +124,6 @@ export function AdminLayout() {
     void queryClient.prefetchQuery({
       queryKey: ["admin", "operations"],
       queryFn: fetchAdminOperations,
-      staleTime: 60_000,
-    })
-    void queryClient.prefetchQuery({
-      queryKey: ["admin", "site-pages"],
-      queryFn: fetchAdminSitePages,
       staleTime: 60_000,
     })
   }, [queryClient, profile?.id])

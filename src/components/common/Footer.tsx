@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
-import { BUILD_PUBLIC_VERSION_LABEL } from "@/lib/build"
+import { BUILD_VERSION } from "@/lib/build"
 import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
 
 export function FooterCopyright({ className = "" }: { className?: string }) {
@@ -21,7 +21,7 @@ export function FooterCopyright({ className = "" }: { className?: string }) {
             </Link>
           </div>
           <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400/80">
-            Build {BUILD_PUBLIC_VERSION_LABEL}
+            Build {BUILD_VERSION}
           </span>
         </div>
       </div>

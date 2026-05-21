@@ -1,4 +1,3 @@
-import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { CheckCircle2, MessageCircleHeart } from "lucide-react"
 import { Button } from "@/components/ui"
@@ -7,7 +6,6 @@ import { StarRating } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
 import { useHomepageReviews } from "@/hooks/useReviews"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
-import { PublicManagedPage } from "./PublicManagedPage"
 
 const featureBlocks = [
   {
@@ -72,95 +70,10 @@ function formatReviewDate(value: string) {
   }).format(new Date(value))
 }
 
-function HomeReviewsSection() {
+export function Home() {
   const reviewsQuery = useHomepageReviews(6)
   const reviews = reviewsQuery.data ?? []
 
-  return (
-    <section className="bg-[#f5fafc] py-24">
-      <div className="mx-auto max-w-[1200px] px-6 text-center">
-        <div className="mx-auto max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[#567085] shadow-sm ring-1 ring-black/5">
-            <MessageCircleHeart className="h-4 w-4 text-[#242742]" />
-            Reviews
-          </div>
-          <h2 className="mt-4 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">
-            E o que dizem os nossos alunos?
-          </h2>
-          <p className="mt-4 text-base leading-7 text-[#46464d]">Avaliacoes reais publicadas no modulo de Reviews.</p>
-        </div>
-
-        {reviewsQuery.isLoading ? <LoadingState message="A carregar avaliacoes..." /> : null}
-        {reviewsQuery.isError ? (
-          <ErrorState
-            title="Nao foi possivel carregar as avaliacoes"
-            message={reviewsQuery.error instanceof Error ? reviewsQuery.error.message : "Tenta novamente dentro de instantes."}
-            onRetry={() => void reviewsQuery.refetch()}
-          />
-        ) : null}
-
-        {!reviewsQuery.isLoading && !reviewsQuery.isError && reviews.length === 0 ? (
-          <div className="mt-16 rounded-xl border border-[rgba(71,71,77,0.08)] bg-white p-8 text-left shadow-sm">
-            <p className="text-sm leading-7 text-[#46464d]">
-              Ainda nao existem reviews publicadas para mostrar aqui.
-            </p>
-            <Button asChild className="mt-5 rounded-full bg-[#242742] hover:bg-[#1d2036]">
-              <Link to={ROUTES.COURSES}>Explorar materiais</Link>
-            </Button>
-          </div>
-        ) : null}
-
-        {!reviewsQuery.isLoading && !reviewsQuery.isError && reviews.length > 0 ? (
-          <div className="mt-16 grid gap-6 text-left md:grid-cols-2 xl:grid-cols-3">
-            {reviews.map((review) => {
-              const authorName = review.profiles?.full_name?.trim() || "Aluno Mariana Explica"
-
-              return (
-                <article key={review.id} className="rounded-xl border border-[rgba(71,71,77,0.08)] bg-white p-6 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-display text-xl font-bold text-[#0f122c]">{authorName}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <StarRating value={review.rating} readonly size="sm" />
-                        <span className="text-xs font-semibold text-[#6b7280]">{formatReviewDate(review.created_at)}</span>
-                        {review.is_verified_purchase ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Compra verificada
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  <h3 className="mt-5 font-display text-2xl font-bold text-[#0f122c]">{review.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-[#46464d]">{review.content}</p>
-                </article>
-              )
-            })}
-          </div>
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-function HomeReviewsWidgetPlaceholder() {
-  return (
-    <section data-me-widget="home-reviews" className="bg-[#f5fafc] py-24">
-      <div className="mx-auto max-w-[1200px] px-6 text-center">
-        <div className="mx-auto max-w-2xl rounded-xl border border-dashed border-[rgba(71,71,77,0.25)] bg-white p-8 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#567085]">Widget dinamico</p>
-          <h3 className="mt-3 font-display text-2xl font-bold text-[#0f122c]">Reviews da Home</h3>
-          <p className="mt-2 text-sm leading-7 text-[#46464d]">
-            Este bloco e renderizado dinamicamente no site publico.
-          </p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function HomeStaticSections({ reviewsNode }: { reviewsNode: ReactNode }) {
   return (
     <div className="flex flex-col">
       <header className="bg-[#f5fafc] py-20 lg:py-32">
@@ -298,30 +211,70 @@ function HomeStaticSections({ reviewsNode }: { reviewsNode: ReactNode }) {
         </div>
       </section>
 
-      {reviewsNode}
+      <section className="bg-[#f5fafc] py-24">
+        <div className="mx-auto max-w-[1200px] px-6 text-center">
+          <div className="mx-auto max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[#567085] shadow-sm ring-1 ring-black/5">
+              <MessageCircleHeart className="h-4 w-4 text-[#242742]" />
+              Reviews
+            </div>
+            <h2 className="mt-4 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">
+              E o que dizem os nossos alunos?
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[#46464d]">Avaliações reais publicadas no módulo de Reviews.</p>
+          </div>
+
+          {reviewsQuery.isLoading ? <LoadingState message="A carregar avaliações..." /> : null}
+          {reviewsQuery.isError ? (
+            <ErrorState
+              title="Nao foi possivel carregar as avaliacoes"
+              message={reviewsQuery.error instanceof Error ? reviewsQuery.error.message : "Tenta novamente dentro de instantes."}
+              onRetry={() => void reviewsQuery.refetch()}
+            />
+          ) : null}
+
+          {!reviewsQuery.isLoading && !reviewsQuery.isError && reviews.length === 0 ? (
+            <div className="mt-16 rounded-xl border border-[rgba(71,71,77,0.08)] bg-white p-8 text-left shadow-sm">
+              <p className="text-sm leading-7 text-[#46464d]">
+                Ainda não existem reviews publicadas para mostrar aqui.
+              </p>
+              <Button asChild className="mt-5 rounded-full bg-[#242742] hover:bg-[#1d2036]">
+                <Link to={ROUTES.COURSES}>Explorar materiais</Link>
+              </Button>
+            </div>
+          ) : null}
+
+          {!reviewsQuery.isLoading && !reviewsQuery.isError && reviews.length > 0 ? (
+            <div className="mt-16 grid gap-6 text-left md:grid-cols-2 xl:grid-cols-3">
+              {reviews.map((review) => {
+                const authorName = review.profiles?.full_name?.trim() || "Aluno Mariana Explica"
+
+                return (
+                  <article key={review.id} className="rounded-xl border border-[rgba(71,71,77,0.08)] bg-white p-6 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-display text-xl font-bold text-[#0f122c]">{authorName}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <StarRating value={review.rating} readonly size="sm" />
+                          <span className="text-xs font-semibold text-[#6b7280]">{formatReviewDate(review.created_at)}</span>
+                          {review.is_verified_purchase ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Compra verificada
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    <h3 className="mt-5 font-display text-2xl font-bold text-[#0f122c]">{review.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-[#46464d]">{review.content}</p>
+                  </article>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
-  )
-}
-
-export function HomeFallback() {
-  return <HomeStaticSections reviewsNode={<HomeReviewsSection />} />
-}
-
-export function HomeEditorBaseline() {
-  return <HomeStaticSections reviewsNode={<HomeReviewsWidgetPlaceholder />} />
-}
-
-export function Home() {
-  return (
-    <PublicManagedPage
-      slug="home"
-      fallback={<HomeFallback />}
-      widgets={[
-        {
-          key: "home-reviews",
-          node: <HomeReviewsSection />,
-        },
-      ]}
-    />
   )
 }

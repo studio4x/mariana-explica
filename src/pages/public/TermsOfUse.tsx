@@ -1,5 +1,4 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
-import { PublicManagedPage } from "./PublicManagedPage"
 
 const sections: LegalSection[] = [
   {
@@ -73,7 +72,7 @@ const sections: LegalSection[] = [
   },
 ]
 
-export function TermsOfUseFallback() {
+export function TermsOfUse() {
   return (
     <LegalPageLayout
       eyebrow="Termos"
@@ -83,8 +82,4 @@ export function TermsOfUseFallback() {
       sections={sections}
     />
   )
-}
-
-export function TermsOfUse() {
-  return <PublicManagedPage slug="termos" fallback={<TermsOfUseFallback />} />
 }

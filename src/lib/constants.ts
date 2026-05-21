@@ -57,7 +57,6 @@ export const ROUTES = {
   ADMIN_REVIEWS: "/admin/reviews",
   ADMIN_SUPPORT: "/admin/suporte",
   ADMIN_PUBLIC_FORMS: "/admin/formularios",
-  ADMIN_PAGE_EDITOR: "/admin/editor-paginas",
   ADMIN_FAQ: "/admin/perguntas-frequentes",
   ADMIN_AFFILIATES: "/admin/afiliados",
   ADMIN_COUPONS: "/admin/cupons",

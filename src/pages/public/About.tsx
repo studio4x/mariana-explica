@@ -1,6 +1,4 @@
-import { PublicManagedPage } from "./PublicManagedPage"
-
-export function AboutFallback() {
+export function About() {
   return (
     <section className="bg-[#d8e8ef] py-14 md:py-20">
       <div className="mx-auto max-w-[1200px] px-6">
@@ -112,8 +110,4 @@ export function AboutFallback() {
       </div>
     </section>
   )
-}
-
-export function About() {
-  return <PublicManagedPage slug="sobre" fallback={<AboutFallback />} />
 }

@@ -161,9 +161,6 @@ const AdminSupport = lazy(() => import("@/pages/admin").then((module) => ({ defa
 const AdminPublicForms = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPublicForms })),
 )
-const AdminPageEditor = lazy(() =>
-  import("@/pages/admin/AdminPageEditor").then((module) => ({ default: module.AdminPageEditor })),
-)
 const AdminSupportTicketDetail = lazy(() =>
   import("@/pages/dashboard").then((module) => ({ default: module.AdminSupportTicketDetail })),
 )
@@ -540,10 +537,6 @@ export const router = createBrowserRouter(
         {
           path: "formularios",
           element: withSuspense(<AdminPublicForms />),
-        },
-        {
-          path: "editor-paginas",
-          element: withSuspense(<AdminPageEditor />),
         },
         {
           path: "perguntas-frequentes",

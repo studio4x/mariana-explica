@@ -13,12 +13,6 @@ verify_jwt = false
 [functions.admin-cron-scheduler]
 verify_jwt = false
 
-[functions.admin-page-builder]
-verify_jwt = false
-
-[functions.admin-page-assets]
-verify_jwt = false
-
 [functions.admin-course-releases]
 verify_jwt = false
 

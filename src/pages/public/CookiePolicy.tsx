@@ -1,5 +1,4 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
-import { PublicManagedPage } from "./PublicManagedPage"
 
 const sections: LegalSection[] = [
   {
@@ -53,7 +52,7 @@ const sections: LegalSection[] = [
   },
 ]
 
-export function CookiePolicyFallback() {
+export function CookiePolicy() {
   return (
     <LegalPageLayout
       eyebrow="Cookies"
@@ -63,8 +62,4 @@ export function CookiePolicyFallback() {
       sections={sections}
     />
   )
-}
-
-export function CookiePolicy() {
-  return <PublicManagedPage slug="cookies" fallback={<CookiePolicyFallback />} />
 }
