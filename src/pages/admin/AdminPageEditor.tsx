@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Editor as GrapesEditor } from "grapesjs"
+import "grapesjs/dist/css/grapes.min.css"
 import { useBlocker } from "react-router-dom"
 import {
   Eye,
@@ -58,9 +59,8 @@ async function loadVisualEditorRuntime() {
   if (!visualEditorRuntimePromise) {
     visualEditorRuntimePromise = Promise.all([
       import("grapesjs"),
-      import("grapesjs/dist/css/grapes.min.css"),
       import("@/pages/admin/page-editor/tiptapRte"),
-    ]).then(([grapesModule, _styles, tiptapModule]) => ({
+    ]).then(([grapesModule, tiptapModule]) => ({
       grapesjs: grapesModule.default,
       registerTiptapRte: tiptapModule.registerTiptapRte,
     }))
