@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js"
 import type { Session } from "@supabase/supabase-js"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 
+type SupabaseLock = <R>(name: string, acquireTimeout: number, fn: () => Promise<R>) => Promise<R>
+
 type QueryResponse<T> = Promise<{ data: T | null; error: Error | null }>
 
 interface RealtimeChannelLike {
@@ -198,9 +200,88 @@ function createNoopSupabaseClient() {
   }
 }
 
+function createSupabaseAuthLock(): SupabaseLock {
+  const inTabQueue = new Map<string, Promise<unknown>>()
+
+  return async (name, acquireTimeout, fn) => {
+    const runWithInTabQueue = async () => {
+      const previous = inTabQueue.get(name) ?? Promise.resolve()
+      let releaseCurrent = () => {}
+      const current = new Promise<void>((resolve) => {
+        releaseCurrent = resolve
+      })
+      const queued = previous.then(() => current)
+      inTabQueue.set(name, queued)
+
+      try {
+        await previous
+        return await fn()
+      } finally {
+        releaseCurrent()
+        if (inTabQueue.get(name) === queued) {
+          inTabQueue.delete(name)
+        }
+      }
+    }
+
+    if (typeof window === "undefined" || typeof navigator === "undefined" || !("locks" in navigator)) {
+      return runWithInTabQueue()
+    }
+
+    const safeTimeout = Number.isFinite(acquireTimeout) && acquireTimeout > 0 ? acquireTimeout : 2_500
+    const startedAt = Date.now()
+    let acquiredResult: Awaited<ReturnType<typeof fn>> | undefined
+
+    while (Date.now() - startedAt < safeTimeout) {
+      const didAcquire = await new Promise<boolean>((resolve) => {
+        ;(navigator as Navigator & {
+          locks?: {
+            request: (
+              lockName: string,
+              options: { ifAvailable: boolean; mode: "exclusive" },
+              callback: (lock: unknown | null) => Promise<void>,
+            ) => Promise<void>
+          }
+        }).locks
+          ?.request(
+            `mariana-explica:${name}`,
+            { ifAvailable: true, mode: "exclusive" },
+            async (lock) => {
+              if (!lock) {
+                resolve(false)
+                return
+              }
+
+              try {
+                acquiredResult = await runWithInTabQueue()
+              } finally {
+                resolve(true)
+              }
+            },
+          )
+          .catch(() => resolve(false))
+      })
+
+      if (didAcquire) {
+        return acquiredResult as Awaited<ReturnType<typeof fn>>
+      }
+
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 40))
+    }
+
+    return runWithInTabQueue()
+  }
+}
+
+const supabaseAuthLock = createSupabaseAuthLock()
+
 export const supabase: SupabaseLike =
   SUPABASE_URL && SUPABASE_ANON_KEY
-    ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY) as unknown as SupabaseLike)
+    ? (createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          lock: supabaseAuthLock,
+        },
+      }) as unknown as SupabaseLike)
     : createNoopSupabaseClient()
 
 export const publicSupabase: SupabaseLike =
