@@ -1219,6 +1219,14 @@ export function AdminPageEditor() {
                         draggable
                         onDragStart={(event) => startDragBlock(block.id, event)}
                         onDragEnd={clearDragState}
+                        onClickCapture={(event) => {
+                          const target = event.target as HTMLElement | null
+                          const anchor = target?.closest?.("a") as HTMLAnchorElement | null
+                          if (!anchor) return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          setSelectedBlockId(block.id)
+                        }}
                         onClick={() => {
                           setSelectedBlockId(block.id)
                         }}
