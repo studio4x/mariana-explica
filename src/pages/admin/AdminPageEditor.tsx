@@ -172,7 +172,26 @@ ${getDefaultStyleCss()}
   margin-right: 0 !important;
   padding: 40px 0 !important;
 }
+.me-about-page,
+.me-legal-page {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+.me-about-page {
+  padding: 40px 0 !important;
+}
+.me-legal-page {
+  padding: 20px 0 !important;
+}
 .me-home-shell {
+  width: min(100%, 1120px) !important;
+  margin: 0 auto !important;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+.me-about-shell,
+.me-legal-shell {
   width: min(100%, 1120px) !important;
   margin: 0 auto !important;
   padding-left: 20px;
@@ -181,6 +200,13 @@ ${getDefaultStyleCss()}
 }
 .me-home-hero-grid,
 .me-home-grid-two {
+  align-items: center;
+}
+.me-about-grid,
+.me-about-card-grid,
+.me-about-pillar-right,
+.me-about-pillar-left,
+.me-about-pillar-wide {
   align-items: center;
 }
 .me-home-hero-copy h1 {
@@ -192,15 +218,50 @@ ${getDefaultStyleCss()}
 .me-home-display-copy {
   font-size: clamp(26px, 2.8vw, 36px);
 }
+.me-about-hero h1,
+.me-about-section-head h2 {
+  font-size: clamp(34px, 4vw, 54px);
+}
+.me-about-copy p,
+.me-about-card p {
+  font-size: clamp(17px, 2vw, 21px);
+}
+.me-about-copy .me-about-lead {
+  font-size: clamp(24px, 2.6vw, 32px);
+}
+.me-about-pillar-tag p {
+  font-size: clamp(20px, 2.2vw, 28px);
+}
+.me-legal-hero-card,
+.me-legal-article,
+.me-legal-support {
+  box-sizing: border-box;
+}
+.me-legal-hero-card h1 {
+  font-size: clamp(32px, 3.6vw, 46px);
+}
+.me-legal-article h2,
+.me-legal-support h2 {
+  font-size: clamp(24px, 2.8vw, 34px);
+}
 .me-home-section-intro h2,
 .me-home-reviews h2 {
   font-size: clamp(34px, 4vw, 52px);
 }
 @media (max-width: 880px) {
-  .me-home-shell {
+  .me-home-shell,
+  .me-about-shell,
+  .me-legal-shell {
     width: 100% !important;
     padding-left: 14px;
     padding-right: 14px;
+  }
+  .me-about-grid,
+  .me-about-card-grid,
+  .me-about-pillar-right,
+  .me-about-pillar-left,
+  .me-about-pillar-wide {
+    grid-template-columns: 1fr !important;
   }
 }
   `.trim()
