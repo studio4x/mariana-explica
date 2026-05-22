@@ -1,10 +1,24 @@
 import type { SitePageSlug } from "@/types/app.types"
 
-export type PageBlockType = "heading" | "rich_text" | "image" | "button" | "divider" | "spacer"
+export type PageBlockType = "heading" | "rich_text" | "image" | "button" | "divider" | "spacer" | "columns"
+
+export interface BlockLayoutStyle {
+  gridColumns: number
+  align: "left" | "center" | "right"
+  paddingTop: number
+  paddingRight: number
+  paddingBottom: number
+  paddingLeft: number
+  marginTop: number
+  marginBottom: number
+  backgroundColor: string
+  borderRadius: number
+}
 
 interface BasePageBlock {
   id: string
   type: PageBlockType
+  layout: BlockLayoutStyle
 }
 
 export interface HeadingBlock extends BasePageBlock {
@@ -44,7 +58,21 @@ export interface SpacerBlock extends BasePageBlock {
   height: number
 }
 
-export type PageBlock = HeadingBlock | RichTextBlock | ImageBlock | ButtonBlock | DividerBlock | SpacerBlock
+export interface ColumnsBlock extends BasePageBlock {
+  type: "columns"
+  columns: 2 | 3 | 4
+  gap: number
+  items: string[]
+}
+
+export type PageBlock =
+  | HeadingBlock
+  | RichTextBlock
+  | ImageBlock
+  | ButtonBlock
+  | DividerBlock
+  | SpacerBlock
+  | ColumnsBlock
 
 export interface SitePageBuilderDocument {
   blocks: PageBlock[]
@@ -52,6 +80,11 @@ export interface SitePageBuilderDocument {
 
 function uid(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (Number.isNaN(value)) return min
+  return Math.max(min, Math.min(max, value))
 }
 
 function escapeHtml(value: string) {
@@ -69,7 +102,45 @@ function sanitizeRichText(html: string) {
     .replace(/\s(href|src)\s*=\s*(['"])javascript:.*?\2/gi, ` $1="#"`)
 }
 
+export function getBlockLayoutDefaults(): BlockLayoutStyle {
+  return {
+    gridColumns: 12,
+    align: "center",
+    paddingTop: 16,
+    paddingRight: 16,
+    paddingBottom: 16,
+    paddingLeft: 16,
+    marginTop: 0,
+    marginBottom: 4,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+  }
+}
+
+export function normalizeLayoutStyle(raw: unknown): BlockLayoutStyle {
+  const defaults = getBlockLayoutDefaults()
+  if (!raw || typeof raw !== "object") return defaults
+  const record = raw as Record<string, unknown>
+
+  return {
+    gridColumns: clamp(Number(record.gridColumns ?? defaults.gridColumns), 1, 12),
+    align: (["left", "center", "right"].includes(String(record.align)) ? String(record.align) : defaults.align) as
+      | "left"
+      | "center"
+      | "right",
+    paddingTop: clamp(Number(record.paddingTop ?? defaults.paddingTop), 0, 240),
+    paddingRight: clamp(Number(record.paddingRight ?? defaults.paddingRight), 0, 240),
+    paddingBottom: clamp(Number(record.paddingBottom ?? defaults.paddingBottom), 0, 240),
+    paddingLeft: clamp(Number(record.paddingLeft ?? defaults.paddingLeft), 0, 240),
+    marginTop: clamp(Number(record.marginTop ?? defaults.marginTop), 0, 240),
+    marginBottom: clamp(Number(record.marginBottom ?? defaults.marginBottom), 0, 240),
+    backgroundColor: String(record.backgroundColor ?? defaults.backgroundColor),
+    borderRadius: clamp(Number(record.borderRadius ?? defaults.borderRadius), 0, 120),
+  }
+}
+
 export function createDefaultBlock(type: PageBlockType): PageBlock {
+  const layout = getBlockLayoutDefaults()
   switch (type) {
     case "heading":
       return {
@@ -79,12 +150,14 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         level: 2,
         align: "left",
         color: "#0f122c",
+        layout,
       }
     case "rich_text":
       return {
         id: uid("text"),
         type: "rich_text",
         content: "<p>Escreve aqui o conteudo da pagina.</p>",
+        layout,
       }
     case "image":
       return {
@@ -93,6 +166,7 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         src: "",
         alt: "Imagem",
         radius: 18,
+        layout,
       }
     case "button":
       return {
@@ -101,74 +175,102 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         label: "Call to action",
         href: "/materiais",
         align: "left",
+        layout,
       }
     case "divider":
       return {
         id: uid("divider"),
         type: "divider",
         color: "rgba(36,39,66,0.18)",
+        layout,
       }
     case "spacer":
       return {
         id: uid("spacer"),
         type: "spacer",
         height: 48,
+        layout,
+      }
+    case "columns":
+      return {
+        id: uid("columns"),
+        type: "columns",
+        columns: 2,
+        gap: 18,
+        items: [
+          "<p><strong>Coluna 1</strong><br/>Conteudo editavel da primeira coluna.</p>",
+          "<p><strong>Coluna 2</strong><br/>Conteudo editavel da segunda coluna.</p>",
+        ],
+        layout,
       }
     default:
       return {
         id: uid("text"),
         type: "rich_text",
         content: "<p>Conteudo.</p>",
+        layout,
       }
   }
 }
 
 export function getDefaultDocumentForSlug(slug: SitePageSlug): SitePageBuilderDocument {
   if (slug === "home") {
+    const heading = createDefaultBlock("heading")
+    const text = createDefaultBlock("rich_text")
+    const button = createDefaultBlock("button")
+    const columns = createDefaultBlock("columns")
+
+    if (heading.type === "heading") {
+      heading.content = "Tens dificuldades a Portugues ou Filosofia?"
+      heading.level = 1
+    }
+    if (text.type === "rich_text") {
+      text.content =
+        "<p>Este espaco foi criado para simplificar o teu estudo com clareza, estrategia e linguagem direta.</p>"
+    }
+    if (button.type === "button") {
+      button.label = "Explorar materiais"
+      button.href = "/materiais"
+    }
+    if (columns.type === "columns") {
+      columns.columns = 3
+      columns.gap = 16
+      columns.items = [
+        "<p><strong>Organizacao</strong><br/>Planos claros para estudares sem confusao.</p>",
+        "<p><strong>Pratica</strong><br/>Exercicios orientados para o que realmente cai.</p>",
+        "<p><strong>Apoio</strong><br/>Explicacoes diretas e objetivas para ganhar ritmo.</p>",
+      ]
+    }
+
     return {
-      blocks: [
-        {
-          id: uid("h"),
-          type: "heading",
-          content: "Tens dificuldades a Portugues ou Filosofia?",
-          level: 1,
-          align: "left",
-          color: "#0f122c",
-        },
-        {
-          id: uid("t"),
-          type: "rich_text",
-          content:
-            "<p>Este espaco foi criado para simplificar o teu estudo com clareza, estrategia e linguagem direta.</p>",
-        },
-        {
-          id: uid("b"),
-          type: "button",
-          label: "Explorar materiais",
-          href: "/materiais",
-          align: "left",
-        },
-      ],
+      blocks: [heading, text, button, columns],
     }
   }
 
   return {
     blocks: [
       {
-        id: uid("h"),
-        type: "heading",
+        ...(createDefaultBlock("heading") as HeadingBlock),
         content: "Titulo da pagina",
         level: 1,
-        align: "left",
-        color: "#0f122c",
       },
       {
-        id: uid("t"),
-        type: "rich_text",
+        ...(createDefaultBlock("rich_text") as RichTextBlock),
         content: "<p>Comeca aqui a editar o conteudo desta pagina.</p>",
       },
     ],
   }
+}
+
+function normalizeColumnsItems(rawItems: unknown, columns: 2 | 3 | 4) {
+  const source = Array.isArray(rawItems) ? rawItems.map((item) => String(item ?? "")) : []
+  const sanitized = source.slice(0, columns).map((item) =>
+    sanitizeRichText(item.trim() || "<p>Coluna vazia.</p>"),
+  )
+  while (sanitized.length < columns) {
+    sanitized.push("<p>Coluna vazia.</p>")
+  }
+  return sanitized
 }
 
 export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): SitePageBuilderDocument {
@@ -182,6 +284,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
     const block = item as Record<string, unknown>
     const type = String(block.type ?? "").trim() as PageBlockType
     if (!type) continue
+    const layout = normalizeLayoutStyle(block.layout)
 
     if (type === "heading") {
       blocks.push({
@@ -194,6 +297,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
           | "center"
           | "right",
         color: String(block.color ?? "#0f122c"),
+        layout,
       })
       continue
     }
@@ -203,6 +307,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         id: String(block.id ?? uid("text")),
         type,
         content: String(block.content ?? "<p></p>"),
+        layout,
       })
       continue
     }
@@ -214,6 +319,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         src: String(block.src ?? ""),
         alt: String(block.alt ?? "Imagem"),
         radius: Math.max(0, Math.min(60, Number(block.radius ?? 18))),
+        layout,
       })
       continue
     }
@@ -228,6 +334,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
           | "left"
           | "center"
           | "right",
+        layout,
       })
       continue
     }
@@ -237,6 +344,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         id: String(block.id ?? uid("divider")),
         type,
         color: String(block.color ?? "rgba(36,39,66,0.18)"),
+        layout,
       })
       continue
     }
@@ -246,6 +354,20 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         id: String(block.id ?? uid("spacer")),
         type,
         height: Math.max(8, Math.min(240, Number(block.height ?? 48))),
+        layout,
+      })
+      continue
+    }
+
+    if (type === "columns") {
+      const columns = clamp(Number(block.columns ?? 2), 2, 4) as 2 | 3 | 4
+      blocks.push({
+        id: String(block.id ?? uid("columns")),
+        type,
+        columns,
+        gap: clamp(Number(block.gap ?? 18), 8, 64),
+        items: normalizeColumnsItems(block.items, columns),
+        layout,
       })
     }
   }
@@ -264,8 +386,8 @@ function pushRichTextBlockFromHtml(blocks: PageBlock[], html: string) {
   const content = sanitizeRichText(html).trim()
   if (!content) return
   blocks.push({
+    ...(createDefaultBlock("rich_text") as RichTextBlock),
     id: uid("text"),
-    type: "rich_text",
     content,
   })
 }
@@ -279,14 +401,12 @@ function extractLegacyElements(node: Element, blocks: PageBlock[]) {
     if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
       const text = child.textContent?.trim() ?? ""
       if (!text) continue
-      blocks.push({
-        id: uid("heading"),
-        type: "heading",
-        content: text,
-        level: getHeadingLevel(tag),
-        align: "left",
-        color: "#0f122c",
-      })
+      const heading = createDefaultBlock("heading")
+      if (heading.type !== "heading") continue
+      heading.id = uid("heading")
+      heading.content = text
+      heading.level = getHeadingLevel(tag)
+      blocks.push(heading)
       continue
     }
 
@@ -294,22 +414,19 @@ function extractLegacyElements(node: Element, blocks: PageBlock[]) {
       const image = child as HTMLImageElement
       const src = image.getAttribute("src")?.trim() ?? ""
       if (!src) continue
-      blocks.push({
-        id: uid("image"),
-        type: "image",
-        src,
-        alt: image.getAttribute("alt")?.trim() ?? "Imagem",
-        radius: 18,
-      })
+      const block = createDefaultBlock("image")
+      if (block.type !== "image") continue
+      block.id = uid("image")
+      block.src = src
+      block.alt = image.getAttribute("alt")?.trim() ?? "Imagem"
+      blocks.push(block)
       continue
     }
 
     if (tag === "hr") {
-      blocks.push({
-        id: uid("divider"),
-        type: "divider",
-        color: "rgba(36,39,66,0.18)",
-      })
+      const divider = createDefaultBlock("divider")
+      divider.id = uid("divider")
+      blocks.push(divider)
       continue
     }
 
@@ -317,13 +434,13 @@ function extractLegacyElements(node: Element, blocks: PageBlock[]) {
       const href = child.getAttribute("href")?.trim() ?? "#"
       const label = child.textContent?.trim() ?? ""
       if (label && label.length <= 90) {
-        blocks.push({
-          id: uid("button"),
-          type: "button",
-          label,
-          href,
-          align: "left",
-        })
+        const button = createDefaultBlock("button")
+        if (button.type === "button") {
+          button.id = uid("button")
+          button.label = label
+          button.href = href
+          blocks.push(button)
+        }
       } else {
         pushRichTextBlockFromHtml(blocks, child.outerHTML)
       }
@@ -367,18 +484,34 @@ export function convertLegacyHtmlToBuilderDocument(
   extractLegacyElements(parsed.body, blocks)
 
   if (blocks.length === 0) {
-    return {
-      blocks: [
-        {
-          id: uid("text"),
-          type: "rich_text",
-          content: sanitizeRichText(source),
-        },
-      ],
+    const richText = createDefaultBlock("rich_text")
+    if (richText.type === "rich_text") {
+      richText.content = sanitizeRichText(source)
+      return { blocks: [richText] }
     }
+    return getDefaultDocumentForSlug(slug)
   }
 
   return { blocks }
+}
+
+function getWrapperStyle(layout: BlockLayoutStyle) {
+  const widthPercent = Math.round((layout.gridColumns / 12) * 10000) / 100
+  const widthCss = `min(100%, ${widthPercent}%)`
+
+  const marginLeft = layout.align === "right" ? "auto" : layout.align === "center" ? "auto" : "0"
+  const marginRight = layout.align === "left" ? "auto" : layout.align === "center" ? "auto" : "0"
+
+  return [
+    `width:${widthCss}`,
+    `margin-top:${layout.marginTop}px`,
+    `margin-bottom:${layout.marginBottom}px`,
+    `margin-left:${marginLeft}`,
+    `margin-right:${marginRight}`,
+    `padding:${layout.paddingTop}px ${layout.paddingRight}px ${layout.paddingBottom}px ${layout.paddingLeft}px`,
+    `background:${escapeHtml(layout.backgroundColor)}`,
+    `border-radius:${layout.borderRadius}px`,
+  ].join(";")
 }
 
 export function renderDocumentToHtml(document: SitePageBuilderDocument) {
@@ -408,9 +541,21 @@ export function renderDocumentToHtml(document: SitePageBuilderDocument) {
         return `<hr style="border:0;border-top:1px solid ${escapeHtml(block.color)};" />`
       }
 
-      return `<div style="height:${block.height}px;"></div>`
+      if (block.type === "spacer") {
+        return `<div style="height:${block.height}px;"></div>`
+      }
+
+      const items = block.items
+        .slice(0, block.columns)
+        .map((item) => `<article class="me-managed-column-item">${sanitizeRichText(item)}</article>`)
+        .join("")
+
+      return `<section class="me-managed-columns" style="grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;">${items}</section>`
     })
-    .map((html) => `<section class="me-managed-block">${html}</section>`)
+    .map((html, index) => {
+      const block = document.blocks[index]
+      return `<section class="me-managed-block" style="${getWrapperStyle(block.layout)}">${html}</section>`
+    })
     .join("")
 
   return `<div class="me-managed-page-root">${blocksHtml}</div>`
@@ -423,8 +568,11 @@ export function getDefaultStyleCss() {
   margin: 0 auto;
   padding: 56px 20px 76px;
 }
+.me-managed-block {
+  box-sizing: border-box;
+}
 .me-managed-block + .me-managed-block {
-  margin-top: 24px;
+  margin-top: 8px;
 }
 .me-managed-richtext {
   color: #24324a;
@@ -439,6 +587,20 @@ export function getDefaultStyleCss() {
 .me-managed-richtext h4 {
   margin: 0 0 12px;
   color: #0f122c;
+}
+.me-managed-columns {
+  display: grid;
+}
+.me-managed-column-item {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 16px;
+}
+@media (max-width: 880px) {
+  .me-managed-columns {
+    grid-template-columns: 1fr !important;
+  }
 }
   `.trim()
 }

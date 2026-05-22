@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { DragEvent, FocusEvent } from "react"
+import type { CSSProperties } from "react"
 import { useBlocker } from "react-router-dom"
 import {
   ArrowDown,
@@ -39,8 +40,11 @@ import {
   createDefaultBlock,
   getDefaultDocumentForSlug,
   getDefaultStyleCss,
+  getBlockLayoutDefaults,
   normalizeBuilderDocument,
+  normalizeLayoutStyle,
   renderDocumentToHtml,
+  type BlockLayoutStyle,
   type PageBlock,
   type PageBlockType,
   type SitePageBuilderDocument,
@@ -61,6 +65,7 @@ const BLOCK_LIBRARY: Array<{ type: PageBlockType; label: string }> = [
   { type: "rich_text", label: "Texto" },
   { type: "image", label: "Imagem" },
   { type: "button", label: "Botao" },
+  { type: "columns", label: "Colunas" },
   { type: "divider", label: "Divisor" },
   { type: "spacer", label: "Espaco" },
 ]
@@ -124,8 +129,30 @@ function getBlockLabel(block: PageBlock) {
   if (block.type === "rich_text") return "Texto rico"
   if (block.type === "image") return "Imagem"
   if (block.type === "button") return "Botao"
+  if (block.type === "columns") return `Secao ${block.columns} colunas`
   if (block.type === "divider") return "Divisor"
   return "Espaco"
+}
+
+function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
+  const normalized = normalizeLayoutStyle(layout ?? getBlockLayoutDefaults())
+  const widthPercent = Math.round((normalized.gridColumns / 12) * 10000) / 100
+  const widthCss = `min(100%, ${widthPercent}%)`
+
+  return {
+    width: widthCss,
+    marginTop: normalized.marginTop,
+    marginBottom: normalized.marginBottom,
+    marginLeft: normalized.align === "right" ? "auto" : normalized.align === "center" ? "auto" : 0,
+    marginRight: normalized.align === "left" ? "auto" : normalized.align === "center" ? "auto" : 0,
+    paddingTop: normalized.paddingTop,
+    paddingRight: normalized.paddingRight,
+    paddingBottom: normalized.paddingBottom,
+    paddingLeft: normalized.paddingLeft,
+    background: normalized.backgroundColor,
+    borderRadius: normalized.borderRadius,
+    boxSizing: "border-box",
+  }
 }
 
 function moveBlockToIndex(blocks: PageBlock[], blockId: string, rawTargetIndex: number): PageBlock[] {
@@ -156,6 +183,8 @@ export function AdminPageEditor() {
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
+  const [showLayoutGuides, setShowLayoutGuides] = useState(true)
+  const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const loadedSlugRef = useRef<string>("")
@@ -182,6 +211,10 @@ export function AdminPageEditor() {
   const selectedBlock = useMemo(
     () => documentDraft.blocks.find((block) => block.id === selectedBlockId) ?? null,
     [documentDraft.blocks, selectedBlockId],
+  )
+  const selectedLayout = useMemo(
+    () => normalizeLayoutStyle(selectedBlock?.layout ?? getBlockLayoutDefaults()),
+    [selectedBlock],
   )
 
   const autosaveLabel = useMemo(() => {
@@ -213,6 +246,28 @@ export function AdminPageEditor() {
       }))
     },
     [selectedBlockId, updateDocument],
+  )
+
+  const snapSpacing = useCallback(
+    (value: number) => {
+      if (!Number.isFinite(value)) return 0
+      if (!snapSpacingToGrid) return Math.max(0, value)
+      return Math.max(0, Math.round(value / 4) * 4)
+    },
+    [snapSpacingToGrid],
+  )
+
+  const updateSelectedBlockLayout = useCallback(
+    (partial: Partial<BlockLayoutStyle>) => {
+      updateSelectedBlock((block) => ({
+        ...block,
+        layout: normalizeLayoutStyle({
+          ...block.layout,
+          ...partial,
+        }),
+      }))
+    },
+    [updateSelectedBlock],
   )
 
   const confirmDiscardChanges = useCallback(
@@ -641,7 +696,7 @@ export function AdminPageEditor() {
     <div className="flex h-full min-h-[calc(100vh-110px)] flex-col gap-3">
       <PageHeader
         title="Editor Visual de Paginas"
-        description="Fase 2: drag-and-drop real no canvas, edicao inline e layout expansivel estilo builder."
+        description="Fase 3: layout avancado com secao em 12 colunas, espacamentos finos, guias e edicao inline."
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -706,6 +761,12 @@ export function AdminPageEditor() {
             </Button>
             <Button type="button" variant="outline" className="rounded-full" onClick={() => setAutosaveEnabled((current) => !current)}>
               {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
+            </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => setShowLayoutGuides((current) => !current)}>
+              {showLayoutGuides ? "Guias on" : "Guias off"}
+            </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => setSnapSpacingToGrid((current) => !current)}>
+              {snapSpacingToGrid ? "Snap 4px on" : "Snap 4px off"}
             </Button>
           </div>
         </div>
@@ -821,12 +882,20 @@ export function AdminPageEditor() {
             ) : null}
           </div>
 
-          <div className="h-[calc(100vh-290px)] min-h-[540px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
+          <div className="relative h-[calc(100vh-290px)] min-h-[540px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            {showLayoutGuides ? (
+              <div className="pointer-events-none absolute inset-4 z-0">
+                <div className="absolute inset-y-0 left-0 w-px bg-sky-200/60" />
+                <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-sky-300/70" />
+                <div className="absolute inset-y-0 right-0 w-px bg-sky-200/60" />
+              </div>
+            ) : null}
+
             <div
               onDragOver={(event) => onDropZoneDragOver(0, event)}
               onDrop={(event) => handleDropAtIndex(0, event)}
               className={[
-                "mb-2 h-2 rounded-full transition",
+                "relative z-10 mb-2 h-2 rounded-full transition",
                 dragOverIndex === 0 ? "bg-sky-400" : "bg-transparent",
               ].join(" ")}
             />
@@ -840,7 +909,7 @@ export function AdminPageEditor() {
                 Arrasta blocos da esquerda para montar a pagina.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="relative z-10 space-y-2">
                 {documentDraft.blocks.map((block, index) => {
                   const isSelected = selectedBlockId === block.id
                   const isInlineEditing = inlineEditingBlockId === block.id
@@ -858,9 +927,10 @@ export function AdminPageEditor() {
                           setInlineEditingBlockId(block.id)
                         }}
                         className={[
-                          "group relative rounded-xl border bg-white px-5 py-4 text-left transition",
+                          "group relative rounded-xl border bg-white text-left transition",
                           isSelected ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200 hover:border-slate-300",
                         ].join(" ")}
+                        style={getBlockContainerStyle(block.layout)}
                       >
                         <div className="pointer-events-none absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
                           <span className="inline-flex items-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
@@ -960,6 +1030,41 @@ export function AdminPageEditor() {
                           </div>
                         ) : null}
 
+                        {block.type === "columns" ? (
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: `repeat(${block.columns}, minmax(0, 1fr))`,
+                              gap: `${block.gap}px`,
+                            }}
+                          >
+                            {block.items.slice(0, block.columns).map((item, itemIndex) => (
+                              <article
+                                key={`${block.id}-col-${itemIndex}`}
+                                contentEditable={isInlineEditing}
+                                suppressContentEditableWarning
+                                onBlur={(event) => {
+                                  const html = event.currentTarget.innerHTML.trim() || "<p>Coluna vazia.</p>"
+                                  updateDocument((current) => ({
+                                    blocks: current.blocks.map((currentBlock) => {
+                                      if (currentBlock.id !== block.id || currentBlock.type !== "columns") return currentBlock
+                                      const nextItems = [...currentBlock.items]
+                                      nextItems[itemIndex] = html
+                                      return { ...currentBlock, items: nextItems }
+                                    }),
+                                  }))
+                                  setInlineEditingBlockId(null)
+                                }}
+                                className={[
+                                  "rounded-xl border border-slate-200 bg-white p-4",
+                                  isInlineEditing ? "outline-none ring-2 ring-sky-200" : "",
+                                ].join(" ")}
+                                dangerouslySetInnerHTML={{ __html: item }}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+
                         {block.type === "divider" ? <hr style={{ borderColor: block.color }} /> : null}
                         {block.type === "spacer" ? <div style={{ height: `${block.height}px` }} /> : null}
                       </section>
@@ -1006,6 +1111,151 @@ export function AdminPageEditor() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Layout da secao</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Largura (1-12)
+                        <input
+                          type="number"
+                          min={1}
+                          max={12}
+                          value={selectedLayout.gridColumns}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({
+                              gridColumns: Math.max(1, Math.min(12, Number(event.target.value) || 12)),
+                            })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Alinhamento
+                        <select
+                          value={selectedLayout.align}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({
+                              align: event.target.value as "left" | "center" | "right",
+                            })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        >
+                          <option value="left">Esquerda</option>
+                          <option value="center">Centro</option>
+                          <option value="right">Direita</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Padding top
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.paddingTop}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ paddingTop: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Padding right
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.paddingRight}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ paddingRight: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Padding bottom
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.paddingBottom}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ paddingBottom: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Padding left
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.paddingLeft}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ paddingLeft: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Margem top
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.marginTop}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ marginTop: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Margem bottom
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.marginBottom}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ marginBottom: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Fundo
+                        <input
+                          value={selectedLayout.backgroundColor}
+                          onChange={(event) => updateSelectedBlockLayout({ backgroundColor: event.target.value })}
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Raio (px)
+                        <input
+                          type="number"
+                          min={0}
+                          max={120}
+                          value={selectedLayout.borderRadius}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ borderRadius: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                    </div>
+                  </div>
 
                   {selectedBlock.type === "heading" ? (
                     <>
@@ -1134,6 +1384,48 @@ export function AdminPageEditor() {
                     </>
                   ) : null}
 
+                  {selectedBlock.type === "columns" ? (
+                    <>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Numero de colunas
+                        <select
+                          value={selectedBlock.columns}
+                          onChange={(event) => {
+                            const nextColumns = Math.max(2, Math.min(4, Number(event.target.value) || 2)) as 2 | 3 | 4
+                            updateSelectedBlock((block) => {
+                              if (block.type !== "columns") return block
+                              const nextItems = [...block.items]
+                              while (nextItems.length < nextColumns) nextItems.push("<p>Coluna vazia.</p>")
+                              return { ...block, columns: nextColumns, items: nextItems.slice(0, nextColumns) }
+                            })
+                          }}
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        >
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                        </select>
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Gap entre colunas (px)
+                        <input
+                          type="number"
+                          min={8}
+                          max={64}
+                          value={selectedBlock.gap}
+                          onChange={(event) =>
+                            updateSelectedBlock((block) =>
+                              block.type === "columns"
+                                ? { ...block, gap: Math.max(8, Math.min(64, snapSpacing(Number(event.target.value) || 8))) }
+                                : block,
+                            )
+                          }
+                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                    </>
+                  ) : null}
+
                   {selectedBlock.type === "divider" ? (
                     <label className="block text-xs font-semibold text-slate-600">
                       Cor (CSS)
@@ -1257,7 +1549,7 @@ export function AdminPageEditor() {
 
         <article className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-6 text-slate-600">
           <p>
-            Builder Fase 2: drag-and-drop no canvas, edicao inline em duplo clique, sidebars recolhiveis e canvas com scroll vertical.
+            Builder Fase 3: colunas, controle de layout por secao (12-grid, padding/margin/fundo), guias visuais e snap de espacamento.
           </p>
           <p>
             Preview publico:{" "}
