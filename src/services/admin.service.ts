@@ -63,42 +63,68 @@ function isSchemaMismatch(error: unknown, hint: string) {
   return fullText.includes(hint.toLowerCase())
 }
 
-async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
-  const auth = await getFreshFunctionAuthContext()
-  if (!auth) {
-    throw new Error("Sessao expirada")
-  }
+function isAuthLockContentionMessage(message: string) {
+  const normalized = message.toLowerCase()
+  return normalized.includes("lock") && normalized.includes("stole it")
+}
 
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      ...(typeof body === "object" && body !== null ? body : {}),
-      access_token: auth.accessToken,
-    }),
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
   })
+}
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
+async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
+  let lastError: Error | null = null
 
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const auth = await getFreshFunctionAuthContext()
+      if (!auth) {
+        throw new Error("Sessao expirada")
+      }
 
-    throw new Error(message)
+      const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: auth.headers.Authorization,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...(typeof body === "object" && body !== null ? body : {}),
+          access_token: auth.accessToken,
+        }),
+      })
+
+      const contentType = response.headers.get("content-type") ?? ""
+      const data = contentType.includes("application/json")
+        ? await response.json().catch(() => null)
+        : await response.text().catch(() => "")
+
+      if (!response.ok) {
+        const message =
+          typeof data === "object" && data && "message" in data
+            ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
+            : typeof data === "string" && data
+              ? data
+              : `Edge Function returned ${response.status}`
+        throw new Error(message)
+      }
+
+      return data as TResponse
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      lastError = error instanceof Error ? error : new Error(message)
+      if (attempt < 3 && isAuthLockContentionMessage(message)) {
+        await wait(120 * attempt)
+        continue
+      }
+      throw lastError
+    }
   }
 
-  return data as TResponse
+  throw lastError ?? new Error("Falha ao invocar funcao administrativa")
 }
 
 async function requireFreshAuth() {

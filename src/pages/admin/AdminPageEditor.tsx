@@ -189,6 +189,8 @@ export function AdminPageEditor() {
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
   const [showLayoutGuides, setShowLayoutGuides] = useState(true)
   const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
+  const [richSelectionMode, setRichSelectionMode] = useState(false)
+  const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const loadedSlugRef = useRef<string>("")
@@ -220,6 +222,17 @@ export function AdminPageEditor() {
     () => normalizeLayoutStyle(selectedBlock?.layout ?? getBlockLayoutDefaults()),
     [selectedBlock],
   )
+
+  const selectedRichNodeHtml = useMemo(() => {
+    if (!selectedBlock || selectedBlock.type !== "rich_text") return null
+    if (selectedRichNodeIndex === null) return null
+    if (typeof window === "undefined" || typeof DOMParser === "undefined") return null
+    const parser = new DOMParser()
+    const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+    const nodes = Array.from(parsed.body.children)
+    const node = nodes[selectedRichNodeIndex]
+    return node ? node.outerHTML : null
+  }, [selectedBlock, selectedRichNodeIndex])
 
   const autosaveLabel = useMemo(() => {
     if (!autosaveEnabled) return "Autosave desligado"
@@ -272,6 +285,48 @@ export function AdminPageEditor() {
       }))
     },
     [updateSelectedBlock],
+  )
+
+  const annotateRichTextNodes = useCallback(
+    (html: string, activeIndex: number | null) => {
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(html, "text/html")
+      const children = Array.from(parsed.body.children)
+      children.forEach((child, index) => {
+        child.setAttribute("data-me-node", String(index))
+        const baseStyle = child.getAttribute("style") ?? ""
+        const activeStyle =
+          activeIndex === index
+            ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:pointer;"
+            : "outline:1px dashed rgba(56,189,248,.35);outline-offset:2px;cursor:pointer;"
+        child.setAttribute("style", `${baseStyle}${baseStyle ? ";" : ""}${activeStyle}`)
+      })
+      return parsed.body.innerHTML
+    },
+    [],
+  )
+
+  const applyRichNodeEdit = useCallback(
+    (nextNodeHtml: string) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.children)
+      if (!nodes[selectedRichNodeIndex]) return
+
+      const nextNodeDoc = parser.parseFromString(nextNodeHtml, "text/html")
+      const replacement = nextNodeDoc.body.firstElementChild
+      if (!replacement) return
+
+      nodes[selectedRichNodeIndex].replaceWith(replacement)
+      const nextHtml = parsed.body.innerHTML
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: nextHtml } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
 
   const confirmDiscardChanges = useCallback(
@@ -415,6 +470,13 @@ export function AdminPageEditor() {
     }))
     setSelectedBlockId(block.id)
   }
+
+  useEffect(() => {
+    if (selectedBlock?.type !== "rich_text") {
+      setSelectedRichNodeIndex(null)
+      setRichSelectionMode(false)
+    }
+  }, [selectedBlock])
 
   const insertBlockAtIndex = useCallback(
     (type: PageBlockType, rawIndex: number) => {
@@ -977,7 +1039,22 @@ export function AdminPageEditor() {
                         {block.type === "rich_text" ? (
                           <div
                             className="rich-text-editor min-h-[70px] leading-8"
-                            dangerouslySetInnerHTML={{ __html: block.content }}
+                            onClick={(event) => {
+                              if (!richSelectionMode || selectedBlockId !== block.id) return
+                              const target = event.target as HTMLElement | null
+                              const node = target?.closest?.("[data-me-node]") as HTMLElement | null
+                              if (!node) return
+                              const value = Number(node.getAttribute("data-me-node") ?? "-1")
+                              if (Number.isFinite(value) && value >= 0) {
+                                setSelectedRichNodeIndex(value)
+                              }
+                            }}
+                            dangerouslySetInnerHTML={{
+                              __html:
+                                richSelectionMode && selectedBlockId === block.id
+                                  ? annotateRichTextNodes(block.content, selectedRichNodeIndex)
+                                  : block.content,
+                            }}
                           />
                         ) : null}
 
@@ -1292,13 +1369,48 @@ export function AdminPageEditor() {
                   ) : null}
 
                   {selectedBlock.type === "rich_text" ? (
-                    <RichTextEditor
-                      ref={richTextRef}
-                      value={selectedBlock.content}
-                      onChange={(value) => updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: value } : block))}
-                      toolbarVariant="compact"
-                      minHeightPx={200}
-                    />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant={richSelectionMode ? "default" : "outline"}
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => {
+                            setRichSelectionMode((current) => !current)
+                            setSelectedRichNodeIndex(null)
+                          }}
+                        >
+                          {richSelectionMode ? "Selecao interna on" : "Selecao interna off"}
+                        </Button>
+                        {richSelectionMode ? (
+                          <span className="text-[11px] text-slate-500">Clica no trecho no canvas para editar apenas ele.</span>
+                        ) : null}
+                      </div>
+
+                      {richSelectionMode && selectedRichNodeHtml ? (
+                        <label className="block text-xs font-semibold text-slate-600">
+                          HTML do trecho selecionado
+                          <textarea
+                            key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
+                            defaultValue={selectedRichNodeHtml}
+                            className="mt-1 min-h-[160px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+                            onBlur={(event) => {
+                              const next = event.target.value.trim()
+                              if (next) applyRichNodeEdit(next)
+                            }}
+                          />
+                        </label>
+                      ) : (
+                        <RichTextEditor
+                          ref={richTextRef}
+                          value={selectedBlock.content}
+                          onChange={(value) => updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: value } : block))}
+                          toolbarVariant="compact"
+                          minHeightPx={200}
+                        />
+                      )}
+                    </div>
                   ) : null}
 
                   {selectedBlock.type === "image" ? (
