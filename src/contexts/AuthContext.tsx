@@ -293,7 +293,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const preserveCurrentOnFailure = event === "TOKEN_REFRESHED"
 
-        await syncSession(nextSession, shouldRefreshProfile, preserveCurrentOnFailure)
+        try {
+          await syncSession(nextSession, shouldRefreshProfile, preserveCurrentOnFailure)
+        } catch {
+          // Prevent unhandled promise rejections from auth lock/contention races.
+        }
       },
     )
 

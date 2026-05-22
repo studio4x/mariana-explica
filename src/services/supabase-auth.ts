@@ -8,6 +8,7 @@ export interface FunctionAuthContext {
 }
 
 let refreshSessionPromise: Promise<FunctionAuthContext | null> | null = null
+let sessionAccessQueue: Promise<FunctionAuthContext | null> = Promise.resolve(null)
 
 function getJwtExpiryMs(token: string) {
   try {
@@ -28,54 +29,95 @@ function isTokenExpiringSoon(token: string, thresholdMs = 60_000) {
   return expiresAt - Date.now() <= thresholdMs
 }
 
+function isAuthLockContention(error: unknown) {
+  if (!error || typeof error !== "object") return false
+  const asRecord = error as Record<string, unknown>
+  const fullText = `${asRecord.code ?? ""} ${asRecord.message ?? ""} ${asRecord.details ?? ""} ${asRecord.hint ?? ""}`.toLowerCase()
+  return fullText.includes("lock") && fullText.includes("stole it")
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
 export async function getFreshFunctionAuthContext(): Promise<FunctionAuthContext | null> {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const currentToken = sessionData.session?.access_token
+  sessionAccessQueue = sessionAccessQueue
+    .catch(() => null)
+    .then(async () => {
+      let currentToken: string | null = null
 
-  if (currentToken && !isTokenExpiringSoon(currentToken)) {
-    return {
-      accessToken: currentToken,
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-      },
-    }
-  }
-
-  if (!refreshSessionPromise) {
-    refreshSessionPromise = (async () => {
       try {
-        const { data, error } = await supabase.auth.refreshSession()
-        const refreshedToken = !error ? data.session?.access_token ?? null : null
-        const accessToken = refreshedToken ?? currentToken ?? null
+        const { data: sessionData } = await supabase.auth.getSession()
+        currentToken = sessionData.session?.access_token ?? null
+      } catch (error) {
+        if (!isAuthLockContention(error)) throw error
+        await wait(80)
+        const { data: retriedSessionData } = await supabase.auth.getSession()
+        currentToken = retriedSessionData.session?.access_token ?? null
+      }
 
-        if (!accessToken) {
-          return null
-        }
-
-        return {
-          accessToken,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      } catch {
-        if (!currentToken) {
-          return null
-        }
-
+      if (currentToken && !isTokenExpiringSoon(currentToken)) {
         return {
           accessToken: currentToken,
           headers: {
             Authorization: `Bearer ${currentToken}`,
           },
         }
-      } finally {
-        refreshSessionPromise = null
       }
-    })()
-  }
 
-  return refreshSessionPromise
+      if (!refreshSessionPromise) {
+        refreshSessionPromise = (async () => {
+          try {
+            const { data, error } = await supabase.auth.refreshSession()
+            const refreshedToken = !error ? data.session?.access_token ?? null : null
+            const accessToken = refreshedToken ?? currentToken ?? null
+
+            if (!accessToken) {
+              return null
+            }
+
+            return {
+              accessToken,
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          } catch (error) {
+            if (isAuthLockContention(error)) {
+              await wait(120)
+              const { data: fallbackSessionData } = await supabase.auth.getSession()
+              const fallbackToken = fallbackSessionData.session?.access_token ?? currentToken ?? null
+              if (!fallbackToken) return null
+              return {
+                accessToken: fallbackToken,
+                headers: {
+                  Authorization: `Bearer ${fallbackToken}`,
+                },
+              }
+            }
+
+            if (!currentToken) {
+              return null
+            }
+
+            return {
+              accessToken: currentToken,
+              headers: {
+                Authorization: `Bearer ${currentToken}`,
+              },
+            }
+          } finally {
+            refreshSessionPromise = null
+          }
+        })()
+      }
+
+      return refreshSessionPromise
+    })
+
+  return sessionAccessQueue
 }
 
 export async function getFunctionAuthHeaders() {
