@@ -42,6 +42,7 @@ import {
   getDefaultDocumentForSlug,
   getDefaultStyleCss,
   getBlockLayoutDefaults,
+  maybeCanonicalizeHomeDocument,
   normalizeBuilderDocument,
   normalizeLayoutStyle,
   renderDocumentToHtml,
@@ -107,7 +108,7 @@ function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVe
 
   const hasBlocks = Array.isArray(projectData?.blocks) && projectData.blocks.length > 0
   if (hasBlocks && projectData) {
-    return expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug))
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
   }
 
   const htmlFromRecord = typeof record.html === "string" ? record.html : null
@@ -115,14 +116,38 @@ function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVe
   const legacyHtml = htmlFromRecord ?? htmlFromProjectData
 
   if (legacyHtml) {
-    return expandStructuredRichTextBlocks(convertLegacyHtmlToBuilderDocument(legacyHtml, slug))
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(convertLegacyHtmlToBuilderDocument(legacyHtml, slug)), slug)
   }
 
   if (projectData) {
-    return expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug))
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
   }
 
   return getDefaultDocumentForSlug(slug)
+}
+
+const EDITABLE_RICH_TEXT_SELECTOR = [
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "a",
+  "li",
+  "blockquote",
+  "img",
+  ".me-home-eyebrow",
+  ".me-home-chip-title",
+  ".me-home-pill",
+].join(",")
+
+function getEditableRichNodesFromHtml(html: string) {
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") return []
+  const parser = new DOMParser()
+  const parsed = parser.parseFromString(html, "text/html")
+  return Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
 }
 
 function getBlockLabel(block: PageBlock) {
@@ -227,10 +252,7 @@ export function AdminPageEditor() {
   const selectedRichNodeHtml = useMemo(() => {
     if (!selectedBlock || selectedBlock.type !== "rich_text") return null
     if (selectedRichNodeIndex === null) return null
-    if (typeof window === "undefined" || typeof DOMParser === "undefined") return null
-    const parser = new DOMParser()
-    const parsed = parser.parseFromString(selectedBlock.content, "text/html")
-    const nodes = Array.from(parsed.body.children)
+    const nodes = getEditableRichNodesFromHtml(selectedBlock.content)
     const node = nodes[selectedRichNodeIndex]
     return node ? node.outerHTML : null
   }, [selectedBlock, selectedRichNodeIndex])
@@ -300,8 +322,8 @@ export function AdminPageEditor() {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
       const parser = new DOMParser()
       const parsed = parser.parseFromString(html, "text/html")
-      const children = Array.from(parsed.body.children)
-      children.forEach((child, index) => {
+      const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      editableNodes.forEach((child, index) => {
         child.setAttribute("data-me-node", String(index))
         const baseStyle = child.getAttribute("style") ?? ""
         const activeStyle =
@@ -323,7 +345,7 @@ export function AdminPageEditor() {
 
       const parser = new DOMParser()
       const parsed = parser.parseFromString(selectedBlock.content, "text/html")
-      const nodes = Array.from(parsed.body.children)
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
       if (!nodes[selectedRichNodeIndex]) return
 
       const nextNodeDoc = parser.parseFromString(nextNodeHtml, "text/html")
