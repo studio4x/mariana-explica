@@ -264,6 +264,7 @@ export function AdminPageEditor() {
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [autosaveSavedAt, setAutosaveSavedAt] = useState<string | null>(null)
   const [uploadingAsset, setUploadingAsset] = useState(false)
+  const [uploadingInspectorAsset, setUploadingInspectorAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
@@ -806,6 +807,42 @@ export function AdminPageEditor() {
     setSelectedBlockId(newImage.id)
   }
 
+  const handleApplyAssetToSelectedImageContext = (asset: AdminSitePageAsset) => {
+    if (selectedBlock?.type === "image") {
+      handleInsertImage(asset)
+      return
+    }
+
+    if (selectedBlock?.type === "rich_text" && selectedRichNodeDescriptor?.isImage) {
+      applyRichNodeImageEdit({
+        src: asset.public_url,
+        alt: asset.file_name,
+      })
+    }
+  }
+
+  const handleInspectorImageUpload = async (file: File) => {
+    setUploadingInspectorAsset(true)
+    try {
+      setFeedback(null)
+      const uploaded = await uploadAssetMutation.mutateAsync({ slug: selectedSlug, file })
+      setFeedback({ tone: "success", message: "Imagem enviada com sucesso." })
+      await detailQuery.refetch()
+
+      const uploadedAsset = uploaded.asset
+      if (uploadedAsset) {
+        handleApplyAssetToSelectedImageContext(uploadedAsset)
+      }
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel enviar a imagem.",
+      })
+    } finally {
+      setUploadingInspectorAsset(false)
+    }
+  }
+
   const startDragFromLibrary = (blockType: PageBlockType, event: DragEvent<HTMLElement>) => {
     dragPayloadRef.current = { kind: "library", blockType }
     event.dataTransfer.effectAllowed = "copyMove"
@@ -1227,9 +1264,15 @@ export function AdminPageEditor() {
 
                         {block.type === "button" ? (
                           <div style={{ textAlign: block.align }}>
-                            <span
+                            <button
+                              type="button"
                               contentEditable={isInlineEditing}
                               suppressContentEditableWarning
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                setSelectedBlockId(block.id)
+                              }}
                               onBlur={(event) => {
                                 const value = event.currentTarget.innerText.trim()
                                 updateDocument((current) => ({
@@ -1243,10 +1286,10 @@ export function AdminPageEditor() {
                                 }))
                                 setInlineEditingBlockId(null)
                               }}
-                              className={isInlineEditing ? "inline-flex rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white ring-2 ring-sky-200 outline-none" : "inline-flex rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white"}
+                              className={isInlineEditing ? "inline-flex cursor-pointer rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white ring-2 ring-sky-200 outline-none" : "inline-flex cursor-pointer rounded-full bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white"}
                             >
                               {block.label}
-                            </span>
+                            </button>
                           </div>
                         ) : null}
 
@@ -1564,7 +1607,7 @@ export function AdminPageEditor() {
                             </div>
                           ) : null}
                           {selectedRichNodeDescriptor?.isImage ? (
-                            <div className="grid gap-2">
+                            <div className="grid gap-3">
                               <label className="block text-xs font-semibold text-slate-600">
                                 URL da imagem
                                 <input
@@ -1581,6 +1624,52 @@ export function AdminPageEditor() {
                                   className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                                 />
                               </label>
+                              <div className="flex flex-wrap gap-2">
+                                <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
+                                  <UploadCloud className="mr-2 h-3.5 w-3.5" />
+                                  {uploadingInspectorAsset ? "A enviar..." : "Upload"}
+                                  <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                                    className="sr-only"
+                                    disabled={uploadingInspectorAsset}
+                                    onChange={(event) => {
+                                      const file = event.target.files?.[0]
+                                      event.target.value = ""
+                                      if (file) {
+                                        void handleInspectorImageUpload(file)
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-600">Biblioteca de midia</p>
+                                {assets.length === 0 ? (
+                                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                                    Ainda nao existem imagens nesta pagina.
+                                  </p>
+                                ) : (
+                                  <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+                                    {assets.map((asset) => (
+                                      <button
+                                        key={asset.id}
+                                        type="button"
+                                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                        onClick={() => handleApplyAssetToSelectedImageContext(asset)}
+                                      >
+                                        <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                                          <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
+                                          <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           ) : null}
                           {!selectedRichNodeDescriptor?.isTextEditable && !selectedRichNodeDescriptor?.isImage ? (
@@ -1614,7 +1703,7 @@ export function AdminPageEditor() {
                   ) : null}
 
                   {selectedBlock.type === "image" ? (
-                    <>
+                    <div className="space-y-3">
                       <label className="block text-xs font-semibold text-slate-600">
                         URL da imagem
                         <input
@@ -1642,7 +1731,53 @@ export function AdminPageEditor() {
                           className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                         />
                       </label>
-                    </>
+                      <div className="flex flex-wrap gap-2">
+                        <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
+                          <UploadCloud className="mr-2 h-3.5 w-3.5" />
+                          {uploadingInspectorAsset ? "A enviar..." : "Upload"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                            className="sr-only"
+                            disabled={uploadingInspectorAsset}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              event.target.value = ""
+                              if (file) {
+                                void handleInspectorImageUpload(file)
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-slate-600">Biblioteca de midia</p>
+                        {assets.length === 0 ? (
+                          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                            Ainda nao existem imagens nesta pagina.
+                          </p>
+                        ) : (
+                          <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+                            {assets.map((asset) => (
+                              <button
+                                key={asset.id}
+                                type="button"
+                                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                onClick={() => handleApplyAssetToSelectedImageContext(asset)}
+                              >
+                                <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                                  <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
+                                  <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   ) : null}
 
                   {selectedBlock.type === "button" ? (
