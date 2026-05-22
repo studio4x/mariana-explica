@@ -38,6 +38,7 @@ import { createSitePagePreviewUrl, storeSitePagePreview } from "@/lib/site-page-
 import {
   convertLegacyHtmlToBuilderDocument,
   createDefaultBlock,
+  expandStructuredRichTextBlocks,
   getDefaultDocumentForSlug,
   getDefaultStyleCss,
   getBlockLayoutDefaults,
@@ -106,7 +107,7 @@ function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVe
 
   const hasBlocks = Array.isArray(projectData?.blocks) && projectData.blocks.length > 0
   if (hasBlocks && projectData) {
-    return normalizeBuilderDocument(projectData, slug)
+    return expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug))
   }
 
   const htmlFromRecord = typeof record.html === "string" ? record.html : null
@@ -114,11 +115,11 @@ function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVe
   const legacyHtml = htmlFromRecord ?? htmlFromProjectData
 
   if (legacyHtml) {
-    return convertLegacyHtmlToBuilderDocument(legacyHtml, slug)
+    return expandStructuredRichTextBlocks(convertLegacyHtmlToBuilderDocument(legacyHtml, slug))
   }
 
   if (projectData) {
-    return normalizeBuilderDocument(projectData, slug)
+    return expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug))
   }
 
   return getDefaultDocumentForSlug(slug)
@@ -189,7 +190,7 @@ export function AdminPageEditor() {
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
   const [showLayoutGuides, setShowLayoutGuides] = useState(true)
   const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
-  const [richSelectionMode, setRichSelectionMode] = useState(false)
+  const [richSelectionMode, setRichSelectionMode] = useState(true)
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
@@ -233,6 +234,13 @@ export function AdminPageEditor() {
     const node = nodes[selectedRichNodeIndex]
     return node ? node.outerHTML : null
   }, [selectedBlock, selectedRichNodeIndex])
+
+  const selectedRichNodeText = useMemo(() => {
+    if (!selectedRichNodeHtml || typeof window === "undefined" || typeof DOMParser === "undefined") return ""
+    const parser = new DOMParser()
+    const parsed = parser.parseFromString(selectedRichNodeHtml, "text/html")
+    return parsed.body.textContent?.trim() ?? ""
+  }, [selectedRichNodeHtml])
 
   const autosaveLabel = useMemo(() => {
     if (!autosaveEnabled) return "Autosave desligado"
@@ -474,7 +482,7 @@ export function AdminPageEditor() {
   useEffect(() => {
     if (selectedBlock?.type !== "rich_text") {
       setSelectedRichNodeIndex(null)
-      setRichSelectionMode(false)
+      setRichSelectionMode(true)
     }
   }, [selectedBlock])
 
@@ -934,7 +942,7 @@ export function AdminPageEditor() {
             ) : null}
           </div>
 
-          <div className="relative h-[calc(100vh-290px)] min-h-[540px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
+          <div className="relative h-[calc(100vh-220px)] min-h-[760px] overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-slate-100 p-4 xl:min-h-[820px]">
             {showLayoutGuides ? (
               <div className="pointer-events-none absolute inset-4 z-0">
                 <div className="absolute inset-y-0 left-0 w-px bg-sky-200/60" />
@@ -1038,12 +1046,19 @@ export function AdminPageEditor() {
 
                         {block.type === "rich_text" ? (
                           <div
-                            className="rich-text-editor min-h-[70px] leading-8"
+                            className="rich-text-editor min-h-[70px] max-w-full overflow-hidden leading-8 [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
                             onClick={(event) => {
-                              if (!richSelectionMode || selectedBlockId !== block.id) return
+                              setSelectedBlockId(block.id)
+                              if (!richSelectionMode) {
+                                setSelectedRichNodeIndex(null)
+                                return
+                              }
                               const target = event.target as HTMLElement | null
                               const node = target?.closest?.("[data-me-node]") as HTMLElement | null
-                              if (!node) return
+                              if (!node) {
+                                setSelectedRichNodeIndex(null)
+                                return
+                              }
                               const value = Number(node.getAttribute("data-me-node") ?? "-1")
                               if (Number.isFinite(value) && value >= 0) {
                                 setSelectedRichNodeIndex(value)
@@ -1051,7 +1066,7 @@ export function AdminPageEditor() {
                             }}
                             dangerouslySetInnerHTML={{
                               __html:
-                                richSelectionMode && selectedBlockId === block.id
+                                isSelected && richSelectionMode
                                   ? annotateRichTextNodes(block.content, selectedRichNodeIndex)
                                   : block.content,
                             }}
@@ -1383,24 +1398,32 @@ export function AdminPageEditor() {
                         >
                           {richSelectionMode ? "Selecao interna on" : "Selecao interna off"}
                         </Button>
-                        {richSelectionMode ? (
-                          <span className="text-[11px] text-slate-500">Clica no trecho no canvas para editar apenas ele.</span>
-                        ) : null}
+                        <span className="text-[11px] text-slate-500">
+                          Clica num texto, imagem ou link dentro do bloco para editar so esse trecho.
+                        </span>
                       </div>
 
                       {richSelectionMode && selectedRichNodeHtml ? (
-                        <label className="block text-xs font-semibold text-slate-600">
-                          HTML do trecho selecionado
-                          <textarea
-                            key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
-                            defaultValue={selectedRichNodeHtml}
-                            className="mt-1 min-h-[160px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
-                            onBlur={(event) => {
-                              const next = event.target.value.trim()
-                              if (next) applyRichNodeEdit(next)
-                            }}
-                          />
-                        </label>
+                        <div className="space-y-2">
+                          <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                            {selectedRichNodeText ? `Trecho selecionado: ${selectedRichNodeText}` : "Trecho HTML selecionado no canvas."}
+                          </div>
+                          <label className="block text-xs font-semibold text-slate-600">
+                            HTML do trecho selecionado
+                            <textarea
+                              key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
+                              defaultValue={selectedRichNodeHtml}
+                              className="mt-1 min-h-[180px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+                              onBlur={(event) => {
+                                const next = event.target.value.trim()
+                                if (next) applyRichNodeEdit(next)
+                              }}
+                            />
+                          </label>
+                          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setSelectedRichNodeIndex(null)}>
+                            Voltar para o bloco inteiro
+                          </Button>
+                        </div>
                       ) : (
                         <RichTextEditor
                           ref={richTextRef}

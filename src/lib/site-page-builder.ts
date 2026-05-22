@@ -392,6 +392,83 @@ function pushRichTextBlockFromHtml(blocks: PageBlock[], html: string) {
   })
 }
 
+function setLegacyBlockLayout(block: PageBlock) {
+  block.layout = {
+    ...block.layout,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+  }
+}
+
+function appendLegacyNodeAsBlocks(node: Element, blocks: PageBlock[]) {
+  const beforeCount = blocks.length
+  extractLegacyElements(node, blocks)
+  if (blocks.length > beforeCount) {
+    for (let index = beforeCount; index < blocks.length; index += 1) {
+      setLegacyBlockLayout(blocks[index])
+    }
+    return
+  }
+
+  const fallbackHtml = sanitizeRichText(node.outerHTML).trim()
+  if (!fallbackHtml) return
+  const fallbackBlock = createDefaultBlock("rich_text")
+  if (fallbackBlock.type !== "rich_text") return
+  fallbackBlock.id = uid("legacy")
+  fallbackBlock.content = fallbackHtml
+  setLegacyBlockLayout(fallbackBlock)
+  blocks.push(fallbackBlock)
+}
+
+function shouldExpandStructuredLegacyHtml(source: string) {
+  return /<(header|section|main|footer|div)\b/i.test(source)
+}
+
+export function expandStructuredRichTextBlocks(document: SitePageBuilderDocument): SitePageBuilderDocument {
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return document
+  }
+
+  const nextBlocks: PageBlock[] = []
+  let changed = false
+  const parser = new DOMParser()
+
+  for (const block of document.blocks) {
+    if (block.type !== "rich_text" || !shouldExpandStructuredLegacyHtml(block.content)) {
+      nextBlocks.push(block)
+      continue
+    }
+
+    const parsed = parser.parseFromString(block.content, "text/html")
+    const topLevel = Array.from(parsed.body.children).filter((child) => child.tagName.toLowerCase() !== "script")
+    if (topLevel.length === 0) {
+      nextBlocks.push(block)
+      continue
+    }
+
+    const expandedBefore = nextBlocks.length
+    topLevel.forEach((child) => appendLegacyNodeAsBlocks(child, nextBlocks))
+    if (nextBlocks.length > expandedBefore) {
+      changed = true
+      continue
+    }
+
+    nextBlocks.push(block)
+  }
+
+  if (!changed) {
+    return document
+  }
+
+  return { blocks: nextBlocks }
+}
+
 function extractLegacyElements(node: Element, blocks: PageBlock[]) {
   const children = Array.from(node.children)
 
@@ -480,31 +557,15 @@ export function convertLegacyHtmlToBuilderDocument(
 
   // For full legacy layouts (hero/sections/grid), split by top-level sections to keep
   // element-scoped editing in inspector instead of one huge rich text block.
-  if (/<(header|section|main|footer|div)\b/i.test(source)) {
+  if (shouldExpandStructuredLegacyHtml(source)) {
     if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
       const parser = new DOMParser()
       const parsed = parser.parseFromString(source, "text/html")
       const topLevel = Array.from(parsed.body.children).filter((child) => child.tagName.toLowerCase() !== "script")
 
       if (topLevel.length > 0) {
-        const blocks = topLevel.map((child, index) => {
-          const block = createDefaultBlock("rich_text")
-          if (block.type !== "rich_text") return null
-          block.id = uid(`legacy-${index + 1}`)
-          block.content = sanitizeRichText(child.outerHTML)
-          block.layout = {
-            ...block.layout,
-            paddingTop: 0,
-            paddingRight: 0,
-            paddingBottom: 0,
-            paddingLeft: 0,
-            marginTop: 0,
-            marginBottom: 0,
-            backgroundColor: "transparent",
-            borderRadius: 0,
-          }
-          return block
-        }).filter((block): block is RichTextBlock => Boolean(block))
+        const blocks: PageBlock[] = []
+        topLevel.forEach((child) => appendLegacyNodeAsBlocks(child, blocks))
 
         if (blocks.length > 0) {
           return { blocks }
@@ -513,17 +574,7 @@ export function convertLegacyHtmlToBuilderDocument(
     }
 
     richText.content = sanitizeRichText(source)
-    richText.layout = {
-      ...richText.layout,
-      paddingTop: 0,
-      paddingRight: 0,
-      paddingBottom: 0,
-      paddingLeft: 0,
-      marginTop: 0,
-      marginBottom: 0,
-      backgroundColor: "transparent",
-      borderRadius: 0,
-    }
+    setLegacyBlockLayout(richText)
     return { blocks: [richText] }
   }
 
