@@ -996,6 +996,7 @@ export function AdminPageEditor() {
       <PageHeader
         title="Editor Visual de Paginas"
         description="Fase 3: layout avancado com secao em 12 colunas, espacamentos finos, guias e edicao inline."
+        backTo={ROUTES.ADMIN}
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
