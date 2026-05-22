@@ -150,6 +150,10 @@ function getEditableRichNodesFromHtml(html: string) {
   return Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
 }
 
+function isRichTextNodeTextEditable(tagName: string) {
+  return ["h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "span"].includes(tagName)
+}
+
 function getCanvasPreviewCss() {
   return `
 ${getDefaultStyleCss()}
@@ -271,6 +275,7 @@ export function AdminPageEditor() {
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
+  const selectedRichNodeEditorRef = useRef<RichTextEditorHandle | null>(null)
   const loadedSlugRef = useRef<string>("")
   const loadedVersionRef = useRef<string>("")
   const autosaveTimerRef = useRef<number | null>(null)
@@ -309,12 +314,29 @@ export function AdminPageEditor() {
     return node ? node.outerHTML : null
   }, [selectedBlock, selectedRichNodeIndex])
 
-  const selectedRichNodeText = useMemo(() => {
-    if (!selectedRichNodeHtml || typeof window === "undefined" || typeof DOMParser === "undefined") return ""
+  const selectedRichNodeDescriptor = useMemo(() => {
+    if (!selectedRichNodeHtml || typeof window === "undefined" || typeof DOMParser === "undefined") return null
     const parser = new DOMParser()
     const parsed = parser.parseFromString(selectedRichNodeHtml, "text/html")
-    return parsed.body.textContent?.trim() ?? ""
+    const element = parsed.body.firstElementChild as HTMLElement | null
+    if (!element) return null
+
+    const tagName = element.tagName.toLowerCase()
+    return {
+      tagName,
+      outerHtml: element.outerHTML,
+      innerHtml: element.innerHTML,
+      textContent: element.textContent?.trim() ?? "",
+      isTextEditable: isRichTextNodeTextEditable(tagName),
+      isImage: tagName === "img",
+      imageSrc: element.getAttribute("src") ?? "",
+      imageAlt: element.getAttribute("alt") ?? "",
+    }
   }, [selectedRichNodeHtml])
+
+  const selectedRichNodeText = useMemo(() => {
+    return selectedRichNodeDescriptor?.textContent ?? ""
+  }, [selectedRichNodeDescriptor])
 
   const autosaveLabel = useMemo(() => {
     if (!autosaveEnabled) return "Autosave desligado"
@@ -413,6 +435,48 @@ export function AdminPageEditor() {
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
 
+  const applyRichNodeInnerContentEdit = useCallback(
+    (nextInnerHtml: string) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode) return
+
+      targetNode.innerHTML = nextInnerHtml
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeImageEdit = useCallback(
+    (partial: { src?: string; alt?: string }) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode || targetNode.tagName.toLowerCase() !== "img") return
+
+      if (typeof partial.src === "string") {
+        targetNode.setAttribute("src", partial.src)
+      }
+      if (typeof partial.alt === "string") {
+        targetNode.setAttribute("alt", partial.alt)
+      }
+
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
   const confirmDiscardChanges = useCallback(
     (nextActionLabel: string) => {
       if (!isDirty) return true
@@ -437,6 +501,7 @@ export function AdminPageEditor() {
     async (trigger: "manual" | "autosave" = "manual") => {
       const isAutosave = trigger === "autosave"
       richTextRef.current?.flush()
+      selectedRichNodeEditorRef.current?.flush()
       if (isAutosave) {
         setAutosaveStatus("saving")
       } else {
@@ -1485,18 +1550,53 @@ export function AdminPageEditor() {
                           <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
                             {selectedRichNodeText ? `Trecho selecionado: ${selectedRichNodeText}` : "Trecho HTML selecionado no canvas."}
                           </div>
-                          <label className="block text-xs font-semibold text-slate-600">
-                            HTML do trecho selecionado
-                            <textarea
-                              key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
-                              defaultValue={selectedRichNodeHtml}
-                              className="mt-1 min-h-[180px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
-                              onBlur={(event) => {
-                                const next = event.target.value.trim()
-                                if (next) applyRichNodeEdit(next)
-                              }}
-                            />
-                          </label>
+                          {selectedRichNodeDescriptor?.isTextEditable ? (
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold text-slate-600">Conteudo do elemento</p>
+                              <RichTextEditor
+                                key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
+                                ref={selectedRichNodeEditorRef}
+                                value={selectedRichNodeDescriptor.innerHtml}
+                                onChange={applyRichNodeInnerContentEdit}
+                                toolbarVariant="compact"
+                                minHeightPx={140}
+                              />
+                            </div>
+                          ) : null}
+                          {selectedRichNodeDescriptor?.isImage ? (
+                            <div className="grid gap-2">
+                              <label className="block text-xs font-semibold text-slate-600">
+                                URL da imagem
+                                <input
+                                  value={selectedRichNodeDescriptor.imageSrc}
+                                  onChange={(event) => applyRichNodeImageEdit({ src: event.target.value })}
+                                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                />
+                              </label>
+                              <label className="block text-xs font-semibold text-slate-600">
+                                Alt da imagem
+                                <input
+                                  value={selectedRichNodeDescriptor.imageAlt}
+                                  onChange={(event) => applyRichNodeImageEdit({ alt: event.target.value })}
+                                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                />
+                              </label>
+                            </div>
+                          ) : null}
+                          {!selectedRichNodeDescriptor?.isTextEditable && !selectedRichNodeDescriptor?.isImage ? (
+                            <label className="block text-xs font-semibold text-slate-600">
+                              HTML do trecho selecionado
+                              <textarea
+                                key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
+                                defaultValue={selectedRichNodeHtml}
+                                className="mt-1 min-h-[180px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+                                onBlur={(event) => {
+                                  const next = event.target.value.trim()
+                                  if (next) applyRichNodeEdit(next)
+                                }}
+                              />
+                            </label>
+                          ) : null}
                           <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setSelectedRichNodeIndex(null)}>
                             Voltar para o bloco inteiro
                           </Button>
