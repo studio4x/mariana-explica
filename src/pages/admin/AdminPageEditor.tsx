@@ -150,6 +150,58 @@ function getEditableRichNodesFromHtml(html: string) {
   return Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
 }
 
+function getCanvasPreviewCss() {
+  return `
+${getDefaultStyleCss()}
+.me-managed-page-root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.me-managed-block {
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+.me-home-section {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 40px 0 !important;
+}
+.me-home-shell {
+  width: min(100%, 1120px) !important;
+  margin: 0 auto !important;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+.me-home-hero-grid,
+.me-home-grid-two {
+  align-items: center;
+}
+.me-home-hero-copy h1 {
+  font-size: clamp(40px, 4vw, 64px);
+}
+.me-home-hero-copy h2 {
+  font-size: clamp(26px, 3vw, 38px);
+}
+.me-home-display-copy {
+  font-size: clamp(26px, 2.8vw, 36px);
+}
+.me-home-section-intro h2,
+.me-home-reviews h2 {
+  font-size: clamp(34px, 4vw, 52px);
+}
+@media (max-width: 880px) {
+  .me-home-shell {
+    width: 100% !important;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+  `.trim()
+}
+
 function getBlockLabel(block: PageBlock) {
   if (block.type === "heading") return `Titulo H${block.level}`
   if (block.type === "rich_text") return "Texto rico"
@@ -271,6 +323,8 @@ export function AdminPageEditor() {
     if (autosaveStatus === "saved" && autosaveSavedAt) return `Autosave ${formatDateTime(autosaveSavedAt)}`
     return "Autosave ativo"
   }, [autosaveEnabled, autosaveSavedAt, autosaveStatus])
+
+  const canvasPreviewCss = useMemo(() => getCanvasPreviewCss(), [])
 
   const isSaving =
     saveDraftMutation.isPending ||
@@ -965,6 +1019,7 @@ export function AdminPageEditor() {
           </div>
 
           <div className="relative h-[calc(100vh-220px)] min-h-[760px] overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-slate-100 p-4 xl:min-h-[820px]">
+            <style>{canvasPreviewCss}</style>
             {showLayoutGuides ? (
               <div className="pointer-events-none absolute inset-4 z-0">
                 <div className="absolute inset-y-0 left-0 w-px bg-sky-200/60" />
