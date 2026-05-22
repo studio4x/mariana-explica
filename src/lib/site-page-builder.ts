@@ -478,8 +478,40 @@ export function convertLegacyHtmlToBuilderDocument(
   const richText = createDefaultBlock("rich_text")
   if (richText.type !== "rich_text") return getDefaultDocumentForSlug(slug)
 
-  // For full legacy layouts (hero/sections/grid), preserve raw HTML to keep the real visual structure in canvas.
+  // For full legacy layouts (hero/sections/grid), split by top-level sections to keep
+  // element-scoped editing in inspector instead of one huge rich text block.
   if (/<(header|section|main|footer|div)\b/i.test(source)) {
+    if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(source, "text/html")
+      const topLevel = Array.from(parsed.body.children).filter((child) => child.tagName.toLowerCase() !== "script")
+
+      if (topLevel.length > 0) {
+        const blocks = topLevel.map((child, index) => {
+          const block = createDefaultBlock("rich_text")
+          if (block.type !== "rich_text") return null
+          block.id = uid(`legacy-${index + 1}`)
+          block.content = sanitizeRichText(child.outerHTML)
+          block.layout = {
+            ...block.layout,
+            paddingTop: 0,
+            paddingRight: 0,
+            paddingBottom: 0,
+            paddingLeft: 0,
+            marginTop: 0,
+            marginBottom: 0,
+            backgroundColor: "transparent",
+            borderRadius: 0,
+          }
+          return block
+        }).filter((block): block is RichTextBlock => Boolean(block))
+
+        if (blocks.length > 0) {
+          return { blocks }
+        }
+      }
+    }
+
     richText.content = sanitizeRichText(source)
     richText.layout = {
       ...richText.layout,

@@ -134,6 +134,10 @@ function getBlockLabel(block: PageBlock) {
   return "Espaco"
 }
 
+function canInlineEdit(block: PageBlock) {
+  return block.type === "heading" || block.type === "button" || block.type === "columns"
+}
+
 function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
   const normalized = normalizeLayoutStyle(layout ?? getBlockLayoutDefaults())
   const widthPercent = Math.round((normalized.gridColumns / 12) * 10000) / 100
@@ -654,20 +658,6 @@ export function AdminPageEditor() {
     setInlineEditingBlockId(null)
   }
 
-  const handleInlineRichTextCommit = (blockId: string, event: FocusEvent<HTMLDivElement>) => {
-    const html = event.currentTarget.innerHTML.trim()
-    updateDocument((current) => ({
-      blocks: current.blocks.map((item) => {
-        if (item.id !== blockId || item.type !== "rich_text") return item
-        return {
-          ...item,
-          content: html || "<p></p>",
-        }
-      }),
-    }))
-    setInlineEditingBlockId(null)
-  }
-
   if (pagesQuery.isLoading && !pagesQuery.data) {
     return <LoadingState message="A carregar editor visual..." />
   }
@@ -924,7 +914,9 @@ export function AdminPageEditor() {
                         }}
                         onDoubleClick={() => {
                           setSelectedBlockId(block.id)
-                          setInlineEditingBlockId(block.id)
+                          if (canInlineEdit(block)) {
+                            setInlineEditingBlockId(block.id)
+                          }
                         }}
                         className={[
                           "group relative rounded-xl border bg-white text-left transition",
@@ -984,13 +976,7 @@ export function AdminPageEditor() {
 
                         {block.type === "rich_text" ? (
                           <div
-                            contentEditable={isInlineEditing}
-                            suppressContentEditableWarning
-                            onBlur={(event) => handleInlineRichTextCommit(block.id, event)}
-                            className={[
-                              "rich-text-editor min-h-[70px] leading-8",
-                              isInlineEditing ? "rounded-lg ring-2 ring-sky-200 outline-none" : "outline-none",
-                            ].join(" ")}
+                            className="rich-text-editor min-h-[70px] leading-8"
                             dangerouslySetInnerHTML={{ __html: block.content }}
                           />
                         ) : null}
