@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import type { ReactNode } from "react"
 import { useLocation } from "react-router-dom"
-import { ErrorState, LoadingState } from "@/components/feedback"
+import { LoadingState } from "@/components/feedback"
 import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
 import type { SitePageSlug } from "@/types/app.types"
@@ -53,13 +53,8 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   }
 
   if (pageQuery.isError && !previewPayload) {
-    return (
-      <ErrorState
-        title="Nao foi possivel carregar esta pagina"
-        message={pageQuery.error instanceof Error ? pageQuery.error.message : "Tenta novamente dentro de instantes."}
-        onRetry={() => void pageQuery.refetch()}
-      />
-    )
+    // Fail-open for public pages: fallback component prevents hard outage when managed content fails.
+    return <>{fallback}</>
   }
 
   if (!managedPayload?.html) {

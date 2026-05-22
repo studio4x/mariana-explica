@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase"
+import { publicSupabase } from "@/integrations/supabase"
 import type { PublicSitePagePayload, SitePageSlug } from "@/types/app.types"
 
 function isSchemaMismatch(error: unknown) {
@@ -8,11 +8,18 @@ function isSchemaMismatch(error: unknown) {
   return fullText.includes("does not exist") || fullText.includes("schema cache") || fullText.includes("not found")
 }
 
+function isAuthLockContention(error: unknown) {
+  if (!error || typeof error !== "object") return false
+  const asRecord = error as Record<string, unknown>
+  const fullText = `${asRecord.code ?? ""} ${asRecord.message ?? ""} ${asRecord.details ?? ""} ${asRecord.hint ?? ""}`.toLowerCase()
+  return fullText.includes("lock") && fullText.includes("stole it")
+}
+
 export async function fetchPublicSitePage(slug: SitePageSlug | string): Promise<PublicSitePagePayload | null> {
   const normalizedSlug = String(slug ?? "").trim()
   if (!normalizedSlug) return null
 
-  const { data: page, error: pageError } = await supabase
+  const { data: page, error: pageError } = await publicSupabase
     .from("site_pages")
     .select("id,slug,title,updated_at,published_version_id")
     .eq("slug", normalizedSlug)
@@ -21,6 +28,7 @@ export async function fetchPublicSitePage(slug: SitePageSlug | string): Promise<
 
   if (pageError) {
     if (isSchemaMismatch(pageError)) return null
+    if (isAuthLockContention(pageError)) return null
     throw pageError
   }
 
@@ -36,7 +44,7 @@ export async function fetchPublicSitePage(slug: SitePageSlug | string): Promise<
 
   if (!typedPage?.published_version_id) return null
 
-  const { data: version, error: versionError } = await supabase
+  const { data: version, error: versionError } = await publicSupabase
     .from("site_page_versions")
     .select("id,page_id,version_number,layout_json,style_json,metadata,created_at")
     .eq("id", typedPage.published_version_id)
@@ -45,6 +53,7 @@ export async function fetchPublicSitePage(slug: SitePageSlug | string): Promise<
 
   if (versionError) {
     if (isSchemaMismatch(versionError)) return null
+    if (isAuthLockContention(versionError)) return null
     throw versionError
   }
 

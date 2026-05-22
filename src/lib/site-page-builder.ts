@@ -474,8 +474,30 @@ export function convertLegacyHtmlToBuilderDocument(
 ): SitePageBuilderDocument {
   const source = typeof html === "string" ? html.trim() : ""
   if (!source) return getDefaultDocumentForSlug(slug)
+
+  const richText = createDefaultBlock("rich_text")
+  if (richText.type !== "rich_text") return getDefaultDocumentForSlug(slug)
+
+  // For full legacy layouts (hero/sections/grid), preserve raw HTML to keep the real visual structure in canvas.
+  if (/<(header|section|main|footer|div)\b/i.test(source)) {
+    richText.content = sanitizeRichText(source)
+    richText.layout = {
+      ...richText.layout,
+      paddingTop: 0,
+      paddingRight: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      marginTop: 0,
+      marginBottom: 0,
+      backgroundColor: "transparent",
+      borderRadius: 0,
+    }
+    return { blocks: [richText] }
+  }
+
   if (typeof window === "undefined" || typeof DOMParser === "undefined") {
-    return getDefaultDocumentForSlug(slug)
+    richText.content = sanitizeRichText(source)
+    return { blocks: [richText] }
   }
 
   const parser = new DOMParser()
@@ -484,12 +506,8 @@ export function convertLegacyHtmlToBuilderDocument(
   extractLegacyElements(parsed.body, blocks)
 
   if (blocks.length === 0) {
-    const richText = createDefaultBlock("rich_text")
-    if (richText.type === "rich_text") {
-      richText.content = sanitizeRichText(source)
-      return { blocks: [richText] }
-    }
-    return getDefaultDocumentForSlug(slug)
+    richText.content = sanitizeRichText(source)
+    return { blocks: [richText] }
   }
 
   return { blocks }
