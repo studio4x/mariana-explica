@@ -382,6 +382,8 @@ export function AdminPageEditor() {
       isImage: tagName === "img",
       isLink: tagName === "a",
       linkHref: element.getAttribute("href") ?? "",
+      textColor: element.style.color || "",
+      backgroundColor: element.style.backgroundColor || "",
       imageSrc: element.getAttribute("src") ?? "",
       imageAlt: element.getAttribute("alt") ?? "",
     }
@@ -390,6 +392,12 @@ export function AdminPageEditor() {
   const selectedRichNodeText = useMemo(() => {
     return selectedRichNodeDescriptor?.textContent ?? ""
   }, [selectedRichNodeDescriptor])
+
+  const showLayoutSectionCard = useMemo(() => {
+    if (!isLayoutCardVisible) return false
+    if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null) return false
+    return true
+  }, [isLayoutCardVisible, selectedBlock?.type, selectedRichNodeIndex])
 
   const autosaveLabel = useMemo(() => {
     if (!autosaveEnabled) return "Autosave desligado"
@@ -554,6 +562,30 @@ export function AdminPageEditor() {
 
       if (typeof partial.href === "string") {
         targetNode.setAttribute("href", partial.href)
+      }
+
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeTextStyleEdit = useCallback(
+    (partial: { color?: string; backgroundColor?: string }) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode) return
+
+      if (typeof partial.color === "string") {
+        targetNode.style.color = partial.color
+      }
+      if (typeof partial.backgroundColor === "string") {
+        targetNode.style.backgroundColor = partial.backgroundColor
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -1531,7 +1563,7 @@ export function AdminPageEditor() {
                 <div className="space-y-3">
                   <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
 
-                                  {isLayoutCardVisible ? (
+                  {showLayoutSectionCard ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Layout da secao</p>
                     <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1754,6 +1786,26 @@ export function AdminPageEditor() {
                           {selectedRichNodeDescriptor?.isTextEditable ? (
                             <div className="space-y-1">
                               <p className="text-xs font-semibold text-slate-600">Conteudo do elemento</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Cor do texto
+                                  <input
+                                    type="color"
+                                    value={selectedRichNodeDescriptor.textColor || "#0f172a"}
+                                    onChange={(event) => applyRichNodeTextStyleEdit({ color: event.target.value })}
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Fundo do texto
+                                  <input
+                                    type="color"
+                                    value={selectedRichNodeDescriptor.backgroundColor || "#ffffff"}
+                                    onChange={(event) => applyRichNodeTextStyleEdit({ backgroundColor: event.target.value })}
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                                  />
+                                </label>
+                              </div>
                               <RichTextEditor
                                 key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
                                 ref={selectedRichNodeEditorRef}
