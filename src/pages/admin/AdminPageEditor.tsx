@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { DragEvent, FocusEvent } from "react"
 import type { CSSProperties } from "react"
-import { useBlocker } from "react-router-dom"
+import { Link, useBlocker } from "react-router-dom"
 import {
   ArrowDown,
   ArrowUp,
@@ -997,6 +997,11 @@ export function AdminPageEditor() {
         title="Editor Visual de Paginas"
         description="Fase 3: layout avancado com secao em 12 colunas, espacamentos finos, guias e edicao inline."
         backTo={ROUTES.ADMIN}
+        actions={
+          <Button asChild type="button" variant="outline" className="rounded-full border-slate-300 bg-white shadow-sm">
+            <Link to={ROUTES.ADMIN}>Voltar ao dashboard</Link>
+          </Button>
+        }
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
