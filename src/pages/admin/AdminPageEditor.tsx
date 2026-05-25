@@ -131,6 +131,17 @@ function resolveRichNodeIndexFromTarget(target: HTMLElement | null) {
   return value
 }
 
+function ActionHint({ hint, children }: { hint: string; children: React.ReactNode }) {
+  return (
+    <div className="relative inline-flex group/action-hint">
+      {children}
+      <div className="pointer-events-none absolute -top-2 left-1/2 z-50 w-64 -translate-x-1/2 -translate-y-full opacity-0 transition group-hover/action-hint:opacity-100 group-focus-within/action-hint:opacity-100">
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-md">{hint}</div>
+      </div>
+    </div>
+  )
+}
+
 function getCanvasPreviewCss() {
   return `
 ${getDefaultStyleCss()}
@@ -1098,86 +1109,51 @@ export function AdminPageEditor() {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              className="rounded-full"
-              onClick={() => void handleSaveDraft("manual")}
-              disabled={isSaving}
-              title="Guarda um novo rascunho da pagina sem publicar."
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saveDraftMutation.isPending ? "A guardar..." : "Guardar"}
-            </Button>
-            <Button
-              type="button"
-              className="rounded-full"
-              onClick={() => void handlePublish()}
-              disabled={isSaving || !selectedVersionId}
-              title="Publica a versao atual para o site publico."
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {publishMutation.isPending ? "A publicar..." : "Publicar"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => handlePreview()}
-              disabled={isSaving}
-              title="Abre uma pre-visualizacao da pagina com o estado atual do editor."
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              Preview
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => void handleRollback()}
-              disabled={isSaving || !selectedVersionId}
-              title="Restaura o conteudo da versao selecionada."
-            >
-              <FileClock className="mr-2 h-4 w-4" />
-              Rollback
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => void handleUnpublish()}
-              disabled={isSaving || !publishedVersionId}
-              title="Remove a versao publicada do site publico."
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Despublicar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setAutosaveEnabled((current) => !current)}
-              title="Liga ou desliga o autosave periodico do editor."
-            >
-              {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setShowLayoutGuides((current) => !current)}
-              title="Mostra ou oculta guias visuais de alinhamento no canvas."
-            >
-              {showLayoutGuides ? "Guias on" : "Guias off"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setSnapSpacingToGrid((current) => !current)}
-              title="Ativa ou desativa o ajuste automatico de espacamento para grade de 4px."
-            >
-              {snapSpacingToGrid ? "Snap 4px on" : "Snap 4px off"}
-            </Button>
+            <ActionHint hint="Guarda um novo rascunho da pagina sem publicar.">
+              <Button type="button" className="rounded-full" onClick={() => void handleSaveDraft("manual")} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />
+                {saveDraftMutation.isPending ? "A guardar..." : "Guardar"}
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Publica a versao atual para o site publico.">
+              <Button type="button" className="rounded-full" onClick={() => void handlePublish()} disabled={isSaving || !selectedVersionId}>
+                <Send className="mr-2 h-4 w-4" />
+                {publishMutation.isPending ? "A publicar..." : "Publicar"}
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Abre uma pre-visualizacao da pagina com o estado atual do editor.">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => handlePreview()} disabled={isSaving}>
+                <Eye className="mr-2 h-4 w-4" />
+                Preview
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Restaura o conteudo da versao selecionada.">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleRollback()} disabled={isSaving || !selectedVersionId}>
+                <FileClock className="mr-2 h-4 w-4" />
+                Rollback
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Remove a versao publicada do site publico.">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleUnpublish()} disabled={isSaving || !publishedVersionId}>
+                <XCircle className="mr-2 h-4 w-4" />
+                Despublicar
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Liga ou desliga o autosave periodico do editor.">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setAutosaveEnabled((current) => !current)}>
+                {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Mostra ou oculta guias visuais de alinhamento no canvas.">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setShowLayoutGuides((current) => !current)}>
+                {showLayoutGuides ? "Guias on" : "Guias off"}
+              </Button>
+            </ActionHint>
+            <ActionHint hint="Ativa ou desativa o ajuste automatico de espacamento para grade de 4px.">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setSnapSpacingToGrid((current) => !current)}>
+                {snapSpacingToGrid ? "Snap 4px on" : "Snap 4px off"}
+              </Button>
+            </ActionHint>
           </div>
         </div>
 
