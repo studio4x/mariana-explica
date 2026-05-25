@@ -312,6 +312,7 @@ export function AdminPageEditor() {
   const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
   const [richSelectionMode, setRichSelectionMode] = useState(true)
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
+  const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const selectedRichNodeEditorRef = useRef<RichTextEditorHandle | null>(null)
@@ -411,6 +412,16 @@ export function AdminPageEditor() {
     },
     [selectedBlockId, updateDocument],
   )
+
+  const selectBlockForEdit = useCallback((blockId: string) => {
+    setSelectedBlockId(blockId)
+    setIsLayoutCardVisible(true)
+  }, [])
+
+  const selectBlockSilently = useCallback((blockId: string) => {
+    setSelectedBlockId(blockId)
+    setIsLayoutCardVisible(false)
+  }, [])
 
   const snapSpacing = useCallback(
     (value: number) => {
@@ -627,11 +638,16 @@ export function AdminPageEditor() {
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
     setSelectedBlockId("")
+    setIsLayoutCardVisible(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
     setAutosaveSavedAt(null)
   }, [detailQuery.data, publishedVersionId, selectedSlug, versions])
+
+  useEffect(() => {
+    setLeftSidebarCollapsed(true)
+  }, [selectedSlug])
 
   useEffect(() => {
     if (autosaveTimerRef.current) {
@@ -679,7 +695,7 @@ export function AdminPageEditor() {
     updateDocument((current) => ({
       blocks: [...current.blocks, block],
     }))
-    setSelectedBlockId(block.id)
+    selectBlockSilently(block.id)
   }
 
   useEffect(() => {
@@ -698,17 +714,21 @@ export function AdminPageEditor() {
         nextBlocks.splice(index, 0, block)
         return { blocks: nextBlocks }
       })
-      setSelectedBlockId(block.id)
+      selectBlockSilently(block.id)
       setInlineEditingBlockId(block.id)
     },
-    [updateDocument],
+    [selectBlockSilently, updateDocument],
   )
 
   const handleRemoveBlock = (blockId: string) => {
     updateDocument((current) => ({
       blocks: current.blocks.filter((block) => block.id !== blockId),
     }))
-    setSelectedBlockId((current) => (current === blockId ? "" : current))
+    setSelectedBlockId((current) => {
+      const next = current === blockId ? "" : current
+      if (!next) setIsLayoutCardVisible(false)
+      return next
+    })
     setInlineEditingBlockId((current) => (current === blockId ? null : current))
   }
 
@@ -841,6 +861,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
     setSelectedBlockId("")
+    setIsLayoutCardVisible(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
@@ -898,7 +919,7 @@ export function AdminPageEditor() {
     updateDocument((current) => ({
       blocks: [...current.blocks, newImage],
     }))
-    setSelectedBlockId(newImage.id)
+    selectBlockSilently(newImage.id)
   }
 
   const handleApplyAssetToSelectedImageContext = (asset: AdminSitePageAsset) => {
@@ -947,7 +968,7 @@ export function AdminPageEditor() {
     dragPayloadRef.current = { kind: "block", blockId }
     event.dataTransfer.effectAllowed = "move"
     event.dataTransfer.setData("text/plain", `block:${blockId}`)
-    setSelectedBlockId(blockId)
+    selectBlockSilently(blockId)
   }
 
   const clearDragState = useCallback(() => {
@@ -975,9 +996,9 @@ export function AdminPageEditor() {
         const nextBlocks = moveBlockToIndex(current.blocks, payload.blockId, normalizedTarget)
         return { blocks: nextBlocks }
       })
-      setSelectedBlockId(payload.blockId)
+      selectBlockSilently(payload.blockId)
     },
-    [clearDragState, insertBlockAtIndex, updateDocument],
+    [clearDragState, insertBlockAtIndex, selectBlockSilently, updateDocument],
   )
 
   const onDropZoneDragOver = (index: number, event: DragEvent<HTMLElement>) => {
@@ -1229,7 +1250,7 @@ export function AdminPageEditor() {
                         selectedBlockId === block.id ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200",
                       ].join(" ")}
                     >
-                      <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={() => setSelectedBlockId(block.id)}>
+                      <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={() => selectBlockForEdit(block.id)}>
                         <span className="min-w-0">
                           <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Bloco {index + 1}</span>
                           <span className="block truncate text-xs font-semibold text-slate-900">{getBlockLabel(block)}</span>
@@ -1315,16 +1336,16 @@ export function AdminPageEditor() {
                           if (!anchor) return
                           event.preventDefault()
                           event.stopPropagation()
-                          setSelectedBlockId(block.id)
+                          selectBlockForEdit(block.id)
                           if (block.type === "rich_text" && richSelectionMode) {
                             setSelectedRichNodeIndex(resolveRichNodeIndexFromTarget(target))
                           }
                         }}
                         onClick={() => {
-                          setSelectedBlockId(block.id)
+                          selectBlockForEdit(block.id)
                         }}
                         onDoubleClick={() => {
-                          setSelectedBlockId(block.id)
+                          selectBlockForEdit(block.id)
                           if (canInlineEdit(block)) {
                             setInlineEditingBlockId(block.id)
                           }
@@ -1389,7 +1410,7 @@ export function AdminPageEditor() {
                           <div
                             className="rich-text-editor min-h-[70px] max-w-full overflow-hidden leading-8 [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
                             onClick={(event) => {
-                              setSelectedBlockId(block.id)
+                              selectBlockForEdit(block.id)
                               if (!richSelectionMode) {
                                 setSelectedRichNodeIndex(null)
                                 return
@@ -1534,7 +1555,7 @@ export function AdminPageEditor() {
                 <div className="space-y-3">
                   <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
 
-                  {selectedBlockId ? (
+                                  {isLayoutCardVisible ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Layout da secao</p>
                     <div className="mt-2 grid grid-cols-2 gap-2">
