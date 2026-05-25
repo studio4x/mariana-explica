@@ -154,6 +154,14 @@ function isRichTextNodeTextEditable(tagName: string) {
   return ["h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "span"].includes(tagName)
 }
 
+function resolveRichNodeIndexFromTarget(target: HTMLElement | null) {
+  const node = target?.closest?.("[data-me-node]") as HTMLElement | null
+  if (!node) return null
+  const value = Number(node.getAttribute("data-me-node") ?? "-1")
+  if (!Number.isFinite(value) || value < 0) return null
+  return value
+}
+
 function getCanvasPreviewCss() {
   return `
 ${getDefaultStyleCss()}
@@ -391,6 +399,8 @@ export function AdminPageEditor() {
       textContent: element.textContent?.trim() ?? "",
       isTextEditable: isRichTextNodeTextEditable(tagName),
       isImage: tagName === "img",
+      isLink: tagName === "a",
+      linkHref: element.getAttribute("href") ?? "",
       imageSrc: element.getAttribute("src") ?? "",
       imageAlt: element.getAttribute("alt") ?? "",
     }
@@ -532,6 +542,27 @@ export function AdminPageEditor() {
       }
       if (typeof partial.alt === "string") {
         targetNode.setAttribute("alt", partial.alt)
+      }
+
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeLinkEdit = useCallback(
+    (partial: { href?: string }) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode || targetNode.tagName.toLowerCase() !== "a") return
+
+      if (typeof partial.href === "string") {
+        targetNode.setAttribute("href", partial.href)
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -1232,6 +1263,9 @@ export function AdminPageEditor() {
                           event.preventDefault()
                           event.stopPropagation()
                           setSelectedBlockId(block.id)
+                          if (block.type === "rich_text" && richSelectionMode) {
+                            setSelectedRichNodeIndex(resolveRichNodeIndexFromTarget(target))
+                          }
                         }}
                         onClick={() => {
                           setSelectedBlockId(block.id)
@@ -1308,15 +1342,12 @@ export function AdminPageEditor() {
                                 return
                               }
                               const target = event.target as HTMLElement | null
-                              const node = target?.closest?.("[data-me-node]") as HTMLElement | null
-                              if (!node) {
+                              const nextIndex = resolveRichNodeIndexFromTarget(target)
+                              if (nextIndex === null) {
                                 setSelectedRichNodeIndex(null)
                                 return
                               }
-                              const value = Number(node.getAttribute("data-me-node") ?? "-1")
-                              if (Number.isFinite(value) && value >= 0) {
-                                setSelectedRichNodeIndex(value)
-                              }
+                              setSelectedRichNodeIndex(nextIndex)
                             }}
                             dangerouslySetInnerHTML={{
                               __html:
@@ -1680,6 +1711,16 @@ export function AdminPageEditor() {
                                 minHeightPx={140}
                               />
                             </div>
+                          ) : null}
+                          {selectedRichNodeDescriptor?.isLink ? (
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Link do botao
+                              <input
+                                value={selectedRichNodeDescriptor.linkHref}
+                                onChange={(event) => applyRichNodeLinkEdit({ href: event.target.value })}
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
                           ) : null}
                           {selectedRichNodeDescriptor?.isImage ? (
                             <div className="grid gap-3">
