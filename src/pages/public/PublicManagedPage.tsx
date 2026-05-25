@@ -2,9 +2,16 @@ import { useMemo } from "react"
 import type { ReactNode } from "react"
 import { useLocation } from "react-router-dom"
 import { LoadingState } from "@/components/feedback"
+import {
+  expandStructuredRichTextBlocks,
+  getDefaultStyleCss,
+  maybeCanonicalizeHomeDocument,
+  normalizeBuilderDocument,
+  renderDocumentToHtml,
+} from "@/lib/site-page-builder"
 import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
-import type { SitePageSlug } from "@/types/app.types"
+import type { PublicSitePagePayload, SitePageSlug } from "@/types/app.types"
 
 function normalizeHtml(layoutJson?: Record<string, unknown>) {
   if (!layoutJson || typeof layoutJson !== "object") return ""
@@ -18,6 +25,36 @@ function normalizeCss(styleJson?: Record<string, unknown>) {
   const css = styleJson.css
   if (typeof css === "string" && css.trim().length > 0) return css
   return ""
+}
+
+function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSitePagePayload["version"] | null | undefined) {
+  if (!version?.layout_json || typeof version.layout_json !== "object") return null
+
+  const layoutJson = version.layout_json as Record<string, unknown>
+  const projectData =
+    layoutJson.projectData && typeof layoutJson.projectData === "object"
+      ? (layoutJson.projectData as Record<string, unknown>)
+      : null
+
+  if (projectData && Array.isArray(projectData.blocks) && projectData.blocks.length > 0) {
+    const document = maybeCanonicalizeHomeDocument(
+      expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)),
+      slug,
+    )
+
+    return {
+      html: renderDocumentToHtml(document),
+      css: getDefaultStyleCss(),
+    }
+  }
+
+  const html = normalizeHtml(version.layout_json)
+  if (!html) return null
+
+  return {
+    html,
+    css: normalizeCss(version.style_json),
+  }
 }
 
 interface PublicManagedPageProps {
@@ -42,11 +79,8 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     }
 
     if (!pageQuery.data?.version) return null
-    return {
-      html: normalizeHtml(pageQuery.data.version.layout_json),
-      css: normalizeCss(pageQuery.data.version.style_json),
-    }
-  }, [pageQuery.data, previewPayload])
+    return rebuildManagedPayloadFromVersion(slug, pageQuery.data.version)
+  }, [pageQuery.data, previewPayload, slug])
 
   if (pageQuery.isLoading && !previewPayload) {
     return <LoadingState message="A carregar conteudo da pagina..." />
