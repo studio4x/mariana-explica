@@ -524,6 +524,24 @@ export function AdminPageEditor() {
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
 
+  const applyRichNodeTextContentEdit = useCallback(
+    (nextText: string) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode) return
+
+      targetNode.textContent = nextText
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
   const applyRichNodeImageEdit = useCallback(
     (partial: { src?: string; alt?: string }) => {
       if (!selectedBlock || selectedBlock.type !== "rich_text") return
@@ -1806,14 +1824,23 @@ export function AdminPageEditor() {
                                   />
                                 </label>
                               </div>
-                              <RichTextEditor
-                                key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
-                                ref={selectedRichNodeEditorRef}
-                                value={selectedRichNodeDescriptor.innerHtml}
-                                onChange={applyRichNodeInnerContentEdit}
-                                toolbarVariant="compact"
-                                minHeightPx={140}
-                              />
+                              {selectedRichNodeDescriptor.isLink ? (
+                                <textarea
+                                  key={`${selectedBlock.id}-${selectedRichNodeIndex}-text-link`}
+                                  value={selectedRichNodeDescriptor.textContent}
+                                  onChange={(event) => applyRichNodeTextContentEdit(event.target.value)}
+                                  className="min-h-[120px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                />
+                              ) : (
+                                <RichTextEditor
+                                  key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
+                                  ref={selectedRichNodeEditorRef}
+                                  value={selectedRichNodeDescriptor.innerHtml}
+                                  onChange={applyRichNodeInnerContentEdit}
+                                  toolbarVariant="compact"
+                                  minHeightPx={140}
+                                />
+                              )}
                             </div>
                           ) : null}
                           {selectedRichNodeDescriptor?.isLink ? (
