@@ -737,15 +737,48 @@ export function AdminPageEditor() {
   }
 
   const handlePublish = async () => {
-    if (!selectedVersionId) {
-      setFeedback({ tone: "danger", message: "Seleciona uma versao para publicar." })
-      return
-    }
     setFeedback(null)
     try {
+      richTextRef.current?.flush()
+      selectedRichNodeEditorRef.current?.flush()
+
+      let versionIdToPublish = selectedVersionId
+      if (isDirty || !versionIdToPublish) {
+        const snapshot = createSnapshot()
+        const draftResponse = await saveDraftMutation.mutateAsync({
+          slug: selectedSlug,
+          title: detailQuery.data?.page.title ?? pageSummary?.title ?? getTitleForSlug(selectedSlug),
+          layoutJson: {
+            editor: "custom-block-builder",
+            schema_version: 1,
+            projectData: snapshot.projectData,
+            html: snapshot.html,
+          },
+          styleJson: {
+            css: snapshot.css,
+          },
+          metadata: {
+            editor: "custom-block-builder",
+            updated_at: new Date().toISOString(),
+          },
+        })
+
+        loadedVersionRef.current = draftResponse.version.id
+        setSelectedVersionId(draftResponse.version.id)
+        versionIdToPublish = draftResponse.version.id
+        setIsDirty(false)
+        setAutosaveStatus("saved")
+        setAutosaveSavedAt(new Date().toISOString())
+      }
+
+      if (!versionIdToPublish) {
+        setFeedback({ tone: "danger", message: "Seleciona uma versao para publicar." })
+        return
+      }
+
       await publishMutation.mutateAsync({
         slug: selectedSlug,
-        versionId: selectedVersionId,
+        versionId: versionIdToPublish,
       })
       setFeedback({ tone: "success", message: "Pagina publicada com sucesso." })
       setIsDirty(false)
