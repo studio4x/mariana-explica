@@ -304,7 +304,7 @@ export function AdminPageEditor() {
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [uploadingInspectorAsset, setUploadingInspectorAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
-  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false)
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(true)
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
@@ -626,7 +626,7 @@ export function AdminPageEditor() {
     loadedVersionRef.current = initialVersion?.id ?? ""
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
-    setSelectedBlockId(initialDoc.blocks[0]?.id ?? "")
+    setSelectedBlockId("")
     setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
@@ -840,7 +840,7 @@ export function AdminPageEditor() {
     loadedVersionRef.current = version.id
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
-    setSelectedBlockId(nextDoc.blocks[0]?.id ?? "")
+    setSelectedBlockId("")
     setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
@@ -1077,33 +1077,84 @@ export function AdminPageEditor() {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" className="rounded-full" onClick={() => void handleSaveDraft("manual")} disabled={isSaving}>
+            <Button
+              type="button"
+              className="rounded-full"
+              onClick={() => void handleSaveDraft("manual")}
+              disabled={isSaving}
+              title="Guarda um novo rascunho da pagina sem publicar."
+            >
               <Save className="mr-2 h-4 w-4" />
               {saveDraftMutation.isPending ? "A guardar..." : "Guardar"}
             </Button>
-            <Button type="button" className="rounded-full" onClick={() => void handlePublish()} disabled={isSaving || !selectedVersionId}>
+            <Button
+              type="button"
+              className="rounded-full"
+              onClick={() => void handlePublish()}
+              disabled={isSaving || !selectedVersionId}
+              title="Publica a versao atual para o site publico."
+            >
               <Send className="mr-2 h-4 w-4" />
               {publishMutation.isPending ? "A publicar..." : "Publicar"}
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => handlePreview()} disabled={isSaving}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => handlePreview()}
+              disabled={isSaving}
+              title="Abre uma pre-visualizacao da pagina com o estado atual do editor."
+            >
               <Eye className="mr-2 h-4 w-4" />
               Preview
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleRollback()} disabled={isSaving || !selectedVersionId}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => void handleRollback()}
+              disabled={isSaving || !selectedVersionId}
+              title="Restaura o conteudo da versao selecionada."
+            >
               <FileClock className="mr-2 h-4 w-4" />
               Rollback
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleUnpublish()} disabled={isSaving || !publishedVersionId}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => void handleUnpublish()}
+              disabled={isSaving || !publishedVersionId}
+              title="Remove a versao publicada do site publico."
+            >
               <XCircle className="mr-2 h-4 w-4" />
               Despublicar
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => setAutosaveEnabled((current) => !current)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setAutosaveEnabled((current) => !current)}
+              title="Liga ou desliga o autosave periodico do editor."
+            >
               {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => setShowLayoutGuides((current) => !current)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setShowLayoutGuides((current) => !current)}
+              title="Mostra ou oculta guias visuais de alinhamento no canvas."
+            >
               {showLayoutGuides ? "Guias on" : "Guias off"}
             </Button>
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => setSnapSpacingToGrid((current) => !current)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setSnapSpacingToGrid((current) => !current)}
+              title="Ativa ou desativa o ajuste automatico de espacamento para grade de 4px."
+            >
               {snapSpacingToGrid ? "Snap 4px on" : "Snap 4px off"}
             </Button>
           </div>
@@ -1483,7 +1534,8 @@ export function AdminPageEditor() {
                 <div className="space-y-3">
                   <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
 
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {selectedBlockId ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Layout da secao</p>
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <label className="block text-xs font-semibold text-slate-600">
@@ -1626,7 +1678,8 @@ export function AdminPageEditor() {
                         />
                       </label>
                     </div>
-                  </div>
+                    </div>
+                  ) : null}
 
                   {selectedBlock.type === "heading" ? (
                     <>
