@@ -800,7 +800,11 @@ export function resolveBuilderDocumentFromLayoutJson(
 
   const hasBlocks = Array.isArray(projectData?.blocks) && projectData.blocks.length > 0
   if (hasBlocks && projectData) {
-    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
+    const normalizedDocument = normalizeBuilderDocument(projectData, slug)
+    if (hasCanonicalMarkerForSlug(normalizedDocument, slug)) {
+      return normalizedDocument
+    }
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizedDocument), slug)
   }
 
   const htmlFromRecord = typeof record.html === "string" ? record.html : null
@@ -812,7 +816,11 @@ export function resolveBuilderDocumentFromLayoutJson(
   }
 
   if (projectData) {
-    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
+    const normalizedDocument = normalizeBuilderDocument(projectData, slug)
+    if (hasCanonicalMarkerForSlug(normalizedDocument, slug)) {
+      return normalizedDocument
+    }
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizedDocument), slug)
   }
 
   return getDefaultDocumentForSlug(slug)
