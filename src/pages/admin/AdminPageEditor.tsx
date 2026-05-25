@@ -36,16 +36,13 @@ import {
 import { ROUTES } from "@/lib/constants"
 import { createSitePagePreviewUrl, storeSitePagePreview } from "@/lib/site-page-preview"
 import {
-  convertLegacyHtmlToBuilderDocument,
   createDefaultBlock,
-  expandStructuredRichTextBlocks,
   getDefaultDocumentForSlug,
   getDefaultStyleCss,
   getBlockLayoutDefaults,
-  maybeCanonicalizeHomeDocument,
-  normalizeBuilderDocument,
   normalizeLayoutStyle,
   renderDocumentToHtml,
+  resolveBuilderDocumentFromLayoutJson,
   type BlockLayoutStyle,
   type PageBlock,
   type PageBlockType,
@@ -95,35 +92,7 @@ function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: st
 }
 
 function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVersion | null): SitePageBuilderDocument {
-  const json = version?.layout_json
-  if (!json || typeof json !== "object") {
-    return getDefaultDocumentForSlug(slug)
-  }
-
-  const record = json as Record<string, unknown>
-  const projectData =
-    record.projectData && typeof record.projectData === "object"
-      ? (record.projectData as Record<string, unknown>)
-      : null
-
-  const hasBlocks = Array.isArray(projectData?.blocks) && projectData.blocks.length > 0
-  if (hasBlocks && projectData) {
-    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
-  }
-
-  const htmlFromRecord = typeof record.html === "string" ? record.html : null
-  const htmlFromProjectData = projectData && typeof projectData.html === "string" ? projectData.html : null
-  const legacyHtml = htmlFromRecord ?? htmlFromProjectData
-
-  if (legacyHtml) {
-    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(convertLegacyHtmlToBuilderDocument(legacyHtml, slug)), slug)
-  }
-
-  if (projectData) {
-    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
-  }
-
-  return getDefaultDocumentForSlug(slug)
+  return resolveBuilderDocumentFromLayoutJson(slug, version?.layout_json)
 }
 
 const EDITABLE_RICH_TEXT_SELECTOR = [

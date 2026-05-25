@@ -3,11 +3,9 @@ import type { ReactNode } from "react"
 import { useLocation } from "react-router-dom"
 import { LoadingState } from "@/components/feedback"
 import {
-  expandStructuredRichTextBlocks,
   getDefaultStyleCss,
-  maybeCanonicalizeHomeDocument,
-  normalizeBuilderDocument,
   renderDocumentToHtml,
+  resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
 import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
@@ -37,10 +35,7 @@ function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSit
       : null
 
   if (projectData && Array.isArray(projectData.blocks) && projectData.blocks.length > 0) {
-    const document = maybeCanonicalizeHomeDocument(
-      expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)),
-      slug,
-    )
+    const document = resolveBuilderDocumentFromLayoutJson(slug, version.layout_json)
 
     return {
       html: renderDocumentToHtml(document),

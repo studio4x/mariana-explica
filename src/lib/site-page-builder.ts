@@ -784,6 +784,40 @@ export function maybeCanonicalizeHomeDocument(document: SitePageBuilderDocument,
   return document
 }
 
+export function resolveBuilderDocumentFromLayoutJson(
+  slug: SitePageSlug,
+  layoutJson: Record<string, unknown> | null | undefined,
+): SitePageBuilderDocument {
+  if (!layoutJson || typeof layoutJson !== "object") {
+    return getDefaultDocumentForSlug(slug)
+  }
+
+  const record = layoutJson as Record<string, unknown>
+  const projectData =
+    record.projectData && typeof record.projectData === "object"
+      ? (record.projectData as Record<string, unknown>)
+      : null
+
+  const hasBlocks = Array.isArray(projectData?.blocks) && projectData.blocks.length > 0
+  if (hasBlocks && projectData) {
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
+  }
+
+  const htmlFromRecord = typeof record.html === "string" ? record.html : null
+  const htmlFromProjectData = projectData && typeof projectData.html === "string" ? projectData.html : null
+  const legacyHtml = htmlFromRecord ?? htmlFromProjectData
+
+  if (legacyHtml) {
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(convertLegacyHtmlToBuilderDocument(legacyHtml, slug)), slug)
+  }
+
+  if (projectData) {
+    return maybeCanonicalizeHomeDocument(expandStructuredRichTextBlocks(normalizeBuilderDocument(projectData, slug)), slug)
+  }
+
+  return getDefaultDocumentForSlug(slug)
+}
+
 function normalizeColumnsItems(rawItems: unknown, columns: 2 | 3 | 4) {
   const source = Array.isArray(rawItems) ? rawItems.map((item) => String(item ?? "")) : []
   const sanitized = source.slice(0, columns).map((item) =>
