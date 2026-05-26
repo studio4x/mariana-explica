@@ -619,17 +619,60 @@ export function AdminPageEditor() {
     [isDirty],
   )
 
+  const sanitizeRichTextContentForPersist = useCallback((html: string) => {
+    if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
+    const parser = new DOMParser()
+    const parsed = parser.parseFromString(html, "text/html")
+
+    const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+    nodes.forEach((node) => {
+      node.removeAttribute("data-me-node")
+
+      const element = node as HTMLElement
+      const styleValue = element.getAttribute("style")
+      if (styleValue) {
+        const cleaned = styleValue
+          .replace(/outline\s*:[^;]*;?/gi, "")
+          .replace(/outline-offset\s*:[^;]*;?/gi, "")
+          .replace(/cursor\s*:[^;]*;?/gi, "")
+          .replace(/;;+/g, ";")
+          .trim()
+          .replace(/^;|;$/g, "")
+        if (cleaned) element.setAttribute("style", cleaned)
+        else element.removeAttribute("style")
+      }
+
+      if (element.tagName.toLowerCase() === "a") {
+        // Evita estrutura invalida dentro de links/botoes apos edicoes ricas.
+        const safeText = element.textContent ?? ""
+        element.textContent = safeText
+      }
+    })
+
+    return parsed.body.innerHTML
+  }, [])
+
+  const sanitizeDocumentForPersist = useCallback(
+    (document: SitePageBuilderDocument): SitePageBuilderDocument => ({
+      blocks: document.blocks.map((block) =>
+        block.type === "rich_text" ? { ...block, content: sanitizeRichTextContentForPersist(block.content) } : block,
+      ),
+    }),
+    [sanitizeRichTextContentForPersist],
+  )
+
   const createSnapshot = useCallback(() => {
-    const html = renderDocumentToHtml(documentDraft)
+    const sanitizedDocument = sanitizeDocumentForPersist(documentDraft)
+    const html = renderDocumentToHtml(sanitizedDocument)
     const css = getDefaultStyleCss()
     return {
       projectData: {
-        blocks: documentDraft.blocks,
+        blocks: sanitizedDocument.blocks,
       },
       html,
       css,
     }
-  }, [documentDraft])
+  }, [documentDraft, sanitizeDocumentForPersist])
 
   const handleSaveDraft = useCallback(
     async (trigger: "manual" | "autosave" = "manual") => {
