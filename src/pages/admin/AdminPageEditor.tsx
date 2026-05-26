@@ -519,31 +519,21 @@ export function AdminPageEditor() {
   )
 
   const annotateRichTextNodes = useCallback(
-    (html: string, activeIndex: number | null, showDropSlots = false) => {
+    (html: string, activeIndex: number | null, showInsertAfter = false) => {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
       const parser = new DOMParser()
       const parsed = parser.parseFromString(html, "text/html")
-        const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
-        if (showDropSlots && editableNodes.length > 0) {
-          editableNodes.forEach((child, index) => {
-            const slot = parsed.createElement("div")
-            slot.setAttribute("data-me-drop-slot", String(index))
-            slot.setAttribute(
-              "style",
-            "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:8px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
-          )
-          slot.textContent = "+ Inserir aqui"
-          child.parentNode?.insertBefore(slot, child)
-        })
-        const endSlot = parsed.createElement("div")
-        endSlot.setAttribute("data-me-drop-slot", String(editableNodes.length))
-        endSlot.setAttribute(
+      const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      if (showInsertAfter && activeIndex !== null && editableNodes[activeIndex]) {
+        const slot = parsed.createElement("div")
+        slot.setAttribute("data-me-drop-slot", String(activeIndex + 1))
+        slot.setAttribute(
           "style",
-          "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:8px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
+          "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:10px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
         )
-        endSlot.textContent = "+ Inserir aqui"
-        const lastNode = editableNodes[editableNodes.length - 1]
-        lastNode.parentNode?.insertBefore(endSlot, lastNode.nextSibling)
+        slot.textContent = "+ Inserir aqui"
+        const activeNode = editableNodes[activeIndex]
+        activeNode.parentNode?.insertBefore(slot, activeNode.nextSibling)
       }
       editableNodes.forEach((child, index) => {
         child.setAttribute("data-me-node", String(index))
@@ -551,7 +541,7 @@ export function AdminPageEditor() {
         const activeStyle =
           activeIndex === index
             ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:pointer;"
-            : "outline:1px dashed rgba(56,189,248,.35);outline-offset:2px;cursor:pointer;"
+            : "cursor:pointer;"
         child.setAttribute("style", `${baseStyle}${baseStyle ? ";" : ""}${activeStyle}`)
       })
       return parsed.body.innerHTML
@@ -907,6 +897,16 @@ export function AdminPageEditor() {
   }, [navigationBlocker])
 
   const handleAddBlock = (type: PageBlockType) => {
+    if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null) {
+      const nextBlock = createDefaultBlock(type)
+      const inserted = insertRichNodeAtIndex(selectedBlock.id, selectedRichNodeIndex + 1, getHtmlForBlockInsertion(nextBlock))
+      if (inserted) {
+        setSelectedRichNodeIndex(selectedRichNodeIndex + 1)
+        selectBlockSilently(selectedBlock.id)
+        return
+      }
+    }
+
     if (type === "image" && replaceSelectedRichNodeWithImage()) {
       return
     }
@@ -1615,7 +1615,7 @@ export function AdminPageEditor() {
                             dangerouslySetInnerHTML={{
                               __html:
                                 isSelected && richSelectionMode
-                                  ? annotateRichTextNodes(block.content, selectedRichNodeIndex, isDraggingCanvasBlock)
+                                  ? annotateRichTextNodes(block.content, selectedRichNodeIndex, selectedRichNodeIndex !== null)
                                   : block.content,
                             }}
                           />
