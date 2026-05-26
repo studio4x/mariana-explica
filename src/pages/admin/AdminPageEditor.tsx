@@ -754,8 +754,9 @@ export function AdminPageEditor() {
   useEffect(() => {
     if (!detailQuery.data) return
 
-    const preferredVersionId = selectedVersionId || loadedVersionRef.current || null
-    if (preferredVersionId && !versions.some((version) => version.id === preferredVersionId)) return
+    const isSameLoadedPage = loadedSlugRef.current === selectedSlug
+    const preferredVersionId = isSameLoadedPage ? selectedVersionId || loadedVersionRef.current || null : null
+    if (isSameLoadedPage && preferredVersionId && !versions.some((version) => version.id === preferredVersionId)) return
     const initialVersion = resolveInitialVersion(versions, publishedVersionId, preferredVersionId)
     const initialDoc = extractDocumentFromVersion(selectedSlug, initialVersion)
     const shouldReload = loadedSlugRef.current !== selectedSlug || loadedVersionRef.current !== (initialVersion?.id ?? "")
