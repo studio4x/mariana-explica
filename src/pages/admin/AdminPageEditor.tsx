@@ -1002,6 +1002,17 @@ export function AdminPageEditor() {
     }
   }, [selectedBlock])
 
+  useEffect(() => {
+    if (!pendingRichInsertPoint) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPendingRichInsertPoint(null)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [pendingRichInsertPoint])
+
   const insertBlockAtIndex = useCallback(
     (type: PageBlockType, rawIndex: number) => {
       const block = createDefaultBlock(type)
@@ -1720,16 +1731,7 @@ export function AdminPageEditor() {
                               }}
                             />
                             {pendingRichInsertPoint?.blockId === block.id ? (
-                              <div className="rounded-xl border border-sky-200 bg-sky-50 p-2">
-                                <p className="mb-2 text-xs font-semibold text-sky-900">Inserir aqui:</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {BLOCK_LIBRARY.map((item) => (
-                                    <Button key={`insert-${block.id}-${item.type}`} type="button" variant="outline" size="sm" onClick={() => handleAddBlock(item.type)}>
-                                      + {item.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
+                              <p className="text-xs font-semibold text-sky-700">Ponto de insercao selecionado.</p>
                             ) : null}
                           </div>
                         ) : null}
@@ -2520,6 +2522,32 @@ export function AdminPageEditor() {
           </div>
         </article>
       </section>
+
+      {pendingRichInsertPoint ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4" onClick={() => setPendingRichInsertPoint(null)}>
+          <div
+            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-slate-900">Inserir bloco aqui</p>
+                <p className="text-xs text-slate-500">Escolhe o tipo de bloco a inserir no ponto selecionado.</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPendingRichInsertPoint(null)}>
+                Fechar
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {BLOCK_LIBRARY.map((item) => (
+                <Button key={`modal-insert-${item.type}`} type="button" variant="outline" className="justify-start rounded-xl" onClick={() => handleAddBlock(item.type)}>
+                  + {item.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
