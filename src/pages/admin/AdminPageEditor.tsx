@@ -1599,14 +1599,37 @@ export function AdminPageEditor() {
                             }}
                             onDragOver={(event) => {
                               const target = event.target as HTMLElement | null
+                              const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
                               const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                              if (richNode) {
+                                const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                  if (selectedBlockId !== block.id) {
+                                    selectBlockForEdit(block.id)
+                                  }
+                                  if (selectedRichNodeIndex !== nextIndex) {
+                                    setSelectedRichNodeIndex(nextIndex)
+                                  }
+                                  event.preventDefault()
+                                  event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                                  return
+                                }
+                              }
                               if (!dropSlot) return
                               event.preventDefault()
                               event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
                             }}
                             onDrop={(event) => {
                               const target = event.target as HTMLElement | null
+                              const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
                               const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                              if (richNode) {
+                                const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                  handleDropIntoRichText(block.id, nextIndex + 1, event)
+                                  return
+                                }
+                              }
                               if (!dropSlot) return
                               const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
                               if (!Number.isFinite(insertIndex) || insertIndex < 0) return
