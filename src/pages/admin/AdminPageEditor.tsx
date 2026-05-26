@@ -333,6 +333,7 @@ export function AdminPageEditor() {
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [isDraggingCanvasBlock, setIsDraggingCanvasBlock] = useState(false)
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
   const [showLayoutGuides, setShowLayoutGuides] = useState(true)
   const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
@@ -1062,12 +1063,14 @@ export function AdminPageEditor() {
 
   const startDragFromLibrary = (blockType: PageBlockType, event: DragEvent<HTMLElement>) => {
     dragPayloadRef.current = { kind: "library", blockType }
+    setIsDraggingCanvasBlock(true)
     event.dataTransfer.effectAllowed = "copyMove"
     event.dataTransfer.setData("text/plain", `library:${blockType}`)
   }
 
   const startDragBlock = (blockId: string, event: DragEvent<HTMLElement>) => {
     dragPayloadRef.current = { kind: "block", blockId }
+    setIsDraggingCanvasBlock(true)
     event.dataTransfer.effectAllowed = "move"
     event.dataTransfer.setData("text/plain", `block:${blockId}`)
     selectBlockSilently(blockId)
@@ -1075,6 +1078,7 @@ export function AdminPageEditor() {
 
   const clearDragState = useCallback(() => {
     dragPayloadRef.current = null
+    setIsDraggingCanvasBlock(false)
     setDragOverIndex(null)
   }, [])
 
@@ -1313,10 +1317,13 @@ export function AdminPageEditor() {
               onDragOver={(event) => onDropZoneDragOver(0, event)}
               onDrop={(event) => handleDropAtIndex(0, event)}
               className={[
-                "relative z-10 mb-2 h-3 rounded-full border border-dashed transition",
-                dragOverIndex === 0 ? "border-sky-500 bg-sky-300" : "border-slate-300 bg-transparent",
+                "relative z-10 mb-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
+                isDraggingCanvasBlock ? "h-10 opacity-100" : "h-3 opacity-70",
+                dragOverIndex === 0 ? "border-sky-500 bg-sky-100 text-sky-900" : "border-slate-300 bg-transparent text-slate-400",
               ].join(" ")}
-            />
+            >
+              {isDraggingCanvasBlock ? "Solta aqui" : null}
+            </div>
 
             {documentDraft.blocks.length === 0 ? (
               <div
@@ -1334,9 +1341,6 @@ export function AdminPageEditor() {
                   return (
                     <div key={block.id}>
                       <section
-                        draggable
-                        onDragStart={(event) => startDragBlock(block.id, event)}
-                        onDragEnd={clearDragState}
                         onClickCapture={(event) => {
                           const target = event.target as HTMLElement | null
                           const anchor = target?.closest?.("a") as HTMLAnchorElement | null
@@ -1363,11 +1367,22 @@ export function AdminPageEditor() {
                         ].join(" ")}
                         style={getBlockContainerStyle(block.layout)}
                       >
-                        <div className="pointer-events-none absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
-                          <span className="inline-flex items-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
-                            <GripVertical className="mr-1 h-3 w-3" /> arrastar
-                          </span>
-                        </div>
+                        <button
+                          type="button"
+                          draggable
+                          onDragStart={(event) => startDragBlock(block.id, event)}
+                          onDragEnd={clearDragState}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            selectBlockForEdit(block.id)
+                          }}
+                          className="absolute right-2 top-2 z-10 inline-flex cursor-grab items-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white opacity-0 transition active:cursor-grabbing group-hover:opacity-100"
+                          aria-label={`Arrastar bloco ${index + 1}`}
+                          title="Arrastar bloco"
+                        >
+                          <GripVertical className="mr-1 h-3 w-3" /> arrastar
+                        </button>
 
                         {block.type === "heading" ? (
                           block.level === 1 ? (
@@ -1523,10 +1538,15 @@ export function AdminPageEditor() {
                         onDragOver={(event) => onDropZoneDragOver(index + 1, event)}
                         onDrop={(event) => handleDropAtIndex(index + 1, event)}
                         className={[
-                          "my-2 h-3 rounded-full border border-dashed transition",
-                          dragOverIndex === index + 1 ? "border-sky-500 bg-sky-300" : "border-slate-300 bg-transparent",
+                          "my-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
+                          isDraggingCanvasBlock ? "h-10 opacity-100" : "h-3 opacity-70",
+                          dragOverIndex === index + 1
+                            ? "border-sky-500 bg-sky-100 text-sky-900"
+                            : "border-slate-300 bg-transparent text-slate-400",
                         ].join(" ")}
-                      />
+                      >
+                        {isDraggingCanvasBlock ? "Solta aqui" : null}
+                      </div>
                     </div>
                   )
                 })}
