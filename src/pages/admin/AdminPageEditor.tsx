@@ -12,6 +12,7 @@ import {
   Plus,
   Save,
   Send,
+  Trash2,
   UploadCloud,
   XCircle,
 } from "lucide-react"
@@ -925,6 +926,23 @@ export function AdminPageEditor() {
     selectBlockSilently(block.id)
   }
 
+  const handleRemoveBlock = useCallback(
+    (blockId: string) => {
+      const block = documentDraft.blocks.find((item) => item.id === blockId)
+      if (!block) return
+      if (!window.confirm(`Queres mesmo excluir o bloco "${getBlockLabel(block)}"?`)) return
+
+      updateDocument((current) => ({
+        blocks: current.blocks.filter((item) => item.id !== blockId),
+      }))
+      setSelectedBlockId((current) => (current === blockId ? "" : current))
+      setInlineEditingBlockId((current) => (current === blockId ? null : current))
+      setSelectedRichNodeIndex(null)
+      setIsLayoutCardVisible(false)
+    },
+    [documentDraft.blocks, updateDocument],
+  )
+
   useEffect(() => {
     if (selectedBlock?.type !== "rich_text") {
       setSelectedRichNodeIndex(null)
@@ -1729,7 +1747,19 @@ export function AdminPageEditor() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                      onClick={() => handleRemoveBlock(selectedBlock.id)}
+                    >
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      Excluir bloco
+                    </Button>
+                  </div>
 
                   {showLayoutSectionCard ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
