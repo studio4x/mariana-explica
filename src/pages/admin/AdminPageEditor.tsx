@@ -130,6 +130,23 @@ function resolveRichNodeIndexFromTarget(target: HTMLElement | null) {
   return value
 }
 
+function getRichImagePlaceholderSrc() {
+  return [
+    "data:image/svg+xml;utf8,",
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+        <rect width="1200" height="800" rx="36" fill="#eef6ff"/>
+        <rect x="40" y="40" width="1120" height="720" rx="28" fill="#ffffff" stroke="#c7d8ef" stroke-width="6"/>
+        <path d="M220 590l170-190 130 130 130-160 250 220H220z" fill="#c9dcf3"/>
+        <circle cx="430" cy="280" r="58" fill="#dce8f7"/>
+        <text x="600" y="675" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#27406b">
+          Nova imagem
+        </text>
+      </svg>`,
+    ),
+  ].join("")
+}
+
 function ActionHint({ hint, children }: { hint: string; children: React.ReactNode }) {
   return (
     <div className="relative inline-flex group/action-hint">
@@ -564,6 +581,14 @@ export function AdminPageEditor() {
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
 
+  const replaceSelectedRichNodeWithImage = useCallback(() => {
+    if (!selectedBlock || selectedBlock.type !== "rich_text") return false
+    if (selectedRichNodeIndex === null) return false
+    const placeholderSrc = getRichImagePlaceholderSrc()
+    applyRichNodeEdit(`<img src="${placeholderSrc}" alt="Nova imagem" />`)
+    return true
+  }, [applyRichNodeEdit, selectedBlock, selectedRichNodeIndex])
+
   const applyRichNodeLinkEdit = useCallback(
     (partial: { href?: string }) => {
       if (!selectedBlock || selectedBlock.type !== "rich_text") return
@@ -730,6 +755,7 @@ export function AdminPageEditor() {
     if (!detailQuery.data) return
 
     const preferredVersionId = selectedVersionId || loadedVersionRef.current || null
+    if (preferredVersionId && !versions.some((version) => version.id === preferredVersionId)) return
     const initialVersion = resolveInitialVersion(versions, publishedVersionId, preferredVersionId)
     const initialDoc = extractDocumentFromVersion(selectedSlug, initialVersion)
     const shouldReload = loadedSlugRef.current !== selectedSlug || loadedVersionRef.current !== (initialVersion?.id ?? "")
@@ -790,6 +816,9 @@ export function AdminPageEditor() {
   }, [navigationBlocker])
 
   const handleAddBlock = (type: PageBlockType) => {
+    if (type === "image" && replaceSelectedRichNodeWithImage()) {
+      return
+    }
     const block = createDefaultBlock(type)
     updateDocument((current) => {
       if (!selectedBlockId) {
