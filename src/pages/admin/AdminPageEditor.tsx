@@ -378,6 +378,7 @@ export function AdminPageEditor() {
   const [richSelectionMode, setRichSelectionMode] = useState(true)
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
+  const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<{ blockId: string; insertIndex: number } | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const selectedRichNodeEditorRef = useRef<RichTextEditorHandle | null>(null)
@@ -897,6 +898,21 @@ export function AdminPageEditor() {
   }, [navigationBlocker])
 
   const handleAddBlock = (type: PageBlockType) => {
+    if (pendingRichInsertPoint) {
+      const nextBlock = createDefaultBlock(type)
+      const inserted = insertRichNodeAtIndex(
+        pendingRichInsertPoint.blockId,
+        pendingRichInsertPoint.insertIndex,
+        getHtmlForBlockInsertion(nextBlock),
+      )
+      if (inserted) {
+        setSelectedBlockId(pendingRichInsertPoint.blockId)
+        setSelectedRichNodeIndex(Math.max(0, pendingRichInsertPoint.insertIndex))
+      }
+      setPendingRichInsertPoint(null)
+      return
+    }
+
     if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null) {
       const nextBlock = createDefaultBlock(type)
       const inserted = insertRichNodeAtIndex(selectedBlock.id, selectedRichNodeIndex + 1, getHtmlForBlockInsertion(nextBlock))
@@ -947,6 +963,7 @@ export function AdminPageEditor() {
     if (selectedBlock?.type !== "rich_text") {
       setSelectedRichNodeIndex(null)
       setRichSelectionMode(true)
+      setPendingRichInsertPoint(null)
     }
   }, [selectedBlock])
 
@@ -1188,6 +1205,19 @@ export function AdminPageEditor() {
     setDragOverIndex(null)
   }, [])
 
+  useEffect(() => {
+    if (!isDraggingCanvasBlock) return
+    const stopDragging = () => clearDragState()
+    window.addEventListener("dragend", stopDragging)
+    window.addEventListener("drop", stopDragging)
+    window.addEventListener("mouseup", stopDragging)
+    return () => {
+      window.removeEventListener("dragend", stopDragging)
+      window.removeEventListener("drop", stopDragging)
+      window.removeEventListener("mouseup", stopDragging)
+    }
+  }, [clearDragState, isDraggingCanvasBlock])
+
   const handleDropAtIndex = useCallback(
     (rawIndex: number, event: DragEvent<HTMLElement>) => {
       event.preventDefault()
@@ -1425,14 +1455,15 @@ export function AdminPageEditor() {
         </div>
         <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
           {BLOCK_LIBRARY.map((item) => (
-            <button
-              key={item.type}
-              type="button"
-              draggable
-              onDragStart={(event) => startDragFromLibrary(item.type, event)}
-              onClick={() => handleAddBlock(item.type)}
-              className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
-            >
+                <button
+                  key={item.type}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => startDragFromLibrary(item.type, event)}
+                  onDragEnd={clearDragState}
+                  onClick={() => handleAddBlock(item.type)}
+                  className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
+                >
               <Plus className="h-3.5 w-3.5" />
               <span>{item.label}</span>
             </button>
@@ -1581,67 +1612,91 @@ export function AdminPageEditor() {
                         ) : null}
 
                         {block.type === "rich_text" ? (
-                          <div
-                            className="rich-text-editor min-h-[70px] max-w-full overflow-hidden leading-8 [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
-                            onClick={(event) => {
-                              selectBlockForEdit(block.id)
-                              if (!richSelectionMode) {
-                                setSelectedRichNodeIndex(null)
-                                return
-                              }
-                              const target = event.target as HTMLElement | null
-                              const nextIndex = resolveRichNodeIndexFromTarget(target)
-                              if (nextIndex === null) {
-                                setSelectedRichNodeIndex(null)
-                                return
-                              }
-                              setSelectedRichNodeIndex(nextIndex)
-                            }}
-                            onDragOver={(event) => {
-                              const target = event.target as HTMLElement | null
-                              const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
-                              const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
-                              if (richNode) {
-                                const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
-                                if (Number.isFinite(nextIndex) && nextIndex >= 0) {
-                                  if (selectedBlockId !== block.id) {
-                                    selectBlockForEdit(block.id)
-                                  }
-                                  if (selectedRichNodeIndex !== nextIndex) {
-                                    setSelectedRichNodeIndex(nextIndex)
-                                  }
-                                  event.preventDefault()
-                                  event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                          <div className="space-y-2">
+                            <div
+                              className="rich-text-editor min-h-[70px] max-w-full overflow-hidden leading-8 [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                              onClick={(event) => {
+                                selectBlockForEdit(block.id)
+                                if (!richSelectionMode) {
+                                  setSelectedRichNodeIndex(null)
                                   return
                                 }
-                              }
-                              if (!dropSlot) return
-                              event.preventDefault()
-                              event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
-                            }}
-                            onDrop={(event) => {
-                              const target = event.target as HTMLElement | null
-                              const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
-                              const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
-                              if (richNode) {
-                                const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
-                                if (Number.isFinite(nextIndex) && nextIndex >= 0) {
-                                  handleDropIntoRichText(block.id, nextIndex + 1, event)
+                                const target = event.target as HTMLElement | null
+                                const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                if (dropSlot) {
+                                  const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                  if (Number.isFinite(insertIndex) && insertIndex >= 0) {
+                                    setPendingRichInsertPoint({ blockId: block.id, insertIndex })
+                                  }
                                   return
                                 }
-                              }
-                              if (!dropSlot) return
-                              const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
-                              if (!Number.isFinite(insertIndex) || insertIndex < 0) return
-                              handleDropIntoRichText(block.id, insertIndex, event)
-                            }}
-                            dangerouslySetInnerHTML={{
-                              __html:
-                                isSelected && richSelectionMode
-                                  ? annotateRichTextNodes(block.content, selectedRichNodeIndex, selectedRichNodeIndex !== null)
-                                  : block.content,
-                            }}
-                          />
+                                const nextIndex = resolveRichNodeIndexFromTarget(target)
+                                if (nextIndex === null) {
+                                  setSelectedRichNodeIndex(null)
+                                  setPendingRichInsertPoint(null)
+                                  return
+                                }
+                                setPendingRichInsertPoint(null)
+                                setSelectedRichNodeIndex(nextIndex)
+                              }}
+                              onDragOver={(event) => {
+                                const target = event.target as HTMLElement | null
+                                const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
+                                const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                if (richNode) {
+                                  const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                  if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                    if (selectedBlockId !== block.id) {
+                                      selectBlockForEdit(block.id)
+                                    }
+                                    if (selectedRichNodeIndex !== nextIndex) {
+                                      setSelectedRichNodeIndex(nextIndex)
+                                    }
+                                    event.preventDefault()
+                                    event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                                    return
+                                  }
+                                }
+                                if (!dropSlot) return
+                                event.preventDefault()
+                                event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                              }}
+                              onDrop={(event) => {
+                                const target = event.target as HTMLElement | null
+                                const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
+                                const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                if (richNode) {
+                                  const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                  if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                    handleDropIntoRichText(block.id, nextIndex + 1, event)
+                                    return
+                                  }
+                                }
+                                if (!dropSlot) return
+                                const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                if (!Number.isFinite(insertIndex) || insertIndex < 0) return
+                                handleDropIntoRichText(block.id, insertIndex, event)
+                              }}
+                              dangerouslySetInnerHTML={{
+                                __html:
+                                  isSelected && richSelectionMode
+                                    ? annotateRichTextNodes(block.content, selectedRichNodeIndex, selectedRichNodeIndex !== null)
+                                    : block.content,
+                              }}
+                            />
+                            {pendingRichInsertPoint?.blockId === block.id ? (
+                              <div className="rounded-xl border border-sky-200 bg-sky-50 p-2">
+                                <p className="mb-2 text-xs font-semibold text-sky-900">Inserir aqui:</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {BLOCK_LIBRARY.map((item) => (
+                                    <Button key={`insert-${block.id}-${item.type}`} type="button" variant="outline" size="sm" onClick={() => handleAddBlock(item.type)}>
+                                      + {item.label}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
                         ) : null}
 
                         {block.type === "image" ? (
