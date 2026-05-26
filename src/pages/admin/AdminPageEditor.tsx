@@ -522,25 +522,25 @@ export function AdminPageEditor() {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
       const parser = new DOMParser()
       const parsed = parser.parseFromString(html, "text/html")
-      const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
-      if (showDropSlots && editableNodes.length > 0) {
-        editableNodes.forEach((child, index) => {
-          const slot = parsed.createElement("div")
-          slot.setAttribute("data-me-drop-slot", String(index))
-          slot.setAttribute(
-            "style",
-            "height:28px;border:1px dashed rgba(56,189,248,.65);border-radius:12px;background:rgba(224,242,254,.75);margin:8px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#0f4c81;cursor:copy;",
+        const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+        if (showDropSlots && editableNodes.length > 0) {
+          editableNodes.forEach((child, index) => {
+            const slot = parsed.createElement("div")
+            slot.setAttribute("data-me-drop-slot", String(index))
+            slot.setAttribute(
+              "style",
+            "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:8px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
           )
-          slot.textContent = "Solta aqui"
+          slot.textContent = "+ Inserir aqui"
           child.parentNode?.insertBefore(slot, child)
         })
         const endSlot = parsed.createElement("div")
         endSlot.setAttribute("data-me-drop-slot", String(editableNodes.length))
         endSlot.setAttribute(
           "style",
-          "height:28px;border:1px dashed rgba(56,189,248,.65);border-radius:12px;background:rgba(224,242,254,.75);margin:8px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#0f4c81;cursor:copy;",
+          "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:8px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
         )
-        endSlot.textContent = "Solta aqui"
+        endSlot.textContent = "+ Inserir aqui"
         const lastNode = editableNodes[editableNodes.length - 1]
         lastNode.parentNode?.insertBefore(endSlot, lastNode.nextSibling)
       }
@@ -1295,8 +1295,8 @@ export function AdminPageEditor() {
         }
       />
 
-      <div className="sticky top-2 z-30 space-y-2">
-      <section className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+      <div className="sticky top-0 z-40 -mx-1 space-y-2 bg-slate-50/95 px-1 pb-2 pt-1 backdrop-blur">
+      <section className="rounded-2xl border border-slate-200 bg-white/98 p-3 shadow-sm backdrop-blur">
         <div className="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)_auto] xl:items-end">
           <label className="block">
             <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Pagina</span>
@@ -1397,34 +1397,34 @@ export function AdminPageEditor() {
           </div>
         ) : null}
       </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white/98 p-2.5 shadow-sm backdrop-blur">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
+          <p className="text-xs text-slate-500">
+            Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+          {BLOCK_LIBRARY.map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              draggable
+              onDragStart={(event) => startDragFromLibrary(item.type, event)}
+              onClick={() => handleAddBlock(item.type)}
+              className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
       </div>
 
       <section className="flex min-h-0 flex-1 gap-3">
         <article className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
-          <div className="sticky top-[108px] z-20 mb-3 rounded-xl border border-slate-200 bg-slate-50/95 p-2.5 shadow-sm backdrop-blur">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
-              <p className="text-xs text-slate-500">
-                Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-              {BLOCK_LIBRARY.map((item) => (
-                <button
-                  key={item.type}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => startDragFromLibrary(item.type, event)}
-                  onClick={() => handleAddBlock(item.type)}
-                  className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Canvas visual</p>
@@ -2334,15 +2334,15 @@ export function AdminPageEditor() {
         </aside>
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-2">
-        <article className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center gap-2">
+      <section className="grid gap-3">
+        <article className="rounded-2xl border border-slate-200 bg-white p-3">
+          <div className="mb-2 flex items-center gap-2">
             <FileClock className="h-4 w-4 text-slate-500" />
             <h2 className="text-sm font-bold text-slate-950">Historico de versoes</h2>
           </div>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {versions.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600">
                 Ainda nao ha versoes para esta pagina.
               </p>
             ) : (
@@ -2350,7 +2350,7 @@ export function AdminPageEditor() {
                 const isPublished = version.id === publishedVersionId
                 const isLoaded = version.id === selectedVersion?.id
                 return (
-                  <div key={version.id} className="rounded-xl border border-slate-200 p-3">
+                  <div key={version.id} className="rounded-xl border border-slate-200 p-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-bold text-slate-900">Versao {version.version_number}</p>
                       {isPublished ? (
@@ -2361,8 +2361,8 @@ export function AdminPageEditor() {
                         <StatusBadge label="Arquivada" tone="neutral" />
                       )}
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">{formatDateTime(version.created_at)}</p>
-                    <div className="mt-3 flex gap-2">
+                    <p className="mt-1 text-xs text-slate-500">{formatDateTime(version.created_at)}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => handleLoadVersion(version)}>
                         {isLoaded ? "Carregada" : "Carregar"}
                       </Button>
@@ -2375,25 +2375,6 @@ export function AdminPageEditor() {
               })
             )}
           </div>
-        </article>
-
-        <article className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-6 text-slate-600">
-          <p>
-            Builder Fase 3: colunas, controle de layout por secao (12-grid, padding/margin/fundo), guias visuais e snap de espacamento.
-          </p>
-          <p>
-            Preview publico:{" "}
-            <a href={getPublicPathForSlug(selectedSlug)} target="_blank" rel="noreferrer" className="font-semibold underline">
-              {window.location.origin}
-              {getPublicPathForSlug(selectedSlug)}
-            </a>
-          </p>
-          <p>
-            Atalho:{" "}
-            <a href={ROUTES.ADMIN_PAGE_EDITOR} className="font-semibold underline">
-              {ROUTES.ADMIN_PAGE_EDITOR}
-            </a>
-          </p>
         </article>
       </section>
     </div>
