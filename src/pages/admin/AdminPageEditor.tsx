@@ -713,6 +713,34 @@ export function AdminPageEditor() {
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
 
+  const removeSelectedRichNode = useCallback(() => {
+    if (!selectedBlock || selectedBlock.type !== "rich_text") return false
+    if (selectedRichNodeIndex === null) return false
+    if (typeof window === "undefined" || typeof DOMParser === "undefined") return false
+
+    let removed = false
+    updateSelectedBlock((block) => {
+      if (block.type !== "rich_text") return block
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(block.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex]
+      if (!targetNode) return block
+      targetNode.remove()
+      if (!parsed.body.innerHTML.trim()) {
+        parsed.body.innerHTML = "<p></p>"
+      }
+      removed = true
+      return { ...block, content: parsed.body.innerHTML }
+    })
+
+    if (removed) {
+      setSelectedRichNodeIndex(null)
+      setPendingRichInsertPoint(null)
+    }
+    return removed
+  }, [selectedBlock, selectedRichNodeIndex, updateSelectedBlock])
+
   const confirmDiscardChanges = useCallback(
     (nextActionLabel: string) => {
       if (!isDirty) return true
@@ -946,6 +974,13 @@ export function AdminPageEditor() {
     (blockId: string) => {
       const block = documentDraft.blocks.find((item) => item.id === blockId)
       if (!block) return
+
+      if (block.type === "rich_text" && selectedRichNodeIndex !== null) {
+        if (!window.confirm("Queres mesmo excluir o elemento selecionado dentro desta secao?")) return
+        removeSelectedRichNode()
+        return
+      }
+
       if (!window.confirm(`Queres mesmo excluir o bloco "${getBlockLabel(block)}"?`)) return
 
       updateDocument((current) => ({
@@ -956,7 +991,7 @@ export function AdminPageEditor() {
       setSelectedRichNodeIndex(null)
       setIsLayoutCardVisible(false)
     },
-    [documentDraft.blocks, updateDocument],
+    [documentDraft.blocks, removeSelectedRichNode, selectedRichNodeIndex, updateDocument],
   )
 
   useEffect(() => {
@@ -1835,7 +1870,7 @@ export function AdminPageEditor() {
                       onClick={() => handleRemoveBlock(selectedBlock.id)}
                     >
                       <Trash2 className="mr-2 h-3.5 w-3.5" />
-                      Excluir bloco
+                      {selectedBlock.type === "rich_text" && selectedRichNodeIndex !== null ? "Excluir elemento" : "Excluir bloco"}
                     </Button>
                   </div>
 
