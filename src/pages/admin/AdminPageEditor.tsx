@@ -1153,7 +1153,6 @@ export function AdminPageEditor() {
     <div className="flex h-full min-h-[calc(100vh-110px)] flex-col gap-3">
       <PageHeader
         title="Editor Visual de Paginas"
-        description="Fase 3: layout avancado com secao em 12 colunas, espacamentos finos, guias e edicao inline."
         backTo={ROUTES.ADMIN}
         actions={
           <Button asChild type="button" variant="outline" className="rounded-full border-slate-300 bg-white shadow-sm">
