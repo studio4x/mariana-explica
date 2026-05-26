@@ -3,20 +3,15 @@ import type { DragEvent, FocusEvent } from "react"
 import type { CSSProperties } from "react"
 import { Link, useBlocker } from "react-router-dom"
 import {
-  ArrowDown,
-  ArrowUp,
   Eye,
   FileClock,
   GripVertical,
   ImagePlus,
-  PanelLeftClose,
-  PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Plus,
   Save,
   Send,
-  Trash2,
   UploadCloud,
   XCircle,
 } from "lucide-react"
@@ -81,7 +76,11 @@ function getTitleForSlug(slug: SitePageSlug | string) {
   return PAGE_OPTIONS.find((item) => item.slug === slug)?.label ?? String(slug)
 }
 
-function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: string | null) {
+function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: string | null, preferredVersionId?: string | null) {
+  if (preferredVersionId) {
+    const preferredVersion = versions.find((item) => item.id === preferredVersionId)
+    if (preferredVersion) return preferredVersion
+  }
   if (publishedId) {
     const publishedVersion = versions.find((item) => item.id === publishedId)
     if (publishedVersion) return publishedVersion
@@ -315,7 +314,6 @@ export function AdminPageEditor() {
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [uploadingInspectorAsset, setUploadingInspectorAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
-  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(true)
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
@@ -731,7 +729,8 @@ export function AdminPageEditor() {
   useEffect(() => {
     if (!detailQuery.data) return
 
-    const initialVersion = resolveInitialVersion(versions, publishedVersionId)
+    const preferredVersionId = selectedVersionId || loadedVersionRef.current || null
+    const initialVersion = resolveInitialVersion(versions, publishedVersionId, preferredVersionId)
     const initialDoc = extractDocumentFromVersion(selectedSlug, initialVersion)
     const shouldReload = loadedSlugRef.current !== selectedSlug || loadedVersionRef.current !== (initialVersion?.id ?? "")
 
@@ -747,11 +746,7 @@ export function AdminPageEditor() {
     setIsDirty(false)
     setAutosaveStatus("idle")
     setAutosaveSavedAt(null)
-  }, [detailQuery.data, publishedVersionId, selectedSlug, versions])
-
-  useEffect(() => {
-    setLeftSidebarCollapsed(true)
-  }, [selectedSlug])
+  }, [detailQuery.data, publishedVersionId, selectedSlug, selectedVersionId, versions])
 
   useEffect(() => {
     if (autosaveTimerRef.current) {
@@ -796,9 +791,18 @@ export function AdminPageEditor() {
 
   const handleAddBlock = (type: PageBlockType) => {
     const block = createDefaultBlock(type)
-    updateDocument((current) => ({
-      blocks: [...current.blocks, block],
-    }))
+    updateDocument((current) => {
+      if (!selectedBlockId) {
+        return { blocks: [...current.blocks, block] }
+      }
+      const index = current.blocks.findIndex((item) => item.id === selectedBlockId)
+      if (index < 0) {
+        return { blocks: [...current.blocks, block] }
+      }
+      const nextBlocks = [...current.blocks]
+      nextBlocks.splice(index + 1, 0, block)
+      return { blocks: nextBlocks }
+    })
     selectBlockSilently(block.id)
   }
 
@@ -823,42 +827,6 @@ export function AdminPageEditor() {
     },
     [selectBlockSilently, updateDocument],
   )
-
-  const handleRemoveBlock = (blockId: string) => {
-    updateDocument((current) => ({
-      blocks: current.blocks.filter((block) => block.id !== blockId),
-    }))
-    setSelectedBlockId((current) => {
-      const next = current === blockId ? "" : current
-      if (!next) setIsLayoutCardVisible(false)
-      return next
-    })
-    setInlineEditingBlockId((current) => (current === blockId ? null : current))
-  }
-
-  const handleDuplicateBlock = (blockId: string) => {
-    updateDocument((current) => {
-      const index = current.blocks.findIndex((block) => block.id === blockId)
-      if (index < 0) return current
-      const source = current.blocks[index]
-      const duplicate = { ...source, id: createDefaultBlock(source.type).id } as PageBlock
-      const nextBlocks = [...current.blocks]
-      nextBlocks.splice(index + 1, 0, duplicate)
-      return { blocks: nextBlocks }
-    })
-  }
-
-  const handleMoveBlock = (blockId: string, direction: -1 | 1) => {
-    updateDocument((current) => {
-      const index = current.blocks.findIndex((block) => block.id === blockId)
-      const nextIndex = index + direction
-      if (index < 0 || nextIndex < 0 || nextIndex >= current.blocks.length) return current
-      const nextBlocks = [...current.blocks]
-      const [block] = nextBlocks.splice(index, 1)
-      nextBlocks.splice(nextIndex, 0, block)
-      return { blocks: nextBlocks }
-    })
-  }
 
   const handlePublish = async () => {
     setFeedback(null)
@@ -1264,90 +1232,31 @@ export function AdminPageEditor() {
       </section>
 
       <section className="flex min-h-0 flex-1 gap-3">
-        <aside
-          className={[
-            "flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-slate-50 transition-all",
-            leftSidebarCollapsed ? "w-14" : "w-[300px]",
-          ].join(" ")}
-        >
-          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
-            {!leftSidebarCollapsed ? (
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Blocos e estrutura</p>
-            ) : null}
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLeftSidebarCollapsed((current) => !current)}>
-              {leftSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
+        <article className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
+          <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
+              <p className="text-xs text-slate-500">
+                Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+              {BLOCK_LIBRARY.map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => startDragFromLibrary(item.type, event)}
+                  onClick={() => handleAddBlock(item.type)}
+                  className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {leftSidebarCollapsed ? (
-            <div className="flex flex-1 items-center justify-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 [writing-mode:vertical-rl]">
-              Blocos
-            </div>
-          ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {BLOCK_LIBRARY.map((item) => (
-                  <button
-                    key={item.type}
-                    type="button"
-                    draggable
-                    onDragStart={(event) => startDragFromLibrary(item.type, event)}
-                    onClick={() => handleAddBlock(item.type)}
-                    className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              <p className="mt-6 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Estrutura</p>
-              <div className="mt-3 space-y-2">
-                {documentDraft.blocks.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-600">Nenhum bloco ainda.</p>
-                ) : (
-                  documentDraft.blocks.map((block, index) => (
-                    <div
-                      key={block.id}
-                      draggable
-                      onDragStart={(event) => startDragBlock(block.id, event)}
-                      onDragEnd={clearDragState}
-                      className={[
-                        "rounded-xl border bg-white p-2.5",
-                        selectedBlockId === block.id ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200",
-                      ].join(" ")}
-                    >
-                      <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={() => selectBlockForEdit(block.id)}>
-                        <span className="min-w-0">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Bloco {index + 1}</span>
-                          <span className="block truncate text-xs font-semibold text-slate-900">{getBlockLabel(block)}</span>
-                        </span>
-                        <GripVertical className="h-4 w-4 text-slate-400" />
-                      </button>
-                      <div className="mt-2 flex gap-1.5">
-                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg" onClick={() => handleMoveBlock(block.id, -1)} disabled={index === 0}>
-                          <ArrowUp className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg" onClick={() => handleMoveBlock(block.id, 1)} disabled={index === documentDraft.blocks.length - 1}>
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg" onClick={() => handleDuplicateBlock(block.id)}>
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg text-rose-600" onClick={() => handleRemoveBlock(block.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </aside>
-
-        <article className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Canvas visual</p>
@@ -1374,8 +1283,8 @@ export function AdminPageEditor() {
               onDragOver={(event) => onDropZoneDragOver(0, event)}
               onDrop={(event) => handleDropAtIndex(0, event)}
               className={[
-                "relative z-10 mb-2 h-2 rounded-full transition",
-                dragOverIndex === 0 ? "bg-sky-400" : "bg-transparent",
+                "relative z-10 mb-2 h-3 rounded-full border border-dashed transition",
+                dragOverIndex === 0 ? "border-sky-500 bg-sky-300" : "border-slate-300 bg-transparent",
               ].join(" ")}
             />
 
@@ -1584,8 +1493,8 @@ export function AdminPageEditor() {
                         onDragOver={(event) => onDropZoneDragOver(index + 1, event)}
                         onDrop={(event) => handleDropAtIndex(index + 1, event)}
                         className={[
-                          "my-2 h-2 rounded-full transition",
-                          dragOverIndex === index + 1 ? "bg-sky-400" : "bg-transparent",
+                          "my-2 h-3 rounded-full border border-dashed transition",
+                          dragOverIndex === index + 1 ? "border-sky-500 bg-sky-300" : "border-slate-300 bg-transparent",
                         ].join(" ")}
                       />
                     </div>
