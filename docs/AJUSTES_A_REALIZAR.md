@@ -14,4 +14,7 @@
 
 [OK] T6 - Crie uma funcionalidade para ativar o modo de manutenção. Insira uma página de manutenção bonita e de acordo com a id visual do site. Insira tb um botão para fazer login de admin. Quando o admin estiver logado, ele terá acesso a tudo. Deverá ter um toggle no painel admin para ativar e desativar o modo de manutenção.
 
+[OK] t7 - Ao clicar nos elementos, além do editor do conteudo do elemento, deverá aparecer também as opções de cores destinada a cada elemento.. Para os botões, devem aparecer também as configurações de cor de fundo, cor do texto, borda e raio da borda.
+
+
 # REGRA: Ao realizar o ajuste aqui descrito, insira um "OK" ficando desta forma [OK].

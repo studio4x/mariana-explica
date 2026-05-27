@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { DragEvent, FocusEvent } from "react"
 import type { CSSProperties } from "react"
+import { createPortal } from "react-dom"
 import { Link, useBlocker } from "react-router-dom"
 import {
+  ChevronDown,
+  ChevronUp,
   Eye,
   FileClock,
   GripVertical,
@@ -378,6 +381,7 @@ export function AdminPageEditor() {
   const [richSelectionMode, setRichSelectionMode] = useState(true)
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
+  const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<{ blockId: string; insertIndex: number } | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
@@ -2480,74 +2484,106 @@ export function AdminPageEditor() {
       </section>
 
       <section className="grid gap-3">
-        <article className="rounded-2xl border border-slate-200 bg-white p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <FileClock className="h-4 w-4 text-slate-500" />
-            <h2 className="text-sm font-bold text-slate-950">Historico de versoes</h2>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {versions.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600">
-                Ainda nao ha versoes para esta pagina.
-              </p>
-            ) : (
-              versions.map((version) => {
-                const isPublished = version.id === publishedVersionId
-                const isLoaded = version.id === selectedVersion?.id
-                return (
-                  <div key={version.id} className="rounded-xl border border-slate-200 p-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-slate-900">Versao {version.version_number}</p>
-                      {isPublished ? (
-                        <StatusBadge label="Publicada" tone="success" />
-                      ) : version.status === "draft" ? (
-                        <StatusBadge label="Draft" tone="warning" />
-                      ) : (
-                        <StatusBadge label="Arquivada" tone="neutral" />
-                      )}
+        <article className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left"
+            onClick={() => setIsVersionHistoryExpanded((state) => !state)}
+            aria-expanded={isVersionHistoryExpanded}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <FileClock className="h-4 w-4 text-slate-500" />
+              <h2 className="text-sm font-bold text-slate-950">Historico de versoes</h2>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                {versions.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+              <span>{isVersionHistoryExpanded ? "Recolher" : "Expandir"}</span>
+              {isVersionHistoryExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </div>
+          </button>
+
+          {isVersionHistoryExpanded ? (
+            <div className="mt-2 grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
+              {versions.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
+                  Ainda nao ha versoes para esta pagina.
+                </p>
+              ) : (
+                versions.map((version) => {
+                  const isPublished = version.id === publishedVersionId
+                  const isLoaded = version.id === selectedVersion?.id
+                  return (
+                    <div key={version.id} className="rounded-lg border border-slate-200 p-2">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <p className="text-xs font-bold text-slate-900">Versao {version.version_number}</p>
+                        {isPublished ? (
+                          <StatusBadge label="Publicada" tone="success" />
+                        ) : version.status === "draft" ? (
+                          <StatusBadge label="Draft" tone="warning" />
+                        ) : (
+                          <StatusBadge label="Arquivada" tone="neutral" />
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">{formatDateTime(version.created_at)}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-full px-2.5 text-[11px]"
+                          onClick={() => handleLoadVersion(version)}
+                        >
+                          {isLoaded ? "Carregada" : "Carregar"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-full px-2.5 text-[11px]"
+                          onClick={() => setSelectedVersionId(version.id)}
+                        >
+                          Selecionar
+                        </Button>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{formatDateTime(version.created_at)}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => handleLoadVersion(version)}>
-                        {isLoaded ? "Carregada" : "Carregar"}
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setSelectedVersionId(version.id)}>
-                        Selecionar
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
+                  )
+                })
+              )}
+            </div>
+          ) : null}
         </article>
       </section>
 
-      {pendingRichInsertPoint ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4" onClick={() => setPendingRichInsertPoint(null)}>
-          <div
-            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-slate-900">Inserir bloco aqui</p>
-                <p className="text-xs text-slate-500">Escolhe o tipo de bloco a inserir no ponto selecionado.</p>
+      {pendingRichInsertPoint && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4" onClick={() => setPendingRichInsertPoint(null)}>
+              <div
+                className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Inserir bloco aqui</p>
+                    <p className="text-xs text-slate-500">Escolhe o tipo de bloco a inserir no ponto selecionado.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPendingRichInsertPoint(null)}>
+                    Fechar
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {BLOCK_LIBRARY.map((item) => (
+                    <Button key={`modal-insert-${item.type}`} type="button" variant="outline" className="justify-start rounded-xl" onClick={() => handleAddBlock(item.type)}>
+                      + {item.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPendingRichInsertPoint(null)}>
-                Fechar
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {BLOCK_LIBRARY.map((item) => (
-                <Button key={`modal-insert-${item.type}`} type="button" variant="outline" className="justify-start rounded-xl" onClick={() => handleAddBlock(item.type)}>
-                  + {item.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
