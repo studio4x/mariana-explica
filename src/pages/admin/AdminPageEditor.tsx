@@ -4,17 +4,18 @@ import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { Link, useBlocker } from "react-router-dom"
 import {
+  Blocks,
   ChevronDown,
   ChevronUp,
   Eye,
   FileClock,
   GripVertical,
+  History,
   ImagePlus,
-  PanelRightClose,
-  PanelRightOpen,
   Plus,
   Save,
   Send,
+  SlidersHorizontal,
   Trash2,
   UploadCloud,
   XCircle,
@@ -410,7 +411,7 @@ export function AdminPageEditor() {
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [uploadingInspectorAsset, setUploadingInspectorAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
-  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false)
+  const [sidebarTab, setSidebarTab] = useState<"blocks" | "inspector" | "versions">("inspector")
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isDraggingCanvasBlock, setIsDraggingCanvasBlock] = useState(false)
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
@@ -1977,53 +1978,83 @@ export function AdminPageEditor() {
           </div>
         </article>
 
-        <div
-          className={[
-            "sticky top-20 self-start",
-            rightSidebarCollapsed ? "w-14" : "w-[350px]",
-          ].join(" ")}
-        >
-          {!rightSidebarCollapsed ? (
-            <section className="mb-3 rounded-2xl border border-slate-200 bg-white/98 p-2.5 shadow-sm backdrop-blur">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
-                <p className="text-xs text-slate-500">
-                  Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {BLOCK_LIBRARY.map((item) => (
-                  <button
-                    key={item.type}
-                    type="button"
-                    draggable
-                    onDragStart={(event) => startDragFromLibrary(item.type, event)}
-                    onDragEnd={clearDragState}
-                    onClick={() => handleAddBlock(item.type)}
-                    className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-        <aside className="flex min-h-0 max-h-[calc(100dvh-96px)] flex-col rounded-2xl border border-slate-200 bg-white transition-all">
-          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
-            {!rightSidebarCollapsed ? <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Inspector</p> : null}
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRightSidebarCollapsed((current) => !current)}>
-              {rightSidebarCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
-            </Button>
+        <div className="sticky top-20 h-[calc(100dvh-96px)] w-[350px] self-start">
+        <aside className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white transition-all">
+          <div className="border-b border-slate-200 px-3 py-2">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Painel lateral</p>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Aba de blocos"
+                title="Blocos"
+                onClick={() => setSidebarTab("blocks")}
+                className={[
+                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  sidebarTab === "blocks" ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 text-slate-500 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <Blocks className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Aba de inspector"
+                title="Inspector"
+                onClick={() => setSidebarTab("inspector")}
+                className={[
+                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  sidebarTab === "inspector"
+                    ? "border-sky-300 bg-sky-50 text-sky-900"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Aba de historico de versoes"
+                title="Historico de versoes"
+                onClick={() => setSidebarTab("versions")}
+                className={[
+                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  sidebarTab === "versions"
+                    ? "border-sky-300 bg-sky-50 text-sky-900"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <History className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          {rightSidebarCollapsed ? (
-            <div className="flex flex-1 items-center justify-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 [writing-mode:vertical-rl]">
-              Inspector
-            </div>
-          ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {sidebarTab === "blocks" ? (
+              <section className="rounded-2xl border border-slate-200 bg-white/98 p-2.5 shadow-sm backdrop-blur">
+                <div className="mb-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {BLOCK_LIBRARY.map((item) => (
+                    <button
+                      key={item.type}
+                      type="button"
+                      draggable
+                      onDragStart={(event) => startDragFromLibrary(item.type, event)}
+                      onDragEnd={clearDragState}
+                      onClick={() => handleAddBlock(item.type)}
+                      className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {sidebarTab === "versions" ? (
               <article className="mb-4 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
                 <button
                   type="button"
@@ -2094,8 +2125,10 @@ export function AdminPageEditor() {
                   </div>
                 ) : null}
               </article>
+            ) : null}
 
-              {!selectedBlock ? (
+            {sidebarTab === "inspector" ? (
+              !selectedBlock ? (
                 <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                   Seleciona um bloco no canvas para editar.
                 </p>
@@ -2943,8 +2976,10 @@ export function AdminPageEditor() {
                     </label>
                   ) : null}
                 </div>
-              )}
+              )
+            ) : null}
 
+            {sidebarTab === "inspector" ? (
               <div className="mt-6 border-t border-slate-200 pt-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de imagens</p>
@@ -2989,8 +3024,8 @@ export function AdminPageEditor() {
                   )}
                 </div>
               </div>
-            </div>
-          )}
+            ) : null}
+          </div>
         </aside>
         </div>
       </section>
