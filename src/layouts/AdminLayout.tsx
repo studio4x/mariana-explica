@@ -251,7 +251,8 @@ export function AdminLayout() {
         <main className="min-w-0">
           <div
             className={cn(
-              "overflow-hidden border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]",
+              "border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]",
+              isPageEditorRoute ? "overflow-visible" : "overflow-hidden",
               isPageEditorRoute ? "rounded-[24px]" : "rounded-[32px]",
             )}
           >

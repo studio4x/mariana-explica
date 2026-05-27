@@ -165,6 +165,34 @@ function escapeHtmlAttribute(value: string) {
     .replace(/>/g, "&gt;")
 }
 
+function parsePxValue(raw: string | null | undefined, fallback: number) {
+  if (!raw) return fallback
+  const value = Number.parseFloat(raw.replace("px", "").trim())
+  return Number.isFinite(value) ? value : fallback
+}
+
+function normalizeColorForInput(raw: string | null | undefined, fallback: string) {
+  if (!raw) return fallback
+  const value = raw.trim().toLowerCase()
+  if (/^#[0-9a-f]{6}$/.test(value)) return value
+  if (/^#[0-9a-f]{3}$/.test(value)) {
+    const r = value[1]
+    const g = value[2]
+    const b = value[3]
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+  const rgbMatch = value.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
+  if (rgbMatch) {
+    const [, rRaw, gRaw, bRaw] = rgbMatch
+    const r = Math.max(0, Math.min(255, Number.parseInt(rRaw, 10)))
+    const g = Math.max(0, Math.min(255, Number.parseInt(gRaw, 10)))
+    const b = Math.max(0, Math.min(255, Number.parseInt(bRaw, 10)))
+    const toHex = (channel: number) => channel.toString(16).padStart(2, "0")
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  }
+  return fallback
+}
+
 function getHtmlForBlockInsertion(block: PageBlock) {
   if (block.type === "heading") {
     const tag = `h${block.level}`
@@ -451,8 +479,16 @@ export function AdminPageEditor() {
       isImage: tagName === "img",
       isLink: tagName === "a",
       linkHref: element.getAttribute("href") ?? "",
-      textColor: element.style.color || "",
-      backgroundColor: element.style.backgroundColor || "",
+      textColor: normalizeColorForInput(element.style.color, "#0f172a"),
+      backgroundColor: normalizeColorForInput(element.style.backgroundColor, "#ffffff"),
+      borderWidthPx: parsePxValue(element.style.borderWidth, 0),
+      borderColor: normalizeColorForInput(element.style.borderColor, "#242742"),
+      borderRadiusPx: parsePxValue(element.style.borderRadius, 999),
+      paddingY: parsePxValue(element.style.paddingTop, 14),
+      paddingX: parsePxValue(element.style.paddingLeft, 24),
+      fontSizePx: parsePxValue(element.style.fontSize, 12),
+      fullWidth: element.style.width === "100%",
+      openInNewTab: element.getAttribute("target") === "_blank",
       imageSrc: element.getAttribute("src") ?? "",
       imageAlt: element.getAttribute("alt") ?? "",
     }
@@ -702,6 +738,83 @@ export function AdminPageEditor() {
 
       if (typeof partial.href === "string") {
         targetNode.setAttribute("href", partial.href)
+      }
+
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeLinkStyleEdit = useCallback(
+    (partial: {
+      borderWidth?: number
+      borderColor?: string
+      borderRadius?: number
+      backgroundColor?: string
+      textColor?: string
+      paddingY?: number
+      paddingX?: number
+      fontSize?: number
+      fullWidth?: boolean
+      openInNewTab?: boolean
+    }) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode || targetNode.tagName.toLowerCase() !== "a") return
+
+      targetNode.style.display = "inline-flex"
+      targetNode.style.alignItems = "center"
+      targetNode.style.justifyContent = "center"
+      targetNode.style.textDecoration = "none"
+      targetNode.style.fontWeight = "800"
+      targetNode.style.borderStyle = "solid"
+
+      if (typeof partial.borderWidth === "number") {
+        targetNode.style.borderWidth = `${Math.max(0, Math.min(12, partial.borderWidth))}px`
+      }
+      if (typeof partial.borderColor === "string") {
+        targetNode.style.borderColor = partial.borderColor
+      }
+      if (typeof partial.borderRadius === "number") {
+        targetNode.style.borderRadius = `${Math.max(0, Math.min(120, partial.borderRadius))}px`
+      }
+      if (typeof partial.backgroundColor === "string") {
+        targetNode.style.backgroundColor = partial.backgroundColor
+      }
+      if (typeof partial.textColor === "string") {
+        targetNode.style.color = partial.textColor
+      }
+      if (typeof partial.paddingY === "number") {
+        targetNode.style.paddingTop = `${Math.max(6, Math.min(40, partial.paddingY))}px`
+        targetNode.style.paddingBottom = `${Math.max(6, Math.min(40, partial.paddingY))}px`
+      }
+      if (typeof partial.paddingX === "number") {
+        targetNode.style.paddingLeft = `${Math.max(12, Math.min(80, partial.paddingX))}px`
+        targetNode.style.paddingRight = `${Math.max(12, Math.min(80, partial.paddingX))}px`
+      }
+      if (typeof partial.fontSize === "number") {
+        const safeFontSize = Math.max(10, Math.min(24, partial.fontSize))
+        targetNode.style.fontSize = `${safeFontSize}px`
+        targetNode.style.textTransform = safeFontSize <= 13 ? "uppercase" : "none"
+        targetNode.style.letterSpacing = safeFontSize <= 13 ? "0.08em" : "0.02em"
+      }
+      if (typeof partial.fullWidth === "boolean") {
+        targetNode.style.width = partial.fullWidth ? "100%" : ""
+      }
+      if (typeof partial.openInNewTab === "boolean") {
+        if (partial.openInNewTab) {
+          targetNode.setAttribute("target", "_blank")
+          targetNode.setAttribute("rel", "noopener noreferrer")
+        } else {
+          targetNode.removeAttribute("target")
+          targetNode.removeAttribute("rel")
+        }
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -2274,9 +2387,138 @@ export function AdminPageEditor() {
                                   className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                                 />
                               </label>
-                              <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
-                                Este item esta dentro de Texto rico. Para editar borda, raio e outros estilos completos, insere um bloco do tipo Botao.
-                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Espessura da borda (px)
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={12}
+                                    value={selectedRichNodeDescriptor.borderWidthPx}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        borderWidth: Math.max(0, Math.min(12, Number(event.target.value) || 0)),
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Raio da borda (px)
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={120}
+                                    value={selectedRichNodeDescriptor.borderRadiusPx}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        borderRadius: Math.max(0, Math.min(120, Number(event.target.value) || 0)),
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  />
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Cor da borda
+                                  <input
+                                    type="color"
+                                    value={selectedRichNodeDescriptor.borderColor}
+                                    onChange={(event) => applyRichNodeLinkStyleEdit({ borderColor: event.target.value })}
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Cor do fundo
+                                  <input
+                                    type="color"
+                                    value={selectedRichNodeDescriptor.backgroundColor}
+                                    onChange={(event) => applyRichNodeLinkStyleEdit({ backgroundColor: event.target.value })}
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                                  />
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Cor do texto
+                                  <input
+                                    type="color"
+                                    value={selectedRichNodeDescriptor.textColor}
+                                    onChange={(event) => applyRichNodeLinkStyleEdit({ textColor: event.target.value })}
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Tamanho da fonte (px)
+                                  <input
+                                    type="number"
+                                    min={10}
+                                    max={24}
+                                    value={selectedRichNodeDescriptor.fontSizePx}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        fontSize: Math.max(10, Math.min(24, Number(event.target.value) || 10)),
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  />
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Padding vertical (px)
+                                  <input
+                                    type="number"
+                                    min={6}
+                                    max={40}
+                                    value={selectedRichNodeDescriptor.paddingY}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        paddingY: Math.max(6, Math.min(40, Number(event.target.value) || 6)),
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Padding horizontal (px)
+                                  <input
+                                    type="number"
+                                    min={12}
+                                    max={80}
+                                    value={selectedRichNodeDescriptor.paddingX}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        paddingX: Math.max(12, Math.min(80, Number(event.target.value) || 12)),
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  />
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Largura
+                                  <select
+                                    value={selectedRichNodeDescriptor.fullWidth ? "full" : "auto"}
+                                    onChange={(event) => applyRichNodeLinkStyleEdit({ fullWidth: event.target.value === "full" })}
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  >
+                                    <option value="auto">Conteudo</option>
+                                    <option value="full">Largura total</option>
+                                  </select>
+                                </label>
+                                <label className="inline-flex items-end gap-2 pb-1 text-xs font-semibold text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRichNodeDescriptor.openInNewTab}
+                                    onChange={(event) => applyRichNodeLinkStyleEdit({ openInNewTab: event.target.checked })}
+                                    className="h-4 w-4 rounded border-slate-300"
+                                  />
+                                  Abrir em nova aba
+                                </label>
+                              </div>
                             </div>
                           ) : null}
                           {selectedRichNodeDescriptor?.isImage ? (
