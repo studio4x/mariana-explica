@@ -948,7 +948,7 @@ export function AdminPageEditor() {
   const handleAddBlock = (type: PageBlockType) => {
     const shouldInsertInsideRichText = type !== "button"
 
-    if (pendingRichInsertPoint && shouldInsertInsideRichText) {
+    if (pendingRichInsertPoint) {
       const nextBlock = createDefaultBlock(type)
       const inserted = insertRichNodeAtIndex(
         pendingRichInsertPoint.blockId,
@@ -962,10 +962,6 @@ export function AdminPageEditor() {
       }
       setPendingRichInsertPoint(null)
       return
-    }
-
-    if (pendingRichInsertPoint && !shouldInsertInsideRichText) {
-      setPendingRichInsertPoint(null)
     }
 
     if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null && shouldInsertInsideRichText) {
@@ -1523,33 +1519,9 @@ export function AdminPageEditor() {
         ) : null}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white/98 p-2.5 shadow-sm backdrop-blur">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
-          <p className="text-xs text-slate-500">
-            Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-          {BLOCK_LIBRARY.map((item) => (
-                <button
-                  key={item.type}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => startDragFromLibrary(item.type, event)}
-                  onDragEnd={clearDragState}
-                  onClick={() => handleAddBlock(item.type)}
-                  className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
-                >
-              <Plus className="h-3.5 w-3.5" />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </section>
       </div>
 
-      <section className="flex min-h-0 flex-1 gap-3">
+      <section className="flex min-h-0 flex-1 items-start gap-3">
         <article className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -1892,12 +1864,40 @@ export function AdminPageEditor() {
           </div>
         </article>
 
-        <aside
+        <div
           className={[
-            "flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white transition-all",
+            "sticky top-20 self-start",
             rightSidebarCollapsed ? "w-14" : "w-[350px]",
           ].join(" ")}
         >
+          {!rightSidebarCollapsed ? (
+            <section className="mb-3 rounded-2xl border border-slate-200 bg-white/98 p-2.5 shadow-sm backdrop-blur">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de blocos</p>
+                <p className="text-xs text-slate-500">
+                  Clique para inserir abaixo do bloco selecionado ou arraste para o ponto exato no canvas.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {BLOCK_LIBRARY.map((item) => (
+                  <button
+                    key={item.type}
+                    type="button"
+                    draggable
+                    onDragStart={(event) => startDragFromLibrary(item.type, event)}
+                    onDragEnd={clearDragState}
+                    onClick={() => handleAddBlock(item.type)}
+                    className="flex items-center justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-800 transition hover:border-sky-300"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+        <aside className="flex min-h-0 max-h-[calc(100dvh-96px)] flex-col rounded-2xl border border-slate-200 bg-white transition-all">
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
             {!rightSidebarCollapsed ? <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Inspector</p> : null}
             <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRightSidebarCollapsed((current) => !current)}>
@@ -2750,6 +2750,7 @@ export function AdminPageEditor() {
             </div>
           )}
         </aside>
+        </div>
       </section>
 
       {pendingRichInsertPoint && typeof document !== "undefined"
