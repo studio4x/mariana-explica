@@ -946,7 +946,9 @@ export function AdminPageEditor() {
   }, [navigationBlocker])
 
   const handleAddBlock = (type: PageBlockType) => {
-    if (pendingRichInsertPoint) {
+    const shouldInsertInsideRichText = type !== "button"
+
+    if (pendingRichInsertPoint && shouldInsertInsideRichText) {
       const nextBlock = createDefaultBlock(type)
       const inserted = insertRichNodeAtIndex(
         pendingRichInsertPoint.blockId,
@@ -962,7 +964,11 @@ export function AdminPageEditor() {
       return
     }
 
-    if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null) {
+    if (pendingRichInsertPoint && !shouldInsertInsideRichText) {
+      setPendingRichInsertPoint(null)
+    }
+
+    if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null && shouldInsertInsideRichText) {
       const nextBlock = createDefaultBlock(type)
       const inserted = insertRichNodeAtIndex(selectedBlock.id, selectedRichNodeIndex + 1, getHtmlForBlockInsertion(nextBlock))
       if (inserted) {
@@ -970,6 +976,10 @@ export function AdminPageEditor() {
         selectBlockSilently(selectedBlock.id)
         return
       }
+    }
+
+    if (!shouldInsertInsideRichText) {
+      setSelectedRichNodeIndex(null)
     }
 
     if (type === "image" && replaceSelectedRichNodeWithImage()) {
@@ -2255,14 +2265,19 @@ export function AdminPageEditor() {
                             </div>
                           ) : null}
                           {selectedRichNodeDescriptor?.isLink ? (
-                            <label className="block text-xs font-semibold text-slate-600">
-                              Link do botao
-                              <input
-                                value={selectedRichNodeDescriptor.linkHref}
-                                onChange={(event) => applyRichNodeLinkEdit({ href: event.target.value })}
-                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                              />
-                            </label>
+                            <div className="space-y-1.5">
+                              <label className="block text-xs font-semibold text-slate-600">
+                                Link do botao
+                                <input
+                                  value={selectedRichNodeDescriptor.linkHref}
+                                  onChange={(event) => applyRichNodeLinkEdit({ href: event.target.value })}
+                                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                />
+                              </label>
+                              <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                                Este item esta dentro de Texto rico. Para editar borda, raio e outros estilos completos, insere um bloco do tipo Botao.
+                              </p>
+                            </div>
                           ) : null}
                           {selectedRichNodeDescriptor?.isImage ? (
                             <div className="grid gap-3">
