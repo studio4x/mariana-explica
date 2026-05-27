@@ -47,6 +47,9 @@ export interface ButtonBlock extends BasePageBlock {
   label: string
   href: string
   align: "left" | "center" | "right"
+  borderWidth: number
+  borderColor: string
+  borderRadius: number
 }
 
 export interface DividerBlock extends BasePageBlock {
@@ -179,6 +182,9 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         label: "Call to action",
         href: "/materiais",
         align: "left",
+        borderWidth: 0,
+        borderColor: "#242742",
+        borderRadius: 999,
         layout,
       }
     case "divider":
@@ -898,6 +904,9 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
           | "left"
           | "center"
           | "right",
+        borderWidth: clamp(Number(block.borderWidth ?? 0), 0, 12),
+        borderColor: String(block.borderColor ?? "#242742"),
+        borderRadius: clamp(Number(block.borderRadius ?? 999), 0, 120),
         layout,
       })
       continue
@@ -1199,7 +1208,7 @@ export function renderDocumentToHtml(document: SitePageBuilderDocument) {
       }
 
       if (block.type === "button") {
-        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}" style="display:inline-block;border-radius:999px;background:#242742;padding:14px 24px;color:#fff;text-decoration:none;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:12px;">${escapeHtml(block.label)}</a></div>`
+        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}" style="display:inline-block;border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:#242742;padding:14px 24px;color:#fff;text-decoration:none;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:12px;">${escapeHtml(block.label)}</a></div>`
       }
 
       if (block.type === "divider") {
