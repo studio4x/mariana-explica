@@ -50,6 +50,13 @@ export interface ButtonBlock extends BasePageBlock {
   borderWidth: number
   borderColor: string
   borderRadius: number
+  backgroundColor: string
+  textColor: string
+  paddingY: number
+  paddingX: number
+  fontSize: number
+  fullWidth: boolean
+  openInNewTab: boolean
 }
 
 export interface DividerBlock extends BasePageBlock {
@@ -185,6 +192,13 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         borderWidth: 0,
         borderColor: "#242742",
         borderRadius: 999,
+        backgroundColor: "#242742",
+        textColor: "#ffffff",
+        paddingY: 14,
+        paddingX: 24,
+        fontSize: 12,
+        fullWidth: false,
+        openInNewTab: false,
         layout,
       }
     case "divider":
@@ -907,6 +921,13 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         borderWidth: clamp(Number(block.borderWidth ?? 0), 0, 12),
         borderColor: String(block.borderColor ?? "#242742"),
         borderRadius: clamp(Number(block.borderRadius ?? 999), 0, 120),
+        backgroundColor: String(block.backgroundColor ?? "#242742"),
+        textColor: String(block.textColor ?? "#ffffff"),
+        paddingY: clamp(Number(block.paddingY ?? 14), 6, 40),
+        paddingX: clamp(Number(block.paddingX ?? 24), 12, 80),
+        fontSize: clamp(Number(block.fontSize ?? 12), 10, 24),
+        fullWidth: Boolean(block.fullWidth),
+        openInNewTab: Boolean(block.openInNewTab),
         layout,
       })
       continue
@@ -1208,7 +1229,11 @@ export function renderDocumentToHtml(document: SitePageBuilderDocument) {
       }
 
       if (block.type === "button") {
-        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}" style="display:inline-block;border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:#242742;padding:14px 24px;color:#fff;text-decoration:none;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:12px;">${escapeHtml(block.label)}</a></div>`
+        const targetAttrs = block.openInNewTab ? ` target="_blank" rel="noopener noreferrer"` : ""
+        const display = block.fullWidth ? "inline-flex;width:100%;justify-content:center;" : "inline-flex;"
+        const textTransform = block.fontSize <= 13 ? "uppercase" : "none"
+        const letterSpacing = block.fontSize <= 13 ? ".08em" : ".02em"
+        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}"${targetAttrs} style="${display}border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
       }
 
       if (block.type === "divider") {

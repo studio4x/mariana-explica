@@ -176,7 +176,11 @@ function getHtmlForBlockInsertion(block: PageBlock) {
     return `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(block.alt || "Imagem")}" />`
   }
   if (block.type === "button") {
-    return `<a href="${escapeHtmlAttribute(block.href)}" style="border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;">${escapeHtmlAttribute(block.label)}</a>`
+    const targetAttr = block.openInNewTab ? ` target="_blank" rel="noopener noreferrer"` : ""
+    const display = block.fullWidth ? "inline-flex;width:100%;justify-content:center;" : "inline-flex;"
+    const textTransform = block.fontSize <= 13 ? "uppercase" : "none"
+    const letterSpacing = block.fontSize <= 13 ? ".08em" : ".02em"
+    return `<a href="${escapeHtmlAttribute(block.href)}"${targetAttr} style="text-decoration:none;font-weight:800;${display}border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtmlAttribute(block.backgroundColor)};color:${escapeHtmlAttribute(block.textColor)};padding:${block.paddingY}px ${block.paddingX}px;font-size:${block.fontSize}px;text-transform:${textTransform};letter-spacing:${letterSpacing};">${escapeHtmlAttribute(block.label)}</a>`
   }
   if (block.type === "divider") {
     return `<hr style="border-color:${escapeHtmlAttribute(block.color)};" />`
@@ -1795,12 +1799,22 @@ export function AdminPageEditor() {
                                 }))
                                 setInlineEditingBlockId(null)
                               }}
-                              className={isInlineEditing ? "inline-flex cursor-pointer bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white ring-2 ring-sky-200 outline-none" : "inline-flex cursor-pointer bg-[#242742] px-6 py-3 text-xs font-black uppercase tracking-[0.16em] text-white"}
+                              className={[
+                                "cursor-pointer font-black outline-none",
+                                block.fullWidth ? "flex w-full justify-center" : "inline-flex",
+                                isInlineEditing ? "ring-2 ring-sky-200" : "",
+                              ].join(" ")}
                               style={{
                                 borderStyle: "solid",
                                 borderWidth: `${block.borderWidth}px`,
                                 borderColor: block.borderColor,
                                 borderRadius: `${block.borderRadius}px`,
+                                background: block.backgroundColor,
+                                color: block.textColor,
+                                padding: `${block.paddingY}px ${block.paddingX}px`,
+                                fontSize: `${block.fontSize}px`,
+                                textTransform: block.fontSize <= 13 ? "uppercase" : "none",
+                                letterSpacing: block.fontSize <= 13 ? "0.08em" : "0.02em",
                               }}
                             >
                               {block.label}
@@ -2502,6 +2516,103 @@ export function AdminPageEditor() {
                           }
                           className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                         />
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Cor de fundo
+                          <input
+                            type="color"
+                            value={selectedBlock.backgroundColor}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) => (block.type === "button" ? { ...block, backgroundColor: event.target.value } : block))
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Cor do texto
+                          <input
+                            type="color"
+                            value={selectedBlock.textColor}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) => (block.type === "button" ? { ...block, textColor: event.target.value } : block))
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Padding vertical (px)
+                          <input
+                            type="number"
+                            min={6}
+                            max={40}
+                            value={selectedBlock.paddingY}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "button" ? { ...block, paddingY: Math.max(6, Math.min(40, Number(event.target.value) || 6)) } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Padding horizontal (px)
+                          <input
+                            type="number"
+                            min={12}
+                            max={80}
+                            value={selectedBlock.paddingX}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "button" ? { ...block, paddingX: Math.max(12, Math.min(80, Number(event.target.value) || 12)) } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Tamanho da fonte (px)
+                          <input
+                            type="number"
+                            min={10}
+                            max={24}
+                            value={selectedBlock.fontSize}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "button" ? { ...block, fontSize: Math.max(10, Math.min(24, Number(event.target.value) || 10)) } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Largura
+                          <select
+                            value={selectedBlock.fullWidth ? "full" : "auto"}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) => (block.type === "button" ? { ...block, fullWidth: event.target.value === "full" } : block))
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="auto">Conteudo</option>
+                            <option value="full">Largura total</option>
+                          </select>
+                        </label>
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={selectedBlock.openInNewTab}
+                          onChange={(event) =>
+                            updateSelectedBlock((block) => (block.type === "button" ? { ...block, openInNewTab: event.target.checked } : block))
+                          }
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                        Abrir link em nova aba
                       </label>
                     </>
                   ) : null}
