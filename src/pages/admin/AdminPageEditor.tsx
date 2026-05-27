@@ -72,6 +72,12 @@ type DragPayload =
   | { kind: "library"; blockType: PageBlockType }
   | { kind: "block"; blockId: string }
 
+type PendingRichInsertPoint = {
+  blockId: string
+  insertIndex: number
+  insertAfterNodeIndex?: number
+}
+
 function getPublicPathForSlug(slug: SitePageSlug | string) {
   return PAGE_OPTIONS.find((item) => item.slug === slug)?.publicPath ?? "/"
 }
@@ -382,7 +388,7 @@ export function AdminPageEditor() {
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
-  const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<{ blockId: string; insertIndex: number } | null>(null)
+  const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const selectedRichNodeEditorRef = useRef<RichTextEditorHandle | null>(null)
@@ -532,6 +538,7 @@ export function AdminPageEditor() {
       if (showInsertAfter && activeIndex !== null && editableNodes[activeIndex]) {
         const slot = parsed.createElement("div")
         slot.setAttribute("data-me-drop-slot", String(activeIndex + 1))
+        slot.setAttribute("data-me-drop-after", String(activeIndex))
         slot.setAttribute(
           "style",
           "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:10px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
@@ -645,7 +652,7 @@ export function AdminPageEditor() {
   }, [applyRichNodeEdit, selectedBlock, selectedRichNodeIndex])
 
   const insertRichNodeAtIndex = useCallback(
-    (blockId: string, insertIndex: number, nextNodeHtml: string) => {
+    (blockId: string, insertIndex: number, nextNodeHtml: string, insertAfterNodeIndex?: number) => {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return false
       let inserted = false
       updateDocument((current) => {
@@ -657,7 +664,12 @@ export function AdminPageEditor() {
           const nextNodeDoc = parser.parseFromString(nextNodeHtml, "text/html")
           const replacement = nextNodeDoc.body.firstElementChild
           if (!replacement) return block
-          if (insertIndex >= nodes.length) {
+          const anchorIndex = Number.isFinite(insertAfterNodeIndex) ? Number(insertAfterNodeIndex) : -1
+          const anchorNode = anchorIndex >= 0 && anchorIndex < nodes.length ? nodes[anchorIndex] : null
+
+          if (anchorNode?.parentNode) {
+            anchorNode.parentNode.insertBefore(replacement, anchorNode.nextSibling)
+          } else if (insertIndex >= nodes.length) {
             parsed.body.appendChild(replacement)
           } else {
             nodes[insertIndex].parentNode?.insertBefore(replacement, nodes[insertIndex])
@@ -936,6 +948,7 @@ export function AdminPageEditor() {
         pendingRichInsertPoint.blockId,
         pendingRichInsertPoint.insertIndex,
         getHtmlForBlockInsertion(nextBlock),
+        pendingRichInsertPoint.insertAfterNodeIndex,
       )
       if (inserted) {
         setSelectedBlockId(pendingRichInsertPoint.blockId)
@@ -1675,8 +1688,16 @@ export function AdminPageEditor() {
                                 const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
                                 if (dropSlot) {
                                   const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                  const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
                                   if (Number.isFinite(insertIndex) && insertIndex >= 0) {
-                                    setPendingRichInsertPoint({ blockId: block.id, insertIndex })
+                                    setPendingRichInsertPoint({
+                                      blockId: block.id,
+                                      insertIndex,
+                                      insertAfterNodeIndex:
+                                        Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                          ? insertAfterNodeIndex
+                                          : undefined,
+                                    })
                                   }
                                   return
                                 }
