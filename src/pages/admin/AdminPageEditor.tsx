@@ -580,6 +580,10 @@ export function AdminPageEditor() {
     containerId: string
     columnIndex: number
   } | null>(null)
+  const [pendingContainerInsertPoint, setPendingContainerInsertPoint] = useState<{
+    containerId: string
+    columnIndex: number
+  } | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
@@ -714,12 +718,14 @@ export function AdminPageEditor() {
   const selectBlockForEdit = useCallback((blockId: string) => {
     setSelectedBlockId(blockId)
     setSelectedContainerColumnTarget(null)
+    setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(true)
   }, [])
 
   const selectBlockSilently = useCallback((blockId: string) => {
     setSelectedBlockId(blockId)
     setSelectedContainerColumnTarget(null)
+    setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
   }, [])
 
@@ -1226,6 +1232,7 @@ export function AdminPageEditor() {
     setDocumentDraft(initialDoc)
     setSelectedBlockId("")
     setSelectedContainerColumnTarget(null)
+    setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
@@ -1291,6 +1298,7 @@ export function AdminPageEditor() {
       selectBlockSilently(nextBlock.id)
       setInlineEditingBlockId(nextBlock.id)
       setSelectedContainerColumnTarget(null)
+      setPendingContainerInsertPoint(null)
       return
     }
 
@@ -1358,6 +1366,7 @@ export function AdminPageEditor() {
       setInlineEditingBlockId((current) => (current === blockId ? null : current))
       setSelectedRichNodeIndex(null)
       setSelectedContainerColumnTarget((current) => (current?.containerId === blockId ? null : current))
+      setPendingContainerInsertPoint((current) => (current?.containerId === blockId ? null : current))
       setIsLayoutCardVisible(false)
     },
     [documentDraft.blocks, removeSelectedRichNode, selectedRichNodeIndex, updateDocument],
@@ -1503,6 +1512,7 @@ export function AdminPageEditor() {
     setDocumentDraft(nextDoc)
     setSelectedBlockId("")
     setSelectedContainerColumnTarget(null)
+    setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
@@ -1701,6 +1711,43 @@ export function AdminPageEditor() {
       selectBlockSilently(blockId)
     },
     [clearDragState, insertRichNodeAtIndex, selectBlockSilently, updateDocument],
+  )
+
+  const handleDropIntoContainerColumn = useCallback(
+    (containerId: string, columnIndex: number, event: DragEvent<HTMLElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const payload = dragPayloadRef.current
+      clearDragState()
+      if (!payload) return
+
+      if (payload.kind === "library") {
+        const nextBlock = createDefaultBlock(payload.blockType)
+        updateDocument((current) => {
+          const inserted = appendBlockToContainerColumnInTree(current.blocks, containerId, columnIndex, nextBlock)
+          return inserted.inserted ? { blocks: inserted.blocks } : current
+        })
+        selectBlockSilently(nextBlock.id)
+        return
+      }
+
+      let movedBlockId = ""
+      updateDocument((current) => {
+        const movedBlock = findBlockByIdInTree(current.blocks, payload.blockId)
+        if (!movedBlock) return current
+        movedBlockId = movedBlock.id
+        if (movedBlock.id === containerId) return current
+
+        const removed = removeBlockByIdInTree(current.blocks, payload.blockId)
+        if (!removed.removed) return current
+        const inserted = appendBlockToContainerColumnInTree(removed.blocks, containerId, columnIndex, movedBlock)
+        return inserted.inserted ? { blocks: inserted.blocks } : current
+      })
+      if (movedBlockId) {
+        selectBlockSilently(movedBlockId)
+      }
+    },
+    [clearDragState, selectBlockSilently, updateDocument],
   )
 
   const onDropZoneDragOver = (index: number, event: DragEvent<HTMLElement>) => {
@@ -2165,7 +2212,16 @@ export function AdminPageEditor() {
                             }}
                           >
                             {block.children.slice(0, block.columns).map((columnBlocks, columnIndex) => (
-                              <article key={`${block.id}-container-col-${columnIndex}`} className="rounded-xl border border-slate-200/60 bg-white/80 p-3">
+                              <article
+                                key={`${block.id}-container-col-${columnIndex}`}
+                                className="rounded-xl border border-slate-200/60 bg-white/80 p-3"
+                                onDragOver={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                                }}
+                                onDrop={(event) => handleDropIntoContainerColumn(block.id, columnIndex, event)}
+                              >
                                 <div className="mb-2 flex items-center justify-between gap-2">
                                   <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Coluna {columnIndex + 1}</p>
                                   <button
@@ -2181,6 +2237,8 @@ export function AdminPageEditor() {
                                       event.preventDefault()
                                       event.stopPropagation()
                                       setSelectedContainerColumnTarget({ containerId: block.id, columnIndex })
+                                      setPendingContainerInsertPoint({ containerId: block.id, columnIndex })
+                                      setSidebarTab("blocks")
                                       setSelectedBlockId(block.id)
                                     }}
                                   >
@@ -3671,9 +3729,16 @@ export function AdminPageEditor() {
         </div>
       </section>
 
-      {pendingRichInsertPoint && typeof document !== "undefined"
+      {(pendingRichInsertPoint || pendingContainerInsertPoint) && typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4" onClick={() => setPendingRichInsertPoint(null)}>
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4"
+              onClick={() => {
+                setPendingRichInsertPoint(null)
+                setPendingContainerInsertPoint(null)
+                setSelectedContainerColumnTarget(null)
+              }}
+            >
               <div
                 className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
                 onClick={(event) => event.stopPropagation()}
@@ -3681,9 +3746,23 @@ export function AdminPageEditor() {
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold text-slate-900">Inserir bloco aqui</p>
-                    <p className="text-xs text-slate-500">Escolhe o tipo de bloco a inserir no ponto selecionado.</p>
+                    <p className="text-xs text-slate-500">
+                      {pendingContainerInsertPoint
+                        ? `Escolhe o tipo de bloco para a coluna ${pendingContainerInsertPoint.columnIndex + 1}.`
+                        : "Escolhe o tipo de bloco a inserir no ponto selecionado."}
+                    </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPendingRichInsertPoint(null)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => {
+                      setPendingRichInsertPoint(null)
+                      setPendingContainerInsertPoint(null)
+                      setSelectedContainerColumnTarget(null)
+                    }}
+                  >
                     Fechar
                   </Button>
                 </div>
