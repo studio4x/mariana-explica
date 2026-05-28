@@ -734,6 +734,7 @@ export function AdminPageEditor() {
 
   const selectBlockForEdit = useCallback((blockId: string) => {
     setSelectedBlockId(blockId)
+    setSidebarTab("inspector")
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(true)
