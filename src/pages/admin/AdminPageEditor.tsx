@@ -172,6 +172,14 @@ function parsePxValue(raw: string | null | undefined, fallback: number) {
   return Number.isFinite(value) ? value : fallback
 }
 
+function parsePercentValue(raw: string | null | undefined, fallback: number) {
+  if (!raw) return fallback
+  const value = raw.trim()
+  if (!value.endsWith("%")) return fallback
+  const parsed = Number.parseFloat(value.replace("%", "").trim())
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 function normalizeColorForInput(raw: string | null | undefined, fallback: string) {
   if (!raw) return fallback
   const value = raw.trim().toLowerCase()
@@ -473,6 +481,10 @@ export function AdminPageEditor() {
     if (!element) return null
 
     const tagName = element.tagName.toLowerCase()
+    const marginLeft = element.style.marginLeft.trim()
+    const marginRight = element.style.marginRight.trim()
+    const buttonAlign: "left" | "center" | "right" =
+      marginLeft === "auto" && marginRight === "auto" ? "center" : marginLeft === "auto" ? "right" : "left"
     return {
       tagName,
       outerHtml: element.outerHTML,
@@ -490,6 +502,12 @@ export function AdminPageEditor() {
       paddingY: parsePxValue(element.style.paddingTop, 14),
       paddingX: parsePxValue(element.style.paddingLeft, 24),
       fontSizePx: parsePxValue(element.style.fontSize, 12),
+      textAlign: (["left", "center", "right"].includes(element.style.textAlign) ? element.style.textAlign : "center") as
+        | "left"
+        | "center"
+        | "right",
+      buttonAlign,
+      widthPercent: Math.max(0, Math.min(100, parsePercentValue(element.style.width, 0))),
       fullWidth: element.style.width === "100%",
       openInNewTab: element.getAttribute("target") === "_blank",
       imageSrc: element.getAttribute("src") ?? "",
@@ -758,6 +776,9 @@ export function AdminPageEditor() {
       paddingY?: number
       paddingX?: number
       fontSize?: number
+      textAlign?: "left" | "center" | "right"
+      buttonAlign?: "left" | "center" | "right"
+      widthPercent?: number
       fullWidth?: boolean
       openInNewTab?: boolean
     }) => {
@@ -771,12 +792,13 @@ export function AdminPageEditor() {
       const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
       if (!targetNode || targetNode.tagName.toLowerCase() !== "a") return
 
-      targetNode.style.display = "inline-flex"
+      targetNode.style.display = "flex"
       targetNode.style.alignItems = "center"
       targetNode.style.justifyContent = "center"
       targetNode.style.textDecoration = "none"
       targetNode.style.fontWeight = "800"
       targetNode.style.borderStyle = "solid"
+      targetNode.style.width = targetNode.style.width || "fit-content"
 
       if (typeof partial.borderWidth === "number") {
         targetNode.style.borderWidth = `${Math.max(0, Math.min(12, partial.borderWidth))}px`
@@ -807,8 +829,28 @@ export function AdminPageEditor() {
         targetNode.style.textTransform = safeFontSize <= 13 ? "uppercase" : "none"
         targetNode.style.letterSpacing = safeFontSize <= 13 ? "0.08em" : "0.02em"
       }
+      if (typeof partial.textAlign === "string") {
+        targetNode.style.textAlign = partial.textAlign
+        targetNode.style.justifyContent = partial.textAlign === "left" ? "flex-start" : partial.textAlign === "right" ? "flex-end" : "center"
+      }
+      if (typeof partial.buttonAlign === "string") {
+        if (partial.buttonAlign === "center") {
+          targetNode.style.marginLeft = "auto"
+          targetNode.style.marginRight = "auto"
+        } else if (partial.buttonAlign === "right") {
+          targetNode.style.marginLeft = "auto"
+          targetNode.style.marginRight = "0"
+        } else {
+          targetNode.style.marginLeft = "0"
+          targetNode.style.marginRight = "0"
+        }
+      }
+      if (typeof partial.widthPercent === "number") {
+        const safeWidth = Math.max(0, Math.min(100, partial.widthPercent))
+        targetNode.style.width = safeWidth > 0 ? `${safeWidth}%` : "fit-content"
+      }
       if (typeof partial.fullWidth === "boolean") {
-        targetNode.style.width = partial.fullWidth ? "100%" : ""
+        targetNode.style.width = partial.fullWidth ? "100%" : "fit-content"
       }
       if (typeof partial.openInNewTab === "boolean") {
         if (partial.openInNewTab) {
@@ -2505,6 +2547,40 @@ export function AdminPageEditor() {
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <label className="block text-xs font-semibold text-slate-600">
+                                  Alinhamento do botao
+                                  <select
+                                    value={selectedRichNodeDescriptor.buttonAlign}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        buttonAlign: event.target.value as "left" | "center" | "right",
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  >
+                                    <option value="left">Esquerda</option>
+                                    <option value="center">Centro</option>
+                                    <option value="right">Direita</option>
+                                  </select>
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Alinhamento do texto
+                                  <select
+                                    value={selectedRichNodeDescriptor.textAlign}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        textAlign: event.target.value as "left" | "center" | "right",
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  >
+                                    <option value="left">Esquerda</option>
+                                    <option value="center">Centro</option>
+                                    <option value="right">Direita</option>
+                                  </select>
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block text-xs font-semibold text-slate-600">
                                   Padding vertical (px)
                                   <input
                                     type="number"
@@ -2537,16 +2613,54 @@ export function AdminPageEditor() {
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <label className="block text-xs font-semibold text-slate-600">
-                                  Largura
+                                  Largura do botao (%)
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={selectedRichNodeDescriptor.widthPercent}
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        widthPercent: Math.max(0, Math.min(100, Number(event.target.value) || 0)),
+                                        fullWidth: false,
+                                      })
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Preset de largura
                                   <select
-                                    value={selectedRichNodeDescriptor.fullWidth ? "full" : "auto"}
-                                    onChange={(event) => applyRichNodeLinkStyleEdit({ fullWidth: event.target.value === "full" })}
+                                    value={
+                                      selectedRichNodeDescriptor.fullWidth ? "full" : selectedRichNodeDescriptor.widthPercent > 0 ? "custom" : "auto"
+                                    }
+                                    onChange={(event) =>
+                                      applyRichNodeLinkStyleEdit({
+                                        fullWidth: event.target.value === "full",
+                                        widthPercent:
+                                          event.target.value === "auto"
+                                            ? 0
+                                            : event.target.value === "custom" && selectedRichNodeDescriptor.widthPercent === 0
+                                              ? 60
+                                              : selectedRichNodeDescriptor.widthPercent,
+                                      })
+                                    }
                                     className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                                   >
                                     <option value="auto">Conteudo</option>
+                                    <option value="custom">Largura ajustada</option>
                                     <option value="full">Largura total</option>
                                   </select>
                                 </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                                  {selectedRichNodeDescriptor.fullWidth
+                                    ? "Atual: largura total (100%)."
+                                    : selectedRichNodeDescriptor.widthPercent > 0
+                                      ? `Atual: ${selectedRichNodeDescriptor.widthPercent}% do container.`
+                                      : "Atual: largura pelo conteudo do texto."}
+                                </div>
                                 <label className="inline-flex items-end gap-2 pb-1 text-xs font-semibold text-slate-600">
                                   <input
                                     type="checkbox"
