@@ -7,6 +7,7 @@ import {
   Blocks,
   ChevronDown,
   ChevronUp,
+  Copy,
   Eye,
   FileClock,
   GripVertical,
@@ -18,6 +19,7 @@ import {
   SlidersHorizontal,
   Trash2,
   UploadCloud,
+  X,
   XCircle,
 } from "lucide-react"
 import { PageHeader, StatusBadge } from "@/components/common"
@@ -553,6 +555,21 @@ function removeBlockByIdInTree(blocks: PageBlock[], blockId: string): { blocks: 
   })
 
   return { blocks: nextBlocks, removed }
+}
+
+function duplicateBlockWithNewIds(block: PageBlock): PageBlock {
+  const duplicatedId = `${block.type}-${crypto.randomUUID()}`
+  if (block.type === "container") {
+    return {
+      ...block,
+      id: duplicatedId,
+      children: block.children.map((columnBlocks) => columnBlocks.map((child) => duplicateBlockWithNewIds(child))),
+    }
+  }
+  return {
+    ...block,
+    id: duplicatedId,
+  }
 }
 
 export function AdminPageEditor() {
@@ -1345,6 +1362,32 @@ export function AdminPageEditor() {
     selectBlockSilently(nextBlock.id)
   }
 
+  const handleDuplicateBlock = useCallback(
+    (blockId: string) => {
+      let duplicatedBlockId = ""
+      updateDocument((current) => {
+        const source = findBlockByIdInTree(current.blocks, blockId)
+        if (!source) return current
+        const duplicated = duplicateBlockWithNewIds(source)
+        duplicatedBlockId = duplicated.id
+        const inserted = insertBlockAfterIdInTree(current.blocks, blockId, duplicated)
+        if (inserted.inserted) {
+          return { blocks: inserted.blocks }
+        }
+        return { blocks: [...current.blocks, duplicated] }
+      })
+      if (duplicatedBlockId) {
+        setSelectedBlockId(duplicatedBlockId)
+        setInlineEditingBlockId(duplicatedBlockId)
+      }
+      setSelectedRichNodeIndex(null)
+      setSelectedContainerColumnTarget(null)
+      setPendingContainerInsertPoint(null)
+      setPendingRichInsertPoint(null)
+    },
+    [updateDocument],
+  )
+
   const handleRemoveBlock = useCallback(
     (blockId: string) => {
       const block = findBlockByIdInTree(documentDraft.blocks, blockId)
@@ -1989,22 +2032,50 @@ export function AdminPageEditor() {
                         ].join(" ")}
                         style={getBlockContainerStyle(block.layout)}
                       >
-                        <button
-                          type="button"
-                          draggable
-                          onDragStart={(event) => startDragBlock(block.id, event)}
-                          onDragEnd={clearDragState}
-                          onClick={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            selectBlockForEdit(block.id)
-                          }}
-                          className="absolute right-2 top-2 z-10 inline-flex cursor-grab items-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white opacity-0 transition active:cursor-grabbing group-hover:opacity-100"
-                          aria-label={`Arrastar bloco ${index + 1}`}
-                          title="Arrastar bloco"
-                        >
-                          <GripVertical className="mr-1 h-3 w-3" /> arrastar
-                        </button>
+                        <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              handleDuplicateBlock(block.id)
+                            }}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
+                            aria-label={`Duplicar bloco ${index + 1}`}
+                            title="Duplicar bloco"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              handleRemoveBlock(block.id)
+                            }}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-700 transition hover:bg-rose-50"
+                            aria-label={`Excluir bloco ${index + 1}`}
+                            title="Excluir bloco"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={(event) => startDragBlock(block.id, event)}
+                            onDragEnd={clearDragState}
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              selectBlockForEdit(block.id)
+                            }}
+                            className="inline-flex h-6 cursor-grab items-center rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition active:cursor-grabbing"
+                            aria-label={`Arrastar bloco ${index + 1}`}
+                            title="Arrastar bloco"
+                          >
+                            <GripVertical className="mr-1 h-3 w-3" /> arrastar
+                          </button>
+                        </div>
 
                         {block.type === "heading" ? (
                           block.level === 1 ? (
