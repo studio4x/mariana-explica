@@ -64,6 +64,7 @@ const BLOCK_LIBRARY: Array<{ type: PageBlockType; label: string }> = [
   { type: "rich_text", label: "Texto" },
   { type: "image", label: "Imagem" },
   { type: "button", label: "Botao" },
+  { type: "container", label: "Container" },
   { type: "columns", label: "Colunas" },
   { type: "divider", label: "Divisor" },
   { type: "spacer", label: "Espaco" },
@@ -202,7 +203,7 @@ function normalizeColorForInput(raw: string | null | undefined, fallback: string
   return fallback
 }
 
-function getHtmlForBlockInsertion(block: PageBlock) {
+function getHtmlForBlockInsertion(block: PageBlock): string {
   if (block.type === "heading") {
     const tag = `h${block.level}`
     return `<${tag} style="color:${escapeHtmlAttribute(block.color)};text-align:${block.align};">${escapeHtmlAttribute(block.content)}</${tag}>`
@@ -233,6 +234,16 @@ function getHtmlForBlockInsertion(block: PageBlock) {
       .map((item) => `<div>${item}</div>`)
       .join("")
     return `<div style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;">${items}</div>`
+  }
+  if (block.type === "container") {
+    const items: string = block.children
+      .slice(0, block.columns)
+      .map(
+        (columnBlocks: PageBlock[]) =>
+          `<div style="min-width:0;">${columnBlocks.map((child: PageBlock) => getHtmlForBlockInsertion(child)).join("")}</div>`,
+      )
+      .join("")
+    return `<section style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;background:${escapeHtmlAttribute(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
   }
   return "<p>Novo bloco</p>"
 }
@@ -366,6 +377,7 @@ function getBlockLabel(block: PageBlock) {
   if (block.type === "rich_text") return "Texto rico"
   if (block.type === "image") return "Imagem"
   if (block.type === "button") return "Botao"
+  if (block.type === "container") return `Container ${block.columns} colunas`
   if (block.type === "columns") return `Secao ${block.columns} colunas`
   if (block.type === "divider") return "Divisor"
   return "Espaco"
@@ -408,6 +420,141 @@ function moveBlockToIndex(blocks: PageBlock[], blockId: string, rawTargetIndex: 
   return next
 }
 
+function findBlockByIdInTree(blocks: PageBlock[], blockId: string): PageBlock | null {
+  for (const block of blocks) {
+    if (block.id === blockId) return block
+    if (block.type !== "container") continue
+    for (const columnBlocks of block.children) {
+      const nested = findBlockByIdInTree(columnBlocks, blockId)
+      if (nested) return nested
+    }
+  }
+  return null
+}
+
+function updateBlockByIdInTree(
+  blocks: PageBlock[],
+  blockId: string,
+  updater: (block: PageBlock) => PageBlock,
+): { blocks: PageBlock[]; updated: boolean } {
+  let updated = false
+  const nextBlocks = blocks.map((block) => {
+    if (block.id === blockId) {
+      updated = true
+      return updater(block)
+    }
+    if (block.type !== "container") return block
+
+    let nestedUpdated = false
+    const nextChildren = block.children.map((columnBlocks) => {
+      const nested = updateBlockByIdInTree(columnBlocks, blockId, updater)
+      if (nested.updated) nestedUpdated = true
+      return nested.blocks
+    })
+    if (!nestedUpdated) return block
+    updated = true
+    return {
+      ...block,
+      children: nextChildren,
+    }
+  })
+
+  return { blocks: nextBlocks, updated }
+}
+
+function insertBlockAfterIdInTree(
+  blocks: PageBlock[],
+  targetBlockId: string,
+  newBlock: PageBlock,
+): { blocks: PageBlock[]; inserted: boolean } {
+  const index = blocks.findIndex((item) => item.id === targetBlockId)
+  if (index >= 0) {
+    const nextBlocks = [...blocks]
+    nextBlocks.splice(index + 1, 0, newBlock)
+    return { blocks: nextBlocks, inserted: true }
+  }
+
+  let inserted = false
+  const nextBlocks = blocks.map((block) => {
+    if (block.type !== "container") return block
+    let nestedInserted = false
+    const nextChildren = block.children.map((columnBlocks) => {
+      const nested = insertBlockAfterIdInTree(columnBlocks, targetBlockId, newBlock)
+      if (nested.inserted) nestedInserted = true
+      return nested.blocks
+    })
+    if (!nestedInserted) return block
+    inserted = true
+    return {
+      ...block,
+      children: nextChildren,
+    }
+  })
+  return { blocks: nextBlocks, inserted }
+}
+
+function appendBlockToContainerColumnInTree(
+  blocks: PageBlock[],
+  containerId: string,
+  columnIndex: number,
+  newBlock: PageBlock,
+): { blocks: PageBlock[]; inserted: boolean } {
+  let inserted = false
+  const nextBlocks = blocks.map((block) => {
+    if (block.id === containerId && block.type === "container") {
+      const safeColumnIndex = Math.max(0, Math.min(columnIndex, block.columns - 1))
+      const nextChildren = block.children.map((columnBlocks, index) => (index === safeColumnIndex ? [...columnBlocks, newBlock] : columnBlocks))
+      inserted = true
+      return {
+        ...block,
+        children: nextChildren,
+      }
+    }
+
+    if (block.type !== "container") return block
+    let nestedInserted = false
+    const nextChildren = block.children.map((columnBlocks) => {
+      const nested = appendBlockToContainerColumnInTree(columnBlocks, containerId, columnIndex, newBlock)
+      if (nested.inserted) nestedInserted = true
+      return nested.blocks
+    })
+    if (!nestedInserted) return block
+    inserted = true
+    return {
+      ...block,
+      children: nextChildren,
+    }
+  })
+  return { blocks: nextBlocks, inserted }
+}
+
+function removeBlockByIdInTree(blocks: PageBlock[], blockId: string): { blocks: PageBlock[]; removed: boolean } {
+  let removed = false
+  const directFiltered = blocks.filter((block) => {
+    if (block.id !== blockId) return true
+    removed = true
+    return false
+  })
+
+  const nextBlocks = directFiltered.map((block) => {
+    if (block.type !== "container") return block
+    let nestedRemoved = false
+    const nextChildren = block.children.map((columnBlocks) => {
+      const nested = removeBlockByIdInTree(columnBlocks, blockId)
+      if (nested.removed) nestedRemoved = true
+      return nested.blocks
+    })
+    if (!nestedRemoved) return block
+    removed = true
+    return {
+      ...block,
+      children: nextChildren,
+    }
+  })
+
+  return { blocks: nextBlocks, removed }
+}
+
 export function AdminPageEditor() {
   const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
   const [documentDraft, setDocumentDraft] = useState<SitePageBuilderDocument>(getDefaultDocumentForSlug("home"))
@@ -429,6 +576,10 @@ export function AdminPageEditor() {
   const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
   const [richSelectionMode, setRichSelectionMode] = useState(true)
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
+  const [selectedContainerColumnTarget, setSelectedContainerColumnTarget] = useState<{
+    containerId: string
+    columnIndex: number
+  } | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
@@ -457,7 +608,7 @@ export function AdminPageEditor() {
   const publishedVersionId = detailQuery.data?.page.published_version_id ?? null
   const selectedVersion = useMemo(() => versions.find((v) => v.id === selectedVersionId) ?? null, [selectedVersionId, versions])
   const selectedBlock = useMemo(
-    () => documentDraft.blocks.find((block) => block.id === selectedBlockId) ?? null,
+    () => findBlockByIdInTree(documentDraft.blocks, selectedBlockId),
     [documentDraft.blocks, selectedBlockId],
   )
   const selectedLayout = useMemo(
@@ -551,20 +702,24 @@ export function AdminPageEditor() {
   const updateSelectedBlock = useCallback(
     (updater: (block: PageBlock) => PageBlock) => {
       if (!selectedBlockId) return
-      updateDocument((current) => ({
-        blocks: current.blocks.map((block) => (block.id === selectedBlockId ? updater(block) : block)),
-      }))
+      updateDocument((current) => {
+        const next = updateBlockByIdInTree(current.blocks, selectedBlockId, updater)
+        if (!next.updated) return current
+        return { blocks: next.blocks }
+      })
     },
     [selectedBlockId, updateDocument],
   )
 
   const selectBlockForEdit = useCallback((blockId: string) => {
     setSelectedBlockId(blockId)
+    setSelectedContainerColumnTarget(null)
     setIsLayoutCardVisible(true)
   }, [])
 
   const selectBlockSilently = useCallback((blockId: string) => {
     setSelectedBlockId(blockId)
+    setSelectedContainerColumnTarget(null)
     setIsLayoutCardVisible(false)
   }, [])
 
@@ -963,11 +1118,26 @@ export function AdminPageEditor() {
   }, [])
 
   const sanitizeDocumentForPersist = useCallback(
-    (document: SitePageBuilderDocument): SitePageBuilderDocument => ({
-      blocks: document.blocks.map((block) =>
-        block.type === "rich_text" ? { ...block, content: sanitizeRichTextContentForPersist(block.content) } : block,
-      ),
-    }),
+    (document: SitePageBuilderDocument): SitePageBuilderDocument => {
+      const sanitizeBlocks = (blocks: PageBlock[]): PageBlock[] =>
+        blocks.map((block) => {
+          if (block.type === "rich_text") {
+            return {
+              ...block,
+              content: sanitizeRichTextContentForPersist(block.content),
+            }
+          }
+          if (block.type !== "container") return block
+          return {
+            ...block,
+            children: block.children.map((columnBlocks) => sanitizeBlocks(columnBlocks)),
+          }
+        })
+
+      return {
+        blocks: sanitizeBlocks(document.blocks),
+      }
+    },
     [sanitizeRichTextContentForPersist],
   )
 
@@ -1055,6 +1225,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
     setSelectedBlockId("")
+    setSelectedContainerColumnTarget(null)
     setIsLayoutCardVisible(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
@@ -1105,9 +1276,25 @@ export function AdminPageEditor() {
 
   const handleAddBlock = (type: PageBlockType) => {
     const shouldInsertInsideRichText = type !== "button"
+    const nextBlock = createDefaultBlock(type)
+
+    if (selectedContainerColumnTarget) {
+      updateDocument((current) => {
+        const next = appendBlockToContainerColumnInTree(
+          current.blocks,
+          selectedContainerColumnTarget.containerId,
+          selectedContainerColumnTarget.columnIndex,
+          nextBlock,
+        )
+        return next.inserted ? { blocks: next.blocks } : current
+      })
+      selectBlockSilently(nextBlock.id)
+      setInlineEditingBlockId(nextBlock.id)
+      setSelectedContainerColumnTarget(null)
+      return
+    }
 
     if (pendingRichInsertPoint) {
-      const nextBlock = createDefaultBlock(type)
       const inserted = insertRichNodeAtIndex(
         pendingRichInsertPoint.blockId,
         pendingRichInsertPoint.insertIndex,
@@ -1123,7 +1310,6 @@ export function AdminPageEditor() {
     }
 
     if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null && shouldInsertInsideRichText) {
-      const nextBlock = createDefaultBlock(type)
       const inserted = insertRichNodeAtIndex(selectedBlock.id, selectedRichNodeIndex + 1, getHtmlForBlockInsertion(nextBlock))
       if (inserted) {
         setSelectedRichNodeIndex(selectedRichNodeIndex + 1)
@@ -1139,25 +1325,21 @@ export function AdminPageEditor() {
     if (type === "image" && replaceSelectedRichNodeWithImage()) {
       return
     }
-    const block = createDefaultBlock(type)
     updateDocument((current) => {
-      if (!selectedBlockId) {
-        return { blocks: [...current.blocks, block] }
+      if (selectedBlockId) {
+        const inserted = insertBlockAfterIdInTree(current.blocks, selectedBlockId, nextBlock)
+        if (inserted.inserted) {
+          return { blocks: inserted.blocks }
+        }
       }
-      const index = current.blocks.findIndex((item) => item.id === selectedBlockId)
-      if (index < 0) {
-        return { blocks: [...current.blocks, block] }
-      }
-      const nextBlocks = [...current.blocks]
-      nextBlocks.splice(index + 1, 0, block)
-      return { blocks: nextBlocks }
+      return { blocks: [...current.blocks, nextBlock] }
     })
-    selectBlockSilently(block.id)
+    selectBlockSilently(nextBlock.id)
   }
 
   const handleRemoveBlock = useCallback(
     (blockId: string) => {
-      const block = documentDraft.blocks.find((item) => item.id === blockId)
+      const block = findBlockByIdInTree(documentDraft.blocks, blockId)
       if (!block) return
 
       if (block.type === "rich_text" && selectedRichNodeIndex !== null) {
@@ -1168,12 +1350,14 @@ export function AdminPageEditor() {
 
       if (!window.confirm(`Queres mesmo excluir o bloco "${getBlockLabel(block)}"?`)) return
 
-      updateDocument((current) => ({
-        blocks: current.blocks.filter((item) => item.id !== blockId),
-      }))
+      updateDocument((current) => {
+        const next = removeBlockByIdInTree(current.blocks, blockId)
+        return next.removed ? { blocks: next.blocks } : current
+      })
       setSelectedBlockId((current) => (current === blockId ? "" : current))
       setInlineEditingBlockId((current) => (current === blockId ? null : current))
       setSelectedRichNodeIndex(null)
+      setSelectedContainerColumnTarget((current) => (current?.containerId === blockId ? null : current))
       setIsLayoutCardVisible(false)
     },
     [documentDraft.blocks, removeSelectedRichNode, selectedRichNodeIndex, updateDocument],
@@ -1318,6 +1502,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
     setSelectedBlockId("")
+    setSelectedContainerColumnTarget(null)
     setIsLayoutCardVisible(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
@@ -1963,6 +2148,81 @@ export function AdminPageEditor() {
                               {block.label}
                             </button>
                           </div>
+                        ) : null}
+
+                        {block.type === "container" ? (
+                          <section
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: `repeat(${block.columns}, minmax(0, 1fr))`,
+                              gap: `${block.gap}px`,
+                              background: block.backgroundColor,
+                              borderStyle: "solid",
+                              borderColor: block.borderColor,
+                              borderWidth: `${block.borderWidth}px`,
+                              borderRadius: `${block.borderRadius}px`,
+                              padding: `${block.paddingY}px ${block.paddingX}px`,
+                            }}
+                          >
+                            {block.children.slice(0, block.columns).map((columnBlocks, columnIndex) => (
+                              <article key={`${block.id}-container-col-${columnIndex}`} className="rounded-xl border border-slate-200/60 bg-white/80 p-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Coluna {columnIndex + 1}</p>
+                                  <button
+                                    type="button"
+                                    className={[
+                                      "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] transition",
+                                      selectedContainerColumnTarget?.containerId === block.id &&
+                                      selectedContainerColumnTarget.columnIndex === columnIndex
+                                        ? "border-sky-300 bg-sky-50 text-sky-900"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-sky-300",
+                                    ].join(" ")}
+                                    onClick={(event) => {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      setSelectedContainerColumnTarget({ containerId: block.id, columnIndex })
+                                      setSelectedBlockId(block.id)
+                                    }}
+                                  >
+                                    Inserir aqui
+                                  </button>
+                                </div>
+
+                                {columnBlocks.length === 0 ? (
+                                  <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-3 text-xs text-slate-500">
+                                    Coluna vazia.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {columnBlocks.map((childBlock) => {
+                                      const isChildSelected = selectedBlockId === childBlock.id
+                                      return (
+                                        <button
+                                          key={childBlock.id}
+                                          type="button"
+                                          className={[
+                                            "w-full rounded-lg border bg-white p-2 text-left transition",
+                                            isChildSelected ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200 hover:border-sky-300",
+                                          ].join(" ")}
+                                          onClick={(event) => {
+                                            event.preventDefault()
+                                            event.stopPropagation()
+                                            selectBlockForEdit(childBlock.id)
+                                          }}
+                                        >
+                                          <p className="mb-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{getBlockLabel(childBlock)}</p>
+                                          <div
+                                            className="pointer-events-none overflow-hidden rounded-md border border-slate-100 bg-white p-2 text-xs text-slate-700"
+                                            dangerouslySetInnerHTML={{ __html: getHtmlForBlockInsertion(childBlock) }}
+                                          />
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </article>
+                            ))}
+                          </section>
                         ) : null}
 
                         {block.type === "columns" ? (
@@ -3081,6 +3341,210 @@ export function AdminPageEditor() {
                         />
                         Abrir link em nova aba
                       </label>
+                    </>
+                  ) : null}
+
+                  {selectedBlock.type === "container" ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Numero de colunas
+                          <select
+                            value={selectedBlock.columns}
+                            onChange={(event) => {
+                              const nextColumns = Math.max(1, Math.min(4, Number(event.target.value) || 1)) as 1 | 2 | 3 | 4
+                              updateSelectedBlock((block) => {
+                                if (block.type !== "container") return block
+                                const nextChildren = [...block.children]
+                                while (nextChildren.length < nextColumns) nextChildren.push([createDefaultBlock("rich_text") as PageBlock])
+                                return { ...block, columns: nextColumns, children: nextChildren.slice(0, nextColumns) }
+                              })
+                            }}
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value={1}>1</option>
+                            <option value={2}>2</option>
+                            <option value={3}>3</option>
+                            <option value={4}>4</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Gap entre colunas (px)
+                          <input
+                            type="number"
+                            min={8}
+                            max={64}
+                            value={selectedBlock.gap}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, gap: Math.max(8, Math.min(64, snapSpacing(Number(event.target.value) || 8))) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Cor de fundo
+                          <input
+                            type="color"
+                            value={selectedBlock.backgroundColor}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) => (block.type === "container" ? { ...block, backgroundColor: event.target.value } : block))
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Cor da borda
+                          <input
+                            type="color"
+                            value={normalizeColorForInput(selectedBlock.borderColor, "#9ca3af")}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) => (block.type === "container" ? { ...block, borderColor: event.target.value } : block))
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Espessura da borda (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={12}
+                            value={selectedBlock.borderWidth}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, borderWidth: Math.max(0, Math.min(12, Number(event.target.value) || 0)) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Raio da borda (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={selectedBlock.borderRadius}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, borderRadius: Math.max(0, Math.min(120, Number(event.target.value) || 0)) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Padding vertical (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={selectedBlock.paddingY}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, paddingY: Math.max(0, Math.min(120, Number(event.target.value) || 0)) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Padding horizontal (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={selectedBlock.paddingX}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, paddingX: Math.max(0, Math.min(120, Number(event.target.value) || 0)) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-slate-600">Blocos por coluna</p>
+                        {selectedBlock.children.slice(0, selectedBlock.columns).map((columnBlocks, columnIndex) => (
+                          <div key={`${selectedBlock.id}-editor-col-${columnIndex}`} className="space-y-2 rounded-xl border border-slate-200 p-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-bold text-slate-700">Coluna {columnIndex + 1}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {(["rich_text", "button", "image", "container", "heading"] as PageBlockType[]).map((blockType) => (
+                                  <button
+                                    key={`${selectedBlock.id}-col-${columnIndex}-add-${blockType}`}
+                                    type="button"
+                                    className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-700 transition hover:border-sky-300"
+                                    onClick={() => {
+                                      const newBlock = createDefaultBlock(blockType)
+                                      updateDocument((current) => {
+                                        const next = appendBlockToContainerColumnInTree(current.blocks, selectedBlock.id, columnIndex, newBlock)
+                                        return next.inserted ? { blocks: next.blocks } : current
+                                      })
+                                      selectBlockForEdit(newBlock.id)
+                                      setSelectedContainerColumnTarget(null)
+                                    }}
+                                  >
+                                    + {BLOCK_LIBRARY.find((item) => item.type === blockType)?.label ?? "Bloco"}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {columnBlocks.length === 0 ? (
+                              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-500">
+                                Coluna vazia.
+                              </p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {columnBlocks.map((childBlock) => (
+                                  <div key={childBlock.id} className="rounded-lg border border-slate-200 bg-white p-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-[11px] font-bold text-slate-700">{getBlockLabel(childBlock)}</p>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-600 transition hover:border-sky-300"
+                                          onClick={() => selectBlockForEdit(childBlock.id)}
+                                        >
+                                          Editar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="rounded-full border border-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-rose-700 transition hover:bg-rose-50"
+                                          onClick={() => handleRemoveBlock(childBlock.id)}
+                                        >
+                                          Excluir
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </>
                   ) : null}
 

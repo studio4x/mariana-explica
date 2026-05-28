@@ -1,7 +1,7 @@
 import type { SitePageSlug } from "@/types/app.types"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
 
-export type PageBlockType = "heading" | "rich_text" | "image" | "button" | "divider" | "spacer" | "columns"
+export type PageBlockType = "heading" | "rich_text" | "image" | "button" | "divider" | "spacer" | "columns" | "container"
 
 export interface BlockLayoutStyle {
   gridColumns: number
@@ -78,6 +78,19 @@ export interface ColumnsBlock extends BasePageBlock {
   items: string[]
 }
 
+export interface ContainerBlock extends BasePageBlock {
+  type: "container"
+  columns: 1 | 2 | 3 | 4
+  gap: number
+  children: PageBlock[][]
+  backgroundColor: string
+  borderColor: string
+  borderWidth: number
+  borderRadius: number
+  paddingY: number
+  paddingX: number
+}
+
 export type PageBlock =
   | HeadingBlock
   | RichTextBlock
@@ -86,6 +99,7 @@ export type PageBlock =
   | DividerBlock
   | SpacerBlock
   | ColumnsBlock
+  | ContainerBlock
 
 export interface SitePageBuilderDocument {
   blocks: PageBlock[]
@@ -157,6 +171,11 @@ export function normalizeLayoutStyle(raw: unknown): BlockLayoutStyle {
 
 export function createDefaultBlock(type: PageBlockType): PageBlock {
   const layout = getBlockLayoutDefaults()
+  const createDefaultContainerColumnBlock = (columnIndex: number): RichTextBlock => ({
+    ...(createDefaultBlock("rich_text") as RichTextBlock),
+    id: uid(`container-col-${columnIndex + 1}`),
+    content: `<p><strong>Coluna ${columnIndex + 1}</strong><br/>Conteudo do container.</p>`,
+  })
   switch (type) {
     case "heading":
       return {
@@ -229,6 +248,21 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
           "<p><strong>Coluna 1</strong><br/>Conteudo editavel da primeira coluna.</p>",
           "<p><strong>Coluna 2</strong><br/>Conteudo editavel da segunda coluna.</p>",
         ],
+        layout,
+      }
+    case "container":
+      return {
+        id: uid("container"),
+        type: "container",
+        columns: 2,
+        gap: 16,
+        children: [[createDefaultContainerColumnBlock(0)], [createDefaultContainerColumnBlock(1)]],
+        backgroundColor: "#f8fafc",
+        borderColor: "rgba(36,39,66,0.14)",
+        borderWidth: 1,
+        borderRadius: 18,
+        paddingY: 20,
+        paddingX: 20,
         layout,
       }
     default:
@@ -850,7 +884,7 @@ export function resolveBuilderDocumentFromLayoutJson(
   return getDefaultDocumentForSlug(slug)
 }
 
-function normalizeColumnsItems(rawItems: unknown, columns: 2 | 3 | 4) {
+function normalizeColumnsItems(rawItems: unknown, columns: 1 | 2 | 3 | 4) {
   const source = Array.isArray(rawItems) ? rawItems.map((item) => String(item ?? "")) : []
   const sanitized = source.slice(0, columns).map((item) =>
     sanitizeRichText(item.trim() || "<p>Coluna vazia.</p>"),
@@ -861,13 +895,45 @@ function normalizeColumnsItems(rawItems: unknown, columns: 2 | 3 | 4) {
   return sanitized
 }
 
-export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): SitePageBuilderDocument {
-  if (!raw || typeof raw !== "object") return getDefaultDocumentForSlug(slug)
-  const record = raw as Record<string, unknown>
-  const blocksRaw = Array.isArray(record.blocks) ? record.blocks : []
+function normalizeContainerChildren(rawChildren: unknown, rawItems: unknown, columns: 1 | 2 | 3 | 4): PageBlock[][] {
+  const fallbackItems = normalizeColumnsItems(rawItems, columns)
+
+  if (!Array.isArray(rawChildren)) {
+    return fallbackItems.map((item, index) => [
+      {
+        ...(createDefaultBlock("rich_text") as RichTextBlock),
+        id: uid(`container-col-${index + 1}`),
+        content: item,
+      },
+    ])
+  }
+
+  const normalizedColumns: PageBlock[][] = []
+  for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
+    const rawColumn = rawChildren[columnIndex]
+    const rawColumnItems = Array.isArray(rawColumn) ? rawColumn : []
+    const nestedBlocks = normalizeBlockList(rawColumnItems)
+    if (nestedBlocks.length > 0) {
+      normalizedColumns.push(nestedBlocks)
+      continue
+    }
+
+    normalizedColumns.push([
+      {
+        ...(createDefaultBlock("rich_text") as RichTextBlock),
+        id: uid(`container-col-${columnIndex + 1}`),
+        content: fallbackItems[columnIndex] ?? "<p>Coluna vazia.</p>",
+      },
+    ])
+  }
+
+  return normalizedColumns
+}
+
+function normalizeBlockList(items: unknown[]): PageBlock[] {
   const blocks: PageBlock[] = []
 
-  for (const item of blocksRaw) {
+  for (const item of items) {
     if (!item || typeof item !== "object") continue
     const block = item as Record<string, unknown>
     const type = String(block.type ?? "").trim() as PageBlockType
@@ -972,9 +1038,36 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         items: normalizeColumnsItems(block.items, columns),
         layout,
       })
+      continue
+    }
+
+    if (type === "container") {
+      const columns = clamp(Number(block.columns ?? 2), 1, 4) as 1 | 2 | 3 | 4
+      blocks.push({
+        id: String(block.id ?? uid("container")),
+        type,
+        columns,
+        gap: clamp(Number(block.gap ?? 16), 8, 64),
+        children: normalizeContainerChildren(block.children, block.items, columns),
+        backgroundColor: String(block.backgroundColor ?? "#f8fafc"),
+        borderColor: String(block.borderColor ?? "rgba(36,39,66,0.14)"),
+        borderWidth: clamp(Number(block.borderWidth ?? 1), 0, 12),
+        borderRadius: clamp(Number(block.borderRadius ?? 18), 0, 120),
+        paddingY: clamp(Number(block.paddingY ?? 20), 0, 120),
+        paddingX: clamp(Number(block.paddingX ?? 20), 0, 120),
+        layout,
+      })
     }
   }
 
+  return blocks
+}
+
+export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): SitePageBuilderDocument {
+  if (!raw || typeof raw !== "object") return getDefaultDocumentForSlug(slug)
+  const record = raw as Record<string, unknown>
+  const blocksRaw = Array.isArray(record.blocks) ? record.blocks : []
+  const blocks = normalizeBlockList(blocksRaw)
   return blocks.length > 0 ? { blocks } : getDefaultDocumentForSlug(slug)
 }
 
@@ -1218,9 +1311,7 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
   ].join(";")
 }
 
-export function renderDocumentToHtml(document: SitePageBuilderDocument) {
-  const blocksHtml = document.blocks
-    .map((block) => {
+function renderSingleBlockToHtml(block: PageBlock): string {
       if (block.type === "heading") {
         const tag = `h${block.level}`
         return `<${tag} style="margin:0;color:${escapeHtml(block.color)};text-align:${block.align};font-weight:800;line-height:1.12;">${escapeHtml(block.content)}</${tag}>`
@@ -1255,19 +1346,34 @@ export function renderDocumentToHtml(document: SitePageBuilderDocument) {
         return `<div style="height:${block.height}px;"></div>`
       }
 
+      if (block.type === "container") {
+        const items = block.children
+          .slice(0, block.columns)
+          .map((columnBlocks) => `<article class="me-managed-container-column">${renderBlocksToHtml(columnBlocks)}</article>`)
+          .join("")
+        return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;background:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
+      }
+
       const items = block.items
         .slice(0, block.columns)
         .map((item) => `<article class="me-managed-column-item">${sanitizeRichText(item)}</article>`)
         .join("")
 
       return `<section class="me-managed-columns" style="grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;">${items}</section>`
-    })
+}
+
+function renderBlocksToHtml(blocks: PageBlock[]) {
+  return blocks
+    .map((block) => renderSingleBlockToHtml(block))
     .map((html, index) => {
-      const block = document.blocks[index]
+      const block = blocks[index]
       return `<section class="me-managed-block" style="${getWrapperStyle(block.layout)}">${html}</section>`
     })
     .join("")
+}
 
+export function renderDocumentToHtml(document: SitePageBuilderDocument) {
+  const blocksHtml = renderBlocksToHtml(document.blocks)
   return `<div class="me-managed-page-root">${blocksHtml}</div>`
 }
 
@@ -1304,6 +1410,9 @@ export function getDefaultStyleCss() {
 }
 .me-managed-columns {
   display: grid;
+}
+.me-managed-container-column {
+  min-width: 0;
 }
 .me-managed-column-item {
   border: 1px solid rgba(15, 23, 42, 0.08);
