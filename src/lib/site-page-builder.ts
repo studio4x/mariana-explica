@@ -47,6 +47,7 @@ export interface ButtonBlock extends BasePageBlock {
   label: string
   href: string
   align: "left" | "center" | "right"
+  textAlign: "left" | "center" | "right"
   borderWidth: number
   borderColor: string
   borderRadius: number
@@ -55,6 +56,7 @@ export interface ButtonBlock extends BasePageBlock {
   paddingY: number
   paddingX: number
   fontSize: number
+  widthPercent: number
   fullWidth: boolean
   openInNewTab: boolean
 }
@@ -189,6 +191,7 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         label: "Call to action",
         href: "/materiais",
         align: "left",
+        textAlign: "center",
         borderWidth: 0,
         borderColor: "#242742",
         borderRadius: 999,
@@ -197,6 +200,7 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         paddingY: 14,
         paddingX: 24,
         fontSize: 12,
+        widthPercent: 0,
         fullWidth: false,
         openInNewTab: false,
         layout,
@@ -918,6 +922,10 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
           | "left"
           | "center"
           | "right",
+        textAlign: (["left", "center", "right"].includes(String(block.textAlign)) ? String(block.textAlign) : "center") as
+          | "left"
+          | "center"
+          | "right",
         borderWidth: clamp(Number(block.borderWidth ?? 0), 0, 12),
         borderColor: String(block.borderColor ?? "#242742"),
         borderRadius: clamp(Number(block.borderRadius ?? 999), 0, 120),
@@ -926,6 +934,7 @@ export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): Site
         paddingY: clamp(Number(block.paddingY ?? 14), 6, 40),
         paddingX: clamp(Number(block.paddingX ?? 24), 12, 80),
         fontSize: clamp(Number(block.fontSize ?? 12), 10, 24),
+        widthPercent: clamp(Number(block.widthPercent ?? 0), 0, 100),
         fullWidth: Boolean(block.fullWidth),
         openInNewTab: Boolean(block.openInNewTab),
         layout,
@@ -1230,10 +1239,12 @@ export function renderDocumentToHtml(document: SitePageBuilderDocument) {
 
       if (block.type === "button") {
         const targetAttrs = block.openInNewTab ? ` target="_blank" rel="noopener noreferrer"` : ""
-        const display = block.fullWidth ? "inline-flex;width:100%;justify-content:center;" : "inline-flex;"
+        const justifyContent = block.textAlign === "left" ? "flex-start" : block.textAlign === "right" ? "flex-end" : "center"
+        const widthCss = block.fullWidth ? "100%" : block.widthPercent > 0 ? `${block.widthPercent}%` : "auto"
+        const display = `inline-flex;width:${widthCss};justify-content:${justifyContent};`
         const textTransform = block.fontSize <= 13 ? "uppercase" : "none"
         const letterSpacing = block.fontSize <= 13 ? ".08em" : ".02em"
-        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}"${targetAttrs} style="${display}border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
+        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}"${targetAttrs} style="${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
       }
 
       if (block.type === "divider") {

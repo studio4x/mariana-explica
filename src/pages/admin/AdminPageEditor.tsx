@@ -206,10 +206,12 @@ function getHtmlForBlockInsertion(block: PageBlock) {
   }
   if (block.type === "button") {
     const targetAttr = block.openInNewTab ? ` target="_blank" rel="noopener noreferrer"` : ""
-    const display = block.fullWidth ? "inline-flex;width:100%;justify-content:center;" : "inline-flex;"
+    const justifyContent = block.textAlign === "left" ? "flex-start" : block.textAlign === "right" ? "flex-end" : "center"
+    const widthCss = block.fullWidth ? "100%" : block.widthPercent > 0 ? `${block.widthPercent}%` : "auto"
+    const display = `inline-flex;width:${widthCss};justify-content:${justifyContent};`
     const textTransform = block.fontSize <= 13 ? "uppercase" : "none"
     const letterSpacing = block.fontSize <= 13 ? ".08em" : ".02em"
-    return `<a href="${escapeHtmlAttribute(block.href)}"${targetAttr} style="text-decoration:none;font-weight:800;${display}border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtmlAttribute(block.backgroundColor)};color:${escapeHtmlAttribute(block.textColor)};padding:${block.paddingY}px ${block.paddingX}px;font-size:${block.fontSize}px;text-transform:${textTransform};letter-spacing:${letterSpacing};">${escapeHtmlAttribute(block.label)}</a>`
+    return `<a href="${escapeHtmlAttribute(block.href)}"${targetAttr} style="text-decoration:none;font-weight:800;${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtmlAttribute(block.backgroundColor)};color:${escapeHtmlAttribute(block.textColor)};padding:${block.paddingY}px ${block.paddingX}px;font-size:${block.fontSize}px;text-transform:${textTransform};letter-spacing:${letterSpacing};">${escapeHtmlAttribute(block.label)}</a>`
   }
   if (block.type === "divider") {
     return `<hr style="border-color:${escapeHtmlAttribute(block.color)};" />`
@@ -1897,10 +1899,11 @@ export function AdminPageEditor() {
                               }}
                               className={[
                                 "cursor-pointer font-black outline-none",
-                                block.fullWidth ? "flex w-full justify-center" : "inline-flex",
+                                "inline-flex",
                                 isInlineEditing ? "ring-2 ring-sky-200" : "",
                               ].join(" ")}
                               style={{
+                                width: block.fullWidth ? "100%" : block.widthPercent > 0 ? `${block.widthPercent}%` : "auto",
                                 borderStyle: "solid",
                                 borderWidth: `${block.borderWidth}px`,
                                 borderColor: block.borderColor,
@@ -1909,6 +1912,8 @@ export function AdminPageEditor() {
                                 color: block.textColor,
                                 padding: `${block.paddingY}px ${block.paddingX}px`,
                                 fontSize: `${block.fontSize}px`,
+                                textAlign: block.textAlign,
+                                justifyContent: block.textAlign === "left" ? "flex-start" : block.textAlign === "right" ? "flex-end" : "center",
                                 textTransform: block.fontSize <= 13 ? "uppercase" : "none",
                                 letterSpacing: block.fontSize <= 13 ? "0.08em" : "0.02em",
                               }}
@@ -2746,22 +2751,40 @@ export function AdminPageEditor() {
                           className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                         />
                       </label>
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Alinhamento
-                        <select
-                          value={selectedBlock.align}
-                          onChange={(event) =>
-                            updateSelectedBlock((block) =>
-                              block.type === "button" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block,
-                            )
-                          }
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                        >
-                          <option value="left">Esquerda</option>
-                          <option value="center">Centro</option>
-                          <option value="right">Direita</option>
-                        </select>
-                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento do botao
+                          <select
+                            value={selectedBlock.align}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "button" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento do texto
+                          <select
+                            value={selectedBlock.textAlign}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "button" ? { ...block, textAlign: event.target.value as "left" | "center" | "right" } : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                          </select>
+                        </label>
+                      </div>
                       <label className="block text-xs font-semibold text-slate-600">
                         Espessura da borda (px)
                         <input
@@ -2880,18 +2903,58 @@ export function AdminPageEditor() {
                           />
                         </label>
                         <label className="block text-xs font-semibold text-slate-600">
-                          Largura
-                          <select
-                            value={selectedBlock.fullWidth ? "full" : "auto"}
+                          Largura do botao (%)
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={selectedBlock.widthPercent}
                             onChange={(event) =>
-                              updateSelectedBlock((block) => (block.type === "button" ? { ...block, fullWidth: event.target.value === "full" } : block))
+                              updateSelectedBlock((block) =>
+                                block.type === "button"
+                                  ? { ...block, widthPercent: Math.max(0, Math.min(100, Number(event.target.value) || 0)), fullWidth: false }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Preset de largura
+                          <select
+                            value={selectedBlock.fullWidth ? "full" : selectedBlock.widthPercent > 0 ? "custom" : "auto"}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "button"
+                                  ? {
+                                      ...block,
+                                      fullWidth: event.target.value === "full",
+                                      widthPercent:
+                                        event.target.value === "auto"
+                                          ? 0
+                                          : event.target.value === "custom" && block.widthPercent === 0
+                                            ? 60
+                                            : block.widthPercent,
+                                    }
+                                  : block,
+                              )
                             }
                             className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                           >
                             <option value="auto">Conteudo</option>
+                            <option value="custom">Largura ajustada</option>
                             <option value="full">Largura total</option>
                           </select>
                         </label>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                          {selectedBlock.fullWidth
+                            ? "Atual: largura total (100%)."
+                            : selectedBlock.widthPercent > 0
+                              ? `Atual: ${selectedBlock.widthPercent}% do container.`
+                              : "Atual: largura pelo conteudo do texto."}
+                        </div>
                       </div>
                       <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
                         <input
