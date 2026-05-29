@@ -53,13 +53,13 @@ Base de referencia:
 - [OK] PUB-035 Frontend nao confirma pagamento por conta propria (depende de backend/webhook). | Evidencia: Playwright prod 2026-05-29, em confirmacao com `session_id` fake o frontend chamou `checkout-autologin` (status `400`) e redirecionou para login, sem confirmar pagamento localmente.
 
 ### 1.4 Suporte publico e paginas institucionais
-- [ ] PUB-040 Suporte (`/suporte`) carrega FAQ e busca.
-- [ ] PUB-041 CTA "Abrir chamado" do suporte aponta para `/aluno/chamados?openTicketModal=1&ticketStep=form`.
-- [ ] PUB-042 Pagina `explicacoes` (`/explicacoes`) carrega sem erro.
-- [ ] PUB-043 Pagina `sobre` (`/sobre`) carrega sem erro.
-- [ ] PUB-044 Pagina `privacidade` (`/privacidade`) carrega sem erro.
-- [ ] PUB-045 Pagina `cookies` (`/cookies`) carrega sem erro.
-- [ ] PUB-046 Pagina `termos-de-uso` (`/termos-de-uso`) carrega sem erro.
+- [OK] PUB-040 Suporte (`/suporte`) carrega FAQ e busca. | Evidencia: Playwright prod 2026-05-29, `/suporte` com heading de suporte, `11` FAQs renderizadas e busca funcional (estado vazio exibido para termo sem resultado).
+- [OK] PUB-041 CTA "Abrir chamado" do suporte aponta para `/aluno/chamados?openTicketModal=1&ticketStep=form`. | Evidencia: Playwright prod 2026-05-29, CTA visivel no suporte com `href=/aluno/chamados?openTicketModal=1&ticketStep=form`.
+- [OK] PUB-042 Pagina `explicacoes` (`/explicacoes`) carrega sem erro. | Evidencia: Playwright prod 2026-05-29, `https://www.mariana-explica.pt/explicacoes` com `h1` renderizado, `console_errors=0` e `page_errors=0`.
+- [OK] PUB-043 Pagina `sobre` (`/sobre`) carrega sem erro. | Evidencia: Playwright prod 2026-05-29, `https://www.mariana-explica.pt/sobre` com `h1` renderizado, `console_errors=0` e `page_errors=0`.
+- [OK] PUB-044 Pagina `privacidade` (`/privacidade`) carrega sem erro. | Evidencia: Playwright prod 2026-05-29, `https://www.mariana-explica.pt/privacidade` com `h1` renderizado, `console_errors=0` e `page_errors=0`.
+- [OK] PUB-045 Pagina `cookies` (`/cookies`) carrega sem erro. | Evidencia: Playwright prod 2026-05-29, `https://www.mariana-explica.pt/cookies` com `h1` renderizado, `console_errors=0` e `page_errors=0`.
+- [OK] PUB-046 Pagina `termos-de-uso` (`/termos-de-uso`) carrega sem erro. | Evidencia: Playwright prod 2026-05-29, `https://www.mariana-explica.pt/termos-de-uso` com `h1` renderizado, `console_errors=0` e `page_errors=0`.
 
 ---
 
