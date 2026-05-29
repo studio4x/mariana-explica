@@ -65,15 +65,15 @@ Base de referencia:
 
 ## 2) Autenticacao e Sessao
 
-- [ ] AUTH-001 Login (`/login`) autentica usuario valido.
-- [ ] AUTH-002 Cadastro (`/register` e `/criar-conta`) cria usuario conforme fluxo.
-- [ ] AUTH-003 Callback (`/auth/callback`) conclui sessao sem loop.
-- [ ] AUTH-004 Recuperacao (`/recuperar-senha`) inicia fluxo corretamente.
-- [ ] AUTH-005 Redefinicao (`/redefinir-senha`) atualiza senha com token valido.
-- [ ] AUTH-006 Rotas privadas sem sessao redirecionam para login.
-- [ ] AUTH-007 Rotas admin exigem role admin/is_admin.
-- [ ] AUTH-008 Sessao expirada invalida acesso privado de forma consistente.
-- [ ] AUTH-009 Logout limpa contexto privado e impede acesso por cache visual antigo.
+- [OK] AUTH-001 Login (`/login`) autentica usuario valido. | Evidencia: Playwright prod 2026-05-29, login de usuario ativo redirecionou para `https://www.mariana-explica.pt/aluno/dashboard`.
+- [OK] AUTH-002 Cadastro (`/register` e `/criar-conta`) cria usuario conforme fluxo. | Evidencia: Playwright prod 2026-05-29, fluxos `/register` e `/criar-conta` concluíram com estado `pending_verification` para emails unicos de teste.
+- [OK] AUTH-003 Callback (`/auth/callback`) conclui sessao sem loop. | Evidencia: Playwright prod 2026-05-29, magic link finalizou em `/aluno/dashboard` com `callback_hits=2` (sem loop persistente).
+- [OK] AUTH-004 Recuperacao (`/recuperar-senha`) inicia fluxo corretamente. | Evidencia: Playwright prod 2026-05-29, rota abriu fluxo e exibiu mensagem de envio de email de recuperacao para usuario valido.
+- [OK] AUTH-005 Redefinicao (`/redefinir-senha`) atualiza senha com token valido. | Evidencia: Playwright prod 2026-05-29, recovery link valido permitiu redefinir senha e concluir em `/aluno/dashboard`.
+- [OK] AUTH-006 Rotas privadas sem sessao redirecionam para login. | Evidencia: Playwright prod 2026-05-29, acesso anonimo em `/aluno/dashboard` redirecionou para `/login`.
+- [OK] AUTH-007 Rotas admin exigem role admin/is_admin. | Evidencia: Playwright prod 2026-05-29, anonimo `/admin -> /login`, aluno `/admin -> /`, admin ativo acessou `/admin`.
+- [OK] AUTH-008 Sessao expirada invalida acesso privado de forma consistente. | Evidencia: Playwright prod 2026-05-29, sessao adulterada/expirada redirecionou de `/aluno/dashboard` para `/login`.
+- [OK] AUTH-009 Logout limpa contexto privado e impede acesso por cache visual antigo. | Evidencia: Playwright prod 2026-05-29, apos logout em area privada, navegacao `voltar` manteve bloqueio e retornou para `/login`.
 
 ---
 

@@ -15,7 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase"
 import { queryClient } from "@/lib/query-client"
 import type { Session, User } from "@supabase/supabase-js"
-import { SUPABASE_URL } from "@/lib/constants"
+import { ROUTES, SUPABASE_URL } from "@/lib/constants"
 
 export type UserRole = "student" | "affiliate" | "admin"
 export type UserStatus = "active" | "inactive" | "blocked" | "pending_review"
@@ -147,6 +147,20 @@ function writeCachedProfile(profile: UserProfile | null) {
   window.localStorage.setItem(PROFILE_CACHE_FALLBACK_KEY, JSON.stringify(profile))
 }
 
+function clearSessionArtifacts() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const storageKey = getSupabaseStorageKey()
+  if (storageKey) {
+    window.localStorage.removeItem(storageKey)
+  }
+
+  window.sessionStorage.removeItem(PROFILE_CACHE_KEY)
+  window.localStorage.removeItem(PROFILE_CACHE_FALLBACK_KEY)
+}
+
 async function refreshProfileState(
   userId: string,
   requestId: number,
@@ -216,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextSession?.user ?? null)
 
     if (!nextSession?.user) {
+      clearSessionArtifacts()
       setProfile(null)
       clearAuthenticatedQueryCache()
       setLoading(false)
@@ -338,12 +353,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session])
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) {
+        return
+      }
+
+      void (async () => {
+        const { data } = await supabase.auth.getSession()
+        if (data.session?.user) {
+          return
+        }
+
+        clearSessionArtifacts()
+
+        const pathname = window.location.pathname
+        const protectedPath =
+          pathname.startsWith("/aluno") ||
+          pathname.startsWith("/admin") ||
+          pathname.startsWith("/dashboard")
+
+        if (!protectedPath) {
+          return
+        }
+
+        const redirectTarget = `${pathname}${window.location.search}`
+        window.location.replace(`${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirectTarget)}`)
+      })()
+    }
+
+    window.addEventListener("pageshow", handlePageShow)
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow)
+    }
+  }, [])
+
   const signOut = useCallback(async () => {
     try {
       await supabase.auth.signOut()
     } catch {
       // Ignore sign-out failures when Supabase is unavailable.
     }
+    clearSessionArtifacts()
     setProfile(null)
     setUser(null)
     setSession(null)
