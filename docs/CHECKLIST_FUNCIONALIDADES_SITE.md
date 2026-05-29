@@ -80,13 +80,13 @@ Base de referencia:
 ## 3) Area do Aluno (`/aluno`)
 
 ### 3.1 Dashboard e conta
-- [ ] ALU-001 Dashboard (`/aluno/dashboard`) carrega dados do usuario.
-- [ ] ALU-002 Cursos (`/aluno/cursos`) lista apenas acessos permitidos.
-- [ ] ALU-003 Detalhe de curso (`/aluno/cursos/:courseId`) respeita grant/acesso.
-- [ ] ALU-004 Perfil (`/aluno/perfil`) atualiza dados permitidos.
-- [ ] ALU-005 Pagamentos (`/aluno/pagamentos`) exibe historico do proprio usuario.
-- [ ] ALU-006 Downloads (`/aluno/downloads`) mostra apenas arquivos liberados.
-- [ ] ALU-007 Notificacoes (`/aluno/notificacoes`) lista e marca leitura corretamente.
+- [OK] ALU-001 Dashboard (`/aluno/dashboard`) carrega dados do usuario. | Evidencia: Playwright prod 2026-05-29, login de aluno ativo carregou `/aluno/dashboard` com dados reais e material próprio (`QA ALU31 Material A 1780067157969`).
+- [OK] ALU-002 Cursos (`/aluno/cursos`) lista apenas acessos permitidos. | Evidencia: Playwright prod 2026-05-29, `/aluno/cursos` exibiu somente material com grant do próprio aluno (`QA ALU31 Material A 1780067157969`) e ocultou material de outro usuário (`QA ALU31 Material B 1780067157969`).
+- [OK] ALU-003 Detalhe de curso (`/aluno/cursos/:courseId`) respeita grant/acesso. | Evidencia: Playwright prod 2026-05-29, detalhe de curso com grant abriu normalmente e curso sem grant em `/aluno/cursos/02288fe7-25b8-4624-8bc9-71a07ceba8d3` retornou estado de bloqueio/indisponibilidade sem vazamento de conteúdo.
+- [OK] ALU-004 Perfil (`/aluno/perfil`) atualiza dados permitidos. | Evidencia: Playwright prod 2026-05-29, alteração via UI persistiu `full_name`, `phone` e `nif`; validação backend confirmou preservação de `role=student` e `is_admin=false`.
+- [OK] ALU-005 Pagamentos (`/aluno/pagamentos`) exibe historico do proprio usuario. | Evidencia: Playwright prod 2026-05-29, página mostrou somente pedido pago do próprio aluno (`QA ALU31 Material A 1780067157969`) e não exibiu pedido de outro usuário.
+- [OK] ALU-006 Downloads (`/aluno/downloads`) mostra apenas arquivos liberados. | Evidencia: Playwright prod 2026-05-29, página exibiu apenas asset com `allow_download=true` do aluno, ocultou asset bloqueado (`allow_download=false`) e asset de outro usuário.
+- [OK] ALU-007 Notificacoes (`/aluno/notificacoes`) lista e marca leitura corretamente. | Evidencia: Playwright prod 2026-05-29, listagem mostrou somente notificação própria e ação `Marcar como lida` atualizou status para `read` no banco sem afetar notificação de outro usuário.
 
 ### 3.2 Suporte do aluno
 - [ ] ALU-010 Chamados (`/aluno/chamados`) lista tickets do proprio usuario.
