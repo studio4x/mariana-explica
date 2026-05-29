@@ -120,26 +120,26 @@ Base de referencia:
 - [OK] ADM-016 Acoes sensiveis em usuarios geram trilha de auditoria. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), `audit_logs` registrou `admin.user_created`, `admin.user_updated` e `admin.user_password_reset` para actor admin de QA e entity do usuario alvo.
 
 ### 4.3 Materiais/cursos e construtor
-- [ ] ADM-020 Materiais (`/admin/cursos`) lista cursos e status.
-- [ ] ADM-021 Criacao de material funciona.
-- [ ] ADM-022 Edicao basica de material funciona.
-- [ ] ADM-023 Exclusao de material funciona com confirmacao.
-- [ ] ADM-024 Reordenacao de materiais (drag and drop) funciona.
-- [ ] ADM-025 Importacao JSON de material funciona.
-- [ ] ADM-026 Exportacao JSON de material funciona.
-- [ ] ADM-027 Aba de categorias em `/admin/cursos?tab=categorias` funciona.
-- [ ] ADM-028 Alunos do curso (`/admin/cursos/:courseId/alunos`) carrega listagem.
-- [ ] ADM-029 Preview do curso (`/admin/cursos/:courseId/builder/preview`) carrega.
-- [ ] ADM-030 Builder (`/admin/cursos/:courseId/builder`) abre sem erro.
-- [ ] ADM-031 Builder `settings` salva configuracoes.
-- [ ] ADM-032 Builder `pagina-publica` salva/atualiza conteudo.
-- [ ] ADM-033 Builder `releases` aplica regras de liberacao.
-- [ ] ADM-034 Builder `assessments` funciona.
-- [ ] ADM-035 Builder `assessments/final` funciona.
-- [ ] ADM-036 Builder modulo (`modulos/:moduleId`) funciona.
-- [ ] ADM-037 Builder aula (`modulos/:moduleId/aulas/:lessonId`) funciona.
-- [ ] ADM-038 Builder materiais de aula (`.../materiais`) funciona.
-- [ ] ADM-039 Builder avaliacao de modulo (`.../avaliacoes/:assessmentId`) funciona.
+- [OK] ADM-020 Materiais (`/admin/cursos`) lista cursos e status. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), `/admin/cursos` carregou com `5` cards e status visiveis (Publicado/Rascunho/Arquivado).
+- [OK] ADM-021 Criacao de material funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), criacao via UI concluiu em `/admin/cursos/b60cb386-293d-4f1b-8d7f-0a422985b532/builder`.
+- [OK] ADM-022 Edicao basica de material funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), `/builder/settings` atualizou titulo/preco para `QA ADM43 Material A Atualizado 1780086737974` e `12.34 EUR` com persistencia no banco.
+- [OK] ADM-023 Exclusao de material funciona com confirmacao. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), exclusao com confirmacao removeu `QA ADM43 Excluir 1780086737974` e o registro deixou de existir no banco.
+- [OK] ADM-024 Reordenacao de materiais (drag and drop) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), drag and drop alterou ordem visual (`4/5 -> 5/4`) e persistiu `sort_order`.
+- [OK] ADM-025 Importacao JSON de material funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), importacao JSON criou material `e4f2476c-eadd-4465-8181-926bfb68c510` com titulo/slug importados e estrutura inicial (`1` modulo, `0` aulas, `0` avaliacoes).
+- [OK] ADM-026 Exportacao JSON de material funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), exportacao gerou `qa-adm43-importado-1780086737974.json` com titulo esperado.
+- [OK] ADM-027 Aba de categorias em `/admin/cursos?tab=categorias` funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), aba abriu painel de categorias com metricas e formulario.
+- [OK] ADM-028 Alunos do curso (`/admin/cursos/:courseId/alunos`) carrega listagem. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), rota `/admin/cursos/b60cb386-293d-4f1b-8d7f-0a422985b532/alunos` carregou e listou aluno ativo.
+- [OK] ADM-029 Preview do curso (`/admin/cursos/:courseId/builder/preview`) carrega. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), preview em `/admin/cursos/e4f2476c-eadd-4465-8181-926bfb68c510/builder/preview` carregou sem erro.
+- [OK] ADM-030 Builder (`/admin/cursos/:courseId/builder`) abre sem erro. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), builder abriu em `/admin/cursos/b60cb386-293d-4f1b-8d7f-0a422985b532/builder`.
+- [OK] ADM-031 Builder `settings` salva configuracoes. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), `has_linear_progression=true` persistido apos save em `/builder/settings`.
+- [OK] ADM-032 Builder `pagina-publica` salva/atualiza conteudo. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), headline `QA Headline ADM43 1780086737974` persistida em `public_page_content`.
+- [OK] ADM-033 Builder `releases` aplica regras de liberacao. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), grant `8b0398e9-cf7c-4be8-a305-ed9d8a76ae5f` concedido e revogado com sucesso.
+- [OK] ADM-034 Builder `assessments` funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), criacao de quiz de modulo `QA ADM43 Quiz 1780086737974` (`d97a3688-28b9-4a3d-984a-2834119b7d58`).
+- [OK] ADM-035 Builder `assessments/final` funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), workspace final abriu e manteve `1` avaliacao final ativa.
+- [OK] ADM-036 Builder modulo (`modulos/:moduleId`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), salvou alteracoes no modulo `00bb0346-ebe0-4177-a982-fd5a2cdb4dac`.
+- [OK] ADM-037 Builder aula (`modulos/:moduleId/aulas/:lessonId`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), salvou alteracoes na aula `042a5135-5246-4c8a-a14d-8a936beac671`.
+- [OK] ADM-038 Builder materiais de aula (`.../materiais`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), criou material de aula `271b1143-0165-4d58-9199-2756beb376d2`.
+- [OK] ADM-039 Builder avaliacao de modulo (`.../avaliacoes/:assessmentId`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), rota profunda abriu em `/builder/modulos/00bb0346-ebe0-4177-a982-fd5a2cdb4dac/avaliacoes/d97a3688-28b9-4a3d-984a-2834119b7d58`.
 
 ### 4.4 Financeiro, pedidos e pagamentos
 - [ ] ADM-050 Pagamentos (`/admin/pagamentos`) lista pedidos e filtros.
