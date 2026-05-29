@@ -106,9 +106,9 @@ Base de referencia:
 ## 4) Area Admin (`/admin`)
 
 ### 4.1 Operacao geral
-- [ ] ADM-001 Dashboard admin (`/admin`) carrega metricas principais.
-- [ ] ADM-002 Navegacao admin so abre para usuario autorizado.
-- [ ] ADM-003 Erros de modulo admin exibem estado de erro com retry.
+- [OK] ADM-001 Dashboard admin (`/admin`) carrega metricas principais. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-general-prod-check.mjs`), `/admin` carregou metricas principais (`Utilizadores=131`, `Materiais publicados=3`, `Pedidos pagos=10`, `Receita registada=78,00 EUR`).
+- [OK] ADM-002 Navegacao admin so abre para usuario autorizado. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-general-prod-check.mjs`), anonimo `/admin -> /login`, aluno `/admin -> /`, admin ativo acessou `/admin`.
+- [OK] ADM-003 Erros de modulo admin exibem estado de erro com retry. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-general-prod-check.mjs`), falha forcada nas 3 primeiras chamadas de `admin-dashboard` exibiu `Nao foi possivel carregar o admin` e `Tentar novamente` recuperou o dashboard.
 
 ### 4.2 Usuarios
 - [ ] ADM-010 Usuarios (`/admin/usuarios`) lista usuarios.
