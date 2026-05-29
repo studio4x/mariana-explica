@@ -1,0 +1,294 @@
+# Checklist de Validacao de Funcionalidades - Mariana Explica
+
+Base de referencia:
+- `docs/Estrutura Inicial/02-regras-negocio.md`
+- `docs/Estrutura Inicial/03-arquitetura.md`
+- `docs/Estrutura Inicial/04-banco-dados.md`
+- `docs/Estrutura Inicial/05-backend-edge-functions.md`
+- `docs/Estrutura Inicial/08-dashboard.md`
+- `docs/Estrutura Inicial/09-admin.md`
+- `docs/Estrutura Inicial/10-autenticacao-seguranca.md`
+- `docs/Estrutura Inicial/11-integracoes.md`
+- `docs/Estrutura Inicial/13-pwa.md`
+- `docs/Referências/CHECKLIST_VALIDACAO_PLATAFORMA.md`
+- rotas e modulos atuais do codigo (`src/routes/index.tsx`, `src/pages/*`, `supabase/functions/*`)
+
+## Como usar (IA ou manual)
+- Marcar `[x]` quando validado com sucesso.
+- Manter `[ ]` quando ainda nao validado.
+- Em falha, manter `[ ]` e acrescentar no final do item: `| NOK: <motivo curto>`.
+- Sempre que possivel, acrescentar no final do item: `| Evidencia: <rota/comando/log/data>`.
+- Nao remover IDs dos itens (ex.: `PUB-001`), eles servem para rastreabilidade.
+
+---
+
+## 1) Area Publica
+
+### 1.1 Layout e navegacao publica
+- [OK] PUB-001 Home (`/`) carrega sem erro bloqueante de console. | Evidencia: Playwright prod 2026-05-29, `consoleErrors=[]`, `pageErrors=[]`, `failedRequests=[]` em `https://www.mariana-explica.pt/`.
+- [OK] PUB-002 Header publico aparece em desktop e mobile. | Evidencia: Playwright prod 2026-05-29, desktop `headerVisible=true` e mobile `headerVisible=true`.
+- [OK] PUB-003 Footer publico aparece e exibe build discreto. | Evidencia: Playwright prod 2026-05-29, `footerVisible=true`, build exibido `bb41402`.
+- [OK] PUB-004 Navbar publica mostra links principais esperados (`/materiais`, `/suporte`, login/conta). | Evidencia: Playwright prod 2026-05-29, links visiveis com `href` `/materiais`, `/suporte`, `/login`.
+- [OK] PUB-005 `CookieConsentBanner` funciona sem quebrar navegacao. | Evidencia: Playwright prod 2026-05-29, banner visivel, acao `Aceitar cookies` fecha banner e navegacao para `/materiais` permanece funcional.
+- [OK] PUB-006 Gate de manutencao publica respeita configuracao do site. | Evidencia: Playwright prod 2026-05-29, `site_maintenance_mode.enabled=false` retornado pela API publica e home renderizada fora da tela de manutencao.
+
+### 1.2 Catalogo e pagina de material
+- [ ] PUB-010 Catalogo (`/materiais`) lista materiais publicados.
+- [ ] PUB-011 Busca no catalogo filtra por titulo/descricao/tipo.
+- [ ] PUB-012 Filtros rapidos do catalogo funcionam.
+- [ ] PUB-013 Estado de loading do catalogo aparece corretamente.
+- [ ] PUB-014 Estado vazio do catalogo aparece corretamente.
+- [ ] PUB-015 Estado de erro do catalogo aparece corretamente.
+- [ ] PUB-016 Pagina de material (`/materiais/:slug`) carrega dados dinamicos.
+- [ ] PUB-017 CTA da pagina de material aponta para checkout com slug correto.
+- [ ] PUB-018 Reviews publicas renderizam sem quebrar o layout.
+- [ ] PUB-019 Rotas legadas redirecionam corretamente (`/cursos*`, `/produtos*`, `/produto/:slug`).
+
+### 1.3 Checkout e conversao
+- [ ] PUB-030 Checkout (`/checkout?slug=...`) carrega resumo do material.
+- [ ] PUB-031 Checkout de usuario deslogado redireciona para login com `redirect` preservado.
+- [ ] PUB-032 Fluxo de produto gratuito conclui claim sem pagamento.
+- [ ] PUB-033 Fluxo de produto pago redireciona para Stripe checkout URL.
+- [ ] PUB-034 Confirmacao (`/checkout/confirmacao`) exibe estado esperado.
+- [ ] PUB-035 Frontend nao confirma pagamento por conta propria (depende de backend/webhook).
+
+### 1.4 Suporte publico e paginas institucionais
+- [ ] PUB-040 Suporte (`/suporte`) carrega FAQ e busca.
+- [ ] PUB-041 CTA "Abrir chamado" do suporte aponta para `/aluno/chamados?openTicketModal=1&ticketStep=form`.
+- [ ] PUB-042 Pagina `explicacoes` (`/explicacoes`) carrega sem erro.
+- [ ] PUB-043 Pagina `sobre` (`/sobre`) carrega sem erro.
+- [ ] PUB-044 Pagina `privacidade` (`/privacidade`) carrega sem erro.
+- [ ] PUB-045 Pagina `cookies` (`/cookies`) carrega sem erro.
+- [ ] PUB-046 Pagina `termos-de-uso` (`/termos-de-uso`) carrega sem erro.
+
+---
+
+## 2) Autenticacao e Sessao
+
+- [ ] AUTH-001 Login (`/login`) autentica usuario valido.
+- [ ] AUTH-002 Cadastro (`/register` e `/criar-conta`) cria usuario conforme fluxo.
+- [ ] AUTH-003 Callback (`/auth/callback`) conclui sessao sem loop.
+- [ ] AUTH-004 Recuperacao (`/recuperar-senha`) inicia fluxo corretamente.
+- [ ] AUTH-005 Redefinicao (`/redefinir-senha`) atualiza senha com token valido.
+- [ ] AUTH-006 Rotas privadas sem sessao redirecionam para login.
+- [ ] AUTH-007 Rotas admin exigem role admin/is_admin.
+- [ ] AUTH-008 Sessao expirada invalida acesso privado de forma consistente.
+- [ ] AUTH-009 Logout limpa contexto privado e impede acesso por cache visual antigo.
+
+---
+
+## 3) Area do Aluno (`/aluno`)
+
+### 3.1 Dashboard e conta
+- [ ] ALU-001 Dashboard (`/aluno/dashboard`) carrega dados do usuario.
+- [ ] ALU-002 Cursos (`/aluno/cursos`) lista apenas acessos permitidos.
+- [ ] ALU-003 Detalhe de curso (`/aluno/cursos/:courseId`) respeita grant/acesso.
+- [ ] ALU-004 Perfil (`/aluno/perfil`) atualiza dados permitidos.
+- [ ] ALU-005 Pagamentos (`/aluno/pagamentos`) exibe historico do proprio usuario.
+- [ ] ALU-006 Downloads (`/aluno/downloads`) mostra apenas arquivos liberados.
+- [ ] ALU-007 Notificacoes (`/aluno/notificacoes`) lista e marca leitura corretamente.
+
+### 3.2 Suporte do aluno
+- [ ] ALU-010 Chamados (`/aluno/chamados`) lista tickets do proprio usuario.
+- [ ] ALU-011 Criacao de ticket do aluno funciona.
+- [ ] ALU-012 Detalhe de ticket (`/aluno/chamados/:ticketId`) mostra timeline correta.
+- [ ] ALU-013 Resposta em ticket do aluno funciona.
+
+### 3.3 Player de curso e avaliacoes
+- [ ] ALU-020 Player (`/aluno/cursos/:courseId/player`) abre sem erro.
+- [ ] ALU-021 Aula (`.../aulas/:lessonId`) carrega conteudo conforme permissao.
+- [ ] ALU-022 Materiais protegidos da aula exigem autorizacao backend.
+- [ ] ALU-023 Avaliacao (`.../avaliacoes/:assessmentId`) inicia/finaliza tentativa com persistencia oficial.
+- [ ] ALU-024 Redirecionamentos legados de `/dashboard/*` para `/aluno/*` funcionam.
+
+---
+
+## 4) Area Admin (`/admin`)
+
+### 4.1 Operacao geral
+- [ ] ADM-001 Dashboard admin (`/admin`) carrega metricas principais.
+- [ ] ADM-002 Navegacao admin so abre para usuario autorizado.
+- [ ] ADM-003 Erros de modulo admin exibem estado de erro com retry.
+
+### 4.2 Usuarios
+- [ ] ADM-010 Usuarios (`/admin/usuarios`) lista usuarios.
+- [ ] ADM-011 Criacao de usuario por admin funciona.
+- [ ] ADM-012 Edicao de usuario (nome/email/status/role) funciona com validacao backend.
+- [ ] ADM-013 Bloqueio/desbloqueio de usuario funciona.
+- [ ] ADM-014 Reset de senha por admin funciona.
+- [ ] ADM-015 Regras de seguranca em usuario sensivel (evitar autoexclusao/perda admin) estao ativas.
+- [ ] ADM-016 Acoes sensiveis em usuarios geram trilha de auditoria.
+
+### 4.3 Materiais/cursos e construtor
+- [ ] ADM-020 Materiais (`/admin/cursos`) lista cursos e status.
+- [ ] ADM-021 Criacao de material funciona.
+- [ ] ADM-022 Edicao basica de material funciona.
+- [ ] ADM-023 Exclusao de material funciona com confirmacao.
+- [ ] ADM-024 Reordenacao de materiais (drag and drop) funciona.
+- [ ] ADM-025 Importacao JSON de material funciona.
+- [ ] ADM-026 Exportacao JSON de material funciona.
+- [ ] ADM-027 Aba de categorias em `/admin/cursos?tab=categorias` funciona.
+- [ ] ADM-028 Alunos do curso (`/admin/cursos/:courseId/alunos`) carrega listagem.
+- [ ] ADM-029 Preview do curso (`/admin/cursos/:courseId/builder/preview`) carrega.
+- [ ] ADM-030 Builder (`/admin/cursos/:courseId/builder`) abre sem erro.
+- [ ] ADM-031 Builder `settings` salva configuracoes.
+- [ ] ADM-032 Builder `pagina-publica` salva/atualiza conteudo.
+- [ ] ADM-033 Builder `releases` aplica regras de liberacao.
+- [ ] ADM-034 Builder `assessments` funciona.
+- [ ] ADM-035 Builder `assessments/final` funciona.
+- [ ] ADM-036 Builder modulo (`modulos/:moduleId`) funciona.
+- [ ] ADM-037 Builder aula (`modulos/:moduleId/aulas/:lessonId`) funciona.
+- [ ] ADM-038 Builder materiais de aula (`.../materiais`) funciona.
+- [ ] ADM-039 Builder avaliacao de modulo (`.../avaliacoes/:assessmentId`) funciona.
+
+### 4.4 Financeiro, pedidos e pagamentos
+- [ ] ADM-050 Pagamentos (`/admin/pagamentos`) lista pedidos e filtros.
+- [ ] ADM-051 Reconciliacao de pedido funciona.
+- [ ] ADM-052 Acao "marcar como pago" sincroniza acesso.
+- [ ] ADM-053 Acao "reembolsar" revoga acesso conforme regra.
+- [ ] ADM-054 Acao "cancelar pedido" funciona para pendentes.
+- [ ] ADM-055 Mudanca de modo checkout (sandbox/producao) funciona e persiste.
+
+### 4.5 Comunicacao, conteudo e operacao
+- [ ] ADM-060 Suporte (`/admin/suporte`) lista tickets.
+- [ ] ADM-061 Detalhe de ticket admin (`/admin/suporte/:ticketId`) responde e atualiza status.
+- [ ] ADM-062 Formularios publicos (`/admin/formularios`) lista envios.
+- [ ] ADM-063 FAQ (`/admin/perguntas-frequentes`) CRUD funcional.
+- [ ] ADM-064 Reviews (`/admin/reviews`) moderacao funcional.
+- [ ] ADM-065 Notificacoes (`/admin/notificacoes`) envio/listagem funcional.
+- [ ] ADM-066 Afiliados (`/admin/afiliados`) operacao funcional.
+- [ ] ADM-067 Cupons (`/admin/cupons`) operacao funcional.
+- [ ] ADM-068 Editor de paginas (`/admin/editor-paginas`) abre, edita e publica.
+- [ ] ADM-069 Minha conta admin (`/admin/minha-conta`) atualiza dados permitidos.
+
+### 4.6 Configuracoes e operacoes internas
+- [ ] ADM-080 Configuracoes (`/admin/configuracoes`) aba Branding funciona.
+- [ ] ADM-081 Configuracoes (`/admin/configuracoes?tab=rastreamento`) funciona.
+- [ ] ADM-082 Configuracoes (`/admin/configuracoes?tab=manutencao`) ativa/desativa modo manutencao.
+- [ ] ADM-083 Configuracoes (`/admin/configuracoes?tab=operacoes`) mostra modulo operacional embutido.
+- [ ] ADM-084 Operacoes: scheduler de crons carrega status.
+- [ ] ADM-085 Operacoes: acao "reagendar crons" funciona.
+- [ ] ADM-086 Operacoes: acao "testar fila de email" funciona.
+- [ ] ADM-087 Operacoes: acao "executar todos os crons" funciona.
+- [ ] ADM-088 Operacoes: lista de emails possui paginacao e retry.
+- [ ] ADM-089 Operacoes: historico de jobs possui paginacao e status.
+
+---
+
+## 5) Edge Functions e Backend Serverless
+
+### 5.1 Fluxos publicos e aluno
+- [ ] API-001 `create-checkout` valida payload e cria sessao de checkout.
+- [ ] API-002 `checkout-autologin` funciona no fluxo de retorno autenticado.
+- [ ] API-003 `claim-free-product` cria grant sem duplicidade.
+- [ ] API-004 `generate-asset-access` gera acesso assinado com validacao de permissao.
+- [ ] API-005 `generate-module-pdf-access` protege PDFs de modulo.
+- [ ] API-006 `create-support-ticket` cria ticket.
+- [ ] API-007 `support-ticket-reply` registra resposta autorizada.
+- [ ] API-008 `support-attachment-upload` aceita upload autorizado.
+- [ ] API-009 `support-attachment-access` entrega anexo autorizado.
+- [ ] API-010 `student-course-navigation` respeita regras de progressao.
+- [ ] API-011 `student-assessment-attempts` persiste tentativas de avaliacao.
+- [ ] API-012 `student-order-actions` executa acoes permitidas ao aluno.
+- [ ] API-013 `profile-avatar-upload` upload de avatar funciona.
+
+### 5.2 Pagamentos, pedidos e reconciliacao
+- [ ] API-020 `payment-webhook` valida assinatura e processa eventos idempotentes.
+- [ ] API-021 `reconcile-orders` reconcilia pedidos sem duplicar efeitos.
+- [ ] API-022 `cron-reconcile-orders` executa reconciliacao automatica.
+- [ ] API-023 `admin-orders` e `admin-orders-view` respondem com filtros e seguranca.
+- [ ] API-024 `admin-payments-status` retorna estado operacional do checkout.
+- [ ] API-025 `admin-checkout-mode` atualiza modo sandbox/producao com rastreabilidade.
+
+### 5.3 Admin operacional e conteudo
+- [ ] API-030 `admin-dashboard` retorna dados para painel admin.
+- [ ] API-031 `admin-users` valida role admin e protege operacoes sensiveis.
+- [ ] API-032 `admin-products` valida e persiste CRUD de produtos.
+- [ ] API-033 `admin-content` opera conteudo de curso com permissao admin.
+- [ ] API-034 `admin-course-releases` aplica regras de release e grants.
+- [ ] API-035 `admin-coupons` valida regras de cupom no backend.
+- [ ] API-036 `admin-affiliates` aplica regras de afiliacao/comissao.
+- [ ] API-037 `admin-create-review` e `moderate-review` funcionam.
+- [ ] API-038 FAQ admin (via policies/queries/funcoes de apoio) responde com permissao correta.
+- [ ] API-039 `admin-notifications` executa envios e logs.
+- [ ] API-040 `admin-public-forms` lista e opera submissions.
+- [ ] API-041 `admin-page-builder` e `admin-page-assets` funcionam com controle admin.
+- [ ] API-042 `admin-storage-upload` protege upload administrativo.
+- [ ] API-043 `admin-operations` responde estado de fila/jobs/crons.
+- [ ] API-044 `admin-cron-scheduler` gerencia scheduler com seguranca.
+- [ ] API-045 `admin-email-status` fornece visibilidade da fila de email.
+- [ ] API-046 `admin-support-ticket-delete` aplica regra de exclusao com auditoria.
+
+### 5.4 Funcoes de cron e apoio
+- [ ] API-050 `cron-process-email-deliveries` processa fila de emails.
+- [ ] API-051 `cron-retry-email-deliveries` reenfileira falhas com seguranca.
+- [ ] API-052 `cron-audit-access-consistency` audita consistencia de grants.
+- [ ] API-053 `cron-clean-expired-links` limpa links expirados.
+- [ ] API-054 `public-form-submit` registra formulario publico com validacao.
+- [ ] API-055 `create-review` e `helpful-vote` funcionam no fluxo publico autenticado.
+
+---
+
+## 6) Banco de Dados, RLS e Regra Critica
+
+- [ ] SEC-001 `access_grants` e a fonte real de autorizacao ao conteudo.
+- [ ] SEC-002 `orders` representam estado comercial, nao autorizacao final.
+- [ ] SEC-003 Grants ativos sao criados/revogados por backend (nao frontend).
+- [ ] SEC-004 Tabelas privadas criticas estao com RLS ativo.
+- [ ] SEC-005 Policies impedem leitura de dados de outro usuario comum.
+- [ ] SEC-006 Policies/admin permitem operacao admin sem abrir dados indevidos.
+- [ ] SEC-007 Campos sensiveis de perfil (`role`, `is_admin`, `status`) nao sao autoelevaveis no cliente.
+- [ ] SEC-008 Conteudo pago nao fica publico em storage.
+- [ ] SEC-009 Assets protegidos usam URL assinada temporaria.
+- [ ] SEC-010 Webhook e funcoes sensiveis registram logs suficientes para auditoria.
+- [ ] SEC-011 Migrations SQL versionadas cobrem alteracoes estruturais (sem dependencia manual).
+- [ ] SEC-012 Triggers/constraints principais evitam dados inconsistentes em pedidos, grants e status.
+
+---
+
+## 7) Integracoes Externas
+
+- [ ] INT-001 Stripe checkout e iniciado no backend.
+- [ ] INT-002 Stripe webhook valida assinatura antes de alterar estado interno.
+- [ ] INT-003 Mapeamento de status Stripe -> `orders.status` esta consistente.
+- [ ] INT-004 Reembolso na Stripe reflete revogacao de acesso conforme regra.
+- [ ] INT-005 Tracking de afiliado e cupom e validado no backend.
+- [ ] INT-006 Integracao de email e desacoplada (falha de email nao corrompe pedido/grant).
+- [ ] INT-007 Tracking/analytics (GTM, Pixel, custom codes) respeita configuracao e consentimento.
+
+---
+
+## 8) PWA e Mobile
+
+- [ ] PWA-001 `manifest.webmanifest` existe e esta valido.
+- [ ] PWA-002 `sw.js`/service worker registra sem quebrar app.
+- [ ] PWA-003 Tela offline funciona (`offline.html` ou equivalente).
+- [ ] PWA-004 Prompt de instalacao aparece em contexto apropriado.
+- [ ] PWA-005 Modo standalone preserva login/sessao/rotas privadas.
+- [ ] PWA-006 Conteudo protegido nao fica exposto por cache indevido.
+- [ ] PWA-007 Atualizacao de versao limpa cache antigo e evita UI quebrada.
+- [ ] PWA-008 Fluxos criticos mobile (catalogo, checkout, dashboard, suporte) funcionam.
+
+---
+
+## 9) Build, Deploy e Observabilidade
+
+- [ ] OPS-001 Build local passa sem erro bloqueante.
+- [ ] OPS-002 Versao exibida no footer/admin corresponde ao build atual.
+- [ ] OPS-003 Logs de erros criticos sao rastreaveis (frontend + functions).
+- [ ] OPS-004 Dominio/ambiente ativo aponta para deploy esperado.
+- [ ] OPS-005 SHA/deploy de producao corresponde ao HEAD publicado.
+- [ ] OPS-006 Smoke test pos-deploy cobre publico, auth, checkout, aluno e admin.
+
+---
+
+## 10) Registro de Ciclo de Validacao
+
+- Ciclo:
+- Ambiente:
+- Responsavel:
+- Data:
+- Commit/SHA:
+- Resultado geral:
+- Modulos com NOK:
+- Riscos/Pendencias:
