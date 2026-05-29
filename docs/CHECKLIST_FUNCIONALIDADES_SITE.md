@@ -33,16 +33,16 @@ Base de referencia:
 - [OK] PUB-006 Gate de manutencao publica respeita configuracao do site. | Evidencia: Playwright prod 2026-05-29, `site_maintenance_mode.enabled=false` retornado pela API publica e home renderizada fora da tela de manutencao.
 
 ### 1.2 Catalogo e pagina de material
-- [ ] PUB-010 Catalogo (`/materiais`) lista materiais publicados.
-- [ ] PUB-011 Busca no catalogo filtra por titulo/descricao/tipo.
-- [ ] PUB-012 Filtros rapidos do catalogo funcionam.
-- [ ] PUB-013 Estado de loading do catalogo aparece corretamente.
-- [ ] PUB-014 Estado vazio do catalogo aparece corretamente.
-- [ ] PUB-015 Estado de erro do catalogo aparece corretamente.
-- [ ] PUB-016 Pagina de material (`/materiais/:slug`) carrega dados dinamicos.
-- [ ] PUB-017 CTA da pagina de material aponta para checkout com slug correto.
-- [ ] PUB-018 Reviews publicas renderizam sem quebrar o layout.
-- [ ] PUB-019 Rotas legadas redirecionam corretamente (`/cursos*`, `/produtos*`, `/produto/:slug`).
+- [OK] PUB-010 Catalogo (`/materiais`) lista materiais publicados. | Evidencia: Playwright prod 2026-05-29, API publica retornou `3` produtos publicados e `3` cards renderizados em `/materiais`.
+- [OK] PUB-011 Busca no catalogo filtra por titulo/descricao/tipo. | Evidencia: Playwright prod 2026-05-29, filtros por `title=sebenta`, `description=teste`, `type=free` com contagens visiveis coerentes com os dados retornados pela API.
+- [OK] PUB-012 Filtros rapidos do catalogo funcionam. | Evidencia: Playwright prod 2026-05-29, clique em categoria gerou `?categoria=sebentas-individuais` e lista filtrada com `2` resultados esperados.
+- [OK] PUB-013 Estado de loading do catalogo aparece corretamente. | Evidencia: Playwright prod 2026-05-29, atraso artificial de `3000ms` na chamada `/rest/v1/products` exibiu `A carregar catalogo...` durante o carregamento.
+- [OK] PUB-014 Estado vazio do catalogo aparece corretamente. | Evidencia: Playwright prod 2026-05-29, busca `__sem_resultado_catalogo_20260529__` exibiu `Nenhum material encontrado`.
+- [OK] PUB-015 Estado de erro do catalogo aparece corretamente. | Evidencia: Playwright prod 2026-05-29, resposta `500` artificial em `/rest/v1/products` exibiu `Falha ao carregar o catalogo` + acao de retry.
+- [OK] PUB-016 Pagina de material (`/materiais/:slug`) carrega dados dinamicos. | Evidencia: Playwright prod 2026-05-29, `/materiais/sebenta-gramatica` consumiu payload dinamico (`payload_slug=sebenta-gramatica`) e renderizou conteudo da pagina.
+- [OK] PUB-017 CTA da pagina de material aponta para checkout com slug correto. | Evidencia: Playwright prod 2026-05-29, CTA principal da pagina de material com `href=/checkout?slug=sebenta-gramatica`.
+- [OK] PUB-018 Reviews publicas renderizam sem quebrar o layout. | Evidencia: Playwright prod 2026-05-29, secao `Avaliacoes dos alunos` renderizada com estado valido (lista/empty) sem erro de console.
+- [OK] PUB-019 Rotas legadas redirecionam corretamente (`/cursos*`, `/produtos*`, `/produto/:slug`). | Evidencia: Playwright prod 2026-05-29, redirecionamentos validados: `/cursos -> /materiais`, `/produtos -> /materiais`, `/cursos/sebenta-gramatica -> /materiais/sebenta-gramatica`, `/produto/sebenta-gramatica -> /materiais/sebenta-gramatica`.
 
 ### 1.3 Checkout e conversao
 - [ ] PUB-030 Checkout (`/checkout?slug=...`) carrega resumo do material.
