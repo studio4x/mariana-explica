@@ -111,13 +111,13 @@ Base de referencia:
 - [OK] ADM-003 Erros de modulo admin exibem estado de erro com retry. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-general-prod-check.mjs`), falha forcada nas 3 primeiras chamadas de `admin-dashboard` exibiu `Nao foi possivel carregar o admin` e `Tentar novamente` recuperou o dashboard.
 
 ### 4.2 Usuarios
-- [ ] ADM-010 Usuarios (`/admin/usuarios`) lista usuarios.
-- [ ] ADM-011 Criacao de usuario por admin funciona.
-- [ ] ADM-012 Edicao de usuario (nome/email/status/role) funciona com validacao backend.
-- [ ] ADM-013 Bloqueio/desbloqueio de usuario funciona.
-- [ ] ADM-014 Reset de senha por admin funciona.
-- [ ] ADM-015 Regras de seguranca em usuario sensivel (evitar autoexclusao/perda admin) estao ativas.
-- [ ] ADM-016 Acoes sensiveis em usuarios geram trilha de auditoria.
+- [OK] ADM-010 Usuarios (`/admin/usuarios`) lista usuarios. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), `/admin/usuarios` carregou com `143` linhas e admin QA visivel na tabela.
+- [OK] ADM-011 Criacao de usuario por admin funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), criacao via UI concluida para `qa.adm42.user.1780079463209@example.com` com `profile.role=student` e `profile.status=active`.
+- [OK] ADM-012 Edicao de usuario (nome/email/status/role) funciona com validacao backend. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), edicao via UI atualizou nome/email/role para `qa.adm42.user.updated.1780079463209@example.com` (`role=affiliate`) e backend rejeitou role invalida com `status 400`.
+- [OK] ADM-013 Bloqueio/desbloqueio de usuario funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), status `blocked` aplicado; acesso privado bloqueado e, apos retorno para `active`, acesso privado voltou a funcionar.
+- [OK] ADM-014 Reset de senha por admin funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), senha antiga falhou apos reset e nova senha autenticou com sucesso.
+- [OK] ADM-015 Regras de seguranca em usuario sensivel (evitar autoexclusao/perda admin) estao ativas. | Evidencia: Playwright+API prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), backend bloqueou autoexclusao (`403`) e auto-rebaixamento de admin (`403`).
+- [OK] ADM-016 Acoes sensiveis em usuarios geram trilha de auditoria. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-users-prod-check.mjs`), `audit_logs` registrou `admin.user_created`, `admin.user_updated` e `admin.user_password_reset` para actor admin de QA e entity do usuario alvo.
 
 ### 4.3 Materiais/cursos e construtor
 - [ ] ADM-020 Materiais (`/admin/cursos`) lista cursos e status.
