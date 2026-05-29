@@ -45,12 +45,12 @@ Base de referencia:
 - [OK] PUB-019 Rotas legadas redirecionam corretamente (`/cursos*`, `/produtos*`, `/produto/:slug`). | Evidencia: Playwright prod 2026-05-29, redirecionamentos validados: `/cursos -> /materiais`, `/produtos -> /materiais`, `/cursos/sebenta-gramatica -> /materiais/sebenta-gramatica`, `/produto/sebenta-gramatica -> /materiais/sebenta-gramatica`.
 
 ### 1.3 Checkout e conversao
-- [ ] PUB-030 Checkout (`/checkout?slug=...`) carrega resumo do material.
-- [ ] PUB-031 Checkout de usuario deslogado redireciona para login com `redirect` preservado.
-- [ ] PUB-032 Fluxo de produto gratuito conclui claim sem pagamento.
-- [ ] PUB-033 Fluxo de produto pago redireciona para Stripe checkout URL.
-- [ ] PUB-034 Confirmacao (`/checkout/confirmacao`) exibe estado esperado.
-- [ ] PUB-035 Frontend nao confirma pagamento por conta propria (depende de backend/webhook).
+- [OK] PUB-030 Checkout (`/checkout?slug=...`) carrega resumo do material. | Evidencia: Playwright prod 2026-05-29, `/checkout?slug=c271877d-a354-4a6b-b8bf-6fc456d0e1e1` carregou com resumo do material (`title_visible=true`, `confirmacao=true`).
+- [OK] PUB-031 Checkout de usuario deslogado redireciona para login com `redirect` preservado. | Evidencia: Playwright prod 2026-05-29, acesso deslogado em `/checkout/confirmacao?...mode=stripe&session_id=fake_session_1_3` redirecionou para `/login?redirect=<rota-original>`.
+- [OK] PUB-032 Fluxo de produto gratuito conclui claim sem pagamento. | Evidencia: Playwright prod 2026-05-29, `claim-free-product` retornou `200` com `mode=free_claim`; nenhum request Stripe; fluxo finalizou em `/checkout/confirmacao?...mode=free`.
+- [OK] PUB-033 Fluxo de produto pago redireciona para Stripe checkout URL. | Evidencia: Playwright prod 2026-05-29, `create-checkout` retornou `200` com `mode=stripe` e `checkout_url` Stripe; navegador navegou para `checkout.stripe.com`.
+- [OK] PUB-034 Confirmacao (`/checkout/confirmacao`) exibe estado esperado. | Evidencia: Playwright prod 2026-05-29, rota `/checkout/confirmacao?...mode=free` exibiu heading `A tua inscricao foi recebida com sucesso`.
+- [OK] PUB-035 Frontend nao confirma pagamento por conta propria (depende de backend/webhook). | Evidencia: Playwright prod 2026-05-29, em confirmacao com `session_id` fake o frontend chamou `checkout-autologin` (status `400`) e redirecionou para login, sem confirmar pagamento localmente.
 
 ### 1.4 Suporte publico e paginas institucionais
 - [ ] PUB-040 Suporte (`/suporte`) carrega FAQ e busca.
