@@ -88,11 +88,11 @@ Base de referencia:
 - [OK] ALU-006 Downloads (`/aluno/downloads`) mostra apenas arquivos liberados. | Evidencia: Playwright prod 2026-05-29, página exibiu apenas asset com `allow_download=true` do aluno, ocultou asset bloqueado (`allow_download=false`) e asset de outro usuário.
 - [OK] ALU-007 Notificacoes (`/aluno/notificacoes`) lista e marca leitura corretamente. | Evidencia: Playwright prod 2026-05-29, listagem mostrou somente notificação própria e ação `Marcar como lida` atualizou status para `read` no banco sem afetar notificação de outro usuário.
 
-### 3.2 Suporte do aluno
-- [ ] ALU-010 Chamados (`/aluno/chamados`) lista tickets do proprio usuario.
-- [ ] ALU-011 Criacao de ticket do aluno funciona.
-- [ ] ALU-012 Detalhe de ticket (`/aluno/chamados/:ticketId`) mostra timeline correta.
-- [ ] ALU-013 Resposta em ticket do aluno funciona.
+### 4.5.2 Testes sugeridos - BLK-PRECOS
+- [OK] ALU-010 Chamados (`/aluno/chamados`) lista tickets do proprio usuario. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-support-prod-check.mjs`), listagem exibiu apenas ticket proprio (`QA ALU-010 proprio 1780073051447`) e ocultou ticket de outro usuario.
+- [OK] ALU-011 Criacao de ticket do aluno funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-support-prod-check.mjs`), criacao via UI redirecionou para `/aluno/chamados/4c964aa4-27f1-4428-81f0-066617a04ed5`.
+- [OK] ALU-012 Detalhe de ticket (`/aluno/chamados/:ticketId`) mostra timeline correta. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-support-prod-check.mjs`), detalhe exibiu descricao inicial + resposta admin no historico.
+- [OK] ALU-013 Resposta em ticket do aluno funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-support-prod-check.mjs`), resposta do aluno persistida em `support_ticket_messages` (`0486118b-1fea-48ec-89b4-0819e91a2de0`).
 
 ### 3.3 Player de curso e avaliacoes
 - [ ] ALU-020 Player (`/aluno/cursos/:courseId/player`) abre sem erro.
