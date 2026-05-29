@@ -95,11 +95,11 @@ Base de referencia:
 - [OK] ALU-013 Resposta em ticket do aluno funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-support-prod-check.mjs`), resposta do aluno persistida em `support_ticket_messages` (`0486118b-1fea-48ec-89b4-0819e91a2de0`).
 
 ### 3.3 Player de curso e avaliacoes
-- [ ] ALU-020 Player (`/aluno/cursos/:courseId/player`) abre sem erro.
-- [ ] ALU-021 Aula (`.../aulas/:lessonId`) carrega conteudo conforme permissao.
-- [ ] ALU-022 Materiais protegidos da aula exigem autorizacao backend.
-- [ ] ALU-023 Avaliacao (`.../avaliacoes/:assessmentId`) inicia/finaliza tentativa com persistencia oficial.
-- [ ] ALU-024 Redirecionamentos legados de `/dashboard/*` para `/aluno/*` funcionam.
+- [OK] ALU-020 Player (`/aluno/cursos/:courseId/player`) abre sem erro. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-player-assessment-prod-check.mjs`), rota abriu e redirecionou para aula valida `/aluno/cursos/b1b68a31-ba38-4201-981f-f74903b71c9f/player/aulas/b4bcddec-0ecb-4f49-bfbc-6db5ba7f84ef`.
+- [OK] ALU-021 Aula (`.../aulas/:lessonId`) carrega conteudo conforme permissao. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-player-assessment-prod-check.mjs`), aula com grant carregou conteudo e rota sem grant (`/aluno/cursos/6471d748-8d29-4a5b-9357-bddaa894c052/player/aulas/b003dad5-3f7a-4d38-8a4e-ad0d7942f50e`) ficou bloqueada.
+- [OK] ALU-022 Materiais protegidos da aula exigem autorizacao backend. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-player-assessment-prod-check.mjs`), acesso autorizado chamou `generate-asset-access` com `200`; tentativa sem grant para asset `930b94e2-f509-41d3-a4de-38e322d540b7` foi negada pelo backend.
+- [OK] ALU-023 Avaliacao (`.../avaliacoes/:assessmentId`) inicia/finaliza tentativa com persistencia oficial. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-player-assessment-prod-check.mjs`), tentativa oficial persistida em `assessment_attempts` (`bf44b657-c8a6-4674-a9f5-476843a992b3`) com status `failed` apos submissao.
+- [OK] ALU-024 Redirecionamentos legados de `/dashboard/*` para `/aluno/*` funcionam. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-player-assessment-prod-check.mjs`), redirects validados: `/dashboard->/aluno/dashboard`, `/dashboard/produtos->/aluno/cursos`, `/dashboard/produto/:id->/aluno/cursos/:id`, `/dashboard/downloads->/aluno/downloads`, `/dashboard/pagamentos->/aluno/pagamentos`, `/dashboard/perfil->/aluno/perfil`.
 
 ---
 

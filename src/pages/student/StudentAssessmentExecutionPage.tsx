@@ -73,64 +73,20 @@ export function StudentAssessmentExecutionPage() {
   const hydratedAttemptIdRef = useRef<string | null>(null)
   const lastSavedSignatureRef = useRef<string>("{}")
 
-  if (!assessmentSummary) {
-    return (
-      <EmptyState
-        title="Avaliacao nao encontrada"
-        message="A avaliacao pedida nao esta disponivel nesta trilha."
-      />
-    )
-  }
-
-  if (assessmentSummary.is_locked) {
-    return (
-      <EmptyState
-        title="Avaliacao bloqueada"
-        message={assessmentSummary.lock_reason ?? "Conclui os requisitos anteriores para libertar esta avaliacao."}
-      />
-    )
-  }
-
-  if (assessmentQuery.isLoading) {
-    return <LoadingState message="A preparar a avaliacao..." />
-  }
-
-  if (assessmentQuery.isError) {
-    return (
-      <ErrorState
-        title="Nao foi possivel abrir esta avaliacao"
-        message={
-          assessmentQuery.error instanceof Error
-            ? assessmentQuery.error.message
-            : "Tenta novamente dentro de instantes."
-        }
-        onRetry={() => void assessmentQuery.refetch()}
-      />
-    )
-  }
-
-  const assessment = assessmentQuery.data
-
-  if (!assessment) {
-    return (
-      <EmptyState
-        title="Conteudo indisponivel"
-        message="O backend nao libertou o payload completo desta avaliacao para a tua sessao."
-      />
-    )
-  }
-
-  const module = assessment.module_id
+  const assessment = assessmentQuery.data ?? null
+  const module = assessment?.module_id
     ? context.modules.find((item) => item.id === assessment.module_id) ?? null
     : null
   const entries = buildCoursePlayerEntries(context.modules, context.lessons, context.assessments)
   const unlockedEntries = entries.filter((entry) => !entry.isLocked)
-  const currentIndex = unlockedEntries.findIndex((entry) => entry.type === "assessment" && entry.id === assessment.id)
+  const currentIndex = unlockedEntries.findIndex(
+    (entry) => entry.type === "assessment" && entry.id === (assessment?.id ?? assessmentId),
+  )
   const previousEntry = currentIndex > 0 ? unlockedEntries[currentIndex - 1] : null
   const nextEntry = currentIndex >= 0 ? unlockedEntries[currentIndex + 1] ?? null : null
   const questions = useMemo(
-    () => normalizeAssessmentQuestions(assessment.builder_payload),
-    [assessment.builder_payload],
+    () => normalizeAssessmentQuestions(assessment?.builder_payload ?? null),
+    [assessment?.builder_payload],
   )
   const draftResult = useMemo(
     () => calculateAssessmentDraftResult(questions, answers),
@@ -178,6 +134,51 @@ export function StudentAssessmentExecutionPage() {
 
     return () => window.clearTimeout(timeout)
   }, [answers, answersSignature, officialAttempt, saveDraft])
+
+  if (!assessmentSummary) {
+    return (
+      <EmptyState
+        title="Avaliacao nao encontrada"
+        message="A avaliacao pedida nao esta disponivel nesta trilha."
+      />
+    )
+  }
+
+  if (assessmentSummary.is_locked) {
+    return (
+      <EmptyState
+        title="Avaliacao bloqueada"
+        message={assessmentSummary.lock_reason ?? "Conclui os requisitos anteriores para libertar esta avaliacao."}
+      />
+    )
+  }
+
+  if (assessmentQuery.isLoading) {
+    return <LoadingState message="A preparar a avaliacao..." />
+  }
+
+  if (assessmentQuery.isError) {
+    return (
+      <ErrorState
+        title="Nao foi possivel abrir esta avaliacao"
+        message={
+          assessmentQuery.error instanceof Error
+            ? assessmentQuery.error.message
+            : "Tenta novamente dentro de instantes."
+        }
+        onRetry={() => void assessmentQuery.refetch()}
+      />
+    )
+  }
+
+  if (!assessment) {
+    return (
+      <EmptyState
+        title="Conteudo indisponivel"
+        message="O backend nao libertou o payload completo desta avaliacao para a tua sessao."
+      />
+    )
+  }
 
   const updateSingleAnswer = (questionId: string, value: string) => {
     setAnswers((current) => ({
