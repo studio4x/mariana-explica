@@ -872,12 +872,10 @@ export function AdminPageEditor() {
     const slugFromUrl = resolveSlugFromSearchParams(searchParams) ?? "home"
     if (slugFromUrl !== selectedSlug) {
       setSelectedSlug(slugFromUrl)
+      setPendingSelectedSlug(slugFromUrl)
       setFeedback(null)
     }
-    if (slugFromUrl !== pendingSelectedSlug) {
-      setPendingSelectedSlug(slugFromUrl)
-    }
-  }, [pendingSelectedSlug, searchParams, selectedSlug])
+  }, [searchParams, selectedSlug])
 
   useEffect(() => {
     const slugFromUrl = resolveSlugFromSearchParams(searchParams)
