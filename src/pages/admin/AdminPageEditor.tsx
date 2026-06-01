@@ -82,7 +82,7 @@ type PendingRichInsertPoint = {
   insertAfterNodeIndex?: number
 }
 
-type StructureNodeKind = "section" | "container" | "column" | "block"
+type StructureNodeKind = "section" | "container" | "column" | "block" | "rich_node"
 
 type EditorStructureNode = {
   id: string
@@ -91,6 +91,7 @@ type EditorStructureNode = {
   blockId?: string
   containerId?: string
   columnIndex?: number
+  richNodeIndex?: number
   children: EditorStructureNode[]
 }
 
@@ -416,14 +417,55 @@ function getBlockLabel(block: PageBlock) {
   return "Espaco"
 }
 
+function getStructureRichNodeLabel(node: Element, index: number) {
+  const tagName = node.tagName.toLowerCase()
+  const tagLabelMap: Record<string, string> = {
+    h1: "Titulo H1",
+    h2: "Titulo H2",
+    h3: "Titulo H3",
+    h4: "Titulo H4",
+    h5: "Titulo H5",
+    h6: "Titulo H6",
+    p: "Paragrafo",
+    a: "Link",
+    li: "Item de lista",
+    blockquote: "Citacao",
+    img: "Imagem",
+    span: "Texto",
+  }
+  const baseLabel = tagLabelMap[tagName] ?? `Elemento ${tagName.toUpperCase()}`
+  const rawPreview =
+    tagName === "img"
+      ? node.getAttribute("alt") || "sem descricao"
+      : tagName === "a"
+        ? node.textContent?.trim() || node.getAttribute("href") || "link"
+        : node.textContent?.trim() || ""
+  const preview = rawPreview.replace(/\s+/g, " ").trim()
+  if (!preview) return `${baseLabel} ${index + 1}`
+  const compact = preview.length > 46 ? `${preview.slice(0, 46)}...` : preview
+  return `${baseLabel}: ${compact}`
+}
+
 function buildBlockStructureNode(block: PageBlock, nodeId: string): EditorStructureNode {
   if (block.type !== "container") {
+    const richChildren: EditorStructureNode[] =
+      block.type === "rich_text"
+        ? getEditableRichNodesFromHtml(block.content).map((node, richNodeIndex) => ({
+            id: `${nodeId}-rich-${richNodeIndex}`,
+            kind: "rich_node",
+            label: getStructureRichNodeLabel(node, richNodeIndex),
+            blockId: block.id,
+            richNodeIndex,
+            children: [],
+          }))
+        : []
+
     return {
       id: nodeId,
       kind: "block",
       label: getBlockLabel(block),
       blockId: block.id,
-      children: [],
+      children: richChildren,
     }
   }
 
@@ -839,6 +881,17 @@ export function AdminPageEditor() {
 
   const handleSelectStructureNode = useCallback(
     (node: EditorStructureNode) => {
+      if (node.kind === "rich_node" && node.blockId && typeof node.richNodeIndex === "number") {
+        setSelectedBlockId(node.blockId)
+        setSelectedContainerColumnTarget(null)
+        setPendingContainerInsertPoint(null)
+        setPendingRichInsertPoint(null)
+        setSelectedRichNodeIndex(node.richNodeIndex)
+        setRichSelectionMode(true)
+        setIsLayoutCardVisible(true)
+        setSidebarTab("inspector")
+        return
+      }
       if (node.kind === "column" && node.containerId && typeof node.columnIndex === "number") {
         setSelectedRichNodeIndex(null)
         setPendingRichInsertPoint(null)
@@ -858,6 +911,9 @@ export function AdminPageEditor() {
 
   const isStructureNodeSelected = useCallback(
     (node: EditorStructureNode) => {
+      if (node.kind === "rich_node") {
+        return !!node.blockId && node.blockId === selectedBlockId && selectedRichNodeIndex === node.richNodeIndex
+      }
       if (node.kind === "column") {
         return (
           selectedContainerColumnTarget?.containerId === node.containerId &&
@@ -866,7 +922,7 @@ export function AdminPageEditor() {
       }
       return !!node.blockId && node.blockId === selectedBlockId
     },
-    [selectedBlockId, selectedContainerColumnTarget],
+    [selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex],
   )
 
   const snapSpacing = useCallback(
@@ -2669,7 +2725,9 @@ export function AdminPageEditor() {
                               ? "CONTAINER"
                               : node.kind === "column"
                                 ? "COLUNA"
-                                : "BLOCO"
+                                : node.kind === "rich_node"
+                                  ? "ELEMENTO"
+                                  : "BLOCO"
                         return (
                           <div key={node.id} className="space-y-1">
                             <button
