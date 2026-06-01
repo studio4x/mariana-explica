@@ -882,14 +882,6 @@ export function AdminPageEditor() {
   }, [pageOpenRequestSlug, searchParams, selectedSlug])
 
   useEffect(() => {
-    const slugFromUrl = resolveSlugFromSearchParams(searchParams)
-    if (slugFromUrl === selectedSlug) return
-    const nextSearchParams = new URLSearchParams(searchParams)
-    nextSearchParams.set("slug", selectedSlug)
-    setSearchParams(nextSearchParams, { replace: true })
-  }, [searchParams, selectedSlug, setSearchParams])
-
-  useEffect(() => {
     if (!pageOpenRequestSlug) return
     if (pageOpenRequestSlug !== selectedSlug) return
     if (detailQuery.isLoading || detailQuery.isFetching) return
@@ -2185,6 +2177,9 @@ export function AdminPageEditor() {
       return
     }
     setFeedback(null)
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.set("slug", pendingSelectedSlug)
+    setSearchParams(nextSearchParams, { replace: true })
     setPageOpenRequestSlug(pendingSelectedSlug)
     setSelectedSlug(pendingSelectedSlug)
   }
