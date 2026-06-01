@@ -755,8 +755,10 @@ export function AdminPageEditor() {
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
+  const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
+  const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
   const loadedSlugRef = useRef<string>("")
   const loadedVersionRef = useRef<string>("")
   const autosaveTimerRef = useRef<number | null>(null)
@@ -887,6 +889,27 @@ export function AdminPageEditor() {
     if (detailQuery.isLoading || detailQuery.isFetching) return
     setPageOpenRequestSlug(null)
   }, [detailQuery.isFetching, detailQuery.isLoading, pageOpenRequestSlug, selectedSlug])
+
+  useEffect(() => {
+    if (!isMoreActionsMenuOpen) return
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      if (moreActionsMenuRef.current?.contains(target)) return
+      setIsMoreActionsMenuOpen(false)
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMoreActionsMenuOpen(false)
+      }
+    }
+    window.addEventListener("mousedown", handleClickOutside)
+    window.addEventListener("keydown", handleEscape)
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside)
+      window.removeEventListener("keydown", handleEscape)
+    }
+  }, [isMoreActionsMenuOpen])
 
   const updateDocument = useCallback((updater: (current: SitePageBuilderDocument) => SitePageBuilderDocument) => {
     setDocumentDraft((current) => updater(current))
@@ -2300,33 +2323,73 @@ export function AdminPageEditor() {
                 Preview
               </Button>
             </ActionHint>
-            <ActionHint hint="Restaura o conteudo da versao selecionada.">
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleRollback()} disabled={isSaving || !selectedVersionId}>
-                <FileClock className="mr-2 h-4 w-4" />
-                Rollback
+            <div className="relative" ref={moreActionsMenuRef}>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setIsMoreActionsMenuOpen((state) => !state)}
+                aria-expanded={isMoreActionsMenuOpen}
+                aria-haspopup="menu"
+              >
+                Mais acoes
+                <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
-            </ActionHint>
-            <ActionHint hint="Remove a versao publicada do site publico.">
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => void handleUnpublish()} disabled={isSaving || !publishedVersionId}>
-                <XCircle className="mr-2 h-4 w-4" />
-                Despublicar
-              </Button>
-            </ActionHint>
-            <ActionHint hint="Liga ou desliga o autosave periodico do editor.">
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => setAutosaveEnabled((current) => !current)}>
-                {autosaveEnabled ? "Autosave ligado" : "Autosave desligado"}
-              </Button>
-            </ActionHint>
-            <ActionHint hint="Mostra ou oculta guias visuais de alinhamento no canvas.">
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => setShowLayoutGuides((current) => !current)}>
-                {showLayoutGuides ? "Guias on" : "Guias off"}
-              </Button>
-            </ActionHint>
-            <ActionHint hint="Ativa ou desativa o ajuste automatico de espacamento para grade de 4px.">
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => setSnapSpacingToGrid((current) => !current)}>
-                {snapSpacingToGrid ? "Snap 4px on" : "Snap 4px off"}
-              </Button>
-            </ActionHint>
+
+              {isMoreActionsMenuOpen ? (
+                <div className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl" role="menu">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => {
+                      void handleRollback()
+                      setIsMoreActionsMenuOpen(false)
+                    }}
+                    disabled={isSaving || !selectedVersionId}
+                  >
+                    <FileClock className="h-4 w-4" />
+                    Rollback
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => {
+                      void handleUnpublish()
+                      setIsMoreActionsMenuOpen(false)
+                    }}
+                    disabled={isSaving || !publishedVersionId}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Despublicar
+                  </button>
+                  <div className="my-1 h-px bg-slate-200" />
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-50"
+                    onClick={() => setAutosaveEnabled((current) => !current)}
+                  >
+                    <span>Autosave</span>
+                    <span className="text-xs font-semibold text-slate-500">{autosaveEnabled ? "ligado" : "desligado"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-50"
+                    onClick={() => setShowLayoutGuides((current) => !current)}
+                  >
+                    <span>Guias</span>
+                    <span className="text-xs font-semibold text-slate-500">{showLayoutGuides ? "on" : "off"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-50"
+                    onClick={() => setSnapSpacingToGrid((current) => !current)}
+                  >
+                    <span>Snap 4px</span>
+                    <span className="text-xs font-semibold text-slate-500">{snapSpacingToGrid ? "on" : "off"}</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
