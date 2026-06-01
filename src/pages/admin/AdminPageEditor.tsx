@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { DragEvent, FocusEvent } from "react"
 import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
-import { Link, useBlocker } from "react-router-dom"
+import { Link, useBlocker, useSearchParams } from "react-router-dom"
 import {
   Blocks,
   ChevronDown,
@@ -13,6 +13,8 @@ import {
   GripVertical,
   History,
   ImagePlus,
+  Loader2,
+  Pencil,
   Plus,
   Save,
   Send,
@@ -101,6 +103,17 @@ function getPublicPathForSlug(slug: SitePageSlug | string) {
 
 function getTitleForSlug(slug: SitePageSlug | string) {
   return PAGE_OPTIONS.find((item) => item.slug === slug)?.label ?? String(slug)
+}
+
+function isValidSitePageSlug(value: string | null): value is SitePageSlug {
+  if (!value) return false
+  return PAGE_OPTIONS.some((item) => item.slug === value)
+}
+
+function resolveSlugFromSearchParams(searchParams: URLSearchParams): SitePageSlug | null {
+  const raw = searchParams.get("slug")?.trim().toLowerCase() ?? null
+  if (!raw) return null
+  return isValidSitePageSlug(raw) ? raw : null
 }
 
 function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: string | null, preferredVersionId?: string | null) {
@@ -708,7 +721,10 @@ function duplicateBlockWithNewIds(block: PageBlock): PageBlock {
 }
 
 export function AdminPageEditor() {
-  const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>("home")
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [selectedSlug, setSelectedSlug] = useState<SitePageSlug>(() => resolveSlugFromSearchParams(searchParams) ?? "home")
+  const [pendingSelectedSlug, setPendingSelectedSlug] = useState<SitePageSlug>(() => resolveSlugFromSearchParams(searchParams) ?? "home")
+  const [pageOpenRequestSlug, setPageOpenRequestSlug] = useState<SitePageSlug | null>(null)
   const [documentDraft, setDocumentDraft] = useState<SitePageBuilderDocument>(getDefaultDocumentForSlug("home"))
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
   const [selectedBlockId, setSelectedBlockId] = useState<string>("")
@@ -848,6 +864,35 @@ export function AdminPageEditor() {
     rollbackMutation.isPending ||
     unpublishMutation.isPending ||
     uploadAssetMutation.isPending
+  const hasPendingPageSelection = pendingSelectedSlug !== selectedSlug
+  const isPageSelectionLoading =
+    pageOpenRequestSlug === selectedSlug && (detailQuery.isLoading || detailQuery.isFetching)
+
+  useEffect(() => {
+    const slugFromUrl = resolveSlugFromSearchParams(searchParams) ?? "home"
+    if (slugFromUrl !== selectedSlug) {
+      setSelectedSlug(slugFromUrl)
+      setFeedback(null)
+    }
+    if (slugFromUrl !== pendingSelectedSlug) {
+      setPendingSelectedSlug(slugFromUrl)
+    }
+  }, [pendingSelectedSlug, searchParams, selectedSlug])
+
+  useEffect(() => {
+    const slugFromUrl = resolveSlugFromSearchParams(searchParams)
+    if (slugFromUrl === selectedSlug) return
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.set("slug", selectedSlug)
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [searchParams, selectedSlug, setSearchParams])
+
+  useEffect(() => {
+    if (!pageOpenRequestSlug) return
+    if (pageOpenRequestSlug !== selectedSlug) return
+    if (detailQuery.isLoading || detailQuery.isFetching) return
+    setPageOpenRequestSlug(null)
+  }, [detailQuery.isFetching, detailQuery.isLoading, pageOpenRequestSlug, selectedSlug])
 
   const updateDocument = useCallback((updater: (current: SitePageBuilderDocument) => SitePageBuilderDocument) => {
     setDocumentDraft((current) => updater(current))
@@ -2132,6 +2177,16 @@ export function AdminPageEditor() {
     event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
   }
 
+  const handleOpenPendingPage = () => {
+    if (!hasPendingPageSelection) return
+    if (!confirmDiscardChanges(`abrir a pagina ${getTitleForSlug(pendingSelectedSlug)}`)) {
+      return
+    }
+    setFeedback(null)
+    setPageOpenRequestSlug(pendingSelectedSlug)
+    setSelectedSlug(pendingSelectedSlug)
+  }
+
   const handleInlineTextCommit = (blockId: string, event: FocusEvent<HTMLElement>) => {
     const nextValue = event.currentTarget.innerText.trim()
     updateDocument((current) => ({
@@ -2188,16 +2243,10 @@ export function AdminPageEditor() {
           <label className="block">
             <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Pagina</span>
             <select
-              value={selectedSlug}
+              value={pendingSelectedSlug}
               onChange={(event) => {
                 const nextSlug = event.target.value as SitePageSlug
-                if (nextSlug === selectedSlug) return
-                if (!confirmDiscardChanges(`abrir a pagina ${getTitleForSlug(nextSlug)}`)) {
-                  event.target.value = selectedSlug
-                  return
-                }
-                setSelectedSlug(nextSlug)
-                setFeedback(null)
+                setPendingSelectedSlug(nextSlug)
               }}
               className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-slate-400"
             >
@@ -2207,6 +2256,19 @@ export function AdminPageEditor() {
                 </option>
               ))}
             </select>
+            <div className="mt-2 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={handleOpenPendingPage}
+                disabled={!hasPendingPageSelection || isPageSelectionLoading}
+              >
+                {isPageSelectionLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                {isPageSelectionLoading ? "A carregar..." : "Abrir pagina"}
+              </Button>
+            </div>
           </label>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -2798,11 +2860,12 @@ export function AdminPageEditor() {
                 title="Blocos"
                 onClick={() => setSidebarTab("blocks")}
                 className={[
-                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  "inline-flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-bold uppercase tracking-[0.08em] transition",
                   sidebarTab === "blocks" ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 text-slate-500 hover:bg-slate-50",
                 ].join(" ")}
               >
                 <Blocks className="h-4 w-4" />
+                <span>Blocos</span>
               </button>
               <button
                 type="button"
@@ -2810,13 +2873,14 @@ export function AdminPageEditor() {
                 title="Inspector"
                 onClick={() => setSidebarTab("inspector")}
                 className={[
-                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  "inline-flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-bold uppercase tracking-[0.08em] transition",
                   sidebarTab === "inspector"
                     ? "border-sky-300 bg-sky-50 text-sky-900"
                     : "border-slate-200 text-slate-500 hover:bg-slate-50",
                 ].join(" ")}
               >
                 <SlidersHorizontal className="h-4 w-4" />
+                <span>Editar</span>
               </button>
               <button
                 type="button"
@@ -2824,13 +2888,14 @@ export function AdminPageEditor() {
                 title="Estrutura"
                 onClick={() => setSidebarTab("structure")}
                 className={[
-                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  "inline-flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-bold uppercase tracking-[0.08em] transition",
                   sidebarTab === "structure"
                     ? "border-sky-300 bg-sky-50 text-sky-900"
                     : "border-slate-200 text-slate-500 hover:bg-slate-50",
                 ].join(" ")}
               >
                 <GripVertical className="h-4 w-4" />
+                <span>Estrut.</span>
               </button>
               <button
                 type="button"
@@ -2838,13 +2903,14 @@ export function AdminPageEditor() {
                 title="Historico de versoes"
                 onClick={() => setSidebarTab("versions")}
                 className={[
-                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  "inline-flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-bold uppercase tracking-[0.08em] transition",
                   sidebarTab === "versions"
                     ? "border-sky-300 bg-sky-50 text-sky-900"
                     : "border-slate-200 text-slate-500 hover:bg-slate-50",
                 ].join(" ")}
               >
                 <History className="h-4 w-4" />
+                <span>Vers.</span>
               </button>
             </div>
           </div>
@@ -2923,36 +2989,42 @@ export function AdminPageEditor() {
                               </span>
                               <button
                                 type="button"
+                                aria-label="Editar elemento"
+                                title="Editar"
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
                                   handleEditStructureNode(node)
                                 }}
-                                className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-700 transition hover:border-sky-300"
+                                className="shrink-0 rounded-full border border-slate-200 p-1 text-slate-700 transition hover:border-sky-300"
                               >
-                                Editar
+                                <Pencil className="h-3 w-3" />
                               </button>
                               <button
                                 type="button"
+                                aria-label="Duplicar elemento"
+                                title="Duplicar"
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
                                   handleDuplicateStructureNode(node)
                                 }}
-                                className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-700 transition hover:border-sky-300"
+                                className="shrink-0 rounded-full border border-slate-200 p-1 text-slate-700 transition hover:border-sky-300"
                               >
-                                Duplicar
+                                <Copy className="h-3 w-3" />
                               </button>
                               <button
                                 type="button"
+                                aria-label="Excluir elemento"
+                                title="Excluir"
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
                                   handleDeleteStructureNode(node)
                                 }}
-                                className="shrink-0 rounded-full border border-rose-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-rose-700 transition hover:bg-rose-50"
+                                className="shrink-0 rounded-full border border-rose-200 p-1 text-rose-700 transition hover:bg-rose-50"
                               >
-                                Excluir
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                             {node.children.length > 0 ? (
