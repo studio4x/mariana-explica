@@ -870,12 +870,16 @@ export function AdminPageEditor() {
 
   useEffect(() => {
     const slugFromUrl = resolveSlugFromSearchParams(searchParams) ?? "home"
-    if (slugFromUrl !== selectedSlug) {
-      setSelectedSlug(slugFromUrl)
-      setPendingSelectedSlug(slugFromUrl)
-      setFeedback(null)
-    }
-  }, [searchParams, selectedSlug])
+    if (slugFromUrl === selectedSlug) return
+
+    // Evita "piscar" durante a troca iniciada pelo botao "Abrir pagina":
+    // enquanto a URL ainda nao refletiu o slug novo, nao revertemos o estado local.
+    if (pageOpenRequestSlug && pageOpenRequestSlug === selectedSlug) return
+
+    setSelectedSlug(slugFromUrl)
+    setPendingSelectedSlug(slugFromUrl)
+    setFeedback(null)
+  }, [pageOpenRequestSlug, searchParams, selectedSlug])
 
   useEffect(() => {
     const slugFromUrl = resolveSlugFromSearchParams(searchParams)
