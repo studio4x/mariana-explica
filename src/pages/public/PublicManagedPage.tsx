@@ -1,7 +1,9 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { useLocation } from "react-router-dom"
 import { LoadingState } from "@/components/feedback"
+import { HomeReviewsFeed } from "@/components/reviews"
 import {
   getDefaultStyleCss,
   renderDocumentToHtml,
@@ -60,6 +62,8 @@ interface PublicManagedPageProps {
 export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   const location = useLocation()
   const pageQuery = usePublicSitePage(slug)
+  const managedRootRef = useRef<HTMLDivElement | null>(null)
+  const [homeReviewsMountNode, setHomeReviewsMountNode] = useState<HTMLElement | null>(null)
 
   const previewPayload = useMemo(() => {
     return readSitePagePreviewFromSearch(slug, location.search)
@@ -77,6 +81,29 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     return rebuildManagedPayloadFromVersion(slug, pageQuery.data.version)
   }, [pageQuery.data, previewPayload, slug])
 
+  useEffect(() => {
+    if (slug !== "home") {
+      setHomeReviewsMountNode(null)
+      return
+    }
+
+    const root = managedRootRef.current
+    if (!root) {
+      setHomeReviewsMountNode(null)
+      return
+    }
+
+    const placeholder = root.querySelector<HTMLElement>(".me-home-review-placeholder")
+    if (!placeholder) {
+      setHomeReviewsMountNode(null)
+      return
+    }
+
+    placeholder.setAttribute("data-me-home-reviews-live", "1")
+    placeholder.innerHTML = ""
+    setHomeReviewsMountNode(placeholder)
+  }, [managedPayload?.html, slug])
+
   if (pageQuery.isLoading && !previewPayload) {
     return <LoadingState message="A carregar conteudo da pagina..." />
   }
@@ -93,7 +120,20 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   return (
     <div className="w-full bg-white">
       {managedPayload.css ? <style>{managedPayload.css}</style> : null}
-      <div dangerouslySetInnerHTML={{ __html: managedPayload.html }} />
+      {slug === "home" ? (
+        <style>{`
+          .me-home-review-placeholder[data-me-home-reviews-live="1"] {
+            max-width: none;
+            border: 0;
+            background: transparent;
+            padding: 0;
+          }
+        `}</style>
+      ) : null}
+      <div ref={managedRootRef} dangerouslySetInnerHTML={{ __html: managedPayload.html }} />
+      {slug === "home" && homeReviewsMountNode
+        ? createPortal(<HomeReviewsFeed className="!mt-0" />, homeReviewsMountNode)
+        : null}
     </div>
   )
 }

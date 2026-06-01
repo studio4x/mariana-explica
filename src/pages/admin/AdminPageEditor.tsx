@@ -606,7 +606,6 @@ export function AdminPageEditor() {
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
-  const selectedRichNodeEditorRef = useRef<RichTextEditorHandle | null>(null)
   const loadedSlugRef = useRef<string>("")
   const loadedVersionRef = useRef<string>("")
   const autosaveTimerRef = useRef<number | null>(null)
@@ -819,24 +818,6 @@ export function AdminPageEditor() {
       nodes[selectedRichNodeIndex].replaceWith(replacement)
       const nextHtml = parsed.body.innerHTML
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: nextHtml } : block))
-    },
-    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
-  )
-
-  const applyRichNodeInnerContentEdit = useCallback(
-    (nextInnerHtml: string) => {
-      if (!selectedBlock || selectedBlock.type !== "rich_text") return
-      if (selectedRichNodeIndex === null) return
-      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
-
-      const parser = new DOMParser()
-      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
-      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
-      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
-      if (!targetNode) return
-
-      targetNode.innerHTML = nextInnerHtml
-      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
     },
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
@@ -1182,7 +1163,6 @@ export function AdminPageEditor() {
     async (trigger: "manual" | "autosave" = "manual") => {
       const isAutosave = trigger === "autosave"
       richTextRef.current?.flush()
-      selectedRichNodeEditorRef.current?.flush()
       if (isAutosave) {
         setAutosaveStatus("saving")
       } else {
@@ -1454,7 +1434,6 @@ export function AdminPageEditor() {
     setFeedback(null)
     try {
       richTextRef.current?.flush()
-      selectedRichNodeEditorRef.current?.flush()
 
       let versionIdToPublish = selectedVersionId
       if (isDirty || !versionIdToPublish) {
@@ -2828,23 +2807,12 @@ export function AdminPageEditor() {
                                   />
                                 </label>
                               </div>
-                              {selectedRichNodeDescriptor.isLink ? (
-                                <textarea
-                                  key={`${selectedBlock.id}-${selectedRichNodeIndex}-text-link`}
-                                  value={selectedRichNodeDescriptor.textContent}
-                                  onChange={(event) => applyRichNodeTextContentEdit(event.target.value)}
-                                  className="min-h-[120px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                                />
-                              ) : (
-                                <RichTextEditor
-                                  key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
-                                  ref={selectedRichNodeEditorRef}
-                                  value={selectedRichNodeDescriptor.innerHtml}
-                                  onChange={applyRichNodeInnerContentEdit}
-                                  toolbarVariant="compact"
-                                  minHeightPx={140}
-                                />
-                              )}
+                              <textarea
+                                key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
+                                value={selectedRichNodeDescriptor.textContent}
+                                onChange={(event) => applyRichNodeTextContentEdit(event.target.value)}
+                                className="min-h-[120px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                              />
                             </div>
                           ) : null}
                           {selectedRichNodeDescriptor?.isLink ? (
