@@ -82,6 +82,18 @@ type PendingRichInsertPoint = {
   insertAfterNodeIndex?: number
 }
 
+type StructureNodeKind = "section" | "container" | "column" | "block"
+
+type EditorStructureNode = {
+  id: string
+  kind: StructureNodeKind
+  label: string
+  blockId?: string
+  containerId?: string
+  columnIndex?: number
+  children: EditorStructureNode[]
+}
+
 function getPublicPathForSlug(slug: SitePageSlug | string) {
   return PAGE_OPTIONS.find((item) => item.slug === slug)?.publicPath ?? "/"
 }
@@ -205,6 +217,19 @@ function normalizeColorForInput(raw: string | null | undefined, fallback: string
   return fallback
 }
 
+function mapHorizontalAlignToFlex(value: "left" | "center" | "right" | "stretch") {
+  if (value === "left") return "flex-start"
+  if (value === "center") return "center"
+  if (value === "right") return "flex-end"
+  return "stretch"
+}
+
+function mapVerticalAlignToFlex(value: "top" | "center" | "bottom") {
+  if (value === "top") return "flex-start"
+  if (value === "center") return "center"
+  return "flex-end"
+}
+
 function getHtmlForBlockInsertion(block: PageBlock): string {
   if (block.type === "heading") {
     const tag = `h${block.level}`
@@ -233,19 +258,25 @@ function getHtmlForBlockInsertion(block: PageBlock): string {
   if (block.type === "columns") {
     const items = block.items
       .slice(0, block.columns)
-      .map((item) => `<div>${item}</div>`)
+      .map((item) => {
+        const alignItems = mapHorizontalAlignToFlex(block.itemContentAlignX)
+        const justifyContent = mapVerticalAlignToFlex(block.itemContentAlignY)
+        return `<div style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};padding:${block.itemPaddingY}px ${block.itemPaddingX}px;border:1px solid rgba(15,23,42,0.08);border-radius:14px;background:#ffffff;">${item}</div>`
+      })
       .join("")
-    return `<div style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;">${items}</div>`
+    return `<div style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};">${items}</div>`
   }
   if (block.type === "container") {
+    const alignItems = mapHorizontalAlignToFlex(block.columnContentAlignX)
+    const justifyContent = mapVerticalAlignToFlex(block.columnContentAlignY)
     const items: string = block.children
       .slice(0, block.columns)
       .map(
         (columnBlocks: PageBlock[]) =>
-          `<div style="min-width:0;">${columnBlocks.map((child: PageBlock) => getHtmlForBlockInsertion(child)).join("")}</div>`,
+          `<div style="min-width:0;display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;">${columnBlocks.map((child: PageBlock) => getHtmlForBlockInsertion(child)).join("")}</div>`,
       )
       .join("")
-    return `<section style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;background:${escapeHtmlAttribute(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
+    return `<section style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background:${escapeHtmlAttribute(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
   }
   return "<p>Novo bloco</p>"
 }
@@ -385,6 +416,48 @@ function getBlockLabel(block: PageBlock) {
   return "Espaco"
 }
 
+function buildBlockStructureNode(block: PageBlock, nodeId: string): EditorStructureNode {
+  if (block.type !== "container") {
+    return {
+      id: nodeId,
+      kind: "block",
+      label: getBlockLabel(block),
+      blockId: block.id,
+      children: [],
+    }
+  }
+
+  const columnNodes: EditorStructureNode[] = block.children.slice(0, block.columns).map((columnBlocks, columnIndex) => ({
+    id: `${nodeId}-column-${columnIndex}`,
+    kind: "column",
+    label: `Coluna ${columnIndex + 1}`,
+    blockId: block.id,
+    containerId: block.id,
+    columnIndex,
+    children: columnBlocks.map((childBlock, childIndex) =>
+      buildBlockStructureNode(childBlock, `${nodeId}-column-${columnIndex}-child-${childIndex}-${childBlock.id}`),
+    ),
+  }))
+
+  return {
+    id: nodeId,
+    kind: "container",
+    label: getBlockLabel(block),
+    blockId: block.id,
+    children: columnNodes,
+  }
+}
+
+function buildStructureTree(blocks: PageBlock[]): EditorStructureNode[] {
+  return blocks.map((block, index) => ({
+    id: `section-${index}-${block.id}`,
+    kind: "section",
+    label: `Secao ${index + 1}`,
+    blockId: block.id,
+    children: [buildBlockStructureNode(block, `section-${index}-${block.id}-root`)],
+  }))
+}
+
 function canInlineEdit(block: PageBlock) {
   return block.type === "heading" || block.type === "button" || block.type === "columns"
 }
@@ -393,6 +466,9 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
   const normalized = normalizeLayoutStyle(layout ?? getBlockLayoutDefaults())
   const widthPercent = Math.round((normalized.gridColumns / 12) * 10000) / 100
   const widthCss = `min(100%, ${widthPercent}%)`
+
+  const contentAlignItems = mapHorizontalAlignToFlex(normalized.contentAlignX)
+  const contentJustifyContent = mapVerticalAlignToFlex(normalized.contentAlignY)
 
   return {
     width: widthCss,
@@ -406,6 +482,12 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
     paddingLeft: normalized.paddingLeft,
     background: normalized.backgroundColor,
     borderRadius: normalized.borderRadius,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: contentAlignItems,
+    justifyContent: contentJustifyContent,
+    gap: normalized.contentGap,
+    minHeight: normalized.minHeight,
     boxSizing: "border-box",
   }
 }
@@ -585,13 +667,13 @@ export function AdminPageEditor() {
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [uploadingInspectorAsset, setUploadingInspectorAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
-  const [sidebarTab, setSidebarTab] = useState<"blocks" | "inspector" | "versions">("inspector")
+  const [sidebarTab, setSidebarTab] = useState<"blocks" | "structure" | "inspector" | "versions">("inspector")
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isDraggingCanvasBlock, setIsDraggingCanvasBlock] = useState(false)
   const [inlineEditingBlockId, setInlineEditingBlockId] = useState<string | null>(null)
   const [showLayoutGuides, setShowLayoutGuides] = useState(true)
   const [snapSpacingToGrid, setSnapSpacingToGrid] = useState(true)
-  const [richSelectionMode, setRichSelectionMode] = useState(true)
+  const [richSelectionMode, setRichSelectionMode] = useState(false)
   const [selectedRichNodeIndex, setSelectedRichNodeIndex] = useState<number | null>(null)
   const [selectedContainerColumnTarget, setSelectedContainerColumnTarget] = useState<{
     containerId: string
@@ -635,6 +717,7 @@ export function AdminPageEditor() {
     () => normalizeLayoutStyle(selectedBlock?.layout ?? getBlockLayoutDefaults()),
     [selectedBlock],
   )
+  const structureTree = useMemo(() => buildStructureTree(documentDraft.blocks), [documentDraft.blocks])
 
   const selectedRichNodeHtml = useMemo(() => {
     if (!selectedBlock || selectedBlock.type !== "rich_text") return null
@@ -732,19 +815,59 @@ export function AdminPageEditor() {
   )
 
   const selectBlockForEdit = useCallback((blockId: string) => {
+    if (selectedBlockId !== blockId) {
+      setSelectedRichNodeIndex(null)
+      setPendingRichInsertPoint(null)
+    }
     setSelectedBlockId(blockId)
     setSidebarTab("inspector")
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(true)
-  }, [])
+  }, [selectedBlockId])
 
   const selectBlockSilently = useCallback((blockId: string) => {
+    if (selectedBlockId !== blockId) {
+      setSelectedRichNodeIndex(null)
+      setPendingRichInsertPoint(null)
+    }
     setSelectedBlockId(blockId)
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
-  }, [])
+  }, [selectedBlockId])
+
+  const handleSelectStructureNode = useCallback(
+    (node: EditorStructureNode) => {
+      if (node.kind === "column" && node.containerId && typeof node.columnIndex === "number") {
+        setSelectedRichNodeIndex(null)
+        setPendingRichInsertPoint(null)
+        setSelectedBlockId(node.containerId)
+        setSelectedContainerColumnTarget({ containerId: node.containerId, columnIndex: node.columnIndex })
+        setPendingContainerInsertPoint(null)
+        setIsLayoutCardVisible(true)
+        setSidebarTab("inspector")
+        return
+      }
+      if (node.blockId) {
+        selectBlockForEdit(node.blockId)
+      }
+    },
+    [selectBlockForEdit],
+  )
+
+  const isStructureNodeSelected = useCallback(
+    (node: EditorStructureNode) => {
+      if (node.kind === "column") {
+        return (
+          selectedContainerColumnTarget?.containerId === node.containerId &&
+          selectedContainerColumnTarget?.columnIndex === node.columnIndex
+        )
+      }
+      return !!node.blockId && node.blockId === selectedBlockId
+    },
+    [selectedBlockId, selectedContainerColumnTarget],
+  )
 
   const snapSpacing = useCallback(
     (value: number) => {
@@ -1399,7 +1522,7 @@ export function AdminPageEditor() {
   useEffect(() => {
     if (selectedBlock?.type !== "rich_text") {
       setSelectedRichNodeIndex(null)
-      setRichSelectionMode(true)
+      setRichSelectionMode(false)
       setPendingRichInsertPoint(null)
     }
   }, [selectedBlock])
@@ -2104,7 +2227,7 @@ export function AdminPageEditor() {
                         {block.type === "rich_text" ? (
                           <div className="space-y-2">
                             <div
-                              className="rich-text-editor min-h-[70px] max-w-full overflow-hidden leading-8 [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                              className="rich-text-editor min-h-[70px] max-w-full overflow-hidden [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
                               onClick={(event) => {
                                 selectBlockForEdit(block.id)
                                 if (!richSelectionMode) {
@@ -2178,7 +2301,11 @@ export function AdminPageEditor() {
                               dangerouslySetInnerHTML={{
                                 __html:
                                   isSelected && richSelectionMode
-                                    ? annotateRichTextNodes(block.content, selectedRichNodeIndex, selectedRichNodeIndex !== null)
+                                    ? annotateRichTextNodes(
+                                        block.content,
+                                        selectedRichNodeIndex,
+                                        isDraggingCanvasBlock && selectedRichNodeIndex !== null,
+                                      )
                                     : block.content,
                               }}
                             />
@@ -2253,7 +2380,10 @@ export function AdminPageEditor() {
                             style={{
                               display: "grid",
                               gridTemplateColumns: `repeat(${block.columns}, minmax(0, 1fr))`,
-                              gap: `${block.gap}px`,
+                              columnGap: `${block.gap}px`,
+                              rowGap: `${block.rowGap}px`,
+                              alignItems: block.alignItems,
+                              justifyItems: block.justifyItems,
                               background: block.backgroundColor,
                               borderStyle: "solid",
                               borderColor: block.borderColor,
@@ -2265,7 +2395,20 @@ export function AdminPageEditor() {
                             {block.children.slice(0, block.columns).map((columnBlocks, columnIndex) => (
                               <article
                                 key={`${block.id}-container-col-${columnIndex}`}
-                                className="rounded-xl border border-slate-200/60 bg-white/80 p-3"
+                                className={[
+                                  "rounded-xl border bg-white/80 p-3",
+                                  selectedContainerColumnTarget?.containerId === block.id &&
+                                  selectedContainerColumnTarget.columnIndex === columnIndex
+                                    ? "border-sky-300 ring-2 ring-sky-100"
+                                    : "border-slate-200/60",
+                                ].join(" ")}
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  setSelectedContainerColumnTarget({ containerId: block.id, columnIndex })
+                                  setSelectedBlockId(block.id)
+                                  setSidebarTab("inspector")
+                                }}
                                 onDragOver={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
@@ -2302,7 +2445,17 @@ export function AdminPageEditor() {
                                     Coluna vazia.
                                   </p>
                                 ) : (
-                                  <div className="space-y-2">
+                                  <div
+                                    className="space-y-2"
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      alignItems: mapHorizontalAlignToFlex(block.columnContentAlignX),
+                                      justifyContent: mapVerticalAlignToFlex(block.columnContentAlignY),
+                                      gap: `${block.columnContentGap}px`,
+                                      minHeight: "100%",
+                                    }}
+                                  >
                                     {columnBlocks.map((childBlock) => {
                                       const isChildSelected = selectedBlockId === childBlock.id
                                       return (
@@ -2339,7 +2492,10 @@ export function AdminPageEditor() {
                             style={{
                               display: "grid",
                               gridTemplateColumns: `repeat(${block.columns}, minmax(0, 1fr))`,
-                              gap: `${block.gap}px`,
+                              columnGap: `${block.gap}px`,
+                              rowGap: `${block.rowGap}px`,
+                              alignItems: block.alignItems,
+                              justifyItems: block.justifyItems,
                             }}
                           >
                             {block.items.slice(0, block.columns).map((item, itemIndex) => (
@@ -2363,6 +2519,13 @@ export function AdminPageEditor() {
                                   "rounded-xl border border-slate-200 bg-white p-4",
                                   isInlineEditing ? "outline-none ring-2 ring-sky-200" : "",
                                 ].join(" ")}
+                                style={{
+                                  padding: `${block.itemPaddingY}px ${block.itemPaddingX}px`,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: mapHorizontalAlignToFlex(block.itemContentAlignX),
+                                  justifyContent: mapVerticalAlignToFlex(block.itemContentAlignY),
+                                }}
                                 dangerouslySetInnerHTML={{ __html: item }}
                               />
                             ))}
@@ -2427,6 +2590,20 @@ export function AdminPageEditor() {
               </button>
               <button
                 type="button"
+                aria-label="Aba de estrutura da pagina"
+                title="Estrutura"
+                onClick={() => setSidebarTab("structure")}
+                className={[
+                  "inline-flex h-8 w-8 items-center justify-center rounded-lg border transition",
+                  sidebarTab === "structure"
+                    ? "border-sky-300 bg-sky-50 text-sky-900"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 aria-label="Aba de historico de versoes"
                 title="Historico de versoes"
                 onClick={() => setSidebarTab("versions")}
@@ -2467,6 +2644,60 @@ export function AdminPageEditor() {
                     </button>
                   ))}
                 </div>
+              </section>
+            ) : null}
+
+            {sidebarTab === "structure" ? (
+              <section className="rounded-2xl border border-slate-200 bg-white/98 p-2.5 shadow-sm backdrop-blur">
+                <div className="mb-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Estrutura da pagina</p>
+                  <p className="mt-1 text-xs text-slate-500">Hierarquia: secoes, containers, colunas e blocos.</p>
+                </div>
+                {structureTree.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
+                    Ainda nao existem blocos nesta pagina.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {structureTree.map((sectionNode) => {
+                      const renderNode = (node: EditorStructureNode, depth: number) => {
+                        const isActive = isStructureNodeSelected(node)
+                        const kindLabel =
+                          node.kind === "section"
+                            ? "SECAO"
+                            : node.kind === "container"
+                              ? "CONTAINER"
+                              : node.kind === "column"
+                                ? "COLUNA"
+                                : "BLOCO"
+                        return (
+                          <div key={node.id} className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectStructureNode(node)}
+                              style={{ paddingLeft: `${10 + depth * 14}px` }}
+                              className={[
+                                "flex w-full items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-left text-xs transition",
+                                isActive ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 bg-white text-slate-700 hover:border-sky-300",
+                              ].join(" ")}
+                            >
+                              <span className="truncate font-semibold">{node.label}</span>
+                              <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-black tracking-[0.12em] text-slate-600">
+                                {kindLabel}
+                              </span>
+                            </button>
+                            {node.children.length > 0 ? (
+                              <div className="space-y-1">
+                                {node.children.map((childNode) => renderNode(childNode, depth + 1))}
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      }
+                      return renderNode(sectionNode, 0)
+                    })}
+                  </div>
+                )}
               </section>
             ) : null}
 
@@ -2703,6 +2934,71 @@ export function AdminPageEditor() {
                           value={selectedLayout.borderRadius}
                           onChange={(event) =>
                             updateSelectedBlockLayout({ borderRadius: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Conteudo horizontal
+                        <select
+                          value={selectedLayout.contentAlignX}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({
+                              contentAlignX: event.target.value as "left" | "center" | "right" | "stretch",
+                            })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        >
+                          <option value="left">Esquerda</option>
+                          <option value="center">Centro</option>
+                          <option value="right">Direita</option>
+                          <option value="stretch">Esticar</option>
+                        </select>
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Conteudo vertical
+                        <select
+                          value={selectedLayout.contentAlignY}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({
+                              contentAlignY: event.target.value as "top" | "center" | "bottom",
+                            })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        >
+                          <option value="top">Topo</option>
+                          <option value="center">Centro</option>
+                          <option value="bottom">Base</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Espacamento interno (px)
+                        <input
+                          type="number"
+                          min={0}
+                          max={120}
+                          value={selectedLayout.contentGap}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ contentGap: snapSpacing(Number(event.target.value) || 0) })
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Altura minima (px)
+                        <input
+                          type="number"
+                          min={0}
+                          max={1200}
+                          value={selectedLayout.minHeight}
+                          onChange={(event) =>
+                            updateSelectedBlockLayout({ minHeight: Math.max(0, Math.min(1200, Number(event.target.value) || 0)) })
                           }
                           className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
                         />
@@ -3467,7 +3763,7 @@ export function AdminPageEditor() {
                           </select>
                         </label>
                         <label className="block text-xs font-semibold text-slate-600">
-                          Gap entre colunas (px)
+                          Gap horizontal (px)
                           <input
                             type="number"
                             min={8}
@@ -3482,6 +3778,121 @@ export function AdminPageEditor() {
                             }
                             className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                           />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Gap vertical (px)
+                          <input
+                            type="number"
+                            min={8}
+                            max={64}
+                            value={selectedBlock.rowGap}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, rowGap: Math.max(8, Math.min(64, snapSpacing(Number(event.target.value) || 8))) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Espaco entre elementos (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={80}
+                            value={selectedBlock.columnContentGap}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, columnContentGap: Math.max(0, Math.min(80, snapSpacing(Number(event.target.value) || 0))) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento H das colunas
+                          <select
+                            value={selectedBlock.alignItems}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, alignItems: event.target.value as "start" | "center" | "end" | "stretch" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="start">Inicio</option>
+                            <option value="center">Centro</option>
+                            <option value="end">Fim</option>
+                            <option value="stretch">Esticar</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento V das colunas
+                          <select
+                            value={selectedBlock.justifyItems}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, justifyItems: event.target.value as "start" | "center" | "end" | "stretch" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="start">Topo</option>
+                            <option value="center">Centro</option>
+                            <option value="end">Base</option>
+                            <option value="stretch">Esticar</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Conteudo da coluna (H)
+                          <select
+                            value={selectedBlock.columnContentAlignX}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, columnContentAlignX: event.target.value as "left" | "center" | "right" | "stretch" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                            <option value="stretch">Esticar</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Conteudo da coluna (V)
+                          <select
+                            value={selectedBlock.columnContentAlignY}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "container"
+                                  ? { ...block, columnContentAlignY: event.target.value as "top" | "center" | "bottom" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="top">Topo</option>
+                            <option value="center">Centro</option>
+                            <option value="bottom">Base</option>
+                          </select>
                         </label>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -3582,6 +3993,11 @@ export function AdminPageEditor() {
                       </div>
 
                       <div className="space-y-2">
+                        {selectedContainerColumnTarget?.containerId === selectedBlock.id ? (
+                          <p className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-900">
+                            Coluna selecionada no canvas: {selectedContainerColumnTarget.columnIndex + 1}
+                          </p>
+                        ) : null}
                         <p className="text-xs font-semibold text-slate-600">Blocos por coluna</p>
                         {selectedBlock.children.slice(0, selectedBlock.columns).map((columnBlocks, columnIndex) => (
                           <div key={`${selectedBlock.id}-editor-col-${columnIndex}`} className="space-y-2 rounded-xl border border-slate-200 p-2">
@@ -3648,37 +4064,171 @@ export function AdminPageEditor() {
 
                   {selectedBlock.type === "columns" ? (
                     <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Numero de colunas
+                          <select
+                            value={selectedBlock.columns}
+                            onChange={(event) => {
+                              const nextColumns = Math.max(2, Math.min(4, Number(event.target.value) || 2)) as 2 | 3 | 4
+                              updateSelectedBlock((block) => {
+                                if (block.type !== "columns") return block
+                                const nextItems = [...block.items]
+                                while (nextItems.length < nextColumns) nextItems.push("<p>Coluna vazia.</p>")
+                                return { ...block, columns: nextColumns, items: nextItems.slice(0, nextColumns) }
+                              })
+                            }}
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value={2}>2</option>
+                            <option value={3}>3</option>
+                            <option value={4}>4</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Gap horizontal (px)
+                          <input
+                            type="number"
+                            min={8}
+                            max={64}
+                            value={selectedBlock.gap}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, gap: Math.max(8, Math.min(64, snapSpacing(Number(event.target.value) || 8))) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Gap vertical (px)
+                          <input
+                            type="number"
+                            min={8}
+                            max={64}
+                            value={selectedBlock.rowGap}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, rowGap: Math.max(8, Math.min(64, snapSpacing(Number(event.target.value) || 8))) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento H das colunas
+                          <select
+                            value={selectedBlock.alignItems}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, alignItems: event.target.value as "start" | "center" | "end" | "stretch" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="start">Inicio</option>
+                            <option value="center">Centro</option>
+                            <option value="end">Fim</option>
+                            <option value="stretch">Esticar</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Alinhamento V das colunas
+                          <select
+                            value={selectedBlock.justifyItems}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, justifyItems: event.target.value as "start" | "center" | "end" | "stretch" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="start">Topo</option>
+                            <option value="center">Centro</option>
+                            <option value="end">Base</option>
+                            <option value="stretch">Esticar</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Conteudo do item (H)
+                          <select
+                            value={selectedBlock.itemContentAlignX}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, itemContentAlignX: event.target.value as "left" | "center" | "right" | "stretch" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                            <option value="stretch">Esticar</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Conteudo do item (V)
+                          <select
+                            value={selectedBlock.itemContentAlignY}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, itemContentAlignY: event.target.value as "top" | "center" | "bottom" }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          >
+                            <option value="top">Topo</option>
+                            <option value="center">Centro</option>
+                            <option value="bottom">Base</option>
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Padding vertical do item (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={selectedBlock.itemPaddingY}
+                            onChange={(event) =>
+                              updateSelectedBlock((block) =>
+                                block.type === "columns"
+                                  ? { ...block, itemPaddingY: Math.max(0, Math.min(120, snapSpacing(Number(event.target.value) || 0))) }
+                                  : block,
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
                       <label className="block text-xs font-semibold text-slate-600">
-                        Numero de colunas
-                        <select
-                          value={selectedBlock.columns}
-                          onChange={(event) => {
-                            const nextColumns = Math.max(2, Math.min(4, Number(event.target.value) || 2)) as 2 | 3 | 4
-                            updateSelectedBlock((block) => {
-                              if (block.type !== "columns") return block
-                              const nextItems = [...block.items]
-                              while (nextItems.length < nextColumns) nextItems.push("<p>Coluna vazia.</p>")
-                              return { ...block, columns: nextColumns, items: nextItems.slice(0, nextColumns) }
-                            })
-                          }}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                        >
-                          <option value={2}>2</option>
-                          <option value={3}>3</option>
-                          <option value={4}>4</option>
-                        </select>
-                      </label>
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Gap entre colunas (px)
+                        Padding horizontal do item (px)
                         <input
                           type="number"
-                          min={8}
-                          max={64}
-                          value={selectedBlock.gap}
+                          min={0}
+                          max={120}
+                          value={selectedBlock.itemPaddingX}
                           onChange={(event) =>
                             updateSelectedBlock((block) =>
                               block.type === "columns"
-                                ? { ...block, gap: Math.max(8, Math.min(64, snapSpacing(Number(event.target.value) || 8))) }
+                                ? { ...block, itemPaddingX: Math.max(0, Math.min(120, snapSpacing(Number(event.target.value) || 0))) }
                                 : block,
                             )
                           }

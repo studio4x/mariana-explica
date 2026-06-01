@@ -14,6 +14,10 @@ export interface BlockLayoutStyle {
   marginBottom: number
   backgroundColor: string
   borderRadius: number
+  contentAlignX: "left" | "center" | "right" | "stretch"
+  contentAlignY: "top" | "center" | "bottom"
+  contentGap: number
+  minHeight: number
 }
 
 interface BasePageBlock {
@@ -75,6 +79,13 @@ export interface ColumnsBlock extends BasePageBlock {
   type: "columns"
   columns: 2 | 3 | 4
   gap: number
+  rowGap: number
+  alignItems: "start" | "center" | "end" | "stretch"
+  justifyItems: "start" | "center" | "end" | "stretch"
+  itemContentAlignX: "left" | "center" | "right" | "stretch"
+  itemContentAlignY: "top" | "center" | "bottom"
+  itemPaddingY: number
+  itemPaddingX: number
   items: string[]
 }
 
@@ -82,6 +93,12 @@ export interface ContainerBlock extends BasePageBlock {
   type: "container"
   columns: 1 | 2 | 3 | 4
   gap: number
+  rowGap: number
+  alignItems: "start" | "center" | "end" | "stretch"
+  justifyItems: "start" | "center" | "end" | "stretch"
+  columnContentAlignX: "left" | "center" | "right" | "stretch"
+  columnContentAlignY: "top" | "center" | "bottom"
+  columnContentGap: number
   children: PageBlock[][]
   backgroundColor: string
   borderColor: string
@@ -144,6 +161,10 @@ export function getBlockLayoutDefaults(): BlockLayoutStyle {
     marginBottom: 4,
     backgroundColor: "transparent",
     borderRadius: 0,
+    contentAlignX: "stretch",
+    contentAlignY: "top",
+    contentGap: 0,
+    minHeight: 0,
   }
 }
 
@@ -166,6 +187,18 @@ export function normalizeLayoutStyle(raw: unknown): BlockLayoutStyle {
     marginBottom: clamp(Number(record.marginBottom ?? defaults.marginBottom), 0, 240),
     backgroundColor: String(record.backgroundColor ?? defaults.backgroundColor),
     borderRadius: clamp(Number(record.borderRadius ?? defaults.borderRadius), 0, 120),
+    contentAlignX: (
+      ["left", "center", "right", "stretch"].includes(String(record.contentAlignX))
+        ? String(record.contentAlignX)
+        : defaults.contentAlignX
+    ) as "left" | "center" | "right" | "stretch",
+    contentAlignY: (
+      ["top", "center", "bottom"].includes(String(record.contentAlignY))
+        ? String(record.contentAlignY)
+        : defaults.contentAlignY
+    ) as "top" | "center" | "bottom",
+    contentGap: clamp(Number(record.contentGap ?? defaults.contentGap), 0, 120),
+    minHeight: clamp(Number(record.minHeight ?? defaults.minHeight), 0, 1200),
   }
 }
 
@@ -244,6 +277,13 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         type: "columns",
         columns: 2,
         gap: 18,
+        rowGap: 18,
+        alignItems: "stretch",
+        justifyItems: "stretch",
+        itemContentAlignX: "left",
+        itemContentAlignY: "top",
+        itemPaddingY: 16,
+        itemPaddingX: 16,
         items: [
           "<p><strong>Coluna 1</strong><br/>Conteudo editavel da primeira coluna.</p>",
           "<p><strong>Coluna 2</strong><br/>Conteudo editavel da segunda coluna.</p>",
@@ -256,6 +296,12 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         type: "container",
         columns: 2,
         gap: 16,
+        rowGap: 16,
+        alignItems: "stretch",
+        justifyItems: "stretch",
+        columnContentAlignX: "left",
+        columnContentAlignY: "top",
+        columnContentGap: 8,
         children: [[createDefaultContainerColumnBlock(0)], [createDefaultContainerColumnBlock(1)]],
         backgroundColor: "#f8fafc",
         borderColor: "rgba(36,39,66,0.14)",
@@ -1030,11 +1076,35 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
 
     if (type === "columns") {
       const columns = clamp(Number(block.columns ?? 2), 2, 4) as 2 | 3 | 4
+      const baseGap = clamp(Number(block.gap ?? 18), 8, 64)
       blocks.push({
         id: String(block.id ?? uid("columns")),
         type,
         columns,
-        gap: clamp(Number(block.gap ?? 18), 8, 64),
+        gap: baseGap,
+        rowGap: clamp(Number(block.rowGap ?? block.gap ?? 18), 8, 64),
+        alignItems: (
+          ["start", "center", "end", "stretch"].includes(String(block.alignItems))
+            ? String(block.alignItems)
+            : "stretch"
+        ) as "start" | "center" | "end" | "stretch",
+        justifyItems: (
+          ["start", "center", "end", "stretch"].includes(String(block.justifyItems))
+            ? String(block.justifyItems)
+            : "stretch"
+        ) as "start" | "center" | "end" | "stretch",
+        itemContentAlignX: (
+          ["left", "center", "right", "stretch"].includes(String(block.itemContentAlignX))
+            ? String(block.itemContentAlignX)
+            : "left"
+        ) as "left" | "center" | "right" | "stretch",
+        itemContentAlignY: (
+          ["top", "center", "bottom"].includes(String(block.itemContentAlignY))
+            ? String(block.itemContentAlignY)
+            : "top"
+        ) as "top" | "center" | "bottom",
+        itemPaddingY: clamp(Number(block.itemPaddingY ?? 16), 0, 120),
+        itemPaddingX: clamp(Number(block.itemPaddingX ?? 16), 0, 120),
         items: normalizeColumnsItems(block.items, columns),
         layout,
       })
@@ -1043,11 +1113,34 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
 
     if (type === "container") {
       const columns = clamp(Number(block.columns ?? 2), 1, 4) as 1 | 2 | 3 | 4
+      const baseGap = clamp(Number(block.gap ?? 16), 8, 64)
       blocks.push({
         id: String(block.id ?? uid("container")),
         type,
         columns,
-        gap: clamp(Number(block.gap ?? 16), 8, 64),
+        gap: baseGap,
+        rowGap: clamp(Number(block.rowGap ?? block.gap ?? 16), 8, 64),
+        alignItems: (
+          ["start", "center", "end", "stretch"].includes(String(block.alignItems))
+            ? String(block.alignItems)
+            : "stretch"
+        ) as "start" | "center" | "end" | "stretch",
+        justifyItems: (
+          ["start", "center", "end", "stretch"].includes(String(block.justifyItems))
+            ? String(block.justifyItems)
+            : "stretch"
+        ) as "start" | "center" | "end" | "stretch",
+        columnContentAlignX: (
+          ["left", "center", "right", "stretch"].includes(String(block.columnContentAlignX))
+            ? String(block.columnContentAlignX)
+            : "left"
+        ) as "left" | "center" | "right" | "stretch",
+        columnContentAlignY: (
+          ["top", "center", "bottom"].includes(String(block.columnContentAlignY))
+            ? String(block.columnContentAlignY)
+            : "top"
+        ) as "top" | "center" | "bottom",
+        columnContentGap: clamp(Number(block.columnContentGap ?? 8), 0, 80),
         children: normalizeContainerChildren(block.children, block.items, columns),
         backgroundColor: String(block.backgroundColor ?? "#f8fafc"),
         borderColor: String(block.borderColor ?? "rgba(36,39,66,0.14)"),
@@ -1299,6 +1392,17 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
   const marginLeft = layout.align === "right" ? "auto" : layout.align === "center" ? "auto" : "0"
   const marginRight = layout.align === "left" ? "auto" : layout.align === "center" ? "auto" : "0"
 
+  const contentAlignItems =
+    layout.contentAlignX === "left"
+      ? "flex-start"
+      : layout.contentAlignX === "center"
+        ? "center"
+        : layout.contentAlignX === "right"
+          ? "flex-end"
+          : "stretch"
+  const contentJustifyContent =
+    layout.contentAlignY === "top" ? "flex-start" : layout.contentAlignY === "center" ? "center" : "flex-end"
+
   return [
     `width:${widthCss}`,
     `margin-top:${layout.marginTop}px`,
@@ -1308,6 +1412,12 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
     `padding:${layout.paddingTop}px ${layout.paddingRight}px ${layout.paddingBottom}px ${layout.paddingLeft}px`,
     `background:${escapeHtml(layout.backgroundColor)}`,
     `border-radius:${layout.borderRadius}px`,
+    "display:flex",
+    "flex-direction:column",
+    `align-items:${contentAlignItems}`,
+    `justify-content:${contentJustifyContent}`,
+    `gap:${layout.contentGap}px`,
+    `min-height:${layout.minHeight}px`,
   ].join(";")
 }
 
@@ -1349,17 +1459,49 @@ function renderSingleBlockToHtml(block: PageBlock): string {
       if (block.type === "container") {
         const items = block.children
           .slice(0, block.columns)
-          .map((columnBlocks) => `<article class="me-managed-container-column">${renderBlocksToHtml(columnBlocks)}</article>`)
+          .map((columnBlocks) => {
+            const alignItems =
+              block.columnContentAlignX === "left"
+                ? "flex-start"
+                : block.columnContentAlignX === "center"
+                  ? "center"
+                  : block.columnContentAlignX === "right"
+                    ? "flex-end"
+                    : "stretch"
+            const justifyContent =
+              block.columnContentAlignY === "top"
+                ? "flex-start"
+                : block.columnContentAlignY === "center"
+                  ? "center"
+                  : "flex-end"
+            return `<article class="me-managed-container-column" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;">${renderBlocksToHtml(columnBlocks)}</article>`
+          })
           .join("")
-        return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;background:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
+        return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
       }
 
       const items = block.items
         .slice(0, block.columns)
-        .map((item) => `<article class="me-managed-column-item">${sanitizeRichText(item)}</article>`)
+        .map((item) => {
+          const alignItems =
+            block.itemContentAlignX === "left"
+              ? "flex-start"
+              : block.itemContentAlignX === "center"
+                ? "center"
+                : block.itemContentAlignX === "right"
+                  ? "flex-end"
+                  : "stretch"
+          const justifyContent =
+            block.itemContentAlignY === "top"
+              ? "flex-start"
+              : block.itemContentAlignY === "center"
+                ? "center"
+                : "flex-end"
+          return `<article class="me-managed-column-item" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};padding:${block.itemPaddingY}px ${block.itemPaddingX}px;">${sanitizeRichText(item)}</article>`
+        })
         .join("")
 
-      return `<section class="me-managed-columns" style="grid-template-columns:repeat(${block.columns},minmax(0,1fr));gap:${block.gap}px;">${items}</section>`
+      return `<section class="me-managed-columns" style="grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};">${items}</section>`
 }
 
 function renderBlocksToHtml(blocks: PageBlock[]) {
