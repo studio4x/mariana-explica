@@ -491,13 +491,24 @@ function buildBlockStructureNode(block: PageBlock, nodeId: string): EditorStruct
 }
 
 function buildStructureTree(blocks: PageBlock[]): EditorStructureNode[] {
-  return blocks.map((block, index) => ({
-    id: `section-${index}-${block.id}`,
-    kind: "section",
-    label: `Secao ${index + 1}`,
-    blockId: block.id,
-    children: [buildBlockStructureNode(block, `section-${index}-${block.id}-root`)],
-  }))
+  return blocks.map((block, index) => {
+    const rootNode = buildBlockStructureNode(block, `section-${index}-${block.id}-root`)
+    const normalizedRootNode =
+      block.type === "rich_text"
+        ? {
+            ...rootNode,
+            label: "Container",
+          }
+        : rootNode
+
+    return {
+      id: `section-${index}-${block.id}`,
+      kind: "section" as const,
+      label: `Secao ${index + 1}`,
+      blockId: block.id,
+      children: [normalizedRootNode],
+    }
+  })
 }
 
 function canInlineEdit(block: PageBlock) {
@@ -880,7 +891,9 @@ export function AdminPageEditor() {
   }, [selectedBlockId])
 
   const handleSelectStructureNode = useCallback(
-    (node: EditorStructureNode) => {
+    (node: EditorStructureNode, options?: { openInspector?: boolean }) => {
+      const openInspector = options?.openInspector ?? false
+
       if (node.kind === "rich_node" && node.blockId && typeof node.richNodeIndex === "number") {
         setSelectedBlockId(node.blockId)
         setSelectedContainerColumnTarget(null)
@@ -888,8 +901,10 @@ export function AdminPageEditor() {
         setPendingRichInsertPoint(null)
         setSelectedRichNodeIndex(node.richNodeIndex)
         setRichSelectionMode(true)
-        setIsLayoutCardVisible(true)
-        setSidebarTab("inspector")
+        setIsLayoutCardVisible(openInspector)
+        if (openInspector) {
+          setSidebarTab("inspector")
+        }
         return
       }
       if (node.kind === "column" && node.containerId && typeof node.columnIndex === "number") {
@@ -898,15 +913,21 @@ export function AdminPageEditor() {
         setSelectedBlockId(node.containerId)
         setSelectedContainerColumnTarget({ containerId: node.containerId, columnIndex: node.columnIndex })
         setPendingContainerInsertPoint(null)
-        setIsLayoutCardVisible(true)
-        setSidebarTab("inspector")
+        setIsLayoutCardVisible(openInspector)
+        if (openInspector) {
+          setSidebarTab("inspector")
+        }
         return
       }
       if (node.blockId) {
-        selectBlockForEdit(node.blockId)
+        if (openInspector) {
+          selectBlockForEdit(node.blockId)
+          return
+        }
+        selectBlockSilently(node.blockId)
       }
     },
-    [selectBlockForEdit],
+    [selectBlockForEdit, selectBlockSilently],
   )
 
   const isStructureNodeSelected = useCallback(
@@ -923,6 +944,116 @@ export function AdminPageEditor() {
       return !!node.blockId && node.blockId === selectedBlockId
     },
     [selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex],
+  )
+
+  const duplicateRichNodeAtIndex = useCallback(
+    (blockId: string, richNodeIndex: number) => {
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return false
+      let duplicated = false
+      updateDocument((current) => {
+        const next = updateBlockByIdInTree(current.blocks, blockId, (block) => {
+          if (block.type !== "rich_text") return block
+          const parser = new DOMParser()
+          const parsed = parser.parseFromString(block.content, "text/html")
+          const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+          const targetNode = nodes[richNodeIndex]
+          if (!targetNode || !targetNode.parentNode) return block
+          const clone = targetNode.cloneNode(true)
+          targetNode.parentNode.insertBefore(clone, targetNode.nextSibling)
+          duplicated = true
+          return { ...block, content: parsed.body.innerHTML }
+        })
+        return next.updated ? { blocks: next.blocks } : current
+      })
+      if (duplicated) {
+        setSelectedBlockId(blockId)
+        setSelectedRichNodeIndex(richNodeIndex + 1)
+        setRichSelectionMode(true)
+      }
+      return duplicated
+    },
+    [updateDocument],
+  )
+
+  const removeRichNodeAtIndex = useCallback(
+    (blockId: string, richNodeIndex: number) => {
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return false
+      let removed = false
+      updateDocument((current) => {
+        const next = updateBlockByIdInTree(current.blocks, blockId, (block) => {
+          if (block.type !== "rich_text") return block
+          const parser = new DOMParser()
+          const parsed = parser.parseFromString(block.content, "text/html")
+          const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+          const targetNode = nodes[richNodeIndex]
+          if (!targetNode) return block
+          targetNode.remove()
+          if (!parsed.body.innerHTML.trim()) {
+            parsed.body.innerHTML = "<p></p>"
+          }
+          removed = true
+          return { ...block, content: parsed.body.innerHTML }
+        })
+        return next.updated ? { blocks: next.blocks } : current
+      })
+      if (removed) {
+        setSelectedBlockId(blockId)
+        setSelectedRichNodeIndex(null)
+      }
+      return removed
+    },
+    [updateDocument],
+  )
+
+  const duplicateContainerColumnContent = useCallback(
+    (containerId: string, columnIndex: number) => {
+      let duplicated = false
+      updateDocument((current) => {
+        const next = updateBlockByIdInTree(current.blocks, containerId, (block) => {
+          if (block.type !== "container") return block
+          const safeIndex = Math.max(0, Math.min(columnIndex, block.columns - 1))
+          const sourceBlocks = block.children[safeIndex] ?? []
+          if (sourceBlocks.length === 0) return block
+          const clonedBlocks = sourceBlocks.map((item) => duplicateBlockWithNewIds(item))
+          const nextChildren = block.children.map((columnBlocks, idx) =>
+            idx === safeIndex ? [...columnBlocks, ...clonedBlocks] : columnBlocks,
+          )
+          duplicated = true
+          return { ...block, children: nextChildren }
+        })
+        return next.updated ? { blocks: next.blocks } : current
+      })
+      if (duplicated) {
+        setSelectedBlockId(containerId)
+        setSelectedContainerColumnTarget({ containerId, columnIndex })
+      }
+      return duplicated
+    },
+    [updateDocument],
+  )
+
+  const clearContainerColumnContent = useCallback(
+    (containerId: string, columnIndex: number) => {
+      let cleared = false
+      updateDocument((current) => {
+        const next = updateBlockByIdInTree(current.blocks, containerId, (block) => {
+          if (block.type !== "container") return block
+          const safeIndex = Math.max(0, Math.min(columnIndex, block.columns - 1))
+          const sourceBlocks = block.children[safeIndex] ?? []
+          if (sourceBlocks.length === 0) return block
+          const nextChildren = block.children.map((columnBlocks, idx) => (idx === safeIndex ? [] : columnBlocks))
+          cleared = true
+          return { ...block, children: nextChildren }
+        })
+        return next.updated ? { blocks: next.blocks } : current
+      })
+      if (cleared) {
+        setSelectedBlockId(containerId)
+        setSelectedContainerColumnTarget({ containerId, columnIndex })
+      }
+      return cleared
+    },
+    [updateDocument],
   )
 
   const snapSpacing = useCallback(
@@ -1573,6 +1704,49 @@ export function AdminPageEditor() {
       setIsLayoutCardVisible(false)
     },
     [documentDraft.blocks, removeSelectedRichNode, selectedRichNodeIndex, updateDocument],
+  )
+
+  const handleEditStructureNode = useCallback(
+    (node: EditorStructureNode) => {
+      handleSelectStructureNode(node, { openInspector: true })
+    },
+    [handleSelectStructureNode],
+  )
+
+  const handleDuplicateStructureNode = useCallback(
+    (node: EditorStructureNode) => {
+      if (node.kind === "rich_node" && node.blockId && typeof node.richNodeIndex === "number") {
+        duplicateRichNodeAtIndex(node.blockId, node.richNodeIndex)
+        return
+      }
+      if (node.kind === "column" && node.containerId && typeof node.columnIndex === "number") {
+        duplicateContainerColumnContent(node.containerId, node.columnIndex)
+        return
+      }
+      if (node.blockId) {
+        handleDuplicateBlock(node.blockId)
+      }
+    },
+    [duplicateContainerColumnContent, duplicateRichNodeAtIndex, handleDuplicateBlock],
+  )
+
+  const handleDeleteStructureNode = useCallback(
+    (node: EditorStructureNode) => {
+      if (node.kind === "rich_node" && node.blockId && typeof node.richNodeIndex === "number") {
+        if (!window.confirm("Queres mesmo excluir este elemento interno?")) return
+        removeRichNodeAtIndex(node.blockId, node.richNodeIndex)
+        return
+      }
+      if (node.kind === "column" && node.containerId && typeof node.columnIndex === "number") {
+        if (!window.confirm(`Queres mesmo limpar todos os blocos da coluna ${node.columnIndex + 1}?`)) return
+        clearContainerColumnContent(node.containerId, node.columnIndex)
+        return
+      }
+      if (node.blockId) {
+        handleRemoveBlock(node.blockId)
+      }
+    },
+    [clearContainerColumnContent, handleRemoveBlock, removeRichNodeAtIndex],
   )
 
   useEffect(() => {
@@ -2730,20 +2904,57 @@ export function AdminPageEditor() {
                                   : "BLOCO"
                         return (
                           <div key={node.id} className="space-y-1">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectStructureNode(node)}
+                            <div
                               style={{ paddingLeft: `${10 + depth * 14}px` }}
                               className={[
-                                "flex w-full items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-left text-xs transition",
-                                isActive ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 bg-white text-slate-700 hover:border-sky-300",
+                                "flex items-center gap-1.5 rounded-lg border px-2 py-1.5",
+                                isActive ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 bg-white text-slate-700",
                               ].join(" ")}
                             >
-                              <span className="truncate font-semibold">{node.label}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectStructureNode(node)}
+                                className="min-w-0 flex-1 text-left text-xs"
+                              >
+                                <span className="block truncate font-semibold">{node.label}</span>
+                              </button>
                               <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-black tracking-[0.12em] text-slate-600">
                                 {kindLabel}
                               </span>
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  handleEditStructureNode(node)
+                                }}
+                                className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-700 transition hover:border-sky-300"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  handleDuplicateStructureNode(node)
+                                }}
+                                className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-700 transition hover:border-sky-300"
+                              >
+                                Duplicar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  handleDeleteStructureNode(node)
+                                }}
+                                className="shrink-0 rounded-full border border-rose-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-rose-700 transition hover:bg-rose-50"
+                              >
+                                Excluir
+                              </button>
+                            </div>
                             {node.children.length > 0 ? (
                               <div className="space-y-1">
                                 {node.children.map((childNode) => renderNode(childNode, depth + 1))}
