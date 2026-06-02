@@ -60,7 +60,7 @@ export function CourseOverviewPanel() {
     try {
       const firstModule = await createModule.mutateAsync({
         productId: courseId,
-        title: "Modulo 1",
+        title: "Módulo 1",
         description: null,
         module_type: "mixed",
         access_type: "paid_only",
@@ -72,11 +72,11 @@ export function CourseOverviewPanel() {
       })
 
       setPendingRoute(adminCourseModulePath(courseId, firstModule.id))
-      setFeedback({ tone: "success", message: `Modulo "${firstModule.title}" criado com sucesso.` })
+      setFeedback({ tone: "success", message: `Módulo "${firstModule.title}" criado com sucesso.` })
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel abrir o construtor do material.",
+        message: error instanceof Error ? error.message : "Não foi possível abrir o construtor do material.",
       })
     }
   }
@@ -108,7 +108,7 @@ export function CourseOverviewPanel() {
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel criar o quiz do modulo.",
+        message: error instanceof Error ? error.message : "Não foi possível criar o quiz do módulo.",
       })
     }
   }
@@ -128,7 +128,7 @@ export function CourseOverviewPanel() {
         productId: courseId,
         moduleId: null,
         assessmentType: "final",
-        title: "Avaliacao final",
+        title: "Avaliação final",
         description: null,
         isRequired: true,
         passingScore: 70,
@@ -139,11 +139,11 @@ export function CourseOverviewPanel() {
       })
 
       setPendingRoute(adminCourseFinalAssessmentPath(courseId))
-      setFeedback({ tone: "success", message: "Avaliacao final criada com sucesso." })
+      setFeedback({ tone: "success", message: "Avaliação final criada com sucesso." })
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel preparar a avaliacao final.",
+        message: error instanceof Error ? error.message : "Não foi possível preparar a avaliação final.",
       })
     }
   }
@@ -163,7 +163,7 @@ export function CourseOverviewPanel() {
             <BookOpen className="h-6 w-6" />
           </div>
           <span className="text-3xl font-black text-slate-900">{modules.length}</span>
-          <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Modulos</span>
+          <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Módulos</span>
         </div>
         <div className="flex flex-col items-center justify-center space-y-2 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -184,13 +184,13 @@ export function CourseOverviewPanel() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/50 p-6 sm:flex-row sm:items-center">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Avaliacao Final</h3>
+            <h3 className="text-lg font-bold text-slate-900">Avaliação Final</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Prova final do material em rota dedicada, separada dos quizzes por modulo.
+              Prova final do material em rota dedicada, separada dos quizzes por módulo.
             </p>
           </div>
           <Button type="button" variant="outline" className="rounded-xl" onClick={() => void handleOpenFinalAssessment()}>
-            {finalAssessment ? "Abrir avaliacao final" : "Criar avaliacao final"}
+            {finalAssessment ? "Abrir avaliação final" : "Criar avaliação final"}
           </Button>
         </div>
 
@@ -204,12 +204,12 @@ export function CourseOverviewPanel() {
                 </span>
               </div>
               <Button asChild variant="ghost" className="rounded-xl text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800">
-                <Link to={adminCourseFinalAssessmentPath(courseId)}>Editar avaliacao final</Link>
+                <Link to={adminCourseFinalAssessmentPath(courseId)}>Editar avaliação final</Link>
               </Button>
             </div>
           ) : (
             <EmptyState
-              title="Sem avaliacao final"
+              title="Sem avaliação final"
               message="Crie a prova final do material para cumprir o fluxo profundo previsto no builder."
             />
           )}
@@ -229,22 +229,22 @@ export function CourseOverviewPanel() {
             disabled={createModule.isPending}
           >
             {createModule.isPending
-              ? "A criar modulo..."
+              ? "A criar módulo..."
               : modules.length > 0
                 ? "Abrir Construtor"
-                : "Adicionar Modulo"}
+                : "Adicionar Módulo"}
           </Button>
         </div>
 
         {modules.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title="Sem modulos ainda"
-              message="Cria o primeiro modulo para iniciar o construtor e montar a estrutura do material."
+              title="Sem módulos ainda"
+              message="Cria o primeiro módulo para iniciar o construtor e montar a estrutura do material."
             />
             <div className="flex justify-center">
               <Button type="button" className="rounded-full" onClick={() => void handleOpenCourseBuilder()} disabled={createModule.isPending}>
-                {createModule.isPending ? "A criar modulo..." : "Criar primeiro modulo"}
+                {createModule.isPending ? "A criar módulo..." : "Criar primeiro módulo"}
               </Button>
             </div>
           </div>
@@ -260,9 +260,9 @@ export function CourseOverviewPanel() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
-                          Modulo {index + 1}
+                          Módulo {index + 1}
                         </span>
-                        {module.is_required ? <StatusBadge label="Obrigatorio" tone="info" /> : null}
+                        {module.is_required ? <StatusBadge label="Obrigatório" tone="info" /> : null}
                       </div>
                       <h3 className="mt-2 text-2xl font-bold text-slate-950">{module.title}</h3>
                     </div>
@@ -270,7 +270,7 @@ export function CourseOverviewPanel() {
                       {module.status === "published" ? <StatusBadge label="Publicado" tone="success" /> : null}
                       {module.module_pdf_file_name ? <StatusBadge label="PDF base" tone="warning" /> : null}
                       <Button asChild variant="outline" className="rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50">
-                        <Link to={adminCourseModulePath(courseId, module.id)}>Editar Modulo</Link>
+                        <Link to={adminCourseModulePath(courseId, module.id)}>Editar Módulo</Link>
                       </Button>
                     </div>
                   </div>
@@ -301,7 +301,7 @@ export function CourseOverviewPanel() {
                           <span className="truncate text-sm font-medium text-amber-800">Quiz: {assessment.title}</span>
                         </div>
                         <Button asChild variant="ghost" className="rounded-xl text-amber-700 hover:bg-amber-100 hover:text-amber-800">
-                          <Link to={`${adminCourseModulePath(courseId, module.id)}/avaliacoes/${assessment.id}`}>Editar Quiz</Link>
+                          <Link to={`${adminCourseModulePath(courseId, module.id)}/avalia??es/${assessment.id}`}>Editar Quiz</Link>
                         </Button>
                       </div>
                     ))}

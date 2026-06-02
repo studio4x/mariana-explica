@@ -43,7 +43,7 @@ export function CourseLessonMaterialsPanel() {
   )
 
   if (!moduleId || !lessonId) {
-    return <EmptyState title="Rota invalida" message="Seleciona uma aula valida para gerir os materiais." />
+    return <EmptyState title="Rota inválida" message="Seleciona uma aula válida para gerir os materiais." />
   }
 
   if (assetsQuery.isLoading || lessonsQuery.isLoading) {
@@ -54,7 +54,7 @@ export function CourseLessonMaterialsPanel() {
     const queryError = assetsQuery.error ?? lessonsQuery.error
     return (
       <ErrorState
-        title="Nao foi possivel abrir os materiais"
+        title="Não foi possível abrir os materiais"
         message={queryError instanceof Error ? queryError.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void assetsQuery.refetch()
@@ -68,7 +68,7 @@ export function CourseLessonMaterialsPanel() {
   const lesson = (lessonsQuery.data ?? []).find((item) => item.id === lessonId) ?? null
 
   if (!lesson) {
-    return <EmptyState title="Aula nao encontrada" message="A aula pedida nao pertence a este modulo." />
+    return <EmptyState title="Aula não encontrada" message="A aula pedida não pertence a este módulo." />
   }
 
   const nextOrder = assets.length === 0 ? 1 : Math.max(...assets.map((asset) => asset.sort_order)) + 1
@@ -113,7 +113,7 @@ export function CourseLessonMaterialsPanel() {
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel criar o material.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível criar o material.",
       })
     }
   }
@@ -134,7 +134,7 @@ export function CourseLessonMaterialsPanel() {
         title: prev.title || upload.file_name.replace(/\.[^.]+$/, ""),
       }))
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o ficheiro.")
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o ficheiro.")
     } finally {
       event.target.value = ""
     }
@@ -160,7 +160,7 @@ export function CourseLessonMaterialsPanel() {
         title: String(prev.title ?? asset.title) || upload.file_name.replace(/\.[^.]+$/, ""),
       }))
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel substituir o ficheiro.")
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível substituir o ficheiro.")
     } finally {
       event.target.value = ""
     }
@@ -190,7 +190,7 @@ export function CourseLessonMaterialsPanel() {
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel guardar o material.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível guardar o material.",
       })
     }
   }
@@ -205,7 +205,7 @@ export function CourseLessonMaterialsPanel() {
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel remover o material.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível remover o material.",
       })
     }
   }
@@ -215,14 +215,14 @@ export function CourseLessonMaterialsPanel() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
           title={`Materiais da aula: ${lesson.title}`}
-          description="Gestor dedicado de ficheiros e links do modulo, alinhado ao rodape operacional da aula no player."
+          description="Gestor dedicado de ficheiros e links do módulo, alinhado ao rodape operacional da aula no player."
         />
 
         <form onSubmit={handleCreate} className="mt-6 grid gap-4 md:grid-cols-2">
           <input
             value={draft.title}
             onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
-            placeholder="Titulo do material"
+            placeholder="Título do material"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <select
@@ -233,8 +233,8 @@ export function CourseLessonMaterialsPanel() {
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           >
             <option value="pdf">PDF</option>
-            <option value="video_file">Video</option>
-            <option value="video_embed">Video embed</option>
+            <option value="video_file">Vídeo</option>
+            <option value="video_embed">Vídeo embed</option>
             <option value="external_link">Link externo</option>
           </select>
           <select
@@ -308,14 +308,14 @@ export function CourseLessonMaterialsPanel() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Itens configurados</h2>
-            <p className="mt-1 text-sm text-slate-600">Lista de materiais ligados ao modulo da aula.</p>
+            <p className="mt-1 text-sm text-slate-600">Lista de materiais ligados ao módulo da aula.</p>
           </div>
           <StatusBadge label={`${assets.length} materiais`} tone="info" />
         </div>
 
         <div className="mt-4 space-y-3">
           {assets.length === 0 ? (
-            <EmptyState title="Sem materiais" message="Cria o primeiro material do modulo para ligar no player." />
+            <EmptyState title="Sem materiais" message="Cria o primeiro material do módulo para ligar no player." />
           ) : (
             assets.map((asset) => {
               const isEditing = editingAssetId === asset.id
@@ -368,7 +368,7 @@ export function CourseLessonMaterialsPanel() {
                       <input
                         value={String(editingAsset.title ?? "")}
                         onChange={(event) => setEditingAsset((prev) => ({ ...prev, title: event.target.value }))}
-                        placeholder="Titulo"
+                        placeholder="Título"
                         className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400"
                       />
                       <input
@@ -390,8 +390,8 @@ export function CourseLessonMaterialsPanel() {
                         className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400"
                       >
                         <option value="pdf">PDF</option>
-                        <option value="video_file">Video</option>
-                        <option value="video_embed">Video embed</option>
+                        <option value="video_file">Vídeo</option>
+                        <option value="video_embed">Vídeo embed</option>
                         <option value="external_link">Link externo</option>
                       </select>
                       <select

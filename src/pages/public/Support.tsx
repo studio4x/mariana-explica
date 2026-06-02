@@ -43,9 +43,9 @@ export function Support() {
     return {
       id: "support-escalation",
       category_id: supportCategory?.id ?? "support-escalation",
-      question: "A FAQ ainda nao resolveu a minha duvida. O que faco?",
+      question: "A FAQ ainda não resolveu a minha dúvida. O que faço?",
       answer:
-        "Se a resposta nao foi suficiente, abre um chamado e a equipa acompanha o caso no dashboard do aluno.",
+        "Se a resposta não foi suficiente, abre um chamado e a equipa acompanha o caso no dashboard do aluno.",
       sort_order: 999,
       is_active: true,
       created_at: "2026-01-01T00:00:00.000Z",
@@ -85,7 +85,7 @@ export function Support() {
           </div>
           <h1 className="mt-6 font-display text-4xl font-black md:text-6xl">Como podemos ajudar?</h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.
+            Encontre respostas rápidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.
           </p>
           <label className="relative mx-auto mt-8 block max-w-2xl">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />

@@ -2,7 +2,7 @@ export function mapAuthErrorMessage(message: string) {
   const normalized = message.trim().toLowerCase()
 
   if (normalized === "email not confirmed") {
-    return "O teu email ainda nao foi confirmado. Abre o email de validacao e clica no botao para ativar a conta."
+    return "O teu email ainda não foi confirmado. Abre o email de validação e clica no botão para ativar a conta."
   }
 
   if (normalized.includes("invalid login credentials")) {
@@ -10,7 +10,7 @@ export function mapAuthErrorMessage(message: string) {
   }
 
   if (normalized.includes("user already registered")) {
-    return "Este email ja esta registado. Tenta entrar ou recuperar o acesso."
+    return "Este email já esta registado. Tenta entrar ou recuperar o acesso."
   }
 
   if (normalized.includes("signup is disabled")) {
@@ -22,7 +22,7 @@ export function mapAuthErrorMessage(message: string) {
   }
 
   if (normalized.includes("unable to validate email address")) {
-    return "O email informado nao e valido."
+    return "O email informado não e válido."
   }
 
   if (normalized.includes("same password")) {
@@ -30,7 +30,7 @@ export function mapAuthErrorMessage(message: string) {
   }
 
   if (normalized.includes("expired") || normalized.includes("invalid")) {
-    return "O link usado ja nao e valido. Pede um novo email e tenta novamente."
+    return "O link usado já não e válido. Pede um novo email e tenta novamente."
   }
 
   return message

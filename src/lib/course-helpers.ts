@@ -53,7 +53,7 @@ export function getLessonProgressState(
 ): { label: string; tone: "neutral" | "warning" | "success" } {
   const item = progressMap.get(lessonId)
   if (!item) return { label: "Por iniciar", tone: "neutral" }
-  if (item.status === "completed") return { label: "Concluida", tone: "success" }
+  if (item.status === "completed") return { label: "Concluída", tone: "success" }
   return { label: `${item.progress_percent}%`, tone: "warning" }
 }
 
@@ -226,7 +226,7 @@ function extractAssessmentQuestionOptions(question: Record<string, unknown>) {
       return {
         id: value || `option-${index + 1}`,
         value: value || `option-${index + 1}`,
-        label: label || `Opcao ${index + 1}`,
+        label: label || `Opção ${index + 1}`,
         isCorrect: pickBoolean(
           record.is_correct,
           record.isCorrect,

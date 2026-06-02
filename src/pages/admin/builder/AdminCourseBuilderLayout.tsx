@@ -184,7 +184,7 @@ export function AdminCourseBuilderLayout() {
   ) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir o builder"
+        title="Não foi possível abrir o builder"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void productsQuery.refetch()
@@ -198,8 +198,8 @@ export function AdminCourseBuilderLayout() {
   if (!courseId || !product) {
     return (
       <EmptyState
-        title="Material nao encontrado"
-        message="Este material nao esta disponivel no catalogo administrativo."
+        title="Material não encontrado"
+        message="Este material não esta disponível no catálogo administrativo."
       />
     )
   }
@@ -237,7 +237,7 @@ export function AdminCourseBuilderLayout() {
       }
     } catch (error) {
       setBuilderError(
-        error instanceof Error ? error.message : "Nao foi possivel reordenar as aulas deste modulo.",
+        error instanceof Error ? error.message : "Não foi possível reordenar as aulas deste módulo.",
       )
     }
   }
@@ -250,7 +250,7 @@ export function AdminCourseBuilderLayout() {
       const position = modules.length + 1
       const createdModule = await createModule.mutateAsync({
         productId: courseId,
-        title: `Modulo ${position}`,
+        title: `Módulo ${position}`,
         description: null,
         module_type: "mixed",
         access_type: "paid_only",
@@ -263,7 +263,7 @@ export function AdminCourseBuilderLayout() {
 
       navigate(adminCourseModulePath(courseId, createdModule.id))
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o modulo.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível criar o módulo.")
     }
   }
 
@@ -288,7 +288,7 @@ export function AdminCourseBuilderLayout() {
 
       navigate(adminCourseLessonPath(courseId, module.id, createdLesson.id))
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar a aula.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível criar a aula.")
     }
   }
 
@@ -311,7 +311,7 @@ export function AdminCourseBuilderLayout() {
 
       navigate(adminCourseModuleAssessmentPath(courseId, module.id, createdAssessment.id))
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel criar o quiz.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível criar o quiz.")
     }
   }
 
@@ -329,7 +329,7 @@ export function AdminCourseBuilderLayout() {
         productId: courseId,
         moduleId: null,
         assessmentType: "final",
-        title: "Avaliacao final",
+        title: "Avaliação final",
         description: null,
         isRequired: true,
         passingScore: 70,
@@ -342,7 +342,7 @@ export function AdminCourseBuilderLayout() {
       navigate(adminCourseFinalAssessmentPath(courseId))
     } catch (error) {
       setBuilderError(
-        error instanceof Error ? error.message : "Nao foi possivel preparar a avaliacao final.",
+        error instanceof Error ? error.message : "Não foi possível preparar a avaliação final.",
       )
     }
   }
@@ -359,7 +359,7 @@ export function AdminCourseBuilderLayout() {
   const finalAssessments = assessments.filter((assessment) => assessment.assessment_type === "final")
 
   const handleDeleteModule = async (module: ProductModuleSummary) => {
-    if (!window.confirm(`Excluir o modulo "${module.title}"? Esta acao remove a estrutura ligada a ele.`)) {
+    if (!window.confirm(`Excluir o módulo "${module.title}"? Esta ação remove a estrutura ligada a ele.`)) {
       return
     }
 
@@ -370,7 +370,7 @@ export function AdminCourseBuilderLayout() {
         navigate(adminCourseBuilderPath(courseId))
       }
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel excluir o modulo.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível excluir o módulo.")
     }
   }
 
@@ -386,12 +386,12 @@ export function AdminCourseBuilderLayout() {
         navigate(adminCourseModulePath(courseId, module.id))
       }
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel excluir a aula.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível excluir a aula.")
     }
   }
 
   const handleDeleteAssessment = async (assessment: ProductAssessmentSummary) => {
-    if (!window.confirm(`Excluir a avaliacao "${assessment.title}"?`)) {
+    if (!window.confirm(`Excluir a avaliação "${assessment.title}"?`)) {
       return
     }
 
@@ -402,7 +402,7 @@ export function AdminCourseBuilderLayout() {
         navigate(assessment.module_id ? adminCourseModulePath(courseId, assessment.module_id) : adminCourseAssessmentsPath(courseId))
       }
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel excluir a avaliacao.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível excluir a avaliação.")
     }
   }
 
@@ -423,7 +423,7 @@ export function AdminCourseBuilderLayout() {
       const payload = exportCourseToJson(product, modulePayload, assessments)
       triggerJsonDownload(makeCourseExportFileName(product), payload)
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel exportar o conteudo do material.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível exportar o conteúdo do material.")
     }
   }
 
@@ -475,7 +475,7 @@ export function AdminCourseBuilderLayout() {
     }
 
     if (importMode === "replace_module" && !replaceModuleId && !clearCourseBeforeImport) {
-      setBuilderError("Selecione o modulo que sera substituido.")
+      setBuilderError("Selecione o módulo que será substituido.")
       return
     }
 
@@ -487,7 +487,7 @@ export function AdminCourseBuilderLayout() {
       const structure = normalized.importedStructure
 
       if (!structure || (structure.modules.length === 0 && structure.assessments.length === 0)) {
-        throw new Error("O JSON nao contem modulos ou avaliacoes importaveis.")
+        throw new Error("O JSON não contem módulos ou avaliações importaveis.")
       }
 
       if (clearCourseBeforeImport) {
@@ -505,7 +505,7 @@ export function AdminCourseBuilderLayout() {
       if (!clearCourseBeforeImport && importMode === "replace_module" && replaceModuleId) {
         const targetModule = modules.find((item) => item.id === replaceModuleId) ?? null
         if (!targetModule) {
-          throw new Error("Modulo selecionado para substituicao nao encontrado.")
+          throw new Error("Módulo selecionado para substituicao não encontrado.")
         }
 
         for (const lesson of lessonsByModule[targetModule.id] ?? []) {
@@ -636,10 +636,10 @@ export function AdminCourseBuilderLayout() {
       setImportSuccessMessage(
         clearCourseBeforeImport
           ? "O material foi reconstruido a partir do JSON enviado."
-          : "A importacao do conteudo foi concluida com sucesso.",
+          : "A importacao do conteúdo foi concluída com sucesso.",
       )
     } catch (error) {
-      setBuilderError(error instanceof Error ? error.message : "Nao foi possivel importar o conteudo do material.")
+      setBuilderError(error instanceof Error ? error.message : "Não foi possível importar o conteúdo do material.")
     } finally {
       setIsImporting(false)
     }
@@ -690,7 +690,7 @@ export function AdminCourseBuilderLayout() {
 
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm" className="hidden rounded-full sm:inline-flex">
-            <Link to={adminCourseSettingsPath(courseId)}>Configuracoes</Link>
+            <Link to={adminCourseSettingsPath(courseId)}>Configurações</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="rounded-full">
             <Link to={adminCoursePreviewPath(courseId)}>
@@ -735,7 +735,7 @@ export function AdminCourseBuilderLayout() {
                 {modules.length === 0 ? (
                   isSidebarOpen ? (
                     <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-                      Sem modulos ainda. Cria a estrutura pedagogica para comecar o builder.
+                      Sem módulos ainda. Cria a estrutura pedagogica para começar o builder.
                     </p>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-slate-300 px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -784,7 +784,7 @@ export function AdminCourseBuilderLayout() {
                               type="button"
                               onClick={() => void handleDeleteModule(module)}
                               className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
-                              title={`Excluir modulo ${module.title}`}
+                              title={`Excluir módulo ${module.title}`}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -837,7 +837,7 @@ export function AdminCourseBuilderLayout() {
                             {moduleAssessments.map((assessment) => (
                               <div key={assessment.id} className="flex items-center gap-1">
                                 <NavLink
-                                  to={`${adminCourseModulePath(courseId, module.id)}/avaliacoes/${assessment.id}`}
+                                  to={`${adminCourseModulePath(courseId, module.id)}/avalia??es/${assessment.id}`}
                                   className={({ isActive }) =>
                                     `flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
                                       isActive
@@ -893,13 +893,13 @@ export function AdminCourseBuilderLayout() {
               <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
                 <div className="flex items-center justify-between gap-2 px-2">
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Avaliacao final
+                    Avaliação final
                   </p>
                   <button
                     type="button"
                     onClick={() => void handleOpenFinalAssessment()}
                     className="rounded-md p-1 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-700"
-                    title={finalAssessments.length > 0 ? "Abrir avaliacao final" : "Criar avaliacao final"}
+                    title={finalAssessments.length > 0 ? "Abrir avaliação final" : "Criar avaliação final"}
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -926,7 +926,7 @@ export function AdminCourseBuilderLayout() {
                           type="button"
                           onClick={() => void handleDeleteAssessment(assessment)}
                           className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
-                          title={`Excluir avaliacao final ${assessment.title}`}
+                          title={`Excluir avaliação final ${assessment.title}`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -941,8 +941,8 @@ export function AdminCourseBuilderLayout() {
                     >
                       <Plus className="h-3.5 w-3.5" />
                       {createAssessment.isPending
-                        ? "A criar avaliacao final..."
-                        : "Criar avaliacao final"}
+                        ? "A criar avaliação final..."
+                        : "Criar avaliação final"}
                     </button>
                   )}
                 </div>
@@ -961,7 +961,7 @@ export function AdminCourseBuilderLayout() {
                 <div className="rounded-md bg-[linear-gradient(180deg,#1788a8_0%,#12596f_100%)] p-1 text-white">
                   <Plus className="h-3.5 w-3.5" />
                 </div>
-                {isSidebarOpen ? (createModule.isPending ? "A criar modulo..." : "Novo Modulo") : null}
+                {isSidebarOpen ? (createModule.isPending ? "A criar módulo..." : "Novo Módulo") : null}
               </button>
             </div>
 
@@ -979,7 +979,7 @@ export function AdminCourseBuilderLayout() {
                 }`}
               >
                 <Cog className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Configuracoes do Material" : null}
+                {isSidebarOpen ? "Configurações do Material" : null}
               </NavLink>
               <NavLink
                 to={adminCoursePublicPagePath(courseId)}
@@ -988,7 +988,7 @@ export function AdminCourseBuilderLayout() {
                 }`}
               >
                 <Globe2 className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Pagina Publica" : null}
+                {isSidebarOpen ? "Página Pública" : null}
               </NavLink>
               <NavLink
                 to={adminCourseReleasesPath(courseId)}
@@ -1006,7 +1006,7 @@ export function AdminCourseBuilderLayout() {
                 }`}
               >
                 <ClipboardCheck className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Gerenciar Avaliacoes" : null}
+                {isSidebarOpen ? "Gerenciar Avaliações" : null}
               </NavLink>
               <button
                 type="button"
@@ -1016,7 +1016,7 @@ export function AdminCourseBuilderLayout() {
                 }`}
               >
                 <Download className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Exportar Conteudo" : null}
+                {isSidebarOpen ? "Exportar Conteúdo" : null}
               </button>
               <button
                 type="button"
@@ -1030,7 +1030,7 @@ export function AdminCourseBuilderLayout() {
                 }`}
               >
                 <Sparkles className="h-4 w-4 shrink-0" />
-                {isSidebarOpen ? "Importar Conteudo (IA)" : null}
+                {isSidebarOpen ? "Importar Conteúdo (IA)" : null}
               </button>
             </div>
           </div>
@@ -1074,7 +1074,7 @@ export function AdminCourseBuilderLayout() {
 
               <div className="space-y-2">
                 <span className="pl-1 text-xs font-black uppercase tracking-widest text-slate-400">
-                  Codigo JSON Estruturado
+                  Código JSON Estruturado
                 </span>
                 <textarea
                   value={importJson}
@@ -1083,7 +1083,7 @@ export function AdminCourseBuilderLayout() {
                     if (builderError) setBuilderError(null)
                   }}
                   className="h-80 w-full rounded-2xl border border-slate-800 bg-slate-900 p-6 font-mono text-xs text-emerald-400 transition-all focus:ring-4 focus:ring-blue-100"
-                  placeholder='[ { "title": "Modulo 1", "lessons": [...] } ]'
+                  placeholder='[ { "title": "Módulo 1", "lessons": [...] } ]'
                 />
               </div>
 
@@ -1097,7 +1097,7 @@ export function AdminCourseBuilderLayout() {
                   }`}
                   onClick={() => setImportMode("append")}
                 >
-                  Adicionar Novos Modulos
+                  Adicionar Novos Módulos
                 </button>
                 <button
                   type="button"
@@ -1109,24 +1109,24 @@ export function AdminCourseBuilderLayout() {
                   onClick={() => setImportMode("replace_module")}
                   disabled={modules.length === 0}
                 >
-                  Substituir Modulo Existente
+                  Substituir Módulo Existente
                 </button>
               </div>
 
               {importMode === "replace_module" && !clearCourseBeforeImport ? (
                 <div className="space-y-2">
                   <span className="pl-1 text-xs font-black uppercase tracking-widest text-slate-400">
-                    Modulo alvo
+                    Módulo alvo
                   </span>
                   <select
                     value={replaceModuleId}
                     onChange={(event) => setReplaceModuleId(event.target.value)}
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400"
                   >
-                    <option value="">Selecione um modulo</option>
+                    <option value="">Selecione um módulo</option>
                     {modules.map((module, index) => (
                       <option key={module.id} value={module.id}>
-                        Modulo {index + 1}: {module.title}
+                        Módulo {index + 1}: {module.title}
                       </option>
                     ))}
                   </select>
@@ -1146,7 +1146,7 @@ export function AdminCourseBuilderLayout() {
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
                   </div>
                   <p className="mt-0.5 text-[11px] font-bold text-amber-600">
-                    Apaga absolutamente todos os modulos atuais e recomeca o material do zero.
+                    Apaga absolutamente todos os módulos atuais e recomeca o material do zero.
                   </p>
                 </div>
               </label>

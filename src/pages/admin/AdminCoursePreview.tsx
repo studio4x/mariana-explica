@@ -60,11 +60,11 @@ export function AdminCoursePreview() {
     lessonQueries.some((query) => query.isLoading)
 
   if (!courseId) {
-    return <EmptyState title="Material invalido" message="Abra um material valido para visualizar o conteudo." />
+    return <EmptyState title="Material inválido" message="Abra um material válido para visualizar o conteúdo." />
   }
 
   if (loading) {
-    return <LoadingState message="A preparar a visualizacao administrativa do material..." />
+    return <LoadingState message="A preparar a visualização administrativa do material..." />
   }
 
   const lessonError = lessonQueries.find((query) => query.isError)?.error
@@ -77,7 +77,7 @@ export function AdminCoursePreview() {
   ) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir o visualizador do material"
+        title="Não foi possível abrir o visualizador do material"
         message={error instanceof Error ? error.message : "Tente novamente dentro de instantes."}
         onRetry={() => {
           void productsQuery.refetch()
@@ -90,7 +90,7 @@ export function AdminCoursePreview() {
   }
 
   if (!product) {
-    return <EmptyState title="Material nao encontrado" message="Este material nao esta disponivel no admin." />
+    return <EmptyState title="Material não encontrado" message="Este material não esta disponível no admin." />
   }
 
   const moduleAssets = moduleAssetsQuery.data ?? []
@@ -100,13 +100,13 @@ export function AdminCoursePreview() {
   const finalAssessments = (assessmentsQuery.data ?? []).filter((assessment) => assessment.assessment_type === "final")
 
   if (moduleAssetsQuery.isLoading) {
-    return <LoadingState message="A preparar os materiais do modulo..." />
+    return <LoadingState message="A preparar os materiais do módulo..." />
   }
 
   if (moduleAssetsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os materiais do modulo"
+        title="Não foi possível carregar os materiais do módulo"
         message={moduleAssetsQuery.error instanceof Error ? moduleAssetsQuery.error.message : "Tente novamente dentro de instantes."}
         onRetry={() => void moduleAssetsQuery.refetch()}
       />
@@ -143,7 +143,7 @@ export function AdminCoursePreview() {
                   className="w-full text-left"
                 >
                   <p className={`text-[11px] font-black uppercase tracking-[0.18em] ${selectedModule?.id === module.id ? "text-white/65" : "text-slate-500"}`}>
-                    Modulo {index + 1}
+                    Módulo {index + 1}
                   </p>
                   <p className="mt-2 font-bold">{module.title}</p>
                 </button>
@@ -185,12 +185,12 @@ export function AdminCoursePreview() {
                   <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">{selectedLesson.title}</h2>
                   <RichTextContent
                     value={selectedLesson.description}
-                    fallback="Aula pronta para visualizacao administrativa."
+                    fallback="Aula pronta para visualização administrativa."
                     className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <StatusBadge label={selectedLesson.lesson_type === "hybrid" ? "Hibrida" : selectedLesson.lesson_type === "video" ? "Video" : selectedLesson.lesson_type === "file" ? "Ficheiro" : "Texto"} tone="info" />
+                  <StatusBadge label={selectedLesson.lesson_type === "hybrid" ? "Híbrida" : selectedLesson.lesson_type === "video" ? "Vídeo" : selectedLesson.lesson_type === "file" ? "Ficheiro" : "Texto"} tone="info" />
                   <StatusBadge label={`${selectedLesson.estimated_minutes} min`} tone="warning" />
                 </div>
               </div>
@@ -201,7 +201,7 @@ export function AdminCoursePreview() {
                   <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
                     <div className="flex items-center gap-2 text-slate-900">
                       <FileText className="h-4 w-4" />
-                      <p className="font-medium">Conteudo textual</p>
+                      <p className="font-medium">Conteúdo textual</p>
                     </div>
                     <LessonContentBlocksRenderer value={selectedLesson.text_content} className="mt-3" />
                   </div>
@@ -209,7 +209,7 @@ export function AdminCoursePreview() {
                   <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
                     <div className="flex items-center gap-2 text-slate-900">
                       <FileText className="h-4 w-4" />
-                      <p className="font-medium">Conteudo principal em ficheiro</p>
+                      <p className="font-medium">Conteúdo principal em ficheiro</p>
                     </div>
                     <p className="mt-3 text-sm leading-7 text-slate-600">
                       Esta aula depende dos materiais protegidos listados abaixo.
@@ -223,27 +223,27 @@ export function AdminCoursePreview() {
               <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
                 <div className="flex items-center gap-2">
                   <StickyNote className="h-4 w-4 text-slate-900" />
-                  <h3 className="font-display text-2xl font-bold text-slate-950">Avaliacoes deste modulo</h3>
+                  <h3 className="font-display text-2xl font-bold text-slate-950">Avaliações deste módulo</h3>
                 </div>
                 <div className="mt-4 space-y-3">
                   {moduleAssessments.length === 0 ? (
                     <EmptyState
-                      title="Sem quiz neste modulo"
-                      message="Quando houver uma avaliacao vinculada ao modulo, ela aparecera aqui para referencia."
+                      title="Sem quiz neste módulo"
+                      message="Quando houver uma avaliação vinculada ao módulo, ela aparecera aqui para referencia."
                     />
                   ) : (
                     moduleAssessments.map((assessment) => (
                       <div key={assessment.id} className="rounded-2xl border bg-slate-50/70 p-4">
                         <p className="font-semibold text-slate-950">{assessment.title}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                          {assessment.description ?? "Quiz do modulo."}
+                          {assessment.description ?? "Quiz do módulo."}
                         </p>
                       </div>
                     ))
                   )}
                   {finalAssessments.length > 0 ? (
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Avaliacao final</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Avaliação final</p>
                       <p className="mt-2 font-semibold text-slate-950">{finalAssessments[0]?.title}</p>
                     </div>
                   ) : null}
@@ -251,14 +251,14 @@ export function AdminCoursePreview() {
               </section>
 
               <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-                <h3 className="font-display text-2xl font-bold text-slate-950">Materiais do modulo</h3>
+                <h3 className="font-display text-2xl font-bold text-slate-950">Materiais do módulo</h3>
                 <div className="mt-4 space-y-3">
                   {selectedModule.module_pdf_file_name ? (
                     <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
                           <p className="font-semibold text-slate-950">{selectedModule.module_pdf_file_name}</p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">PDF base protegido do modulo.</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">PDF base protegido do módulo.</p>
                         </div>
                         <Button
                           type="button"
@@ -275,7 +275,7 @@ export function AdminCoursePreview() {
                   {moduleAssets.length === 0 ? (
                     <EmptyState
                       title="Sem materiais adicionais"
-                      message="Os ficheiros, links e videos de apoio do modulo aparecerao aqui."
+                      message="Os ficheiros, links e vídeos de apoio do módulo aparecerao aqui."
                     />
                   ) : (
                     moduleAssets.map((asset) => (
@@ -286,7 +286,7 @@ export function AdminCoursePreview() {
                               <p className="font-semibold text-slate-950">{asset.title}</p>
                               <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
                             </div>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">Material de apoio do modulo atual.</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">Material de apoio do módulo atual.</p>
                           </div>
                           <Button
                             type="button"
@@ -306,8 +306,8 @@ export function AdminCoursePreview() {
           </>
         ) : (
           <EmptyState
-            title="Sem conteudo para pre-visualizar"
-            message="Adicione pelo menos um modulo e uma aula para abrir o visualizador administrativo."
+            title="Sem conteúdo para pre-visualizar"
+            message="Adicione pelo menos um módulo e uma aula para abrir o visualizador administrativo."
           />
         )}
       </section>

@@ -237,7 +237,7 @@ export function parseJsonInput(raw: string): unknown {
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("JSON invalido.")
+  throw lastError instanceof Error ? lastError : new Error("JSON inválido.")
 }
 
 function normalizeAssessmentOptions(input: unknown) {
@@ -249,8 +249,8 @@ function normalizeAssessmentOptions(input: unknown) {
       asText(optionRecord.option_text) ||
       asText(optionRecord.label) ||
       asText(optionRecord.text) ||
-      `Opcao ${index + 1}`
-    const value = asText(optionRecord.value) || slugify(label) || `opcao-${index + 1}`
+      `Opção ${index + 1}`
+    const value = asText(optionRecord.value) || slugify(label) || `opção-${index + 1}`
     return {
       id: `option-${index + 1}`,
       label,
@@ -363,7 +363,7 @@ function normalizeAssessmentFromJson(
     assessment_type: effectiveType,
     title:
       asText(parsed.title) ||
-      (effectiveType === "final" ? "Avaliacao final" : `Quiz do modulo ${index + 1}`),
+      (effectiveType === "final" ? "Avaliação final" : `Quiz do módulo ${index + 1}`),
     description: asNullableText(parsed.description),
     is_required: true,
     passing_score: asInt(parsed.passing_score, 70),
@@ -424,7 +424,7 @@ function normalizeModuleFromJson(
   const module: ExportedCourseModule = {
     id: moduleId,
     product_id: productId,
-    title: asText(record.title) || `Modulo ${position}`,
+    title: asText(record.title) || `Módulo ${position}`,
     description: asNullableText(record.description),
     module_type: "mixed",
     access_type: "paid_only",
@@ -527,7 +527,7 @@ export function normalizeCourseImport(raw: unknown): NormalizedCourseJson {
 
 function mapBuilderOptionsToJson(options: unknown) {
   return asArray<UnknownRecord>(options).map((option) => ({
-    option_text: asText(option.label ?? option.option_text ?? option.text) || "Opcao",
+    option_text: asText(option.label ?? option.option_text ?? option.text) || "Opção",
     is_correct: asBool(option.isCorrect ?? option.is_correct, false),
   }))
 }
@@ -638,13 +638,13 @@ export function normalizeModuleImport(raw: unknown): JsonModuleRecord {
   if (Array.isArray(payload.modules)) {
     const firstModule = asArray<JsonModuleRecord>(payload.modules)[0]
     if (!firstModule) {
-      throw new Error("O JSON do curso nao possui modulos para importar.")
+      throw new Error("O JSON do curso não possui módulos para importar.")
     }
     return firstModule
   }
 
   if (!asText(payload.title)) {
-    throw new Error("JSON de modulo invalido: campo `title` obrigatorio.")
+    throw new Error("JSON de módulo inválido: campo `title` obrigatório.")
   }
 
   return payload as JsonModuleRecord

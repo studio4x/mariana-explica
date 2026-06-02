@@ -81,7 +81,7 @@ function ReviewCard({
           disabled={voting}
         >
           <ThumbsDown className="mr-2 h-4 w-4" />
-          Nao util ({review.unhelpful_count})
+          Não util ({review.unhelpful_count})
         </Button>
       </div>
     </article>
@@ -127,8 +127,8 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
     const response = await createReview.mutateAsync({ productId, rating, title, content })
     setMessage(
       response.needs_moderation
-        ? "Avaliacao enviada para moderacao."
-        : "Avaliacao publicada. Obrigada por partilhares a tua experiencia.",
+        ? "Avaliação enviada para moderacao."
+        : "Avaliação publicada. Obrigada por partilhares a tua experiência.",
     )
   }
 
@@ -141,12 +141,12 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">Reviews</p>
-          <h2 className="mt-2 font-display text-3xl font-black text-slate-950">Avaliacoes dos alunos</h2>
+          <h2 className="mt-2 font-display text-3xl font-black text-slate-950">Avaliações dos alunos</h2>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-right shadow-sm">
           <p className="text-3xl font-black text-slate-950">{Number(stats?.avg_rating ?? 0).toFixed(1)}</p>
           <StarRating value={Number(stats?.avg_rating ?? 0)} readonly size="sm" />
-          <p className="mt-1 text-xs font-semibold text-slate-500">{stats?.total_reviews ?? 0} avaliacoes</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">{stats?.total_reviews ?? 0} avaliações</p>
         </div>
       </div>
 
@@ -170,27 +170,27 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
           <div className="mt-6 rounded-lg bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-black text-slate-950">
               <MessageSquareText className="h-4 w-4 text-sky-700" />
-              Deixar avaliacao
+              Deixar avaliação
             </div>
             {!isAuthenticated ? (
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 <Link to={ROUTES.LOGIN} className="font-bold text-sky-700 underline underline-offset-4">
                   Faz login
                 </Link>{" "}
-                para avaliar um material que ja esta na tua area do aluno.
+                para avaliar um material que já esta na tua Área do aluno.
               </p>
             ) : (
               <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
                 <StarRating value={rating} onChange={setRating} />
                 <label className="block text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-                  Titulo
+                  Título
                   <input
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     minLength={3}
                     maxLength={100}
                     className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-950 outline-none focus:border-sky-500"
-                    placeholder={myReviewQuery.data ? "Atualizar titulo" : "Resumo da experiencia"}
+                    placeholder={myReviewQuery.data ? "Atualizar título" : "Resumo da experiência"}
                     required
                   />
                 </label>
@@ -208,12 +208,12 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
                   />
                 </label>
                 <Button type="submit" className="w-full rounded-md" disabled={createReview.isPending}>
-                  {createReview.isPending ? "A enviar..." : myReviewQuery.data ? "Atualizar avaliacao" : "Enviar avaliacao"}
+                  {createReview.isPending ? "A enviar..." : myReviewQuery.data ? "Atualizar avaliação" : "Enviar avaliação"}
                 </Button>
                 {message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
                 {createReview.isError ? (
                   <p className="text-sm font-semibold text-red-700">
-                    {createReview.error instanceof Error ? createReview.error.message : "Nao foi possivel enviar."}
+                    {createReview.error instanceof Error ? createReview.error.message : "Não foi possível enviar."}
                   </p>
                 ) : null}
               </form>
@@ -224,11 +224,11 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
         <div className="space-y-4">
           {reviewsQuery.isLoading ? (
             <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500">
-              A carregar avaliacoes...
+              A carregar avaliações...
             </div>
           ) : reviews.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm">
-              Ainda nao existem avaliacoes publicadas para este material.
+              Ainda não existem avaliações publicadas para este material.
             </div>
           ) : (
             reviews.map((review) => (

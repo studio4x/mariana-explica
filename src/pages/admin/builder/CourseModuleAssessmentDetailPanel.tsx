@@ -14,7 +14,7 @@ export function CourseModuleAssessmentDetailPanel() {
   )
 
   if (!assessment || !courseId) {
-    return <EmptyState title="Avaliacao nao encontrada" message="Esta avaliacao nao esta ligada ao material atual." />
+    return <EmptyState title="Avaliação não encontrada" message="Esta avaliação não esta ligada ao material atual." />
   }
 
   const module = assessment.module_id
@@ -26,16 +26,16 @@ export function CourseModuleAssessmentDetailPanel() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
           title={assessment.title}
-          description="Rota profunda do builder para editar quiz de modulo com o mesmo backend do painel geral."
+          description="Rota profunda do builder para editar quiz de módulo com o mesmo backend do painel geral."
         />
 
         <div className="mt-6 flex flex-wrap gap-2">
           <StatusBadge
-            label={assessment.assessment_type === "final" ? "Final" : "Modulo"}
+            label={assessment.assessment_type === "final" ? "Final" : "Módulo"}
             tone={assessment.assessment_type === "final" ? "success" : "warning"}
           />
           {module ? <StatusBadge label={module.title} tone="info" /> : null}
-          <StatusBadge label={`Minimo ${assessment.passing_score}%`} tone="neutral" />
+          <StatusBadge label={`Mínimo ${assessment.passing_score}%`} tone="neutral" />
           <StatusBadge
             label={assessment.max_attempts ? `${assessment.max_attempts} tentativa(s)` : "Sem limite"}
             tone="warning"

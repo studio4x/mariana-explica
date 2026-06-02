@@ -81,7 +81,7 @@ async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
     try {
       const auth = await getFreshFunctionAuthContext()
       if (!auth) {
-        throw new Error("Sessao expirada")
+        throw new Error("Sessão expirada")
       }
 
       const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`, {
@@ -124,13 +124,13 @@ async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
     }
   }
 
-  throw lastError ?? new Error("Falha ao invocar funcao administrativa")
+  throw lastError ?? new Error("Falha ao invocar função administrativa")
 }
 
 async function requireFreshAuth() {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   return auth
@@ -141,7 +141,7 @@ async function getCurrentUserId() {
   const userId = data.session?.user?.id
 
   if (!userId) {
-    throw new Error("Sessao invalida")
+    throw new Error("Sessão inválida")
   }
 
   return userId
@@ -208,7 +208,7 @@ function normalizeModulePdfWatermarkConfig(
       logo_bucket: logoBucket,
       logo_path: logoPath,
     },
-    description: row?.description ?? "Configuracao do watermark aplicado ao PDF base dos modulos.",
+    description: row?.description ?? "Configuração do watermark aplicado ao PDF base dos módulos.",
     is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
@@ -234,7 +234,7 @@ function normalizeAdminPendingInfoConfig(
     },
     description:
       row?.description ??
-      "Informacoes operacionais ainda pendentes de definicao manual pelo admin. Nao armazenar segredos aqui.",
+      "Informações operacionais ainda pendentes de definicao manual pelo admin. Não armazenar segredos aqui.",
     is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
@@ -256,7 +256,7 @@ function normalizeCheckoutModeConfig(
     config_value: {
       mode: mode ?? "test",
     },
-    description: row?.description ?? "Configuracao operacional do ambiente do checkout Stripe.",
+    description: row?.description ?? "Configuração operacional do ambiente do checkout Stripe.",
     is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
@@ -277,7 +277,7 @@ function normalizeAdminBrandingConfig(
       logo_dark: normalizeBrandingAsset(value.logo_dark),
       favicon: normalizeBrandingAsset(value.favicon),
     },
-    description: row?.description ?? "Assets oficiais de branding usados nas areas publica, aluno e admin.",
+    description: row?.description ?? "Assets oficiais de branding usados nas Áreas pública, aluno e admin.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
@@ -304,7 +304,7 @@ function normalizeAdminTrackingConfig(
     },
     description:
       row?.description ??
-      "Configuracao publica de rastreamento e codigos personalizados do site, respeitando consentimento quando aplicavel.",
+      "Configuração pública de rastreamento e códigos personalizados do site, respeitando consentimento quando aplicável.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
@@ -327,7 +327,7 @@ function normalizeAdminPublicFormNotificationsConfig(
     },
     description:
       row?.description ??
-      "Endereco de email que recebe alertas dos formularios enviados no site publico.",
+      "Endereço de email que recebe alertas dos formulários enviados no site público.",
     is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
@@ -348,11 +348,11 @@ function normalizeAdminSiteMaintenanceConfig(
     config_value: {
       enabled: value.enabled === true,
       message:
-        message || "Estamos em manutencao para melhorar a tua experiencia. Voltamos em breve.",
+        message || "Estamos em manutencao para melhorar a tua experiência. Voltamos em breve.",
     },
     description:
       row?.description ??
-      "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicacao.",
+      "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicação.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
@@ -1028,7 +1028,7 @@ export async function updateAdminModulePdfWatermarkConfig(input: {
       logo_bucket: input.logoBucket ?? null,
       logo_path: input.logoPath ?? null,
     },
-    description: "Configuracao do watermark aplicado ao PDF base dos modulos.",
+    description: "Configuração do watermark aplicado ao PDF base dos módulos.",
     is_public: false,
   })
 
@@ -1064,7 +1064,7 @@ export async function updateAdminBrandingConfig(input: AdminBrandingConfig["conf
   const payload = normalizeAdminBrandingConfig({
     config_key: BRANDING_CONFIG_KEY,
     config_value: input,
-    description: "Assets oficiais de branding usados nas areas publica, aluno e admin.",
+    description: "Assets oficiais de branding usados nas Áreas pública, aluno e admin.",
     is_public: true,
   })
 
@@ -1103,7 +1103,7 @@ export async function updateAdminTrackingConfig(
     config_key: TRACKING_CONFIG_KEY,
     config_value: input,
     description:
-      "Configuracao publica de rastreamento e codigos personalizados do site, respeitando consentimento quando aplicavel.",
+      "Configuração pública de rastreamento e códigos personalizados do site, respeitando consentimento quando aplicável.",
     is_public: true,
   })
 
@@ -1142,7 +1142,7 @@ export async function updateAdminPendingInfoConfig(
     config_key: ADMIN_PENDING_INFO_KEY,
     config_value: input,
     description:
-      "Informacoes operacionais ainda pendentes de definicao manual pelo admin. Nao armazenar segredos aqui.",
+      "Informações operacionais ainda pendentes de definicao manual pelo admin. Não armazenar segredos aqui.",
     is_public: false,
   })
 
@@ -1183,7 +1183,7 @@ export async function updateAdminPublicFormNotificationsConfig(
     config_value: {
       notification_email: notificationEmail,
     },
-    description: "Endereco de email que recebe alertas dos formularios enviados no site publico.",
+    description: "Endereço de email que recebe alertas dos formulários enviados no site público.",
     is_public: false,
   }
 
@@ -1232,7 +1232,7 @@ export async function updateAdminSiteMaintenanceConfig(
       message: input.message,
     },
     description:
-      "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicacao.",
+      "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicação.",
     is_public: true,
   })
 
@@ -1313,7 +1313,7 @@ export async function fetchAdminSitePages() {
 export async function fetchAdminSitePageDetail(slug: SitePageSlug | string) {
   const normalizedSlug = String(slug ?? "").trim()
   if (!normalizedSlug) {
-    throw new Error("slug e obrigatorio")
+    throw new Error("slug e obrigatório")
   }
 
   const response = await invokeAdminFunction<{

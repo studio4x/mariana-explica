@@ -89,8 +89,8 @@ export function AssessmentBuilderWorkspace({
                 ...question.options,
                 {
                   id: crypto.randomUUID(),
-                  label: `Opcao ${question.options.length + 1}`,
-                  value: `opcao-${question.options.length + 1}`,
+                  label: `Opção ${question.options.length + 1}`,
+                  value: `opção-${question.options.length + 1}`,
                   isCorrect: false,
                 },
               ],
@@ -132,7 +132,7 @@ export function AssessmentBuilderWorkspace({
     setFeedback(null)
 
     if (draft.assessmentType === "module" && !draft.moduleId) {
-      setFeedback({ tone: "error", message: "Selecione um modulo antes de guardar o quiz." })
+      setFeedback({ tone: "error", message: "Selecione um módulo antes de guardar o quiz." })
       return
     }
 
@@ -154,12 +154,12 @@ export function AssessmentBuilderWorkspace({
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel guardar a avaliacao.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível guardar a avaliação.",
       })
       return
     }
 
-    setFeedback({ tone: "success", message: "Avaliacao guardada com sucesso." })
+    setFeedback({ tone: "success", message: "Avaliação guardada com sucesso." })
   }
 
   return (
@@ -169,11 +169,11 @@ export function AssessmentBuilderWorkspace({
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">{assessment.title}</h2>
             <p className="mt-2 text-sm leading-7 text-slate-600">
-              Editor operacional da avaliacao com persistencia via backend administrativo.
+              Editor operacional da avaliação com persistencia via backend administrativo.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge label={draft.assessmentType === "final" ? "Final" : "Modulo"} tone={draft.assessmentType === "final" ? "success" : "warning"} />
+            <StatusBadge label={draft.assessmentType === "final" ? "Final" : "Módulo"} tone={draft.assessmentType === "final" ? "success" : "warning"} />
             {selectedModule ? <StatusBadge label={selectedModule.title} tone="info" /> : null}
             <StatusBadge label={draft.isActive ? "Ativa" : "Inativa"} tone={draft.isActive ? "success" : "neutral"} />
             <StatusBadge label={`${draft.questions.length} pergunta(s)`} tone="warning" />
@@ -182,16 +182,16 @@ export function AssessmentBuilderWorkspace({
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-sm font-semibold text-slate-800">Titulo da avaliacao</span>
+            <span className="text-sm font-semibold text-slate-800">Título da avaliação</span>
             <input
               value={draft.title}
               onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
-              placeholder="Titulo da avaliacao"
+              placeholder="Título da avaliação"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </label>
           <label className="space-y-2">
-            <span className="text-sm font-semibold text-slate-800">Tipo de avaliacao</span>
+            <span className="text-sm font-semibold text-slate-800">Tipo de avaliação</span>
             <select
               value={draft.assessmentType}
               onChange={(event) =>
@@ -203,19 +203,19 @@ export function AssessmentBuilderWorkspace({
               }
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             >
-              <option value="module">Quiz de modulo</option>
-              <option value="final">Avaliacao final</option>
+              <option value="module">Quiz de módulo</option>
+              <option value="final">Avaliação final</option>
             </select>
           </label>
           <label className="space-y-2">
-            <span className="text-sm font-semibold text-slate-800">Modulo vinculado</span>
+            <span className="text-sm font-semibold text-slate-800">Módulo vinculado</span>
             <select
               value={draft.moduleId ?? ""}
               disabled={draft.assessmentType === "final"}
               onChange={(event) => setDraft((prev) => ({ ...prev, moduleId: event.target.value || null }))}
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">Selecione um modulo</option>
+              <option value="">Selecione um módulo</option>
               {modules.map((module) => (
                 <option key={module.id} value={module.id}>
                   {module.title}
@@ -251,11 +251,11 @@ export function AssessmentBuilderWorkspace({
             />
           </label>
           <label className="space-y-2 md:col-span-2">
-            <span className="text-sm font-semibold text-slate-800">Descricao / area de texto</span>
+            <span className="text-sm font-semibold text-slate-800">Descrição / Área de texto</span>
             <RichTextEditor
               value={draft.description}
               onChange={(value) => setDraft((prev) => ({ ...prev, description: value }))}
-              placeholder="Descricao curta da avaliacao"
+              placeholder="Descrição curta da avaliação"
               minHeightPx={170}
             />
           </label>
@@ -265,7 +265,7 @@ export function AssessmentBuilderWorkspace({
               checked={draft.isRequired}
               onChange={(event) => setDraft((prev) => ({ ...prev, isRequired: event.target.checked }))}
             />
-            Avaliacao obrigatoria
+            Avaliação obrigatória
           </label>
           <label className="flex items-center gap-2 rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <input
@@ -273,7 +273,7 @@ export function AssessmentBuilderWorkspace({
               checked={draft.isActive}
               onChange={(event) => setDraft((prev) => ({ ...prev, isActive: event.target.checked }))}
             />
-            Avaliacao ativa
+            Avaliação ativa
           </label>
         </div>
       </section>
@@ -362,7 +362,7 @@ export function AssessmentBuilderWorkspace({
                 <input
                   value={question.title}
                   onChange={(event) => handleQuestionField(question.id, "title", event.target.value)}
-                  placeholder="Titulo curto"
+                  placeholder="Título curto"
                   className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                 />
                 <label className="flex items-center gap-2 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
@@ -371,10 +371,10 @@ export function AssessmentBuilderWorkspace({
                     checked={question.required}
                     onChange={(event) => handleQuestionField(question.id, "required", event.target.checked)}
                   />
-                  Pergunta obrigatoria
+                  Pergunta obrigatória
                 </label>
                 <div className="md:col-span-2">
-                  <p className="mb-2 text-sm font-semibold text-slate-800">Enunciado / area de texto</p>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Enunciado / Área de texto</p>
                   <RichTextEditor
                     value={question.prompt}
                     onChange={(value) => handleQuestionField(question.id, "prompt", value)}
@@ -383,16 +383,16 @@ export function AssessmentBuilderWorkspace({
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-slate-800">Feedback / area de texto</p>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Feedback / Área de texto</p>
                   <RichTextEditor
                     value={question.feedback}
                     onChange={(value) => handleQuestionField(question.id, "feedback", value)}
-                    placeholder="Feedback ou explicacao"
+                    placeholder="Feedback ou explicação"
                     minHeightPx={150}
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-slate-800">Rubrica / area de texto</p>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Rubrica / Área de texto</p>
                   <RichTextEditor
                     value={question.rubric}
                     onChange={(value) => handleQuestionField(question.id, "rubric", value)}
@@ -407,7 +407,7 @@ export function AssessmentBuilderWorkspace({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="font-semibold text-slate-950">Alternativas</h3>
-                      <p className="mt-1 text-sm text-slate-600">Marque o gabarito correto no proprio item.</p>
+                      <p className="mt-1 text-sm text-slate-600">Marque o gabarito correto no próprio item.</p>
                     </div>
                     <Button type="button" variant="outline" className="rounded-full" onClick={() => addOption(question.id)}>
                       Nova alternativa
@@ -453,7 +453,7 @@ export function AssessmentBuilderWorkspace({
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Button type="button" className="rounded-full" disabled={updateAssessment.isPending} onClick={handleSubmit}>
-            {updateAssessment.isPending ? "A guardar..." : "Guardar avaliacao"}
+            {updateAssessment.isPending ? "A guardar..." : "Guardar avaliação"}
           </Button>
         </div>
       </section>
@@ -465,7 +465,7 @@ export function AssessmentBuilderWorkspace({
           disabled={updateAssessment.isPending}
           onClick={handleSubmit}
         >
-          {updateAssessment.isPending ? "A guardar..." : "Salvar configuracoes"}
+          {updateAssessment.isPending ? "A guardar..." : "Salvar configurações"}
         </Button>
       </div>
 

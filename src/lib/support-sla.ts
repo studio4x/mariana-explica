@@ -4,12 +4,12 @@ export const supportCategories = [
   {
     key: "payment",
     label: "Pagamentos",
-    description: "Compra, checkout, fatura ou acesso apos pagamento.",
+    description: "Compra, checkout, fatura ou acesso após pagamento.",
     firstResponseHours: 2,
   },
   {
     key: "technical",
-    label: "Problema tecnico",
+    label: "Problema técnico",
     description: "Erro no dashboard, visualizador, downloads ou login.",
     firstResponseHours: 24,
   },
@@ -21,14 +21,14 @@ export const supportCategories = [
   },
   {
     key: "general",
-    label: "Duvida geral",
+    label: "Dúvida geral",
     description: "Perguntas sobre materiais ou funcionamento.",
     firstResponseHours: 24,
   },
 ] as const
 
 export const supportPublicNote =
-  "Os prazos indicam a primeira resposta humana da equipa. Nao representam prazo de resolucao final."
+  "Os prazos indicam a primeira resposta humana da equipa. Não representam prazo de resolução final."
 
 export const supportBusinessHours =
   "Atendimento em dias uteis, das 8h as 18h."

@@ -26,7 +26,7 @@ function AdminOverviewSkeleton() {
     <div className="space-y-6">
       <PageHeader
         title="Visao geral"
-        description="Indicadores rapidos da operacao, contexto para tomada de decisao e os pedidos mais recentes para acompanhamento imediato."
+        description="Indicadores rápidos da operação, contexto para tomada de decisao e os pedidos mais recentes para acompanhamento imediato."
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -84,7 +84,7 @@ export function Admin() {
   if (overviewQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o admin"
+        title="Não foi possível carregar o admin"
         message={
           overviewQuery.error instanceof Error ? overviewQuery.error.message : "Tenta novamente dentro de instantes."
         }
@@ -112,7 +112,7 @@ export function Admin() {
   if (overview.alerts.openSupportTickets > 0) {
     alerts.push({
       title: "Tickets de suporte a pedir resposta",
-      message: `${overview.alerts.openSupportTickets} ticket(s) em aberto com impacto direto na experiencia do aluno.`,
+      message: `${overview.alerts.openSupportTickets} ticket(s) em aberto com impacto direto na experiência do aluno.`,
       tone: overview.alerts.highPrioritySupportTickets > 0 ? "danger" : "warning",
       to: ROUTES.ADMIN_SUPPORT,
       cta: "Abrir suporte",
@@ -121,11 +121,11 @@ export function Admin() {
 
   if (overview.alerts.unreadNotifications > 0) {
     alerts.push({
-      title: "Notificacoes recentes por rever",
-      message: `${overview.alerts.unreadNotifications} notificacao(oes) ainda estao sem leitura na fila operacional.`,
+      title: "Notificações recentes por rever",
+      message: `${overview.alerts.unreadNotifications} notificação(oes) ainda estão sem leitura na fila operacional.`,
       tone: "neutral",
       to: ROUTES.ADMIN_NOTIFICATIONS,
-      cta: "Abrir notificacoes",
+      cta: "Abrir notificações",
     })
   }
 
@@ -135,14 +135,14 @@ export function Admin() {
       message: `${overview.alerts.failedEmails} entrega(s) precisam de reprocessamento ou leitura do erro.`,
       tone: "danger",
       to: ROUTES.ADMIN_OPERATIONS,
-      cta: "Abrir operacoes",
+      cta: "Abrir operações",
     })
   }
 
   if (overview.alerts.failedJobs > 0) {
     alerts.push({
       title: "Jobs com falha recente",
-      message: `${overview.alerts.failedJobs} execucao(oes) falharam e merecem conferencia operacional.`,
+      message: `${overview.alerts.failedJobs} execução(oes) falharam e merecem conferencia operacional.`,
       tone: "warning",
       to: ROUTES.ADMIN_OPERATIONS,
       cta: "Rever jobs",
@@ -177,9 +177,9 @@ export function Admin() {
       })
 
       setLogoFile(null)
-      setFormMessage("Configuracao do watermark atualizada.")
+      setFormMessage("Configuração do watermark atualizada.")
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Nao foi possivel atualizar o watermark.")
+      setFormError(error instanceof Error ? error.message : "Não foi possível atualizar o watermark.")
     }
   }
 
@@ -194,9 +194,9 @@ export function Admin() {
         logoPath: null,
       })
       setLogoFile(null)
-      setFormMessage("Logotipo removido da configuracao do watermark.")
+      setFormMessage("Logotipo removido da configuração do watermark.")
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Nao foi possivel remover o logotipo.")
+      setFormError(error instanceof Error ? error.message : "Não foi possível remover o logotipo.")
     }
   }
 
@@ -206,10 +206,10 @@ export function Admin() {
     <div className="space-y-6">
       <PageHeader
         title="Visao geral"
-        description="Indicadores rapidos da operacao, contexto para tomada de decisao e os pedidos mais recentes para acompanhamento imediato."
+        description="Indicadores rápidos da operação, contexto para tomada de decisao e os pedidos mais recentes para acompanhamento imediato."
         actions={
           <Button asChild variant="outline" className="rounded-full">
-            <Link to={ROUTES.ADMIN_OPERATIONS}>Operacoes</Link>
+            <Link to={ROUTES.ADMIN_OPERATIONS}>Operações</Link>
           </Button>
         }
       />
@@ -218,12 +218,12 @@ export function Admin() {
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Utilizadores</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.totalUsers}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Base total sincronizada com o sistema de autenticacao.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Base total sincronizada com o sistema de autenticação.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Materiais publicados</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.totalPublishedProducts}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Oferta publicada com visibilidade na area publica.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Oferta publicada com visibilidade na Área pública.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Pedidos pagos</p>
@@ -233,7 +233,7 @@ export function Admin() {
         <div className="rounded-[1.75rem] border bg-primary p-6 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Receita registada</p>
           <p className="mt-3 text-3xl font-bold">{formatProductPrice(metrics.revenueCents, "EUR")}</p>
-          <p className="mt-2 text-sm leading-6 text-white/82">Leitura rapida do volume financeiro registado no sistema.</p>
+          <p className="mt-2 text-sm leading-6 text-white/82">Leitura rápida do volume financeiro registado no sistema.</p>
         </div>
       </div>
 
@@ -242,7 +242,7 @@ export function Admin() {
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Watermark do PDF base</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-              O PDF base do modulo agora gera uma copia derivada com watermark visual. O nome do site entra como marca
+              O PDF base do módulo agora gera uma copia derivada com watermark visual. O nome do site entra como marca
               provisoria, e o logotipo pode ser definido manualmente aqui para a sobreposicao futura.
             </p>
           </div>
@@ -284,21 +284,21 @@ export function Admin() {
           <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Estado atual</p>
             {watermarkConfigQuery.isLoading ? (
-              <p className="mt-4 text-sm text-slate-600">A carregar configuracao...</p>
+              <p className="mt-4 text-sm text-slate-600">A carregar configuração...</p>
             ) : watermarkConfigQuery.isError ? (
               <p className="mt-4 text-sm text-red-600">
                 {watermarkConfigQuery.error instanceof Error
                   ? watermarkConfigQuery.error.message
-                  : "Nao foi possivel ler a configuracao atual."}
+                  : "Não foi possível ler a configuração atual."}
               </p>
             ) : (
               <>
                 <p className="mt-4 text-sm text-slate-600">Texto atual: {watermarkConfig?.config_value.site_name ?? APP_NAME}</p>
                 <p className="mt-2 break-all text-sm text-slate-600">
-                  Logo atual: {currentLogoPath ?? "Nao configurado"}
+                  Logo atual: {currentLogoPath ?? "Não configurado"}
                 </p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Ultima atualizacao: {watermarkConfig?.updated_at ? formatDateTime(watermarkConfig.updated_at) : "Ainda nao guardado"}
+                  Última atualização: {watermarkConfig?.updated_at ? formatDateTime(watermarkConfig.updated_at) : "Ainda não guardado"}
                 </p>
               </>
             )}
@@ -328,7 +328,7 @@ export function Admin() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Alertas operacionais</h2>
-            <p className="mt-1 text-sm text-slate-600">Leitura curta do que merece acao antes de seguir para o restante da operacao.</p>
+            <p className="mt-1 text-sm text-slate-600">Leitura curta do que merece ação antes de seguir para o restante da operação.</p>
           </div>
           <StatusBadge label={`${alerts.length} alertas`} tone={alerts.length > 0 ? "warning" : "success"} />
         </div>
@@ -337,7 +337,7 @@ export function Admin() {
           <div className="mt-4">
             <EmptyState
               title="Sem alertas criticos"
-              message="A operacao principal esta estavel neste momento."
+              message="A operação principal esta estavel neste momento."
             />
           </div>
         ) : (
@@ -349,7 +349,7 @@ export function Admin() {
                     <h3 className="text-lg font-semibold text-slate-950">{alert.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{alert.message}</p>
                   </div>
-                  <StatusBadge label="Atencao" tone={alert.tone} />
+                  <StatusBadge label="Atenção" tone={alert.tone} />
                 </div>
                 <Button asChild variant="outline" className="mt-4 rounded-full">
                   <Link to={alert.to}>{alert.cta}</Link>
@@ -364,7 +364,7 @@ export function Admin() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Pedidos recentes</h2>
-            <p className="mt-1 text-sm text-slate-600">Leitura rapida para conferencia e acao operacional.</p>
+            <p className="mt-1 text-sm text-slate-600">Leitura rápida para conferencia e ação operacional.</p>
           </div>
           <StatusBadge label={`${recentOrders.length} linhas`} tone="neutral" />
         </div>

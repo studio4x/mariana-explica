@@ -130,7 +130,7 @@ export function CourseSettingsPanel() {
     setUploadMessage(null)
 
     if (file.size > 10 * 1024 * 1024) {
-      setFeedback({ tone: "error", message: "A capa deve ter no maximo 10MB." })
+      setFeedback({ tone: "error", message: "A capa deve ter no máximo 10MB." })
       event.target.value = ""
       return
     }
@@ -146,11 +146,11 @@ export function CourseSettingsPanel() {
         ...prev,
         coverImageUrl: upload.public_url ?? prev.coverImageUrl,
       }))
-      setUploadMessage("Capa enviada com sucesso. Guarde as configuracoes para publicar a nova imagem.")
+      setUploadMessage("Capa enviada com sucesso. Guarde as configurações para publicar a nova imagem.")
     } catch (uploadError) {
       setFeedback({
         tone: "error",
-        message: uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar a capa do material.",
+        message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar a capa do material.",
       })
     } finally {
       event.target.value = ""
@@ -197,19 +197,19 @@ export function CourseSettingsPanel() {
     } catch (err) {
       setFeedback({
         tone: "error",
-        message: err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do material.",
+        message: err instanceof Error ? err.message : "Não foi possível guardar as configurações do material.",
       })
       return
     }
 
-    setFeedback({ tone: "success", message: "Configuracoes do material guardadas com sucesso." })
+    setFeedback({ tone: "success", message: "Configurações do material guardadas com sucesso." })
   }
 
   return (
     <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
       <PageHeader
-        title="Configuracoes do material"
-        description="Identidade publica, capa comercial, progressao linear e quiz objetivo disponivel neste material."
+        title="Configurações do material"
+        description="Identidade pública, capa comercial, progressao linear e quiz objetivo disponível neste material."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
@@ -224,7 +224,7 @@ export function CourseSettingsPanel() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         <section className="grid gap-4 md:grid-cols-2">
-          <Field label="Titulo do material" helper="Nome principal mostrado no admin, no catalogo e no checkout.">
+          <Field label="Título do material" helper="Nome principal mostrado no admin, no catálogo e no checkout.">
             <input
               value={form.title}
               onChange={(event) =>
@@ -239,11 +239,11 @@ export function CourseSettingsPanel() {
                   }
                 })
               }
-              placeholder="Titulo do material"
+              placeholder="Título do material"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
-          <Field label="Slug do material" helper="Identificador da URL publica. Use texto curto e estavel.">
+          <Field label="Slug do material" helper="Identificador da URL pública. Use texto curto e estavel.">
             <input
               value={form.slug}
               onChange={(event) => setForm((prev) => ({ ...prev, slug: slugify(event.target.value) }))}
@@ -251,7 +251,7 @@ export function CourseSettingsPanel() {
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
-          <Field label="Categoria do material" helper="Categorias usadas no catalogo publico e nos filtros.">
+          <Field label="Categoria do material" helper="Categorias usadas no catálogo público e nos filtros.">
             <select
               value={form.categoryId}
               onChange={(event) => setForm((prev) => ({ ...prev, categoryId: event.target.value }))}
@@ -282,13 +282,13 @@ export function CourseSettingsPanel() {
             />
           </Field>
           <Field
-            label="Comissao do criador (%)"
-            helper="Percentual operacional para afiliacao/autoria quando aplicavel."
+            label="Comissão do criador (%)"
+            helper="Percentual operacional para afiliação/autoria quando aplicável."
           >
             <input
               value={form.creatorCommissionPercent}
               onChange={(event) => setForm((prev) => ({ ...prev, creatorCommissionPercent: event.target.value }))}
-              placeholder="Comissao do criador (%)"
+              placeholder="Comissão do criador (%)"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </Field>
@@ -307,8 +307,8 @@ export function CourseSettingsPanel() {
             </div>
           </Field>
           <Field
-            label="Resumo curto / area de texto"
-            helper="Texto curto usado em cards, paginas de material e contexto comercial."
+            label="Resumo curto / Área de texto"
+            helper="Texto curto usado em cards, páginas de material e contexto comercial."
             fullWidth
           >
             <RichTextEditor
@@ -323,9 +323,9 @@ export function CourseSettingsPanel() {
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Compra e checkout</p>
-            <h2 className="mt-2 text-lg font-bold text-slate-950">Configuracao comercial</h2>
+            <h2 className="mt-2 text-lg font-bold text-slate-950">Configuração comercial</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              Estes campos controlam o preco, a visibilidade da pagina publica e o comportamento do botao de compra.
+              Estes campos controlam o preço, a visibilidade da página pública e o comportamento do botão de compra.
             </p>
           </div>
 
@@ -340,11 +340,11 @@ export function CourseSettingsPanel() {
               >
                 <option value="paid">Pago</option>
                 <option value="free">Gratuito</option>
-                <option value="hybrid">Hibrido</option>
-                <option value="external_service">Servico externo</option>
+                <option value="hybrid">Híbrido</option>
+                <option value="external_service">Serviço externo</option>
               </select>
             </Field>
-            <Field label="Estado do material" helper="A pagina publica e o checkout exigem material publicado.">
+            <Field label="Estado do material" helper="A página pública e o checkout exigem material publicado.">
               <select
                 value={form.status}
                 onChange={(event) =>
@@ -357,7 +357,7 @@ export function CourseSettingsPanel() {
                 <option value="archived">Arquivado</option>
               </select>
             </Field>
-            <Field label="Preco" helper="Valor em euros. Em produtos pagos, use pelo menos 0.50 para checkout Stripe.">
+            <Field label="Preço" helper="Valor em euros. Em produtos pagos, use pelo menos 0.50 para checkout Stripe.">
               <input
                 value={form.price}
                 onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
@@ -366,7 +366,7 @@ export function CourseSettingsPanel() {
                 className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
             </Field>
-            <Field label="Moeda" helper="Codigo ISO usado pelo checkout.">
+            <Field label="Moeda" helper="Código ISO usado pelo checkout.">
               <input
                 value={form.currency}
                 onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }))}
@@ -375,7 +375,7 @@ export function CourseSettingsPanel() {
                 className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm uppercase outline-none focus:border-slate-400 focus:bg-white"
               />
             </Field>
-            <Field label="Ordem no catalogo" helper="Numeros menores aparecem primeiro.">
+            <Field label="Ordem no catálogo" helper="Números menores aparecem primeiro.">
               <input
                 value={form.sortOrder}
                 onChange={(event) => setForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
@@ -392,8 +392,8 @@ export function CourseSettingsPanel() {
                   className="mt-1"
                 />
                 <span>
-                  <span className="block font-semibold text-slate-950">Ativar pagina publica e checkout</span>
-                  <span className="mt-1 block text-slate-500">Permite abrir a pagina do material e seguir pelo botao de compra.</span>
+                  <span className="block font-semibold text-slate-950">Ativar página pública e checkout</span>
+                  <span className="mt-1 block text-slate-500">Permite abrir a página do material e seguir pelo botão de compra.</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
@@ -416,8 +416,8 @@ export function CourseSettingsPanel() {
                   className="mt-1"
                 />
                 <span>
-                  <span className="block font-semibold text-slate-950">Destacar no catalogo</span>
-                  <span className="mt-1 block text-slate-500">Marca o material como destaque nas areas publicas.</span>
+                  <span className="block font-semibold text-slate-950">Destacar no catálogo</span>
+                  <span className="mt-1 block text-slate-500">Marca o material como destaque nas Áreas públicas.</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
@@ -428,7 +428,7 @@ export function CourseSettingsPanel() {
                   className="mt-1"
                 />
                 <span>
-                  <span className="block font-semibold text-slate-950">Permitir afiliacao</span>
+                  <span className="block font-semibold text-slate-950">Permitir afiliação</span>
                   <span className="mt-1 block text-slate-500">Mantem o material elegivel para fluxos de afiliados quando ativos.</span>
                 </span>
               </label>
@@ -442,7 +442,7 @@ export function CourseSettingsPanel() {
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Capa do material</p>
               <h2 className="mt-2 text-lg font-bold text-slate-950">Upload de imagem</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                A capa alimenta cards e paginas publicas. O upload gera um asset publico apenas para a imagem comercial do material.
+                A capa alimenta cards e páginas públicas. O upload gera um asset público apenas para a imagem comercial do material.
               </p>
             </div>
             {form.coverImageUrl ? <StatusBadge label="Capa configurada" tone="success" /> : null}
@@ -465,7 +465,7 @@ export function CourseSettingsPanel() {
               <div>
                 <p className="text-sm font-semibold text-slate-950">Enviar nova imagem</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Formatos recomendados: JPG, PNG ou WEBP. Depois do upload, confirme em guardar configuracoes.
+                  Formatos recomendados: JPG, PNG ou WEBP. Depois do upload, confirme em guardar configurações.
                 </p>
               </div>
 
@@ -494,8 +494,8 @@ export function CourseSettingsPanel() {
               className="mt-1"
             />
             <span>
-              <span className="block font-semibold text-slate-950">Exibir no catalogo publico</span>
-              <span className="mt-1 block text-slate-500">Mantem o material visivel na area comercial da plataforma.</span>
+              <span className="block font-semibold text-slate-950">Exibir no catálogo público</span>
+              <span className="mt-1 block text-slate-500">Mantem o material visível na Área comercial da plataforma.</span>
             </span>
           </label>
           <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
@@ -507,7 +507,7 @@ export function CourseSettingsPanel() {
             />
             <span>
               <span className="block font-semibold text-slate-950">Ativar progressao linear</span>
-              <span className="mt-1 block text-slate-500">Bloqueia os proximos passos ate o aluno cumprir a trilha anterior.</span>
+              <span className="mt-1 block text-slate-500">Bloqueia os próximos passos ate o aluno cumprir a trilha anterior.</span>
             </span>
           </label>
           <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700 md:col-span-2">
@@ -520,7 +520,7 @@ export function CourseSettingsPanel() {
             <span>
               <span className="block font-semibold text-slate-950">Permitir quiz objetivo de multipla escolha</span>
               <span className="mt-1 block text-slate-500">
-                Tipos com IA e narracao ficam desativados neste ajuste; o builder passa a operar apenas com quiz objetivo e avaliacao final objetiva.
+                Tipos com IA e narracao ficam desativados neste ajuste; o builder passa a operar apenas com quiz objetivo e avaliação final objetiva.
               </span>
             </span>
           </label>
@@ -528,7 +528,7 @@ export function CourseSettingsPanel() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>
-            {updateProduct.isPending ? "A guardar..." : "Guardar configuracoes"}
+            {updateProduct.isPending ? "A guardar..." : "Guardar configurações"}
           </Button>
         </div>
       </form>

@@ -87,7 +87,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">Centro</p>
-              <h2 className="text-base font-black text-slate-950">Notificacoes</h2>
+              <h2 className="text-base font-black text-slate-950">Notificações</h2>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -104,7 +104,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
                 type="button"
                 onClick={() => setIsOpen(false)}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100"
-                aria-label="Fechar notificacoes"
+                aria-label="Fechar notificações"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -113,9 +113,9 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
 
           <div className="max-h-[min(620px,calc(100vh-10rem))] overflow-y-auto p-3">
             {isLoading ? (
-              <p className="px-3 py-8 text-sm font-semibold text-slate-500">A carregar notificacoes...</p>
+              <p className="px-3 py-8 text-sm font-semibold text-slate-500">A carregar notificações...</p>
             ) : visibleNotifications.length === 0 ? (
-              <p className="px-3 py-8 text-sm font-semibold text-slate-500">Sem notificacoes por enquanto.</p>
+              <p className="px-3 py-8 text-sm font-semibold text-slate-500">Sem notificações por enquanto.</p>
             ) : (
               <div className="grid gap-2">
                 {visibleNotifications.map((notification) => {
@@ -147,7 +147,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
                           <p className="text-sm font-black text-slate-950">{notification.title}</p>
                           {audience ? <p className="mt-1 text-xs font-semibold text-slate-500">{audience}</p> : null}
                         </div>
-                        {isUnread ? <StatusBadge label="nao lida" tone="warning" /> : null}
+                        {isUnread ? <StatusBadge label="não lida" tone="warning" /> : null}
                       </div>
                       <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{notification.message}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -170,7 +170,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
         type="button"
         onClick={() => setIsOpen((current) => !current)}
         className="relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_18px_45px_rgba(15,23,42,0.35)] transition hover:-translate-y-1 hover:bg-sky-700"
-        aria-label={`Notificacoes${effectiveUnreadCount > 0 ? `, ${effectiveUnreadCount} nao lidas` : ""}`}
+        aria-label={`Notificações${effectiveUnreadCount > 0 ? `, ${effectiveUnreadCount} não lidas` : ""}`}
       >
         <Bell className="h-6 w-6" />
         {effectiveUnreadCount > 0 ? (

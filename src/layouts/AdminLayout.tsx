@@ -53,18 +53,18 @@ interface AdminNavItem {
 const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
-  { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
-  { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
+  { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificações", icon: Bell },
+  { to: ROUTES.ADMIN_USERS, label: "Usuários", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
-  { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Paginas", icon: LayoutTemplate },
+  { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Páginas", icon: LayoutTemplate },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
-  { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formularios", icon: ClipboardList },
+  { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formulários", icon: ClipboardList },
   { to: ROUTES.ADMIN_FAQ, label: "Perguntas frequentes", icon: CircleHelp },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
   { to: ROUTES.ADMIN_ACCOUNT, label: "Minha Conta", icon: UserCircle2 },
-  { to: ROUTES.ADMIN_SETTINGS, label: "Configuracoes", icon: Settings },
+  { to: ROUTES.ADMIN_SETTINGS, label: "Configurações", icon: Settings },
 ]
 
 function getInitials(name?: string | null, email?: string | null) {
@@ -154,7 +154,7 @@ export function AdminLayout() {
 
           <div className="hidden items-center gap-2 md:flex">
             <StatusBadge label="Backend auditado" tone="success" />
-            <StatusBadge label="Area protegida" tone="info" />
+            <StatusBadge label="Área protegida" tone="info" />
           </div>
 
           <div className="flex items-center gap-2">
@@ -166,14 +166,14 @@ export function AdminLayout() {
             >
               <Link to={ROUTES.HOME}>
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Site publico
+                Site público
               </Link>
             </Button>
 
             <Link
               to={ROUTES.ADMIN_NOTIFICATIONS}
               className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              aria-label="Abrir notificacoes"
+              aria-label="Abrir notificações"
             >
               <Bell className="h-5 w-5" />
               {unreadNotificationsCount > 0 ? (
@@ -221,7 +221,7 @@ export function AdminLayout() {
           <aside className="hidden self-start lg:sticky lg:top-[92px] lg:block">
           <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
             <div className="border-b border-slate-200 px-5 py-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Navegacao</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Navegação</p>
               <p className="mt-2 text-lg font-black text-slate-950">Admin</p>
             </div>
             <nav className="space-y-1 p-3">

@@ -59,7 +59,7 @@ async function invokeFunction<TResponse>(
 ) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth && !options?.allowAnonymous) {
-    throw new Error("Sessao expirada. Entre novamente para continuar.")
+    throw new Error("Sessão expirada. Entre novamente para continuar.")
   }
 
   const url = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`
@@ -93,7 +93,7 @@ async function invokeFunction<TResponse>(
   }
 
   if (!response) {
-    throw new Error("Nao foi possivel contactar o servidor. Tenta novamente dentro de instantes.")
+    throw new Error("Não foi possível contactar o servidor. Tenta novamente dentro de instantes.")
   }
 
   const contentType = response.headers.get("content-type") ?? ""
@@ -113,7 +113,7 @@ async function invokeFunction<TResponse>(
   }
 
   if (!data || typeof data !== "object") {
-    throw new Error(`A funcao ${name} nao retornou dados`)
+    throw new Error(`A função ${name} não retornou dados`)
   }
 
   return data as TResponse
@@ -146,7 +146,7 @@ async function invokeAnonymousFunction<TResponse>(name: string, body: unknown) {
   }
 
   if (!response) {
-    throw new Error("Nao foi possivel contactar o servidor. Tenta novamente dentro de instantes.")
+    throw new Error("Não foi possível contactar o servidor. Tenta novamente dentro de instantes.")
   }
 
   const contentType = response.headers.get("content-type") ?? ""
@@ -166,7 +166,7 @@ async function invokeAnonymousFunction<TResponse>(name: string, body: unknown) {
   }
 
   if (!data || typeof data !== "object") {
-    throw new Error(`A funcao ${name} nao retornou dados`)
+    throw new Error(`A função ${name} não retornou dados`)
   }
 
   return data as TResponse

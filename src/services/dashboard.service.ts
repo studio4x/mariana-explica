@@ -33,7 +33,7 @@ async function getCurrentUserId() {
   const userId = data.session?.user?.id
 
   if (!userId) {
-    throw new Error("Sessao invalida")
+    throw new Error("Sessão inválida")
   }
 
   return userId
@@ -144,7 +144,7 @@ async function requireCurrentUserId() {
   }
 
   if (!session?.user) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   return session.user.id
@@ -311,7 +311,7 @@ export async function fetchModuleAssetsByModule(moduleId: string) {
 export async function requestModulePdfAccess(moduleId: string) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   const response = await fetch(
@@ -423,7 +423,7 @@ export async function fetchAccessibleAssessment(assessmentId: string) {
 async function invokeStudentAssessmentFunction<TResponse>(body: unknown) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   const response = await fetch(
@@ -581,7 +581,7 @@ export async function fetchModuleAssets(moduleIds: string[]) {
 export async function fetchDashboardProductContent(productId: string) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   const response = await fetch(
@@ -777,7 +777,7 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
 async function invokeStudentOrderAction<TResponse>(body: unknown) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/student-order-actions`, {
@@ -979,7 +979,7 @@ export async function updateProfilePreferences(input: {
   const userId = await getCurrentUserId()
   const rawNif = input.nif === undefined ? undefined : String(input.nif ?? "").trim()
   if (rawNif && !isValidNif(rawNif)) {
-    throw new Error("Indica um NIF valido.")
+    throw new Error("Indica um NIF válido.")
   }
 
   const { data, error } = await supabase
@@ -1009,7 +1009,7 @@ export async function uploadProfileAvatar(input: {
 }) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   const formData = new FormData()

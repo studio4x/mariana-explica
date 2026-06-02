@@ -202,7 +202,7 @@ function RouteErrorBoundary() {
     return (
       <ErrorState
         title="A atualizar a plataforma"
-        message="A aplicacao recebeu uma nova versao. Vamos recarregar a pagina para abrir os ficheiros corretos."
+        message="A aplicação recebeu uma nova versão. Vamos recarregar a página para abrir os ficheiros corretos."
         onRetry={() => void reloadAfterRuntimeCleanup()}
       />
     )
@@ -210,8 +210,8 @@ function RouteErrorBoundary() {
 
   return (
     <ErrorState
-      title="Nao foi possivel carregar esta pagina"
-      message="Atualize a pagina e tente novamente. Se continuar, avise o suporte com o horario do erro."
+      title="Não foi possível carregar esta página"
+      message="Atualize a página e tente novamente. Se continuar, avise o suporte com o horario do erro."
       onRetry={() => window.location.reload()}
     />
   )

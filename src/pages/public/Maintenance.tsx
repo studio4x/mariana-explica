@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+﻿import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Lock, ShieldCheck, Wrench, X } from "lucide-react"
 import { SiteLogo } from "@/components/common/SiteLogo"
@@ -23,7 +23,7 @@ function extractErrorMessage(error: unknown) {
     return String((error as { message?: unknown }).message ?? "")
   }
 
-  return "Nao foi possivel concluir o login agora."
+  return "Não foi possível concluir o login agora."
 }
 
 function isNetworkLikeAuthError(message: string) {
@@ -74,7 +74,7 @@ async function fallbackPasswordGrant(email: string, password: string) {
   const refreshToken = String(data.refresh_token ?? "").trim()
 
   if (!accessToken || !refreshToken) {
-    throw new Error("Sessao de autenticacao invalida. Tenta novamente.")
+    throw new Error("Sessão de autenticação inválida. Tenta novamente.")
   }
 
   const { error } = await supabase.auth.setSession({
@@ -120,7 +120,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
       const userId = sessionData.session?.user?.id
 
       if (!userId) {
-        throw new Error("Sessao nao foi criada. Tenta novamente.")
+        throw new Error("Sessão não foi criada. Tenta novamente.")
       }
 
       const { data: profile, error: profileError } = await supabase
@@ -142,7 +142,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
 
       if (!isAdmin) {
         await supabase.auth.signOut()
-        setError("Este acesso e exclusivo para administradores ativos.")
+        setError("Este acesso é exclusivo para administradores ativos.")
         return
       }
 
@@ -164,7 +164,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
 
           <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#cfe2eb] bg-[#eef7fb] px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#24506a]">
             <Wrench className="h-3.5 w-3.5" />
-            Modo manutencao
+            Modo manutenção
           </div>
 
           <h1 className="mt-5 font-display text-3xl font-bold leading-tight text-[#112f45] sm:text-4xl">
@@ -175,7 +175,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
           <div className="mt-8 grid gap-3 text-sm text-[#36576b] sm:grid-cols-3">
             <div className="rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4">
               <ShieldCheck className="h-4 w-4 text-[#0f5f74]" />
-              <p className="mt-2 font-bold text-[#163d56]">Seguranca preservada</p>
+              <p className="mt-2 font-bold text-[#163d56]">Segurança preservada</p>
               <p className="mt-1 leading-6">A estrutura e os dados ficam protegidos durante os ajustes.</p>
             </div>
             <div className="rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4">
@@ -186,7 +186,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
             <div className="rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4">
               <Wrench className="h-4 w-4 text-[#0f5f74]" />
               <p className="mt-2 font-bold text-[#163d56]">Retorno breve</p>
-              <p className="mt-1 leading-6">Assim que concluir, o acesso publico volta automaticamente.</p>
+              <p className="mt-1 leading-6">Assim que concluir, o acesso público volta automaticamente.</p>
             </div>
           </div>
 
@@ -224,7 +224,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
             </div>
 
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              Usa as credenciais de administrador para aceder ao painel durante a manutencao.
+              Usa as credenciais de administrador para aceder ao painel durante a manutenção.
             </p>
 
             <form className="mt-5 space-y-4" onSubmit={handleAdminLogin}>
@@ -276,3 +276,6 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
     </div>
   )
 }
+
+
+

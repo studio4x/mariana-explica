@@ -51,7 +51,7 @@ function paymentStatusLabel(status: AdminOrderViewSummary["status"]) {
 
 function productTypeLabel(productType: AdminOrderViewSummary["product_type"] | null) {
   if (productType === "free") return "Gratuito"
-  if (productType === "hybrid") return "Hibrido"
+  if (productType === "hybrid") return "Híbrido"
   if (productType === "external_service") return "Externo"
   return "Pago"
 }
@@ -107,10 +107,10 @@ function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_failed", 
   }
 
   if (action === "mark_failed") {
-    return "Pedido reconciliado com a Stripe e marcado como falhou porque a sessao externa nao confirmou pagamento."
+    return "Pedido reconciliado com a Stripe e marcado como falhou porque a sessão externa não confirmou pagamento."
   }
 
-  return `Reconciliacao concluida sem mudancas. Estado Stripe: ${stripeState || "sem alteracao relevante"}.`
+  return `Reconciliação concluída sem mudancas. Estado Stripe: ${stripeState || "sem alteração relevante"}.`
 }
 
 function AdminPaymentsSkeleton() {
@@ -202,7 +202,7 @@ export function AdminPayments() {
     } catch (error) {
       setActionFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "Nao foi possivel concluir a acao do pedido.",
+        message: error instanceof Error ? error.message : "Não foi possível concluir a ação do pedido.",
       })
     }
   }
@@ -219,7 +219,7 @@ export function AdminPayments() {
     } catch (error) {
       setActionFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "Nao foi possivel reconciliar o pedido.",
+        message: error instanceof Error ? error.message : "Não foi possível reconciliar o pedido.",
       })
     }
   }
@@ -260,7 +260,7 @@ export function AdminPayments() {
 
     return (
       <ErrorState
-        title="Nao foi possivel carregar os pagamentos"
+        title="Não foi possível carregar os pagamentos"
         message={error?.message ?? "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void ordersQuery.refetch()
@@ -313,9 +313,9 @@ export function AdminPayments() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Admin / Pagamentos</p>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Historico de pagamentos</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Histórico de pagamentos</h2>
             <p className="max-w-2xl text-sm leading-7 text-slate-600">
-              Consulta os pedidos processados, acompanha os estados e alterna o ambiente do checkout sem sair da pagina.
+              Consulta os pedidos processados, acompanha os estados e alterna o ambiente do checkout sem sair da página.
             </p>
           </div>
 
@@ -339,8 +339,8 @@ export function AdminPayments() {
 
         <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
           {[
-            { key: "history" as const, label: "Historico", icon: CreditCard },
-            { key: "settings" as const, label: "Configuracoes", icon: Settings2 },
+            { key: "history" as const, label: "Histórico", icon: CreditCard },
+            { key: "settings" as const, label: "Configurações", icon: Settings2 },
           ].map((item) => {
             const Icon = item.icon
             const active = tab === item.key
@@ -454,7 +454,7 @@ export function AdminPayments() {
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="px-4 py-3 font-medium">Valor</th>
                       <th className="px-4 py-3 font-medium">Detalhes</th>
-                      <th className="px-4 py-3 font-medium">Acoes</th>
+                      <th className="px-4 py-3 font-medium">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -471,7 +471,7 @@ export function AdminPayments() {
                       return (
                         <tr key={order.id} className="border-b last:border-b-0 align-top">
                           <td className="px-4 py-4">
-                            <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente nao identificado"}</p>
+                            <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente não identificado"}</p>
                             <p className="mt-1 break-all text-xs text-slate-500">{order.user_email ?? order.user_id}</p>
                           </td>
                           <td className="px-4 py-4">
@@ -510,7 +510,7 @@ export function AdminPayments() {
                                   onClick={() => setOpenActionOrderId(actionsOpen ? null : order.id)}
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
-                                  Acoes
+                                  Ações
                                 </Button>
 
                                 {actionsOpen ? (
@@ -595,7 +595,7 @@ export function AdminPayments() {
                                 ) : null}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-500">Sem acoes</span>
+                              <span className="text-xs text-slate-500">Sem ações</span>
                             )}
                           </td>
                         </tr>
@@ -617,7 +617,7 @@ export function AdminPayments() {
                     <p className="mt-3 max-w-xl text-sm leading-7 text-white/80">
                       {paymentsStatusQuery.data?.mode === "live"
                         ? "Checkout real com chaves de producao."
-                        : "Checkout de teste para validar a experiencia sem impacto comercial."}
+                        : "Checkout de teste para validar a experiência sem impacto comercial."}
                     </p>
                   </div>
 
@@ -655,12 +655,12 @@ export function AdminPayments() {
                     })}
                   </div>
                   {updateCheckoutMode.isPending ? (
-                    <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/60">A guardar alteracao...</p>
+                    <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/60">A guardar alteração...</p>
                   ) : null}
                 </div>
 
                 <p className="mt-5 text-sm leading-7 text-white/75">
-                  A mudanca entra no checkout imediatamente. O pedido interno e a confirmacao da Stripe passam a usar o
+                  A mudanca entra no checkout imediatamente. O pedido interno e a confirmação da Stripe passam a usar o
                   mesmo ambiente selecionado aqui.
                 </p>
               </div>
@@ -668,7 +668,7 @@ export function AdminPayments() {
               <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6 shadow-sm">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist do ambiente</p>
                 <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Itens ja validados para o modo {currentModeConfig.label.toLowerCase()} e requisitos que ainda pedem
+                  Itens já validados para o modo {currentModeConfig.label.toLowerCase()} e requisitos que ainda pedem
                   conferencias manuais.
                 </p>
 
@@ -709,8 +709,8 @@ export function AdminPayments() {
                 />
               </div>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                O checkout publico passa a obedecer o modo selecionado acima. Se alterares para Sandbox, as proximas
-                sessoes Stripe sao criadas com chaves de teste; se alterares para Producao, passam a usar as chaves
+                O checkout público passa a obedecer o modo selecionado acima. Se alterares para Sandbox, as proximas
+                sessões Stripe são criadas com chaves de teste; se alterares para Producao, passam a usar as chaves
                 reais do backend.
               </p>
             </div>
@@ -718,7 +718,7 @@ export function AdminPayments() {
         )}
 
         <div className="mt-8 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Legendas das acoes</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Legendas das ações</p>
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {[
               {
@@ -729,7 +729,7 @@ export function AdminPayments() {
               {
                 title: "Marcar como pago",
                 description:
-                  "Correcao manual para confirmar o pedido e liberar o acesso quando a operacao ja foi validada.",
+                  "Correcao manual para confirmar o pedido e liberar o acesso quando a operação já foi validada.",
               },
               {
                 title: "Reembolsar",

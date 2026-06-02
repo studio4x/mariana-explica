@@ -40,13 +40,13 @@ export function DashboardPayments() {
   const [receiptLoadingOrderId, setReceiptLoadingOrderId] = useState<string | null>(null)
 
   if (paymentsQuery.isLoading) {
-    return <LoadingState message="A carregar historico de pagamentos..." />
+    return <LoadingState message="A carregar histórico de pagamentos..." />
   }
 
   if (paymentsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os pagamentos"
+        title="Não foi possível carregar os pagamentos"
         message={paymentsQuery.error instanceof Error ? paymentsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void paymentsQuery.refetch()}
       />
@@ -87,8 +87,8 @@ export function DashboardPayments() {
         receiptWindow.document.body.innerHTML = `
           <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a; background: #ffffff; min-height: 100vh;">
             <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #b91c1c;">Erro</p>
-            <h1 style="font-size: 24px; margin: 12px 0;">Nao foi possivel abrir a fatura</h1>
-            <p style="color: #475569;">Volta a pagina anterior e tenta novamente.</p>
+            <h1 style="font-size: 24px; margin: 12px 0;">Não foi possível abrir a fatura</h1>
+            <p style="color: #475569;">Volta a página anterior e tenta novamente.</p>
           </main>
         `
       }
@@ -113,7 +113,7 @@ export function DashboardPayments() {
     <div className="space-y-6">
       <PageHeader
         title="Pagamentos"
-        description="Historico dos pagamentos confirmados e reembolsos associados a tua conta."
+        description="Histórico dos pagamentos confirmados e reembolsos associados a tua conta."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -128,7 +128,7 @@ export function DashboardPayments() {
         <div className="rounded-[1.75rem] border bg-slate-900 p-5 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Fonte dos dados</p>
           <p className="mt-3 text-sm leading-7 text-white/82">
-            Os pagamentos sao lidos dos pedidos confirmados no backend.
+            Os pagamentos são lidos dos pedidos confirmados no backend.
           </p>
         </div>
       </div>
@@ -142,7 +142,7 @@ export function DashboardPayments() {
           />
           <div className="mt-2 flex justify-center">
             <Button asChild className="rounded-full">
-              <Link to={ROUTES.COURSES}>Ver materiais disponiveis</Link>
+              <Link to={ROUTES.COURSES}>Ver materiais disponíveis</Link>
             </Button>
           </div>
         </div>
@@ -222,7 +222,7 @@ export function DashboardPayments() {
                   Podemos tentar resolver isto contigo?
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  O reembolso remove o acesso ao material. Se o problema for acesso, pagamento, conteudo ou duvida de uso,
+                  O reembolso remove o acesso ao material. Se o problema for acesso, pagamento, conteúdo ou dúvida de uso,
                   o suporte pode ajudar rapidamente sem perderes o material.
                 </p>
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -263,7 +263,7 @@ export function DashboardPayments() {
                   Tens certeza que queres pedir o reembolso?
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  O reembolso sera processado agora no pagamento. O acesso ao material sera removido em seguida.
+                  O reembolso será processado agora no pagamento. O acesso ao material será removido em seguida.
                 </p>
                 <label className="mt-5 block">
                   <span className="mb-2 block text-sm font-medium text-slate-700">Mensagem opcional</span>
@@ -283,7 +283,7 @@ export function DashboardPayments() {
                     onClick={() => setConfirmRefund(false)}
                     disabled={refundMutation.isPending}
                   >
-                    Rever opcoes
+                    Rever opções
                   </Button>
                   <Button
                     type="button"
@@ -298,7 +298,7 @@ export function DashboardPayments() {
                   <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                     {refundMutation.error instanceof Error
                       ? refundMutation.error.message
-                      : "Nao foi possivel processar o reembolso."}
+                      : "Não foi possível processar o reembolso."}
                   </p>
                 ) : null}
               </>

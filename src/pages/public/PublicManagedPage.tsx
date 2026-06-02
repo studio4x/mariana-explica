@@ -105,7 +105,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   }, [managedPayload?.html, slug])
 
   if (pageQuery.isLoading && !previewPayload) {
-    return <LoadingState message="A carregar conteudo da pagina..." />
+    return <LoadingState message="A carregar conteúdo da página..." />
   }
 
   if (pageQuery.isError && !previewPayload) {

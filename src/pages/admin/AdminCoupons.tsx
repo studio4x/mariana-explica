@@ -26,7 +26,7 @@ function AdminCouponsSkeleton() {
     <div className="space-y-6">
       <PageHeader
         title="Cupons"
-        description="Configuracao minima de descontos com regras simples de uso e acompanhamento."
+        description="Configuração minima de descontos com regras simples de uso e acompanhamento."
       />
       <div className="grid gap-4 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -64,7 +64,7 @@ export function AdminCoupons() {
   if (couponsQuery.isError || usagesQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os cupons"
+        title="Não foi possível carregar os cupons"
         message="Tenta novamente dentro de instantes."
         onRetry={() => {
           void couponsQuery.refetch()
@@ -111,7 +111,7 @@ export function AdminCoupons() {
     <div className="space-y-6">
       <PageHeader
         title="Cupons"
-        description="Configuracao minima de descontos com regras simples de uso e acompanhamento operacional."
+        description="Configuração minima de descontos com regras simples de uso e acompanhamento operacional."
       />
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -138,7 +138,7 @@ export function AdminCoupons() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Regra comercial</p>
           <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar cupom</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            Define o codigo, o tipo de desconto e os limites de uso sem depender de logica no frontend.
+            Define o código, o tipo de desconto e os limites de uso sem depender de lógica no frontend.
           </p>
 
           <div className="mt-5 grid gap-4">
@@ -146,13 +146,13 @@ export function AdminCoupons() {
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value.toUpperCase())}
-                placeholder="Codigo"
+                placeholder="Código"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm uppercase outline-none focus:border-slate-400 focus:bg-white"
               />
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="Titulo interno"
+                placeholder="Título interno"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
             </div>
@@ -207,7 +207,7 @@ export function AdminCoupons() {
                 onChange={(event) => setMaxUses(event.target.value)}
                 type="number"
                 min="0"
-                placeholder="Maximo de usos"
+                placeholder="Máximo de usos"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
               <input
@@ -223,7 +223,7 @@ export function AdminCoupons() {
                 onChange={(event) => setMinimumOrderCents(event.target.value)}
                 type="number"
                 min="0"
-                placeholder="Pedido minimo em cts"
+                placeholder="Pedido mínimo em cts"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
             </div>
@@ -241,8 +241,8 @@ export function AdminCoupons() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Cupons ativos e historico</h2>
-              <p className="mt-1 text-sm text-slate-600">Edicao rapida das regras comerciais e leitura dos limites atuais.</p>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Cupons ativos e histórico</h2>
+              <p className="mt-1 text-sm text-slate-600">Edição rápida das regras comerciais e leitura dos limites atuais.</p>
             </div>
             <StatusBadge label={`${coupons.length} registos`} tone="neutral" />
           </div>
@@ -284,7 +284,7 @@ export function AdminCoupons() {
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                       <div>
                         <p className="font-medium text-slate-950">{coupon.code}</p>
-                        <p className="mt-1 text-sm text-slate-600">{coupon.title ?? "Sem titulo interno"}</p>
+                        <p className="mt-1 text-sm text-slate-600">{coupon.title ?? "Sem título interno"}</p>
                         <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
                           Criado em {formatDateTime(coupon.created_at)}
                         </p>
@@ -371,7 +371,7 @@ export function AdminCoupons() {
                         Uso atual {coupon.current_uses} de {coupon.max_uses ?? "sem limite"} · Atualizado em {formatDateTime(coupon.updated_at)}
                       </p>
                       <Button type="submit" variant="outline" className="rounded-full" disabled={updateCoupon.isPending}>
-                        Guardar alteracoes
+                        Guardar alterações
                       </Button>
                     </div>
                   </form>

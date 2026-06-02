@@ -38,7 +38,7 @@ export function LegalPageLayout({
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">{intro}</p>
 
             <div className="mt-6 inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-              Ultima atualizacao: {updatedAt}
+              Última atualização: {updatedAt}
             </div>
           </div>
 
@@ -62,8 +62,8 @@ export function LegalPageLayout({
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">Apoio</p>
             <h2 className="mt-3 font-display text-2xl text-slate-950">Precisa de esclarecimentos?</h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-              Se precisar de ajuda adicional sobre privacidade, cookies, condicoes de utilizacao ou exercicio de
-              direitos, utilize os canais de apoio disponiveis na plataforma.
+              Se precisar de ajuda adicional sobre privacidade, cookies, condições de utilização ou exercício de
+              direitos, utilize os canais de apoio disponíveis na plataforma.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link

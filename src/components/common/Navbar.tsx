@@ -32,7 +32,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-[#d9e6ec] bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/78">
       <div className="border-b border-[#e8f0f4] bg-[#f7fbfd]">
         <div className="container flex items-center justify-between gap-3 py-2 text-xs font-semibold text-[#21485e]">
-          <p className="truncate">Tens dificuldades a Portugues ou Filosofia? Comeca com um plano claro de estudo.</p>
+          <p className="truncate">Tens dificuldades a Português ou Filosofia? Começa com um plano claro de estudo.</p>
           <Link to={ROUTES.COURSES} className="hidden items-center gap-1 text-[#163d56] sm:inline-flex">
             Ver materiais
             <ArrowRight className="h-3.5 w-3.5" />
@@ -86,14 +86,14 @@ export function Navbar() {
                 <Button asChild size="sm" className="rounded-full">
                   <Link to={ROUTES.ADMIN}>
                     <ShieldCheck className="mr-2 h-4 w-4" />
-                    Operacao
+                    Operação
                   </Link>
                 </Button>
               ) : (
                 <Button asChild variant="ghost" size="sm" className="rounded-full">
                   <Link to={ROUTES.DASHBOARD}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Area do Aluno
+                    Área do Aluno
                   </Link>
                 </Button>
               )}
@@ -180,7 +180,7 @@ export function Navbar() {
                   ) : (
                     <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
-                        Area do Aluno
+                        Área do Aluno
                       </Link>
                     </Button>
                   )}

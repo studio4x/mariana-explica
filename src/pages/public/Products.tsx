@@ -225,10 +225,10 @@ export function Products() {
         </section>
 
         <section className="mt-12">
-          {isLoading ? <LoadingState message="A carregar catalogo..." /> : null}
+          {isLoading ? <LoadingState message="A carregar catálogo..." /> : null}
           {isError ? (
             <ErrorState
-              title="Falha ao carregar o catalogo"
+              title="Falha ao carregar o catálogo"
               message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
               onRetry={() => void refetch()}
             />
@@ -239,7 +239,7 @@ export function Products() {
               message={
                 search.trim()
                   ? "Experimenta outro termo de pesquisa ou limpa os filtros."
-                  : "Ainda nao ha materiais publicados para mostrar."
+                  : "Ainda não ha materiais publicados para mostrar."
               }
             />
           ) : null}
@@ -265,7 +265,7 @@ export function Products() {
         <section className="mx-auto mt-16 max-w-6xl">
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-[1.75rem] border border-white/70 bg-white/55 p-8 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#4e6880]">Suporte rapido</p>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#4e6880]">Suporte rápido</p>
               <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1b2644]">
                 Dúvidas? Estou aqui para ajudar!
               </h2>

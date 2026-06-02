@@ -39,12 +39,12 @@ const items = [
   {
     to: ROUTES.DASHBOARD_PAYMENTS,
     label: "Pagamentos",
-    description: "Historico financeiro",
+    description: "Histórico financeiro",
     icon: CreditCard,
   },
   {
     to: ROUTES.DASHBOARD_NOTIFICATIONS,
-    label: "Notificacoes",
+    label: "Notificações",
     description: "Avisos e novidades",
     icon: Bell,
   },
@@ -97,12 +97,12 @@ export function DashboardLayout() {
           <Link
             to={ROUTES.HOME}
             className="flex min-w-0 items-center gap-3 rounded-2xl px-1 py-1 transition hover:bg-white/80"
-            aria-label="Ir para a home publica"
+            aria-label="Ir para a home pública"
           >
             <div className="min-w-0">
               <SiteLogo variant="dark" imageClassName="h-12 max-w-[190px]" />
               <span className="hidden text-xs font-bold uppercase tracking-[0.2em] text-[#1398B7] sm:block">
-                Area do aluno
+                Área do aluno
               </span>
             </div>
           </Link>
@@ -115,7 +115,7 @@ export function DashboardLayout() {
             <Link
               to={ROUTES.HOME}
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#D8E6EB] bg-white text-[#163138] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              aria-label="Ir para a pagina publica"
+              aria-label="Ir para a página pública"
             >
               <Home className="h-5 w-5" />
             </Link>
@@ -137,7 +137,7 @@ export function DashboardLayout() {
           </div>
         </div>
         <div className="container pb-3 sm:hidden">
-          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#1398B7]">Area do aluno</span>
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#1398B7]">Área do aluno</span>
         </div>
       </header>
 
@@ -205,7 +205,7 @@ export function DashboardLayout() {
           <footer className="mt-5 rounded-[24px] border border-[#D8E6EB] bg-white px-5 py-4 text-xs text-[#5f7077] shadow-[0_20px_50px_rgba(22,49,56,0.04)]">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-3 font-bold">
-                <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">Site publico</Link>
+                <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">Site público</Link>
                 <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">Chamados</Link>
                 <Link to={ROUTES.DASHBOARD_PROFILE} className="hover:text-[#1398B7]">Conta</Link>
                 <Link to={ROUTES.PRIVACY} className="hover:text-[#1398B7]">Privacidade</Link>

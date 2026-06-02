@@ -27,7 +27,7 @@ export function HomeReviewsFeed({ limit = 6, className }: HomeReviewsFeedProps) 
   if (reviewsQuery.isLoading) {
     return (
       <div className={rootClassName}>
-        <LoadingState message="A carregar avaliacoes..." />
+        <LoadingState message="A carregar avaliações..." />
       </div>
     )
   }
@@ -36,7 +36,7 @@ export function HomeReviewsFeed({ limit = 6, className }: HomeReviewsFeedProps) 
     return (
       <div className={rootClassName}>
         <ErrorState
-          title="Nao foi possivel carregar as avaliacoes"
+          title="Não foi possível carregar as avaliações"
           message={reviewsQuery.error instanceof Error ? reviewsQuery.error.message : "Tenta novamente dentro de instantes."}
           onRetry={() => void reviewsQuery.refetch()}
         />
@@ -47,7 +47,7 @@ export function HomeReviewsFeed({ limit = 6, className }: HomeReviewsFeedProps) 
   if (reviews.length === 0) {
     return (
       <div className={`${rootClassName} rounded-xl border border-[rgba(71,71,77,0.08)] bg-white p-8 text-left shadow-sm`}>
-        <p className="text-sm leading-7 text-[#46464d]">Ainda nao existem reviews publicadas para mostrar aqui.</p>
+        <p className="text-sm leading-7 text-[#46464d]">Ainda não existem reviews publicadas para mostrar aqui.</p>
         <Button asChild className="mt-5 rounded-full bg-[#242742] hover:bg-[#1d2036]">
           <Link to={ROUTES.COURSES}>Explorar materiais</Link>
         </Button>

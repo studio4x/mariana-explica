@@ -356,7 +356,7 @@ function ImageHotspotsBlockEditor({
                   onChange={(event) =>
                     updateHotspot(hotspot.id, (current) => ({ ...current, title: event.target.value }))
                   }
-                  placeholder="Titulo do hotspot"
+                  placeholder="Título do hotspot"
                   className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
                 />
                 <button
@@ -398,7 +398,7 @@ function ImageHotspotsBlockEditor({
                 }}
                 value={hotspot.body_html}
                 onChange={(next) => updateHotspot(hotspot.id, (current) => ({ ...current, body_html: next }))}
-                placeholder="Conteudo HTML do hotspot"
+                placeholder="Conteúdo HTML do hotspot"
                 minHeightPx={140}
                 toolbarVariant="compact"
                 disabled={disabled}

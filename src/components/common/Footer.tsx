@@ -41,8 +41,8 @@ export function Footer() {
             <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">{APP_DESCRIPTION}</p>
           </div>
           <p className="text-sm leading-7 text-slate-600">
-            Uma experiencia pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e
-            confiavel aos materiais e ao estudo.
+            Uma experiência pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e
+            confi?vel aos materiais e ao estudo.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export function Footer() {
               </Link>
               {!isAdmin ? (
                 <Link to={ROUTES.DASHBOARD} className="hover:text-slate-950">
-                  Area do aluno
+                  Área do aluno
                 </Link>
               ) : null}
               <Link to={ROUTES.ADMIN} className="hover:text-slate-950">

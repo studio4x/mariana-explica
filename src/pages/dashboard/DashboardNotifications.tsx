@@ -9,13 +9,13 @@ export function DashboardNotifications() {
   const markAsRead = useMarkNotificationAsRead()
 
   if (isLoading) {
-    return <LoadingState message="A carregar notificacoes..." />
+    return <LoadingState message="A carregar notificações..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar as notificacoes"
+        title="Não foi possível carregar as notificações"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -26,7 +26,7 @@ export function DashboardNotifications() {
   if (notifications.length === 0) {
     return (
       <EmptyState
-        title="Sem notificacoes"
+        title="Sem notificações"
         message="Mensagens importantes, avisos e atualizacoes vao aparecer aqui."
       />
     )
@@ -35,8 +35,8 @@ export function DashboardNotifications() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notificacoes"
-        description="Historico das comunicacoes mais recentes relacionadas com a tua conta e os teus acessos."
+        title="Notificações"
+        description="Histórico das comunicações mais recentes relacionadas com a tua conta e os teus acessos."
       />
 
       <div className="space-y-4">
@@ -47,7 +47,7 @@ export function DashboardNotifications() {
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="font-display text-2xl font-bold text-slate-950">{notification.title}</h2>
                   <StatusBadge
-                    label={notification.status === "unread" ? "Nao lida" : "Lida"}
+                    label={notification.status === "unread" ? "Não lida" : "Lida"}
                     tone={notification.status === "unread" ? "warning" : "neutral"}
                   />
                 </div>

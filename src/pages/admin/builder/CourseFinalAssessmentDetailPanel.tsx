@@ -16,7 +16,7 @@ export function CourseFinalAssessmentDetailPanel() {
   const finalAssessment = assessments.find((item) => item.assessment_type === "final") ?? null
 
   if (!courseId) {
-    return <EmptyState title="Material invalido" message="Abra um material valido para editar a avaliacao final." />
+    return <EmptyState title="Material inválido" message="Abra um material válido para editar a avaliação final." />
   }
 
   const handleCreateFinalAssessment = async () => {
@@ -27,7 +27,7 @@ export function CourseFinalAssessmentDetailPanel() {
         productId: courseId,
         moduleId: null,
         assessmentType: "final",
-        title: "Avaliacao final",
+        title: "Avaliação final",
         description: null,
         isRequired: true,
         passingScore: 70,
@@ -39,25 +39,25 @@ export function CourseFinalAssessmentDetailPanel() {
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao final.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível criar a avaliação final.",
       })
       return
     }
 
-    setFeedback({ tone: "success", message: "Avaliacao final criada com sucesso." })
+    setFeedback({ tone: "success", message: "Avaliação final criada com sucesso." })
   }
 
   if (!finalAssessment) {
     return (
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
-          title="Avaliacao Final"
-          description="A rota profunda da prova final deve abrir o builder real. Crie a avaliacao e continue no mesmo workspace."
+          title="Avaliação Final"
+          description="A rota profunda da prova final deve abrir o builder real. Crie a avaliação e continue no mesmo workspace."
         />
 
         <div className="mt-6 rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
           <p className="text-sm leading-7 text-slate-600">
-            Ainda nao existe avaliacao final para este material. O fluxo oficial do builder pede uma prova final unica,
+            Ainda não existe avaliação final para este material. O fluxo oficial do builder pede uma prova final Única,
             editavel nesta rota dedicada.
           </p>
           <div className="mt-4">
@@ -67,7 +67,7 @@ export function CourseFinalAssessmentDetailPanel() {
               disabled={createAssessment.isPending}
               onClick={() => void handleCreateFinalAssessment()}
             >
-              {createAssessment.isPending ? "A criar avaliacao final..." : "Criar avaliacao final"}
+              {createAssessment.isPending ? "A criar avaliação final..." : "Criar avaliação final"}
             </Button>
           </div>
         </div>
@@ -80,12 +80,12 @@ export function CourseFinalAssessmentDetailPanel() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
           title={finalAssessment.title}
-          description="Workspace profundo da avaliacao final do material, separado do hub agregador de quizzes."
+          description="Workspace profundo da avaliação final do material, separado do hub agregador de quizzes."
         />
 
         <div className="mt-6 flex flex-wrap gap-2">
           <StatusBadge label="Final" tone="success" />
-          <StatusBadge label={`Minimo ${finalAssessment.passing_score}%`} tone="neutral" />
+          <StatusBadge label={`Mínimo ${finalAssessment.passing_score}%`} tone="neutral" />
           <StatusBadge
             label={
               finalAssessment.max_attempts

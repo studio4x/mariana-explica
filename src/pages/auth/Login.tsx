@@ -58,7 +58,7 @@ export function Login() {
 
   const handleSendRecovery = async () => {
     if (!forgotPasswordEmail.trim()) {
-      setForgotPasswordMessage("Indica primeiro o teu email para receber o link de recuperacao.")
+      setForgotPasswordMessage("Indica primeiro o teu email para receber o link de recuperação.")
       return
     }
 
@@ -77,7 +77,7 @@ export function Login() {
     }
 
     setForgotPasswordMessage(
-      "Enviamos um email de recuperacao. Abre o link recebido para redefinires a tua palavra-passe com seguranca.",
+      "Enviamos um email de recuperação. Abre o link recebido para redefinires a tua palavra-passe com segurança.",
     )
   }
 
@@ -89,7 +89,7 @@ export function Login() {
           Continua o teu acesso na {APP_NAME}
         </h1>
         <p className="text-sm leading-7 text-muted-foreground">
-          Entra para abrir os teus materiais, downloads e notificacoes sem perder o contexto do estudo.
+          Entra para abrir os teus materiais, downloads e notificações sem perder o contexto do estudo.
         </p>
       </div>
 
@@ -142,7 +142,7 @@ export function Login() {
       </div>
 
       <div className="text-center text-sm text-slate-600">
-        Ainda nao tens conta?{" "}
+        Ainda não tens conta?{" "}
         <Link
           to={buildAuthRedirectHref(ROUTES.REGISTER, redirectPath)}
           state={{ from: redirectPath }}
@@ -192,7 +192,7 @@ export function Login() {
                 disabled={forgotPasswordLoading}
                 onClick={() => void handleSendRecovery()}
               >
-                {forgotPasswordLoading ? "A enviar..." : "Enviar link de recuperacao"}
+                {forgotPasswordLoading ? "A enviar..." : "Enviar link de recuperação"}
               </Button>
               <Button
                 type="button"

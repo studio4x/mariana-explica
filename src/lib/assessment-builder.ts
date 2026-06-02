@@ -58,13 +58,13 @@ function questionToDraft(question: AssessmentQuestion, index: number): Assessmen
         : [
             {
               id: randomId("option-1"),
-              label: "Opcao 1",
+              label: "Opção 1",
               value: "opcao-1",
               isCorrect: true,
             },
             {
               id: randomId("option-2"),
-              label: "Opcao 2",
+              label: "Opção 2",
               value: "opcao-2",
               isCorrect: false,
             },
@@ -83,8 +83,8 @@ export function createEmptyQuestionDraft(kind: AssessmentQuestionKind = "single_
     title: "",
     prompt: "",
     options: [
-      { id: randomId("option"), label: "Opcao 1", value: "opcao-1", isCorrect: true },
-      { id: randomId("option"), label: "Opcao 2", value: "opcao-2", isCorrect: false },
+      { id: randomId("option"), label: "Opção 1", value: "opcao-1", isCorrect: true },
+      { id: randomId("option"), label: "Opção 2", value: "opcao-2", isCorrect: false },
     ],
     feedback: "",
     rubric: "",
@@ -136,8 +136,8 @@ export function buildAssessmentPayload(questions: AssessmentBuilderQuestionDraft
       options: question.options
         .map((option, optionIndex) => ({
           id: option.id || `option-${optionIndex + 1}`,
-          value: option.value.trim() || `opcao-${optionIndex + 1}`,
-          label: option.label.trim() || `Opcao ${optionIndex + 1}`,
+          value: option.value.trim() || `opção-${optionIndex + 1}`,
+          label: option.label.trim() || `Opção ${optionIndex + 1}`,
           isCorrect: Boolean(option.isCorrect),
         }))
         .filter((option) => option.label.length > 0 || option.value.length > 0),

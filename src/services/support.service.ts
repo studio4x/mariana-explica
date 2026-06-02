@@ -5,7 +5,7 @@ import type { SupportAttachmentUploadResult } from "@/types/app.types"
 async function requireFreshAuth() {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
-    throw new Error("Sessao expirada")
+    throw new Error("Sessão expirada")
   }
 
   return auth

@@ -1,4 +1,4 @@
-import type { SitePageSlug } from "@/types/app.types"
+﻿import type { SitePageSlug } from "@/types/app.types"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
 
 export type PageBlockType = "heading" | "rich_text" | "image" | "button" | "divider" | "spacer" | "columns" | "container"
@@ -207,14 +207,14 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
   const createDefaultContainerColumnBlock = (columnIndex: number): RichTextBlock => ({
     ...(createDefaultBlock("rich_text") as RichTextBlock),
     id: uid(`container-col-${columnIndex + 1}`),
-    content: `<p><strong>Coluna ${columnIndex + 1}</strong><br/>Conteudo do container.</p>`,
+    content: `<p><strong>Coluna ${columnIndex + 1}</strong><br/>Conteúdo do container.</p>`,
   })
   switch (type) {
     case "heading":
       return {
         id: uid("heading"),
         type: "heading",
-        content: "Novo titulo",
+        content: "Novo título",
         level: 2,
         align: "left",
         color: "#0f122c",
@@ -224,7 +224,7 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
       return {
         id: uid("text"),
         type: "rich_text",
-        content: "<p>Escreve aqui o conteudo da pagina.</p>",
+        content: "<p>Escreve aqui o conteúdo da página.</p>",
         layout,
       }
     case "image":
@@ -285,8 +285,8 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         itemPaddingY: 16,
         itemPaddingX: 16,
         items: [
-          "<p><strong>Coluna 1</strong><br/>Conteudo editavel da primeira coluna.</p>",
-          "<p><strong>Coluna 2</strong><br/>Conteudo editavel da segunda coluna.</p>",
+          "<p><strong>Coluna 1</strong><br/>Conteúdo editável da primeira coluna.</p>",
+          "<p><strong>Coluna 2</strong><br/>Conteúdo editável da segunda coluna.</p>",
         ],
         layout,
       }
@@ -315,7 +315,7 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
       return {
         id: uid("text"),
         type: "rich_text",
-        content: "<p>Conteudo.</p>",
+        content: "<p>Conteúdo.</p>",
         layout,
       }
   }
@@ -334,238 +334,235 @@ export function getDefaultDocumentForSlug(slug: SitePageSlug): SitePageBuilderDo
     return createCanonicalLegalDocument({
       slug,
       eyebrow: "Privacidade",
-      title: "Politica de Privacidade",
+      title: "Política de Privacidade",
       intro:
-        "Esta pagina explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site publico, da area autenticada, do checkout, do suporte e da entrega de conteudos digitais. O texto foi estruturado para refletir os principios do RGPD e a legislacao aplicavel em Portugal e na Uniao Europeia.",
+        "Esta página explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site público, da Área autenticada, do checkout, do suporte e da entrega de conteúdos digitais. O texto foi estruturado para refletir os princípios do RGPD e a legislação aplicável em Portugal e na União Europeia.",
       updatedAt: "23/04/2026",
       sections: [
         {
           title: "1. Quem trata os seus dados",
           body: [
-            "A presente Politica de Privacidade aplica-se ao site e a plataforma Mariana Explica. A entidade responsavel pelo tratamento e a operadora da plataforma Mariana Explica, enquanto responsavel pela gestao comercial, autenticacao, prestacao de conteudos digitais, apoio ao cliente e cumprimento de obrigacoes legais associadas ao servico.",
-            'Sempre que esta politica mencionar "Mariana Explica", "nos" ou "plataforma", refere-se ao responsavel pelo tratamento dos dados pessoais recolhidos atraves do site, da area autenticada, do checkout e dos respetivos canais de apoio.',
+            "A presente Política de Privacidade aplica-se ao site e à plataforma Mariana Explica. A entidade responsável pelo tratamento é a operadora da plataforma Mariana Explica, enquanto responsável pela gestão comercial, autenticação, prestação de conteúdos digitais, apoio ao cliente e cumprimento de obrigações legais associadas ao serviço.",
+            "Sempre que esta política mencionar \"Mariana Explica\", \"nós\" ou \"plataforma\", refere-se ao responsável pelo tratamento dos dados pessoais recolhidos através do site, da Área autenticada, do checkout e dos respetivos canais de apoio.",
           ],
         },
         {
           title: "2. Que dados pessoais podemos recolher",
           body: [
-            "Podemos recolher dados de identificacao e contacto, como nome, endereco de email, dados da conta de utilizador e informacoes fornecidas em formularios, tickets de suporte, pedidos de contacto ou inscricoes em materiais digitais.",
-            "Tambem podemos tratar dados de utilizacao da plataforma, incluindo acessos, progresso de aprendizagem, historico de compras, historico de pedidos, registos tecnicos de seguranca, notificacoes, interacoes com paginas publicas e preferencias associadas ao servico.",
-            "Quando existe pagamento, os dados de faturacao e de pagamento sao tratados principalmente pelo prestador de pagamentos contratado. A plataforma conserva os dados estritamente necessarios para reconciliacao comercial, suporte, auditoria e cumprimento legal.",
+            "Podemos recolher dados de identificação e contacto, como nome, endereço de email, dados da conta de utilizador e informações fornecidas em formulários, tickets de suporte, pedidos de contacto ou inscrições em materiais digitais.",
+            "Também podemos tratar dados de utilização da plataforma, incluindo acessos, progresso de aprendizagem, histórico de compras, histórico de pedidos, registos técnicos de segurança, notificações, interações com páginas públicas e preferências associadas ao serviço.",
+            "Quando existe pagamento, os dados de faturação e de pagamento são tratados principalmente pelo prestador de pagamentos contratado. A plataforma conserva os dados estritamente necessários para reconciliação comercial, suporte, auditoria e cumprimento legal.",
           ],
         },
         {
           title: "3. Finalidades e bases legais do tratamento",
           body: [
-            "Tratamos dados pessoais para criar e gerir contas, autenticar utilizadores, disponibilizar materiais, processar compras, conceder acessos, responder a pedidos de suporte, prevenir fraude, assegurar a seguranca da plataforma e cumprir deveres legais e fiscais.",
-            "As bases juridicas utilizadas podem incluir a execucao de diligencias pre-contratuais e do contrato, o cumprimento de obrigacoes legais, o interesse legitimo na seguranca, operacao e melhoria do servico, e o consentimento quando este for exigido, nomeadamente para determinadas categorias de cookies ou comunicacoes nao essenciais.",
+            "Tratamos dados pessoais para criar e gerir contas, autenticar utilizadores, disponibilizar materiais, processar compras, conceder acessos, responder a pedidos de suporte, prevenir fraude, assegurar a segurança da plataforma e cumprir deveres legais e fiscais.",
+            "As bases jurídicas utilizadas podem incluir a execução de diligências pré-contratuais e do contrato, o cumprimento de obrigações legais, o interesse legítimo na segurança, operação e melhoria do serviço, e o consentimento quando este for exigido, nomeadamente para determinadas categorias de cookies ou comunicações não essenciais.",
           ],
         },
         {
           title: "4. Com quem podemos partilhar dados",
           body: [
-            "Os dados podem ser partilhados com subcontratantes e prestadores de servicos estritamente necessarios ao funcionamento da plataforma, tais como alojamento, base de dados, autenticacao, envio de email, analise operacional, suporte tecnico e processamento de pagamentos.",
-            "Sempre que recorremos a terceiros, procuramos garantir que estes atuam ao abrigo de instrucoes adequadas, com medidas de seguranca apropriadas e apenas para as finalidades compativeis com a prestacao do servico.",
+            "Os dados podem ser partilhados com subcontratantes e prestadores de serviços estritamente necessários ao funcionamento da plataforma, tais como alojamento, base de dados, autenticação, envio de email, análise operacional, suporte técnico e processamento de pagamentos.",
+            "Sempre que recorremos a terceiros, procuramos garantir que estes atuam ao abrigo de instruções adequadas, com medidas de segurança apropriadas e apenas para as finalidades compatíveis com a prestação do serviço.",
           ],
         },
         {
-          title: "5. Transferencias internacionais de dados",
+          title: "5. Transferências internacionais de dados",
           body: [
-            "Sempre que algum prestador de servicos esteja localizado fora do Espaco Economico Europeu ou realize tratamento internacional de dados, procuramos assegurar uma base juridica adequada para a transferencia, incluindo decisoes de adequacao, clausulas contratuais-tipo ou outras garantias reconhecidas pela legislacao aplicavel.",
+            "Sempre que algum prestador de serviços esteja localizado fora do Espaço Económico Europeu ou realize tratamento internacional de dados, procuramos assegurar uma base jurídica adequada para a transferência, incluindo decisões de adequação, cláusulas contratuais-tipo ou outras garantias reconhecidas pela legislação aplicável.",
           ],
         },
         {
           title: "6. Durante quanto tempo conservamos os dados",
           body: [
-            "Conservamos os dados pessoais apenas pelo periodo necessario para as finalidades que justificaram a recolha, sem prejuizo de prazos de conservacao legal, fiscal, contabilistica, defesa de direitos ou gestao de incidentes de seguranca.",
-            "Dados ligados a contas, pedidos, acessos concedidos, suporte e auditoria podem ser mantidos enquanto a relacao com o utilizador subsistir e pelo periodo adicional exigido por lei ou necessario para demonstracao de transacoes, resposta a reclamacoes ou protecao da plataforma.",
+            "Conservamos os dados pessoais apenas pelo período necessário para as finalidades que justificaram a recolha, sem prejuízo de prazos de conservação legal, fiscal, contabilística, defesa de direitos ou gestão de incidentes de segurança.",
+            "Dados ligados a contas, pedidos, acessos concedidos, suporte e auditoria podem ser mantidos enquanto a relação com o utilizador subsistir e pelo período adicional exigido por lei ou necessário para demonstração de transações, resposta a reclamações ou proteção da plataforma.",
           ],
         },
         {
           title: "7. Os seus direitos ao abrigo do RGPD",
           body: [
-            "Nos termos do Regulamento (UE) 2016/679, o titular dos dados pode solicitar acesso, retificacao, apagamento, limitacao do tratamento, portabilidade dos dados e oposicao, nos casos previstos na lei. Quando o tratamento assentar em consentimento, este pode ser retirado a qualquer momento, sem comprometer a licitude do tratamento anterior.",
-            "Os pedidos podem ser apresentados pelos canais de apoio disponibilizados na plataforma. O titular dos dados tem igualmente o direito de apresentar reclamacao junto da autoridade de controlo competente, designadamente a CNPD em Portugal.",
+            "Nos termos do Regulamento (UE) 2016/679, o titular dos dados pode solicitar acesso, retificação, apagamento, limitação do tratamento, portabilidade dos dados e oposição, nos casos previstos na lei. Quando o tratamento assentar em consentimento, este pode ser retirado a qualquer momento, sem comprometer a licitude do tratamento anterior.",
+            "Os pedidos podem ser apresentados pelos canais de apoio disponibilizados na plataforma. O titular dos dados tem igualmente o direito de apresentar reclamação junto da autoridade de controlo competente, designadamente a CNPD em Portugal.",
           ],
         },
         {
-          title: "8. Seguranca e protecao dos dados",
+          title: "8. Segurança e proteção dos dados",
           body: [
-            "Adotamos medidas tecnicas e organizativas adequadas para proteger os dados pessoais contra destruicao, perda, alteracao, divulgacao ou acesso nao autorizado, incluindo controlos de autenticacao, segregacao de acessos, protecao de areas privadas, registos operacionais e mecanismos de seguranca na infraestrutura utilizada.",
-            "Apesar de nenhum sistema oferecer seguranca absoluta, procuramos rever continuamente as medidas de protecao aplicadas ao servico e limitar o acesso aos dados de acordo com a necessidade operacional.",
+            "Adotamos medidas técnicas e organizativas adequadas para proteger os dados pessoais contra destruição, perda, alteração, divulgação ou acesso não autorizado, incluindo controlos de autenticação, segregação de acessos, proteção de Áreas privadas, registos operacionais e mecanismos de segurança na infraestrutura utilizada.",
+            "Apesar de nenhum sistema oferecer segurança absoluta, procuramos rever continuamente as medidas de proteção aplicadas ao serviço e limitar o acesso aos dados de acordo com a necessidade operacional.",
           ],
         },
         {
-          title: "9. Menores e utilizacao da plataforma",
+          title: "9. Menores e utilização da plataforma",
           body: [
-            "A utilizacao da plataforma deve respeitar a legislacao aplicavel e as condicoes do servico. Quando o utilizador seja menor e a lei exija intervencao ou autorizacao do representante legal para determinados atos, essa responsabilidade deve ser assegurada pelo proprio utilizador e respetivo representante.",
+            "A utilização da plataforma deve respeitar a legislação aplicável e as condições do serviço. Quando o utilizador seja menor e a lei exija intervenção ou autorização do representante legal para determinados atos, essa responsabilidade deve ser assegurada pelo próprio utilizador e respetivo representante.",
           ],
         },
         {
-          title: "10. Contactos e atualizacoes desta politica",
+          title: "10. Contactos e atualizações desta política",
           body: [
-            "Esta politica pode ser atualizada para refletir alteracoes legais, operacionais ou tecnicas. A versao em vigor sera sempre a que estiver publicada nesta pagina com a data da ultima atualizacao.",
-            "Para questoes relacionadas com privacidade e exercicio de direitos, utilize o canal de suporte da plataforma. Sempre que legalmente exigido, poderemos disponibilizar contacto especifico adicional do responsavel pelo tratamento.",
+            "Esta política pode ser atualizada para refletir alterações legais, operacionais ou técnicas. A versão em vigor será sempre a que estiver publicada nesta página com a data da Última atualização.",
+            "Para questões relacionadas com privacidade e exercício de direitos, utilize o canal de suporte da plataforma. Sempre que legalmente exigido, poderemos disponibilizar contacto específico adicional do responsável pelo tratamento.",
           ],
         },
       ],
     })
   }
-
   if (slug === "cookies") {
     return createCanonicalLegalDocument({
       slug,
       eyebrow: "Cookies",
-      title: "Politica de Cookies",
+      title: "Política de Cookies",
       intro:
-        "Esta Politica de Cookies descreve de forma transparente que tipos de cookies e tecnologias semelhantes podem ser utilizados na Mariana Explica, em que circunstancias sao necessarios, quando dependem de consentimento e como podem ser geridos pelo utilizador, em conformidade com as regras aplicaveis em Portugal e na Uniao Europeia.",
+        "Esta Política de Cookies descreve de forma transparente que tipos de cookies e tecnologias semelhantes podem ser utilizados na Mariana Explica, em que circunstâncias são necessários, quando dependem de consentimento e como podem ser geridos pelo utilizador, em conformidade com as regras aplicáveis em Portugal e na União Europeia.",
       updatedAt: "23/04/2026",
       sections: [
         {
-          title: "1. O que sao cookies",
+          title: "1. O que são cookies",
           body: [
-            "Cookies sao pequenos ficheiros de texto armazenados no dispositivo do utilizador quando visita um site. Servem para memorizar preferencias, suportar funcionalidades tecnicas, reforcar seguranca, medir desempenho e, quando aplicavel, personalizar comunicacoes e publicidade.",
+            "Cookies são pequenos ficheiros de texto armazenados no dispositivo do utilizador quando visita um site. Servem para memorizar preferências, suportar funcionalidades técnicas, reforçar segurança, medir desempenho e, quando aplicável, personalizar comunicações e publicidade.",
           ],
         },
         {
           title: "2. Como usamos cookies nesta plataforma",
           body: [
-            "A Mariana Explica pode utilizar cookies estritamente necessarios para autenticar sessoes, manter a seguranca da navegacao, equilibrar servicos tecnicos, recordar definicoes essenciais e garantir o funcionamento correto de areas privadas, checkout e formularios.",
-            "Tambem podemos utilizar cookies de preferencia, analitica ou medicao, bem como tecnologias semelhantes para compreender o uso do site, melhorar a experiencia, medir campanhas e suportar integracoes de marketing, mas apenas quando exista fundamento juridico adequado e, quando exigido, consentimento previo do utilizador.",
+            "A Mariana Explica pode utilizar cookies estritamente necessários para autenticar sessões, manter a segurança da navegação, equilibrar serviços técnicos, recordar definições essenciais e garantir o funcionamento correto de Áreas privadas, checkout e formulários.",
+            "Também podemos utilizar cookies de preferência, analítica ou medição, bem como tecnologias semelhantes para compreender o uso do site, melhorar a experiência, medir campanhas e suportar integrações de marketing, mas apenas quando exista fundamento jurídico adequado e, quando exigido, consentimento prévio do utilizador.",
           ],
         },
         {
           title: "3. Categorias de cookies",
           body: [
-            "Cookies estritamente necessarios: indispensaveis para o funcionamento tecnico do site, autenticacao, seguranca, navegacao e prestacao de servicos pedidos pelo utilizador. Estes cookies nao dependem de consentimento quando forem realmente essenciais.",
-            "Cookies de preferencia: permitem recordar escolhas como idioma, interface ou outras preferencias operacionais. Podem depender de configuracao do utilizador e, em certos casos, de consentimento.",
-            "Cookies analiticos ou estatisticos: ajudam a medir visitas, desempenho e utilizacao das paginas para melhorar a plataforma. Quando nao forem anonimizados de forma suficiente ou quando a lei o exigir, sao ativados apenas com consentimento.",
-            "Cookies de marketing ou publicidade: utilizados para medir conversoes, campanhas e personalizacao promocional. Sao sempre tratados com especial cuidado e dependem de consentimento previo quando aplicavel.",
+            "Cookies estritamente necessários: indispensáveis para o funcionamento técnico do site, autenticação, segurança, navegação e prestação de serviços pedidos pelo utilizador. Estes cookies não dependem de consentimento quando forem realmente essenciais.",
+            "Cookies de preferência: permitem recordar escolhas como idioma, interface ou outras preferências operacionais. Podem depender de configuração do utilizador e, em certos casos, de consentimento.",
+            "Cookies analíticos ou estatísticos: ajudam a medir visitas, desempenho e utilização das páginas para melhorar a plataforma. Quando não forem anonimizados de forma suficiente ou quando a lei o exigir, são ativados apenas com consentimento.",
+            "Cookies de marketing ou publicidade: utilizados para medir conversões, campanhas e personalização promocional. São sempre tratados com especial cuidado e dependem de consentimento prévio quando aplicável.",
           ],
         },
         {
-          title: "4. Base legal e gestao do consentimento",
+          title: "4. Base legal e gestão do consentimento",
           body: [
-            "Nos termos das regras europeias aplicaveis a comunicacoes eletronicas e da legislacao de protecao de dados, o armazenamento ou acesso a informacao no dispositivo do utilizador so pode ocorrer com consentimento previo, exceto quando a tecnologia for estritamente necessaria para prestar um servico expressamente solicitado ou para assegurar a comunicacao eletronica.",
-            "Sempre que adotarmos cookies nao essenciais, o utilizador deve poder aceitar, recusar ou rever essas escolhas atraves do mecanismo de preferencias disponibilizado pela plataforma. A retirada do consentimento deve ser tao simples quanto a sua concessao.",
+            "Nos termos das regras europeias aplicáveis a comunicações eletrónicas e da legislação de proteção de dados, o armazenamento ou acesso a informação no dispositivo do utilizador só pode ocorrer com consentimento prévio, exceto quando a tecnologia for estritamente necessária para prestar um serviço expressamente solicitado ou para assegurar a comunicação eletrónica.",
+            "Sempre que adotarmos cookies não essenciais, o utilizador deve poder aceitar, recusar ou rever essas escolhas através do mecanismo de preferências disponibilizado pela plataforma. A retirada do consentimento deve ser tão simples quanto a sua concessão.",
           ],
         },
         {
           title: "5. Cookies de terceiros",
           body: [
-            "Algumas funcionalidades podem recorrer a servicos de terceiros, por exemplo para pagamentos, analise de utilizacao, campanhas ou suporte tecnico. Nesses casos, esses terceiros podem definir os seus proprios cookies ou tecnologias equivalentes, de acordo com as respetivas politicas.",
-            "Sempre que esses terceiros atuem no contexto do nosso servico, procuramos usar configuracoes compativeis com os requisitos legais aplicaveis e com o nivel de controlo esperado pelo utilizador.",
+            "Algumas funcionalidades podem recorrer a serviços de terceiros, por exemplo para pagamentos, análise de utilização, campanhas ou suporte técnico. Nesses casos, esses terceiros podem definir os seus próprios cookies ou tecnologias equivalentes, de acordo com as respetivas políticas.",
+            "Sempre que esses terceiros atuem no contexto do nosso serviço, procuramos usar configurações compatíveis com os requisitos legais aplicáveis e com o nível de controlo esperado pelo utilizador.",
           ],
         },
         {
           title: "6. Como desativar ou remover cookies",
           body: [
-            "O utilizador pode gerir cookies atraves do banner ou centro de preferencias disponibilizado no site, sempre que exista, e tambem atraves das definicoes do proprio navegador. A desativacao de cookies estritamente necessarios pode comprometer funcionalidades essenciais do servico, incluindo login, checkout ou acesso a conteudos protegidos.",
+            "O utilizador pode gerir cookies através do banner ou centro de preferências disponibilizado no site, sempre que exista, e também através das definições do próprio navegador. A desativação de cookies estritamente necessários pode comprometer funcionalidades essenciais do serviço, incluindo login, checkout ou acesso a conteúdos protegidos.",
           ],
         },
         {
-          title: "7. Conservacao e revisao desta politica",
+          title: "7. Conservação e revisão desta política",
           body: [
-            "Os prazos de conservacao dos cookies variam conforme a sua finalidade, podendo existir cookies de sessao e cookies persistentes. Esta politica pode ser revista sempre que houver alteracoes tecnicas, juridicas ou funcionais relevantes.",
-            "A versao publicada nesta pagina e a que se considera em vigor na data indicada como ultima atualizacao.",
+            "Os prazos de conservação dos cookies variam conforme a sua finalidade, podendo existir cookies de sessão e cookies persistentes. Esta política pode ser revista sempre que houver alterações técnicas, jurídicas ou funcionais relevantes.",
+            "A versão publicada nesta página é a que se considera em vigor na data indicada como Última atualização.",
           ],
         },
       ],
     })
   }
-
   if (slug === "termos") {
     return createCanonicalLegalDocument({
       slug,
       eyebrow: "Termos",
       title: "Termos de Uso",
       intro:
-        "Estes Termos de Uso definem as regras aplicaveis ao acesso ao site, criacao de conta, compra de conteudos digitais e utilizacao da plataforma Mariana Explica. O texto foi preparado para um servico operado em Portugal e deve ser lido em conjunto com a Politica de Privacidade, a Politica de Cookies e as informacoes comerciais apresentadas nas paginas de produto e checkout.",
+        "Estes Termos de Uso definem as regras aplicáveis ao acesso ao site, criação de conta, compra de conteúdos digitais e utilização da plataforma Mariana Explica. O texto foi preparado para um serviço operado em Portugal e deve ser lido em conjunto com a Política de Privacidade, a Política de Cookies e as informações comerciais apresentadas nas páginas de produto e checkout.",
       updatedAt: "23/04/2026",
       sections: [
         {
-          title: "1. Objeto e ambito",
+          title: "1. Objeto e âmbito",
           body: [
-            "Os presentes Termos de Uso regulam o acesso e a utilizacao do site, da area autenticada e dos conteudos digitais disponibilizados pela Mariana Explica. Ao navegar, criar conta, adquirir um material ou utilizar qualquer funcionalidade da plataforma, o utilizador aceita estes termos na medida aplicavel.",
-            "Se alguma funcionalidade especifica tiver condicoes proprias, essas condicoes complementam estes termos no respetivo ambito.",
+            "Os presentes Termos de Uso regulam o acesso e a utilização do site, da Área autenticada e dos conteúdos digitais disponibilizados pela Mariana Explica. Ao navegar, criar conta, adquirir um material ou utilizar qualquer funcionalidade da plataforma, o utilizador aceita estes termos na medida aplicável.",
+            "Se alguma funcionalidade específica tiver condições próprias, essas condições complementam estes termos no respetivo âmbito.",
           ],
         },
         {
           title: "2. Conta de utilizador",
           body: [
-            "Para aceder a determinadas funcionalidades, o utilizador pode necessitar de criar conta e manter os seus dados atualizados. O utilizador e responsavel pela confidencialidade das credenciais de acesso e por todas as atividades realizadas atraves da sua conta, salvo prova de utilizacao indevida nao imputavel ao proprio.",
-            "A plataforma pode suspender, limitar ou encerrar contas quando existam indicios de utilizacao abusiva, fraude, violacao destes termos, incumprimento legal ou risco para a seguranca do servico.",
+            "Para aceder a determinadas funcionalidades, o utilizador pode necessitar de criar conta e manter os seus dados atualizados. O utilizador é responsável pela confidencialidade das credenciais de acesso e por todas as atividades realizadas através da sua conta, salvo prova de utilização indevida não imputável ao próprio.",
+            "A plataforma pode suspender, limitar ou encerrar contas quando existam indícios de utilização abusiva, fraude, violação destes termos, incumprimento legal ou risco para a segurança do serviço.",
           ],
         },
         {
-          title: "3. Produtos digitais e acesso aos conteudos",
+          title: "3. Produtos digitais e acesso aos conteúdos",
           body: [
-            "A Mariana Explica disponibiliza materiais, materiais de apoio e outros conteudos digitais de natureza educativa. As condicoes comerciais, como preco, modalidade, acesso gratuito ou pago e eventuais limitacoes de utilizacao, sao apresentadas na pagina do produto e no checkout.",
-            "O acesso efetivo ao conteudo depende da confirmacao interna do direito de acesso na plataforma. A compra ou ativacao comercial pode exigir validacao adicional de pagamento, concessao de acesso, verificacoes antifraude ou aplicacao das regras operacionais do servico.",
+            "A Mariana Explica disponibiliza materiais, materiais de apoio e outros conteúdos digitais de natureza educativa. As condições comerciais, como preço, modalidade, acesso gratuito ou pago e eventuais limitações de utilização, são apresentadas na página do produto e no checkout.",
+            "O acesso efetivo ao conteúdo depende da confirmação interna do direito de acesso na plataforma. A compra ou ativação comercial pode exigir validação adicional de pagamento, concessão de acesso, verificações antifraude ou aplicação das regras operacionais do serviço.",
           ],
         },
         {
-          title: "4. Precos, pagamentos e faturacao",
+          title: "4. Preços, pagamentos e faturação",
           body: [
-            "Os precos apresentados devem ser entendidos nos termos indicados no checkout e podem ser atualizados sem efeito retroativo sobre compras ja concluidas. Os pagamentos podem ser processados por prestadores externos especializados, nos termos das respetivas condicoes e politicas.",
-            "A plataforma pode manter registos internos de pedidos, pagamentos, estado comercial, reconciliacao e faturacao para cumprimento contratual, suporte ao utilizador, auditoria e obrigacoes legais.",
+            "Os preços apresentados devem ser entendidos nos termos indicados no checkout e podem ser atualizados sem efeito retroativo sobre compras já concluídas. Os pagamentos podem ser processados por prestadores externos especializados, nos termos das respetivas condições e políticas.",
+            "A plataforma pode manter registos internos de pedidos, pagamentos, estado comercial, reconciliação e faturação para cumprimento contratual, suporte ao utilizador, auditoria e obrigações legais.",
           ],
         },
         {
-          title: "5. Direito de livre resolucao e conteudos digitais",
+          title: "5. Direito de livre resolução e conteúdos digitais",
           body: [
-            "Quando o utilizador atue na qualidade de consumidor e a lei lhe reconheca direito de livre resolucao, esse direito sera aplicado nos termos legalmente exigidos. Contudo, nos contratos de fornecimento de conteudos digitais nao prestados em suporte material, o direito de livre resolucao pode deixar de existir depois de iniciada a execucao com consentimento previo e expresso do consumidor e reconhecimento de que perde esse direito, nos termos da legislacao de defesa do consumidor aplicavel.",
-            "Quando existam pedidos de reembolso, cancelamento ou contestacao, estes poderao estar sujeitos a verificacao do estado do pedido, do acesso concedido, do consumo do conteudo e das regras legais e comerciais aplicaveis.",
+            "Quando o utilizador atue na qualidade de consumidor e a lei lhe reconheça direito de livre resolução, esse direito será aplicado nos termos legalmente exigidos. Contudo, nos contratos de fornecimento de conteúdos digitais não prestados em suporte material, o direito de livre resolução pode deixar de existir depois de iniciada a execução com consentimento prévio e expresso do consumidor e reconhecimento de que perde esse direito, nos termos da legislação de defesa do consumidor aplicável.",
+            "Quando existam pedidos de reembolso, cancelamento ou contestação, estes poderão estar sujeitos a verificação do estado do pedido, do acesso concedido, do consumo do conteúdo e das regras legais e comerciais aplicáveis.",
           ],
         },
         {
-          title: "6. Regras de utilizacao da plataforma",
+          title: "6. Regras de utilização da plataforma",
           body: [
-            "O utilizador compromete-se a utilizar a plataforma de forma licita, diligente e compativel com a sua finalidade educativa. E proibido contornar mecanismos de autenticacao, partilhar acessos de forma indevida, copiar ou redistribuir conteudos sem autorizacao, explorar vulnerabilidades, automatizar usos abusivos ou interferir com o funcionamento normal do servico.",
-            "Tambem nao e permitido utilizar a plataforma para introduzir conteudos ilicitos, ofensivos, fraudulentos ou que violem direitos de terceiros.",
+            "O utilizador compromete-se a utilizar a plataforma de forma lícita, diligente e compatível com a sua finalidade educativa. É proibido contornar mecanismos de autenticação, partilhar acessos de forma indevida, copiar ou redistribuir conteúdos sem autorização, explorar vulnerabilidades, automatizar usos abusivos ou interferir com o funcionamento normal do serviço.",
+            "Também não é permitido utilizar a plataforma para introduzir conteúdos ilícitos, ofensivos, fraudulentos ou que violem direitos de terceiros.",
           ],
         },
         {
           title: "7. Propriedade intelectual",
           body: [
-            "Os conteudos, marcas, textos, imagens, organizacao pedagogica, materiais descarregaveis, interface e demais elementos da Mariana Explica estao protegidos por direitos de propriedade intelectual e nao podem ser reproduzidos, comunicados, distribuidos, alterados ou explorados fora das permissoes expressamente concedidas.",
-            "A aquisicao de um material concede apenas um direito de utilizacao pessoal, limitado e nao exclusivo, de acordo com as condicoes do servico.",
+            "Os conteúdos, marcas, textos, imagens, organização pedagógica, materiais descarregáveis, interface e demais elementos da Mariana Explica estão protegidos por direitos de propriedade intelectual e não podem ser reproduzidos, comunicados, distribuídos, alterados ou explorados fora das permissões expressamente concedidas.",
+            "A aquisição de um material concede apenas um direito de utilização pessoal, limitado e não exclusivo, de acordo com as condições do serviço.",
           ],
         },
         {
-          title: "8. Suporte, reclamacoes e resolucao de litigios",
+          title: "8. Suporte, reclamações e resolução de litígios",
           body: [
-            "A plataforma disponibiliza canais de suporte para pedidos de ajuda, questoes operacionais, problemas de acesso e tratamento de reclamacoes. Sempre que aplicavel, o utilizador consumidor pode tambem recorrer aos mecanismos legais de reclamacao e a entidades de resolucao alternativa de litigios de consumo nos termos da legislacao portuguesa.",
+            "A plataforma disponibiliza canais de suporte para pedidos de ajuda, questões operacionais, problemas de acesso e tratamento de reclamações. Sempre que aplicável, o utilizador consumidor pode também recorrer aos mecanismos legais de reclamação e a entidades de resolução alternativa de litígios de consumo nos termos da legislação portuguesa.",
           ],
         },
         {
-          title: "9. Responsabilidade e disponibilidade do servico",
+          title: "9. Responsabilidade e disponibilidade do serviço",
           body: [
-            "A Mariana Explica procura assegurar disponibilidade, seguranca e fiabilidade do servico, mas nao garante funcionamento ininterrupto nem ausencia absoluta de erros, falhas de rede, manutencoes ou indisponibilidades decorrentes de terceiros.",
-            "Na medida permitida por lei, a responsabilidade da plataforma fica limitada aos danos que devam ser legalmente imputados e que resultem de incumprimento demonstrado, sem prejuizo dos direitos imperativos do consumidor.",
+            "A Mariana Explica procura assegurar disponibilidade, segurança e fiabilidade do serviço, mas não garante funcionamento ininterrupto nem ausência absoluta de erros, falhas de rede, manutenções ou indisponibilidades decorrentes de terceiros.",
+            "Na medida permitida por lei, a responsabilidade da plataforma fica limitada aos danos que devam ser legalmente imputados e que resultem de incumprimento demonstrado, sem prejuízo dos direitos imperativos do consumidor.",
           ],
         },
         {
-          title: "10. Lei aplicavel e alteracoes",
+          title: "10. Lei aplicável e alterações",
           body: [
-            "Estes termos regem-se pela legislacao portuguesa e pelo direito da Uniao Europeia aplicavel, sem prejuizo das normas imperativas de protecao do consumidor que devam prevalecer.",
-            "A Mariana Explica pode atualizar os presentes termos para refletir alteracoes legais, operacionais ou funcionais. A versao em vigor sera sempre a publicada nesta pagina com a respetiva data de atualizacao.",
+            "Estes termos regem-se pela legislação portuguesa e pelo direito da União Europeia aplicável, sem prejuízo das normas imperativas de proteção do consumidor que devam prevalecer.",
+            "A Mariana Explica pode atualizar os presentes termos para refletir alterações legais, operacionais ou funcionais. A versão em vigor será sempre a publicada nesta página com a respetiva data de atualização.",
           ],
         },
       ],
     })
   }
-
   return {
     blocks: [
       {
         ...(createDefaultBlock("heading") as HeadingBlock),
-        content: "Titulo da pagina",
+        content: "Título da página",
         level: 1,
       },
       {
         ...(createDefaultBlock("rich_text") as RichTextBlock),
-        content: "<p>Comeca aqui a editar o conteudo desta pagina.</p>",
+        content: "<p>Começa aqui a editar o conteúdo desta página.</p>",
       },
     ],
   }
@@ -606,15 +603,15 @@ function createCanonicalAboutDocument(): SitePageBuilderDocument {
     <section ${PAGE_CANONICAL_MARKER}="sobre" class="me-about-page">
       <div class="me-about-shell">
         <div class="me-about-hero">
-          <h1>Muito mais do que uma explicadora:<br />Quem e a Mariana?</h1>
+          <h1>Muito mais do que uma explicadora:<br />Quem é a Mariana?</h1>
         </div>
         <div class="me-about-grid">
           <div class="me-about-photo">
             <p>(foto)</p>
           </div>
           <div class="me-about-copy">
-            <p class="me-about-lead">Ola! Eu sou a Mariana, fundadora do Mariana Explica e, atualmente, estudante de Filosofia na FLUP.</p>
-            <p>Se chegaste ate aqui, e muito provavel que estejas a sentir o peso dos manuais gigantes de Portugues, o no cego da Logica em Filosofia ou o panico silencioso de aproximacao dos Exames Nacionais.<br />Deixa-me dizer-te uma coisa: <span>eu percebo-te perfeitamente, porque eu ainda estou ai.</span></p>
+            <p class="me-about-lead">Olá! Eu sou a Mariana, fundadora do Mariana Explica e, atualmente, estudante de Filosofia na FLUP.</p>
+            <p>Se chegaste até aqui, é muito provável que estejas a sentir o peso dos manuais gigantes de Português, o nó cego da Lógica em Filosofia ou o pânico silencioso da aproximação dos Exames Nacionais.<br />Deixa-me dizer-te uma coisa: <span>eu percebo-te perfeitamente, porque eu ainda estou aí.</span></p>
           </div>
         </div>
       </div>
@@ -625,14 +622,14 @@ function createCanonicalAboutDocument(): SitePageBuilderDocument {
     <section ${PAGE_CANONICAL_MARKER}="sobre" class="me-about-page me-about-page-soft">
       <div class="me-about-shell">
         <div class="me-about-section-head">
-          <h2>De estudante para estudante: porque este projeto?</h2>
+          <h2>De estudante para estudante: porquê este projeto?</h2>
         </div>
         <div class="me-about-card-grid">
           <article class="me-about-card">
-            <p>Durante o meu percurso, percebi que a maior barreira entre um aluno e uma nota excelente nao e a falta de inteligencia, mas sim e a forma como a materia e ensinada. Estive cansada de manuais densos, linguagem excessivamente formal e calhamacos cheios de 'palha' que so servem para causar ansiedade.</p>
+            <p>Durante o meu percurso, percebi que a maior barreira entre um aluno e uma nota excelente não é a falta de inteligência, mas sim a forma como a matéria é ensinada. Estive cansada de manuais densos, linguagem excessivamente formal e calhamaços cheios de 'palha' que só servem para causar ansiedade.</p>
           </article>
           <article class="me-about-card">
-            <p>Este projeto nasceu exatamente para ser a ponte. Eu transformo a materia mais complexa em esquemas visuais, resumos diretos e explicacoes descontraidas. Eu explico-te a materia da forma que eu propria gostava que me tivessem explicado quando estava no teu lugar. E isso e o que faz toda a diferenca.</p>
+            <p>Este projeto nasceu exatamente para ser a ponte. Eu transformo a matéria mais complexa em esquemas visuais, resumos diretos e explicações descontraídas. Eu explico-te a matéria da forma que eu própria gostava que me tivessem explicado quando estava no teu lugar. É isso que faz toda a diferença.</p>
           </article>
         </div>
       </div>
@@ -643,24 +640,24 @@ function createCanonicalAboutDocument(): SitePageBuilderDocument {
     <section ${PAGE_CANONICAL_MARKER}="sobre" class="me-about-page">
       <div class="me-about-shell">
         <div class="me-about-section-head">
-          <h2>Os 3 Pilares do Meu Metodo</h2>
+          <h2>Os 3 Pilares do Meu Método</h2>
         </div>
         <div class="me-about-pillars">
           <div class="me-about-pillar me-about-pillar-right">
             <article class="me-about-card">
-              <p>Estar ainda a estudar da-me as ferramentas diarias para dominar a fundo a Filosofia e a Escrita. O meu metodo une a leveza que tu precisas ao rigor tecnico que os corretores de exame exigem.</p>
+              <p>Estar ainda a estudar dá-me as ferramentas diárias para dominar a fundo a Filosofia e a Escrita. O meu método une a leveza que tu precisas ao rigor técnico que os corretores de exame exigem.</p>
             </article>
-            <div class="me-about-pillar-tag"><p>Rigor Academico</p></div>
+            <div class="me-about-pillar-tag"><p>Rigor Académico</p></div>
           </div>
           <div class="me-about-pillar me-about-pillar-left">
-            <div class="me-about-pillar-tag"><p>Foco Visual e Estrategia</p></div>
+            <div class="me-about-pillar-tag"><p>Foco Visual e Estratégia</p></div>
             <article class="me-about-card">
-              <p>O nosso cerebro funciona melhor com cores, conexoes e logica direta. Quer compres as minhas sebentas ou venhas para as explicacoes, vais aprender a estruturar respostas perfeitas sem perder tempo.</p>
+              <p>O nosso cérebro funciona melhor com cores, conexões e lógica direta. Quer compres as minhas sebentas ou venhas para as explicações, vais aprender a estruturar respostas perfeitas sem perder tempo.</p>
             </article>
           </div>
           <div class="me-about-pillar me-about-pillar-right me-about-pillar-wide">
             <article class="me-about-card">
-              <p>Aqui nao ha perguntas estupidas. Isto e um safe-space! Quero que entres na sala de exame e de aula a saber exatamente o que vais fazer.</p>
+              <p>Aqui não há perguntas estúpidas. Isto é um safe space! Quero que entres na sala de exame e de aula a saber exatamente o que vais fazer.</p>
             </article>
             <div class="me-about-pillar-tag"><p>Apoio e Empatia Total</p></div>
           </div>
@@ -671,7 +668,6 @@ function createCanonicalAboutDocument(): SitePageBuilderDocument {
 
   return { blocks: [hero, story, pillars] }
 }
-
 function createCanonicalLegalDocument(input: {
   slug: Exclude<SitePageSlug, "home" | "sobre">
   eyebrow: string
@@ -688,7 +684,7 @@ function createCanonicalLegalDocument(input: {
           <p class="me-legal-eyebrow">${escapeHtml(input.eyebrow)}</p>
           <h1>${escapeHtml(input.title)}</h1>
           <p class="me-legal-intro">${escapeHtml(input.intro)}</p>
-          <div class="me-legal-updated">Ultima atualizacao: ${escapeHtml(input.updatedAt)}</div>
+          <div class="me-legal-updated">Última atualização: ${escapeHtml(input.updatedAt)}</div>
         </div>
       </div>
     </section>
@@ -715,7 +711,7 @@ function createCanonicalLegalDocument(input: {
         <div class="me-legal-support">
           <p class="me-legal-eyebrow">Apoio</p>
           <h2>Precisa de esclarecimentos?</h2>
-          <p>Se precisar de ajuda adicional sobre privacidade, cookies, condicoes de utilizacao ou exercicio de direitos, utilize os canais de apoio disponiveis na plataforma.</p>
+          <p>Se precisar de ajuda adicional sobre privacidade, cookies, condições de utilização ou exercício de direitos, utilize os canais de apoio disponíveis na plataforma.</p>
           <div class="me-legal-actions">
             <a class="me-legal-action-primary" href="/suporte">Contactar suporte</a>
             <a class="me-legal-action-secondary" href="/entrar">Aceder a Mariana Explica</a>
@@ -727,18 +723,17 @@ function createCanonicalLegalDocument(input: {
 
   return { blocks: [hero, ...contentBlocks, support] }
 }
-
 function createCanonicalHomeDocument(): SitePageBuilderDocument {
   const hero = createHomeRichSection(`
     <section ${HOME_CANONICAL_MARKER}="1" class="me-home-section me-home-hero">
       <div class="me-home-shell me-home-hero-grid">
         <div class="me-home-hero-art">
-          <img src="${escapeHtml(homeHeroIllustration)}" alt="Ilustracao de materiais de estudo para Portugues e Filosofia" />
+          <img src="${escapeHtml(homeHeroIllustration)}" alt="Ilustração de materiais de estudo para Português e Filosofia" />
         </div>
         <div class="me-home-hero-copy">
-          <h1>Tens dificuldades a Portugues ou Filosofia?</h1>
+          <h1>Tens dificuldades a Português ou Filosofia?</h1>
           <h2>Nunca tiveste a disciplina e vais fazer exame?</h2>
-          <p>Entao fica aqui que este local e para ti!</p>
+          <p>Então fica aqui que este local é para ti!</p>
           <a class="me-home-primary-button" href="/materiais">Explorar materiais</a>
         </div>
       </div>
@@ -750,24 +745,24 @@ function createCanonicalHomeDocument(): SitePageBuilderDocument {
       <div class="me-home-shell me-home-grid-two">
         <article class="me-home-card me-home-card-centered">
           <span class="me-home-eyebrow me-home-eyebrow-dark">Objetivo Principal</span>
-          <p class="me-home-display-copy">Criei este espaco para te dar o apoio que os manuais nao dao: leveza, clareza e uma estrategia real para brilhares nos exames de Filosofia e Portugues. Vamo-nos simplificar?</p>
+          <p class="me-home-display-copy">Criei este espaço para te dar o apoio que os manuais não dão: leveza, clareza e uma estratégia real para brilhares nos exames de Filosofia e Português. Vamo-nos simplificar?</p>
         </article>
         <div class="me-home-feature-grid">
           <article class="me-home-card me-home-card-small">
             <span class="me-home-eyebrow me-home-eyebrow-dark">EM BREVE - AULAS GRAVADAS</span>
-            <p>Domina temas complexos ao teu ritmo, com aulas organizadas e flexiveis, prontas quando tu estiveres.</p>
+            <p>Domina temas complexos ao teu ritmo, com aulas organizadas e flexíveis, prontas quando tu estiveres.</p>
           </article>
           <article class="me-home-card me-home-card-small">
-            <span class="me-home-eyebrow me-home-eyebrow-dark">EXPLICACOES</span>
-            <p>Acompanhamento personalizado e focado nas tuas duvidas especificas para garantires resultados.</p>
+            <span class="me-home-eyebrow me-home-eyebrow-dark">EXPLICAÇÕES</span>
+            <p>Acompanhamento personalizado e focado nas tuas dúvidas específicas para garantires resultados.</p>
           </article>
           <article class="me-home-card me-home-card-small">
             <span class="me-home-eyebrow me-home-eyebrow-dark">MATERIAIS DIGITAIS</span>
-            <p>Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota maxima sem complicacoes.</p>
+            <p>Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota máxima sem complicações.</p>
           </article>
           <article class="me-home-card me-home-card-small">
             <span class="me-home-eyebrow me-home-eyebrow-dark">MATERIAIS DIGITAIS - GRATUITOS</span>
-            <p>Dicas flash e recursos rapidos para descarregar e dares um boost imediato no teu estudo.</p>
+            <p>Dicas flash e recursos rápidos para descarregar e dares um boost imediato no teu estudo.</p>
           </article>
         </div>
       </div>
@@ -778,21 +773,21 @@ function createCanonicalHomeDocument(): SitePageBuilderDocument {
     <section ${HOME_CANONICAL_MARKER}="1" class="me-home-section me-home-neutral">
       <div class="me-home-shell">
         <div class="me-home-section-intro">
-          <h2>O teu caminho para o sucesso e simples</h2>
-          <p>Esquece as complicacoes burocraticas. Aqui, o foco e o teu estudo. Em tres passos rapidos, tens tudo o que precisas para comecar a brilhar.</p>
+          <h2>O teu caminho para o sucesso é simples</h2>
+          <p>Esquece as complicações burocráticas. Aqui, o foco é o teu estudo. Em três passos rápidos, tens tudo o que precisas para começar a brilhar.</p>
         </div>
         <div class="me-home-steps-grid">
           <article class="me-home-card">
             <span class="me-home-eyebrow me-home-eyebrow-dark">ENCONTRA O TEU APOIO</span>
-            <p>Explora as sebentas e materiais disponiveis. Cada material foi criado para resolver uma dor especifica, por isso vais perceber logo qual e o ideal para o teu momento.</p>
+            <p>Explora as sebentas e materiais disponíveis. Cada material foi criado para resolver uma dor específica, por isso vais perceber logo qual é o ideal para o teu momento.</p>
           </article>
           <article class="me-home-card">
-            <span class="me-home-eyebrow me-home-eyebrow-dark">ACESSO RAPIDO E SEGURO</span>
-            <p>O processo e direto e transparente. Sem taxas escondidas ou passos desnecessarios. Pagas de forma segura e o material e teu no segundo seguinte.</p>
+            <span class="me-home-eyebrow me-home-eyebrow-dark">ACESSO RÁPIDO E SEGURO</span>
+            <p>O processo é direto e transparente. Sem taxas escondidas ou passos desnecessários. Pagas de forma segura e o material é teu no segundo seguinte.</p>
           </article>
           <article class="me-home-card">
             <span class="me-home-eyebrow me-home-eyebrow-dark">FOCA-TE NO QUE IMPORTA</span>
-            <p>Tudo fica organizado na tua Area do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.</p>
+            <p>Tudo fica organizado na tua Área do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.</p>
           </article>
         </div>
       </div>
@@ -805,17 +800,17 @@ function createCanonicalHomeDocument(): SitePageBuilderDocument {
         <article class="me-home-card me-home-trust-left">
           <h3 class="me-home-chip-title me-home-chip-blue">Vantagens de trabalhares comigo</h3>
           <ul class="me-home-list">
-            <li><strong>Linguagem Direta:</strong> Falamos a mesma lingua. Esquece os termos impossiveis dos manuais e entende a materia a primeira.</li>
-            <li><strong>Foco no Exame:</strong> Materiais desenhados apenas com o que realmente sai. Sem distracoes.</li>
+            <li><strong>Linguagem Direta:</strong> Falamos a mesma língua. Esquece os termos impossíveis dos manuais e entende a matéria à primeira.</li>
+            <li><strong>Foco no Exame:</strong> Materiais desenhados apenas com o que realmente sai. Sem distrações.</li>
             <li><strong>Resumos Visuais:</strong> Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.</li>
           </ul>
         </article>
         <article class="me-home-trust-right">
-          <h3 class="me-home-chip-title me-home-chip-white">Leveza e Confianca em cada passo</h3>
+          <h3 class="me-home-chip-title me-home-chip-white">Leveza e Confiança em cada passo</h3>
           <ul class="me-home-list me-home-list-compact">
-            <li>Suporte Real: Nao recebes so um PDF. Tens uma "amiga" (eu!) nas DMs para te apoiar sempre que precisares.</li>
-            <li>Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Area do Aluno.</li>
-            <li>Pes na Terra: Filosofia e Portugues deixam de ser abstratos e passam a ser ferramentas que dominas com seguranca.</li>
+            <li>Suporte Real: Não recebes só um PDF. Tens uma "amiga" (eu!) nas DMs para te apoiar sempre que precisares.</li>
+            <li>Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Área do Aluno.</li>
+            <li>Pés na Terra: Filosofia e Português deixam de ser abstratos e passam a ser ferramentas que dominas com segurança.</li>
           </ul>
           <div class="me-home-actions">
             <a class="me-home-secondary-button" href="/materiais">Explorar materiais</a>
@@ -831,9 +826,9 @@ function createCanonicalHomeDocument(): SitePageBuilderDocument {
       <div class="me-home-shell me-home-center">
         <span class="me-home-pill">Reviews</span>
         <h2>E o que dizem os nossos alunos?</h2>
-        <p>Avaliacoes reais publicadas no modulo de Reviews.</p>
+        <p>Avaliações reais publicadas no módulo de Reviews.</p>
         <div class="me-home-review-placeholder">
-          <p>Esta secao continua ligada ao modulo dinamico de reviews no frontend publico.</p>
+          <p>Esta secção continua ligada ao módulo dinâmico de reviews no frontend público.</p>
         </div>
       </div>
     </section>
@@ -843,7 +838,6 @@ function createCanonicalHomeDocument(): SitePageBuilderDocument {
     blocks: [hero, objective, steps, trust, reviews],
   }
 }
-
 function hasCanonicalMarkerForSlug(document: SitePageBuilderDocument, slug: SitePageSlug) {
   return document.blocks.some((block) => {
     if (block.type !== "rich_text" || typeof block.content !== "string") return false
@@ -990,7 +984,7 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
       blocks.push({
         id: String(block.id ?? uid("heading")),
         type,
-        content: String(block.content ?? "Titulo"),
+        content: String(block.content ?? "Título"),
         level: ([1, 2, 3, 4].includes(Number(block.level)) ? Number(block.level) : 2) as 1 | 2 | 3 | 4,
         align: (["left", "center", "right"].includes(String(block.align)) ? String(block.align) : "left") as
           | "left"
@@ -2118,3 +2112,11 @@ export function getDefaultStyleCss() {
 }
   `.trim()
 }
+
+
+
+
+
+
+
+

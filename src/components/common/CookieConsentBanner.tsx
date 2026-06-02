@@ -35,10 +35,10 @@ export function CookieConsentBanner() {
         <div className="max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">Cookies</p>
           <h2 className="mt-2 font-display text-2xl text-slate-950">
-            Usamos cookies essenciais e, com a tua autorizacao, cookies opcionais.
+            Usamos cookies essenciais e, com a tua autorização, cookies opcionais.
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            Os cookies essenciais suportam autenticacao, seguranca e funcionamento da plataforma. Os opcionais ajudam
+            Os cookies essenciais suportam autenticação, segurança e funcionamento da plataforma. Os opcionais ajudam
             a medir desempenho e campanhas. Podes aceitar tudo, manter apenas os essenciais ou personalizar por
             categoria.
           </p>
@@ -46,7 +46,7 @@ export function CookieConsentBanner() {
             to={ROUTES.COOKIES}
             className="mt-3 inline-flex text-sm font-semibold text-sky-700 transition hover:text-sky-800"
           >
-            Ler a Politica de Cookies
+            Ler a Política de Cookies
           </Link>
         </div>
 
@@ -71,7 +71,7 @@ export function CookieConsentBanner() {
             className="rounded-full border-slate-300 bg-white px-5 text-slate-700"
             onClick={() => setIsCustomizing((current) => !current)}
           >
-            {isCustomizing ? "Fechar preferencias" : "Personalizar"}
+            {isCustomizing ? "Fechar preferências" : "Personalizar"}
           </Button>
           <Button
             type="button"
@@ -96,7 +96,7 @@ export function CookieConsentBanner() {
               <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Essenciais</p>
               <p className="mt-2 text-sm font-bold text-slate-950">Sempre ativos</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Necessarios para login, seguranca, navegacao e funcionamento basico da plataforma.
+                Necessários para login, segurança, navegação e funcionamento básico da plataforma.
               </p>
             </div>
 
@@ -119,7 +119,7 @@ export function CookieConsentBanner() {
                 />
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Permitem medir visitas, desempenho das paginas e funis de navegacao.
+                Permitem medir visitas, desempenho das páginas e funis de navegação.
               </p>
             </label>
 
@@ -171,7 +171,7 @@ export function CookieConsentBanner() {
                 setIsCustomizing(false)
               }}
             >
-              Guardar preferencias
+              Guardar preferências
             </Button>
           </div>
         </div>

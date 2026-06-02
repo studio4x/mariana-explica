@@ -50,7 +50,7 @@ export function StudentCoursePlayerLayout() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir o player"
+        title="Não foi possível abrir o player"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -61,7 +61,7 @@ export function StudentCoursePlayerLayout() {
     return (
       <EmptyState
         title="Material indisponivel"
-        message="Este material nao esta acessivel na tua conta neste momento."
+        message="Este material não esta acessivel na tua conta neste momento."
       />
     )
   }
@@ -147,7 +147,7 @@ export function StudentCoursePlayerLayout() {
                 <div key={module.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3">
                   {sidebarOpen ? (
                     <>
-                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Modulo {index + 1}</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Módulo {index + 1}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <p className="font-bold text-slate-950">{module.title}</p>
                         {module.is_locked ? <StatusBadge label="Bloqueado" tone="warning" /> : null}
@@ -215,7 +215,7 @@ export function StudentCoursePlayerLayout() {
                               <div>
                                 <p className="text-sm font-bold text-slate-950">{assessment.title}</p>
                                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                                  Quiz do modulo
+                                  Quiz do módulo
                                 </p>
                                 {assessment.lock_reason ? (
                                   <p className="mt-2 text-xs leading-5 text-slate-500">{assessment.lock_reason}</p>
@@ -235,7 +235,7 @@ export function StudentCoursePlayerLayout() {
                           to={studentCourseAssessmentPath(product.id, assessment.id)}
                           className={() =>
                             `block rounded-2xl border px-3 py-3 transition ${
-                              location.pathname.includes(`/avaliacoes/${assessment.id}`)
+                              location.pathname.includes(`/avalia??es/${assessment.id}`)
                                 ? "border-amber-200 bg-amber-50"
                                 : "border-slate-200 bg-white hover:bg-slate-50"
                             }`
@@ -246,7 +246,7 @@ export function StudentCoursePlayerLayout() {
                               <div>
                                 <p className="text-sm font-bold text-slate-950">{assessment.title}</p>
                                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                                  Quiz do modulo
+                                  Quiz do módulo
                                 </p>
                               </div>
                               <StatusBadge
@@ -254,10 +254,10 @@ export function StudentCoursePlayerLayout() {
                                   assessment.progress_state === "passed"
                                     ? "Aprovado"
                                     : assessment.progress_state === "pending_review"
-                                      ? "Em revisao"
+                                      ? "Em revisão"
                                       : assessment.progress_state === "failed"
                                         ? "Reprovado"
-                                        : "Disponivel"
+                                        : "Disponível"
                                 }
                                 tone={
                                   assessment.progress_state === "passed"
@@ -290,7 +290,7 @@ export function StudentCoursePlayerLayout() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="font-bold text-slate-950">{assessment.title}</p>
-                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Avaliacao final</p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Avaliação final</p>
                         {assessment.lock_reason ? (
                           <p className="mt-2 text-xs leading-5 text-slate-500">{assessment.lock_reason}</p>
                         ) : null}
@@ -309,7 +309,7 @@ export function StudentCoursePlayerLayout() {
                   to={studentCourseAssessmentPath(product.id, assessment.id)}
                   className={() =>
                     `block rounded-[1.5rem] border px-4 py-4 transition ${
-                      location.pathname.includes(`/avaliacoes/${assessment.id}`)
+                      location.pathname.includes(`/avalia??es/${assessment.id}`)
                         ? "border-emerald-200 bg-emerald-50"
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`
@@ -319,14 +319,14 @@ export function StudentCoursePlayerLayout() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="font-bold text-slate-950">{assessment.title}</p>
-                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Avaliacao final</p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Avaliação final</p>
                       </div>
                       <StatusBadge
                         label={
                           assessment.progress_state === "passed"
                             ? "Aprovada"
                             : assessment.progress_state === "pending_review"
-                              ? "Em revisao"
+                              ? "Em revisão"
                               : assessment.progress_state === "failed"
                                 ? "Reprovada"
                                 : "Final"
@@ -363,7 +363,7 @@ export function StudentCoursePlayerLayout() {
                 variant="outline"
                 onClick={() => setSidebarOpen((value) => !value)}
                 className="hidden h-10 w-10 rounded-2xl p-0 lg:inline-flex"
-                aria-label={sidebarOpen ? "Recolher navegacao do material" : "Abrir navegacao do material"}
+                aria-label={sidebarOpen ? "Recolher navegação do material" : "Abrir navegação do material"}
               >
                 <PanelLeftClose className="h-4 w-4" />
               </Button>
@@ -374,7 +374,7 @@ export function StudentCoursePlayerLayout() {
             </div>
             <div className="flex flex-wrap gap-2">
               <StatusBadge label={`${progressPercent}% concluido`} tone="warning" />
-              <StatusBadge label={`${data.modules.length} modulos`} tone="info" />
+              <StatusBadge label={`${data.modules.length} módulos`} tone="info" />
               {product.has_linear_progression ? (
                 <StatusBadge label="Progressao linear ativa" tone="warning" />
               ) : null}

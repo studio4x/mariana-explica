@@ -61,7 +61,7 @@ export function Product() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir este material"
+        title="Não foi possível abrir este material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -71,8 +71,8 @@ export function Product() {
   if (!product) {
     return (
       <EmptyState
-        title="Material nao encontrado"
-        message="O material pedido nao esta publicado ou deixou de estar disponivel."
+        title="Material não encontrado"
+        message="O material pedido não esta publicado ou deixou de estar disponível."
       />
     )
   }
@@ -274,7 +274,7 @@ export function Product() {
                   <Clock3 className="h-4 w-4" />
                   {product.workload_minutes > 0
                     ? `${product.workload_minutes} minutos estimados`
-                    : "Acesso organizado na area do aluno"}
+                    : "Acesso organizado na Área do aluno"}
                 </div>
               </div>
             </div>

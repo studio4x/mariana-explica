@@ -123,7 +123,7 @@ export function AuthCallback() {
         const resolvedSession = await waitForSession()
         if (!resolvedSession) {
           setStatus("error")
-          setError("A tua conta foi confirmada, mas a sessao nao ficou pronta. Tenta abrir novamente o link do email.")
+          setError("A tua conta foi confirmada, mas a sessão não ficou pronta. Tenta abrir novamente o link do email.")
         }
         return
       }
@@ -143,7 +143,7 @@ export function AuthCallback() {
         const resolvedSession = await waitForSession()
         if (!resolvedSession) {
           setStatus("error")
-          setError("A tua conta foi confirmada, mas a sessao nao ficou pronta. Tenta abrir novamente o link do email.")
+          setError("A tua conta foi confirmada, mas a sessão não ficou pronta. Tenta abrir novamente o link do email.")
         }
         return
       }
@@ -163,7 +163,7 @@ export function AuthCallback() {
         const resolvedSession = await waitForSession()
         if (!resolvedSession) {
           setStatus("error")
-          setError("A tua conta foi confirmada, mas a sessao nao ficou pronta. Tenta abrir novamente o link do email.")
+          setError("A tua conta foi confirmada, mas a sessão não ficou pronta. Tenta abrir novamente o link do email.")
         }
         return
       }
@@ -171,7 +171,7 @@ export function AuthCallback() {
       const { data } = await supabase.auth.getSession()
       if (!data.session) {
         setStatus("error")
-        setError("Nao foi possivel validar o teu acesso. Pede um novo email de confirmacao.")
+        setError("Não foi possível validar o teu acesso. Pede um novo email de confirmação.")
       }
     }
 
@@ -203,19 +203,19 @@ export function AuthCallback() {
 
       if (!resolvedProfile) {
         setStatus("error")
-        setError("A tua conta foi confirmada, mas o perfil ainda nao ficou pronto. Tenta entrar novamente dentro de instantes.")
+        setError("A tua conta foi confirmada, mas o perfil ainda não ficou pronto. Tenta entrar novamente dentro de instantes.")
         return
       }
 
       if (resolvedProfile.status !== "active") {
         setStatus("error")
-        setError("A tua conta foi validada, mas ainda nao esta com acesso ativo. Se precisares, fala com o suporte.")
+        setError("A tua conta foi validada, mas ainda não esta com acesso ativo. Se precisares, fala com o suporte.")
         return
       }
 
       window.sessionStorage.setItem(
         "mariana-explica:auth-flash",
-        "Email confirmado com sucesso. Ja tens acesso ativo ao teu painel.",
+        "Email confirmado com sucesso. JÁ tens acesso ativo ao teu painel.",
       )
       navigatedRef.current = true
       navigate(
@@ -249,15 +249,15 @@ export function AuthCallback() {
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Validacao da conta</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Validação da conta</p>
         <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
-          {status === "error" ? "Nao foi possivel concluir a validacao" : "A confirmar o teu acesso"}
+          {status === "error" ? "Não foi possível concluir a validação" : "A confirmar o teu acesso"}
         </h1>
         <p className="text-sm leading-7 text-muted-foreground">
           {status === "verifying"
             ? "Estamos a validar o link enviado para o teu email."
             : status === "finalizing"
-              ? "A tua conta foi confirmada. Estamos a preparar a sessao para entrares diretamente no dashboard."
+              ? "A tua conta foi confirmada. Estamos a preparar a sessão para entrares diretamente no dashboard."
               : error}
         </p>
       </div>
@@ -273,7 +273,7 @@ export function AuthCallback() {
         </div>
       ) : (
         <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50/80 p-5 text-sm leading-7 text-slate-600">
-          Nao precisas de fazer login manualmente. Assim que a validacao terminar, vais entrar automaticamente.
+          Não precisas de fazer login manualmente. Assim que a validação terminar, vais entrar automaticamente.
         </div>
       )}
     </div>

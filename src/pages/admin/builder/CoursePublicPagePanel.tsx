@@ -109,11 +109,11 @@ function CoursePublicPageForm() {
         productId: product.id,
         publicPageContent: sanitizeCoursePublicPageContent(form),
       })
-      setFeedback({ tone: "success", message: "Pagina publica guardada com sucesso." })
+      setFeedback({ tone: "success", message: "Página pública guardada com sucesso." })
     } catch (err) {
       setFeedback({
         tone: "error",
-        message: err instanceof Error ? err.message : "Nao foi possivel guardar a pagina publica.",
+        message: err instanceof Error ? err.message : "Não foi possível guardar a página pública.",
       })
     }
   }
@@ -121,13 +121,13 @@ function CoursePublicPageForm() {
   return (
     <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
       <PageHeader
-        title="Pagina publica do material"
-        description="Conteudo comercial exibido ao visitante antes da compra, com base no layout de referencia."
+        title="Página pública do material"
+        description="Conteúdo comercial exibido ao visitante antes da compra, com base no layout de referencia."
         actions={
           <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
             <Link to={publicCoursePath(product.slug, product.id)} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" />
-              Visualizar pagina
+              Visualizar página
             </Link>
           </Button>
         }
@@ -140,7 +140,7 @@ function CoursePublicPageForm() {
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Hero</p>
               <h2 className="mt-2 text-lg font-bold text-slate-950">Chamada principal</h2>
             </div>
-            <StatusBadge label="Publico" tone="info" />
+            <StatusBadge label="Público" tone="info" />
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -150,7 +150,7 @@ function CoursePublicPageForm() {
                 onChange={(eyebrow) => setForm((prev) => ({ ...prev, eyebrow }))}
               />
             </Field>
-            <Field label="Titulo principal">
+            <Field label="Título principal">
               <TextInput
                 value={form.headline}
                 onChange={(headline) => setForm((prev) => ({ ...prev, headline }))}
@@ -161,7 +161,7 @@ function CoursePublicPageForm() {
                 <RichTextEditor
                   value={form.intro}
                   onChange={(intro) => setForm((prev) => ({ ...prev, intro }))}
-                  placeholder="Escreva a abertura da pagina publica..."
+                  placeholder="Escreva a abertura da página pública..."
                   minHeightPx={140}
                 />
               </Field>
@@ -172,7 +172,7 @@ function CoursePublicPageForm() {
         <section className="rounded-[1.5rem] border border-slate-200 p-5">
           <h2 className="text-lg font-bold text-slate-950">Sobre o material</h2>
           <div className="mt-5 space-y-4">
-            <Field label="Titulo da secao">
+            <Field label="Título da seção">
               <TextInput
                 value={form.aboutTitle}
                 onChange={(aboutTitle) => setForm((prev) => ({ ...prev, aboutTitle }))}
@@ -229,7 +229,7 @@ function CoursePublicPageForm() {
         <section className="rounded-[1.5rem] border border-slate-200 p-5">
           <h2 className="text-lg font-bold text-slate-950">O que o aluno vai aprender</h2>
           <div className="mt-5 space-y-4">
-            <Field label="Titulo da secao">
+            <Field label="Título da seção">
               <TextInput
                 value={form.learnTitle}
                 onChange={(learnTitle) => setForm((prev) => ({ ...prev, learnTitle }))}
@@ -238,7 +238,7 @@ function CoursePublicPageForm() {
             {form.learnItems.map((item, index) => (
               <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                 <div className="grid gap-4 md:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)_auto]">
-                  <Field label={`Titulo ${index + 1}`}>
+                  <Field label={`Título ${index + 1}`}>
                     <TextInput
                       value={item.title}
                       onChange={(title) =>
@@ -249,7 +249,7 @@ function CoursePublicPageForm() {
                       }
                     />
                   </Field>
-                  <Field label="Descricao">
+                  <Field label="Descrição">
                     <RichTextEditor
                       value={item.description}
                       onChange={(description) =>
@@ -298,32 +298,32 @@ function CoursePublicPageForm() {
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 p-5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Conteudo do curso</p>
-          <h2 className="mt-2 text-lg font-bold text-slate-950">Escolha entre conteudo real ou conteudo personalizado</h2>
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Conteúdo do curso</p>
+          <h2 className="mt-2 text-lg font-bold text-slate-950">Escolha entre conteúdo real ou conteúdo personalizado</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            No modo real, a pagina publica lista apenas os nomes dos modulos, aulas e quizzes cadastrados no construtor.
-            No modo personalizado, voce controla os cards manualmente.
+            No modo real, a página pública lista apenas os nomes dos módulos, aulas e quizzes cadastrados no construtor.
+            No modo personalizado, você controla os cards manualmente.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <ModeCard
               active={isRealMode}
-              title="Mostrar conteudo real do curso"
-              description="Exibe dinamicamente os modulos, aulas e quizzes publicados no construtor."
+              title="Mostrar conteúdo real do curso"
+              description="Exibe dinamicamente os módulos, aulas e quizzes publicados no construtor."
               icon={<Layers3 className="h-5 w-5" />}
               onClick={() => setForm((prev) => ({ ...prev, curriculumMode: "real" }))}
             />
             <ModeCard
               active={!isRealMode}
-              title="Mostrar conteudo personalizado"
-              description="Mantem a estrutura atual da pagina publica com cards editados manualmente."
+              title="Mostrar conteúdo personalizado"
+              description="Mantem a estrutura atual da página pública com cards editados manualmente."
               icon={<BookOpen className="h-5 w-5" />}
               onClick={() => setForm((prev) => ({ ...prev, curriculumMode: "custom" }))}
             />
           </div>
 
           <div className="mt-6">
-            <Field label="Titulo da secao">
+            <Field label="Título da seção">
               <TextInput
                 value={form.curriculumTitle}
                 onChange={(curriculumTitle) => setForm((prev) => ({ ...prev, curriculumTitle }))}
@@ -334,10 +334,10 @@ function CoursePublicPageForm() {
           {isRealMode ? (
             <div className="mt-6 space-y-4">
               <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50/60 p-4">
-                <p className="text-sm font-semibold text-sky-900">Pre-visualizacao do conteudo real</p>
+                <p className="text-sm font-semibold text-sky-900">Pré-visualização do conteúdo real</p>
                 <p className="mt-2 text-sm leading-6 text-sky-800">
-                  Esta secao usa os modulos, aulas e quizzes publicados no construtor. Se nao houver conteudo publicado,
-                  a pagina publica ainda mantem a estrutura personalizada guardada.
+                  Esta seção usa os módulos, aulas e quizzes publicados no construtor. Se não houver conteúdo publicado,
+                  a página pública ainda mantem a estrutura personalizada guardada.
                 </p>
               </div>
 
@@ -374,7 +374,7 @@ function CoursePublicPageForm() {
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5 text-sm leading-6 text-slate-600">
-                  Nenhum modulo publicado foi encontrado para a pre-visualizacao real.
+                  Nenhum módulo publicado foi encontrado para a pré-visualização real.
                 </div>
               )}
             </div>
@@ -394,7 +394,7 @@ function CoursePublicPageForm() {
                         }
                       />
                     </Field>
-                    <Field label="Titulo">
+                    <Field label="Título">
                       <TextInput
                         value={item.title}
                         onChange={(title) =>
@@ -432,7 +432,7 @@ function CoursePublicPageForm() {
                     </Button>
                   </div>
                   <div className="mt-4">
-                  <Field label="Descricao">
+                  <Field label="Descrição">
                     <RichTextEditor
                       value={item.description}
                       onChange={(description) =>
@@ -444,7 +444,7 @@ function CoursePublicPageForm() {
                           })),
                         }))
                       }
-                      placeholder="Descreva este modulo publico..."
+                      placeholder="Descreva este módulo público..."
                       minHeightPx={180}
                     />
                   </Field>
@@ -463,7 +463,7 @@ function CoursePublicPageForm() {
                 }
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Adicionar modulo publico
+                Adicionar módulo público
               </Button>
             </div>
           )}
@@ -490,19 +490,19 @@ function CoursePublicPageForm() {
                 onChange={(instructorInitials) => setForm((prev) => ({ ...prev, instructorInitials }))}
               />
             </Field>
-            <Field label="Texto do preco">
+            <Field label="Texto do preço">
               <TextInput
                 value={form.priceNote}
                 onChange={(priceNote) => setForm((prev) => ({ ...prev, priceNote }))}
               />
             </Field>
-            <Field label="Botao principal">
+            <Field label="Botão principal">
               <TextInput
                 value={form.ctaLabel}
                 onChange={(ctaLabel) => setForm((prev) => ({ ...prev, ctaLabel }))}
               />
             </Field>
-            <Field label="Titulo do bloco incluso">
+            <Field label="Título do bloco incluso">
               <TextInput
                 value={form.previewTitle}
                 onChange={(previewTitle) => setForm((prev) => ({ ...prev, previewTitle }))}
@@ -569,7 +569,7 @@ function CoursePublicPageForm() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>
-            {updateProduct.isPending ? "A guardar..." : "Guardar pagina publica"}
+            {updateProduct.isPending ? "A guardar..." : "Guardar página pública"}
           </Button>
         </div>
       </form>

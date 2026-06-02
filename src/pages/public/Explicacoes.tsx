@@ -42,7 +42,7 @@ export function Explicacoes() {
       setIsSuccessModalOpen(true)
       setForm(initialFormState)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel enviar o formulario.")
+      setSubmitError(error instanceof Error ? error.message : "Não foi possível enviar o formulário.")
     } finally {
       setIsSubmitting(false)
     }
@@ -141,7 +141,7 @@ export function Explicacoes() {
                 className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "A enviar..." : "Enviar formulario"}
+                {isSubmitting ? "A enviar..." : "Enviar formulário"}
                 <Send className="ml-2 h-4 w-4" />
               </Button>
             </div>

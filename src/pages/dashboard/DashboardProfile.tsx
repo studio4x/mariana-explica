@@ -36,7 +36,7 @@ export function DashboardProfile() {
     setProfileMessage(null)
 
     if (formState.nif && !isValidNif(formState.nif)) {
-      setProfileMessage("Indica um NIF valido.")
+      setProfileMessage("Indica um NIF válido.")
       return
     }
 
@@ -48,9 +48,9 @@ export function DashboardProfile() {
         notificationsEnabled: formState.notificationsEnabled,
         marketingConsent: formState.marketingConsent,
       })
-      setProfileMessage("Preferencias atualizadas com sucesso.")
+      setProfileMessage("Preferências atualizadas com sucesso.")
     } catch (error) {
-      setProfileMessage(error instanceof Error ? error.message : "Nao foi possivel guardar as preferencias.")
+      setProfileMessage(error instanceof Error ? error.message : "Não foi possível guardar as preferências.")
     }
   }
 
@@ -64,7 +64,7 @@ export function DashboardProfile() {
     }
 
     if (passwordDraft.password !== passwordDraft.confirmPassword) {
-      setPasswordMessage("As senhas nao coincidem.")
+      setPasswordMessage("As senhas não coincidem.")
       return
     }
 
@@ -81,7 +81,7 @@ export function DashboardProfile() {
       await uploadAvatar.mutateAsync({ file })
       setAvatarMessage("Avatar atualizado com sucesso.")
     } catch (error) {
-      setAvatarMessage(error instanceof Error ? error.message : "Nao foi possivel atualizar o avatar.")
+      setAvatarMessage(error instanceof Error ? error.message : "Não foi possível atualizar o avatar.")
     }
   }
 
@@ -92,7 +92,7 @@ export function DashboardProfile() {
   if (profileQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o perfil"
+        title="Não foi possível carregar o perfil"
         message={profileQuery.error instanceof Error ? profileQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void profileQuery.refetch()}
       />
@@ -104,7 +104,7 @@ export function DashboardProfile() {
     return (
       <EmptyState
         title="Perfil indisponivel"
-        message="Nao foi possivel localizar os teus dados."
+        message="Não foi possível localizar os teus dados."
       />
     )
   }
@@ -123,7 +123,7 @@ export function DashboardProfile() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Perfil" description="Atualiza os teus dados principais e as tuas preferencias de comunicacao." />
+      <PageHeader title="Perfil" description="Atualiza os teus dados principais e as tuas preferências de comunicação." />
 
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -167,7 +167,7 @@ export function DashboardProfile() {
         </section>
 
         <form onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <h2 className="font-display text-2xl font-bold text-slate-950">Preferencias</h2>
+          <h2 className="font-display text-2xl font-bold text-slate-950">Preferências</h2>
           <div className="mt-5 grid gap-4">
             <input
               value={formState.fullName}
@@ -201,7 +201,7 @@ export function DashboardProfile() {
                 checked={formState.notificationsEnabled}
                 onChange={(event) => updateDraft({ notificationsEnabled: event.target.checked })}
               />
-              Receber notificacoes da plataforma
+              Receber notificações da plataforma
             </label>
             <label className="flex items-center gap-3 rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <input
@@ -209,11 +209,11 @@ export function DashboardProfile() {
                 checked={formState.marketingConsent}
                 onChange={(event) => updateDraft({ marketingConsent: event.target.checked })}
               />
-              Aceitar comunicacoes sobre novos materiais e atualizacoes
+              Aceitar comunicações sobre novos materiais e atualizacoes
             </label>
           </div>
           <Button type="submit" className="mt-6 rounded-full" disabled={updateProfile.isPending}>
-            {updateProfile.isPending ? "A guardar..." : "Guardar alteracoes"}
+            {updateProfile.isPending ? "A guardar..." : "Guardar alterações"}
           </Button>
           {profileMessage ? <p className="mt-3 text-sm font-medium text-slate-700">{profileMessage}</p> : null}
         </form>
@@ -222,7 +222,7 @@ export function DashboardProfile() {
       <form onSubmit={handlePasswordSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <h2 className="font-display text-2xl font-bold text-slate-950">Trocar senha</h2>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
-          Define uma nova senha para continuar a entrar com seguranca na tua conta.
+          Define uma nova senha para continuar a entrar com segurança na tua conta.
         </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -249,7 +249,7 @@ export function DashboardProfile() {
         ) : null}
         {updatePassword.isError ? (
           <p className="mt-4 text-sm font-medium text-red-700">
-            {updatePassword.error instanceof Error ? updatePassword.error.message : "Nao foi possivel atualizar a senha."}
+            {updatePassword.error instanceof Error ? updatePassword.error.message : "Não foi possível atualizar a senha."}
           </p>
         ) : null}
 

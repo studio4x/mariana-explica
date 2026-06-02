@@ -92,8 +92,8 @@ const statusLabels: Record<ProductSummary["status"], string> = {
 const typeLabels: Record<ProductSummary["product_type"], string> = {
   paid: "Pago",
   free: "Gratuito",
-  hybrid: "Hibrido",
-  external_service: "Servico externo",
+  hybrid: "Híbrido",
+  external_service: "Serviço externo",
 }
 
 const cardAccentClasses: Record<ProductSummary["status"], string> = {
@@ -113,7 +113,7 @@ function formatWorkloadMinutes(minutes: number) {
 }
 
 function clampDescription(value: string | null | undefined) {
-  const text = value?.trim() || "Material sem descricao detalhada definida."
+  const text = value?.trim() || "Material sem descrição detalhada definida."
   if (text.length <= 108) return text
   return `${text.slice(0, 105).trimEnd()}...`
 }
@@ -322,7 +322,7 @@ export function AdminProducts() {
   if (productsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os materiais"
+        title="Não foi possível carregar os materiais"
         message={
           productsQuery.error instanceof Error
             ? productsQuery.error.message
@@ -389,7 +389,7 @@ export function AdminProducts() {
         imported.importedStructure,
       )
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel ler o JSON do material.")
+      setSubmitError(error instanceof Error ? error.message : "Não foi possível ler o JSON do material.")
     } finally {
       event.target.value = ""
     }
@@ -433,7 +433,7 @@ export function AdminProducts() {
 
       triggerJsonDownload(makeCourseExportFileName(course), exported)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel exportar o material.")
+      setSubmitError(error instanceof Error ? error.message : "Não foi possível exportar o material.")
     } finally {
       setExportingCourseId(null)
     }
@@ -534,7 +534,7 @@ export function AdminProducts() {
     const slug = slugify(draft.slug || draft.title)
 
     if (!title || !slug) {
-      setSubmitError("Titulo e slug do material sao obrigatorios.")
+      setSubmitError("Título e slug do material são obrigatorios.")
       return
     }
 
@@ -592,13 +592,13 @@ export function AdminProducts() {
       }
       navigate(adminCourseBuilderPath(createdCourseId))
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel guardar o material.")
+      setSubmitError(error instanceof Error ? error.message : "Não foi possível guardar o material.")
     }
   }
 
   const handleDeleteCourse = async (course: ProductSummary) => {
     const confirmed = window.confirm(
-      `Queres excluir o material "${course.title}"? Esta acao remove o material apenas quando nao existem pedidos vinculados.`,
+      `Queres excluir o material "${course.title}"? Esta ação remove o material apenas quando não existem pedidos vinculados.`,
     )
     if (!confirmed) return
 
@@ -607,7 +607,7 @@ export function AdminProducts() {
     try {
       await deleteCourse.mutateAsync(course.id)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel excluir o material.")
+      setSubmitError(error instanceof Error ? error.message : "Não foi possível excluir o material.")
     }
   }
 
@@ -639,7 +639,7 @@ export function AdminProducts() {
         })
       }
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel reordenar os materiais.")
+      setSubmitError(error instanceof Error ? error.message : "Não foi possível reordenar os materiais.")
     } finally {
       setDraggingCourseId(null)
       setReorderPending(false)
@@ -659,10 +659,10 @@ export function AdminProducts() {
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.06)]">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-700">Catalogo academico</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-700">Catálogo acadêmico</p>
             <div className="space-y-2">
               <h1 className="font-display text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                Catalogo de Materiais
+                Catálogo de Materiais
               </h1>
               <p className="max-w-3xl text-base leading-8 text-slate-600">
                 Gerencie seu curriculo, organize a ordem de exibicao e acompanhe rapidamente o status de cada treinamento.
@@ -767,7 +767,7 @@ export function AdminProducts() {
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Ordem de exibicao dos materiais</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Recurso recolhido por padrao para nao ocupar a tela. Arraste os cards para reposicionar quando a pesquisa estiver vazia.
+              Recurso recolhido por padrao para não ocupar a tela. Arraste os cards para reposicionar quando a pesquisa estiver vazia.
             </p>
           </div>
 
@@ -777,7 +777,7 @@ export function AdminProducts() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Pesquisar por titulo, slug ou estado"
+                placeholder="Pesquisar por título, slug ou estado"
                 className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
             </div>
@@ -807,7 +807,7 @@ export function AdminProducts() {
           <div className="mt-6">
             <EmptyState
               title="Sem materiais nesta vista"
-              message="Cria um novo material, ajusta a pesquisa ou importa um JSON para comecar."
+              message="Cria um novo material, ajusta a pesquisa ou importa um JSON para começar."
             />
           </div>
         ) : (
@@ -871,7 +871,7 @@ export function AdminProducts() {
                 <div className="space-y-4 p-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-blue-700">
-                      {course.is_public ? "Publico" : "Privado"}
+                      {course.is_public ? "Público" : "Privado"}
                     </span>
                     <span className="inline-flex items-center rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-amber-700">
                       {getCategoryLabel(course)}
@@ -901,7 +901,7 @@ export function AdminProducts() {
                       className="group/sub flex flex-1 flex-col items-center gap-1 rounded-2xl px-2.5 py-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
                     >
                       <ClipboardCheck className="h-5 w-5 opacity-50 transition group-hover/sub:opacity-100" />
-                      <span className="text-[10px] font-bold uppercase tracking-tighter">Avaliacoes</span>
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">Avaliações</span>
                     </Link>
                     <Button
                       type="button"
@@ -949,7 +949,7 @@ export function AdminProducts() {
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
                   {editorState.mode === "edit"
-                    ? "Edicao basica"
+                    ? "Edição básica"
                     : editorState.mode === "import"
                       ? "Importacao JSON"
                       : "Criacao de material"}
@@ -958,7 +958,7 @@ export function AdminProducts() {
                   {editorState.mode === "edit" ? "Editar material" : "Novo material"}
                 </h2>
                 <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Dados basicos do material no catalogo. O conteudo real de LMS continua no construtor.
+                  Dados basicos do material no catálogo. O conteúdo real de LMS continua no construtor.
                 </p>
               </div>
               <Button type="button" variant="ghost" className="rounded-full" onClick={() => setEditorState(null)}>
@@ -968,7 +968,7 @@ export function AdminProducts() {
 
             {editorState.importedStructure ? (
               <div className="mt-5 rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-700">
-                O JSON importado vai recriar o material com modulos, aulas, materiais e avaliacoes assim que o cadastro basico for confirmado.
+                O JSON importado vai recriar o material com módulos, aulas, materiais e avaliações assim que o cadastro básico for confirmado.
               </div>
             ) : null}
 
@@ -981,7 +981,7 @@ export function AdminProducts() {
                     handleEditorDraft("slug", slugify(event.target.value))
                   }
                 }}
-                placeholder="Titulo do material"
+                placeholder="Título do material"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
               <input
@@ -1056,14 +1056,14 @@ export function AdminProducts() {
                   checked={editorState.draft.isPublic}
                   onChange={(event) => handleEditorDraft("isPublic", event.target.checked)}
                 />
-                Visivel no catalogo publico
+                Visível no catálogo público
               </label>
 
               <textarea
                 value={editorState.draft.description}
                 onChange={(event) => handleEditorDraft("description", event.target.value)}
                 rows={8}
-                placeholder="Descricao detalhada do material"
+                placeholder="Descrição detalhada do material"
                 className="md:col-span-2 rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
 

@@ -17,7 +17,7 @@ export function SiteMaintenanceGate({ children }: { children: ReactNode }) {
   const maintenanceEnabled = maintenanceQuery.data?.config_value.enabled ?? false
   const maintenanceMessage =
     maintenanceQuery.data?.config_value.message ??
-    "Estamos em manutencao para melhorar a tua experiencia. Voltamos em breve."
+    "Estamos em manutencao para melhorar a tua experiência. Voltamos em breve."
 
   if (!maintenanceEnabled || isAdmin) {
     return <>{children}</>

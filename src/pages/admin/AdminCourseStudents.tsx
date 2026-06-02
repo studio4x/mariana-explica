@@ -10,7 +10,7 @@ export function AdminCourseStudents() {
   const productsQuery = useAdminProducts()
 
   if (!courseId) {
-    return <EmptyState title="Material invalido" message="Abra um material valido para gerenciar alunos." />
+    return <EmptyState title="Material inválido" message="Abra um material válido para gerenciar alunos." />
   }
 
   if (productsQuery.isLoading) {
@@ -20,7 +20,7 @@ export function AdminCourseStudents() {
   if (productsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o material"
+        title="Não foi possível carregar o material"
         message={productsQuery.error instanceof Error ? productsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void productsQuery.refetch()}
       />
@@ -30,7 +30,7 @@ export function AdminCourseStudents() {
   const product = (productsQuery.data ?? []).find((item) => item.id === courseId)
 
   if (!product) {
-    return <EmptyState title="Material nao encontrado" message="Este material nao esta disponivel no admin." />
+    return <EmptyState title="Material não encontrado" message="Este material não esta disponível no admin." />
   }
 
   return (

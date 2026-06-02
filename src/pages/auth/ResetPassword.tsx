@@ -106,7 +106,7 @@ export function ResetPassword() {
       }
 
       setStatus("error")
-      setError("O link de redefinicao e invalido ou expirou. Pede um novo email para continuar.")
+      setError("O link de redefinicao e inválido ou expirou. Pede um novo email para continuar.")
     }
 
     void prepareRecoverySession()
@@ -114,7 +114,7 @@ export function ResetPassword() {
 
   const blockedAccountMessage =
     status === "ready" && !loading && session?.user && profile && profile.status !== "active"
-      ? "A tua conta existe, mas ainda nao esta com acesso ativo. Se precisares, fala com o suporte."
+      ? "A tua conta existe, mas ainda não esta com acesso ativo. Se precisares, fala com o suporte."
       : null
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -127,7 +127,7 @@ export function ResetPassword() {
     }
 
     if (password !== confirmPassword) {
-      setError("As palavras-passe nao coincidem.")
+      setError("As palavras-passe não coincidem.")
       return
     }
 
@@ -145,7 +145,7 @@ export function ResetPassword() {
 
     window.sessionStorage.setItem(
       "mariana-explica:password-flash",
-      "Palavra-passe redefinida com sucesso. O teu acesso ja ficou atualizado.",
+      "Palavra-passe redefinida com sucesso. O teu acesso já ficou atualizado.",
     )
 
     navigate(
@@ -157,14 +157,14 @@ export function ResetPassword() {
   return (
     <div className="space-y-6">
       <div className="space-y-3 text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Recuperacao de acesso</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Recuperação de acesso</p>
         <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
           Redefine a tua palavra-passe na {APP_NAME}
         </h1>
         <p className="text-sm leading-7 text-muted-foreground">
           {status === "verifying"
             ? "Estamos a validar o link enviado para o teu email."
-            : "Define uma nova palavra-passe para voltares a entrar com seguranca."}
+            : "Define uma nova palavra-passe para voltares a entrar com segurança."}
         </p>
       </div>
 

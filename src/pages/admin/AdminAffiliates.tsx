@@ -18,7 +18,7 @@ function AdminAffiliatesSkeleton() {
     <div className="space-y-6">
       <PageHeader
         title="Afiliados"
-        description="Gestao minima de parceiros, codigos e leitura das conversoes registadas."
+        description="Gestão minima de parceiros, códigos e leitura das conversoes registadas."
       />
       <div className="grid gap-4 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -80,7 +80,7 @@ export function AdminAffiliates() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os afiliados"
+        title="Não foi possível carregar os afiliados"
         message="Tenta novamente dentro de instantes."
         onRetry={() => {
           void affiliatesQuery.refetch()
@@ -103,7 +103,7 @@ export function AdminAffiliates() {
     <div className="space-y-6">
       <PageHeader
         title="Afiliados"
-        description="Gestao minima de parceiros, codigos e leitura das conversoes registadas no sistema."
+        description="Gestão minima de parceiros, códigos e leitura das conversoes registadas no sistema."
       />
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -130,7 +130,7 @@ export function AdminAffiliates() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Entrada operacional</p>
           <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar afiliado</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            O parceiro passa a ter codigo proprio e condicoes minimas de comissao para uso no checkout.
+            O parceiro passa a ter código próprio e condições minimas de comissão para uso no checkout.
           </p>
 
           <div className="mt-5 grid gap-4">
@@ -149,7 +149,7 @@ export function AdminAffiliates() {
             <input
               value={affiliateCode}
               onChange={(event) => setAffiliateCode(event.target.value.toUpperCase())}
-              placeholder="Codigo do afiliado"
+              placeholder="Código do afiliado"
               className="h-11 rounded-xl border bg-slate-50 px-4 text-sm uppercase outline-none focus:border-slate-400 focus:bg-white"
             />
             <div className="grid gap-4 md:grid-cols-2">
@@ -167,7 +167,7 @@ export function AdminAffiliates() {
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder="Valor da comissao"
+                placeholder="Valor da comissão"
                 className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
             </div>
@@ -195,7 +195,7 @@ export function AdminAffiliates() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-950">Parceiros ativos</h2>
-              <p className="mt-1 text-sm text-slate-600">Edicao rapida de codigo, comissao e estado.</p>
+              <p className="mt-1 text-sm text-slate-600">Edição rápida de código, comissão e estado.</p>
             </div>
             <StatusBadge label={`${affiliates.length} registos`} tone="neutral" />
           </div>
@@ -204,7 +204,7 @@ export function AdminAffiliates() {
             <div className="mt-6">
               <EmptyState
                 title="Sem afiliados"
-                message="Assim que um parceiro for registado, ele aparece aqui com o respetivo codigo."
+                message="Assim que um parceiro for registado, ele aparece aqui com o respetivo código."
               />
             </div>
           ) : (
@@ -279,10 +279,10 @@ export function AdminAffiliates() {
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                       <p className="text-sm text-slate-600">
-                        Referencias rastreadas: {relatedReferrals.length} · Ultima atualizacao {formatDateTime(affiliate.updated_at)}
+                        Referencias rastreadas: {relatedReferrals.length} · Última atualização {formatDateTime(affiliate.updated_at)}
                       </p>
                       <Button type="submit" variant="outline" className="rounded-full" disabled={updateAffiliate.isPending}>
-                        Guardar alteracoes
+                        Guardar alterações
                       </Button>
                     </div>
                   </form>

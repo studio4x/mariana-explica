@@ -94,7 +94,7 @@ export function CourseAssessmentsPanel() {
         assessmentType: createDraft.assessmentType,
         title:
           createDraft.title.trim() ||
-          (createDraft.assessmentType === "final" ? "Avaliacao final" : "Novo quiz de modulo"),
+          (createDraft.assessmentType === "final" ? "Avaliação final" : "Novo quiz de módulo"),
         description: null,
         isRequired: true,
         passingScore: 70,
@@ -114,12 +114,12 @@ export function CourseAssessmentsPanel() {
       }
       setFeedback({
         tone: "success",
-        message: "Avaliacao criada com sucesso.",
+        message: "Avaliação criada com sucesso.",
       })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel criar a avaliacao.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível criar a avaliação.",
       })
     }
   }
@@ -135,7 +135,7 @@ export function CourseAssessmentsPanel() {
 
       if (importMode === "update") {
         if (!selectedAssessment) {
-          throw new Error("Selecione uma avaliacao para importar sobre ela.")
+          throw new Error("Selecione uma avaliação para importar sobre ela.")
         }
 
         await updateAssessment.mutateAsync({
@@ -156,7 +156,7 @@ export function CourseAssessmentsPanel() {
           isActive: selectedAssessment.is_active,
           builderPayload,
         })
-        setFeedback({ tone: "success", message: "Avaliacao atualizada com sucesso." })
+        setFeedback({ tone: "success", message: "Avaliação atualizada com sucesso." })
       } else {
         const created = await createAssessment.mutateAsync({
           productId: courseId,
@@ -165,7 +165,7 @@ export function CourseAssessmentsPanel() {
               ? null
               : normalized.assessment.module_id ?? null,
           assessmentType: normalized.assessment.assessment_type ?? "module",
-          title: normalized.assessment.title || "Avaliacao importada",
+          title: normalized.assessment.title || "Avaliação importada",
           description: normalized.assessment.description ?? null,
           isRequired: true,
           passingScore: normalized.assessment.passing_score ?? 70,
@@ -181,30 +181,30 @@ export function CourseAssessmentsPanel() {
         } else if (created.module_id) {
           setPendingRoute(adminCourseModuleAssessmentPath(courseId, created.module_id, created.id))
         }
-        setFeedback({ tone: "success", message: "Avaliacao importada com sucesso." })
+        setFeedback({ tone: "success", message: "Avaliação importada com sucesso." })
       }
 
       setImportJson("")
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel importar o JSON.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível importar o JSON.",
       })
     }
   }
 
   const handleDeleteAssessment = async (assessmentId: string, assessmentTitle: string) => {
-    if (!window.confirm(`Excluir a avaliacao "${assessmentTitle}"?`)) return
+    if (!window.confirm(`Excluir a avaliação "${assessmentTitle}"?`)) return
 
     try {
       setFeedback(null)
       setPendingRoute(null)
       await deleteAssessment.mutateAsync(assessmentId)
-      setFeedback({ tone: "success", message: "Avaliacao excluida com sucesso." })
+      setFeedback({ tone: "success", message: "Avaliação excluida com sucesso." })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel excluir a avaliacao.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível excluir a avaliação.",
       })
     }
   }
@@ -213,34 +213,34 @@ export function CourseAssessmentsPanel() {
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Avaliacoes totais</p>
+          <p className="text-sm font-medium text-slate-500">Avaliações totais</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{assessments.length}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Quizzes de modulo</p>
+          <p className="text-sm font-medium text-slate-500">Quizzes de módulo</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{moduleAssessments.length}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Avaliacao final</p>
+          <p className="text-sm font-medium text-slate-500">Avaliação final</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{finalAssessments.length}</p>
         </div>
       </section>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
-          title="Operacao de avaliacoes"
+          title="Operação de avaliações"
           description="Criacao, importacao, exportacao e manutencao do builder de quizzes e prova final."
         />
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="space-y-4">
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-4">
-              <h3 className="font-semibold text-slate-950">Nova avaliacao</h3>
+              <h3 className="font-semibold text-slate-950">Nova avaliação</h3>
               <div className="mt-4 space-y-3">
                 <input
                   value={createDraft.title}
                   onChange={(event) => setCreateDraft((prev) => ({ ...prev, title: event.target.value }))}
-                  placeholder="Titulo da avaliacao"
+                  placeholder="Título da avaliação"
                   className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                 />
                 <select
@@ -254,8 +254,8 @@ export function CourseAssessmentsPanel() {
                   }
                   className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                 >
-                  <option value="module">Quiz de modulo</option>
-                  <option value="final">Avaliacao final</option>
+                  <option value="module">Quiz de módulo</option>
+                  <option value="final">Avaliação final</option>
                 </select>
                 <select
                   value={createDraft.moduleId}
@@ -263,7 +263,7 @@ export function CourseAssessmentsPanel() {
                   onChange={(event) => setCreateDraft((prev) => ({ ...prev, moduleId: event.target.value }))}
                   className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="">Selecione um modulo</option>
+                  <option value="">Selecione um módulo</option>
                   {modules.map((module) => (
                     <option key={module.id} value={module.id}>
                       {module.title}
@@ -271,7 +271,7 @@ export function CourseAssessmentsPanel() {
                   ))}
                 </select>
                 <Button type="button" className="w-full rounded-full" disabled={createAssessment.isPending} onClick={handleCreateAssessment}>
-                  {createAssessment.isPending ? "A criar..." : "Criar avaliacao"}
+                  {createAssessment.isPending ? "A criar..." : "Criar avaliação"}
                 </Button>
               </div>
             </div>
@@ -279,7 +279,7 @@ export function CourseAssessmentsPanel() {
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-4">
               <h3 className="font-semibold text-slate-950">Importar ou exportar JSON</h3>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                Aceita JSON do contrato de avaliacao (spec) e tambem o formato legado com `assessment` + `builder_payload`.
+                Aceita JSON do contrato de avaliação (spec) e também o formato legado com `assessment` + `builder_payload`.
               </p>
               <div className="mt-4 space-y-3">
                 <select
@@ -287,14 +287,14 @@ export function CourseAssessmentsPanel() {
                   onChange={(event) => setImportMode(event.target.value as "create" | "update")}
                   className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                 >
-                  <option value="create">Criar nova avaliacao a partir do JSON</option>
-                  <option value="update">Atualizar avaliacao selecionada</option>
+                  <option value="create">Criar nova avaliação a partir do JSON</option>
+                  <option value="update">Atualizar avaliação selecionada</option>
                 </select>
                 <textarea
                   value={importJson}
                   onChange={(event) => setImportJson(event.target.value)}
                   rows={10}
-                  placeholder="Cole aqui o JSON da avaliacao"
+                  placeholder="Cole aqui o JSON da avaliação"
                   className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
                 />
                 <Button type="button" variant="outline" className="w-full rounded-full" onClick={handleImportAssessment}>
@@ -312,7 +312,7 @@ export function CourseAssessmentsPanel() {
                       )
                     }
                   >
-                    Exportar avaliacao selecionada
+                    Exportar avaliação selecionada
                   </Button>
                 ) : null}
               </div>
@@ -323,8 +323,8 @@ export function CourseAssessmentsPanel() {
           <div className="space-y-4">
             {assessments.length === 0 ? (
               <EmptyState
-                title="Sem avaliacoes mapeadas"
-                message="Crie a avaliacao final ou os quizzes de modulo para iniciar o builder."
+                title="Sem avaliações mapeadas"
+                message="Crie a avaliação final ou os quizzes de módulo para iniciar o builder."
               />
             ) : (
               assessments.map((assessment) => {
@@ -345,17 +345,17 @@ export function CourseAssessmentsPanel() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{assessment.title}</p>
                           <StatusBadge
-                            label={assessment.assessment_type === "final" ? "Final" : "Modulo"}
+                            label={assessment.assessment_type === "final" ? "Final" : "Módulo"}
                             tone={assessment.assessment_type === "final" ? "success" : "warning"}
                           />
-                          {assessment.is_required ? <StatusBadge label="Obrigatoria" tone="info" /> : null}
+                          {assessment.is_required ? <StatusBadge label="Obrigatória" tone="info" /> : null}
                         </div>
                         <p className={`mt-2 text-sm leading-7 ${isSelected ? "text-white/80" : "text-slate-600"}`}>
-                          {assessment.description ?? "Avaliacao sem descricao curta."}
+                          {assessment.description ?? "Avaliação sem descrição curta."}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {module ? <StatusBadge label={module.title} tone="neutral" /> : null}
-                          <StatusBadge label={`Minimo ${assessment.passing_score}%`} tone="info" />
+                          <StatusBadge label={`Mínimo ${assessment.passing_score}%`} tone="info" />
                           <StatusBadge label={assessment.max_attempts ? `${assessment.max_attempts} tentativa(s)` : "Sem limite"} tone="neutral" />
                         </div>
                       </div>

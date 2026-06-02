@@ -49,9 +49,9 @@ const LESSON_TYPE_OPTIONS: Array<{
   title: string
   description: string
 }> = [
-  { value: "video", title: "Apenas Video", description: "A aula depende do player de video." },
+  { value: "video", title: "Apenas Vídeo", description: "A aula depende do player de vídeo." },
   { value: "text", title: "Apenas Texto", description: "A aula fica orientada a leitura e apoio escrito." },
-  { value: "hybrid", title: "Video + Texto", description: "Combina video, leitura e contexto editorial." },
+  { value: "hybrid", title: "Vídeo + Texto", description: "Combina vídeo, leitura e contexto editorial." },
   { value: "file", title: "Apenas Ficheiro", description: "O consumo principal fica concentrado nos materiais protegidos." },
 ]
 
@@ -81,24 +81,24 @@ function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
     const maxMb = limitBytes / (1024 * 1024)
     const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
-    return `O video excede o limite permitido (${mbLabel} MB). Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase.`
+    return `O vídeo excede o limite permitido (${mbLabel} MB). Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase.`
   }
 
-  return "O video excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase."
+  return "O vídeo excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase."
 }
 
 function getProtectedVideoLimitInstruction(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
     const maxMb = limitBytes / (1024 * 1024)
     const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
-    return `Limite maximo atual no Supabase: ${mbLabel} MB por ficheiro.`
+    return `Limite máximo atual no Supabase: ${mbLabel} MB por ficheiro.`
   }
 
-  return "Limite maximo por ficheiro definido no Storage do Supabase. O valor pode variar por configuracao do projeto."
+  return "Limite máximo por ficheiro definido no Storage do Supabase. O valor pode variar por configuração do projeto."
 }
 
 function normalizeProtectedVideoUploadErrorMessage(error: unknown, limitBytes?: number | null) {
-  const rawMessage = error instanceof Error ? error.message : "Nao foi possivel enviar o video."
+  const rawMessage = error instanceof Error ? error.message : "Não foi possível enviar o vídeo."
   const normalized = rawMessage.toLowerCase()
 
   if (
@@ -120,7 +120,7 @@ function getVideoSourceSummary(mode: "url" | "upload", source: string | null | u
   if (mode === "upload") {
     if (hasAsset) {
       return {
-        label: "Video protegido na plataforma",
+        label: "Vídeo protegido na plataforma",
         message: "Este ficheiro usa storage privado e o player recebe apenas URL assinada temporaria.",
         tone: "success" as const,
       }
@@ -128,22 +128,22 @@ function getVideoSourceSummary(mode: "url" | "upload", source: string | null | u
 
     return {
       label: "Upload protegido selecionado",
-      message: "Seleciona um ficheiro e clica em Enviar video protegido para concluir esta aula sem depender de link externo.",
+      message: "Seleciona um ficheiro e clica em Enviar vídeo protegido para concluir esta aula sem depender de link externo.",
       tone: "neutral" as const,
     }
   }
 
   if (!trimmed) {
     return {
-      label: "Sem URL de video",
-      message: "Define um link do YouTube ou de um video direto enquanto o modo de URL estiver ativo.",
+      label: "Sem URL de vídeo",
+      message: "Define um link do YouTube ou de um vídeo direto enquanto o modo de URL estiver ativo.",
       tone: "neutral" as const,
     }
   }
 
   if (hasAsset) {
     return {
-      label: "Video protegido na plataforma",
+      label: "Vídeo protegido na plataforma",
       message: "Este ficheiro usa storage privado e o player recebe apenas URL assinada temporaria.",
       tone: "success" as const,
     }
@@ -152,7 +152,7 @@ function getVideoSourceSummary(mode: "url" | "upload", source: string | null | u
   return {
     label: "URL externa configurada",
     message:
-      "Links externos podem ser partilhados fora da plataforma. Use upload protegido para o nivel mais alto de controlo disponivel.",
+      "Links externos podem ser partilhados fora da plataforma. Use upload protegido para o nível mais alto de controlo disponível.",
     tone: "warning" as const,
   }
 }
@@ -219,7 +219,7 @@ export function CourseLessonDetailPanel() {
   }, [lesson])
 
   if (!courseId || !moduleId || !lessonId) {
-    return <EmptyState title="Aula invalida" message="Seleciona uma aula valida na arvore do builder." />
+    return <EmptyState title="Aula inválida" message="Seleciona uma aula válida na Árvore do builder." />
   }
 
   if (lessonsQuery.isLoading) {
@@ -229,7 +229,7 @@ export function CourseLessonDetailPanel() {
   if (lessonsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir a aula"
+        title="Não foi possível abrir a aula"
         message={lessonsQuery.error instanceof Error ? lessonsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void lessonsQuery.refetch()}
       />
@@ -237,7 +237,7 @@ export function CourseLessonDetailPanel() {
   }
 
   if (!lesson) {
-    return <EmptyState title="Aula nao encontrada" message="Esta aula nao esta ligada ao modulo atual." />
+    return <EmptyState title="Aula não encontrada" message="Esta aula não esta ligada ao módulo atual." />
   }
 
   const values = {
@@ -299,7 +299,7 @@ export function CourseLessonDetailPanel() {
       values.lesson_type === "text" || values.lesson_type === "hybrid" ? textContentToSave?.trim() || null : null
 
     if ((values.lesson_type === "video" || values.lesson_type === "hybrid") && videoSourceMode === "upload" && !normalizedYoutube) {
-      setFeedback({ tone: "error", message: "Seleciona o ficheiro e clica em Enviar video protegido antes de guardar." })
+      setFeedback({ tone: "error", message: "Seleciona o ficheiro e clica em Enviar vídeo protegido antes de guardar." })
       return
     }
 
@@ -329,14 +329,14 @@ export function CourseLessonDetailPanel() {
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel guardar a aula.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível guardar a aula.",
       })
     }
   }
 
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      `Excluir a aula "${lesson.title}"? Esta acao remove o conteudo ligado a ela.`,
+      `Excluir a aula "${lesson.title}"? Esta ação remove o conteúdo ligado a ela.`,
     )
     if (!confirmed) return
 
@@ -345,7 +345,7 @@ export function CourseLessonDetailPanel() {
       await deleteLesson.mutateAsync(lesson.id)
       navigate(adminCourseModulePath(courseId, moduleId))
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Nao foi possivel excluir a aula.")
+      setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a aula.")
     }
   }
 
@@ -373,10 +373,10 @@ export function CourseLessonDetailPanel() {
         watermark_enabled: false,
         asset_status: "active",
       })
-      setUploadMessage("Ficheiro enviado com sucesso. Ele ja esta disponivel na area de materiais deste modulo.")
+      setUploadMessage("Ficheiro enviado com sucesso. Ele já esta disponível na Área de materiais deste módulo.")
       setForm((prev) => ({ ...prev, lesson_type: "file" }))
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel enviar o ficheiro.")
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o ficheiro.")
     } finally {
       event.target.value = ""
     }
@@ -404,7 +404,7 @@ export function CourseLessonDetailPanel() {
     setPendingVideoFile(file)
     setVideoUploadStatus({
       tone: "info",
-      message: `Ficheiro selecionado: ${file.name} (${formatBytes(file.size)}). Clica em "Enviar video protegido" para concluir o envio.`,
+      message: `Ficheiro selecionado: ${file.name} (${formatBytes(file.size)}). Clica em "Enviar vídeo protegido" para concluir o envio.`,
     })
     event.target.value = ""
   }
@@ -412,10 +412,10 @@ export function CourseLessonDetailPanel() {
   const handleInsertProtectedVideo = async () => {
     const file = pendingVideoFile
     if (!file) {
-      setFeedback({ tone: "error", message: "Seleciona um ficheiro de video antes de enviar." })
+      setFeedback({ tone: "error", message: "Seleciona um ficheiro de vídeo antes de enviar." })
       setVideoUploadStatus({
         tone: "error",
-        message: "Nenhum ficheiro selecionado. Escolhe um video antes de enviar.",
+        message: "Nenhum ficheiro selecionado. Escolhe um vídeo antes de enviar.",
       })
       return
     }
@@ -460,7 +460,7 @@ export function CourseLessonDetailPanel() {
       const asset = await createAsset.mutateAsync({
         moduleId,
         asset_type: "video_file",
-        title: `${values.title?.trim() || lesson.title} - video principal`,
+        title: `${values.title?.trim() || lesson.title} - vídeo principal`,
         sort_order_asset: buildAssetSortOrder(),
         storage_bucket: signedUpload.bucket,
         storage_path: signedUpload.path,
@@ -478,14 +478,14 @@ export function CourseLessonDetailPanel() {
       setUploadedVideoAssetValue(assetValue)
       setVideoSourceMode("upload")
       setPendingVideoFile(null)
-      setUploadMessage("Video protegido enviado. Agora clica em Guardar aula para persistir esta configuracao.")
+      setUploadMessage("Vídeo protegido enviado. Agora clica em Guardar aula para persistir esta configuração.")
       setFeedback({
         tone: "success",
-        message: "Video protegido inserido com sucesso no preview. Guarda a aula para concluir.",
+        message: "Vídeo protegido inserido com sucesso no preview. Guarda a aula para concluir.",
       })
       setVideoUploadStatus({
         tone: "success",
-        message: "Envio concluido com sucesso. O video protegido ja esta pronto no preview desta aula.",
+        message: "Envio concluido com sucesso. O vídeo protegido já esta pronto no preview desta aula.",
       })
     } catch (uploadError) {
       const uploadErrorMessage = normalizeProtectedVideoUploadErrorMessage(uploadError, protectedVideoMaxBytes)
@@ -503,10 +503,10 @@ export function CourseLessonDetailPanel() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Aula do modulo</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Aula do módulo</p>
             <h1 className="font-display text-3xl font-extrabold text-slate-950">Editor de Aula</h1>
             <p className="max-w-3xl text-sm leading-7 text-slate-600">
-              Define identidade, formato pedagogico, conteudo principal e janela de liberacao desta aula.
+              Define identidade, formato pedagogico, conteúdo principal e janela de liberação desta aula.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -516,7 +516,7 @@ export function CourseLessonDetailPanel() {
             />
             <StatusBadge label={`${values.estimated_minutes || 0} min`} tone="warning" />
             <Button asChild variant="outline" className="rounded-full">
-              <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>Botoes e URLs da Aula</Link>
+              <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>Botões e URLs da Aula</Link>
             </Button>
           </div>
         </div>
@@ -537,7 +537,7 @@ export function CourseLessonDetailPanel() {
             </div>
 
             <div className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-              <LessonField label="Titulo obrigatorio">
+              <LessonField label="Título obrigatório">
                 <input
                   value={String(values.title)}
                   onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
@@ -574,14 +574,14 @@ export function CourseLessonDetailPanel() {
               </div>
             </div>
 
-            <LessonField label="Descricao curta / area de texto">
+            <LessonField label="Descrição curta / Área de texto">
               <LessonContentBlocksEditor
                 ref={(instance) => {
                   descriptionEditorRef.current = instance
                 }}
                 value={String(values.description)}
                 onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
-                placeholder="Resumo rapido da aula."
+                placeholder="Resumo rápido da aula."
               />
             </LessonField>
           </section>
@@ -591,7 +591,7 @@ export function CourseLessonDetailPanel() {
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">
                 Bloco 02: Formato Pedagogico
               </p>
-              <h2 className="mt-2 text-lg font-bold text-slate-950">Escolhe como a aula sera consumida</h2>
+              <h2 className="mt-2 text-lg font-bold text-slate-950">Escolhe como a aula será consumida</h2>
             </div>
 
             <div className="rounded-2xl bg-slate-100/80 p-1.5">
@@ -623,7 +623,7 @@ export function CourseLessonDetailPanel() {
             <section className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">
-                  Bloco 03: Conteudo em Video
+                  Bloco 03: Conteúdo em Vídeo
                 </p>
                 <h2 className="mt-2 text-lg font-bold text-slate-950">Fonte audiovisual</h2>
               </div>
@@ -640,7 +640,7 @@ export function CourseLessonDetailPanel() {
                         : "text-slate-600 hover:bg-slate-50",
                     ].join(" ")}
                   >
-                    <span className="block text-sm font-bold">Usar URL do video</span>
+                    <span className="block text-sm font-bold">Usar URL do vídeo</span>
                     <span className="mt-1 block text-sm leading-6">
                       Usa YouTube ou outro link direto quando queres apontar para um ficheiro externo.
                     </span>
@@ -658,7 +658,7 @@ export function CourseLessonDetailPanel() {
                   >
                     <span className="block text-sm font-bold">Usar upload protegido</span>
                     <span className="mt-1 block text-sm leading-6">
-                      Envia o video para a plataforma e publica apenas a URL assinada temporaria.
+                      Envia o vídeo para a plataforma e pública apenas a URL assinada temporaria.
                     </span>
                   </button>
                 </div>
@@ -681,9 +681,9 @@ export function CourseLessonDetailPanel() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">Preview do video</p>
+                    <p className="text-sm font-semibold text-slate-950">Preview do vídeo</p>
                     <p className="mt-1 text-sm leading-6 text-slate-500">
-                      Esta visualizacao usa a origem selecionada no toggle acima.
+                      Esta visualização usa a origem selecionada no toggle acima.
                     </p>
                   </div>
                   <StatusBadge
@@ -694,27 +694,27 @@ export function CourseLessonDetailPanel() {
 
                 {activeVideoSource ? (
                   <div className="mt-4">
-                    <LessonPrimaryMedia source={activeVideoSource} title="Preview do video da aula" />
+                    <LessonPrimaryMedia source={activeVideoSource} title="Preview do vídeo da aula" />
                   </div>
                 ) : (
                   <div className="mt-4 rounded-[1.25rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                    Ainda nao existe video para pre-visualizar neste modo.
+                    Ainda não existe vídeo para pre-visualizar neste modo.
                   </div>
                 )}
               </div>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-semibold">Nota de protecao</p>
+                <p className="font-semibold">Nota de proteção</p>
                 <p className="mt-1 leading-6">
-                  Nenhum player web garante protecao total contra pirataria. O upload protegido reduz bastante o risco com bucket privado,
-                  URL assinada temporaria e player sem download explicito. Links externos continuam dependentes da seguranca do provedor de origem.
+                  Nenhum player web garante proteção total contra pirataria. O upload protegido reduz bastante o risco com bucket privado,
+                  URL assinada temporaria e player sem download explicito. Links externos continuam dependentes da segurança do provedor de origem.
                 </p>
               </div>
 
               {videoSourceMode === "url" ? (
                 <LessonField
-                  label="URL do video"
-                  helper="Aceita links do YouTube ou URLs diretas de ficheiro de video como .mp4, .webm, .mov e .m4v."
+                  label="URL do vídeo"
+                  helper="Aceita links do YouTube ou URLs diretas de ficheiro de vídeo como .mp4, .webm, .mov e .m4v."
                 >
                   <input
                     value={videoUrlDraft}
@@ -725,16 +725,16 @@ export function CourseLessonDetailPanel() {
                 </LessonField>
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-semibold text-slate-950">Upload protegido de video</p>
+                  <p className="text-sm font-semibold text-slate-950">Upload protegido de vídeo</p>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Recomendado para aulas pagas. O video fica em storage privado e o aluno recebe apenas acesso temporario assinado no player.
+                    Recomendado para aulas pagas. O vídeo fica em storage privado e o aluno recebe apenas acesso temporario assinado no player.
                   </p>
                   <p className="mt-1 text-xs leading-6 text-slate-500">
                     {getProtectedVideoLimitInstruction(protectedVideoMaxBytes)}
                   </p>
                   <input
                     type="file"
-                    accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v"
+                    accept="v?deo/mp4,v?deo/webm,v?deo/ogg,v?deo/quicktime,v?deo/x-m4v"
                     onChange={handleVideoUploadSelection}
                     className="mt-4 text-sm"
                   />
@@ -744,7 +744,7 @@ export function CourseLessonDetailPanel() {
                     onClick={() => void handleInsertProtectedVideo()}
                     disabled={createSignedVideoUpload.isPending || !pendingVideoFile}
                   >
-                    {createSignedVideoUpload.isPending ? "A enviar..." : "Enviar video protegido"}
+                    {createSignedVideoUpload.isPending ? "A enviar..." : "Enviar vídeo protegido"}
                   </Button>
                   {pendingVideoFile ? (
                     <p className="mt-3 text-sm text-slate-600">
@@ -779,14 +779,14 @@ export function CourseLessonDetailPanel() {
             <section className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">
-                  Bloco 04: Conteudo em Texto
+                  Bloco 04: Conteúdo em Texto
                 </p>
                 <h2 className="mt-2 text-lg font-bold text-slate-950">Corpo textual da aula</h2>
               </div>
 
               <LessonField
-                label="Texto principal / area de texto"
-                helper="Conteudo editorial principal apresentado ao aluno."
+                label="Texto principal / Área de texto"
+                helper="Conteúdo editorial principal apresentado ao aluno."
               >
                 <LessonContentBlocksEditor
                   ref={(instance) => {
@@ -794,7 +794,7 @@ export function CourseLessonDetailPanel() {
                   }}
                   value={String(values.text_content)}
                   onChange={(value) => setForm((prev) => ({ ...prev, text_content: value }))}
-                  placeholder="Escreve o conteudo textual da aula."
+                  placeholder="Escreve o conteúdo textual da aula."
                 />
               </LessonField>
             </section>
@@ -812,11 +812,11 @@ export function CourseLessonDetailPanel() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-sm font-semibold text-slate-950">Enviar ficheiro</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  O upload cria um material protegido dentro do modulo atual e a aula passa a depender desse ficheiro no player.
+                  O upload cria um material protegido dentro do módulo atual e a aula passa a depender desse ficheiro no player.
                 </p>
                 <input
                   type="file"
-                  accept="application/pdf,video/mp4,video/webm,image/png,image/jpeg"
+                  accept="application/pdf,v?deo/mp4,v?deo/webm,image/png,image/jpeg"
                   onChange={handleFileSelection}
                   className="mt-4 text-sm"
                 />
@@ -837,7 +837,7 @@ export function CourseLessonDetailPanel() {
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">
-                Bloco 05: Duracao e liberacao
+                Bloco 05: Duracao e liberação
               </p>
               <h2 className="mt-2 text-lg font-bold text-slate-950">Agenda operacional</h2>
             </div>
@@ -888,20 +888,20 @@ export function CourseLessonDetailPanel() {
                 className="mt-0.5"
               />
               <span>
-                <span className="block font-semibold text-slate-950">Aula obrigatoria</span>
+                <span className="block font-semibold text-slate-950">Aula obrigatória</span>
                 <span className="mt-1 block text-slate-500">
-                  Mantem esta aula dentro do percurso minimo para concluir o material.
+                  Mantem esta aula dentro do percurso mínimo para concluir o material.
                 </span>
               </span>
             </label>
 
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-              <p className="font-semibold text-slate-950">Preview dos botoes do rodape</p>
+              <p className="font-semibold text-slate-950">Preview dos botões do rodape</p>
               <p className="mt-1">
-                O acesso detalhado a botoes e URLs fica na rota dedicada de materiais da aula.
+                O acesso detalhado a botões e URLs fica na rota dedicada de materiais da aula.
               </p>
               <Button asChild variant="outline" className="mt-4 rounded-full">
-                <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>Abrir configuracao de materiais</Link>
+                <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>Abrir configuração de materiais</Link>
               </Button>
             </div>
           </section>
@@ -921,7 +921,7 @@ export function CourseLessonDetailPanel() {
           <div className="flex flex-wrap items-center gap-3">
             {error ? <p className="text-sm text-rose-700">{error}</p> : null}
             <Button type="submit" className="rounded-full" disabled={updateLesson.isPending}>
-              {updateLesson.isPending ? "A guardar..." : "Salvar Alteracoes"}
+              {updateLesson.isPending ? "A guardar..." : "Salvar Alterações"}
             </Button>
           </div>
         </div>
@@ -941,7 +941,7 @@ export function CourseLessonDetailPanel() {
           className="rounded-full bg-[#1398B7] px-6 py-6 font-black shadow-[0_20px_40px_rgba(19,152,183,0.28)] hover:bg-[#0A3640]"
           disabled={updateLesson.isPending}
         >
-          {updateLesson.isPending ? "A guardar..." : "Salvar configuracoes"}
+          {updateLesson.isPending ? "A guardar..." : "Salvar configurações"}
         </Button>
       </div>
     </div>

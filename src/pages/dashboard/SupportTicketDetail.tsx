@@ -136,7 +136,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar este chamado"
+        title="Não foi possível carregar este chamado"
         message="Tenta novamente dentro de instantes."
         onRetry={() => window.location.reload()}
       />
@@ -144,7 +144,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   }
 
   if (!ticket) {
-    return <EmptyState title="Chamado nao encontrado" message="Este ticket nao existe ou nao esta acessivel." />
+    return <EmptyState title="Chamado não encontrado" message="Este ticket não existe ou não esta acessivel." />
   }
 
   const category = getSupportCategoryMeta(ticket.category)
@@ -178,7 +178,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_290px]">
         <section className="overflow-hidden rounded-[1.75rem] border bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-5 py-4">
-            <h2 className="font-display text-xl font-black text-slate-950">Historico de mensagens</h2>
+            <h2 className="font-display text-xl font-black text-slate-950">Histórico de mensagens</h2>
             {mode === "admin" ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 <select
@@ -207,7 +207,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
 
           <div ref={chatScrollRef} className="h-[560px] space-y-4 overflow-y-auto bg-slate-50/50 p-5">
             <div className="max-w-[86%] rounded-2xl rounded-tl-sm border bg-white p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Descricao do problema</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Descrição do problema</p>
               <p className="mt-2 text-sm leading-7 text-slate-700">{ticket.message}</p>
               {ticket.attachment_path ? (
                 <button
@@ -307,11 +307,11 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
 
         <aside className="space-y-4">
           <div className="rounded-[1.5rem] border bg-white p-5 shadow-sm">
-            <h2 className="font-display text-xl font-black text-slate-950">Informacoes</h2>
+            <h2 className="font-display text-xl font-black text-slate-950">Informações</h2>
             <dl className="mt-4 space-y-4 text-sm">
               {selectedUser ? (
                 <div>
-                  <dt className="font-black text-slate-500">Usuario</dt>
+                  <dt className="font-black text-slate-500">Usuário</dt>
                   <dd className="mt-1 text-slate-800">{selectedUser.full_name} · {selectedUser.email}</dd>
                 </div>
               ) : null}
@@ -336,7 +336,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                 <dd className="mt-1">{ticket.first_response_at ? formatDateTime(ticket.first_response_at) : "Ainda pendente"}</dd>
               </div>
               <div>
-                <dt className="font-black text-slate-500">Ultima atualizacao</dt>
+                <dt className="font-black text-slate-500">Última atualização</dt>
                 <dd className="mt-1">{formatDateTime(ticket.updated_at)}</dd>
               </div>
             </dl>
@@ -345,7 +345,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
             {category.label}: primeira resposta em ate {category.firstResponseHours} horas uteis. {supportBusinessHours}
           </div>
           <div className="rounded-[1.5rem] border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-900">
-            Em casos de fraude, pagamento indevido ou risco de acesso, mantenha o chamado ativo e detalhe o maximo possivel.
+            Em casos de fraude, pagamento indevido ou risco de acesso, mantenha o chamado ativo e detalhe o máximo possível.
           </div>
           <Link to={backTo} className="inline-flex text-sm font-bold text-sky-700 underline underline-offset-4">
             Ver todos os chamados

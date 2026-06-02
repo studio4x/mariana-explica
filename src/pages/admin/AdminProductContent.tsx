@@ -38,28 +38,28 @@ import type {
 
 const moduleTypeLabels: Record<ProductModuleSummary["module_type"], string> = {
   pdf: "Leitura guiada",
-  video: "Video aula",
+  video: "Vídeo aula",
   external_link: "Recurso externo",
-  mixed: "Modulo misto",
+  mixed: "Módulo misto",
 }
 
 const accessTypeLabels: Record<ProductModuleSummary["access_type"], string> = {
-  public: "Publico",
+  public: "Público",
   registered: "Registado",
   paid_only: "Pago",
 }
 
 const assetTypeLabels: Record<ModuleAssetSummary["asset_type"], string> = {
   pdf: "PDF",
-  video_file: "Video",
-  video_embed: "Video embed",
+  video_file: "Vídeo",
+  video_embed: "Vídeo embed",
   external_link: "Link externo",
 }
 
 const lessonTypeLabels: Record<ProductLessonSummary["lesson_type"], string> = {
-  video: "Video",
+  video: "Vídeo",
   text: "Texto",
-  hybrid: "Hibrida",
+  hybrid: "Híbrida",
   file: "Ficheiro",
 }
 
@@ -101,11 +101,11 @@ function toDateTimeLocal(value: string | null | undefined) {
 
 function getScheduleSummary(module: ProductModuleSummary) {
   if (module.starts_at && module.ends_at) return "Janela com inicio e fim definidos"
-  if (module.starts_at) return "Liberacao por data"
+  if (module.starts_at) return "Liberação por data"
   if (module.release_days_after_enrollment !== null) {
-    return `Abre ${module.release_days_after_enrollment} dia(s) apos a inscricao`
+    return `Abre ${module.release_days_after_enrollment} dia(s) após a inscrição`
   }
-  return "Disponivel conforme grant e regras do material"
+  return "Disponível conforme grant e regras do material"
 }
 
 function getAssessmentTone(assessment: ProductAssessmentSummary): "success" | "warning" | "neutral" {
@@ -122,21 +122,21 @@ function getLessonVideoSourceSummary(mode: "url" | "upload", source: string) {
     if (!trimmed) {
       return {
         label: "Aguardando upload protegido",
-        message: "Carrega um video para guardar a aula com ficheiro privado e URL assinada temporaria.",
+        message: "Carrega um vídeo para guardar a aula com ficheiro privado e URL assinada temporaria.",
         tone: "warning" as const,
       }
     }
 
     if (hasAsset) {
       return {
-        label: "Video protegido na plataforma",
-        message: "O player usa storage privado e nao expoe um ficheiro publico permanente.",
+        label: "Vídeo protegido na plataforma",
+        message: "O player usa storage privado e não expoe um ficheiro público permanente.",
         tone: "success" as const,
       }
     }
 
     return {
-      label: "Origem de video incompleta",
+      label: "Origem de vídeo incompleta",
       message: "Seleciona um ficheiro para upload protegido antes de guardar.",
       tone: "danger" as const,
     }
@@ -144,15 +144,15 @@ function getLessonVideoSourceSummary(mode: "url" | "upload", source: string) {
 
   if (!trimmed) {
     return {
-      label: "Sem URL de video",
-      message: "Define um link do YouTube ou de um video direto enquanto o modo de URL estiver ativo.",
+      label: "Sem URL de vídeo",
+      message: "Define um link do YouTube ou de um vídeo direto enquanto o modo de URL estiver ativo.",
       tone: "neutral" as const,
     }
   }
 
   if (hasAsset) {
     return {
-      label: "Video protegido na plataforma",
+      label: "Vídeo protegido na plataforma",
       message: "Este material usa storage privado e o player recebe apenas URL assinada temporaria.",
       tone: "success" as const,
     }
@@ -467,13 +467,13 @@ export function AdminProductContent() {
     setModuleSubmitError(null)
 
     if (!productId) {
-      setModuleSubmitError("Material invalido.")
+      setModuleSubmitError("Material inválido.")
       return
     }
 
     const title = moduleDraft.title.trim()
     if (!title) {
-      setModuleSubmitError("Titulo do modulo e obrigatorio.")
+      setModuleSubmitError("Título do módulo e obrigatório.")
       return
     }
 
@@ -516,7 +516,7 @@ export function AdminProductContent() {
         status: "published",
       })
     } catch (err) {
-      setModuleSubmitError(err instanceof Error ? err.message : "Nao foi possivel criar o modulo.")
+      setModuleSubmitError(err instanceof Error ? err.message : "Não foi possível criar o módulo.")
     }
   }
 
@@ -574,13 +574,13 @@ export function AdminProductContent() {
       setEditingModuleId(null)
       setEditingModule({})
     } catch (err) {
-      setModuleSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar o modulo.")
+      setModuleSubmitError(err instanceof Error ? err.message : "Não foi possível guardar o módulo.")
     }
   }
 
   const handleDeleteModule = async (moduleId: string) => {
     const confirmed = window.confirm(
-      "Queres remover este modulo? As aulas e materiais ligados a ele tambem saem da estrutura.",
+      "Queres remover este módulo? As aulas e materiais ligados a ele também saem da estrutura.",
     )
     if (!confirmed) return
 
@@ -592,7 +592,7 @@ export function AdminProductContent() {
         setSelectedModuleId(null)
       }
     } catch (err) {
-      setModuleSubmitError(err instanceof Error ? err.message : "Nao foi possivel remover o modulo.")
+      setModuleSubmitError(err instanceof Error ? err.message : "Não foi possível remover o módulo.")
     }
   }
 
@@ -601,13 +601,13 @@ export function AdminProductContent() {
     setLessonSubmitError(null)
 
     if (!selectedModuleIdSafe) {
-      setLessonSubmitError("Seleciona um modulo primeiro.")
+      setLessonSubmitError("Seleciona um módulo primeiro.")
       return
     }
 
     const title = lessonDraft.title.trim()
     if (!title) {
-      setLessonSubmitError("Titulo da aula e obrigatorio.")
+      setLessonSubmitError("Título da aula e obrigatório.")
       return
     }
 
@@ -631,7 +631,7 @@ export function AdminProductContent() {
         lessonVideoSourceMode === "upload" &&
         !normalizedYoutube
       ) {
-        setLessonSubmitError("Seleciona o ficheiro e clica em Inserir video antes de criar a aula.")
+        setLessonSubmitError("Seleciona o ficheiro e clica em Inserir vídeo antes de criar a aula.")
         return
       }
 
@@ -640,7 +640,7 @@ export function AdminProductContent() {
         lessonVideoSourceMode === "url" &&
         !normalizedYoutube
       ) {
-        setLessonSubmitError("Define a URL do video antes de criar a aula.")
+        setLessonSubmitError("Define a URL do vídeo antes de criar a aula.")
         return
       }
 
@@ -677,7 +677,7 @@ export function AdminProductContent() {
       setLessonUploadedVideoAssetValue(null)
       setLessonVideoPendingFile(null)
     } catch (err) {
-      setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel criar a aula.")
+      setLessonSubmitError(err instanceof Error ? err.message : "Não foi possível criar a aula.")
     }
   }
 
@@ -728,7 +728,7 @@ export function AdminProductContent() {
         editingLessonVideoSourceMode === "upload" &&
         !normalizedYoutube
       ) {
-        setLessonSubmitError("Seleciona o ficheiro e clica em Inserir video antes de guardar a aula.")
+        setLessonSubmitError("Seleciona o ficheiro e clica em Inserir vídeo antes de guardar a aula.")
         return
       }
 
@@ -737,7 +737,7 @@ export function AdminProductContent() {
         editingLessonVideoSourceMode === "url" &&
         !normalizedYoutube
       ) {
-        setLessonSubmitError("Define a URL do video antes de guardar a aula.")
+        setLessonSubmitError("Define a URL do vídeo antes de guardar a aula.")
         return
       }
 
@@ -766,7 +766,7 @@ export function AdminProductContent() {
       setEditingLessonUploadedVideoAssetValue(null)
       setEditingLessonVideoPendingFile(null)
     } catch (err) {
-      setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar a aula.")
+      setLessonSubmitError(err instanceof Error ? err.message : "Não foi possível guardar a aula.")
     }
   }
 
@@ -787,14 +787,14 @@ export function AdminProductContent() {
   const handleInsertCreateLessonVideo = async () => {
     const file = lessonVideoPendingFile
     if (!file) {
-      setLessonSubmitError("Seleciona um ficheiro de video primeiro.")
+      setLessonSubmitError("Seleciona um ficheiro de vídeo primeiro.")
       return
     }
 
     setLessonSubmitError(null)
 
     if (!selectedModuleIdSafe) {
-      setLessonSubmitError("Seleciona um modulo primeiro.")
+      setLessonSubmitError("Seleciona um módulo primeiro.")
       return
     }
 
@@ -803,7 +803,7 @@ export function AdminProductContent() {
       const asset = await createAsset.mutateAsync({
         moduleId: selectedModuleIdSafe,
         asset_type: "video_file",
-        title: `${lessonDraft.title.trim() || file.name.replace(/\.[^.]+$/, "")} - video`,
+        title: `${lessonDraft.title.trim() || file.name.replace(/\.[^.]+$/, "")} - vídeo`,
         sort_order_asset: nextOrder(assets),
         storage_bucket: upload.bucket,
         storage_path: upload.path,
@@ -822,21 +822,21 @@ export function AdminProductContent() {
       setLessonDraft((prev) => ({ ...prev, youtube_url: assetValue }))
       setLessonVideoPendingFile(null)
     } catch (uploadError) {
-      setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o video.")
+      setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o vídeo.")
     }
   }
 
   const handleInsertEditingLessonVideo = async () => {
     const file = editingLessonVideoPendingFile
     if (!file) {
-      setLessonSubmitError("Seleciona um ficheiro de video primeiro.")
+      setLessonSubmitError("Seleciona um ficheiro de vídeo primeiro.")
       return
     }
 
     setLessonSubmitError(null)
 
     if (!selectedModuleIdSafe) {
-      setLessonSubmitError("Seleciona um modulo primeiro.")
+      setLessonSubmitError("Seleciona um módulo primeiro.")
       return
     }
 
@@ -850,7 +850,7 @@ export function AdminProductContent() {
       const asset = await createAsset.mutateAsync({
         moduleId: selectedModuleIdSafe,
         asset_type: "video_file",
-        title: `${lessonTitle || file.name.replace(/\.[^.]+$/, "")} - video`,
+        title: `${lessonTitle || file.name.replace(/\.[^.]+$/, "")} - vídeo`,
         sort_order_asset: nextOrder(assets),
         storage_bucket: upload.bucket,
         storage_path: upload.path,
@@ -869,7 +869,7 @@ export function AdminProductContent() {
       setEditingLesson((prev) => ({ ...prev, youtube_url: assetValue }))
       setEditingLessonVideoPendingFile(null)
     } catch (uploadError) {
-      setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o video.")
+      setLessonSubmitError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o vídeo.")
     }
   }
 
@@ -882,7 +882,7 @@ export function AdminProductContent() {
     try {
       await deleteLesson.mutateAsync(lessonId)
     } catch (err) {
-      setLessonSubmitError(err instanceof Error ? err.message : "Nao foi possivel remover a aula.")
+      setLessonSubmitError(err instanceof Error ? err.message : "Não foi possível remover a aula.")
     }
   }
 
@@ -891,13 +891,13 @@ export function AdminProductContent() {
     setAssetSubmitError(null)
 
     if (!selectedModuleIdSafe) {
-      setAssetSubmitError("Seleciona um modulo primeiro.")
+      setAssetSubmitError("Seleciona um módulo primeiro.")
       return
     }
 
     const title = assetDraft.title.trim()
     if (!title) {
-      setAssetSubmitError("Titulo do material e obrigatorio.")
+      setAssetSubmitError("Título do material e obrigatório.")
       return
     }
 
@@ -935,7 +935,7 @@ export function AdminProductContent() {
         status: "active",
       })
     } catch (err) {
-      setAssetSubmitError(err instanceof Error ? err.message : "Nao foi possivel criar o material.")
+      setAssetSubmitError(err instanceof Error ? err.message : "Não foi possível criar o material.")
     }
   }
 
@@ -985,7 +985,7 @@ export function AdminProductContent() {
       setEditingAssetId(null)
       setEditingAsset({})
     } catch (err) {
-      setAssetSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar o material.")
+      setAssetSubmitError(err instanceof Error ? err.message : "Não foi possível guardar o material.")
     }
   }
 
@@ -998,7 +998,7 @@ export function AdminProductContent() {
     try {
       await deleteAsset.mutateAsync(assetId)
     } catch (err) {
-      setAssetSubmitError(err instanceof Error ? err.message : "Nao foi possivel remover o material.")
+      setAssetSubmitError(err instanceof Error ? err.message : "Não foi possível remover o material.")
     }
   }
 
@@ -1026,7 +1026,7 @@ export function AdminProductContent() {
         },
       })
     } catch (err) {
-      setCourseSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar as configuracoes do material.")
+      setCourseSubmitError(err instanceof Error ? err.message : "Não foi possível guardar as configurações do material.")
     }
   }
 
@@ -1037,7 +1037,7 @@ export function AdminProductContent() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar a estrutura do material"
+        title="Não foi possível carregar a estrutura do material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void productsQuery.refetch()
@@ -1053,8 +1053,8 @@ export function AdminProductContent() {
   if (!id || !product) {
     return (
       <EmptyState
-        title="Material nao encontrado"
-        message="Volta a lista de materiais e abre um item valido para continuar."
+        title="Material não encontrado"
+        message="Volta a lista de materiais e abre um item válido para continuar."
       />
     )
   }
@@ -1063,7 +1063,7 @@ export function AdminProductContent() {
     <div className="space-y-6">
       <PageHeader
         title={`Builder do material: ${product.title}`}
-        description="Organiza o material como trilha academica, com modulos, aulas, materiais e regras de liberacao por etapa."
+        description="Organiza o material como trilha académica, com módulos, aulas, materiais e regras de liberação por etapa."
         backTo="/admin/cursos"
         actions={
           <Button
@@ -1072,41 +1072,41 @@ export function AdminProductContent() {
             className="rounded-full"
             onClick={() => navigate(publicCoursePath(product.slug))}
           >
-            Ver pagina publica
+            Ver página pública
           </Button>
         }
       />
 
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Modulos</p>
+          <p className="text-sm font-medium text-slate-500">Módulos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{modules.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Base da trilha academica e comercial do material.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Base da trilha académica e comercial do material.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-900">
             <GraduationCap className="h-4 w-4" />
-            <p className="text-sm font-medium text-slate-500">Aulas no modulo atual</p>
+            <p className="text-sm font-medium text-slate-500">Aulas no módulo atual</p>
           </div>
           <p className="mt-3 text-3xl font-bold text-slate-950">{lessons.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Conteudo sequenciado por posicao, tipo e agenda.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Conteúdo sequenciado por posicao, tipo e agenda.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-900">
             <FileText className="h-4 w-4" />
-            <p className="text-sm font-medium text-slate-500">Materiais no modulo atual</p>
+            <p className="text-sm font-medium text-slate-500">Materiais no módulo atual</p>
           </div>
           <p className="mt-3 text-3xl font-bold text-slate-950">{assets.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">PDFs, videos e links adicionais servidos com protecao.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">PDFs, vídeos e links adicionais servidos com proteção.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-slate-950 p-5 text-white shadow-sm">
           <div className="flex items-center gap-2 text-white">
             <CalendarClock className="h-4 w-4" />
-            <p className="text-sm font-medium text-white/70">Avaliacoes mapeadas</p>
+            <p className="text-sm font-medium text-white/70">Avaliações mapeadas</p>
           </div>
           <p className="mt-3 text-3xl font-bold">{assessments.length}</p>
           <p className="mt-2 text-sm leading-6 text-white/80">
-            Quizzes por modulo e prova final associados ao material.
+            Quizzes por módulo e prova final associados ao material.
           </p>
         </div>
       </section>
@@ -1114,15 +1114,15 @@ export function AdminProductContent() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Configuracoes do material</p>
-            <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Identidade academica e comercial</h2>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Configurações do material</p>
+            <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Identidade académica e comercial</h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
-              Ajusta os campos centrais do material sem sair do builder: titulo, slug, carga horaria, lancamento,
+              Ajusta os campos centrais do material sem sair do builder: título, slug, carga horaria, lancamento,
               progressao linear e tipos de quiz permitidos.
             </p>
           </div>
           <Button type="button" className="rounded-full" onClick={() => void handleSaveCourse()} disabled={updateProduct.isPending}>
-            {updateProduct.isPending ? "A guardar..." : "Guardar configuracoes"}
+            {updateProduct.isPending ? "A guardar..." : "Guardar configurações"}
           </Button>
         </div>
 
@@ -1130,7 +1130,7 @@ export function AdminProductContent() {
           <input
             value={courseForm.title}
             onChange={(event) => handleCourseTitleChange(event.target.value)}
-            placeholder="Titulo do material"
+            placeholder="Título do material"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <input
@@ -1154,13 +1154,13 @@ export function AdminProductContent() {
           <input
             value={courseForm.creatorCommissionPercent}
             onChange={(event) => updateCourseDraftField("creatorCommissionPercent", event.target.value)}
-            placeholder="Comissao do criador (%)"
+            placeholder="Comissão do criador (%)"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <input
             value={courseForm.shortDescription}
             onChange={(event) => updateCourseDraftField("shortDescription", event.target.value)}
-            placeholder="Descricao curta"
+            placeholder="Descrição curta"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white md:col-span-2 xl:col-span-3"
           />
         </div>
@@ -1172,7 +1172,7 @@ export function AdminProductContent() {
               checked={courseForm.isPublic}
               onChange={(event) => updateCourseDraftField("isPublic", event.target.checked)}
             />
-            Material publico no catalogo
+            Material público no catálogo
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -1220,22 +1220,22 @@ export function AdminProductContent() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Estrutura lateral</p>
-              <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Modulos do material</h2>
+              <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Módulos do material</h2>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                Esta coluna funciona como o mapa do material. Define ordem, agenda, acesso e o modulo ativo do
+                Esta coluna funciona como o mapa do material. Define ordem, agenda, acesso e o módulo ativo do
                 builder.
               </p>
             </div>
-            <StatusBadge label={`${modules.length} modulos`} tone="neutral" />
+            <StatusBadge label={`${modules.length} módulos`} tone="neutral" />
           </div>
 
           <form onSubmit={handleCreateModule} className="mt-6 rounded-[1.5rem] border bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">Novo modulo</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">Novo módulo</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <input
                 value={moduleDraft.title}
                 onChange={(event) => setModuleDraft((prev) => ({ ...prev, title: event.target.value }))}
-                placeholder="Titulo do modulo"
+                placeholder="Título do módulo"
                 className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
               />
               <input
@@ -1283,7 +1283,7 @@ export function AdminProductContent() {
             <textarea
               value={moduleDraft.description}
               onChange={(event) => setModuleDraft((prev) => ({ ...prev, description: event.target.value }))}
-              placeholder="Descricao e objetivo deste modulo"
+              placeholder="Descrição e objetivo deste módulo"
               rows={4}
               className="mt-3 w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
             />
@@ -1309,7 +1309,7 @@ export function AdminProductContent() {
                     release_days_after_enrollment: event.target.value,
                   }))
                 }
-                placeholder="Dias apos inscricao"
+                placeholder="Dias após inscrição"
                 className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
               />
               <select
@@ -1334,7 +1334,7 @@ export function AdminProductContent() {
                 onChange={(event) =>
                   setModuleDraft((prev) => ({ ...prev, module_pdf_storage_path: event.target.value }))
                 }
-                placeholder="Path do PDF base do modulo"
+                placeholder="Path do PDF base do módulo"
                 className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
               />
               <input
@@ -1354,7 +1354,7 @@ export function AdminProductContent() {
                   checked={moduleDraft.is_preview}
                   onChange={(event) => setModuleDraft((prev) => ({ ...prev, is_preview: event.target.checked }))}
                 />
-                Preview publico
+                Preview público
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -1362,13 +1362,13 @@ export function AdminProductContent() {
                   checked={moduleDraft.is_required}
                   onChange={(event) => setModuleDraft((prev) => ({ ...prev, is_required: event.target.checked }))}
                 />
-                Obrigatorio
+                Obrigatório
               </label>
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button type="submit" className="rounded-full" disabled={createModule.isPending}>
-                {createModule.isPending ? "A criar..." : "Criar modulo"}
+                {createModule.isPending ? "A criar..." : "Criar módulo"}
               </Button>
               {moduleSubmitError ? <p className="text-sm text-rose-700">{moduleSubmitError}</p> : null}
             </div>
@@ -1377,8 +1377,8 @@ export function AdminProductContent() {
           {modules.length === 0 ? (
             <div className="mt-6">
               <EmptyState
-                title="Sem modulos ainda"
-                message="Cria o primeiro modulo para comecar a montar a arvore academica do material."
+                title="Sem módulos ainda"
+                message="Cria o primeiro módulo para começar a montar a Árvore académica do material."
               />
             </div>
           ) : (
@@ -1402,10 +1402,10 @@ export function AdminProductContent() {
                             <StatusBadge label={moduleTypeLabels[module.module_type]} tone="info" />
                             <StatusBadge label={accessTypeLabels[module.access_type]} tone="neutral" />
                             {module.is_preview ? <StatusBadge label="Preview" tone="warning" /> : null}
-                            {module.is_required ? <StatusBadge label="Obrigatorio" tone="success" /> : null}
+                            {module.is_required ? <StatusBadge label="Obrigatório" tone="success" /> : null}
                           </div>
                           <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-white/78" : "text-slate-600"}`}>
-                            {module.description ?? "Modulo sem descricao detalhada."}
+                            {module.description ?? "Módulo sem descrição detalhada."}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -1469,7 +1469,7 @@ export function AdminProductContent() {
                               isSelected ? "text-white/60" : "text-slate-600"
                             }`}
                           >
-                            Editar modulo
+                            Editar módulo
                           </p>
                           <div className="mt-3 grid gap-3 md:grid-cols-2">
                             <input
@@ -1477,7 +1477,7 @@ export function AdminProductContent() {
                               onChange={(event) =>
                                 setEditingModule((prev) => ({ ...prev, title: event.target.value }))
                               }
-                              placeholder="Titulo"
+                              placeholder="Título"
                               className="h-11 rounded-xl border bg-white px-4 text-sm text-slate-900 outline-none focus:border-slate-400"
                             />
                             <input
@@ -1531,7 +1531,7 @@ export function AdminProductContent() {
                               setEditingModule((prev) => ({ ...prev, description: event.target.value }))
                             }
                             rows={4}
-                            placeholder="Descricao"
+                            placeholder="Descrição"
                             className="mt-3 w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-400"
                           />
 
@@ -1562,7 +1562,7 @@ export function AdminProductContent() {
                                     : null,
                                 }))
                               }
-                              placeholder="Dias apos inscricao"
+                              placeholder="Dias após inscrição"
                               className="h-11 rounded-xl border bg-white px-4 text-sm text-slate-900 outline-none focus:border-slate-400"
                             />
                             <select
@@ -1625,7 +1625,7 @@ export function AdminProductContent() {
                                   setEditingModule((prev) => ({ ...prev, is_required: event.target.checked }))
                                 }
                               />
-                              Obrigatorio
+                              Obrigatório
                             </label>
                           </div>
 
@@ -1636,7 +1636,7 @@ export function AdminProductContent() {
                               onClick={() => void handleSaveModule()}
                               disabled={updateModule.isPending}
                             >
-                              {updateModule.isPending ? "A guardar..." : "Guardar modulo"}
+                              {updateModule.isPending ? "A guardar..." : "Guardar módulo"}
                             </Button>
                             <Button
                               type="button"
@@ -1665,10 +1665,10 @@ export function AdminProductContent() {
             <div className="space-y-6">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Workspace do modulo</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Workspace do módulo</p>
                   <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">{selectedModule.title}</h2>
                   <p className="mt-2 text-sm leading-7 text-slate-600">
-                    {selectedModule.description ?? "Usa este espaco para desenhar a experiencia do aluno neste modulo."}
+                    {selectedModule.description ?? "Usa este espaço para desenhar a experiência do aluno neste módulo."}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1726,7 +1726,7 @@ export function AdminProductContent() {
                         <input
                           value={lessonDraft.title}
                           onChange={(event) => setLessonDraft((prev) => ({ ...prev, title: event.target.value }))}
-                          placeholder="Titulo da aula"
+                          placeholder="Título da aula"
                           className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                         />
                         <input
@@ -1770,7 +1770,7 @@ export function AdminProductContent() {
                         value={lessonDraft.description}
                         onChange={(event) => setLessonDraft((prev) => ({ ...prev, description: event.target.value }))}
                         rows={3}
-                        placeholder="Descricao curta da aula"
+                        placeholder="Descrição curta da aula"
                         className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
                       />
 
@@ -1786,7 +1786,7 @@ export function AdminProductContent() {
                                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                               }`}
                             >
-                              Usar URL do video
+                              Usar URL do vídeo
                             </button>
                             <button
                               type="button"
@@ -1814,14 +1814,14 @@ export function AdminProductContent() {
                             <input
                               value={lessonVideoUrlDraft}
                               onChange={(event) => setLessonVideoUrlDraft(event.target.value)}
-                              placeholder="URL do video"
+                              placeholder="URL do vídeo"
                               className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                             />
                           ) : (
                             <div className="space-y-2">
                               <input
                                 type="file"
-                                accept="video/*"
+                                accept="v?deo/*"
                                 onChange={handleCreateLessonVideoSelection}
                                 className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
                               />
@@ -1831,11 +1831,11 @@ export function AdminProductContent() {
                                 onClick={() => void handleInsertCreateLessonVideo()}
                                 disabled={uploadLessonVideoFile.isPending || !lessonVideoPendingFile}
                               >
-                                {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir video no preview"}
+                                {uploadLessonVideoFile.isPending ? "A inserir..." : "Inserir vídeo no preview"}
                               </Button>
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm text-slate-600">
-                                  O video aparece no preview local apos selecionar o ficheiro e pode depois ser guardado.
+                                  O vídeo aparece no preview local após selecionar o ficheiro e pode depois ser guardado.
                                 </p>
                                 <Button
                                   type="button"
@@ -1847,7 +1847,7 @@ export function AdminProductContent() {
                                   }}
                                   disabled={!lessonVideoPendingFile && !lessonUploadedVideoAssetValue}
                                 >
-                                  Limpar video
+                                  Limpar vídeo
                                 </Button>
                               </div>
                               {lessonVideoPendingFile ? (
@@ -1857,17 +1857,17 @@ export function AdminProductContent() {
                               ) : null}
                               {lessonUploadedVideoAssetValue ? (
                                 <p className="text-sm text-emerald-700">
-                                  Video protegido pronto para ser usado nesta aula.
+                                  Vídeo protegido pronto para ser usado nesta aula.
                                 </p>
                               ) : (
                                 <p className="text-sm text-slate-600">
-                                  Seleciona o ficheiro e clica em "Inserir video no preview" para gerar o video protegido.
+                                  Seleciona o ficheiro e clica em "Inserir vídeo no preview" para gerar o vídeo protegido.
                                 </p>
                               )}
                             </div>
                           )}
 
-                          <LessonPrimaryMedia source={currentCreateLessonVideoSource} title="Preview do video da aula" />
+                          <LessonPrimaryMedia source={currentCreateLessonVideoSource} title="Preview do vídeo da aula" />
                         </div>
                       ) : null}
 
@@ -1878,7 +1878,7 @@ export function AdminProductContent() {
                             setLessonDraft((prev) => ({ ...prev, text_content: event.target.value }))
                           }
                           rows={5}
-                          placeholder="Conteudo textual serializado da aula"
+                          placeholder="Conteúdo textual serializado da aula"
                           className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
                         />
                       ) : null}
@@ -1909,7 +1909,7 @@ export function AdminProductContent() {
                               setLessonDraft((prev) => ({ ...prev, is_required: event.target.checked }))
                             }
                           />
-                          Obrigatoria
+                          Obrigatória
                         </label>
                         <select
                           value={lessonDraft.status}
@@ -1939,8 +1939,8 @@ export function AdminProductContent() {
                   <div className="space-y-3">
                     {lessons.length === 0 ? (
                       <EmptyState
-                        title="Sem aulas neste modulo"
-                        message="Cria a primeira aula para comecar a experiencia do aluno dentro do material."
+                        title="Sem aulas neste módulo"
+                        message="Cria a primeira aula para começar a experiência do aluno dentro do material."
                       />
                     ) : (
                       lessons.map((lesson) => {
@@ -1956,10 +1956,10 @@ export function AdminProductContent() {
                                     <p className="font-semibold text-slate-950">{lesson.title}</p>
                                     <StatusBadge label={lessonTypeLabels[lesson.lesson_type]} tone="info" />
                                     <StatusBadge label={lessonStatusLabels[lesson.status]} tone="neutral" />
-                                    {lesson.is_required ? <StatusBadge label="Obrigatoria" tone="success" /> : null}
+                                    {lesson.is_required ? <StatusBadge label="Obrigatória" tone="success" /> : null}
                                   </div>
                                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                                    {lesson.description ?? "Aula sem descricao curta."}
+                                    {lesson.description ?? "Aula sem descrição curta."}
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -1987,7 +1987,7 @@ export function AdminProductContent() {
                                 <StatusBadge label={`Posicao ${lesson.position}`} tone="neutral" />
                                 <StatusBadge label={`${lesson.estimated_minutes} min`} tone="warning" />
                                 {lesson.youtube_url ? (
-                                  <StatusBadge label={hasProtectedVideo ? "Video protegido" : "Video"} tone="info" />
+                                  <StatusBadge label={hasProtectedVideo ? "Vídeo protegido" : "Vídeo"} tone="info" />
                                 ) : null}
                                 {lesson.text_content ? <StatusBadge label="Texto" tone="success" /> : null}
                               </div>
@@ -2003,7 +2003,7 @@ export function AdminProductContent() {
                                       onChange={(event) =>
                                         setEditingLesson((prev) => ({ ...prev, title: event.target.value }))
                                       }
-                                      placeholder="Titulo"
+                                      placeholder="Título"
                                       className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                                     />
                                     <input
@@ -2067,7 +2067,7 @@ export function AdminProductContent() {
                                               : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                                           }`}
                                         >
-                                          Usar URL do video
+                                          Usar URL do vídeo
                                         </button>
                                         <button
                                           type="button"
@@ -2100,14 +2100,14 @@ export function AdminProductContent() {
                                         <input
                                           value={editingLessonVideoUrlDraft}
                                           onChange={(event) => setEditingLessonVideoUrlDraft(event.target.value)}
-                                          placeholder="URL do video"
+                                          placeholder="URL do vídeo"
                                           className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                                         />
                                       ) : (
                                         <div className="space-y-2">
                                           <input
                                             type="file"
-                                            accept="video/*"
+                                            accept="v?deo/*"
                                             onChange={handleEditingLessonVideoSelection}
                                             className="block w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:border-slate-400"
                                           />
@@ -2119,11 +2119,11 @@ export function AdminProductContent() {
                                           >
                                             {uploadLessonVideoFile.isPending
                                               ? "A inserir..."
-                                              : "Inserir video no preview"}
+                                              : "Inserir vídeo no preview"}
                                           </Button>
                                           <div className="flex flex-wrap items-center justify-between gap-2">
                                             <p className="text-sm text-slate-600">
-                                              O video aparece no preview local apos selecionar o ficheiro e pode depois
+                                              O vídeo aparece no preview local após selecionar o ficheiro e pode depois
                                               ser guardado.
                                             </p>
                                             <Button
@@ -2136,7 +2136,7 @@ export function AdminProductContent() {
                                               }}
                                               disabled={!editingLessonVideoPendingFile && !editingLessonUploadedVideoAssetValue}
                                             >
-                                              Limpar video
+                                              Limpar vídeo
                                             </Button>
                                           </div>
                                           {editingLessonVideoPendingFile ? (
@@ -2147,11 +2147,11 @@ export function AdminProductContent() {
                                           ) : null}
                                           {editingLessonUploadedVideoAssetValue ? (
                                             <p className="text-sm text-emerald-700">
-                                              Video protegido carregado para esta aula.
+                                              Vídeo protegido carregado para esta aula.
                                             </p>
                                           ) : (
                                             <p className="text-sm text-slate-600">
-                                              Seleciona o ficheiro e clica em "Inserir video no preview" para gerar o video
+                                              Seleciona o ficheiro e clica em "Inserir vídeo no preview" para gerar o vídeo
                                               protegido.
                                             </p>
                                           )}
@@ -2160,7 +2160,7 @@ export function AdminProductContent() {
 
                                       <LessonPrimaryMedia
                                         source={currentEditingLessonVideoSource}
-                                        title="Preview do video da aula"
+                                        title="Preview do vídeo da aula"
                                       />
                                     </div>
                                   ) : null}
@@ -2207,7 +2207,7 @@ export function AdminProductContent() {
                                           }))
                                         }
                                       />
-                                      Obrigatoria
+                                      Obrigatória
                                     </label>
                                     <select
                                       value={String(editingLesson.status ?? lesson.status)}
@@ -2271,7 +2271,7 @@ export function AdminProductContent() {
                         <input
                           value={assetDraft.title}
                           onChange={(event) => setAssetDraft((prev) => ({ ...prev, title: event.target.value }))}
-                          placeholder="Titulo"
+                          placeholder="Título"
                           className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                         />
                         <select
@@ -2393,8 +2393,8 @@ export function AdminProductContent() {
                   <div className="space-y-3">
                     {assets.length === 0 ? (
                       <EmptyState
-                        title="Sem materiais neste modulo"
-                        message="Liga PDFs, videos ou links protegidos para completar esta etapa do material."
+                        title="Sem materiais neste módulo"
+                        message="Liga PDFs, vídeos ou links protegidos para completar esta etapa do material."
                       />
                     ) : (
                       assets.map((asset) => {
@@ -2459,7 +2459,7 @@ export function AdminProductContent() {
                                       onChange={(event) =>
                                         setEditingAsset((prev) => ({ ...prev, title: event.target.value }))
                                       }
-                                      placeholder="Titulo"
+                                      placeholder="Título"
                                       className="h-11 rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                                     />
                                     <input
@@ -2627,14 +2627,14 @@ export function AdminProductContent() {
               <section className="rounded-[1.5rem] border bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Avaliacoes ligadas ao material</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Avaliações ligadas ao material</p>
                     <h3 className="mt-2 font-display text-xl font-bold text-slate-950">Resumo de quizzes</h3>
                     <p className="mt-2 text-sm leading-7 text-slate-600">
-                      A avaliacao final e os quizzes por modulo continuam centralizados no backend.
+                      A avaliação final e os quizzes por módulo continuam centralizados no backend.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <StatusBadge label={`${selectedModuleAssessments.length} do modulo`} tone="warning" />
+                    <StatusBadge label={`${selectedModuleAssessments.length} do módulo`} tone="warning" />
                     <StatusBadge label={`${finalAssessments.length} finais`} tone="success" />
                   </div>
                 </div>
@@ -2643,7 +2643,7 @@ export function AdminProductContent() {
                   {assessments.length === 0 ? (
                     <div className="md:col-span-2">
                       <EmptyState
-                        title="Sem avaliacoes mapeadas"
+                        title="Sem avaliações mapeadas"
                         message="Quando os quizzes forem criados no builder, o resumo aparece aqui."
                       />
                     </div>
@@ -2653,16 +2653,16 @@ export function AdminProductContent() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-slate-950">{assessment.title}</p>
                           <StatusBadge
-                            label={assessment.assessment_type === "final" ? "Final" : "Modulo"}
+                            label={assessment.assessment_type === "final" ? "Final" : "Módulo"}
                             tone={getAssessmentTone(assessment)}
                           />
-                          {assessment.is_required ? <StatusBadge label="Obrigatoria" tone="success" /> : null}
+                          {assessment.is_required ? <StatusBadge label="Obrigatória" tone="success" /> : null}
                         </div>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                          {assessment.description ?? "Avaliacao sem descricao curta."}
+                          {assessment.description ?? "Avaliação sem descrição curta."}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          <StatusBadge label={`Minimo ${assessment.passing_score}%`} tone="info" />
+                          <StatusBadge label={`Mínimo ${assessment.passing_score}%`} tone="info" />
                           <StatusBadge
                             label={
                               assessment.max_attempts ? `${assessment.max_attempts} tentativa(s)` : "Sem limite"
@@ -2679,8 +2679,8 @@ export function AdminProductContent() {
             </div>
           ) : (
             <EmptyState
-              title="Seleciona um modulo"
-              message="Abre um modulo na coluna da esquerda para editar aulas, materiais e resumo de quizzes."
+              title="Seleciona um módulo"
+              message="Abre um módulo na coluna da esquerda para editar aulas, materiais e resumo de quizzes."
             />
           )}
         </section>

@@ -69,7 +69,7 @@ export async function submitPublicForm(input: SubmitPublicFormInput) {
   }
 
   if (!response) {
-    throw new Error("Nao foi possivel contactar o servidor. Tenta novamente dentro de instantes.")
+    throw new Error("Não foi possível contactar o servidor. Tenta novamente dentro de instantes.")
   }
 
   const contentType = response.headers.get("content-type") ?? ""
@@ -89,7 +89,7 @@ export async function submitPublicForm(input: SubmitPublicFormInput) {
   }
 
   if (!data || typeof data !== "object") {
-    throw new Error("Resposta invalida ao enviar formulario")
+    throw new Error("Resposta inválida ao enviar formulário")
   }
 
   return data as SubmitPublicFormResponse

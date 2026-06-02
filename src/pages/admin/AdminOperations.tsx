@@ -23,8 +23,8 @@ function AdminOperationsSkeleton({ embedded = false }: { embedded?: boolean }) {
     <div className="space-y-6">
       {!embedded ? (
         <PageHeader
-          title="Operacoes"
-          description="Fila de emails, scheduler dos crons, historico de jobs e reprocessamento seguro da camada operacional."
+          title="Operações"
+          description="Fila de emails, scheduler dos crons, histórico de jobs e reprocessamento seguro da camada operacional."
         />
       ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -93,13 +93,13 @@ const CRON_CATALOG: Array<{
     cron: "audit_access_consistency",
     jobname: "mariana-cron-audit-access-consistency",
     title: "Auditar acessos",
-    description: "Varre inconsistencias entre pedidos, grants e conteudo.",
+    description: "Varre inconsistencias entre pedidos, grants e conteúdo.",
   },
   {
     cron: "clean_expired_links",
     jobname: "mariana-cron-clean-expired-links",
     title: "Limpar links expirados",
-    description: "Remove links temporarios expirados e faz manutencao tecnica.",
+    description: "Remove links temporarios expirados e faz manutencao técnica.",
   },
 ]
 
@@ -150,7 +150,7 @@ function PaginationBar({
     <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-slate-500">
         {totalItems} {itemLabel}
-        {totalItems === 1 ? "" : "s"} · pagina {currentPage} de {totalPages}
+        {totalItems === 1 ? "" : "s"} · página {currentPage} de {totalPages}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -222,7 +222,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
   if (hasError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar a operacao"
+        title="Não foi possível carregar a operação"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void operationsQuery.refetch()
@@ -239,7 +239,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
     return (
       <EmptyState
         title="Sem dados operacionais"
-        message="A fila de emails, o scheduler e o historico de jobs vao aparecer aqui."
+        message="A fila de emails, o scheduler e o histórico de jobs vao aparecer aqui."
       />
     )
   }
@@ -252,8 +252,8 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
     <div className="space-y-6">
       {!embedded ? (
         <PageHeader
-          title="Operacoes"
-          description="Fila de emails, scheduler dos crons, historico de jobs e reprocessamento seguro da camada operacional."
+          title="Operações"
+          description="Fila de emails, scheduler dos crons, histórico de jobs e reprocessamento seguro da camada operacional."
         />
       ) : null}
 
@@ -276,7 +276,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
         <div className="rounded-[1.75rem] border bg-primary p-6 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Emails entregues</p>
           <p className="mt-3 text-3xl font-bold">{data.deliveredEmails}</p>
-          <p className="mt-2 text-sm leading-6 text-white/80">Historico recente de entregas concluido com sucesso.</p>
+          <p className="mt-2 text-sm leading-6 text-white/80">Histórico recente de entregas concluido com sucesso.</p>
         </div>
       </div>
 
@@ -297,8 +297,8 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Scheduler dos crons</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Aqui ficam os crons reais do ambiente. A ideia e complementar a operacao que ja existia, sem duplicar a
-              leitura de historico.
+              Aqui ficam os crons reais do ambiente. A ideia e complementar a operação que já existia, sem duplicar a
+              leitura de histórico.
             </p>
           </div>
 
@@ -318,7 +318,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                 } catch (nextError) {
                   setFeedback({
                     tone: "error",
-                    message: nextError instanceof Error ? nextError.message : "Nao foi possivel reagendar os crons.",
+                    message: nextError instanceof Error ? nextError.message : "Não foi possível reagendar os crons.",
                   })
                 }
               }}
@@ -347,7 +347,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                   setFeedback({
                     tone: "error",
                     message:
-                      nextError instanceof Error ? nextError.message : "Nao foi possivel enfileirar o email de teste.",
+                      nextError instanceof Error ? nextError.message : "Não foi possível enfileirar o email de teste.",
                   })
                 }
               }}
@@ -373,7 +373,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                 } catch (nextError) {
                   setFeedback({
                     tone: "error",
-                    message: nextError instanceof Error ? nextError.message : "Nao foi possivel executar os crons.",
+                    message: nextError instanceof Error ? nextError.message : "Não foi possível executar os crons.",
                   })
                 }
               }}
@@ -395,7 +395,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-slate-950">{item.title}</p>
                       <StatusBadge
-                        label={schedule ? (schedule.active ? "agendado" : "inativo") : "nao agendado"}
+                        label={schedule ? (schedule.active ? "agendado" : "inativo") : "não agendado"}
                         tone={schedule ? cronTone(schedule.active) : "warning"}
                       />
                       {lastRun ? <StatusBadge label={lastRun.status} tone={jobTone(lastRun.status)} /> : null}
@@ -407,11 +407,11 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                       </p>
                       <p>
                         <span className="font-semibold text-slate-700">Agenda:</span>{" "}
-                        {schedule?.schedule ?? "Ainda nao configurada"}
+                        {schedule?.schedule ?? "Ainda não configurada"}
                       </p>
                       <p>
-                        <span className="font-semibold text-slate-700">Ultima execucao:</span>{" "}
-                        {lastRun ? formatDateTime(lastRun.started_at) : "Sem historico recente"}
+                        <span className="font-semibold text-slate-700">Última execução:</span>{" "}
+                        {lastRun ? formatDateTime(lastRun.started_at) : "Sem histórico recente"}
                       </p>
                       {lastRun?.error_message ? (
                         <p className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
@@ -438,7 +438,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                       } catch (nextError) {
                         setFeedback({
                           tone: "error",
-                          message: nextError instanceof Error ? nextError.message : "Nao foi possivel executar o cron.",
+                          message: nextError instanceof Error ? nextError.message : "Não foi possível executar o cron.",
                         })
                       }
                     }}
@@ -457,7 +457,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Listagens operacionais</h2>
             <p className="mt-1 text-sm text-slate-600">
-              A fila de emails e o historico de jobs ficam separados em abas para manter a leitura mais leve.
+              A fila de emails e o histórico de jobs ficam separados em abas para manter a leitura mais leve.
             </p>
           </div>
 
@@ -484,7 +484,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-950",
               ].join(" ")}
             >
-              Historico de jobs
+              Histórico de jobs
             </button>
           </div>
         </div>
@@ -495,7 +495,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
               <div>
                 <h3 className="font-display text-2xl font-bold text-slate-950">Fila de emails</h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  Entregas recentes com estado, erro e opcao de reenfileirar quando necessario.
+                  Entregas recentes com estado, erro e opção de reenfileirar quando necessário.
                 </p>
               </div>
               <StatusBadge label={`${data.emailDeliveries.length} registos`} tone="neutral" />
@@ -505,7 +505,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
               <div className="mt-5">
                 <EmptyState
                   title="Sem emails na fila"
-                  message="Quando a plataforma gerar emails, a operacao vai aparecer aqui."
+                  message="Quando a plataforma gerar emails, a operação vai aparecer aqui."
                 />
               </div>
             ) : (
@@ -549,7 +549,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
                               setFeedback({
                                 tone: "error",
                                 message:
-                                  nextError instanceof Error ? nextError.message : "Nao foi possivel reenfileirar o email.",
+                                  nextError instanceof Error ? nextError.message : "Não foi possível reenfileirar o email.",
                               })
                             }
                           }}
@@ -576,7 +576,7 @@ export function AdminOperations({ embedded = false }: { embedded?: boolean }) {
           <div className="mt-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="font-display text-2xl font-bold text-slate-950">Historico de jobs</h3>
+                <h3 className="font-display text-2xl font-bold text-slate-950">Histórico de jobs</h3>
                 <p className="mt-1 text-sm text-slate-600">
                   Registo consolidado das automacoes mais recentes para leitura e troubleshooting.
                 </p>

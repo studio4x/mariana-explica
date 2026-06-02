@@ -74,7 +74,7 @@ export function AdminAccount() {
       await refreshSession()
       setProfileMessage("Dados da conta atualizados com sucesso.")
     } catch (error) {
-      setProfileMessage(error instanceof Error ? error.message : "Nao foi possivel guardar as alteracoes.")
+      setProfileMessage(error instanceof Error ? error.message : "Não foi possível guardar as alterações.")
     }
   }
 
@@ -88,7 +88,7 @@ export function AdminAccount() {
     }
 
     if (passwordDraft.password !== passwordDraft.confirmPassword) {
-      setPasswordMessage("As senhas nao coincidem.")
+      setPasswordMessage("As senhas não coincidem.")
       return
     }
 
@@ -101,7 +101,7 @@ export function AdminAccount() {
       })
       setPasswordMessage("Senha atualizada com sucesso.")
     } catch (error) {
-      setPasswordMessage(error instanceof Error ? error.message : "Nao foi possivel atualizar a senha.")
+      setPasswordMessage(error instanceof Error ? error.message : "Não foi possível atualizar a senha.")
     }
   }
 
@@ -114,7 +114,7 @@ export function AdminAccount() {
       await refreshSession()
       setAvatarMessage("Avatar atualizado com sucesso.")
     } catch (error) {
-      setAvatarMessage(error instanceof Error ? error.message : "Nao foi possivel atualizar o avatar.")
+      setAvatarMessage(error instanceof Error ? error.message : "Não foi possível atualizar o avatar.")
     }
   }
 
@@ -125,7 +125,7 @@ export function AdminAccount() {
   if (profileQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar a conta"
+        title="Não foi possível carregar a conta"
         message={profileQuery.error instanceof Error ? profileQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void profileQuery.refetch()}
       />
@@ -133,7 +133,7 @@ export function AdminAccount() {
   }
 
   if (!profile || !draft) {
-    return <EmptyState title="Conta indisponivel" message="Nao foi possivel localizar os dados do admin." />
+    return <EmptyState title="Conta indisponivel" message="Não foi possível localizar os dados do admin." />
   }
 
   return (
@@ -176,7 +176,7 @@ export function AdminAccount() {
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[#1398B7]">Conta protegida</p>
                 <p className="mt-2 text-sm leading-6 text-[#5F7077]">
-                  Use esta area para trocar a senha do admin sem depender da recuperacao por email.
+                  Use esta Área para trocar a senha do admin sem depender da recuperação por email.
                 </p>
               </div>
             </div>
@@ -222,7 +222,7 @@ export function AdminAccount() {
           <form onSubmit={handleSubmit} className="rounded-[30px] border border-[#D8E6EB] bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-2 border-b border-[#D8E6EB] pb-5">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#1398B7]">Perfil operacional</p>
-              <h2 className="font-display text-2xl font-semibold text-[#15323b]">Dados e preferencias</h2>
+              <h2 className="font-display text-2xl font-semibold text-[#15323b]">Dados e preferências</h2>
               <p className="text-sm text-[#6d7a80]">
                 Atualize nome, telefone e consentimentos usados pela plataforma.
               </p>
@@ -259,7 +259,7 @@ export function AdminAccount() {
                     setDraft((current) => (current ? { ...current, notificationsEnabled: event.target.checked } : current))
                   }
                 />
-                Receber notificacoes operacionais da plataforma
+                Receber notificações operacionais da plataforma
               </label>
 
               <label className="flex items-center gap-3 rounded-2xl border border-[#D8E6EB] bg-[#F8FBFC] px-4 py-3 text-sm text-[#15323b]">
@@ -270,7 +270,7 @@ export function AdminAccount() {
                     setDraft((current) => (current ? { ...current, marketingConsent: event.target.checked } : current))
                   }
                 />
-                Aceitar comunicacoes de novidades e campanhas
+                Aceitar comunicações de novidades e campanhas
               </label>
             </div>
 
@@ -282,17 +282,17 @@ export function AdminAccount() {
                 className="rounded-2xl bg-[#1398B7] font-black hover:bg-[#0A3640]"
                 disabled={updateProfile.isPending}
               >
-                {updateProfile.isPending ? "A guardar..." : "Guardar alteracoes"}
+                {updateProfile.isPending ? "A guardar..." : "Guardar alterações"}
               </Button>
             </div>
           </form>
 
           <form onSubmit={handlePasswordSubmit} className="rounded-[30px] border border-[#D8E6EB] bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-2 border-b border-[#D8E6EB] pb-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#1398B7]">Seguranca</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#1398B7]">Segurança</p>
               <h2 className="font-display text-2xl font-semibold text-[#15323b]">Trocar senha</h2>
               <p className="text-sm text-[#6d7a80]">
-                Defina uma nova senha forte para entrar em outros navegadores sem depender do fluxo de recuperacao.
+                Defina uma nova senha forte para entrar em outros navegadores sem depender do fluxo de recuperação.
               </p>
             </div>
 
@@ -319,7 +319,7 @@ export function AdminAccount() {
                   onChange={(event) => setPasswordDraft((current) => ({ ...current, password: event.target.value }))}
                   autoComplete="new-password"
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm outline-none transition focus:border-[#1398B7] focus:bg-white"
-                  placeholder="Minimo 8 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                 />
               </label>
 
@@ -342,7 +342,7 @@ export function AdminAccount() {
               <div className="flex items-start gap-3">
                 <KeyRound className="mt-0.5 h-4 w-4 text-[#1398B7]" />
                 <p>
-                  A senha sera atualizada diretamente no Supabase Auth. Depois disso, voce ja pode usar o novo acesso em outro navegador.
+                  A senha será atualizada diretamente no Supabase Auth. Depois disso, você já pode usar o novo acesso em outro navegador.
                 </p>
               </div>
             </div>

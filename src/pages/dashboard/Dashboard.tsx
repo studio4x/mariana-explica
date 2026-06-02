@@ -110,7 +110,7 @@ export function Dashboard() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o dashboard"
+        title="Não foi possível carregar o dashboard"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -169,7 +169,7 @@ export function Dashboard() {
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Acesso rapido</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Acesso rápido</p>
           <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Atalhos do aluno</h2>
           <div className="mt-5 grid gap-3">
             <QuickLink
@@ -190,8 +190,8 @@ export function Dashboard() {
               <QuickLink
                 to={ROUTES.COURSES}
                 icon={<GraduationCap className="h-5 w-5" />}
-                title="Conhecer materiais disponiveis"
-                description="Veja o catalogo publico e escolha o proximo material."
+                title="Conhecer materiais disponíveis"
+                description="Veja o catálogo público e escolha o próximo material."
                 variant="slate"
               />
             )}
@@ -210,7 +210,7 @@ export function Dashboard() {
               <div>
                 <p className="font-black text-slate-950">Conta ativa para aprendizagem</p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Seus materiais liberados estao disponiveis para acesso e estudo.
+                  Seus materiais liberados estão disponíveis para acesso e estudo.
                 </p>
               </div>
             </div>
@@ -219,11 +219,11 @@ export function Dashboard() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Nome</p>
-              <p className="mt-2 truncate font-bold text-slate-950">{profile?.full_name || "Nao informado"}</p>
+              <p className="mt-2 truncate font-bold text-slate-950">{profile?.full_name || "Não informado"}</p>
             </div>
             <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">E-mail</p>
-              <p className="mt-2 truncate font-bold text-slate-950">{profile?.email ?? "Nao informado"}</p>
+              <p className="mt-2 truncate font-bold text-slate-950">{profile?.email ?? "Não informado"}</p>
             </div>
           </div>
 
@@ -237,7 +237,7 @@ export function Dashboard() {
       </section>
 
       <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Leitura rapida</p>
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Leitura rápida</p>
         <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Status da jornada</h2>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           <div className="flex items-center justify-between rounded-[20px] border border-sky-100 bg-sky-50 p-4">

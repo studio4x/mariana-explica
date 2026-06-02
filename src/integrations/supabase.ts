@@ -116,8 +116,8 @@ function createNoopQueryBuilder(): NoopQueryBuilder {
       void args
       return builder
     },
-    maybeSingle: async () => ({ data: null, error: new Error("Supabase nao configurado") }),
-    single: async () => ({ data: null, error: new Error("Supabase nao configurado") }),
+    maybeSingle: async () => ({ data: null, error: new Error("Supabase não configurado") }),
+    single: async () => ({ data: null, error: new Error("Supabase não configurado") }),
     then(onfulfilled, onrejected) {
       return Promise.resolve({ data: [], error: null }).then(onfulfilled, onrejected)
     },
@@ -143,49 +143,49 @@ function createNoopSupabaseClient() {
       signOut: async () => ({ error: null }),
       signInWithPassword: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
       signUp: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
       resetPasswordForEmail: async () => ({
         data: null,
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
       updateUser: async () => ({
         data: { user: null },
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
       exchangeCodeForSession: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
       verifyOtp: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
       setSession: async () => ({
         data: { session: null, user: null },
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
     },
     from: () => queryBuilder,
     rpc: async () => ({
       data: null,
-      error: new Error("Supabase nao configurado"),
+      error: new Error("Supabase não configurado"),
     }),
     functions: {
       invoke: async () => ({
         data: null,
-        error: new Error("Supabase nao configurado"),
+        error: new Error("Supabase não configurado"),
       }),
     },
     storage: {
       from: () => ({
         uploadToSignedUrl: async () => ({
           data: null,
-          error: new Error("Supabase nao configurado"),
+          error: new Error("Supabase não configurado"),
         }),
       }),
     },

@@ -38,7 +38,7 @@ function getLessonStatus(
 ): { label: string; tone: "neutral" | "warning" | "success" } {
   const item = progressMap.get(lessonId)
   if (!item) return { label: "Por iniciar", tone: "neutral" }
-  if (item.status === "completed") return { label: "Concluida", tone: "success" }
+  if (item.status === "completed") return { label: "Concluída", tone: "success" }
   return { label: `${item.progress_percent}%`, tone: "warning" }
 }
 
@@ -114,13 +114,13 @@ export function DashboardProductDetail() {
   }
 
   if (isLoading) {
-    return <LoadingState message="A carregar conteudo do material..." />
+    return <LoadingState message="A carregar conteúdo do material..." />
   }
 
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar este material"
+        title="Não foi possível carregar este material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -131,7 +131,7 @@ export function DashboardProductDetail() {
     return (
       <EmptyState
         title="Material indisponivel"
-        message="Este item nao esta acessivel na tua conta neste momento."
+        message="Este item não esta acessivel na tua conta neste momento."
       />
     )
   }
@@ -162,7 +162,7 @@ export function DashboardProductDetail() {
     <div className="space-y-6">
       <PageHeader
         title={data.product.title}
-        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Conteudo do material."}
+        description={richTextToPlainText(data.product.short_description ?? data.product.description) || "Conteúdo do material."}
         backTo="/aluno/cursos"
       />
 
@@ -176,7 +176,7 @@ export function DashboardProductDetail() {
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <StatusBadge label="Grant ativo" tone="success" />
-              <StatusBadge label={`${modules.length} modulos`} tone="info" />
+              <StatusBadge label={`${modules.length} módulos`} tone="info" />
               <StatusBadge label={`${lessons.length} aulas`} tone="neutral" />
             </div>
           </div>
@@ -184,7 +184,7 @@ export function DashboardProductDetail() {
             <div className="rounded-2xl bg-white/10 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/65">Progresso</p>
               <p className="mt-3 text-2xl font-bold">{progressPercent}%</p>
-              <p className="mt-2 text-sm text-white/80">{completedLessons} de {lessons.length} aulas concluidas</p>
+              <p className="mt-2 text-sm text-white/80">{completedLessons} de {lessons.length} aulas concluídas</p>
             </div>
             <div className="rounded-2xl bg-white/10 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/65">Carga estimada</p>
@@ -200,7 +200,7 @@ export function DashboardProductDetail() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-950">Trilha do material</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">Escolhe um modulo e abre a aula que queres continuar.</p>
+              <p className="mt-2 text-sm leading-7 text-slate-600">Escolhe um módulo e abre a aula que queres continuar.</p>
             </div>
             <StatusBadge label={`${progressPercent}%`} tone={getProgressTone(progressPercent)} />
           </div>
@@ -271,7 +271,7 @@ export function DashboardProductDetail() {
                     <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{selectedLessonSummary.title}</h2>
                     <RichTextContent
                       value={selectedLessonSummary.description}
-                      fallback="Aula pronta para leitura, visualizacao e continuidade do estudo."
+                      fallback="Aula pronta para leitura, visualização e continuidade do estudo."
                       className="mt-2 text-sm leading-7 text-slate-600"
                     />
                   </div>
@@ -279,12 +279,12 @@ export function DashboardProductDetail() {
                     <StatusBadge
                       label={
                         selectedLessonSummary.lesson_type === "video"
-                          ? "Video"
+                          ? "Vídeo"
                           : selectedLessonSummary.lesson_type === "text"
                             ? "Texto"
                             : selectedLessonSummary.lesson_type === "file"
                               ? "Ficheiro"
-                              : "Hibrida"
+                              : "Híbrida"
                       }
                       tone="info"
                     />
@@ -299,12 +299,12 @@ export function DashboardProductDetail() {
                   </div>
                 ) : selectedLessonQuery.isLoading ? (
                   <div className="mt-5">
-                    <LoadingState message="A preparar o conteudo da aula..." />
+                    <LoadingState message="A preparar o conteúdo da aula..." />
                   </div>
                 ) : selectedLessonQuery.isError ? (
                   <div className="mt-5">
                     <ErrorState
-                      title="Nao foi possivel abrir esta aula"
+                      title="Não foi possível abrir esta aula"
                       message={
                         selectedLessonQuery.error instanceof Error
                           ? selectedLessonQuery.error.message
@@ -319,14 +319,14 @@ export function DashboardProductDetail() {
                       <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
                       {shouldUseModuleVideoFallback && fallbackVideoAsset ? (
                         <p className="text-xs text-slate-500">
-                          Video principal carregado a partir dos materiais protegidos do modulo.
+                          Vídeo principal carregado a partir dos materiais protegidos do módulo.
                         </p>
                       ) : null}
                       {selectedLesson.text_content ? (
                         <div className="rounded-2xl border bg-slate-50/80 p-4">
                           <div className="flex items-center gap-2 text-slate-900">
                             <FileText className="h-4 w-4" />
-                            <p className="font-medium">Conteudo textual</p>
+                            <p className="font-medium">Conteúdo textual</p>
                           </div>
                           <LessonContentBlocksRenderer value={selectedLesson.text_content} className="mt-3" />
                         </div>
@@ -334,7 +334,7 @@ export function DashboardProductDetail() {
                         <div className="rounded-2xl border bg-slate-50/80 p-4">
                           <div className="flex items-center gap-2 text-slate-900">
                             <FileText className="h-4 w-4" />
-                            <p className="font-medium">Conteudo principal em ficheiro</p>
+                            <p className="font-medium">Conteúdo principal em ficheiro</p>
                           </div>
                           <p className="mt-3 text-sm leading-6 text-slate-600">
                             Esta aula depende dos materiais protegidos listados abaixo.
@@ -355,8 +355,8 @@ export function DashboardProductDetail() {
                 ) : (
                   <div className="mt-5">
                     <EmptyState
-                      title="Conteudo indisponivel"
-                      message="O backend nao libertou o conteudo completo desta aula para a tua sessao."
+                      title="Conteúdo indisponivel"
+                      message="O backend não libertou o conteúdo completo desta aula para a tua sessão."
                     />
                   </div>
                 )}
@@ -387,13 +387,13 @@ export function DashboardProductDetail() {
                 </div>
 
                 <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-                  <h3 className="font-display text-xl font-bold text-slate-950">Materiais e avaliacoes</h3>
+                  <h3 className="font-display text-xl font-bold text-slate-950">Materiais e avaliações</h3>
                   <div className="mt-4 space-y-3">
                     {selectedAssetsQuery.isLoading ? (
-                      <LoadingState message="A carregar materiais do modulo..." />
+                      <LoadingState message="A carregar materiais do módulo..." />
                     ) : selectedAssetsQuery.isError ? (
                       <ErrorState
-                        title="Nao foi possivel carregar os materiais"
+                        title="Não foi possível carregar os materiais"
                         message={
                           selectedAssetsQuery.error instanceof Error
                             ? selectedAssetsQuery.error.message
@@ -409,7 +409,7 @@ export function DashboardProductDetail() {
                               <div>
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-semibold text-slate-950">{selectedModule.module_pdf_file_name}</p>
-                                  <StatusBadge label="PDF base do modulo" tone="warning" />
+                                  <StatusBadge label="PDF base do módulo" tone="warning" />
                                 </div>
                                 <p className="mt-2 text-sm leading-6 text-slate-600">
                                   Ficheiro protegido com URL temporaria emitida pelo backend.
@@ -438,7 +438,7 @@ export function DashboardProductDetail() {
                                   <p className="font-semibold text-slate-950">{asset.title}</p>
                                   <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
                                 </div>
-                                <p className="mt-2 text-sm leading-6 text-slate-600">Material protegido do modulo atual.</p>
+                                <p className="mt-2 text-sm leading-6 text-slate-600">Material protegido do módulo atual.</p>
                               </div>
                               <Button type="button" onClick={() => void handleOpenAsset(asset)} disabled={assetAccess.isPending} className="rounded-full">
                                 {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
@@ -446,19 +446,19 @@ export function DashboardProductDetail() {
                             </div>
                           </div>
                         ))}
-                        {selectedAssets.length === 0 ? <EmptyState title="Sem materiais neste modulo" message="Quando houver ficheiros ou links liberados, eles aparecem aqui." /> : null}
+                        {selectedAssets.length === 0 ? <EmptyState title="Sem materiais neste módulo" message="Quando houver ficheiros ou links liberados, eles aparecem aqui." /> : null}
                       </>
                     )}
                     {selectedAssessments.map((assessment) => (
                       <div key={assessment.id} className="rounded-2xl border bg-white p-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-slate-950">{assessment.title}</p>
-                          <StatusBadge label={assessment.assessment_type === "final" ? "Avaliacao final" : "Quiz do modulo"} tone="warning" />
+                          <StatusBadge label={assessment.assessment_type === "final" ? "Avaliação final" : "Quiz do módulo"} tone="warning" />
                           {assessment.is_locked ? <StatusBadge label="Bloqueada" tone="warning" /> : null}
                         </div>
                         <RichTextContent
                           value={assessment.description}
-                          fallback="Avaliacao disponivel neste material."
+                          fallback="Avaliação disponível neste material."
                           className="mt-2 text-sm leading-6 text-slate-600"
                         />
                         {assessment.is_locked && assessment.lock_reason ? (
@@ -471,7 +471,7 @@ export function DashboardProductDetail() {
               </div>
             </>
           ) : (
-            <EmptyState title="Sem aulas disponiveis" message="As aulas publicadas deste material vao aparecer aqui." />
+            <EmptyState title="Sem aulas disponíveis" message="As aulas publicadas deste material vao aparecer aqui." />
           )}
         </section>
       </div>

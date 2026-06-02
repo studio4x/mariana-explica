@@ -76,7 +76,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
     const title = form.title.trim()
 
     if (!slug || !title) {
-      setSubmitError("Titulo e slug da categoria sao obrigatorios.")
+      setSubmitError("Título e slug da categoria são obrigatorios.")
       return
     }
 
@@ -102,7 +102,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
 
       resetForm()
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Nao foi possivel guardar a categoria.")
+      setSubmitError(err instanceof Error ? err.message : "Não foi possível guardar a categoria.")
     }
   }
 
@@ -127,7 +127,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
 
     const categoryCount = categoryCounts.get(normalizeCategorySlug(category.slug)) ?? 0
     const confirmed = window.confirm(
-      `Excluir a categoria "${category.title}"? ${categoryCount} material(is) vao ficar sem categoria associada e passar a usar a classificacao automatica no catalogo.`,
+      `Excluir a categoria "${category.title}"? ${categoryCount} material(is) vao ficar sem categoria associada e passar a usar a classificação automática no catálogo.`,
     )
     if (!confirmed) return
 
@@ -139,7 +139,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
         resetForm()
       }
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Nao foi possivel excluir a categoria.")
+      setSubmitError(err instanceof Error ? err.message : "Não foi possível excluir a categoria.")
     }
   }
 
@@ -172,7 +172,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
     return (
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error instanceof Error ? error.message : "Nao foi possivel carregar as categorias."}
+          {error instanceof Error ? error.message : "Não foi possível carregar as categorias."}
         </div>
         <div className="mt-4">
           <Button type="button" variant="outline" className="rounded-full" onClick={() => void refetch()}>
@@ -188,9 +188,9 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Categorias de materiais</p>
-          <h2 className="mt-2 text-2xl font-bold text-slate-950">Organiza os filtros do catalogo publico</h2>
+          <h2 className="mt-2 text-2xl font-bold text-slate-950">Organiza os filtros do catálogo público</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            Cria, edita e remove categorias para controlar os botoes de filtro em Materiais e a classificacao
+            Cria, edita e remove categorias para controlar os botões de filtro em Materiais e a classificação
             associada aos materiais no admin.
           </p>
         </div>
@@ -226,7 +226,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
 
           <div className="mt-5 space-y-4">
             <label className="block space-y-2">
-              <span className="text-sm font-semibold text-slate-800">Titulo</span>
+              <span className="text-sm font-semibold text-slate-800">Título</span>
               <input
                 value={form.title}
                 onChange={(event) =>
@@ -256,7 +256,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
             </label>
 
             <label className="block space-y-2">
-              <span className="text-sm font-semibold text-slate-800">Descricao</span>
+              <span className="text-sm font-semibold text-slate-800">Descrição</span>
               <textarea
                 value={form.description}
                 onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
@@ -286,7 +286,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
                 />
                 <span>
                   <span className="block font-semibold text-slate-950">Ativa</span>
-                  <span className="mt-1 block text-slate-500">Categorias inativas continuam no admin, mas somem dos filtros publicos.</span>
+                  <span className="mt-1 block text-slate-500">Categorias inativas continuam no admin, mas somem dos filtros públicos.</span>
                 </span>
               </label>
             </div>
@@ -311,7 +311,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
               </Button>
               {editingCategoryId ? (
                 <Button type="button" variant="outline" className="rounded-full" onClick={resetForm}>
-                  Cancelar edicao
+                  Cancelar edição
                 </Button>
               ) : null}
             </div>
@@ -347,7 +347,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-slate-500">
-                    {category.description || "Sem descricao definida para esta categoria."}
+                    {category.description || "Sem descrição definida para esta categoria."}
                   </p>
 
                   <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -382,7 +382,7 @@ export function AdminProductCategoriesPanel({ products }: { products: ProductSum
 
           {!categories.length ? (
             <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
-              Ainda nao existem categorias configuradas. Cria a primeira para ligar os materiais aos filtros publicos.
+              Ainda não existem categorias configuradas. Cria a primeira para ligar os materiais aos filtros públicos.
             </div>
           ) : null}
         </div>

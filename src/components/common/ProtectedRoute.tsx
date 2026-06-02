@@ -43,7 +43,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (loading) {
-    return <div className="p-8 text-center">Carregando sessao...</div>
+    return <div className="p-8 text-center">Carregando sessão...</div>
   }
 
   if (recovering) {

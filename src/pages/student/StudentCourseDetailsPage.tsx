@@ -73,7 +73,7 @@ export function StudentCourseDetailsPage() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar este material"
+        title="Não foi possível carregar este material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -84,7 +84,7 @@ export function StudentCourseDetailsPage() {
     return (
       <EmptyState
         title="Material indisponivel"
-        message="Este material nao esta liberado na tua conta neste momento."
+        message="Este material não esta liberado na tua conta neste momento."
       />
     )
   }
@@ -136,7 +136,7 @@ export function StudentCourseDetailsPage() {
                 </span>
                 <span className="flex items-center gap-2 text-sm font-bold text-slate-300">
                   <LibraryBig className="h-5 w-5 text-blue-400" />
-                  {data.modules.length} Modulo{data.modules.length === 1 ? "" : "s"}
+                  {data.modules.length} Módulo{data.modules.length === 1 ? "" : "s"}
                 </span>
                 <div className="hidden h-6 w-px bg-white/10 md:block" />
                 <div className="flex items-center gap-3">
@@ -183,7 +183,7 @@ export function StudentCourseDetailsPage() {
                 <span className="text-3xl font-black leading-none text-slate-900">{data.lessons.length}</span>
               </div>
               <div className="inline-flex w-fit items-center rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">
-                Concluidas
+                Concluídas
               </div>
             </div>
           </div>
@@ -272,7 +272,7 @@ export function StudentCourseDetailsPage() {
 
                         <RichTextContent
                           value={module.description}
-                          fallback="Modulo organizado para avancares com clareza dentro da trilha do material."
+                          fallback="Módulo organizado para avancares com clareza dentro da trilha do material."
                           className="mb-8 text-sm font-medium leading-relaxed text-slate-500"
                         />
 
@@ -316,7 +316,7 @@ export function StudentCourseDetailsPage() {
                                     <div>
                                       <p className="text-sm font-bold text-slate-700">{lesson.title}</p>
                                       <span className="text-[9px] font-black uppercase tracking-tight text-blue-400">
-                                        {lesson.is_required ? "Obrigatoria" : "Complementar"} · {lesson.estimated_minutes} min
+                                        {lesson.is_required ? "Obrigatória" : "Complementar"} · {lesson.estimated_minutes} min
                                       </span>
                                     </div>
                                     <ArrowRight className="h-4 w-4 text-slate-300 transition-transform group-hover/item:translate-x-1" />
@@ -383,7 +383,7 @@ export function StudentCourseDetailsPage() {
           <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
             <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
               <p className="text-sm font-medium text-slate-500">
-                Voce ainda nao criou anotacoes neste material. Abra uma aula e use o bloco de notas ao final da pagina.
+                Você ainda não criou anotacoes neste material. Abra uma aula e use o bloco de notas ao final da página.
               </p>
             </div>
           </div>

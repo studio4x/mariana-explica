@@ -26,7 +26,7 @@ export function OperationFeedbackModal({
   if (!open) return null
 
   const isSuccess = tone === "success"
-  const resolvedTitle = title ?? (isSuccess ? "Alteracoes guardadas" : "Nao foi possivel guardar")
+  const resolvedTitle = title ?? (isSuccess ? "Alterações guardadas" : "Não foi possível guardar")
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">

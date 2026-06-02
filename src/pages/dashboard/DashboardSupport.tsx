@@ -87,7 +87,7 @@ export function DashboardSupport() {
   if (ticketsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os chamados"
+        title="Não foi possível carregar os chamados"
         message={ticketsQuery.error instanceof Error ? ticketsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void ticketsQuery.refetch()}
       />
@@ -99,7 +99,7 @@ export function DashboardSupport() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
           title="Chamados"
-          description="Acompanha conversas com o suporte, prazos de primeira resposta e historico de atendimento."
+          description="Acompanha conversas com o suporte, prazos de primeira resposta e histórico de atendimento."
         />
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" className="rounded-full">
@@ -121,12 +121,12 @@ export function DashboardSupport() {
       <section className="rounded-[1.75rem] border border-sky-100 bg-sky-50 p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-display text-xl font-black text-slate-950">SLA publico de primeira resposta</h2>
+            <h2 className="font-display text-xl font-black text-slate-950">SLA público de primeira resposta</h2>
             <p className="mt-2 text-sm leading-7 text-slate-700">
               Pagamentos em ate 2 horas uteis. Demais categorias em ate 24 horas uteis. {supportBusinessHours}
             </p>
           </div>
-          <StatusBadge label="Nao e prazo de resolucao final" tone="info" />
+          <StatusBadge label="Não e prazo de resolução final" tone="info" />
         </div>
       </section>
 
@@ -195,7 +195,7 @@ export function DashboardSupport() {
                         onChange={(event) => setProductId(event.target.value)}
                         className="mt-2 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white"
                       >
-                        <option value="">Nenhum material especifico</option>
+                        <option value="">Nenhum material específico</option>
                         {products.map((product) => (
                           <option key={product.id} value={product.id}>{product.title}</option>
                         ))}
@@ -221,8 +221,8 @@ export function DashboardSupport() {
                     <input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Ex: problema com pagamento ou acesso" className="mt-2 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white" required />
                   </label>
                   <label className="mt-4 block text-sm font-black text-slate-700">
-                    Descricao
-                    <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Inclui contexto, passos ja tentados e o que precisas resolver." rows={5} className="mt-2 w-full resize-none rounded-2xl border bg-slate-50 px-4 py-3 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white" required />
+                    Descrição
+                    <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Inclui contexto, passos já tentados e o que precisas resolver." rows={5} className="mt-2 w-full resize-none rounded-2xl border bg-slate-50 px-4 py-3 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white" required />
                   </label>
                   <div className="mt-4">
                     <input ref={fileInputRef} type="file" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} />
@@ -262,14 +262,14 @@ export function DashboardSupport() {
 
       <section className="overflow-hidden rounded-[1.75rem] border bg-white shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
-          <h2 className="font-display text-xl font-black text-slate-950">Historico</h2>
+          <h2 className="font-display text-xl font-black text-slate-950">Histórico</h2>
           <StatusBadge label={`${tickets.length} chamados`} tone="neutral" />
         </div>
 
         {tickets.length === 0 ? (
           <div className="p-8">
             <EmptyState
-              title="Voce ainda nao abriu nenhum chamado."
+              title="Você ainda não abriu nenhum chamado."
               message="Quando precisares de ajuda, abre um chamado e acompanha a conversa por aqui."
             />
           </div>
@@ -283,7 +283,7 @@ export function DashboardSupport() {
                   <th className="px-5 py-4">Status</th>
                   <th className="px-5 py-4">SLA</th>
                   <th className="px-5 py-4">Prazo</th>
-                  <th className="px-5 py-4">Acoes</th>
+                  <th className="px-5 py-4">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

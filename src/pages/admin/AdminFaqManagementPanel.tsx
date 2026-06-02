@@ -209,7 +209,7 @@ export function AdminFaqManagementPanel() {
     const title = categoryForm.title.trim()
 
     if (!slug || !title) {
-      setCategoryError("Titulo e slug da categoria sao obrigatorios.")
+      setCategoryError("Título e slug da categoria são obrigatorios.")
       return
     }
 
@@ -237,7 +237,7 @@ export function AdminFaqManagementPanel() {
 
       resetCategoryForm()
     } catch (err) {
-      setCategoryError(err instanceof Error ? err.message : "Nao foi possivel guardar a categoria.")
+      setCategoryError(err instanceof Error ? err.message : "Não foi possível guardar a categoria.")
     }
   }
 
@@ -250,7 +250,7 @@ export function AdminFaqManagementPanel() {
     const answer = faqForm.answer.trim()
 
     if (!categoryId || !question || !answer) {
-      setFaqError("Categoria, pergunta e resposta sao obrigatorias.")
+      setFaqError("Categoria, pergunta e resposta são obrigatorias.")
       return
     }
 
@@ -276,7 +276,7 @@ export function AdminFaqManagementPanel() {
 
       closeFaqModal()
     } catch (err) {
-      setFaqError(err instanceof Error ? err.message : "Nao foi possivel guardar a pergunta frequente.")
+      setFaqError(err instanceof Error ? err.message : "Não foi possível guardar a pergunta frequente.")
     }
   }
 
@@ -309,7 +309,7 @@ export function AdminFaqManagementPanel() {
         resetCategoryForm()
       }
     } catch (err) {
-      setCategoryError(err instanceof Error ? err.message : "Nao foi possivel excluir a categoria.")
+      setCategoryError(err instanceof Error ? err.message : "Não foi possível excluir a categoria.")
     }
   }
 
@@ -337,7 +337,7 @@ export function AdminFaqManagementPanel() {
         resetFaqForm()
       }
     } catch (err) {
-      setFaqError(err instanceof Error ? err.message : "Nao foi possivel excluir a pergunta.")
+      setFaqError(err instanceof Error ? err.message : "Não foi possível excluir a pergunta.")
     }
   }
 
@@ -355,7 +355,7 @@ export function AdminFaqManagementPanel() {
         ? categoriesQuery.error.message
         : faqsQuery.error instanceof Error
           ? faqsQuery.error.message
-          : "Nao foi possivel carregar as perguntas frequentes."
+          : "Não foi possível carregar as perguntas frequentes."
 
     return (
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -381,7 +381,7 @@ export function AdminFaqManagementPanel() {
           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">FAQ</p>
           <h2 className="mt-2 text-2xl font-bold text-slate-950">Perguntas frequentes e categorias de ajuda</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            Gerencia as categorias de duvidas e as perguntas usadas no suporte publico e na pagina de materiais.
+            Gerencia as categorias de dúvidas e as perguntas usadas no suporte público e na página de materiais.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -472,7 +472,7 @@ export function AdminFaqManagementPanel() {
                           <th className="px-4 py-3">Ordem</th>
                           <th className="px-4 py-3">Pergunta</th>
                           <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3 text-right">Acoes</th>
+                          <th className="px-4 py-3 text-right">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -538,7 +538,7 @@ export function AdminFaqManagementPanel() {
 
           {!faqs.length ? (
             <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
-              Ainda nao existem perguntas frequentes. Cria a primeira para alimentar a pagina publica.
+              Ainda não existem perguntas frequentes. Cria a primeira para alimentar a página pública.
             </div>
           ) : null}
         </div>
@@ -564,7 +564,7 @@ export function AdminFaqManagementPanel() {
             </div>
 
             <div className="mt-5 grid gap-4">
-              <Field label="Titulo">
+              <Field label="Título">
                 <input
                   value={categoryForm.title}
                   onChange={(event) =>
@@ -590,7 +590,7 @@ export function AdminFaqManagementPanel() {
                   className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                 />
               </Field>
-              <Field label="Descricao" fullWidth>
+              <Field label="Descrição" fullWidth>
                 <textarea
                   value={categoryForm.description}
                   onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))}
@@ -617,7 +617,7 @@ export function AdminFaqManagementPanel() {
                   />
                   <span>
                     <span className="block font-semibold text-slate-950">Ativa</span>
-                    <span className="mt-1 block text-slate-500">Categorias inativas saem dos filtros publicos.</span>
+                    <span className="mt-1 block text-slate-500">Categorias inativas saem dos filtros públicos.</span>
                   </span>
                 </label>
               </div>
@@ -643,7 +643,7 @@ export function AdminFaqManagementPanel() {
               </Button>
               {editingCategoryId ? (
                 <Button type="button" variant="outline" className="rounded-full" onClick={resetCategoryForm}>
-                  Cancelar edicao
+                  Cancelar edição
                 </Button>
               ) : null}
             </div>
@@ -672,7 +672,7 @@ export function AdminFaqManagementPanel() {
                     </span>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-500">{category.description ?? "Sem descricao."}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">{category.description ?? "Sem descrição."}</p>
 
                   <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
                     <div>
@@ -705,7 +705,7 @@ export function AdminFaqManagementPanel() {
 
             {!categories.length ? (
               <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
-                Ainda nao existem categorias. Cria a primeira para organizar as perguntas.
+                Ainda não existem categorias. Cria a primeira para organizar as perguntas.
               </div>
             ) : null}
           </div>
@@ -718,7 +718,7 @@ export function AdminFaqManagementPanel() {
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
               <div>
                 <h3 className="text-2xl font-bold text-slate-950">{editingFaqId ? "Editar FAQ" : "Nova FAQ"}</h3>
-                <p className="mt-1 text-sm text-slate-500">Organize perguntas frequentes para busca rapida dos usuarios.</p>
+                <p className="mt-1 text-sm text-slate-500">Organize perguntas frequentes para busca rápida dos usuários.</p>
               </div>
               <button
                 type="button"
@@ -735,7 +735,7 @@ export function AdminFaqManagementPanel() {
                 <input
                   value={faqForm.question}
                   onChange={(event) => setFaqForm((current) => ({ ...current, question: event.target.value }))}
-                  placeholder="Paguei, mas a sebenta ainda nao aparece. O que faco?"
+                  placeholder="Paguei, mas a sebenta ainda não aparece. O que faço?"
                   className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
                 />
               </Field>
@@ -745,7 +745,7 @@ export function AdminFaqManagementPanel() {
                   value={faqForm.answer}
                   onChange={(event) => setFaqForm((current) => ({ ...current, answer: event.target.value }))}
                   rows={6}
-                  placeholder="Escreve a resposta curta e direta que queres mostrar ao publico."
+                  placeholder="Escreve a resposta curta e direta que queres mostrar ao público."
                   className="w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
                 />
               </Field>
@@ -794,7 +794,7 @@ export function AdminFaqManagementPanel() {
               <label className="flex items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
                 <div>
                   <span className="block font-semibold text-slate-950">Visibilidade</span>
-                  <span className="mt-1 block text-xs text-slate-500">Define se a pergunta aparece na area publica.</span>
+                  <span className="mt-1 block text-xs text-slate-500">Define se a pergunta aparece na Área pública.</span>
                 </div>
                 <button
                   type="button"

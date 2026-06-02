@@ -49,7 +49,7 @@ function roleTone(role: AdminUserSummary["role"]) {
 }
 
 function statusLabel(status: AdminUserSummary["status"]) {
-  if (status === "pending_review") return "Em revisao"
+  if (status === "pending_review") return "Em revisão"
   if (status === "blocked") return "Bloqueado"
   if (status === "inactive") return "Inativo"
   return "Ativo"
@@ -234,7 +234,7 @@ export function AdminUsers() {
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel criar o utilizador.",
+        message: error instanceof Error ? error.message : "Não foi possível criar o utilizador.",
       })
     }
   }
@@ -259,7 +259,7 @@ export function AdminUsers() {
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel atualizar o utilizador.",
+        message: error instanceof Error ? error.message : "Não foi possível atualizar o utilizador.",
       })
     }
   }
@@ -276,7 +276,7 @@ export function AdminUsers() {
     }
 
     if (passwordDraft.password !== passwordDraft.confirmPassword) {
-      setFeedback({ tone: "error", message: "As senhas nao coincidem." })
+      setFeedback({ tone: "error", message: "As senhas não coincidem." })
       return
     }
 
@@ -290,20 +290,20 @@ export function AdminUsers() {
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel redefinir a senha.",
+        message: error instanceof Error ? error.message : "Não foi possível redefinir a senha.",
       })
     }
   }
 
   const handleDelete = async (user: AdminUserSummary) => {
     if (user.status === "inactive") {
-      setFeedback({ tone: "error", message: `${user.full_name} ja esta excluido.` })
+      setFeedback({ tone: "error", message: `${user.full_name} já esta excluído.` })
       return
     }
 
     if (
       !window.confirm(
-        `Excluir ${user.full_name}?\n\nEsta acao remove a conta do Supabase Auth, revoga acessos ativos e anonimiza o perfil.`,
+        `Excluir ${user.full_name}?\n\nEsta ação remove a conta do Supabase Auth, revoga acessos ativos e anonimiza o perfil.`,
       )
     ) {
       return
@@ -312,11 +312,11 @@ export function AdminUsers() {
     setFeedback(null)
     try {
       await deleteUser.mutateAsync(user.id)
-      setFeedback({ tone: "success", message: `${user.full_name} foi excluido com sucesso.` })
+      setFeedback({ tone: "success", message: `${user.full_name} foi excluído com sucesso.` })
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : `Nao foi possivel excluir ${user.full_name}.`,
+        message: error instanceof Error ? error.message : `Não foi possível excluir ${user.full_name}.`,
       })
     }
   }
@@ -328,7 +328,7 @@ export function AdminUsers() {
   if (usersQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os utilizadores"
+        title="Não foi possível carregar os utilizadores"
         message={usersQuery.error instanceof Error ? usersQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void usersQuery.refetch()}
       />
@@ -340,12 +340,12 @@ export function AdminUsers() {
       <section className="space-y-7 rounded-[32px] border border-[#D8E6EB] bg-white p-5 shadow-[0_20px_50px_rgba(22,49,56,0.04)] sm:p-7">
         <header className="flex flex-col gap-3 border-b border-[#D8E6EB] pb-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#1398B7]">Admin / Usuarios</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#1398B7]">Admin / Usuários</p>
             <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-[#15323b]">
-              Usuarios e Regras
+              Usuários e Regras
             </h1>
             <p className="mt-2 max-w-3xl text-sm font-medium text-[#6d7a80]">
-              Cadastre alunos, afiliados e admins, acompanhe validacao de email, estado de conta e acoes sensiveis em um unico fluxo operacional.
+              Cadastre alunos, afiliados e admins, acompanhe validação de email, estado de conta e ações sensíveis em um Único fluxo operacional.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -355,7 +355,7 @@ export function AdminUsers() {
               onClick={() => setIsCreateOpen(true)}
             >
               <UserPlus className="mr-2 h-4 w-4" />
-              Novo usuario
+              Novo usuário
             </Button>
             <Button
               type="button"
@@ -371,7 +371,7 @@ export function AdminUsers() {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <article className="rounded-[26px] border border-[#D8E6EB] bg-[#F2F7F9] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#5F7077]">Usuarios</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#5F7077]">Usuários</p>
             <p className="mt-3 text-3xl font-black text-[#15323b]">{metrics.total}</p>
           </article>
           <article className="rounded-[26px] border border-[#D9F0F5] bg-[#E8F6FA] p-5">
@@ -396,7 +396,7 @@ export function AdminUsers() {
           <div className="self-start rounded-[30px] border border-[#D8E6EB] bg-white p-5 shadow-sm">
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
               <label className="block">
-                <span className="sr-only">Buscar usuario</span>
+                <span className="sr-only">Buscar usuário</span>
                 <input
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm font-semibold text-[#163138] outline-none transition focus:border-[#1398B7] focus:ring-4 focus:ring-[#1398B7]/10"
                   placeholder="Buscar por nome, e-mail, ID ou regra"
@@ -427,7 +427,7 @@ export function AdminUsers() {
                   <option value="all">Todos os estados</option>
                   <option value="active">Ativos</option>
                   <option value="blocked">Bloqueados</option>
-                  <option value="pending_review">Em revisao</option>
+                  <option value="pending_review">Em revisão</option>
                   <option value="inactive">Inativos</option>
                 </select>
               </label>
@@ -450,7 +450,7 @@ export function AdminUsers() {
 
         <section className="overflow-hidden rounded-[30px] border border-[#D8E6EB] bg-white shadow-sm">
           <div className="border-b border-[#D8E6EB] px-5 py-4">
-            <p className="text-sm font-bold text-[#6d7a80]">{filteredUsers.length} usuario(s) encontrado(s)</p>
+            <p className="text-sm font-bold text-[#6d7a80]">{filteredUsers.length} usuário(s) encontrado(s)</p>
           </div>
 
           {filteredUsers.length === 0 ? (
@@ -465,12 +465,12 @@ export function AdminUsers() {
               <table className="w-full min-w-[980px] border-collapse text-sm">
                 <thead className="bg-[#F2F7F9]/90 text-left">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Usuario</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Usuário</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Contato</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Papel</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Status</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Atividade</th>
-                    <th className="w-[240px] px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Acoes</th>
+                    <th className="w-[240px] px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -508,7 +508,7 @@ export function AdminUsers() {
                           <div className="flex flex-wrap gap-1.5">
                             {user.notifications_enabled ? (
                               <span className="inline-flex rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-0.5 text-[11px] font-medium text-[#15803d]">
-                                Notificacoes
+                                Notificações
                               </span>
                             ) : null}
                             {user.marketing_consent ? (
@@ -536,8 +536,8 @@ export function AdminUsers() {
                       </td>
                       <td className="px-4 py-4 text-sm text-[#15323b]">
                         <div className="min-w-[180px] space-y-1 text-xs text-[#6d7a80]">
-                          <p>Ultimo login: {formatOptionalDate(user.last_login_at)}</p>
-                          <p>Validacao: {user.email_verified_at ? formatDateTime(user.email_verified_at) : "Pendente"}</p>
+                          <p>Último login: {formatOptionalDate(user.last_login_at)}</p>
+                          <p>Validação: {user.email_verified_at ? formatDateTime(user.email_verified_at) : "Pendente"}</p>
                           <p>ID: {user.id.slice(0, 8)}...</p>
                         </div>
                       </td>
@@ -583,7 +583,7 @@ export function AdminUsers() {
 
       <UserModal
         open={isCreateOpen}
-        title="Novo usuario"
+        title="Novo usuário"
         description="Crie manualmente um novo acesso administrativo ou operacional."
         onClose={resetCreateModal}
       >
@@ -611,7 +611,7 @@ export function AdminUsers() {
                 value={createState.password}
                 onChange={(event) => setCreateState((current) => ({ ...current, password: event.target.value }))}
                 className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm outline-none transition focus:border-[#1398B7] focus:bg-white"
-                placeholder="Minimo 8 caracteres"
+                placeholder="Mínimo 8 caracteres"
               />
             </UserField>
             <UserField label="Papel">
@@ -632,7 +632,7 @@ export function AdminUsers() {
                 className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm outline-none transition focus:border-[#1398B7] focus:bg-white"
               >
                 <option value="active">Ativo</option>
-                <option value="pending_review">Em revisao</option>
+                <option value="pending_review">Em revisão</option>
                 <option value="blocked">Bloqueado</option>
                 <option value="inactive">Inativo</option>
               </select>
@@ -646,7 +646,7 @@ export function AdminUsers() {
                 checked={createState.notificationsEnabled}
                 onChange={(event) => setCreateState((current) => ({ ...current, notificationsEnabled: event.target.checked }))}
               />
-              Receber notificacoes da plataforma
+              Receber notificações da plataforma
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-[#D8E6EB] bg-[#F8FBFC] px-4 py-3 text-sm text-[#15323b]">
               <input
@@ -654,7 +654,7 @@ export function AdminUsers() {
                 checked={createState.marketingConsent}
                 onChange={(event) => setCreateState((current) => ({ ...current, marketingConsent: event.target.checked }))}
               />
-              Aceitar comunicacoes de marketing
+              Aceitar comunicações de marketing
             </label>
           </div>
 
@@ -663,7 +663,7 @@ export function AdminUsers() {
               Cancelar
             </Button>
             <Button type="submit" className="rounded-2xl bg-[#1398B7] font-black hover:bg-[#0A3640]" disabled={createUser.isPending}>
-              {createUser.isPending ? "A criar..." : "Criar usuario"}
+              {createUser.isPending ? "A criar..." : "Criar usuário"}
             </Button>
           </div>
         </form>
@@ -671,8 +671,8 @@ export function AdminUsers() {
 
       <UserModal
         open={Boolean(editingUser && editState)}
-        title={editingUser ? `Editar ${editingUser.full_name}` : "Editar usuario"}
-        description="Ajuste papel, estado e preferencias sem sair da fila operacional."
+        title={editingUser ? `Editar ${editingUser.full_name}` : "Editar usuário"}
+        description="Ajuste papel, estado e preferências sem sair da fila operacional."
         onClose={closeEditModal}
       >
         {editingUser && editState ? (
@@ -710,7 +710,7 @@ export function AdminUsers() {
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm outline-none transition focus:border-[#1398B7] focus:bg-white"
                 >
                   <option value="active">Ativo</option>
-                  <option value="pending_review">Em revisao</option>
+                  <option value="pending_review">Em revisão</option>
                   <option value="blocked">Bloqueado</option>
                   <option value="inactive">Inativo</option>
                 </select>
@@ -724,7 +724,7 @@ export function AdminUsers() {
                   checked={editState.notificationsEnabled}
                   onChange={(event) => setEditState((current) => (current ? { ...current, notificationsEnabled: event.target.checked } : current))}
                 />
-                Receber notificacoes da plataforma
+                Receber notificações da plataforma
               </label>
               <label className="flex items-center gap-3 rounded-2xl border border-[#D8E6EB] bg-[#F8FBFC] px-4 py-3 text-sm text-[#15323b]">
                 <input
@@ -732,7 +732,7 @@ export function AdminUsers() {
                   checked={editState.marketingConsent}
                   onChange={(event) => setEditState((current) => (current ? { ...current, marketingConsent: event.target.checked } : current))}
                 />
-                Aceitar comunicacoes de marketing
+                Aceitar comunicações de marketing
               </label>
             </div>
 
@@ -741,7 +741,7 @@ export function AdminUsers() {
                 Cancelar
               </Button>
               <Button type="submit" className="rounded-2xl bg-[#1398B7] font-black hover:bg-[#0A3640]" disabled={updateUser.isPending}>
-                {updateUser.isPending ? "A guardar..." : "Guardar alteracoes"}
+                {updateUser.isPending ? "A guardar..." : "Guardar alterações"}
               </Button>
             </div>
           </form>
@@ -751,7 +751,7 @@ export function AdminUsers() {
       <UserModal
         open={Boolean(passwordUser)}
         title={passwordUser ? `Redefinir senha de ${passwordUser.full_name}` : "Redefinir senha"}
-        description="Define uma nova senha manualmente para devolver o acesso sem depender do fluxo de recuperacao."
+        description="Define uma nova senha manualmente para devolver o acesso sem depender do fluxo de recuperação."
         onClose={closePasswordModal}
       >
         {passwordUser ? (
@@ -763,7 +763,7 @@ export function AdminUsers() {
                   value={passwordDraft.password}
                   onChange={(event) => setPasswordDraft((current) => ({ ...current, password: event.target.value }))}
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm outline-none transition focus:border-[#1398B7] focus:bg-white"
-                  placeholder="Minimo 8 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                 />
               </UserField>
               <UserField label="Confirmar senha">
@@ -778,7 +778,7 @@ export function AdminUsers() {
             </div>
 
             <div className="rounded-2xl border border-[#D8E6EB] bg-[#F8FBFC] px-4 py-3 text-sm text-[#5F7077]">
-              Esta acao atualiza a senha diretamente no Supabase Auth e fica auditada como operacao sensivel do admin.
+              Esta ação atualiza a senha diretamente no Supabase Auth e fica auditada como operação sensível do admin.
             </div>
 
             <div className="flex justify-end gap-3 border-t border-[#D8E6EB] pt-5">

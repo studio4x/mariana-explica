@@ -47,7 +47,7 @@ export function AdminReviews() {
   if (error) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar reviews"
+        title="Não foi possível carregar reviews"
         message={
           reviewsQuery.error instanceof Error
             ? reviewsQuery.error.message
@@ -104,7 +104,7 @@ export function AdminReviews() {
             <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-200">Moderacao</p>
             <h1 className="mt-2 font-display text-3xl font-black">Reviews dos materiais</h1>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-white/75">
-              Aprova, rejeita e cria avaliacoes manuais para manter a vitrine publica confiavel.
+              Aprova, rejeita e cria avaliações manuais para manter a vitrine pública confiavel.
             </p>
           </div>
         </div>
@@ -137,7 +137,7 @@ export function AdminReviews() {
               <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">Criação manual</p>
               <h2 className="mt-2 text-2xl font-black text-slate-950">Publicar review no admin</h2>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                Escolhe o material, seleciona um usuario ou informa apenas o nome do aluno, e publica a review ja
+                Escolhe o material, seleciona um usuário ou informa apenas o nome do aluno, e pública a review já
                 aprovada.
               </p>
             </div>
@@ -176,7 +176,7 @@ export function AdminReviews() {
                       : "border-slate-200 bg-slate-50 text-slate-600"
                   }`}
                 >
-                  Selecionar usuario
+                  Selecionar usuário
                 </button>
                 <button
                   type="button"
@@ -198,7 +198,7 @@ export function AdminReviews() {
 
             {authorMode === "user" ? (
               <label className="grid gap-2">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Usuario opcional</span>
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Usuário opcional</span>
                 <select
                   value={authorId}
                   onChange={(event) => setAuthorId(event.target.value)}
@@ -215,7 +215,7 @@ export function AdminReviews() {
             ) : (
               <label className="grid gap-2">
                 <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
-                  Nome do aluno (sem vinculo de usuario)
+                  Nome do aluno (sem vínculo de usuário)
                 </span>
                 <input
                   value={manualAuthorName}
@@ -231,7 +231,7 @@ export function AdminReviews() {
 
             {authorMode === "manual" ? (
               <p className="text-xs leading-5 text-slate-500">
-                Este modo publica a review com nome manual e sem ligar a um perfil real de aluno.
+                Este modo pública a review com nome manual e sem ligar a um perfil real de aluno.
               </p>
             ) : null}
 
@@ -243,11 +243,11 @@ export function AdminReviews() {
             </label>
 
             <label className="grid gap-2">
-              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Titulo</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Título</span>
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="Resumo da experiencia"
+                placeholder="Resumo da experiência"
                 minLength={3}
                 maxLength={100}
                 required
@@ -256,7 +256,7 @@ export function AdminReviews() {
             </label>
 
             <label className="grid gap-2">
-              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Conteudo</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Conteúdo</span>
               <textarea
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
@@ -264,7 +264,7 @@ export function AdminReviews() {
                 minLength={3}
                 maxLength={3000}
                 required
-                placeholder="Detalha a experiencia do aluno, a utilidade do material e o impacto percebido."
+                placeholder="Detalha a experiência do aluno, a utilidade do material e o impacto percebido."
                 className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
               />
             </label>
@@ -306,8 +306,8 @@ export function AdminReviews() {
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-950">Resumo rapido</h2>
-              <p className="mt-1 text-sm text-slate-600">Materiais e autores disponiveis para vincular a review.</p>
+              <h2 className="text-2xl font-black text-slate-950">Resumo rápido</h2>
+              <p className="mt-1 text-sm text-slate-600">Materiais e autores disponíveis para vincular a review.</p>
             </div>
           </div>
 
@@ -317,7 +317,7 @@ export function AdminReviews() {
               <p className="mt-2 text-2xl font-black text-slate-950">{products.length}</p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Usuarios</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Usuários</p>
               <p className="mt-2 text-2xl font-black text-slate-950">{users.length}</p>
             </div>
           </div>
@@ -333,14 +333,14 @@ export function AdminReviews() {
               </div>
             ))}
             {products.length === 0 ? (
-              <EmptyState title="Sem materiais" message="Nao ha materiais disponiveis para associar reviews." />
+              <EmptyState title="Sem materiais" message="Não ha materiais disponíveis para associar reviews." />
             ) : null}
           </div>
         </div>
       </section>
 
       {reviews.length === 0 ? (
-        <EmptyState title="Sem reviews" message="Ainda nao existem avaliacoes enviadas pelos alunos." />
+        <EmptyState title="Sem reviews" message="Ainda não existem avaliações enviadas pelos alunos." />
       ) : (
         <section className="grid gap-4">
           {reviews.map((review) => {

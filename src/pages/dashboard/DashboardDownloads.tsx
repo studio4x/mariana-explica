@@ -17,7 +17,7 @@ export function DashboardDownloads() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os downloads"
+        title="Não foi possível carregar os downloads"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -33,7 +33,7 @@ export function DashboardDownloads() {
           description="Materiais protegidos aparecem aqui quando existe grant ativo e o download está permitido."
         />
         <EmptyState
-          title="Ainda sem downloads disponiveis"
+          title="Ainda sem downloads disponíveis"
           message="Sem grant ativo ou sem materiais descarregáveis, esta área fica vazia por segurança."
         />
       </div>
@@ -46,7 +46,7 @@ export function DashboardDownloads() {
     <div className="space-y-6">
       <PageHeader
         title="Downloads"
-        description="Todos os ficheiros disponiveis na tua conta, num unico lugar para ser facil encontrar."
+        description="Todos os ficheiros disponíveis na tua conta, num Único lugar para ser fácil encontrar."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -60,9 +60,9 @@ export function DashboardDownloads() {
         </div>
         <div className="rounded-[1.75rem] border bg-slate-900 p-5 text-white shadow-sm">
           <p className="text-sm font-medium text-white/70">Acesso protegido</p>
-          <p className="mt-3 text-xl font-bold">Sem grant nao ha descarregamento</p>
+          <p className="mt-3 text-xl font-bold">Sem grant não ha descarregamento</p>
           <p className="mt-2 text-sm leading-6 text-white/82">
-            Esta pagina só mostra o que o backend autorizou para a tua conta.
+            Esta página só mostra o que o backend autorizou para a tua conta.
           </p>
         </div>
       </div>

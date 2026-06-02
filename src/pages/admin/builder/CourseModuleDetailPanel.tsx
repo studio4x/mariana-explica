@@ -87,18 +87,18 @@ export function CourseModuleDetailPanel() {
   const [draggedLessonId, setDraggedLessonId] = useState<string | null>(null)
 
   if (!moduleId || !courseId) {
-    return <EmptyState title="Modulo invalido" message="Seleciona um modulo valido na arvore lateral." />
+    return <EmptyState title="Módulo inválido" message="Seleciona um módulo válido na Árvore lateral." />
   }
 
   if (lessonsQuery.isLoading || assetsQuery.isLoading) {
-    return <LoadingState message="A carregar workspace do modulo..." />
+    return <LoadingState message="A carregar workspace do módulo..." />
   }
 
   if (lessonsQuery.isError || assetsQuery.isError) {
     const queryError = lessonsQuery.error ?? assetsQuery.error
     return (
       <ErrorState
-        title="Nao foi possivel abrir o modulo"
+        title="Não foi possível abrir o módulo"
         message={queryError instanceof Error ? queryError.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void lessonsQuery.refetch()
@@ -109,7 +109,7 @@ export function CourseModuleDetailPanel() {
   }
 
   if (!module) {
-    return <EmptyState title="Modulo nao encontrado" message="Este modulo nao esta ligado ao material atual." />
+    return <EmptyState title="Módulo não encontrado" message="Este módulo não esta ligado ao material atual." />
   }
 
   const lessons = lessonsQuery.data ?? []
@@ -158,18 +158,18 @@ export function CourseModuleDetailPanel() {
         status: values.status,
       })
       setForm({})
-      setFeedback({ tone: "success", message: `O modulo "${updatedModule.title}" foi guardado com sucesso.` })
+      setFeedback({ tone: "success", message: `O módulo "${updatedModule.title}" foi guardado com sucesso.` })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel guardar o modulo.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível guardar o módulo.",
       })
     }
   }
 
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      `Excluir o modulo "${module.title}"? Esta acao remove a estrutura ligada a ele.`,
+      `Excluir o módulo "${module.title}"? Esta ação remove a estrutura ligada a ele.`,
     )
     if (!confirmed) return
 
@@ -178,7 +178,7 @@ export function CourseModuleDetailPanel() {
       await deleteModule.mutateAsync(module.id)
       navigate(adminCourseBuilderPath(courseId))
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Nao foi possivel excluir o modulo.")
+      setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir o módulo.")
     }
   }
 
@@ -202,7 +202,7 @@ export function CourseModuleDetailPanel() {
         module_pdf_uploaded_at: upload.uploaded_at,
       }))
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel subir o PDF base.")
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o PDF base.")
     } finally {
       event.target.value = ""
       setPendingPdfFile(null)
@@ -229,7 +229,7 @@ export function CourseModuleDetailPanel() {
 
       navigate(adminCourseModuleAssessmentPath(courseId, module.id, createdAssessment.id))
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar o quiz do modulo.")
+      setError(submitError instanceof Error ? submitError.message : "Não foi possível criar o quiz do módulo.")
     }
   }
 
@@ -246,7 +246,7 @@ export function CourseModuleDetailPanel() {
 
   const handleImportModuleJson = async () => {
     if (!jsonImport.trim()) {
-      setFeedback({ tone: "error", message: "Cole o JSON do modulo para importar." })
+      setFeedback({ tone: "error", message: "Cole o JSON do módulo para importar." })
       return
     }
 
@@ -307,12 +307,12 @@ export function CourseModuleDetailPanel() {
       setFeedback({
         tone: "success",
         title: "Importacao realizada",
-        message: `O modulo "${normalized.module.title}" foi importado com sucesso.`,
+        message: `O módulo "${normalized.module.title}" foi importado com sucesso.`,
       })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Nao foi possivel importar o modulo em JSON.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível importar o módulo em JSON.",
       })
     } finally {
       setImportPending(false)
@@ -344,7 +344,7 @@ export function CourseModuleDetailPanel() {
       setError(
         reorderError instanceof Error
           ? reorderError.message
-          : "Nao foi possivel reordenar as aulas deste modulo.",
+          : "Não foi possível reordenar as aulas deste módulo.",
       )
     }
   }
@@ -354,10 +354,10 @@ export function CourseModuleDetailPanel() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Modulo do material</p>
-            <h1 className="font-display text-3xl font-extrabold text-slate-950">Configuracoes do Modulo</h1>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Módulo do material</p>
+            <h1 className="font-display text-3xl font-extrabold text-slate-950">Configurações do Módulo</h1>
             <p className="max-w-3xl text-sm leading-7 text-slate-600">
-              Atualiza os metadados, as restricoes de liberacao e o PDF base licenciado deste modulo.
+              Atualiza os metadados, as restricoes de liberação e o PDF base licenciado deste módulo.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -375,7 +375,7 @@ export function CourseModuleDetailPanel() {
       >
         <div className="space-y-6 p-6 md:p-8">
           <section className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr]">
-            <ModuleField label="Capa / Titulo do Modulo" helper="Nome principal usado na arvore lateral e no mapa do material.">
+            <ModuleField label="Capa / Título do Módulo" helper="Nome principal usado na Árvore lateral e no mapa do material.">
               <input
                 value={String(values.title)}
                 onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
@@ -413,8 +413,8 @@ export function CourseModuleDetailPanel() {
           </section>
 
           <ModuleField
-            label="Descricao Organizacional"
-            helper="Resumo interno do papel deste modulo dentro da trilha pedagógica."
+            label="Descrição Organizacional"
+            helper="Resumo interno do papel deste módulo dentro da trilha pedagógica."
           >
             <LessonContentBlocksEditor
               ref={(instance) => {
@@ -422,7 +422,7 @@ export function CourseModuleDetailPanel() {
               }}
               value={String(values.description)}
               onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
-              placeholder="Descreve a finalidade do modulo."
+              placeholder="Descreve a finalidade do módulo."
             />
           </ModuleField>
 
@@ -440,9 +440,9 @@ export function CourseModuleDetailPanel() {
                     className="mt-0.5"
                   />
                   <span>
-                    <span className="block font-semibold text-slate-950">Exigir conclusao deste modulo</span>
+                    <span className="block font-semibold text-slate-950">Exigir conclusão deste módulo</span>
                     <span className="mt-1 block text-slate-500">
-                      Mantem o modulo na trilha linear e influencia a progressao do aluno.
+                      Mantem o módulo na trilha linear e influencia a progressao do aluno.
                     </span>
                   </span>
                 </label>
@@ -455,9 +455,9 @@ export function CourseModuleDetailPanel() {
                     className="mt-0.5"
                   />
                   <span>
-                    <span className="block font-semibold text-slate-950">Preview publico</span>
+                    <span className="block font-semibold text-slate-950">Preview público</span>
                     <span className="mt-1 block text-slate-500">
-                      Permite exibir este modulo como amostra sem depender de grant completo.
+                      Permite exibir este módulo como amostra sem depender de grant completo.
                     </span>
                   </span>
                 </label>
@@ -468,7 +468,7 @@ export function CourseModuleDetailPanel() {
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Acesso comercial</p>
               <ModuleField
                 label="Tipo de acesso"
-                helper="Define se o modulo pode ser aberto publicamente, apenas por registados ou apenas por pagantes."
+                helper="Define se o módulo pode ser aberto publicamente, apenas por registados ou apenas por pagantes."
               >
                 <select
                   value={String(values.access_type)}
@@ -480,7 +480,7 @@ export function CourseModuleDetailPanel() {
                   }
                   className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-sky-300"
                 >
-                  <option value="public">Publico</option>
+                  <option value="public">Público</option>
                   <option value="registered">Registado</option>
                   <option value="paid_only">Pago</option>
                 </select>
@@ -490,9 +490,9 @@ export function CourseModuleDetailPanel() {
 
           <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
-              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Liberacao Programada</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Liberação Programada</p>
               <p className="mt-2 text-sm text-slate-500">
-                Se houver data e tambem atraso por inscricao, as condicoes sao cumulativas.
+                Se houver data e também atraso por inscrição, as condições são cumulativas.
               </p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <ModuleField label="Liberar em">
@@ -516,8 +516,8 @@ export function CourseModuleDetailPanel() {
 
             <div className="rounded-2xl border border-slate-200 bg-amber-50/70 p-5">
               <ModuleField
-                label="Liberar apos X dias da inscricao"
-                helper="Ex.: 7 significa que o modulo so abre sete dias depois do grant."
+                label="Liberar após X dias da inscrição"
+                helper="Ex.: 7 significa que o módulo só abre sete dias depois do grant."
               >
                 <input
                   value={String(values.release_days_after_enrollment)}
@@ -534,9 +534,9 @@ export function CourseModuleDetailPanel() {
           <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">PDF base do modulo</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">PDF base do módulo</p>
                 <p className="mt-2 text-sm text-slate-500">
-                  O aluno recebe uma versao licenciada por URL assinada, com marca d&apos;agua sobre o PDF base.
+                  O aluno recebe uma versão licenciada por URL assinada, com marca d&após;agua sobre o PDF base.
                 </p>
               </div>
               {values.module_pdf_file_name ? <StatusBadge label="PDF configurado" tone="success" /> : null}
@@ -578,7 +578,7 @@ export function CourseModuleDetailPanel() {
                   <p className="mt-1 break-all text-slate-500">{values.module_pdf_storage_path}</p>
                 </>
               ) : (
-                <p className="text-slate-500">Nenhum PDF base configurado para este modulo.</p>
+                <p className="text-slate-500">Nenhum PDF base configurado para este módulo.</p>
               )}
             </div>
           </section>
@@ -592,13 +592,13 @@ export function CourseModuleDetailPanel() {
             onClick={handleDelete}
             disabled={deleteModule.isPending}
           >
-            {deleteModule.isPending ? "A excluir..." : "Excluir Modulo"}
+            {deleteModule.isPending ? "A excluir..." : "Excluir Módulo"}
           </Button>
 
           <div className="flex flex-wrap items-center gap-3">
             {error ? <p className="text-sm text-rose-700">{error}</p> : null}
             <Button type="submit" className="rounded-full" disabled={updateModule.isPending}>
-              {updateModule.isPending ? "A guardar..." : "Salvar Alteracoes"}
+              {updateModule.isPending ? "A guardar..." : "Salvar Alterações"}
             </Button>
           </div>
         </div>
@@ -608,7 +608,7 @@ export function CourseModuleDetailPanel() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Aulas do modulo</h2>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Aulas do módulo</h2>
               <p className="mt-1 text-sm text-slate-600">Cada aula abre o editor dedicado por rota.</p>
             </div>
             <StatusBadge label={`${lessons.length} aulas`} tone="info" />
@@ -643,7 +643,7 @@ export function CourseModuleDetailPanel() {
                         Arrastar para ordenar
                       </p>
                       <p className="font-semibold text-slate-950">{lesson.title}</p>
-                      <p className="mt-1 text-sm text-slate-600">{lesson.description ?? "Aula sem descricao curta."}</p>
+                      <p className="mt-1 text-sm text-slate-600">{lesson.description ?? "Aula sem descrição curta."}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button asChild variant="outline" className="rounded-full">
@@ -664,7 +664,7 @@ export function CourseModuleDetailPanel() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-950">Materiais e quizzes</h2>
-              <p className="mt-1 text-sm text-slate-600">Atalhos operacionais para o modulo atual.</p>
+              <p className="mt-1 text-sm text-slate-600">Atalhos operacionais para o módulo atual.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge label={`${assets.length} materiais`} tone="warning" />
@@ -675,18 +675,18 @@ export function CourseModuleDetailPanel() {
                 disabled={createAssessment.isPending}
                 onClick={() => void handleCreateModuleAssessment()}
               >
-                {createAssessment.isPending ? "A criar quiz..." : "Criar quiz do modulo"}
+                {createAssessment.isPending ? "A criar quiz..." : "Criar quiz do módulo"}
               </Button>
             </div>
           </div>
 
           <div className="mt-4 space-y-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="font-semibold text-slate-950">Materiais do modulo</p>
+              <p className="font-semibold text-slate-950">Materiais do módulo</p>
               <p className="mt-1 text-sm text-slate-600">
                 {assets.length > 0
-                  ? `${assets.length} material(is) configurado(s) para este modulo.`
-                  : "Sem materiais configurados neste modulo."}
+                  ? `${assets.length} material(is) configurado(s) para este módulo.`
+                  : "Sem materiais configurados neste módulo."}
               </p>
               {lessons[0] ? (
                 <Button asChild variant="outline" className="mt-4 rounded-full">
@@ -701,11 +701,11 @@ export function CourseModuleDetailPanel() {
                   <div>
                     <p className="font-semibold text-slate-950">{assessment.title}</p>
                     <p className="mt-1 text-sm text-slate-600">
-                      {assessment.description ?? "Quiz ligado a este modulo."}
+                      {assessment.description ?? "Quiz ligado a este módulo."}
                     </p>
                   </div>
                   <Button asChild variant="outline" className="rounded-full">
-                    <Link to={adminCourseModuleAssessmentPath(courseId, module.id, assessment.id)}>Abrir avaliacao</Link>
+                    <Link to={adminCourseModuleAssessmentPath(courseId, module.id, assessment.id)}>Abrir avaliação</Link>
                   </Button>
                 </div>
               </div>
@@ -714,8 +714,8 @@ export function CourseModuleDetailPanel() {
             {moduleAssessments.length === 0 ? (
               <div className="space-y-4">
                 <EmptyState
-                  title="Sem quizzes do modulo"
-                  message="Crie o primeiro quiz deste modulo e continue direto no editor profundo da avaliacao."
+                  title="Sem quizzes do módulo"
+                  message="Crie o primeiro quiz deste módulo e continue direto no editor profundo da avaliação."
                 />
                 <div className="flex justify-center">
                   <Button
@@ -738,11 +738,11 @@ export function CourseModuleDetailPanel() {
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Importacao e exportacao JSON</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Exporta este modulo no contrato da spec. Na importacao, o modulo atual e substituido (aulas + quizzes).
+              Exporta este módulo no contrato da spec. Na importacao, o módulo atual e substituido (aulas + quizzes).
             </p>
           </div>
           <Button type="button" variant="outline" className="rounded-full" onClick={handleExportModuleJson}>
-            Exportar modulo em JSON
+            Exportar módulo em JSON
           </Button>
         </div>
 
@@ -751,7 +751,7 @@ export function CourseModuleDetailPanel() {
             value={jsonImport}
             onChange={(event) => setJsonImport(event.target.value)}
             rows={10}
-            placeholder="Cole aqui o JSON do modulo ou de material (sera usado o primeiro modulo)."
+            placeholder="Cole aqui o JSON do módulo ou de material (será usado o primeiro módulo)."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <div className="flex flex-wrap items-center gap-3">
@@ -761,10 +761,10 @@ export function CourseModuleDetailPanel() {
               disabled={importPending}
               onClick={() => void handleImportModuleJson()}
             >
-              {importPending ? "A importar..." : "Importar e substituir modulo"}
+              {importPending ? "A importar..." : "Importar e substituir módulo"}
             </Button>
             <p className="text-sm text-slate-500">
-              Materiais existentes do modulo sao preservados. Aulas e quizzes sao recriados.
+              Materiais existentes do módulo são preservados. Aulas e quizzes são recriados.
             </p>
           </div>
         </div>
@@ -785,7 +785,7 @@ export function CourseModuleDetailPanel() {
           className="rounded-full bg-[#1398B7] px-6 py-6 font-black shadow-[0_20px_40px_rgba(19,152,183,0.28)] hover:bg-[#0A3640]"
           disabled={updateModule.isPending}
         >
-          {updateModule.isPending ? "A guardar..." : "Salvar configuracoes"}
+          {updateModule.isPending ? "A guardar..." : "Salvar configurações"}
         </Button>
       </div>
     </div>

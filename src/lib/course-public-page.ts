@@ -121,12 +121,12 @@ function buildModuleCurriculum(
       ).length
       const itemCount = lessonCount + assessmentCount
       return {
-        label: `Modulo ${index + 1}`,
+        label: `Módulo ${index + 1}`,
         title: module.title,
-        lessons: itemCount > 0 ? formatItemCount(itemCount) : "Conteudo organizado",
+        lessons: itemCount > 0 ? formatItemCount(itemCount) : "Conteúdo organizado",
         description:
           richTextToPlainText(module.description) ||
-          "Conteudo estruturado para avancar com clareza dentro da trilha do material.",
+          "Conteúdo estruturado para avancar com clareza dentro da trilha do material.",
       }
     })
 }
@@ -157,16 +157,16 @@ export function buildCourseCurriculumOutline(
           label: "Quiz",
           title: assessment.title,
           description:
-            richTextToPlainText(assessment.description) || "Avaliacao disponivel no modulo.",
+            richTextToPlainText(assessment.description) || "Avaliação disponível no módulo.",
         })),
       ]
 
       return {
-        label: `Modulo ${index + 1}`,
+        label: `Módulo ${index + 1}`,
         title: module.title,
         description:
           richTextToPlainText(module.description) ||
-          "Conteudo estruturado para avancar com clareza dentro da trilha do material.",
+          "Conteúdo estruturado para avancar com clareza dentro da trilha do material.",
         countLabel: formatItemCount(items.length),
         items,
       } satisfies CoursePublicPageCurriculumSection
@@ -178,16 +178,16 @@ export function buildCourseCurriculumOutline(
 
   if (finalAssessments.length > 0) {
     sections.push({
-      label: "Avaliacao final",
-      title: finalAssessments[0]?.title || "Avaliacao final",
+      label: "Avaliação final",
+      title: finalAssessments[0]?.title || "Avaliação final",
       description:
-        richTextToPlainText(finalAssessments[0]?.description) || "Avaliacao conclusiva do curso.",
+        richTextToPlainText(finalAssessments[0]?.description) || "Avaliação conclusiva do curso.",
       countLabel: formatItemCount(finalAssessments.length),
       items: finalAssessments.map((assessment) => ({
         kind: "assessment" as const,
-        label: "Avaliacao",
+        label: "Avaliação",
         title: assessment.title,
-        description: richTextToPlainText(assessment.description) || "Avaliacao final do curso.",
+        description: richTextToPlainText(assessment.description) || "Avaliação final do curso.",
       })),
     })
   }
@@ -225,27 +225,27 @@ export function buildCoursePublicPageView(
     learnTitle: chooseText(content.learnTitle, "O que vais aprender"),
     learnItems: normalizeFeatures(content.learnItems, defaultLearnItems),
     curriculumMode: content.curriculumMode === "real" ? "real" : "custom",
-    curriculumTitle: chooseText(content.curriculumTitle, "Conteudo do curso"),
+    curriculumTitle: chooseText(content.curriculumTitle, "Conteúdo do curso"),
     curriculumItems: normalizeCurriculumItems(
       content.curriculumItems,
       curriculumFromModules.length
         ? curriculumFromModules
         : [
             {
-              label: "Modulo 1",
+              label: "Módulo 1",
               title: "Fundamentos do material",
               lessons: "Aulas organizadas",
-              description: "Base inicial para compreender o conteudo com mais seguranca.",
+              description: "Base inicial para compreender o conteúdo com mais segurança.",
             },
             {
-              label: "Modulo 2",
-              title: "Aplicacao pratica",
+              label: "Módulo 2",
+              title: "Aplicação pratica",
               lessons: "Exercicios e exemplos",
               description: "Pontes entre teoria, exemplos e estudo orientado.",
             },
             {
-              label: "Modulo 3",
-              title: "Revisao estrategica",
+              label: "Módulo 3",
+              title: "Revisão estrategica",
               lessons: "Blocos de fixacao",
               description: "Retoma dos pontos principais para consolidar a aprendizagem.",
             },

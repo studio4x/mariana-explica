@@ -17,7 +17,7 @@ function AdminOrdersSkeleton() {
     <div className="space-y-6">
       <PageHeader
         title="Pedidos"
-        description="Acompanhamento comercial com reprocessamentos e acoes administrativas controladas."
+        description="Acompanhamento comercial com reprocessamentos e ações administrativas controladas."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -66,7 +66,7 @@ export function AdminOrders() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os pedidos"
+        title="Não foi possível carregar os pedidos"
         message="Tenta novamente dentro de instantes."
         onRetry={() => void ordersViewQuery.refetch()}
       />
@@ -95,7 +95,7 @@ export function AdminOrders() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Pedidos" description="Acompanhamento comercial com reprocessamentos e acoes administrativas controladas." />
+      <PageHeader title="Pedidos" description="Acompanhamento comercial com reprocessamentos e ações administrativas controladas." />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
@@ -140,7 +140,7 @@ export function AdminOrders() {
                   <th className="py-3 pr-4 font-medium">Material</th>
                   <th className="py-3 pr-4 font-medium">Estado</th>
                   <th className="py-3 pr-4 font-medium">Total</th>
-                  <th className="py-3 pr-4 font-medium">Acoes</th>
+                  <th className="py-3 pr-4 font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>

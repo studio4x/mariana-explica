@@ -89,7 +89,7 @@ export function InstallPrompt() {
           Instalar app
         </Button>
         <Button type="button" variant="outline" onClick={dismissPrompt}>
-          Agora nao
+          Agora não
         </Button>
       </div>
     </div>

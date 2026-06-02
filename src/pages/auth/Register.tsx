@@ -84,7 +84,7 @@ export function Register() {
     setError(null)
 
     if (password !== confirmPassword) {
-      setError("As palavras-passe nao coincidem.")
+      setError("As palavras-passe não coincidem.")
       return
     }
 
@@ -125,7 +125,7 @@ export function Register() {
             Abre a tua conta na {APP_NAME}
           </h1>
           <p className="text-sm leading-7 text-muted-foreground">
-            Cria a tua conta para comprar, receber acesso aos materiais e acompanhar tudo num unico lugar.
+            Cria a tua conta para comprar, receber acesso aos materiais e acompanhar tudo num Único lugar.
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export function Register() {
         </form>
 
         <div className="text-center text-sm text-slate-600">
-          Ja tens conta?{" "}
+          JÁ tens conta?{" "}
           <Link
             to={buildAuthRedirectHref(ROUTES.LOGIN, redirectPath)}
             state={{ from: redirectPath }}
@@ -221,7 +221,7 @@ export function Register() {
             <p className="mt-4 text-sm leading-7 text-slate-600">
               A conta foi criada e ficou pendente de verificacao. Enviamos um email para{" "}
               <span className="font-semibold text-slate-950">{pendingVerificationEmail}</span>.
-              Clica no botao de validacao desse email para ativares a conta e entrares automaticamente no dashboard.
+              Clica no botão de validação desse email para ativares a conta e entrares automaticamente no dashboard.
             </p>
             <div className="mt-6 space-y-3">
               <Button asChild className="w-full rounded-full" size="lg">

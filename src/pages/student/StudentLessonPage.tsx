@@ -44,8 +44,8 @@ export function StudentLessonPage() {
   if (!lessonSummary || !module) {
     return (
       <EmptyState
-        title="Aula nao encontrada"
-        message="A aula pedida nao esta disponivel nesta trilha."
+        title="Aula não encontrada"
+        message="A aula pedida não esta disponível nesta trilha."
       />
     )
   }
@@ -60,13 +60,13 @@ export function StudentLessonPage() {
   }
 
   if (lessonQuery.isLoading || assetsQuery.isLoading) {
-    return <LoadingState message="A preparar o conteudo da aula..." />
+    return <LoadingState message="A preparar o conteúdo da aula..." />
   }
 
   if (lessonQuery.isError || assetsQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel abrir esta aula"
+        title="Não foi possível abrir esta aula"
         message={
           lessonQuery.error instanceof Error
             ? lessonQuery.error.message
@@ -104,8 +104,8 @@ export function StudentLessonPage() {
   if (!lesson) {
     return (
       <EmptyState
-        title="Conteudo indisponivel"
-        message="O backend nao libertou o conteudo completo desta aula para a tua sessao."
+        title="Conteúdo indisponivel"
+        message="O backend não libertou o conteúdo completo desta aula para a tua sessão."
       />
     )
   }
@@ -154,7 +154,7 @@ export function StudentLessonPage() {
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-950">{lesson.title}</h1>
             <RichTextContent
               value={lesson.description}
-              fallback="Aula pronta para leitura, video e continuidade do estudo."
+              fallback="Aula pronta para leitura, vídeo e continuidade do estudo."
               className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
             />
           </div>
@@ -162,9 +162,9 @@ export function StudentLessonPage() {
             <StatusBadge
               label={
                 lesson.lesson_type === "hybrid"
-                  ? "Hibrida"
+                  ? "Híbrida"
                   : lesson.lesson_type === "video"
-                    ? "Video"
+                    ? "Vídeo"
                     : lesson.lesson_type === "file"
                       ? "Ficheiro"
                       : "Texto"
@@ -179,14 +179,14 @@ export function StudentLessonPage() {
           <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
           {shouldUseModuleVideoFallback && fallbackVideoAsset ? (
             <p className="text-xs text-slate-500">
-              Video principal carregado a partir dos materiais protegidos do modulo.
+              Vídeo principal carregado a partir dos materiais protegidos do módulo.
             </p>
           ) : null}
           {lesson.text_content ? (
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
               <div className="flex items-center gap-2 text-slate-900">
                 <FileText className="h-4 w-4" />
-                <p className="font-medium">Conteudo textual</p>
+                <p className="font-medium">Conteúdo textual</p>
               </div>
               <LessonContentBlocksRenderer value={lesson.text_content} className="mt-3" />
             </div>
@@ -194,7 +194,7 @@ export function StudentLessonPage() {
             <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
               <div className="flex items-center gap-2 text-slate-900">
                 <FileText className="h-4 w-4" />
-                <p className="font-medium">Conteudo principal em ficheiro</p>
+                <p className="font-medium">Conteúdo principal em ficheiro</p>
               </div>
               <p className="mt-3 text-sm leading-7 text-slate-600">
                 Abra os materiais protegidos abaixo para consumir esta aula.
@@ -225,7 +225,7 @@ export function StudentLessonPage() {
             ) : isLessonCompleted ? (
               <CheckCircle2 className="mr-2 h-4 w-4" />
             ) : null}
-            {isLessonCompleted ? "Aula concluida" : "Concluir aula"}
+            {isLessonCompleted ? "Aula concluída" : "Concluir aula"}
           </Button>
         </div>
       </section>
@@ -257,7 +257,7 @@ export function StudentLessonPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-slate-950">{module.module_pdf_file_name}</p>
-                      <StatusBadge label="PDF base do modulo" tone="warning" />
+                      <StatusBadge label="PDF base do módulo" tone="warning" />
                     </div>
                     <p className="mt-2 text-sm text-slate-600">
                       Acesso licenciado por aluno com URL temporaria e auditavel.
@@ -279,8 +279,8 @@ export function StudentLessonPage() {
                 title="Sem materiais adicionais"
                 message={
                   module.module_pdf_file_name
-                    ? "O PDF base do modulo ja esta disponivel acima."
-                    : "Quando houver PDFs, links ou videos de apoio, eles aparecem aqui."
+                    ? "O PDF base do módulo já esta disponível acima."
+                    : "Quando houver PDFs, links ou vídeos de apoio, eles aparecem aqui."
                 }
               />
             ) : (
@@ -292,7 +292,7 @@ export function StudentLessonPage() {
                         <p className="font-semibold text-slate-950">{asset.title}</p>
                         <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
                       </div>
-                      <p className="mt-2 text-sm text-slate-600">Material protegido ligado ao modulo atual.</p>
+                      <p className="mt-2 text-sm text-slate-600">Material protegido ligado ao módulo atual.</p>
                     </div>
                     <Button type="button" className="rounded-full" onClick={() => void handleAssetOpen(asset.id)} disabled={assetAccess.isPending}>
                       {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
@@ -308,7 +308,7 @@ export function StudentLessonPage() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Navegacao do player</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Navegação do player</h2>
             <p className="mt-1 text-sm text-slate-600">Avanca pela trilha respeitando a estrutura do material.</p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -334,7 +334,7 @@ export function StudentLessonPage() {
                       : studentCourseAssessmentPath(context.courseId, nextEntry.id)
                   }
                 >
-                  Proximo
+                  Próximo
                 </Link>
               </Button>
             ) : null}

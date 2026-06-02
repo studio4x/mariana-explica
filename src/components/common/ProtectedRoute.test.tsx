@@ -77,7 +77,7 @@ describe("ProtectedRoute", () => {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <div>Area protegida</div>
+                <div>Área protegida</div>
               </ProtectedRoute>
             }
           />
@@ -103,7 +103,7 @@ describe("ProtectedRoute", () => {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <div>Area protegida</div>
+                <div>Área protegida</div>
               </ProtectedRoute>
             }
           />
@@ -111,6 +111,6 @@ describe("ProtectedRoute", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText("Area protegida")).toBeInTheDocument()
+    expect(screen.getByText("Área protegida")).toBeInTheDocument()
   })
 })

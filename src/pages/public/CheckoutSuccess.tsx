@@ -81,10 +81,10 @@ export function CheckoutSuccess() {
                   Checkout concluido
                 </p>
                 <h1 className="mt-4 font-display text-4xl font-bold leading-tight md:text-5xl">
-                  A tua inscricao foi recebida com sucesso.
+                  A tua inscrição foi recebida com sucesso.
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-8 text-white/78">
-                  O acesso ao material sera apresentado na area do aluno assim que a confirmacao de pagamento estiver
+                  O acesso ao material será apresentado na Área do aluno assim que a confirmação de pagamento estiver
                   refletida na plataforma.
                 </p>
               </div>
@@ -100,7 +100,7 @@ export function CheckoutSuccess() {
                 <div className="flex items-start gap-3">
                   <BadgeCheck className="mt-1 h-5 w-5 shrink-0 text-[#3a618b]" />
                   <div>
-                    <h2 className="font-display text-xl font-bold text-[#0f122c]">Proximo passo</h2>
+                    <h2 className="font-display text-xl font-bold text-[#0f122c]">Próximo passo</h2>
                     <p className="mt-2 text-sm leading-7 text-[#46464d]">
                       Entra diretamente no material para verificar o acesso e continuar a tua jornada de estudo.
                     </p>
@@ -113,21 +113,21 @@ export function CheckoutSuccess() {
                   <BookOpenCheck className="h-5 w-5 text-[#3a618b]" />
                   <p className="mt-3 text-sm font-bold text-[#0f122c]">Material organizado</p>
                   <p className="mt-1 text-sm leading-6 text-[#46464d]">
-                    Aulas e materiais ficam reunidos na area do aluno.
+                    Aulas e materiais ficam reunidos na Área do aluno.
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#dee3e5] p-4">
                   <ShieldCheck className="h-5 w-5 text-[#3a618b]" />
                   <p className="mt-3 text-sm font-bold text-[#0f122c]">Acesso protegido</p>
                   <p className="mt-1 text-sm leading-6 text-[#46464d]">
-                    A liberacao e validada pelo backend e pelo Stripe.
+                    A liberação e validada pelo backend e pelo Stripe.
                   </p>
                 </div>
               </div>
             </div>
 
             <aside className="rounded-lg bg-[#eef4f6] p-6">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#46464d]">Acesso rapido</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#46464d]">Acesso rápido</p>
               <div className="mt-5 space-y-3">
                 <Button asChild className="h-12 w-full rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]">
                   <Link to={courseHref}>
@@ -136,11 +136,11 @@ export function CheckoutSuccess() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-12 w-full rounded-lg bg-white">
-                  <Link to={ROUTES.DASHBOARD}>Abrir area do aluno</Link>
+                  <Link to={ROUTES.DASHBOARD}>Abrir Área do aluno</Link>
                 </Button>
               </div>
               <p className="mt-5 text-xs leading-6 text-[#46464d]">
-                Se o material ainda nao aparecer, aguarda alguns segundos e atualiza a area do aluno. A confirmacao depende
+                Se o material ainda não aparecer, aguarda alguns segundos e atualiza a Área do aluno. A confirmação depende
                 do retorno do Stripe.
               </p>
             </aside>

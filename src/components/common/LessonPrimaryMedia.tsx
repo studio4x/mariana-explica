@@ -10,7 +10,7 @@ interface LessonPrimaryMediaProps {
 
 export function LessonPrimaryMedia({
   source,
-  title = "Video principal",
+  title = "Vídeo principal",
 }: LessonPrimaryMediaProps) {
   const assetId = getLessonVideoAssetId(source)
   const youtubeEmbedUrl = getYoutubeEmbedUrl(source)
@@ -41,7 +41,7 @@ export function LessonPrimaryMedia({
       })
       .catch((error: unknown) => {
         if (!active) return
-        setAssetError(error instanceof Error ? error.message : "Nao foi possivel preparar o video.")
+        setAssetError(error instanceof Error ? error.message : "Não foi possível preparar o vídeo.")
       })
       .finally(() => {
         if (!active) return
@@ -66,7 +66,7 @@ export function LessonPrimaryMedia({
 
       {youtubeEmbedUrl ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-video w-full">
+          <div className="aspect-vídeo w-full">
             <iframe
               src={youtubeEmbedUrl}
               title={title}
@@ -82,7 +82,7 @@ export function LessonPrimaryMedia({
 
       {externalVideoUrl ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-video w-full">
+          <div className="aspect-vídeo w-full">
             <video
               src={externalVideoUrl}
               controls
@@ -98,7 +98,7 @@ export function LessonPrimaryMedia({
 
       {localVideoUrl ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-video w-full">
+          <div className="aspect-vídeo w-full">
             <video
               src={localVideoUrl}
               controls
@@ -114,11 +114,11 @@ export function LessonPrimaryMedia({
 
       {assetId ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-video w-full">
+          <div className="aspect-vídeo w-full">
             {isLoadingAsset ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm font-semibold text-white/80">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                A preparar o video...
+                A preparar o vídeo...
               </div>
             ) : assetError ? (
               <div className="flex h-full items-center justify-center gap-2 px-6 text-center text-sm font-semibold text-rose-200">

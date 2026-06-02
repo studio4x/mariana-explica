@@ -87,7 +87,7 @@ export function AdminSupport() {
   if (ticketsQuery.isError || usersQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o suporte"
+        title="Não foi possível carregar o suporte"
         message="Tenta novamente dentro de instantes."
         onRetry={() => {
           void ticketsQuery.refetch()
@@ -128,7 +128,7 @@ export function AdminSupport() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">SLA publico</p>
+          <p className="text-sm font-medium text-slate-500">SLA público</p>
           <p className="mt-3 text-sm leading-7 text-slate-700">2h uteis para pagamentos e 24h uteis para demais categorias.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
@@ -205,14 +205,14 @@ export function AdminSupport() {
             <table className="min-w-full divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-[0.14em] text-slate-500">
                 <tr>
-                  <th className="px-4 py-4">Usuario</th>
+                  <th className="px-4 py-4">Usuário</th>
                   <th className="px-4 py-4">Assunto</th>
                   <th className="px-4 py-4">Categoria</th>
                   <th className="px-4 py-4">SLA</th>
                   <th className="px-4 py-4">Prioridade</th>
                   <th className="px-4 py-4">Status</th>
                   <th className="px-4 py-4">Prazo</th>
-                  <th className="px-4 py-4">Acoes</th>
+                  <th className="px-4 py-4">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -274,7 +274,7 @@ export function AdminSupport() {
           <div className="w-full max-w-lg rounded-[1.5rem] bg-white p-6 shadow-[0_24px_90px_rgba(15,23,42,0.28)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-red-700">Acao irreversivel</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-red-700">Ação irreversivel</p>
                 <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Excluir chamado permanentemente</h2>
               </div>
               <button type="button" onClick={() => setTicketToDelete(null)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
@@ -282,7 +282,7 @@ export function AdminSupport() {
               </button>
             </div>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              Isto apaga o ticket, o historico de mensagens e os anexos associados. Chamado: <strong>{ticketToDelete.subject}</strong>.
+              Isto apaga o ticket, o histórico de mensagens e os anexos associados. Chamado: <strong>{ticketToDelete.subject}</strong>.
             </p>
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <Button type="button" variant="outline" className="rounded-full" onClick={() => setTicketToDelete(null)}>

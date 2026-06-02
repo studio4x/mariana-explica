@@ -12,8 +12,8 @@ function AdminNotificationsSkeleton() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notificacoes"
-        description="Comunicacao operacional para alunos e segmentos especificos, sempre a partir do backend."
+        title="Notificações"
+        description="Comunicação operacional para alunos e segmentos específicos, sempre a partir do backend."
       />
       <div className="grid gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
@@ -99,7 +99,7 @@ export function AdminNotifications() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar as notificacoes"
+        title="Não foi possível carregar as notificações"
         message="Tenta novamente dentro de instantes."
         onRetry={() => {
           void notificationsQuery.refetch()
@@ -116,8 +116,8 @@ export function AdminNotifications() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notificacoes"
-        description="Comunicacao operacional para alunos e segmentos especificos, sempre validada e criada pelo backend."
+        title="Notificações"
+        description="Comunicação operacional para alunos e segmentos específicos, sempre validada e criada pelo backend."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -138,9 +138,9 @@ export function AdminNotifications() {
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <form onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Disparo controlado</p>
-          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar notificacao</h2>
+          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar notificação</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            Usa esta area para alertas operacionais, comunicacoes de suporte ou mensagens segmentadas.
+            Usa esta Área para alertas operacionais, comunicações de suporte ou mensagens segmentadas.
           </p>
 
           <div className="mt-5 grid gap-4">
@@ -151,7 +151,7 @@ export function AdminNotifications() {
             >
               <option value="all">Todos os utilizadores ativos</option>
               <option value="role">Por papel</option>
-              <option value="single">Utilizador especifico</option>
+              <option value="single">Utilizador específico</option>
             </select>
 
             {audience === "single" ? (
@@ -187,7 +187,7 @@ export function AdminNotifications() {
                   <option value="active">Apenas ativos</option>
                   <option value="inactive">Inativos</option>
                   <option value="blocked">Bloqueados</option>
-                  <option value="pending_review">Em revisao</option>
+                  <option value="pending_review">Em revisão</option>
                 </select>
               </div>
             )}
@@ -206,7 +206,7 @@ export function AdminNotifications() {
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Titulo"
+              placeholder="Título"
               className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
             <textarea
@@ -240,7 +240,7 @@ export function AdminNotifications() {
           ) : null}
 
           <Button type="submit" className="mt-4 rounded-full" disabled={createNotification.isPending}>
-            {createNotification.isPending ? "A enviar..." : "Enviar notificacao"}
+            {createNotification.isPending ? "A enviar..." : "Enviar notificação"}
           </Button>
         </form>
 
@@ -248,7 +248,7 @@ export function AdminNotifications() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-950">Fila recente</h2>
-              <p className="mt-1 text-sm text-slate-600">Historico das comunicacoes mais recentes.</p>
+              <p className="mt-1 text-sm text-slate-600">Histórico das comunicações mais recentes.</p>
             </div>
             <StatusBadge label={`${notifications.length} registos`} tone="neutral" />
           </div>
@@ -256,7 +256,7 @@ export function AdminNotifications() {
           {notifications.length === 0 ? (
             <div className="mt-6">
               <EmptyState
-                title="Sem notificacoes"
+                title="Sem notificações"
                 message="As mensagens disparadas pelo admin vao aparecer aqui."
               />
             </div>

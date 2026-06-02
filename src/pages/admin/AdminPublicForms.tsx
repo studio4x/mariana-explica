@@ -23,7 +23,7 @@ function formatShortMessage(value: string, maxLength = 150) {
 }
 
 function getFormTypeLabel(formType: string) {
-  if (formType === "explicacoes") return "Explicacoes"
+  if (formType === "explicacoes") return "Explicações"
   return formType
 }
 
@@ -98,7 +98,7 @@ export function AdminPublicForms() {
     const nextEmail = draftEmail.trim().toLowerCase()
 
     if (nextEmail.length > 0 && !EMAIL_PATTERN.test(nextEmail)) {
-      setFeedback({ tone: "danger", message: "Informe um email valido para notificacoes." })
+      setFeedback({ tone: "danger", message: "Informe um email válido para notificações." })
       return
     }
 
@@ -110,13 +110,13 @@ export function AdminPublicForms() {
         tone: "success",
         message:
           nextEmail.length > 0
-            ? "Email de notificacao atualizado com sucesso."
-            : "Notificacoes por email desativadas para formularios publicos.",
+            ? "Email de notificação atualizado com sucesso."
+            : "Notificações por email desativadas para formulários públicos.",
       })
     } catch (error) {
       setFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "Nao foi possivel salvar a configuracao.",
+        message: error instanceof Error ? error.message : "Não foi possível salvar a configuração.",
       })
     }
   }
@@ -149,7 +149,7 @@ export function AdminPublicForms() {
     }
 
     if (subject && subject.length < 2) {
-      setReplyError("Informe um assunto valido ou deixe em branco.")
+      setReplyError("Informe um assunto válido ou deixe em branco.")
       return
     }
 
@@ -168,12 +168,12 @@ export function AdminPublicForms() {
         message: `Resposta enfileirada para ${response.email_to}.`,
       })
     } catch (error) {
-      setReplyError(error instanceof Error ? error.message : "Nao foi possivel enviar a resposta por email.")
+      setReplyError(error instanceof Error ? error.message : "Não foi possível enviar a resposta por email.")
     }
   }
 
   if (submissionsQuery.isLoading && configQuery.isLoading) {
-    return <LoadingState message="A carregar formularios publicos..." />
+    return <LoadingState message="A carregar formulários públicos..." />
   }
 
   if (submissionsQuery.isError || configQuery.isError) {
@@ -186,7 +186,7 @@ export function AdminPublicForms() {
 
     return (
       <ErrorState
-        title="Nao foi possivel carregar os formularios"
+        title="Não foi possível carregar os formulários"
         message={message}
         onRetry={handleRefresh}
       />
@@ -199,8 +199,8 @@ export function AdminPublicForms() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
-          title="Formularios Publicos"
-          description="Acompanha todos os envios do site publico e configura o email que recebe as notificacoes."
+          title="Formulários Públicos"
+          description="Acompanha todos os envios do site público e configura o email que recebe as notificações."
         />
         <Button type="button" variant="outline" className="rounded-full" onClick={handleRefresh}>
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -212,7 +212,7 @@ export function AdminPublicForms() {
         <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
           {[
             { key: "submissions" as const, label: "Envios", icon: Table2 },
-            { key: "settings" as const, label: "Configuracoes", icon: Settings2 },
+            { key: "settings" as const, label: "Configurações", icon: Settings2 },
           ].map((item) => {
             const Icon = item.icon
             const active = tab === item.key
@@ -248,7 +248,7 @@ export function AdminPublicForms() {
                 <p className="mt-3 text-3xl font-bold text-slate-950">{filteredSubmissions.length}</p>
               </div>
               <div className="rounded-[1.5rem] border bg-slate-50 p-5 shadow-sm">
-                <p className="text-sm font-medium text-slate-500">Ja notificados por email</p>
+                <p className="text-sm font-medium text-slate-500">JÁ notificados por email</p>
                 <p className="mt-3 text-3xl font-bold text-slate-950">{notifiedCount}</p>
               </div>
             </div>
@@ -269,7 +269,7 @@ export function AdminPublicForms() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Tipo de formulario</span>
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Tipo de formulário</span>
                   <select
                     value={formTypeFilter}
                     onChange={(event) => setFormTypeFilter(event.target.value)}
@@ -300,7 +300,7 @@ export function AdminPublicForms() {
             {filteredSubmissions.length === 0 ? (
               <EmptyState
                 title="Sem envios para mostrar"
-                message="Ajuste os filtros ou aguarde novos formularios enviados pelo site publico."
+                message="Ajuste os filtros ou aguarde novos formulários enviados pelo site público."
               />
             ) : (
               <div className="overflow-x-auto rounded-[1.5rem] border border-slate-200 bg-white">
@@ -312,8 +312,8 @@ export function AdminPublicForms() {
                       <th className="px-4 py-4">Contato</th>
                       <th className="px-4 py-4">Assunto</th>
                       <th className="px-4 py-4">Mensagem</th>
-                      <th className="px-4 py-4">Notificacao</th>
-                      <th className="px-4 py-4 text-right">Acoes</th>
+                      <th className="px-4 py-4">Notificação</th>
+                      <th className="px-4 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -362,15 +362,15 @@ export function AdminPublicForms() {
         ) : (
           <div className="space-y-6 pt-6">
             <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Destino das notificacoes</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Destino das notificações</p>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-                Define o email que recebe alertas quando um formulario publico e enviado. Deixa em branco para
-                desativar notificacoes por email.
+                Define o email que recebe alertas quando um formulário público e enviado. Deixa em branco para
+                desativar notificações por email.
               </p>
 
               <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Email de notificacao</span>
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Email de notificação</span>
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
@@ -389,12 +389,12 @@ export function AdminPublicForms() {
                   onClick={() => void handleSaveConfig()}
                   disabled={updateConfig.isPending || !validEmail}
                 >
-                  {updateConfig.isPending ? "A guardar..." : "Guardar configuracao"}
+                  {updateConfig.isPending ? "A guardar..." : "Guardar configuração"}
                 </Button>
               </div>
 
               {!validEmail ? (
-                <p className="mt-3 text-sm text-rose-700">O email informado nao e valido.</p>
+                <p className="mt-3 text-sm text-rose-700">O email informado não e válido.</p>
               ) : null}
 
               {feedback ? (
@@ -414,9 +414,9 @@ export function AdminPublicForms() {
             <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Como funciona</p>
               <div className="mt-3 space-y-2 text-sm leading-7 text-slate-600">
-                <p>1. O visitante envia o formulario na pagina publica.</p>
+                <p>1. O visitante envia o formulário na página pública.</p>
                 <p>2. O envio fica registado nesta tela para acompanhamento.</p>
-                <p>3. Se houver email configurado, o sistema enfileira a notificacao automaticamente.</p>
+                <p>3. Se houver email configurado, o sistema enfileira a notificação automaticamente.</p>
               </div>
             </div>
           </div>
@@ -428,7 +428,7 @@ export function AdminPublicForms() {
           <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.26)]">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-950">Responder formulario</h2>
+                <h2 className="text-2xl font-bold text-slate-950">Responder formulário</h2>
                 <p className="mt-1 text-sm text-slate-600">
                   Envia uma resposta para {replyTarget.full_name} ({replyTarget.email}).
                 </p>
@@ -463,7 +463,7 @@ export function AdminPublicForms() {
                   onChange={(event) => setReplyMessage(event.target.value)}
                   rows={8}
                   maxLength={5000}
-                  placeholder="Escreve aqui a resposta que sera enviada por email."
+                  placeholder="Escreve aqui a resposta que será enviada por email."
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-400"
                 />
               </label>

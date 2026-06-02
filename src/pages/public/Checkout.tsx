@@ -334,7 +334,7 @@ export function Checkout() {
       setSubmitError(
         checkoutError instanceof Error
           ? checkoutError.message
-          : "Nao foi possivel iniciar o pagamento. Tenta novamente dentro de instantes.",
+          : "Não foi possível iniciar o pagamento. Tenta novamente dentro de instantes.",
       )
     } finally {
       setSubmitting(false)
@@ -423,7 +423,7 @@ export function Checkout() {
     }
 
     if (registerPassword !== registerConfirmPassword) {
-      setAuthError("As palavras-passe nao coincidem.")
+      setAuthError("As palavras-passe não coincidem.")
       return
     }
 
@@ -481,7 +481,7 @@ export function Checkout() {
   if (isError) {
     return (
       <ErrorState
-        title="Nao foi possivel preparar o checkout"
+        title="Não foi possível preparar o checkout"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -491,8 +491,8 @@ export function Checkout() {
   if (!product) {
     return (
       <EmptyState
-        title="Material nao encontrado"
-        message="O item escolhido nao esta publicado ou deixou de estar disponivel."
+        title="Material não encontrado"
+        message="O item escolhido não esta publicado ou deixou de estar disponível."
       />
     )
   }
@@ -500,7 +500,7 @@ export function Checkout() {
   const productDescription =
     richTextToPlainText(product.short_description) ||
     richTextToPlainText(product.description) ||
-    "Conteudo digital pronto para ser ativado na tua conta Mariana Explica."
+    "Conteúdo digital pronto para ser ativado na tua conta Mariana Explica."
 
   return (
     <>
@@ -526,7 +526,7 @@ export function Checkout() {
             <section className="space-y-8 lg:col-span-7">
               <div className="space-y-3">
                 <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
-                  Confirmacao de pedido
+                  Confirmação de pedido
                 </span>
                 <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
                   Quase lá! Vamos finalizar sua inscrição.
@@ -581,7 +581,7 @@ export function Checkout() {
                         {hasSession
                           ? "Confirma os teus dados"
                           : activeAuthTab === "login"
-                            ? "Ja tenho conta"
+                            ? "JÁ tenho conta"
                             : "Quero me cadastrar"}
                       </h3>
                     </div>
@@ -606,7 +606,7 @@ export function Checkout() {
                             }`}
                           >
                             <LogIn className="h-4 w-4" />
-                            Ja tenho conta
+                            JÁ tenho conta
                           </button>
                           <button
                             type="button"
@@ -938,7 +938,7 @@ export function Checkout() {
                             className="mt-1 h-4 w-4 accent-[#e9bf94]"
                           />
                           <span className="leading-6">
-                            Quero saber quando os resumos sao melhorados ou saem novas disciplinas e recursos.
+                            Quero saber quando os resumos são melhorados ou saem novas disciplinas e recursos.
                           </span>
                         </label>
 

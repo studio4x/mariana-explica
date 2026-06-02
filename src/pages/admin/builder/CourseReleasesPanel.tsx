@@ -20,7 +20,7 @@ interface CourseReleasesManagerProps {
 export function CourseReleasesManager({
   courseId,
   title = "Alunos adicionados e liberacoes",
-  description = "Concessao e revogacao operacional de acesso real ao material com trilha de auditoria no backend.",
+  description = "Concessão e revogacao operacional de acesso real ao material com trilha de auditoria no backend.",
   actions,
 }: CourseReleasesManagerProps) {
   const releasesQuery = useAdminCourseReleases(courseId)
@@ -64,7 +64,7 @@ export function CourseReleasesManager({
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel conceder a liberacao.",
+        message: error instanceof Error ? error.message : "Não foi possível conceder a liberação.",
       })
     }
   }
@@ -76,11 +76,11 @@ export function CourseReleasesManager({
         grantId,
         reason: revokeReason[grantId]?.trim() || null,
       })
-      setFeedback({ tone: "success", message: "Liberacao revogada com sucesso." })
+      setFeedback({ tone: "success", message: "Liberação revogada com sucesso." })
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Nao foi possivel revogar a liberacao.",
+        message: error instanceof Error ? error.message : "Não foi possível revogar a liberação.",
       })
     }
   }
@@ -93,7 +93,7 @@ export function CourseReleasesManager({
     const error = releasesQuery.error ?? usersQuery.error
     return (
       <ErrorState
-        title="Nao foi possivel carregar as liberacoes"
+        title="Não foi possível carregar as liberacoes"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void releasesQuery.refetch()
@@ -136,7 +136,7 @@ export function CourseReleasesManager({
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Notas da liberacao"
+            placeholder="Notas da liberação"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <Button type="submit" className="rounded-full" disabled={createRelease.isPending}>
@@ -150,7 +150,7 @@ export function CourseReleasesManager({
         {releases.length === 0 ? (
           <EmptyState
             title="Sem liberacoes neste material"
-            message="Quando o material for concedido por compra, fluxo gratuito ou acao manual, os registros aparecem aqui."
+            message="Quando o material for concedido por compra, fluxo gratuito ou ação manual, os registros aparecem aqui."
           />
         ) : (
           <div className="space-y-4">
@@ -221,7 +221,7 @@ export function CourseReleasesManager({
                       disabled={revokeRelease.isPending || release.status !== "active"}
                       onClick={() => void handleRevoke(release.id)}
                     >
-                      {release.status === "active" ? "Revogar acesso" : "Liberacao encerrada"}
+                      {release.status === "active" ? "Revogar acesso" : "Liberação encerrada"}
                     </Button>
                   </div>
                 </div>
