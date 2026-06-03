@@ -735,7 +735,8 @@ Blocos suportados:
 
 - bloco de texto;
 - bloco de tabela;
-- bloco de hotspots de imagem.
+- bloco de imagem simples;
+- bloco de vídeo.
 
 Bloco de texto:
 
@@ -747,6 +748,16 @@ Bloco de tabela:
 
 - usado para comparativos, cronogramas e estruturas tabulares;
 - preserva ordem dentro do conteudo.
+
+Bloco de imagem simples:
+
+- imagem enviada por upload;
+- texto alternativo;
+- legenda opcional;
+- link opcional;
+- controlo de tamanho;
+- pré-visualização imediata no editor;
+- para assets em storage privado, o editor e o player resolvem URL assinada temporária quando necessário.
 
 Bloco de hotspots de imagem:
 

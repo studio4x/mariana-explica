@@ -18,6 +18,11 @@ interface StorageBucketLike {
     fileBody: Blob | ArrayBuffer | File | FormData | string,
     fileOptions?: { cacheControl?: string; contentType?: string; upsert?: boolean },
   ) => Promise<{ data: { path: string; fullPath: string } | null; error: Error | null }>
+  createSignedUrl: (
+    path: string,
+    expiresIn: number,
+    options?: { download?: string | boolean },
+  ) => Promise<{ data: { signedUrl: string } | null; error: Error | null }>
 }
 
 interface NoopQueryBuilder {
@@ -184,6 +189,10 @@ function createNoopSupabaseClient() {
     storage: {
       from: () => ({
         uploadToSignedUrl: async () => ({
+          data: null,
+          error: new Error("Supabase não configurado"),
+        }),
+        createSignedUrl: async () => ({
           data: null,
           error: new Error("Supabase não configurado"),
         }),

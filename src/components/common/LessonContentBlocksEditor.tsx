@@ -1,6 +1,7 @@
 import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent, type ComponentType } from "react"
 import { useUploadAdminModuleAssetFile } from "@/hooks/useAdmin"
+import { supabase } from "@/integrations/supabase"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock, LessonImageBlockContent, LessonVideoBlockContent } from "@/lib/lesson-content-blocks"
 import {
@@ -11,6 +12,8 @@ import {
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
 import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
+
+const LESSON_IMAGE_STORAGE_BUCKET = "course-assets-private"
 
 interface LessonContentBlocksEditorProps {
   value: string
@@ -76,6 +79,9 @@ function emptyImageContent(): LessonImageBlockContent {
     storage_path: "",
     public_url: null,
     alt: "Imagem da aula",
+    caption: "",
+    link_url: null,
+    width_percent: 100,
   }
 }
 
@@ -92,6 +98,10 @@ function blockLabel(block: LessonContentBlock) {
   if (block.type === "image") return "Imagem"
   if (block.type === "video") return "Vídeo"
   return "Texto"
+}
+
+function isRenderableUrl(value: string) {
+  return /^(https?:|blob:|data:)/i.test(value.trim())
 }
 
 export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHandle, LessonContentBlocksEditorProps>(function LessonContentBlocksEditor({
@@ -300,16 +310,91 @@ function ImageBlockEditor({
   const uploadImage = useUploadAdminModuleAssetFile()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
+  const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null)
+  const [resolvingPreviewUrl, setResolvingPreviewUrl] = useState(false)
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonImageBlockContent(value)
-  const imageUrl = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const imageUrl = localPreviewUrl || resolvedPreviewUrl
   const pendingUpload = uploadImage.isPending || disabled
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+    }
+  }, [localPreviewUrl])
+
+  useEffect(() => {
+    const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
+    if (!directSource) {
+      setResolvedPreviewUrl(null)
+      setResolvingPreviewUrl(false)
+      return
+    }
+
+    if (isRenderableUrl(directSource)) {
+      setResolvedPreviewUrl(directSource)
+      setResolvingPreviewUrl(false)
+      return
+    }
+
+    let active = true
+    setResolvingPreviewUrl(true)
+    setResolvedPreviewUrl(null)
+
+    void supabase.storage
+      .from(LESSON_IMAGE_STORAGE_BUCKET)
+      .createSignedUrl(directSource, 300)
+      .then(({ data }) => {
+        if (!active) return
+        setResolvedPreviewUrl(data?.signedUrl ?? null)
+        setResolvingPreviewUrl(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setResolvedPreviewUrl(null)
+        setResolvingPreviewUrl(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [normalized.public_url, normalized.storage_path])
 
   const updateAlt = (alt: string) => {
     onChange(
       normalizeLessonImageBlockContent({
         ...normalized,
         alt,
+      }),
+    )
+  }
+
+  const updateCaption = (caption: string) => {
+    onChange(
+      normalizeLessonImageBlockContent({
+        ...normalized,
+        caption,
+      }),
+    )
+  }
+
+  const updateLink = (link_url: string) => {
+    onChange(
+      normalizeLessonImageBlockContent({
+        ...normalized,
+        link_url: link_url.trim() || null,
+      }),
+    )
+  }
+
+  const updateWidthPercent = (width_percent: number) => {
+    onChange(
+      normalizeLessonImageBlockContent({
+        ...normalized,
+        width_percent,
       }),
     )
   }
@@ -328,6 +413,12 @@ function ImageBlockEditor({
     }
 
     setSelectedFile(file)
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith("blob:")) {
+        URL.revokeObjectURL(previous)
+      }
+      return URL.createObjectURL(file)
+    })
     setStatus({
       tone: "info",
       message: `Ficheiro selecionado: ${file.name}. Agora clica em "Enviar imagem".`,
@@ -369,6 +460,9 @@ function ImageBlockEditor({
           storage_path: upload.path,
           public_url: upload.public_url ?? null,
           alt: normalized.alt || selectedFile.name.replace(/\.[^.]+$/, ""),
+          caption: normalized.caption,
+          link_url: normalized.link_url,
+          width_percent: normalized.width_percent,
         }),
       )
       setSelectedFile(null)
@@ -388,10 +482,35 @@ function ImageBlockEditor({
     <div className="space-y-4">
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
         {imageUrl ? (
-          <img src={imageUrl} alt={normalized.alt} className="block w-full object-cover" loading="lazy" />
+          <figure className="flex flex-col gap-3 p-4">
+            <div className="flex justify-center">
+              <div className="w-full max-w-full" style={{ width: `${normalized.width_percent}%` }}>
+                {normalized.link_url?.trim() ? (
+                  <a href={normalized.link_url.trim()} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={imageUrl}
+                      alt={normalized.alt}
+                      className="block w-full rounded-xl object-contain"
+                      loading="lazy"
+                    />
+                  </a>
+                ) : (
+                  <img
+                    src={imageUrl}
+                    alt={normalized.alt}
+                    className="block w-full rounded-xl object-contain"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+            </div>
+            {normalized.caption.trim() ? (
+              <figcaption className="text-sm leading-6 text-slate-600">{normalized.caption}</figcaption>
+            ) : null}
+          </figure>
         ) : (
           <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-500">
-            Nenhuma imagem enviada ainda.
+            {resolvingPreviewUrl ? "A carregar pré-visualização da imagem..." : "Nenhuma imagem enviada ainda."}
           </div>
         )}
       </div>
@@ -409,6 +528,19 @@ function ImageBlockEditor({
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
+          <label className="block w-full text-xs font-black uppercase tracking-[0.2em] text-slate-500 lg:hidden">Tamanho</label>
+          <select
+            disabled={disabled}
+            value={String(normalized.width_percent)}
+            onChange={(event) => updateWidthPercent(Number(event.target.value))}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white lg:w-40"
+          >
+            <option value="100">100% largura</option>
+            <option value="85">85% largura</option>
+            <option value="70">70% largura</option>
+            <option value="55">55% largura</option>
+            <option value="40">40% largura</option>
+          </select>
           <input
             ref={fileInputRef}
             type="file"
@@ -434,6 +566,30 @@ function ImageBlockEditor({
           >
             Enviar imagem
           </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="space-y-2">
+          <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">Legenda</label>
+          <input
+            disabled={disabled}
+            value={normalized.caption}
+            onChange={(event) => updateCaption(event.target.value)}
+            placeholder="Legenda opcional da imagem"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">Link da imagem</label>
+          <input
+            disabled={disabled}
+            value={normalized.link_url ?? ""}
+            onChange={(event) => updateLink(event.target.value)}
+            placeholder="https://..."
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+          />
         </div>
       </div>
 

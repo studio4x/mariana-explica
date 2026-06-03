@@ -109,6 +109,7 @@ Este checklist foi criado para apoiar a validacao funcional da plataforma por se
 - [OK] Materiais no builder (`.../aulas/:lessonId/materiais`) funciona corretamente.
 - [OK] Avaliacoes (`.../avaliacoes/:assessmentId`) salva e publica regras.
 - [OK] Public page (`.../public-page`) reflete configuracoes no front publico.
+- [ ] Bloco de imagem da aula mostra pré-visualização correta e aceita tamanho, legenda e link.
 - [OK] Settings (`.../settings`) persiste configuracoes do curso.
 - [OK] Releases (`.../releases`) aplica regras de acesso esperadas.
 - [OK] Assessments final (`.../assessments` e `.../assessments/final`) funciona sem erro.

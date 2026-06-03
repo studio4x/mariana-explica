@@ -1,4 +1,5 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { supabase } from "@/integrations/supabase"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock } from "@/lib/lesson-content-blocks"
 import {
@@ -8,6 +9,12 @@ import {
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
 import { RichTextContent } from "./RichTextContent"
+
+const LESSON_IMAGE_STORAGE_BUCKET = "course-assets-private"
+
+function isRenderableUrl(value: string) {
+  return /^(https?:|blob:|data:)/i.test(value.trim())
+}
 
 interface LessonContentBlocksRendererProps {
   value: string | null | undefined
@@ -26,9 +33,49 @@ function BlockTable({ html }: { html: string }) {
 }
 
 function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "image" }> }) {
-  const imageUrl = block.content.public_url?.trim() || block.content.storage_path.trim()
+  const normalized = block.content
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null)
+  const [resolvingImageUrl, setResolvingImageUrl] = useState(false)
+  const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const imageUrl = isRenderableUrl(directSource) ? directSource : resolvedImageUrl
 
-  if (!imageUrl) {
+  useEffect(() => {
+    if (!directSource) {
+      setResolvedImageUrl(null)
+      setResolvingImageUrl(false)
+      return
+    }
+
+    if (isRenderableUrl(directSource)) {
+      setResolvedImageUrl(directSource)
+      setResolvingImageUrl(false)
+      return
+    }
+
+    let active = true
+    setResolvingImageUrl(true)
+    setResolvedImageUrl(null)
+
+    void supabase.storage
+      .from(LESSON_IMAGE_STORAGE_BUCKET)
+      .createSignedUrl(directSource, 300)
+      .then(({ data }) => {
+        if (!active) return
+        setResolvedImageUrl(data?.signedUrl ?? null)
+        setResolvingImageUrl(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setResolvedImageUrl(null)
+        setResolvingImageUrl(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [directSource])
+
+  if (!directSource) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
         Imagem sem ficheiro associado.
@@ -38,7 +85,38 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
 
   return (
     <figure className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
-      <img src={imageUrl} alt={block.content.alt || "Imagem da aula"} className="block w-full rounded-lg object-cover" loading="lazy" />
+      {imageUrl ? (
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <div className="w-full max-w-full" style={{ width: `${normalized.width_percent}%` }}>
+              {normalized.link_url?.trim() ? (
+                <a href={normalized.link_url.trim()} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={imageUrl}
+                    alt={normalized.alt || "Imagem da aula"}
+                    className="block w-full rounded-lg object-contain"
+                    loading="lazy"
+                  />
+                </a>
+              ) : (
+                <img
+                  src={imageUrl}
+                  alt={normalized.alt || "Imagem da aula"}
+                  className="block w-full rounded-lg object-contain"
+                  loading="lazy"
+                />
+              )}
+            </div>
+          </div>
+          {normalized.caption.trim() ? (
+            <figcaption className="px-1 text-sm leading-6 text-slate-600">{normalized.caption}</figcaption>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+          {resolvingImageUrl ? "A carregar pré-visualização da imagem..." : "Imagem sem pré-visualização disponível."}
+        </div>
+      )}
     </figure>
   )
 }

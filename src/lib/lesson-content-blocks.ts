@@ -4,6 +4,9 @@ export interface LessonImageBlockContent {
   storage_path: string
   public_url?: string | null
   alt: string
+  caption: string
+  link_url: string | null
+  width_percent: number
 }
 
 export interface LessonVideoBlockContent {
@@ -52,6 +55,15 @@ function asText(value: unknown, fallback = "") {
   return value.trim()
 }
 
+function asNumber(value: unknown, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback
+  return value
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
 function resolveLessonImageSrc(content: LessonImageBlockContent) {
   return content.public_url?.trim() || content.storage_path.trim()
 }
@@ -68,6 +80,9 @@ export function normalizeLessonImageBlockContent(input: unknown): LessonImageBlo
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     alt: asText(assetRaw.alt) || asText(raw.alt) || "Imagem da aula",
+    caption: asText(assetRaw.caption) || asText(raw.caption) || "",
+    link_url: asText(assetRaw.link_url) || asText(raw.link_url) || null,
+    width_percent: clamp(asNumber(assetRaw.width_percent ?? raw.width_percent, 100), 25, 100),
   }
 }
 
@@ -85,12 +100,19 @@ export function normalizeLessonVideoBlockContent(input: unknown): LessonVideoBlo
 function serializeImageFallback(content: LessonImageBlockContent) {
   const src = resolveLessonImageSrc(content)
   const alt = escapeHtml(content.alt || "Imagem da aula")
+  const caption = escapeHtml(content.caption || "")
+  const linkUrl = content.link_url?.trim() ?? ""
+  const widthPercent = clamp(content.width_percent || 100, 25, 100)
   const payload = encodeURIComponent(JSON.stringify(content))
+  const imageMarkup = src
+    ? `<img src="${escapeHtml(src)}" alt="${alt}" loading="lazy" />`
+    : ""
+  const wrappedImage = linkUrl
+    ? `<a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer">${imageMarkup}</a>`
+    : imageMarkup
 
   return src
-    ? `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}"><img src="${escapeHtml(
-        src,
-      )}" alt="${alt}" loading="lazy" /></figure>`
+    ? `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}" style="width:${widthPercent}%;max-width:100%;margin:0 auto;">${wrappedImage}${caption ? `<figcaption>${caption}</figcaption>` : ""}</figure>`
     : `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}"></figure>`
 }
 
