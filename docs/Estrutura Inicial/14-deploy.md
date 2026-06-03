@@ -142,6 +142,7 @@ Regras:
 - atualizar essa identificação sempre que houver um ajuste relevante no produto;
 - não misturar labels antigas com versões novas de frontend, backend ou builder;
 - usar a mesma etiqueta no rodapé do construtor e nos headers operacionais do backend quando aplicável.
+- sempre que um deploy for concluído, a mensagem final de entrega deve incluir a etiqueta completa da build no formato `VERSAO-DEPLOY-COMMIT`, para conferência do usuário.
 
 ---
 

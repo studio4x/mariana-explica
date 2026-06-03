@@ -341,6 +341,8 @@ Preferir hash curto do commit atual ou identificador consistente de build.
 
 Não deixar rodapé/admin exibindo versão antiga após deploy.
 
+Sempre que houver um novo deploy, a mensagem final enviada ao usuário deve incluir a etiqueta completa da build no formato `VERSAO-DEPLOY-COMMIT`, para conferência direta.
+
 ---
 
 ## Fechamento de entrega

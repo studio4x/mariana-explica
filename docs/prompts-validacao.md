@@ -15,4 +15,4 @@ Regras:
 - Não altere arquitetura sem necessidade
 - Consulte apenas os docs necessários
 - Ao final, faça commit, push e deploy automaticamente conforme AGENTS.md, sem pedir confirmação adicional
-- Informe no final o Build v atual
+- Informe no final a build completa no formato `VERSAO-DEPLOY-COMMIT`
