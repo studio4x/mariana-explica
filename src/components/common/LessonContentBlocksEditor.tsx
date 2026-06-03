@@ -936,7 +936,6 @@ function VideoBlockEditor({
     void uploadSelectedVideo(file)
       .then(() => {
         setSelectedFile(null)
-        setLocalPreviewUrl(null)
       })
       .catch((uploadError) => {
         setStatus({
