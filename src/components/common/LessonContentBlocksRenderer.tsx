@@ -271,7 +271,7 @@ function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "vid
           {resolvingAssetUrl || resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Vídeo sem pré-visualização disponível."}
         </div>
       )}
-      <figcaption className="mt-3 px-1 text-sm font-medium text-slate-100">
+      <figcaption className="mt-3 px-1 text-sm font-semibold text-slate-800">
         {normalized.title || "Vídeo da aula"}
       </figcaption>
     </figure>
