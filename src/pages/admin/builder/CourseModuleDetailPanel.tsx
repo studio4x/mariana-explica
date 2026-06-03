@@ -6,6 +6,7 @@ import { LessonContentBlocksEditor, OperationFeedbackModal, StatusBadge } from "
 import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import { buildAssessmentPayload, createEmptyQuestionDraft } from "@/lib/assessment-builder"
 import {
+  useAdminModuleAssetUploadLimit,
   useAdminProductLessons,
   useAdminModuleAssets,
   useCreateAdminProductLesson,
@@ -67,6 +68,7 @@ export function CourseModuleDetailPanel() {
   )
   const lessonsQuery = useAdminProductLessons(moduleId)
   const assetsQuery = useAdminModuleAssets(moduleId)
+  const moduleAssetUploadLimitQuery = useAdminModuleAssetUploadLimit(moduleId)
   const createAssessment = useCreateAdminProductAssessment()
   const createLesson = useCreateAdminProductLesson()
   const deleteAssessment = useDeleteAdminProductAssessment()
@@ -114,6 +116,7 @@ export function CourseModuleDetailPanel() {
 
   const lessons = lessonsQuery.data ?? []
   const assets = assetsQuery.data ?? []
+  const maxVideoUploadBytes = moduleAssetUploadLimitQuery.data?.max_file_size_bytes ?? null
   const moduleAssessments = assessments.filter((assessment) => assessment.module_id === module.id)
   const values = {
     title: form.title ?? module.title,
@@ -422,6 +425,7 @@ export function CourseModuleDetailPanel() {
               }}
               moduleId={moduleId}
               productId={courseId}
+              maxVideoUploadBytes={maxVideoUploadBytes}
               value={String(values.description)}
               onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
               placeholder="Descreve a finalidade do módulo."

@@ -27,6 +27,7 @@ interface LessonContentBlocksEditorProps {
   onChange: (value: string) => void
   moduleId: string
   productId?: string | null
+  maxVideoUploadBytes?: number | null
   className?: string
   placeholder?: string
   disabled?: boolean
@@ -111,6 +112,19 @@ function blockLabel(block: LessonContentBlock) {
   return "Texto"
 }
 
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return ""
+  const mb = bytes / (1024 * 1024)
+  return `${mb.toFixed(mb >= 10 ? 0 : 1).replace(/\.0$/, "")} MB`
+}
+
+function buildVideoTooLargeMessage(limitBytes?: number | null) {
+  if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
+    return `O vídeo excede o limite permitido (${formatBytes(limitBytes)}). Envia um ficheiro menor ou ajusta o limite global de upload em Storage > Settings no Supabase.`
+  }
+  return "O vídeo excede o limite de tamanho permitido neste projeto. Envia um ficheiro menor ou ajusta o limite global de upload em Storage > Settings no Supabase."
+}
+
 async function resolveLessonStorageUrl(bucket: string | null | undefined, path: string) {
   const trimmedBucket = bucket?.trim() || LESSON_PRIVATE_MEDIA_BUCKET
   const trimmedPath = path.trim()
@@ -132,6 +146,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
   onChange,
   moduleId,
   productId,
+  maxVideoUploadBytes,
   className,
   placeholder = "Escreva aqui...",
   disabled = false,
@@ -278,6 +293,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
             {block.type === "video" ? (
               <VideoBlockEditor
                 moduleId={moduleId}
+                maxVideoUploadBytes={maxVideoUploadBytes}
                 value={block.content}
                 onChange={(content) =>
                   updateBlock(index, (current) => (current.type === "video" ? { ...current, content } : current))
@@ -715,11 +731,13 @@ function ImageBlockEditor({
 
 function VideoBlockEditor({
   moduleId,
+  maxVideoUploadBytes,
   value,
   onChange,
   disabled,
 }: {
   moduleId: string
+  maxVideoUploadBytes?: number | null
   value: LessonVideoBlockContent
   onChange: (value: LessonVideoBlockContent) => void
   disabled: boolean
@@ -807,6 +825,15 @@ function VideoBlockEditor({
       throw new Error("Não foi possível identificar o módulo para este upload.")
     }
 
+    if (
+      maxVideoUploadBytes &&
+      Number.isFinite(maxVideoUploadBytes) &&
+      maxVideoUploadBytes > 0 &&
+      file.size > maxVideoUploadBytes
+    ) {
+      throw new Error(buildVideoTooLargeMessage(maxVideoUploadBytes))
+    }
+
     setStatus({
       tone: "info",
       message: `A enviar e guardar "${file.name}" automaticamente...`,
@@ -866,7 +893,12 @@ function VideoBlockEditor({
       .catch((uploadError) => {
         setStatus({
           tone: "error",
-          message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o vídeo.",
+          message:
+            uploadError instanceof Error && /compute resources|payload too large|entity too large|file too large|too large/i.test(uploadError.message)
+              ? buildVideoTooLargeMessage(maxVideoUploadBytes)
+              : uploadError instanceof Error
+                ? uploadError.message
+                : "Não foi possível enviar o vídeo.",
         })
       })
   }

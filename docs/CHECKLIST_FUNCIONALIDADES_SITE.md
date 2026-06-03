@@ -141,7 +141,7 @@ Base de referencia:
 - [OK] ADM-038 Builder materiais de aula (`.../materiais`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), criou material de aula `271b1143-0165-4d58-9199-2756beb376d2`.
 - [OK] ADM-039 Builder avaliacao de modulo (`.../avaliacoes/:assessmentId`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), rota profunda abriu em `/builder/modulos/00bb0346-ebe0-4177-a982-fd5a2cdb4dac/avaliacoes/d97a3688-28b9-4a3d-984a-2834119b7d58`.
 - [ ] ADM-040 Bloco de imagem da aula permite upload com pré-visualização correta, ajuste de tamanho, legenda e link. | Nota: o bloco 01 da aula permanece texto puro; a inserção de blocos só aparece após o bloco 02.
-- [ ] ADM-041 Bloco de vídeo da aula permite upload automático ao selecionar o ficheiro, exclusão do vídeo e pré-visualização correta na aula e no construtor.
+- [ ] ADM-041 Bloco de vídeo da aula permite upload automático ao selecionar o ficheiro, mostra aviso com o tamanho máximo permitido quando excede o limite, exclusão do vídeo e pré-visualização correta na aula e no construtor.
 
 ### 4.4 Financeiro, pedidos e pagamentos
 - [ ] ADM-050 Pagamentos (`/admin/pagamentos`) lista pedidos e filtros.

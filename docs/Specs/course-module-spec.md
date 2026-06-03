@@ -717,6 +717,7 @@ Video:
 - aceita link do YouTube;
 - aceita URL direta de ficheiro de video;
 - aceita upload de ficheiro com envio automatico ao selecionar o arquivo;
+- quando o ficheiro excede o limite permitido, mostra mensagem com o tamanho maximo aceito;
 - permite excluir o video enviado e limpar o bloco;
 - preserva a resolucao por URL assinada para assets privados quando necessario;
 - aceita ficheiro privado enviado para a plataforma, persistido como `asset:<uuid>`;
