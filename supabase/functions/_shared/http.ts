@@ -1,4 +1,5 @@
 import { badRequest, HttpError } from "./errors.ts"
+import { BUILD_HEADERS } from "./build.ts"
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,7 @@ export function jsonResponse(body: unknown, status = 200) {
     status,
     headers: {
       ...corsHeaders,
+      ...BUILD_HEADERS,
       "Content-Type": "application/json; charset=utf-8",
     },
   })

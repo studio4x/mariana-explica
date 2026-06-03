@@ -274,7 +274,7 @@ Base de referencia:
 ## 9) Build, Deploy e Observabilidade
 
 - [ ] OPS-001 Build local passa sem erro bloqueante.
-- [ ] OPS-002 Versao exibida no footer/admin corresponde ao build atual.
+- [ ] OPS-002 Versao exibida no footer/admin/construtor corresponde ao build atual no formato `VERSAO-DEPLOY-COMMIT`.
 - [ ] OPS-003 Logs de erros criticos sao rastreaveis (frontend + functions).
 - [ ] OPS-004 Dominio/ambiente ativo aponta para deploy esperado.
 - [ ] OPS-005 SHA/deploy de producao corresponde ao HEAD publicado.

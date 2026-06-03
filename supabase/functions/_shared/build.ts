@@ -1,0 +1,22 @@
+import {
+  BUILD_COMMIT,
+  BUILD_DEPLOY_NUMBER,
+  BUILD_LABEL,
+  BUILD_VERSION,
+  BUILD_VERSION_NUMBER,
+} from "../../../build-info.ts"
+
+export const BUILD_HEADERS = {
+  "X-App-Build": BUILD_LABEL,
+  "X-App-Version": BUILD_VERSION_NUMBER,
+  "X-App-Deploy": BUILD_DEPLOY_NUMBER,
+  "X-App-Commit": BUILD_COMMIT,
+} as const
+
+export {
+  BUILD_COMMIT,
+  BUILD_DEPLOY_NUMBER,
+  BUILD_LABEL,
+  BUILD_VERSION,
+  BUILD_VERSION_NUMBER,
+}

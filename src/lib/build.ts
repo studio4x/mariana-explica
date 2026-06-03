@@ -1,1 +1,7 @@
-export const BUILD_VERSION = __BUILD_VERSION__
+export {
+  BUILD_COMMIT,
+  BUILD_DEPLOY_NUMBER,
+  BUILD_LABEL,
+  BUILD_VERSION,
+  BUILD_VERSION_NUMBER,
+} from "../../build-info.ts"

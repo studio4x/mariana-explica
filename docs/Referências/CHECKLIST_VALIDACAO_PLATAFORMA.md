@@ -159,7 +159,7 @@ Este checklist foi criado para apoiar a validacao funcional da plataforma por se
 - [ ] Tratamento de erro retorna mensagem clara para o usuario.
 
 ### Modulo Deploy e Observabilidade
-- [ ] Build version no rodape corresponde ao ultimo deploy.
+- [ ] Build label no rodape corresponde ao ultimo deploy e segue o formato `VERSAO-DEPLOY-COMMIT`.
 - [ ] Dominio `genflix-omega.vercel.app` aponta para deploy READY esperado.
 - [ ] Logs de console em fluxos criticos sem erros bloqueantes recorrentes.
 

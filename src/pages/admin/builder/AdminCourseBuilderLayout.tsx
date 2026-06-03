@@ -1037,8 +1037,19 @@ export function AdminCourseBuilderLayout() {
         </aside>
 
         <main className="relative flex-1 h-full w-full overflow-y-auto border-t border-slate-100 bg-slate-50/50 shadow-inner">
-          <div className="absolute inset-0 p-4 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
-            <Outlet context={context} />
+          <div className="flex min-h-full flex-col p-4 pb-24 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+            <div className="flex-1">
+              <Outlet context={context} />
+            </div>
+
+            <div className="pointer-events-none sticky bottom-4 z-20 mt-6 flex justify-end">
+              <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 shadow-sm backdrop-blur">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-slate-700">
+                  Build
+                </span>
+                <span>{BUILD_VERSION}</span>
+              </div>
+            </div>
           </div>
         </main>
       </div>
@@ -1183,9 +1194,6 @@ export function AdminCourseBuilderLayout() {
         onClose={() => setImportSuccessMessage(null)}
       />
 
-      <div className="pointer-events-none fixed bottom-3 left-4 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 shadow-sm backdrop-blur md:bottom-4 md:left-6">
-        Build {BUILD_VERSION}
-      </div>
     </div>
   )
 }

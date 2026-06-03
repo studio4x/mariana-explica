@@ -116,6 +116,33 @@ Exemplos:
 - domínio principal configurado na Vercel
 - HTTPS obrigatório
 
+## 6.5 Identificação da build
+
+A plataforma deve manter uma identificação de build única em todos os pontos operacionais:
+
+- frontend público
+- painel admin
+- construtor do curso
+- Edge Functions / backend
+
+Formato padrão:
+
+`VERSAO-DEPLOY-COMMIT`
+
+Exemplo:
+
+`1.0.0-3-dc7d14f`
+
+Fonte canónica:
+
+- `build-info.ts`
+
+Regras:
+
+- atualizar essa identificação sempre que houver um ajuste relevante no produto;
+- não misturar labels antigas com versões novas de frontend, backend ou builder;
+- usar a mesma etiqueta no rodapé do construtor e nos headers operacionais do backend quando aplicável.
+
 ---
 
 ## 7. Deploy do backend (Supabase)

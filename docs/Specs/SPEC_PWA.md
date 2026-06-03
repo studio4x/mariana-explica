@@ -568,11 +568,25 @@ npm run preview
 
 ### Build Version
 
-O footer do app exibe: `Build vX.Y.Z`
+O footer do app exibe a etiqueta completa da build no formato:
 
-**Fonte**: `src/components/layout/AppVersion.tsx`
+`VERSAO-DEPLOY-COMMIT`
 
-**Atualização**: Script automático em `scripts/bump-build-version.mjs` incrementa a versão a cada build.
+Exemplo:
+
+`1.0.0-3-dc7d14f`
+
+**Fonte canônica**: `build-info.ts`
+
+**Uso**:
+- frontend
+- backend Edge Functions
+- construtor administrativo
+
+**Regra de atualização**:
+- sempre que houver um ajuste funcional, visual, técnico ou de conteúdo relevante, atualizar `build-info.ts` antes de fechar o ciclo de entrega;
+- o rodapé/admin/construtor devem continuar a mostrar a mesma etiqueta de build;
+- o backend deve expor a mesma informação em headers operacionais quando aplicável.
 
 ### Deployment
 
