@@ -242,6 +242,7 @@ Regras:
 - `video`: aula centrada em media embed, com suporte a YouTube, URL direta de video ou ficheiro privado da plataforma.
 - `text`: aula centrada em blocos de conteudo.
 - `hybrid`: combina video e blocos.
+- O bloco 01 de identificacao/descricao editorial da aula usa texto puro; insercao de novos blocos so fica disponivel a partir da area de conteudo avancado depois da definicao do formato pedagogico.
 - Aula obrigatoria entra na progressao.
 - Aula pode ser liberada/expirada por data.
 - Aula fora da janela fica bloqueada mesmo quando modulo esta liberado.

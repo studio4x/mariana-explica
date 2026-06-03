@@ -584,6 +584,7 @@ export function CourseLessonDetailPanel() {
                 value={String(values.description)}
                 onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
                 placeholder="Resumo rápido da aula."
+                allowBlockInsertion={false}
               />
             </LessonField>
           </section>

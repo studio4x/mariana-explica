@@ -30,6 +30,7 @@ interface LessonContentBlocksEditorProps {
   className?: string
   placeholder?: string
   disabled?: boolean
+  allowBlockInsertion?: boolean
 }
 
 export interface LessonContentBlocksEditorHandle {
@@ -134,6 +135,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
   className,
   placeholder = "Escreva aqui...",
   disabled = false,
+  allowBlockInsertion = true,
 }: LessonContentBlocksEditorProps, ref) {
   const [blocks, setBlocks] = useState<LessonContentBlock[]>(() => splitLessonContent(value))
   const blocksRef = useRef<LessonContentBlock[]>(splitLessonContent(value))
@@ -284,35 +286,37 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
               />
             ) : null}
 
-            <div className="mt-4 rounded-2xl border border-dashed border-sky-200 bg-sky-50/70 p-3">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Inserir bloco abaixo</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                {INSERT_ACTIONS.map((action) => {
-                  const Icon = action.Icon
-                  return (
-                    <button
-                      key={`${index}-${action.type}`}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => addBlockAfter(index, action.type)}
-                      className={cn(
-                        "group flex items-start gap-3 rounded-2xl border px-4 py-3 text-left shadow-sm transition",
-                        action.toneClassName,
-                        "disabled:opacity-50",
-                      )}
-                    >
-                      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", action.iconToneClassName)}>
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-bold">{action.label}</span>
-                        <span className="mt-1 block text-xs leading-5 opacity-80">{action.description}</span>
-                      </span>
-                    </button>
-                  )
-                })}
+            {allowBlockInsertion ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-sky-200 bg-sky-50/70 p-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Inserir bloco abaixo</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  {INSERT_ACTIONS.map((action) => {
+                    const Icon = action.Icon
+                    return (
+                      <button
+                        key={`${index}-${action.type}`}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => addBlockAfter(index, action.type)}
+                        className={cn(
+                          "group flex items-start gap-3 rounded-2xl border px-4 py-3 text-left shadow-sm transition",
+                          action.toneClassName,
+                          "disabled:opacity-50",
+                        )}
+                      >
+                        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", action.iconToneClassName)}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold">{action.label}</span>
+                          <span className="mt-1 block text-xs leading-5 opacity-80">{action.description}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            ) : null}
           </section>
         ))}
       </div>
