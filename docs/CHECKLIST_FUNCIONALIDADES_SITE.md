@@ -1,4 +1,4 @@
-# Checklist de Validacao de Funcionalidades - Mariana Explica
+﻿# Checklist de Validacao de Funcionalidades - Mariana Explica
 
 Base de referencia:
 - `docs/Estrutura Inicial/02-regras-negocio.md`
@@ -10,7 +10,7 @@ Base de referencia:
 - `docs/Estrutura Inicial/10-autenticacao-seguranca.md`
 - `docs/Estrutura Inicial/11-integracoes.md`
 - `docs/Estrutura Inicial/13-pwa.md`
-- `docs/Referências/CHECKLIST_VALIDACAO_PLATAFORMA.md`
+- `docs/ReferÃªncias/CHECKLIST_VALIDACAO_PLATAFORMA.md`
 - rotas e modulos atuais do codigo (`src/routes/index.tsx`, `src/pages/*`, `supabase/functions/*`)
 
 ## Como usar (IA ou manual)
@@ -66,7 +66,7 @@ Base de referencia:
 ## 2) Autenticacao e Sessao
 
 - [OK] AUTH-001 Login (`/login`) autentica usuario valido. | Evidencia: Playwright prod 2026-05-29, login de usuario ativo redirecionou para `https://www.mariana-explica.pt/aluno/dashboard`.
-- [OK] AUTH-002 Cadastro (`/register` e `/criar-conta`) cria usuario conforme fluxo. | Evidencia: Playwright prod 2026-05-29, fluxos `/register` e `/criar-conta` concluíram com estado `pending_verification` para emails unicos de teste.
+- [OK] AUTH-002 Cadastro (`/register` e `/criar-conta`) cria usuario conforme fluxo. | Evidencia: Playwright prod 2026-05-29, fluxos `/register` e `/criar-conta` concluÃ­ram com estado `pending_verification` para emails unicos de teste.
 - [OK] AUTH-003 Callback (`/auth/callback`) conclui sessao sem loop. | Evidencia: Playwright prod 2026-05-29, magic link finalizou em `/aluno/dashboard` com `callback_hits=2` (sem loop persistente).
 - [OK] AUTH-004 Recuperacao (`/recuperar-senha`) inicia fluxo corretamente. | Evidencia: Playwright prod 2026-05-29, rota abriu fluxo e exibiu mensagem de envio de email de recuperacao para usuario valido.
 - [OK] AUTH-005 Redefinicao (`/redefinir-senha`) atualiza senha com token valido. | Evidencia: Playwright prod 2026-05-29, recovery link valido permitiu redefinir senha e concluir em `/aluno/dashboard`.
@@ -80,13 +80,13 @@ Base de referencia:
 ## 3) Area do Aluno (`/aluno`)
 
 ### 3.1 Dashboard e conta
-- [OK] ALU-001 Dashboard (`/aluno/dashboard`) carrega dados do usuario. | Evidencia: Playwright prod 2026-05-29, login de aluno ativo carregou `/aluno/dashboard` com dados reais e material próprio (`QA ALU31 Material A 1780067157969`).
-- [OK] ALU-002 Cursos (`/aluno/cursos`) lista apenas acessos permitidos. | Evidencia: Playwright prod 2026-05-29, `/aluno/cursos` exibiu somente material com grant do próprio aluno (`QA ALU31 Material A 1780067157969`) e ocultou material de outro usuário (`QA ALU31 Material B 1780067157969`).
-- [OK] ALU-003 Detalhe de curso (`/aluno/cursos/:courseId`) respeita grant/acesso. | Evidencia: Playwright prod 2026-05-29, detalhe de curso com grant abriu normalmente e curso sem grant em `/aluno/cursos/02288fe7-25b8-4624-8bc9-71a07ceba8d3` retornou estado de bloqueio/indisponibilidade sem vazamento de conteúdo.
-- [OK] ALU-004 Perfil (`/aluno/perfil`) atualiza dados permitidos. | Evidencia: Playwright prod 2026-05-29, alteração via UI persistiu `full_name`, `phone` e `nif`; validação backend confirmou preservação de `role=student` e `is_admin=false`.
-- [OK] ALU-005 Pagamentos (`/aluno/pagamentos`) exibe historico do proprio usuario. | Evidencia: Playwright prod 2026-05-29, página mostrou somente pedido pago do próprio aluno (`QA ALU31 Material A 1780067157969`) e não exibiu pedido de outro usuário.
-- [OK] ALU-006 Downloads (`/aluno/downloads`) mostra apenas arquivos liberados. | Evidencia: Playwright prod 2026-05-29, página exibiu apenas asset com `allow_download=true` do aluno, ocultou asset bloqueado (`allow_download=false`) e asset de outro usuário.
-- [OK] ALU-007 Notificacoes (`/aluno/notificacoes`) lista e marca leitura corretamente. | Evidencia: Playwright prod 2026-05-29, listagem mostrou somente notificação própria e ação `Marcar como lida` atualizou status para `read` no banco sem afetar notificação de outro usuário.
+- [OK] ALU-001 Dashboard (`/aluno/dashboard`) carrega dados do usuario. | Evidencia: Playwright prod 2026-05-29, login de aluno ativo carregou `/aluno/dashboard` com dados reais e material prÃ³prio (`QA ALU31 Material A 1780067157969`).
+- [OK] ALU-002 Cursos (`/aluno/cursos`) lista apenas acessos permitidos. | Evidencia: Playwright prod 2026-05-29, `/aluno/cursos` exibiu somente material com grant do prÃ³prio aluno (`QA ALU31 Material A 1780067157969`) e ocultou material de outro usuÃ¡rio (`QA ALU31 Material B 1780067157969`).
+- [OK] ALU-003 Detalhe de curso (`/aluno/cursos/:courseId`) respeita grant/acesso. | Evidencia: Playwright prod 2026-05-29, detalhe de curso com grant abriu normalmente e curso sem grant em `/aluno/cursos/02288fe7-25b8-4624-8bc9-71a07ceba8d3` retornou estado de bloqueio/indisponibilidade sem vazamento de conteÃºdo.
+- [OK] ALU-004 Perfil (`/aluno/perfil`) atualiza dados permitidos. | Evidencia: Playwright prod 2026-05-29, alteraÃ§Ã£o via UI persistiu `full_name`, `phone` e `nif`; validaÃ§Ã£o backend confirmou preservaÃ§Ã£o de `role=student` e `is_admin=false`.
+- [OK] ALU-005 Pagamentos (`/aluno/pagamentos`) exibe historico do proprio usuario. | Evidencia: Playwright prod 2026-05-29, pÃ¡gina mostrou somente pedido pago do prÃ³prio aluno (`QA ALU31 Material A 1780067157969`) e nÃ£o exibiu pedido de outro usuÃ¡rio.
+- [OK] ALU-006 Downloads (`/aluno/downloads`) mostra apenas arquivos liberados. | Evidencia: Playwright prod 2026-05-29, pÃ¡gina exibiu apenas asset com `allow_download=true` do aluno, ocultou asset bloqueado (`allow_download=false`) e asset de outro usuÃ¡rio.
+- [OK] ALU-007 Notificacoes (`/aluno/notificacoes`) lista e marca leitura corretamente. | Evidencia: Playwright prod 2026-05-29, listagem mostrou somente notificaÃ§Ã£o prÃ³pria e aÃ§Ã£o `Marcar como lida` atualizou status para `read` no banco sem afetar notificaÃ§Ã£o de outro usuÃ¡rio.
 
 ### 4.5.2 Testes sugeridos - BLK-PRECOS
 - [OK] ALU-010 Chamados (`/aluno/chamados`) lista tickets do proprio usuario. | Evidencia: Playwright prod 2026-05-29 (`scripts/student-support-prod-check.mjs`), listagem exibiu apenas ticket proprio (`QA ALU-010 proprio 1780073051447`) e ocultou ticket de outro usuario.
@@ -140,8 +140,8 @@ Base de referencia:
 - [OK] ADM-037 Builder aula (`modulos/:moduleId/aulas/:lessonId`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), salvou alteracoes na aula `042a5135-5246-4c8a-a14d-8a936beac671`.
 - [OK] ADM-038 Builder materiais de aula (`.../materiais`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), criou material de aula `271b1143-0165-4d58-9199-2756beb376d2`.
 - [OK] ADM-039 Builder avaliacao de modulo (`.../avaliacoes/:assessmentId`) funciona. | Evidencia: Playwright prod 2026-05-29 (`scripts/admin-courses-builder-prod-check.mjs`), rota profunda abriu em `/builder/modulos/00bb0346-ebe0-4177-a982-fd5a2cdb4dac/avaliacoes/d97a3688-28b9-4a3d-984a-2834119b7d58`.
-- [ ] ADM-040 Bloco de imagem da aula permite upload com pré-visualização correta, ajuste de tamanho, legenda com alinhamento horizontal e link. | Nota: o bloco 01 da aula permanece texto puro; a inserção de blocos só aparece após o bloco 02.
-- [ ] ADM-041 Bloco de vídeo da aula permite upload automático ao selecionar o ficheiro, exibe o tamanho máximo permitido no card, mostra aviso quando excede o limite, exclusão do vídeo e pré-visualização correta na aula e no construtor.
+- [ ] ADM-040 Bloco de imagem da aula permite upload com pre-visualizacao correta, ajuste de tamanho, legenda com alinhamento horizontal e link. | Nota: o bloco 01 da aula permanece texto puro; a insercao de blocos so aparece apos o bloco 02.
+- [ ] ADM-041 Bloco de video da aula permite upload automatico ao selecionar o ficheiro, exibe o tamanho maximo permitido no card, mostra aviso quando excede o limite, exclusao do video, seletor de tamanho com padrao medio e pre-visualizacao correta na aula e no construtor. | Nota: o video do bloco nao deve substituir o video principal da aula.
 
 ### 4.4 Financeiro, pedidos e pagamentos
 - [ ] ADM-050 Pagamentos (`/admin/pagamentos`) lista pedidos e filtros.
@@ -276,7 +276,7 @@ Base de referencia:
 ## 9) Build, Deploy e Observabilidade
 
 - [ ] OPS-001 Build local passa sem erro bloqueante.
-- [ ] OPS-002 Versao exibida no footer/admin/construtor corresponde ao build atual no formato `VERSAO-DEPLOY-COMMIT`, e a mensagem final do deploy traz a build completa para conferência.
+- [ ] OPS-002 Versao exibida no footer/admin/construtor corresponde ao build atual no formato `VERSAO-DEPLOY-COMMIT`, e a mensagem final do deploy traz a build completa para conferÃªncia.
 - [ ] OPS-003 Logs de erros criticos sao rastreaveis (frontend + functions).
 - [ ] OPS-004 Dominio/ambiente ativo aponta para deploy esperado.
 - [ ] OPS-005 SHA/deploy de producao corresponde ao HEAD publicado.

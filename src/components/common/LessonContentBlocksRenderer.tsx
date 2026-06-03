@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { supabase } from "@/integrations/supabase"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock } from "@/lib/lesson-content-blocks"
@@ -46,7 +46,7 @@ function BlockTable({ html }: { html: string }) {
   if (!safeHtml.trim()) return null
 
   return (
-    <div className="lesson-content-blocks-table overflow-x-auto rounded-xl border border-slate-200 bg-white p-3">
+    <div className="lesson-content-blocks-table overflow-x-auto py-2">
       <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
     </div>
   )
@@ -108,7 +108,7 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
   }
 
   return (
-    <figure className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+    <figure className="space-y-3">
       {imageUrl ? (
         <div className="space-y-3">
           <div className="flex justify-center">
@@ -236,10 +236,10 @@ function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "vid
   }
 
   return (
-    <figure className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 p-3">
+    <figure className="space-y-3">
       {videoSource ? (
         embedUrl ? (
-          <div className="aspect-video overflow-hidden rounded-lg bg-black">
+          <div className="aspect-video overflow-hidden rounded-lg bg-black" style={{ width: `${normalized.width_percent}%`, margin: "0 auto" }}>
             <iframe
               src={embedUrl}
               title={normalized.title || "Vídeo da aula"}
@@ -254,18 +254,20 @@ function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "vid
             src={externalVideoUrl}
             controls
             preload="metadata"
-            className="block aspect-video w-full rounded-lg bg-black object-contain"
+            className="block aspect-video rounded-lg bg-black object-contain"
+            style={{ width: `${normalized.width_percent}%`, margin: "0 auto" }}
           />
         ) : (
           <video
             src={videoSource}
             controls
             preload="metadata"
-            className="block aspect-video w-full rounded-lg bg-black object-contain"
+            className="block aspect-video rounded-lg bg-black object-contain"
+            style={{ width: `${normalized.width_percent}%`, margin: "0 auto" }}
           />
         )
       ) : (
-        <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-900 px-4 py-6 text-center text-sm text-slate-300">
+        <div className="flex min-h-40 items-center justify-center px-4 py-6 text-center text-sm text-slate-300">
           {resolvingAssetUrl || resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Vídeo sem pré-visualização disponível."}
         </div>
       )}

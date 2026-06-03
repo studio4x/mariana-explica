@@ -1,4 +1,4 @@
-# SPEC: Modulo de Cursos, Builder LMS, Player do Aluno e Venda
+﻿# SPEC: Modulo de Cursos, Builder LMS, Player do Aluno e Venda
 
 ## 1. Objetivo do Documento
 
@@ -723,6 +723,8 @@ Video:
 - permite excluir o video enviado e limpar o bloco;
 - preserva a resolucao por URL assinada para assets privados quando necessario;
 - aceita ficheiro privado enviado para a plataforma, persistido como `asset:<uuid>`;
+- possui seletor de tamanho com pre-definicao em medio;
+- aplica o tamanho selecionado no editor, no preview e na visao publica;
 - pode ou nao ter descricao;
 - foco principal e media embed.
 
@@ -743,7 +745,12 @@ Blocos suportados:
 - bloco de texto;
 - bloco de tabela;
 - bloco de imagem simples;
-- bloco de vídeo.
+- bloco de video.
+
+Regras gerais dos blocos:
+
+- os blocos sao renderizados sem cartao de fundo ou borda pesada, para manter o conteudo mais limpo;
+- o bloco de video da aula e independente do video principal da aula e nao deve promover automaticamente um asset de bloco para o topo do player.
 
 Bloco de texto:
 
@@ -763,8 +770,8 @@ Bloco de imagem simples:
 - legenda opcional, com alinhamento horizontal configuravel;
 - link opcional;
 - controlo de tamanho;
-- pré-visualização imediata no editor;
-- para assets em storage privado, o editor e o player resolvem URL assinada temporária quando necessário.
+- prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o imediata no editor;
+- para assets em storage privado, o editor e o player resolvem URL assinada temporÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ria quando necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.
 
 Bloco de hotspots de imagem:
 

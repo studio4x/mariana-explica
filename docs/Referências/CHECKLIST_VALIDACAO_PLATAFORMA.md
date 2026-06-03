@@ -1,4 +1,4 @@
-# Checklist de Validacao da Plataforma (T106)
+﻿# Checklist de Validacao da Plataforma (T106)
 
 Este checklist foi criado para apoiar a validacao funcional da plataforma por setor, modulo e funcionalidade.
 
@@ -109,8 +109,9 @@ Este checklist foi criado para apoiar a validacao funcional da plataforma por se
 - [OK] Materiais no builder (`.../aulas/:lessonId/materiais`) funciona corretamente.
 - [OK] Avaliacoes (`.../avaliacoes/:assessmentId`) salva e publica regras.
 - [OK] Public page (`.../public-page`) reflete configuracoes no front publico.
-- [ ] Bloco de imagem da aula mostra pré-visualização correta e aceita tamanho, legenda com alinhamento horizontal e link.
-- [ ] Bloco de vídeo da aula faz upload automático ao selecionar o ficheiro, exibe o tamanho máximo permitido no card, mostra aviso quando excede o limite, permite exclusão e mostra pré-visualização correta.
+- [ ] Bloco de imagem da aula mostra pre-visualizacao correta e aceita tamanho, legenda com alinhamento horizontal e link.
+- [ ] Bloco de video da aula faz upload automatico ao selecionar o ficheiro, exibe o tamanho maximo permitido no card, mostra aviso quando excede o limite, permite exclusao, usa tamanho padrao medio e mostra pre-visualizacao correta.
+- [ ] O video inserido no bloco nao substitui o video principal da aula.
 - [OK] Settings (`.../settings`) persiste configuracoes do curso.
 - [OK] Releases (`.../releases`) aplica regras de acesso esperadas.
 - [OK] Assessments final (`.../assessments` e `.../assessments/final`) funciona sem erro.
@@ -161,7 +162,7 @@ Este checklist foi criado para apoiar a validacao funcional da plataforma por se
 - [ ] Tratamento de erro retorna mensagem clara para o usuario.
 
 ### Modulo Deploy e Observabilidade
-- [ ] Build label no rodape corresponde ao ultimo deploy e segue o formato `VERSAO-DEPLOY-COMMIT`, e a comunicacao pós-deploy inclui a build completa para conferência.
+- [ ] Build label no rodape corresponde ao ultimo deploy e segue o formato `VERSAO-DEPLOY-COMMIT`, e a comunicacao pÃ³s-deploy inclui a build completa para conferÃªncia.
 - [ ] Dominio `genflix-omega.vercel.app` aponta para deploy READY esperado.
 - [ ] Logs de console em fluxos criticos sem erros bloqueantes recorrentes.
 

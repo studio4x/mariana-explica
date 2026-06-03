@@ -106,6 +106,7 @@ function emptyVideoContent(): LessonVideoBlockContent {
     storage_path: "",
     public_url: null,
     title: "Vídeo da aula",
+    width_percent: 70,
   }
 }
 
@@ -239,8 +240,8 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
     <div className={cn("space-y-3", className)}>
       <div className="space-y-4">
         {blocks.map((block, index) => (
-          <section key={`${block.type}-${index}`} className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <section key={`${block.type}-${index}`} className="space-y-4 py-2">
+            <div className="mb-1 flex items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-blue-100 px-1.5 text-[10px] text-blue-700">
                   {index + 1}
@@ -815,6 +816,14 @@ function VideoBlockEditor({
   const pendingUpload =
     uploadVideo.isPending || createModuleAsset.isPending || deleteModuleAsset.isPending || deleteLessonStorageObject.isPending || disabled
   const uploadLimitInstruction = getVideoUploadLimitInstruction(maxVideoUploadBytes)
+  const updateWidthPercent = (width_percent: number) => {
+    onChange(
+      normalizeLessonVideoBlockContent({
+        ...normalized,
+        width_percent,
+      }),
+    )
+  }
 
   useEffect(() => {
     return () => {
@@ -966,6 +975,7 @@ function VideoBlockEditor({
           storage_path: makeLessonVideoAssetValue(asset.id),
           public_url: null,
           title: normalized.title || file.name.replace(/\.[^.]+$/, ""),
+          width_percent: normalized.width_percent,
         }),
       )
       setResolvedAssetUrl(null)
@@ -1079,6 +1089,7 @@ function VideoBlockEditor({
           storage_path: "",
           public_url: null,
           title: "Vídeo da aula",
+          width_percent: 70,
         }),
       )
       setStatus({
@@ -1095,10 +1106,10 @@ function VideoBlockEditor({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
-      {videoUrl ? (
-        embedUrl ? (
-            <div className="aspect-video">
+      <div className="overflow-hidden rounded-2xl">
+        {videoUrl ? (
+          embedUrl ? (
+            <div className="mx-auto aspect-video" style={{ width: `${normalized.width_percent}%` }}>
               <iframe
                 src={embedUrl}
                 title={normalized.title || "Vídeo da aula"}
@@ -1113,21 +1124,23 @@ function VideoBlockEditor({
               src={externalVideoUrl}
               controls
               preload="metadata"
-              className="block aspect-video w-full bg-black object-contain"
+              className="block aspect-video bg-black object-contain"
+              style={{ width: `${normalized.width_percent}%` }}
             />
           ) : (
             <video
               src={videoUrl}
               controls
               preload="metadata"
-              className="block aspect-video w-full bg-black object-contain"
+              className="block aspect-video bg-black object-contain"
+              style={{ width: `${normalized.width_percent}%` }}
             />
           )
-      ) : (
-        <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-300">
-          {resolvingAssetUrl || resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Nenhum vídeo enviado ainda."}
-        </div>
-      )}
+        ) : (
+          <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-300">
+            {resolvingAssetUrl || resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Nenhum vídeo enviado ainda."}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
@@ -1151,6 +1164,19 @@ function VideoBlockEditor({
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">Tamanho</label>
+            <select
+              disabled={disabled}
+              value={String(normalized.width_percent)}
+              onChange={(event) => updateWidthPercent(Number(event.target.value))}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white lg:w-40"
+            >
+              <option value="100">Grande</option>
+              <option value="70">Médio</option>
+              <option value="50">Pequeno</option>
+            </select>
+          </div>
           <input
             ref={fileInputRef}
             type="file"

@@ -16,6 +16,7 @@ export interface LessonVideoBlockContent {
   storage_path: string
   public_url?: string | null
   title: string
+  width_percent: number
 }
 
 export type LessonContentBlock =
@@ -108,6 +109,7 @@ export function normalizeLessonVideoBlockContent(input: unknown): LessonVideoBlo
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     title: asText(assetRaw.title) || asText(raw.title) || "Vídeo da aula",
+    width_percent: clamp(asNumber(assetRaw.width_percent ?? raw.width_percent, 70), 35, 100),
   }
 }
 
@@ -168,18 +170,19 @@ function serializeVideoFallback(content: LessonVideoBlockContent) {
   const title = escapeHtml(content.title || "Vídeo da aula")
   const payload = encodeURIComponent(JSON.stringify(content))
   const embedUrl = buildLessonVideoEmbedUrl(src)
+  const widthPercent = clamp(content.width_percent || 70, 35, 100)
 
   if (!src) {
-    return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}"></figure>`
+    return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}" style="width:${widthPercent}%;max-width:100%;margin:0 auto;"></figure>`
   }
 
   if (embedUrl) {
-    return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}"><iframe src="${escapeHtml(
+    return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}" style="width:${widthPercent}%;max-width:100%;margin:0 auto;"><iframe src="${escapeHtml(
       embedUrl,
     )}" title="${title}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></figure>`
   }
 
-  return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}"><video controls preload="metadata" src="${escapeHtml(
+  return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}" style="width:${widthPercent}%;max-width:100%;margin:0 auto;"><video controls preload="metadata" src="${escapeHtml(
     src,
   )}"></video></figure>`
 }
@@ -331,6 +334,7 @@ export function splitLessonContent(content: string | null | undefined): LessonCo
           storage_path: source,
           public_url: source || null,
           title: child.getAttribute("title") || child.getAttribute("aria-label") || "Vídeo da aula",
+          width_percent: 70,
         }),
       })
       continue
@@ -346,6 +350,7 @@ export function splitLessonContent(content: string | null | undefined): LessonCo
             storage_path: src,
             public_url: src,
             title: child.getAttribute("title") || "Vídeo da aula",
+            width_percent: 70,
           }),
         })
         continue
