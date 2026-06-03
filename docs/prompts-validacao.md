@@ -14,5 +14,5 @@ Regras:
 - Se falhar, ajuste, reteste e só então marque [OK]
 - Não altere arquitetura sem necessidade
 - Consulte apenas os docs necessários
-- Ao final, faça commit, push e deploy conforme AGENTS.md
+- Ao final, faça commit, push e deploy automaticamente conforme AGENTS.md, sem pedir confirmação adicional
 - Informe no final o Build v atual

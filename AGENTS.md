@@ -343,6 +343,19 @@ Não deixar rodapé/admin exibindo versão antiga após deploy.
 
 ---
 
+## Fechamento de entrega
+
+Quando um ajuste for concluído e validado, o fluxo de encerramento deve incluir, sem nova pergunta ao usuário:
+
+1. commit do estado final da alteração;
+2. push para o remoto correspondente;
+3. deploy quando a mudança exigir publicação remota;
+4. confirmação da versão publicada e do identificador de build.
+
+Se o usuário pedir explicitamente para não commitar, não fazer push ou não fazer deploy, essa ordem deve ser respeitada.
+
+---
+
 ## Deploy
 
 Quando a mudança precisar refletir em ambiente remoto, deploy faz parte da tarefa.

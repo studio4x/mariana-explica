@@ -248,6 +248,12 @@ Exemplos:
 7. deploy backend + migrations
 8. validar produção
 
+### 10.2 Fechamento de entrega
+
+Toda alteração implementada e validada deve encerrar com commit e push do estado final, sem nova confirmação operacional, salvo instrução explícita do usuário.
+
+Quando a mudança exigir publicação remota, o deploy deve seguir o fluxo seguro do projeto após o push, mantendo a rastreabilidade da versão entregue.
+
 ---
 
 ## 11. Ordem de deploy segura
