@@ -717,6 +717,7 @@ Video:
 - aceita link do YouTube;
 - aceita URL direta de ficheiro de video;
 - aceita upload de ficheiro com envio automatico ao selecionar o arquivo;
+- registra o video enviado como asset interno para manter preview e acesso apos refresh;
 - exibe o limite maximo de upload no proprio card antes da selecao do ficheiro;
 - quando o ficheiro excede o limite permitido, mostra mensagem com o tamanho maximo aceito;
 - permite excluir o video enviado e limpar o bloco;

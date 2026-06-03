@@ -1,7 +1,9 @@
 ﻿import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent, type ComponentType } from "react"
 import {
+  useCreateAdminModuleAsset,
   useDeleteAdminLessonStorageObject,
+  useDeleteAdminModuleAsset,
   useUploadAdminModuleAssetFile,
   useUploadAdminProductCover,
 } from "@/hooks/useAdmin"
@@ -19,7 +21,8 @@ import {
   LESSON_PUBLIC_IMAGE_BUCKET,
   isRenderableLessonMediaUrl,
 } from "@/lib/lesson-media"
-import { getExternalVideoUrl, getYoutubeEmbedUrl } from "@/lib/lesson-video"
+import { getExternalVideoUrl, getLessonVideoAssetId, getYoutubeEmbedUrl, makeLessonVideoAssetValue } from "@/lib/lesson-video"
+import { requestAssetAccess } from "@/services"
 import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
 
 interface LessonContentBlocksEditorProps {
@@ -790,6 +793,8 @@ function VideoBlockEditor({
   disabled: boolean
 }) {
   const uploadVideo = useUploadAdminModuleAssetFile()
+  const createModuleAsset = useCreateAdminModuleAsset()
+  const deleteModuleAsset = useDeleteAdminModuleAsset()
   const deleteLessonStorageObject = useDeleteAdminLessonStorageObject()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -797,12 +802,18 @@ function VideoBlockEditor({
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonVideoBlockContent(value)
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null)
+  const [resolvedAssetUrl, setResolvedAssetUrl] = useState<string | null>(null)
+  const [resolvingAssetUrl, setResolvingAssetUrl] = useState(false)
   const [resolvingVideoUrl, setResolvingVideoUrl] = useState(false)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const videoUrl = localPreviewUrl || (isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl)
+  const assetId = getLessonVideoAssetId(directSource)
+  const videoUrl =
+    localPreviewUrl ||
+    (assetId ? resolvedAssetUrl : isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl)
   const embedUrl = getYoutubeEmbedUrl(videoUrl)
   const externalVideoUrl = getExternalVideoUrl(videoUrl)
-  const pendingUpload = uploadVideo.isPending || deleteLessonStorageObject.isPending || disabled
+  const pendingUpload =
+    uploadVideo.isPending || createModuleAsset.isPending || deleteModuleAsset.isPending || deleteLessonStorageObject.isPending || disabled
   const uploadLimitInstruction = getVideoUploadLimitInstruction(maxVideoUploadBytes)
 
   useEffect(() => {
@@ -814,7 +825,41 @@ function VideoBlockEditor({
   }, [localPreviewUrl])
 
   useEffect(() => {
+    if (!assetId) {
+      setResolvedAssetUrl(null)
+      setResolvingAssetUrl(false)
+      return
+    }
+
+    let active = true
+    setResolvingAssetUrl(true)
+    setResolvedAssetUrl(null)
+
+    void requestAssetAccess(assetId)
+      .then((result) => {
+        if (!active) return
+        setResolvedAssetUrl(result.url)
+        setResolvingAssetUrl(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setResolvedAssetUrl(null)
+        setResolvingAssetUrl(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [assetId])
+
+  useEffect(() => {
     if (!directSource) {
+      setResolvedVideoUrl(null)
+      setResolvingVideoUrl(false)
+      return
+    }
+
+    if (assetId) {
       setResolvedVideoUrl(null)
       setResolvingVideoUrl(false)
       return
@@ -845,7 +890,7 @@ function VideoBlockEditor({
     return () => {
       active = false
     }
-  }, [directSource, normalized.storage_bucket])
+  }, [assetId, directSource, normalized.storage_bucket])
 
   const updateTitle = (title: string) => {
     onChange(
@@ -887,25 +932,61 @@ function VideoBlockEditor({
       message: `A enviar e guardar "${file.name}" automaticamente...`,
     })
 
+    const previousAssetId = getLessonVideoAssetId(normalized.storage_path) || getLessonVideoAssetId(normalized.public_url)
     const upload = await uploadVideo.mutateAsync({
       moduleId: trimmedModuleId,
       file,
-      replacePath: normalized.storage_path || null,
+      replacePath: normalized.storage_path?.startsWith("asset:") ? null : normalized.storage_path || null,
     })
 
-    onChange(
-      normalizeLessonVideoBlockContent({
+    try {
+      const asset = await createModuleAsset.mutateAsync({
+        moduleId: trimmedModuleId,
+        asset_type: "video_file",
+        title: normalized.title || file.name.replace(/\.[^.]+$/, ""),
+        sort_order_asset: Math.floor(Date.now() / 1000),
         storage_bucket: upload.bucket,
         storage_path: upload.path,
-        public_url: upload.public_url ?? null,
-        title: normalized.title || file.name.replace(/\.[^.]+$/, ""),
-      }),
-    )
-    setResolvedVideoUrl(upload.public_url ?? null)
-    setStatus({
-      tone: "success",
-      message: "Vídeo enviado e guardado automaticamente.",
-    })
+        external_url: null,
+        mime_type: (upload.mime_type ?? file.type) || "video/mp4",
+        file_size_bytes: upload.file_size_bytes ?? file.size,
+        allow_download: false,
+        allow_stream: true,
+        watermark_enabled: false,
+        asset_status: "active",
+      })
+
+      if (previousAssetId && previousAssetId !== asset.id) {
+        await deleteModuleAsset.mutateAsync(previousAssetId).catch(() => undefined)
+      }
+
+      onChange(
+        normalizeLessonVideoBlockContent({
+          storage_bucket: null,
+          storage_path: makeLessonVideoAssetValue(asset.id),
+          public_url: null,
+          title: normalized.title || file.name.replace(/\.[^.]+$/, ""),
+        }),
+      )
+      setResolvedAssetUrl(null)
+      setResolvedVideoUrl(null)
+      setStatus({
+        tone: "success",
+        message: "Vídeo enviado e guardado automaticamente.",
+      })
+    } catch (assetError) {
+      try {
+        await deleteLessonStorageObject.mutateAsync({
+          productId: null,
+          moduleId: trimmedModuleId,
+          mediaBucket: upload.bucket,
+          mediaPath: upload.path,
+        })
+      } catch {
+        // best-effort cleanup
+      }
+      throw assetError
+    }
   }
 
   const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -954,6 +1035,7 @@ function VideoBlockEditor({
     const currentPath = normalized.storage_path.trim()
     const currentBucket = normalized.storage_bucket?.trim() || null
     const hasExternalUrl = Boolean(normalized.public_url?.trim() && isRenderableLessonMediaUrl(normalized.public_url.trim()))
+    const currentAssetId = getLessonVideoAssetId(currentPath) || getLessonVideoAssetId(normalized.public_url)
 
     if (!currentPath && !hasExternalUrl) {
       setStatus({
@@ -972,7 +1054,9 @@ function VideoBlockEditor({
     })
 
     try {
-      if (currentPath && currentBucket) {
+      if (currentAssetId) {
+        await deleteModuleAsset.mutateAsync(currentAssetId)
+      } else if (currentPath && currentBucket) {
         await deleteLessonStorageObject.mutateAsync({
           productId: null,
           moduleId,
@@ -988,6 +1072,7 @@ function VideoBlockEditor({
       setSelectedFile(null)
       setLocalPreviewUrl(null)
       setResolvedVideoUrl(null)
+      setResolvedAssetUrl(null)
       onChange(
         normalizeLessonVideoBlockContent({
           storage_bucket: null,
@@ -1011,8 +1096,8 @@ function VideoBlockEditor({
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
-        {videoUrl ? (
-          embedUrl ? (
+      {videoUrl ? (
+        embedUrl ? (
             <div className="aspect-video">
               <iframe
                 src={embedUrl}
@@ -1038,11 +1123,11 @@ function VideoBlockEditor({
               className="block aspect-video w-full bg-black object-contain"
             />
           )
-        ) : (
-          <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-300">
-            {resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Nenhum vídeo enviado ainda."}
-          </div>
-        )}
+      ) : (
+        <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-300">
+          {resolvingAssetUrl || resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Nenhum vídeo enviado ainda."}
+        </div>
+      )}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
