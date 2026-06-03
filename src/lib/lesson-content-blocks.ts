@@ -1,6 +1,7 @@
-import { sanitizeRichTextHtml } from "@/lib/rich-text"
+﻿import { sanitizeRichTextHtml } from "@/lib/rich-text"
 
 export interface LessonImageBlockContent {
+  storage_bucket: string | null
   storage_path: string
   public_url?: string | null
   alt: string
@@ -10,6 +11,7 @@ export interface LessonImageBlockContent {
 }
 
 export interface LessonVideoBlockContent {
+  storage_bucket: string | null
   storage_path: string
   public_url?: string | null
   title: string
@@ -77,6 +79,7 @@ export function normalizeLessonImageBlockContent(input: unknown): LessonImageBlo
   const assetRaw = asRecord(raw.asset) ?? raw
 
   return {
+    storage_bucket: asText(assetRaw.storage_bucket) || asText(raw.storage_bucket) || null,
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     alt: asText(assetRaw.alt) || asText(raw.alt) || "Imagem da aula",
@@ -91,6 +94,7 @@ export function normalizeLessonVideoBlockContent(input: unknown): LessonVideoBlo
   const assetRaw = asRecord(raw.asset) ?? raw
 
   return {
+    storage_bucket: asText(assetRaw.storage_bucket) || asText(raw.storage_bucket) || null,
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     title: asText(assetRaw.title) || asText(raw.title) || "Vídeo da aula",

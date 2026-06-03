@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+﻿import { createClient } from "@supabase/supabase-js"
 import type { Session } from "@supabase/supabase-js"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 
@@ -23,6 +23,7 @@ interface StorageBucketLike {
     expiresIn: number,
     options?: { download?: string | boolean },
   ) => Promise<{ data: { signedUrl: string } | null; error: Error | null }>
+  getPublicUrl: (path: string, options?: { download?: string | boolean }) => { data: { publicUrl: string } }
 }
 
 interface NoopQueryBuilder {
@@ -195,6 +196,9 @@ function createNoopSupabaseClient() {
         createSignedUrl: async () => ({
           data: null,
           error: new Error("Supabase não configurado"),
+        }),
+        getPublicUrl: () => ({
+          data: { publicUrl: "" },
         }),
       }),
     },

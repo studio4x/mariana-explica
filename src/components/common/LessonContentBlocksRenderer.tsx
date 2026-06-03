@@ -1,19 +1,38 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import { supabase } from "@/integrations/supabase"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock } from "@/lib/lesson-content-blocks"
 import {
-  buildLessonVideoEmbedUrl,
   normalizeLessonVideoBlockContent,
   sanitizeTableHtml,
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
+import {
+  LESSON_PRIVATE_MEDIA_BUCKET,
+  LESSON_PUBLIC_IMAGE_BUCKET,
+  isRenderableLessonMediaUrl,
+} from "@/lib/lesson-media"
+import { getExternalVideoUrl, getYoutubeEmbedUrl } from "@/lib/lesson-video"
 import { RichTextContent } from "./RichTextContent"
 
-const LESSON_IMAGE_STORAGE_BUCKET = "course-assets-private"
+function isPublicLessonMediaBucket(bucket: string | null | undefined) {
+  return bucket?.trim() === LESSON_PUBLIC_IMAGE_BUCKET
+}
 
-function isRenderableUrl(value: string) {
-  return /^(https?:|blob:|data:)/i.test(value.trim())
+async function resolveLessonStorageUrl(bucket: string | null | undefined, path: string) {
+  const trimmedBucket = bucket?.trim() || LESSON_PRIVATE_MEDIA_BUCKET
+  const trimmedPath = path.trim()
+
+  if (!trimmedPath) {
+    return null
+  }
+
+  if (isPublicLessonMediaBucket(trimmedBucket)) {
+    return supabase.storage.from(trimmedBucket).getPublicUrl(trimmedPath).data.publicUrl
+  }
+
+  const { data } = await supabase.storage.from(trimmedBucket).createSignedUrl(trimmedPath, 300)
+  return data?.signedUrl ?? null
 }
 
 interface LessonContentBlocksRendererProps {
@@ -37,7 +56,7 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null)
   const [resolvingImageUrl, setResolvingImageUrl] = useState(false)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const imageUrl = isRenderableUrl(directSource) ? directSource : resolvedImageUrl
+  const imageUrl = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedImageUrl
 
   useEffect(() => {
     if (!directSource) {
@@ -46,7 +65,7 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
       return
     }
 
-    if (isRenderableUrl(directSource)) {
+    if (isRenderableLessonMediaUrl(directSource)) {
       setResolvedImageUrl(directSource)
       setResolvingImageUrl(false)
       return
@@ -56,12 +75,10 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
     setResolvingImageUrl(true)
     setResolvedImageUrl(null)
 
-    void supabase.storage
-      .from(LESSON_IMAGE_STORAGE_BUCKET)
-      .createSignedUrl(directSource, 300)
-      .then(({ data }) => {
+    void resolveLessonStorageUrl(normalized.storage_bucket, directSource)
+      .then((url) => {
         if (!active) return
-        setResolvedImageUrl(data?.signedUrl ?? null)
+        setResolvedImageUrl(url)
         setResolvingImageUrl(false)
       })
       .catch(() => {
@@ -73,7 +90,7 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
     return () => {
       active = false
     }
-  }, [directSource])
+  }, [directSource, normalized.storage_bucket])
 
   if (!directSource) {
     return (
@@ -123,10 +140,48 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
 
 function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "video" }> }) {
   const normalized = normalizeLessonVideoBlockContent(block.content)
-  const videoUrl = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const embedUrl = buildLessonVideoEmbedUrl(videoUrl)
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null)
+  const [resolvingVideoUrl, setResolvingVideoUrl] = useState(false)
+  const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const videoSource = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl
+  const embedUrl = getYoutubeEmbedUrl(videoSource)
+  const externalVideoUrl = getExternalVideoUrl(videoSource)
 
-  if (!videoUrl) {
+  useEffect(() => {
+    if (!directSource) {
+      setResolvedVideoUrl(null)
+      setResolvingVideoUrl(false)
+      return
+    }
+
+    if (isRenderableLessonMediaUrl(directSource)) {
+      setResolvedVideoUrl(directSource)
+      setResolvingVideoUrl(false)
+      return
+    }
+
+    let active = true
+    setResolvingVideoUrl(true)
+    setResolvedVideoUrl(null)
+
+    void resolveLessonStorageUrl(normalized.storage_bucket, directSource)
+      .then((url) => {
+        if (!active) return
+        setResolvedVideoUrl(url)
+        setResolvingVideoUrl(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setResolvedVideoUrl(null)
+        setResolvingVideoUrl(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [directSource, normalized.storage_bucket])
+
+  if (!directSource) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
         Vídeo sem ficheiro ou URL associado.
@@ -136,26 +191,41 @@ function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "vid
 
   return (
     <figure className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 p-3">
-      {embedUrl ? (
-        <div className="aspect-video overflow-hidden rounded-lg bg-black">
-          <iframe
-            src={embedUrl}
-            title={normalized.title || "Vídeo da aula"}
-            loading="lazy"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            className="h-full w-full"
+      {videoSource ? (
+        embedUrl ? (
+          <div className="aspect-video overflow-hidden rounded-lg bg-black">
+            <iframe
+              src={embedUrl}
+              title={normalized.title || "Vídeo da aula"}
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="h-full w-full"
+            />
+          </div>
+        ) : externalVideoUrl ? (
+          <video
+            src={externalVideoUrl}
+            controls
+            preload="metadata"
+            className="block aspect-video w-full rounded-lg bg-black object-contain"
           />
-        </div>
+        ) : (
+          <video
+            src={videoSource}
+            controls
+            preload="metadata"
+            className="block aspect-video w-full rounded-lg bg-black object-contain"
+          />
+        )
       ) : (
-        <video
-          src={videoUrl}
-          controls
-          preload="metadata"
-          className="block aspect-video w-full rounded-lg bg-black object-contain"
-        />
+        <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-900 px-4 py-6 text-center text-sm text-slate-300">
+          {resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Vídeo sem pré-visualização disponível."}
+        </div>
       )}
-      <figcaption className="mt-3 px-1 text-sm font-medium text-slate-100">{normalized.title || "Vídeo da aula"}</figcaption>
+      <figcaption className="mt-3 px-1 text-sm font-medium text-slate-100">
+        {normalized.title || "Vídeo da aula"}
+      </figcaption>
     </figure>
   )
 }

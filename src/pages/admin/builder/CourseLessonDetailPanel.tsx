@@ -580,6 +580,7 @@ export function CourseLessonDetailPanel() {
                   descriptionEditorRef.current = instance
                 }}
                 moduleId={moduleId}
+                productId={courseId}
                 value={String(values.description)}
                 onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
                 placeholder="Resumo rápido da aula."
@@ -794,6 +795,7 @@ export function CourseLessonDetailPanel() {
                     textContentEditorRef.current = instance
                   }}
                   moduleId={moduleId}
+                  productId={courseId}
                   value={String(values.text_content)}
                   onChange={(value) => setForm((prev) => ({ ...prev, text_content: value }))}
                   placeholder="Escreve o conteúdo textual da aula."

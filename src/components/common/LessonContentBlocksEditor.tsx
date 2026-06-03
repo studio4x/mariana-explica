@@ -1,24 +1,28 @@
-import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
+﻿import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent, type ComponentType } from "react"
-import { useUploadAdminModuleAssetFile } from "@/hooks/useAdmin"
+import { useUploadAdminModuleAssetFile, useUploadAdminProductCover } from "@/hooks/useAdmin"
 import { supabase } from "@/integrations/supabase"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock, LessonImageBlockContent, LessonVideoBlockContent } from "@/lib/lesson-content-blocks"
 import {
-  buildLessonVideoEmbedUrl,
   mergeLessonContent,
   normalizeLessonImageBlockContent,
   normalizeLessonVideoBlockContent,
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
+import {
+  LESSON_PRIVATE_MEDIA_BUCKET,
+  LESSON_PUBLIC_IMAGE_BUCKET,
+  isRenderableLessonMediaUrl,
+} from "@/lib/lesson-media"
+import { getExternalVideoUrl, getYoutubeEmbedUrl } from "@/lib/lesson-video"
 import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
-
-const LESSON_IMAGE_STORAGE_BUCKET = "course-assets-private"
 
 interface LessonContentBlocksEditorProps {
   value: string
   onChange: (value: string) => void
   moduleId: string
+  productId?: string | null
   className?: string
   placeholder?: string
   disabled?: boolean
@@ -76,6 +80,7 @@ const INSERT_ACTIONS: InsertAction[] = [
 
 function emptyImageContent(): LessonImageBlockContent {
   return {
+    storage_bucket: null,
     storage_path: "",
     public_url: null,
     alt: "Imagem da aula",
@@ -87,6 +92,7 @@ function emptyImageContent(): LessonImageBlockContent {
 
 function emptyVideoContent(): LessonVideoBlockContent {
   return {
+    storage_bucket: null,
     storage_path: "",
     public_url: null,
     title: "Vídeo da aula",
@@ -100,14 +106,27 @@ function blockLabel(block: LessonContentBlock) {
   return "Texto"
 }
 
-function isRenderableUrl(value: string) {
-  return /^(https?:|blob:|data:)/i.test(value.trim())
+async function resolveLessonStorageUrl(bucket: string | null | undefined, path: string) {
+  const trimmedBucket = bucket?.trim() || LESSON_PRIVATE_MEDIA_BUCKET
+  const trimmedPath = path.trim()
+
+  if (!trimmedPath) {
+    return null
+  }
+
+  if (trimmedBucket === LESSON_PUBLIC_IMAGE_BUCKET) {
+    return supabase.storage.from(trimmedBucket).getPublicUrl(trimmedPath).data.publicUrl
+  }
+
+  const { data } = await supabase.storage.from(trimmedBucket).createSignedUrl(trimmedPath, 300)
+  return data?.signedUrl ?? null
 }
 
 export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHandle, LessonContentBlocksEditorProps>(function LessonContentBlocksEditor({
   value,
   onChange,
   moduleId,
+  productId,
   className,
   placeholder = "Escreva aqui...",
   disabled = false,
@@ -241,6 +260,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
             {block.type === "image" ? (
               <ImageBlockEditor
                 moduleId={moduleId}
+                productId={productId}
                 value={block.content}
                 onChange={(content) =>
                   updateBlock(index, (current) => (current.type === "image" ? { ...current, content } : current))
@@ -298,16 +318,19 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
 
 function ImageBlockEditor({
   moduleId,
+  productId,
   value,
   onChange,
   disabled,
 }: {
   moduleId: string
+  productId?: string | null
   value: LessonImageBlockContent
   onChange: (value: LessonImageBlockContent) => void
   disabled: boolean
 }) {
-  const uploadImage = useUploadAdminModuleAssetFile()
+  const uploadPrivateImage = useUploadAdminModuleAssetFile()
+  const uploadPublicImage = useUploadAdminProductCover()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
@@ -316,7 +339,7 @@ function ImageBlockEditor({
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonImageBlockContent(value)
   const imageUrl = localPreviewUrl || resolvedPreviewUrl
-  const pendingUpload = uploadImage.isPending || disabled
+  const pendingUpload = uploadPrivateImage.isPending || uploadPublicImage.isPending || disabled
 
   useEffect(() => {
     return () => {
@@ -334,7 +357,7 @@ function ImageBlockEditor({
       return
     }
 
-    if (isRenderableUrl(directSource)) {
+    if (isRenderableLessonMediaUrl(directSource)) {
       setResolvedPreviewUrl(directSource)
       setResolvingPreviewUrl(false)
       return
@@ -344,12 +367,10 @@ function ImageBlockEditor({
     setResolvingPreviewUrl(true)
     setResolvedPreviewUrl(null)
 
-    void supabase.storage
-      .from(LESSON_IMAGE_STORAGE_BUCKET)
-      .createSignedUrl(directSource, 300)
-      .then(({ data }) => {
+    void resolveLessonStorageUrl(normalized.storage_bucket, directSource)
+      .then((url) => {
         if (!active) return
-        setResolvedPreviewUrl(data?.signedUrl ?? null)
+        setResolvedPreviewUrl(url)
         setResolvingPreviewUrl(false)
       })
       .catch(() => {
@@ -361,7 +382,7 @@ function ImageBlockEditor({
     return () => {
       active = false
     }
-  }, [normalized.public_url, normalized.storage_path])
+  }, [normalized.public_url, normalized.storage_bucket, normalized.storage_path])
 
   const updateAlt = (alt: string) => {
     onChange(
@@ -435,6 +456,14 @@ function ImageBlockEditor({
       return
     }
 
+    if (!productId?.trim()) {
+      setStatus({
+        tone: "error",
+        message: "Não foi possível identificar o material para este upload.",
+      })
+      return
+    }
+
     if (!moduleId.trim()) {
       setStatus({
         tone: "error",
@@ -449,14 +478,19 @@ function ImageBlockEditor({
     })
 
     try {
-      const upload = await uploadImage.mutateAsync({
-        moduleId,
+      const upload = await uploadPublicImage.mutateAsync({
+        productId,
         file: selectedFile,
         replacePath: normalized.storage_path || null,
       })
 
+      if (localPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+
       onChange(
         normalizeLessonImageBlockContent({
+          storage_bucket: upload.bucket,
           storage_path: upload.path,
           public_url: upload.public_url ?? null,
           alt: normalized.alt || selectedFile.name.replace(/\.[^.]+$/, ""),
@@ -466,6 +500,8 @@ function ImageBlockEditor({
         }),
       )
       setSelectedFile(null)
+      setLocalPreviewUrl(null)
+      setResolvedPreviewUrl(upload.public_url ?? null)
       setStatus({
         tone: "success",
         message: "Imagem enviada com sucesso.",
@@ -629,9 +665,47 @@ function VideoBlockEditor({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonVideoBlockContent(value)
-  const videoUrl = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const embedUrl = buildLessonVideoEmbedUrl(videoUrl)
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null)
+  const [resolvingVideoUrl, setResolvingVideoUrl] = useState(false)
+  const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const videoUrl = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl
+  const embedUrl = getYoutubeEmbedUrl(videoUrl)
+  const externalVideoUrl = getExternalVideoUrl(videoUrl)
   const pendingUpload = uploadVideo.isPending || disabled
+
+  useEffect(() => {
+    if (!directSource) {
+      setResolvedVideoUrl(null)
+      setResolvingVideoUrl(false)
+      return
+    }
+
+    if (isRenderableLessonMediaUrl(directSource)) {
+      setResolvedVideoUrl(directSource)
+      setResolvingVideoUrl(false)
+      return
+    }
+
+    let active = true
+    setResolvingVideoUrl(true)
+    setResolvedVideoUrl(null)
+
+    void resolveLessonStorageUrl(normalized.storage_bucket, directSource)
+      .then((url) => {
+        if (!active) return
+        setResolvedVideoUrl(url)
+        setResolvingVideoUrl(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setResolvedVideoUrl(null)
+        setResolvingVideoUrl(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [directSource, normalized.storage_bucket])
 
   const updateTitle = (title: string) => {
     onChange(
@@ -647,6 +721,7 @@ function VideoBlockEditor({
       normalizeLessonVideoBlockContent({
         ...normalized,
         storage_path: sourceUrl,
+        storage_bucket: sourceUrl.startsWith("http") ? null : normalized.storage_bucket,
         public_url: sourceUrl.startsWith("http") ? sourceUrl : null,
       }),
     )
@@ -702,9 +777,9 @@ function VideoBlockEditor({
         replacePath: normalized.storage_path || null,
       })
 
-      const nextSource = upload.public_url ?? upload.path
       onChange(
         normalizeLessonVideoBlockContent({
+          storage_bucket: upload.bucket,
           storage_path: upload.path,
           public_url: upload.public_url ?? null,
           title: normalized.title || selectedFile.name.replace(/\.[^.]+$/, ""),
@@ -713,7 +788,7 @@ function VideoBlockEditor({
       setSelectedFile(null)
       setStatus({
         tone: "success",
-        message: nextSource ? "Vídeo enviado com sucesso." : "Vídeo enviado com sucesso.",
+        message: "Vídeo enviado com sucesso.",
       })
     } catch (uploadError) {
       setStatus({
@@ -738,6 +813,13 @@ function VideoBlockEditor({
                 className="h-full w-full"
               />
             </div>
+          ) : externalVideoUrl ? (
+            <video
+              src={externalVideoUrl}
+              controls
+              preload="metadata"
+              className="block aspect-video w-full bg-black object-contain"
+            />
           ) : (
             <video
               src={videoUrl}
@@ -748,7 +830,7 @@ function VideoBlockEditor({
           )
         ) : (
           <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-300">
-            Nenhum vídeo enviado ainda.
+            {resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Nenhum vídeo enviado ainda."}
           </div>
         )}
       </div>
@@ -766,7 +848,7 @@ function VideoBlockEditor({
           <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">URL do vídeo ou ficheiro</label>
           <input
             disabled={disabled}
-            value={videoUrl}
+            value={videoUrl ?? ""}
             onChange={(event) => updateSourceUrl(event.target.value)}
             placeholder="Cole a URL do YouTube, Vimeo ou do ficheiro"
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
