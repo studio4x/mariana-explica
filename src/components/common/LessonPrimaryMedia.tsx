@@ -61,7 +61,7 @@ export function LessonPrimaryMedia({
     <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
       <div className="flex items-center gap-2 text-slate-900">
         <PlayCircle className="h-4 w-4" />
-        <p className="font-medium">{title}</p>
+        <p className="font-semibold text-slate-950">{title}</p>
       </div>
 
       {youtubeEmbedUrl ? (
