@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "3"
-export const BUILD_COMMIT = "dc7d14f"
+export const BUILD_DEPLOY_NUMBER = "4"
+export const BUILD_COMMIT = "siteedit0603"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
