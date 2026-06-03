@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock } from "@/lib/lesson-content-blocks"
 import {
+  buildLessonVideoEmbedUrl,
+  normalizeLessonVideoBlockContent,
   sanitizeTableHtml,
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
@@ -23,37 +25,60 @@ function BlockTable({ html }: { html: string }) {
   )
 }
 
-function ImageHotspotsBlock({ block }: { block: Extract<LessonContentBlock, { type: "image-hotspots" }> }) {
-  const [selectedId, setSelectedId] = useState<string | null>(block.content.hotspots[0]?.id ?? null)
-  const selectedHotspot = block.content.hotspots.find((item) => item.id === selectedId) ?? block.content.hotspots[0] ?? null
-  const imageUrl = block.content.asset.signed_url || block.content.asset.storage_path
+function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "image" }> }) {
+  const imageUrl = block.content.public_url?.trim() || block.content.storage_path.trim()
+
+  if (!imageUrl) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+        Imagem sem ficheiro associado.
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
-      {imageUrl ? (
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-          <img src={imageUrl} alt={block.content.asset.alt} className="w-full object-cover" />
-          {block.content.hotspots.map((hotspot) => (
-            <button
-              key={hotspot.id}
-              type="button"
-              onClick={() => setSelectedId(hotspot.id)}
-              className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#1398B7] px-2 py-1 text-[11px] font-bold text-white shadow"
-              style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
-            >
-              {hotspot.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
+    <figure className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+      <img src={imageUrl} alt={block.content.alt || "Imagem da aula"} className="block w-full rounded-lg object-cover" loading="lazy" />
+    </figure>
+  )
+}
 
-      {selectedHotspot ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <p className="font-semibold text-slate-900">{selectedHotspot.title}</p>
-          <RichTextContent value={selectedHotspot.body_html} className="mt-2 text-sm leading-7 text-slate-600" />
+function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "video" }> }) {
+  const normalized = normalizeLessonVideoBlockContent(block.content)
+  const videoUrl = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const embedUrl = buildLessonVideoEmbedUrl(videoUrl)
+
+  if (!videoUrl) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+        Vídeo sem ficheiro ou URL associado.
+      </div>
+    )
+  }
+
+  return (
+    <figure className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 p-3">
+      {embedUrl ? (
+        <div className="aspect-video overflow-hidden rounded-lg bg-black">
+          <iframe
+            src={embedUrl}
+            title={normalized.title || "Vídeo da aula"}
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="h-full w-full"
+          />
         </div>
-      ) : null}
-    </div>
+      ) : (
+        <video
+          src={videoUrl}
+          controls
+          preload="metadata"
+          className="block aspect-video w-full rounded-lg bg-black object-contain"
+        />
+      )}
+      <figcaption className="mt-3 px-1 text-sm font-medium text-slate-100">{normalized.title || "Vídeo da aula"}</figcaption>
+    </figure>
   )
 }
 
@@ -66,12 +91,14 @@ export function LessonContentBlocksRenderer({ value, className }: LessonContentB
         if (block.type === "table") {
           return <BlockTable key={`table-${index}`} html={block.content} />
         }
-        if (block.type === "image-hotspots") {
-          return <ImageHotspotsBlock key={`hotspots-${index}`} block={block} />
+        if (block.type === "image") {
+          return <BlockImage key={`image-${index}`} block={block} />
+        }
+        if (block.type === "video") {
+          return <BlockVideo key={`video-${index}`} block={block} />
         }
         return <RichTextContent key={`rich-${index}`} value={block.content} className="text-sm leading-7 text-slate-600" />
       })}
     </div>
   )
 }
-

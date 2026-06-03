@@ -261,7 +261,7 @@ export function AdminSettings() {
       broadcastBrandingUpdate(updatedConfig.updated_at)
 
       if (role === "favicon") {
-        applySiteFavicon(upload.public_url)
+        applySiteFavicon(upload.public_url, upload.uploaded_at)
       }
 
       setFeedback({ tone: "success", message: "Asset de branding publicado com sucesso." })

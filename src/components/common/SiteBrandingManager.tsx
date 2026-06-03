@@ -4,7 +4,6 @@ import { fetchPublicBrandingConfig } from "@/services"
 import {
   BRANDING_UPDATED_EVENT,
   applySiteFavicon,
-  buildVersionedAssetUrl,
 } from "./site-branding"
 
 export function SiteBrandingManager() {
@@ -18,12 +17,10 @@ export function SiteBrandingManager() {
 
   useEffect(() => {
     const branding = brandingConfigQuery.data
-    const faviconUrl = buildVersionedAssetUrl(
+    applySiteFavicon(
       branding?.config_value.favicon.public_url,
       branding?.config_value.favicon.uploaded_at ?? branding?.updated_at ?? null,
     )
-
-    applySiteFavicon(faviconUrl)
   }, [brandingConfigQuery.data])
 
   useEffect(() => {

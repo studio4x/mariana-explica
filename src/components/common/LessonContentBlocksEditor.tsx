@@ -1,14 +1,13 @@
-import { ImagePlus, Plus, Trash2 } from "lucide-react"
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
+import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent, type ComponentType } from "react"
+import { useUploadAdminModuleAssetFile } from "@/hooks/useAdmin"
 import { cn } from "@/lib/cn"
-import type {
-  LessonContentBlock,
-  LessonImageHotspotsBlockContent,
-  LessonImageHotspot,
-} from "@/lib/lesson-content-blocks"
+import type { LessonContentBlock, LessonImageBlockContent, LessonVideoBlockContent } from "@/lib/lesson-content-blocks"
 import {
+  buildLessonVideoEmbedUrl,
   mergeLessonContent,
-  normalizeLessonImageHotspotsBlockContent,
+  normalizeLessonImageBlockContent,
+  normalizeLessonVideoBlockContent,
   splitLessonContent,
 } from "@/lib/lesson-content-blocks"
 import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
@@ -16,6 +15,7 @@ import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
 interface LessonContentBlocksEditorProps {
   value: string
   onChange: (value: string) => void
+  moduleId: string
   className?: string
   placeholder?: string
   disabled?: boolean
@@ -25,34 +25,79 @@ export interface LessonContentBlocksEditorHandle {
   flush: () => string
 }
 
-function randomId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `id-${Math.random().toString(36).slice(2, 10)}`
+type InsertBlockType = LessonContentBlock["type"]
+
+type InsertAction = {
+  type: InsertBlockType
+  label: string
+  description: string
+  Icon: ComponentType<{ className?: string }>
+  toneClassName: string
+  iconToneClassName: string
 }
 
-function emptyHotspotsContent(): LessonImageHotspotsBlockContent {
+const INSERT_ACTIONS: InsertAction[] = [
+  {
+    type: "rich-text",
+    label: "Texto",
+    description: "Explicação, contexto ou conclusão.",
+    Icon: Type,
+    toneClassName: "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100",
+    iconToneClassName: "bg-sky-100 text-sky-700",
+  },
+  {
+    type: "table",
+    label: "Tabela",
+    description: "Comparações, listas e dados.",
+    Icon: Table2,
+    toneClassName: "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100",
+    iconToneClassName: "bg-amber-100 text-amber-700",
+  },
+  {
+    type: "image",
+    label: "Imagem",
+    description: "Foto, esquema ou captura.",
+    Icon: ImagePlus,
+    toneClassName: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100",
+    iconToneClassName: "bg-emerald-100 text-emerald-700",
+  },
+  {
+    type: "video",
+    label: "Vídeo",
+    description: "YouTube, Vimeo ou ficheiro.",
+    Icon: Video,
+    toneClassName: "border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-300 hover:bg-violet-100",
+    iconToneClassName: "bg-violet-100 text-violet-700",
+  },
+]
+
+function emptyImageContent(): LessonImageBlockContent {
   return {
-    asset: {
-      storage_path: "",
-      signed_url: null,
-      alt: "Imagem interativa da aula",
-      width: 1600,
-      height: 900,
-    },
-    hotspots: [],
+    storage_path: "",
+    public_url: null,
+    alt: "Imagem da aula",
+  }
+}
+
+function emptyVideoContent(): LessonVideoBlockContent {
+  return {
+    storage_path: "",
+    public_url: null,
+    title: "Vídeo da aula",
   }
 }
 
 function blockLabel(block: LessonContentBlock) {
   if (block.type === "table") return "Tabela"
-  if (block.type === "image-hotspots") return "Imagem Interativa"
-  return "Texto Rico"
+  if (block.type === "image") return "Imagem"
+  if (block.type === "video") return "Vídeo"
+  return "Texto"
 }
 
 export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHandle, LessonContentBlocksEditorProps>(function LessonContentBlocksEditor({
   value,
   onChange,
+  moduleId,
   className,
   placeholder = "Escreva aqui...",
   disabled = false,
@@ -95,8 +140,11 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
     if (type === "table") {
       return { type: "table", content: "<table><tbody><tr><td></td></tr></tbody></table>" }
     }
-    if (type === "image-hotspots") {
-      return { type: "image-hotspots", content: emptyHotspotsContent() }
+    if (type === "image") {
+      return { type: "image", content: emptyImageContent() }
+    }
+    if (type === "video") {
+      return { type: "video", content: emptyVideoContent() }
     }
     return { type: "rich-text", content: "" }
   }
@@ -137,44 +185,15 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
                 </span>
                 Bloco de {blockLabel(block)}
               </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={disabled}
-                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-                  onClick={() => addBlockAfter(index, "rich-text")}
-                  title="Adicionar bloco de texto"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-                  onClick={() => addBlockAfter(index, "table")}
-                  title="Adicionar bloco de tabela"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-                  onClick={() => addBlockAfter(index, "image-hotspots")}
-                  title="Adicionar bloco de imagem interativa"
-                >
-                  <ImagePlus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                  onClick={() => removeBlock(index)}
-                  title="Remover bloco"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={disabled}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                onClick={() => removeBlock(index)}
+                title="Remover bloco"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
 
             {block.type === "rich-text" ? (
@@ -209,20 +228,57 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
               />
             ) : null}
 
-            {block.type === "image-hotspots" ? (
-              <ImageHotspotsBlockEditor
+            {block.type === "image" ? (
+              <ImageBlockEditor
+                moduleId={moduleId}
                 value={block.content}
                 onChange={(content) =>
-                  updateBlock(index, (current) =>
-                    current.type === "image-hotspots" ? { ...current, content } : current,
-                  )
+                  updateBlock(index, (current) => (current.type === "image" ? { ...current, content } : current))
                 }
-                registerEditorRef={(editorKey, instance) => {
-                  editorRefs.current[`block-${index}-${editorKey}`] = instance
-                }}
                 disabled={disabled}
               />
             ) : null}
+
+            {block.type === "video" ? (
+              <VideoBlockEditor
+                moduleId={moduleId}
+                value={block.content}
+                onChange={(content) =>
+                  updateBlock(index, (current) => (current.type === "video" ? { ...current, content } : current))
+                }
+                disabled={disabled}
+              />
+            ) : null}
+
+            <div className="mt-4 rounded-2xl border border-dashed border-sky-200 bg-sky-50/70 p-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Inserir bloco abaixo</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {INSERT_ACTIONS.map((action) => {
+                  const Icon = action.Icon
+                  return (
+                    <button
+                      key={`${index}-${action.type}`}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => addBlockAfter(index, action.type)}
+                      className={cn(
+                        "group flex items-start gap-3 rounded-2xl border px-4 py-3 text-left shadow-sm transition",
+                        action.toneClassName,
+                        "disabled:opacity-50",
+                      )}
+                    >
+                      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", action.iconToneClassName)}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">{action.label}</span>
+                        <span className="mt-1 block text-xs leading-5 opacity-80">{action.description}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </section>
         ))}
       </div>
@@ -230,183 +286,382 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
   )
 })
 
-function ImageHotspotsBlockEditor({
+function ImageBlockEditor({
+  moduleId,
   value,
   onChange,
-  registerEditorRef,
   disabled,
 }: {
-  value: LessonImageHotspotsBlockContent
-  onChange: (value: LessonImageHotspotsBlockContent) => void
-  registerEditorRef: (editorKey: string, instance: RichTextEditorHandle | null) => void
+  moduleId: string
+  value: LessonImageBlockContent
+  onChange: (value: LessonImageBlockContent) => void
   disabled: boolean
 }) {
-  const normalized = normalizeLessonImageHotspotsBlockContent(value)
+  const uploadImage = useUploadAdminModuleAssetFile()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
+  const normalized = normalizeLessonImageBlockContent(value)
+  const imageUrl = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const pendingUpload = uploadImage.isPending || disabled
 
-  const updateAsset = (field: keyof LessonImageHotspotsBlockContent["asset"], next: string | number | null) => {
+  const updateAlt = (alt: string) => {
     onChange(
-      normalizeLessonImageHotspotsBlockContent({
+      normalizeLessonImageBlockContent({
         ...normalized,
-        asset: { ...normalized.asset, [field]: next },
+        alt,
       }),
     )
   }
 
-  const updateHotspot = (hotspotId: string, updater: (item: LessonImageHotspot) => LessonImageHotspot) => {
-    onChange(
-      normalizeLessonImageHotspotsBlockContent({
-        ...normalized,
-        hotspots: normalized.hotspots.map((hotspot) =>
-          hotspot.id === hotspotId ? updater(hotspot) : hotspot,
-        ),
-      }),
-    )
+  const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setStatus({
+        tone: "error",
+        message: "Seleciona um ficheiro de imagem válido.",
+      })
+      event.target.value = ""
+      return
+    }
+
+    setSelectedFile(file)
+    setStatus({
+      tone: "info",
+      message: `Ficheiro selecionado: ${file.name}. Agora clica em "Enviar imagem".`,
+    })
+    event.target.value = ""
   }
 
-  const addHotspot = () => {
-    onChange(
-      normalizeLessonImageHotspotsBlockContent({
-        ...normalized,
-        hotspots: [
-          ...normalized.hotspots,
-          { id: randomId(), x: 50, y: 50, title: `Hotspot ${normalized.hotspots.length + 1}`, body_html: "" },
-        ],
-      }),
-    )
-  }
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setStatus({
+        tone: "error",
+        message: "Seleciona uma imagem antes de enviar.",
+      })
+      return
+    }
 
-  const removeHotspot = (hotspotId: string) => {
-    onChange(
-      normalizeLessonImageHotspotsBlockContent({
-        ...normalized,
-        hotspots: normalized.hotspots.filter((hotspot) => hotspot.id !== hotspotId),
-      }),
-    )
+    if (!moduleId.trim()) {
+      setStatus({
+        tone: "error",
+        message: "Não foi possível identificar o módulo para este upload.",
+      })
+      return
+    }
+
+    setStatus({
+      tone: "info",
+      message: `A enviar "${selectedFile.name}"...`,
+    })
+
+    try {
+      const upload = await uploadImage.mutateAsync({
+        moduleId,
+        file: selectedFile,
+        replacePath: normalized.storage_path || null,
+      })
+
+      onChange(
+        normalizeLessonImageBlockContent({
+          storage_path: upload.path,
+          public_url: upload.public_url ?? null,
+          alt: normalized.alt || selectedFile.name.replace(/\.[^.]+$/, ""),
+        }),
+      )
+      setSelectedFile(null)
+      setStatus({
+        tone: "success",
+        message: "Imagem enviada com sucesso.",
+      })
+    } catch (uploadError) {
+      setStatus({
+        tone: "error",
+        message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar a imagem.",
+      })
+    }
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <input
-          disabled={disabled}
-          value={normalized.asset.storage_path}
-          onChange={(event) => updateAsset("storage_path", event.target.value)}
-          placeholder="storage_path da imagem"
-          className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-        />
-        <input
-          disabled={disabled}
-          value={normalized.asset.signed_url ?? ""}
-          onChange={(event) => updateAsset("signed_url", event.target.value)}
-          placeholder="URL assinada (opcional)"
-          className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-        />
-        <input
-          disabled={disabled}
-          value={normalized.asset.alt}
-          onChange={(event) => updateAsset("alt", event.target.value)}
-          placeholder="Texto alternativo"
-          className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-        />
-        <div className="grid grid-cols-2 gap-2">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+        {imageUrl ? (
+          <img src={imageUrl} alt={normalized.alt} className="block w-full object-cover" loading="lazy" />
+        ) : (
+          <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-500">
+            Nenhuma imagem enviada ainda.
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+        <div className="space-y-2">
+          <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">Texto alternativo</label>
           <input
             disabled={disabled}
-            type="number"
-            value={normalized.asset.width}
-            onChange={(event) => updateAsset("width", Number(event.target.value || 0))}
-            placeholder="Largura"
-            className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+            value={normalized.alt}
+            onChange={(event) => updateAlt(event.target.value)}
+            placeholder="Texto alternativo da imagem"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
           />
+        </div>
+
+        <div className="flex flex-wrap items-end gap-2">
           <input
-            disabled={disabled}
-            type="number"
-            value={normalized.asset.height}
-            onChange={(event) => updateAsset("height", Number(event.target.value || 0))}
-            placeholder="Altura"
-            className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            disabled={pendingUpload}
+            onChange={handleSelectFile}
+            className="hidden"
           />
+          <button
+            type="button"
+            disabled={pendingUpload}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Upload className="h-4 w-4" />
+            Selecionar imagem
+          </button>
+          <button
+            type="button"
+            disabled={pendingUpload || !selectedFile}
+            onClick={() => void handleUpload()}
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
+          >
+            Enviar imagem
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Hotspots</p>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={addHotspot}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Novo
-        </button>
-      </div>
+      {selectedFile ? <p className="text-xs font-medium text-slate-500">Selecionado: {selectedFile.name}</p> : null}
 
-      <div className="space-y-3">
-        {normalized.hotspots.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-            Sem hotspots ainda.
-          </div>
-        ) : (
-          normalized.hotspots.map((hotspot) => (
-            <div key={hotspot.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <input
-                  disabled={disabled}
-                  value={hotspot.title}
-                  onChange={(event) =>
-                    updateHotspot(hotspot.id, (current) => ({ ...current, title: event.target.value }))
-                  }
-                  placeholder="Título do hotspot"
-                  className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
-                />
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => removeHotspot(hotspot.id)}
-                  className="rounded-lg border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="mb-2 grid grid-cols-2 gap-2">
-                <input
-                  disabled={disabled}
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={hotspot.x}
-                  onChange={(event) =>
-                    updateHotspot(hotspot.id, (current) => ({ ...current, x: Number(event.target.value || 0) }))
-                  }
-                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
-                />
-                <input
-                  disabled={disabled}
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={hotspot.y}
-                  onChange={(event) =>
-                    updateHotspot(hotspot.id, (current) => ({ ...current, y: Number(event.target.value || 0) }))
-                  }
-                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
-                />
-              </div>
-              <RichTextEditor
-                ref={(instance) => {
-                  registerEditorRef(`hotspot-${hotspot.id}`, instance)
-                }}
-                value={hotspot.body_html}
-                onChange={(next) => updateHotspot(hotspot.id, (current) => ({ ...current, body_html: next }))}
-                placeholder="Conteúdo HTML do hotspot"
-                minHeightPx={140}
-                toolbarVariant="compact"
-                disabled={disabled}
+      {status ? (
+        <p
+          className={[
+            "text-sm",
+            status.tone === "success"
+              ? "text-emerald-700"
+              : status.tone === "error"
+                ? "text-rose-700"
+                : "text-slate-600",
+          ].join(" ")}
+        >
+          {status.message}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function VideoBlockEditor({
+  moduleId,
+  value,
+  onChange,
+  disabled,
+}: {
+  moduleId: string
+  value: LessonVideoBlockContent
+  onChange: (value: LessonVideoBlockContent) => void
+  disabled: boolean
+}) {
+  const uploadVideo = useUploadAdminModuleAssetFile()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
+  const normalized = normalizeLessonVideoBlockContent(value)
+  const videoUrl = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const embedUrl = buildLessonVideoEmbedUrl(videoUrl)
+  const pendingUpload = uploadVideo.isPending || disabled
+
+  const updateTitle = (title: string) => {
+    onChange(
+      normalizeLessonVideoBlockContent({
+        ...normalized,
+        title,
+      }),
+    )
+  }
+
+  const updateSourceUrl = (sourceUrl: string) => {
+    onChange(
+      normalizeLessonVideoBlockContent({
+        ...normalized,
+        storage_path: sourceUrl,
+        public_url: sourceUrl.startsWith("http") ? sourceUrl : null,
+      }),
+    )
+  }
+
+  const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    if (!file.type.startsWith("video/")) {
+      setStatus({
+        tone: "error",
+        message: "Seleciona um ficheiro de vídeo válido.",
+      })
+      event.target.value = ""
+      return
+    }
+
+    setSelectedFile(file)
+    setStatus({
+      tone: "info",
+      message: `Ficheiro selecionado: ${file.name}. Agora clica em "Enviar vídeo".`,
+    })
+    event.target.value = ""
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setStatus({
+        tone: "error",
+        message: "Seleciona um vídeo antes de enviar.",
+      })
+      return
+    }
+
+    if (!moduleId.trim()) {
+      setStatus({
+        tone: "error",
+        message: "Não foi possível identificar o módulo para este upload.",
+      })
+      return
+    }
+
+    setStatus({
+      tone: "info",
+      message: `A enviar "${selectedFile.name}"...`,
+    })
+
+    try {
+      const upload = await uploadVideo.mutateAsync({
+        moduleId,
+        file: selectedFile,
+        replacePath: normalized.storage_path || null,
+      })
+
+      const nextSource = upload.public_url ?? upload.path
+      onChange(
+        normalizeLessonVideoBlockContent({
+          storage_path: upload.path,
+          public_url: upload.public_url ?? null,
+          title: normalized.title || selectedFile.name.replace(/\.[^.]+$/, ""),
+        }),
+      )
+      setSelectedFile(null)
+      setStatus({
+        tone: "success",
+        message: nextSource ? "Vídeo enviado com sucesso." : "Vídeo enviado com sucesso.",
+      })
+    } catch (uploadError) {
+      setStatus({
+        tone: "error",
+        message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o vídeo.",
+      })
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
+        {videoUrl ? (
+          embedUrl ? (
+            <div className="aspect-video">
+              <iframe
+                src={embedUrl}
+                title={normalized.title || "Vídeo da aula"}
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="h-full w-full"
               />
             </div>
-          ))
+          ) : (
+            <video
+              src={videoUrl}
+              controls
+              preload="metadata"
+              className="block aspect-video w-full bg-black object-contain"
+            />
+          )
+        ) : (
+          <div className="flex min-h-48 items-center justify-center px-6 py-10 text-center text-sm text-slate-300">
+            Nenhum vídeo enviado ainda.
+          </div>
         )}
       </div>
+
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+        <div className="space-y-2">
+          <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">Título do vídeo</label>
+          <input
+            disabled={disabled}
+            value={normalized.title}
+            onChange={(event) => updateTitle(event.target.value)}
+            placeholder="Título do vídeo"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+          />
+          <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">URL do vídeo ou ficheiro</label>
+          <input
+            disabled={disabled}
+            value={videoUrl}
+            onChange={(event) => updateSourceUrl(event.target.value)}
+            placeholder="Cole a URL do YouTube, Vimeo ou do ficheiro"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            disabled={pendingUpload}
+            onChange={handleSelectFile}
+            className="hidden"
+          />
+          <button
+            type="button"
+            disabled={pendingUpload}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Upload className="h-4 w-4" />
+            Selecionar vídeo
+          </button>
+          <button
+            type="button"
+            disabled={pendingUpload || !selectedFile}
+            onClick={() => void handleUpload()}
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
+          >
+            Enviar vídeo
+          </button>
+        </div>
+      </div>
+
+      {selectedFile ? <p className="text-xs font-medium text-slate-500">Selecionado: {selectedFile.name}</p> : null}
+
+      {status ? (
+        <p
+          className={[
+            "text-sm",
+            status.tone === "success"
+              ? "text-emerald-700"
+              : status.tone === "error"
+                ? "text-rose-700"
+                : "text-slate-600",
+          ].join(" ")}
+        >
+          {status.message}
+        </p>
+      ) : null}
     </div>
   )
 }

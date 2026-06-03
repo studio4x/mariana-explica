@@ -420,6 +420,7 @@ export function CourseModuleDetailPanel() {
               ref={(instance) => {
                 descriptionEditorRef.current = instance
               }}
+              moduleId={moduleId}
               value={String(values.description)}
               onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
               placeholder="Descreve a finalidade do módulo."

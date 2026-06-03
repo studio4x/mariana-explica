@@ -1,28 +1,22 @@
 import { sanitizeRichTextHtml } from "@/lib/rich-text"
 
-export interface LessonImageHotspot {
-  id: string
-  x: number
-  y: number
-  title: string
-  body_html: string
+export interface LessonImageBlockContent {
+  storage_path: string
+  public_url?: string | null
+  alt: string
 }
 
-export interface LessonImageHotspotsBlockContent {
-  asset: {
-    storage_path: string
-    signed_url?: string | null
-    alt: string
-    width: number
-    height: number
-  }
-  hotspots: LessonImageHotspot[]
+export interface LessonVideoBlockContent {
+  storage_path: string
+  public_url?: string | null
+  title: string
 }
 
 export type LessonContentBlock =
   | { type: "rich-text"; content: string }
   | { type: "table"; content: string }
-  | { type: "image-hotspots"; content: LessonImageHotspotsBlockContent }
+  | { type: "image"; content: LessonImageBlockContent }
+  | { type: "video"; content: LessonVideoBlockContent }
 
 const TABLE_ALLOWED_TAGS = new Set([
   "table",
@@ -48,14 +42,6 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;")
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function ensureArray<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : []
-}
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   return value as Record<string, unknown>
@@ -66,51 +52,109 @@ function asText(value: unknown, fallback = "") {
   return value.trim()
 }
 
-function asNumber(value: unknown, fallback: number) {
-  if (typeof value === "number" && Number.isFinite(value)) return value
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
+function resolveLessonImageSrc(content: LessonImageBlockContent) {
+  return content.public_url?.trim() || content.storage_path.trim()
+}
+
+function resolveLessonVideoSrc(content: LessonVideoBlockContent) {
+  return content.public_url?.trim() || content.storage_path.trim()
+}
+
+export function normalizeLessonImageBlockContent(input: unknown): LessonImageBlockContent {
+  const raw = asRecord(input) ?? {}
+  const assetRaw = asRecord(raw.asset) ?? raw
+
+  return {
+    storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
+    public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
+    alt: asText(assetRaw.alt) || asText(raw.alt) || "Imagem da aula",
   }
-  return fallback
 }
 
-function sanitizeSimpleLinks(root: HTMLElement) {
-  root.querySelectorAll("a").forEach((anchor) => {
-    const href = anchor.getAttribute("href")?.trim() ?? ""
-    if (!href) {
-      anchor.removeAttribute("href")
-      return
-    }
-    if (!/^(https?:|mailto:|tel:|\/|#)/i.test(href)) {
-      anchor.removeAttribute("href")
-      return
-    }
-    anchor.setAttribute("target", "_blank")
-    anchor.setAttribute("rel", "noreferrer noopener")
-  })
+export function normalizeLessonVideoBlockContent(input: unknown): LessonVideoBlockContent {
+  const raw = asRecord(input) ?? {}
+  const assetRaw = asRecord(raw.asset) ?? raw
 
-  root.querySelectorAll("script,style,iframe,object,embed").forEach((node) => node.remove())
-  root.querySelectorAll("*").forEach((node) => {
-    for (const attr of Array.from(node.attributes)) {
-      const name = attr.name.toLowerCase()
-      if (name === "href" && node.tagName.toLowerCase() === "a") continue
-      if (name === "target" && node.tagName.toLowerCase() === "a") continue
-      if (name === "rel" && node.tagName.toLowerCase() === "a") continue
-      if (name.startsWith("on") || name === "style") node.removeAttribute(attr.name)
-    }
-  })
+  return {
+    storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
+    public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
+    title: asText(assetRaw.title) || asText(raw.title) || "Vídeo da aula",
+  }
 }
 
-export function sanitizeHotspotBodyHtml(input: string) {
-  const html = sanitizeRichTextHtml(input)
-  if (!html || typeof window === "undefined" || typeof DOMParser === "undefined") return html
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(`<div>${html}</div>`, "text/html")
-  const root = doc.body.firstElementChild as HTMLElement | null
-  if (!root) return ""
-  sanitizeSimpleLinks(root)
-  return root.innerHTML.trim()
+function serializeImageFallback(content: LessonImageBlockContent) {
+  const src = resolveLessonImageSrc(content)
+  const alt = escapeHtml(content.alt || "Imagem da aula")
+  const payload = encodeURIComponent(JSON.stringify(content))
+
+  return src
+    ? `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}"><img src="${escapeHtml(
+        src,
+      )}" alt="${alt}" loading="lazy" /></figure>`
+    : `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}"></figure>`
+}
+
+export function buildLessonVideoEmbedUrl(source: string) {
+  const trimmed = source.trim()
+  if (!trimmed || typeof window === "undefined" || typeof URL === "undefined") return null
+
+  try {
+    const url = new URL(trimmed, window.location.origin)
+    const host = url.hostname.toLowerCase()
+
+    if (host.includes("youtu.be")) {
+      const videoId = url.pathname.replace(/^\/+/, "").split(/[?#/]/)[0]
+      return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null
+    }
+
+    if (host.includes("youtube.com")) {
+      const embedded = url.pathname.match(/\/embed\/([^/?#]+)/)?.[1]
+      if (embedded) return `https://www.youtube-nocookie.com/embed/${embedded}`
+
+      const videoId = url.searchParams.get("v")
+      return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null
+    }
+
+    if (host.includes("vimeo.com")) {
+      const videoId = url.pathname.split("/").filter(Boolean).pop()
+      return videoId ? `https://player.vimeo.com/video/${videoId}` : null
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function serializeVideoFallback(content: LessonVideoBlockContent) {
+  const src = resolveLessonVideoSrc(content)
+  const title = escapeHtml(content.title || "Vídeo da aula")
+  const payload = encodeURIComponent(JSON.stringify(content))
+  const embedUrl = buildLessonVideoEmbedUrl(src)
+
+  if (!src) {
+    return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}"></figure>`
+  }
+
+  if (embedUrl) {
+    return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}"><iframe src="${escapeHtml(
+      embedUrl,
+    )}" title="${title}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></figure>`
+  }
+
+  return `<figure class="hcm-video-block" data-hcm-block="video" data-hcm-payload="${payload}"><video controls preload="metadata" src="${escapeHtml(
+    src,
+  )}"></video></figure>`
+}
+
+function serializeNode(node: ChildNode): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return escapeHtml(node.textContent ?? "")
+  }
+  if (node instanceof Element) {
+    return node.outerHTML
+  }
+  return ""
 }
 
 export function sanitizeTableHtml(tableHtml: string) {
@@ -162,61 +206,6 @@ export function sanitizeTableHtml(tableHtml: string) {
   return root.innerHTML.trim()
 }
 
-function serializeImageHotspotsFallback(content: LessonImageHotspotsBlockContent) {
-  const items = content.hotspots
-    .map(
-      (hotspot) =>
-        `<li><strong>${escapeHtml(hotspot.title)}</strong><div>${sanitizeHotspotBodyHtml(
-          hotspot.body_html,
-        )}</div></li>`,
-    )
-    .join("")
-  return `<div class="hcm-image-hotspots-fallback"><p><strong>Imagem interativa</strong></p><ul>${items}</ul></div>`
-}
-
-export function normalizeLessonImageHotspotsBlockContent(
-  input: unknown,
-): LessonImageHotspotsBlockContent {
-  const raw = asRecord(input) ?? {}
-  const assetRaw = asRecord(raw.asset) ?? {}
-  const rawHotspots = ensureArray<unknown>(raw.hotspots)
-
-  const hotspots = rawHotspots.map((hotspot, index) => {
-    const record = asRecord(hotspot) ?? {}
-    const id = asText(record.id) || (typeof crypto !== "undefined" ? crypto.randomUUID() : `hotspot-${index + 1}`)
-    const x = Number(clamp(asNumber(record.x, 0), 0, 100).toFixed(2))
-    const y = Number(clamp(asNumber(record.y, 0), 0, 100).toFixed(2))
-    return {
-      id,
-      x,
-      y,
-      title: asText(record.title) || `Hotspot ${index + 1}`,
-      body_html: sanitizeHotspotBodyHtml(asText(record.body_html)),
-    }
-  })
-
-  return {
-    asset: {
-      storage_path: asText(assetRaw.storage_path),
-      signed_url: asText(assetRaw.signed_url) || null,
-      alt: asText(assetRaw.alt) || "Imagem interativa da aula",
-      width: Math.max(1, Math.round(asNumber(assetRaw.width, 1600))),
-      height: Math.max(1, Math.round(asNumber(assetRaw.height, 900))),
-    },
-    hotspots,
-  }
-}
-
-function serializeNode(node: ChildNode): string {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return escapeHtml(node.textContent ?? "")
-  }
-  if (node instanceof Element) {
-    return node.outerHTML
-  }
-  return ""
-}
-
 export function splitLessonContent(content: string | null | undefined): LessonContentBlock[] {
   const html = content?.trim() ?? ""
   if (!html) return [{ type: "rich-text", content: "" }]
@@ -244,7 +233,7 @@ export function splitLessonContent(content: string | null | undefined): LessonCo
   for (const child of children) {
     if (
       child instanceof HTMLElement &&
-      child.dataset.hcmBlock === "image-hotspots" &&
+      (child.dataset.hcmBlock === "image" || child.dataset.hcmBlock === "image-hotspots") &&
       child.dataset.hcmPayload
     ) {
       pushPendingRichText()
@@ -252,13 +241,78 @@ export function splitLessonContent(content: string | null | undefined): LessonCo
         const payloadText = decodeURIComponent(child.dataset.hcmPayload)
         const payload = JSON.parse(payloadText) as unknown
         blocks.push({
-          type: "image-hotspots",
-          content: normalizeLessonImageHotspotsBlockContent(payload),
+          type: "image",
+          content: normalizeLessonImageBlockContent(payload),
         })
       } catch {
         pendingRichText += child.innerHTML
       }
       continue
+    }
+
+    if (
+      child instanceof HTMLElement &&
+      child.dataset.hcmBlock === "video" &&
+      child.dataset.hcmPayload
+    ) {
+      pushPendingRichText()
+      try {
+        const payloadText = decodeURIComponent(child.dataset.hcmPayload)
+        const payload = JSON.parse(payloadText) as unknown
+        blocks.push({
+          type: "video",
+          content: normalizeLessonVideoBlockContent(payload),
+        })
+      } catch {
+        pendingRichText += child.innerHTML
+      }
+      continue
+    }
+
+    if (child instanceof HTMLImageElement) {
+      pushPendingRichText()
+      blocks.push({
+        type: "image",
+        content: normalizeLessonImageBlockContent({
+          storage_path: child.getAttribute("src") ?? "",
+          public_url: child.getAttribute("src") ?? null,
+          alt: child.getAttribute("alt") ?? "Imagem da aula",
+        }),
+      })
+      continue
+    }
+
+    if (child instanceof HTMLVideoElement) {
+      pushPendingRichText()
+      const source =
+        child.getAttribute("src") ||
+        child.querySelector("source")?.getAttribute("src") ||
+        ""
+      blocks.push({
+        type: "video",
+        content: normalizeLessonVideoBlockContent({
+          storage_path: source,
+          public_url: source || null,
+          title: child.getAttribute("title") || child.getAttribute("aria-label") || "Vídeo da aula",
+        }),
+      })
+      continue
+    }
+
+    if (child instanceof HTMLIFrameElement) {
+      const src = child.getAttribute("src") ?? ""
+      if (src && /(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(src)) {
+        pushPendingRichText()
+        blocks.push({
+          type: "video",
+          content: normalizeLessonVideoBlockContent({
+            storage_path: src,
+            public_url: src,
+            title: child.getAttribute("title") || "Vídeo da aula",
+          }),
+        })
+        continue
+      }
     }
 
     if (child instanceof HTMLTableElement) {
@@ -290,10 +344,11 @@ export function mergeLessonContent(blocks: LessonContentBlock[]): string {
         return sanitizeTableHtml(block.content)
       }
 
-      const normalized = normalizeLessonImageHotspotsBlockContent(block.content)
-      const payload = encodeURIComponent(JSON.stringify(normalized))
-      const fallback = serializeImageHotspotsFallback(normalized)
-      return `<div data-hcm-block="image-hotspots" data-hcm-payload="${payload}">${fallback}</div>`
+      if (block.type === "video") {
+        return serializeVideoFallback(normalizeLessonVideoBlockContent(block.content))
+      }
+
+      return serializeImageFallback(normalizeLessonImageBlockContent(block.content))
     })
     .filter((chunk) => chunk.trim().length > 0)
 

@@ -31,7 +31,7 @@ function applyFavicon(url: string | null | undefined) {
   faviconLink.href = nextUrl
 }
 
-const MANAGED_FAVICON_SELECTOR = 'link[rel="icon"]'
+const MANAGED_FAVICON_SELECTOR = 'link[data-managed-favicon="true"]'
 
 function ensureManagedFaviconLink() {
   const existingLink = document.head.querySelector<HTMLLinkElement>(MANAGED_FAVICON_SELECTOR)
@@ -39,14 +39,22 @@ function ensureManagedFaviconLink() {
     return existingLink
   }
 
+  document.head
+    .querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="shortcut icon"]')
+    .forEach((link) => {
+      link.remove()
+    })
+
   const link = document.createElement("link")
   link.rel = "icon"
+  link.setAttribute("data-managed-favicon", "true")
   document.head.appendChild(link)
   return link
 }
 
-export function applySiteFavicon(url: string | null | undefined) {
-  applyFavicon(url)
+export function applySiteFavicon(url: string | null | undefined, version?: string | null) {
+  const nextUrl = buildVersionedAssetUrl(url, version)
+  applyFavicon(nextUrl)
 }
 
 export function broadcastBrandingUpdate(version?: string | null) {
