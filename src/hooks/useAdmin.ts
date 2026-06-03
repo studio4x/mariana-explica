@@ -20,6 +20,7 @@ import {
   createAdminProductModule,
   deleteAdminUser,
   deleteAdminModuleAsset,
+  deleteAdminLessonStorageObject,
   deleteAdminProductAssessment,
   deleteAdminProductLesson,
   deleteAdminProductModule,
@@ -1086,6 +1087,11 @@ export function useUpdateAdminProductAssessment() {
 export function useDeleteAdminModuleAsset() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminModuleAsset, onSuccess: invalidate })
+}
+
+export function useDeleteAdminLessonStorageObject() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: deleteAdminLessonStorageObject, onSuccess: invalidate })
 }
 
 export function useDeleteAdminProductLesson() {

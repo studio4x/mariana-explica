@@ -1587,6 +1587,21 @@ export async function deleteAdminModuleAsset(assetId: string) {
   })
 }
 
+export async function deleteAdminLessonStorageObject(input: {
+  productId?: string | null
+  moduleId?: string | null
+  mediaBucket: string
+  mediaPath: string
+}) {
+  await invokeAdminFunction<{ success: true }>("admin-content", {
+    action: "delete_storage_object",
+    productId: input.productId ?? null,
+    moduleId: input.moduleId ?? null,
+    media_bucket: input.mediaBucket,
+    media_path: input.mediaPath,
+  })
+}
+
 export async function fetchAdminProductLessons(moduleId: string) {
   const response = await invokeAdminFunction<{ success: true; lessons: ProductLessonSummary[] }>("admin-content", {
     action: "list_lessons",

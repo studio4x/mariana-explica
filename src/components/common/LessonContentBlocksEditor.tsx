@@ -1,6 +1,10 @@
 ﻿import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent, type ComponentType } from "react"
-import { useUploadAdminModuleAssetFile, useUploadAdminProductCover } from "@/hooks/useAdmin"
+import {
+  useDeleteAdminLessonStorageObject,
+  useUploadAdminModuleAssetFile,
+  useUploadAdminProductCover,
+} from "@/hooks/useAdmin"
 import { supabase } from "@/integrations/supabase"
 import { cn } from "@/lib/cn"
 import type { LessonContentBlock, LessonImageBlockContent, LessonVideoBlockContent } from "@/lib/lesson-content-blocks"
@@ -329,8 +333,8 @@ function ImageBlockEditor({
   onChange: (value: LessonImageBlockContent) => void
   disabled: boolean
 }) {
-  const uploadPrivateImage = useUploadAdminModuleAssetFile()
   const uploadPublicImage = useUploadAdminProductCover()
+  const deleteLessonStorageObject = useDeleteAdminLessonStorageObject()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
@@ -339,7 +343,7 @@ function ImageBlockEditor({
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonImageBlockContent(value)
   const imageUrl = localPreviewUrl || resolvedPreviewUrl
-  const pendingUpload = uploadPrivateImage.isPending || uploadPublicImage.isPending || disabled
+  const pendingUpload = uploadPublicImage.isPending || deleteLessonStorageObject.isPending || disabled
 
   useEffect(() => {
     return () => {
@@ -420,6 +424,51 @@ function ImageBlockEditor({
     )
   }
 
+  const uploadSelectedImage = async (file: File) => {
+    const trimmedProductId = productId?.trim()
+    const trimmedModuleId = moduleId.trim()
+
+    if (!trimmedProductId) {
+      throw new Error("Não foi possível identificar o material para este upload.")
+    }
+
+    if (!trimmedModuleId) {
+      throw new Error("Não foi possível identificar o módulo para este upload.")
+    }
+
+    setStatus({
+      tone: "info",
+      message: `A enviar e guardar "${file.name}" automaticamente...`,
+    })
+
+    const upload = await uploadPublicImage.mutateAsync({
+      productId: trimmedProductId,
+      file,
+      replacePath: normalized.storage_path || null,
+    })
+
+    if (localPreviewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(localPreviewUrl)
+    }
+
+    onChange(
+      normalizeLessonImageBlockContent({
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        public_url: upload.public_url ?? null,
+        alt: normalized.alt || file.name.replace(/\.[^.]+$/, ""),
+        caption: normalized.caption,
+        link_url: normalized.link_url,
+        width_percent: normalized.width_percent,
+      }),
+    )
+    setResolvedPreviewUrl(upload.public_url ?? null)
+    setStatus({
+      tone: "success",
+      message: "Imagem enviada e guardada automaticamente.",
+    })
+  }
+
   const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     if (!file) return
@@ -442,74 +491,81 @@ function ImageBlockEditor({
     })
     setStatus({
       tone: "info",
-      message: `Ficheiro selecionado: ${file.name}. Agora clica em "Enviar imagem".`,
+      message: `Imagem selecionada: ${file.name}. A guardar automaticamente agora...`,
     })
     event.target.value = ""
+
+    void uploadSelectedImage(file)
+      .then(() => {
+        setSelectedFile(null)
+        setLocalPreviewUrl(null)
+      })
+      .catch((uploadError) => {
+        setStatus({
+          tone: "error",
+          message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar a imagem.",
+        })
+      })
   }
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
+  const handleDeleteImage = async () => {
+    const currentBucket =
+      normalized.storage_bucket?.trim() ||
+      (normalized.public_url?.trim() ? LESSON_PUBLIC_IMAGE_BUCKET : LESSON_PRIVATE_MEDIA_BUCKET)
+    const currentPath = normalized.storage_path.trim()
+    const trimmedProductId = productId?.trim() || null
+    const trimmedModuleId = moduleId.trim() || null
+
+    if (!currentPath) {
       setStatus({
         tone: "error",
-        message: "Seleciona uma imagem antes de enviar.",
+        message: "Não existe nenhuma imagem para excluir.",
       })
       return
     }
 
-    if (!productId?.trim()) {
-      setStatus({
-        tone: "error",
-        message: "Não foi possível identificar o material para este upload.",
-      })
-      return
-    }
-
-    if (!moduleId.trim()) {
-      setStatus({
-        tone: "error",
-        message: "Não foi possível identificar o módulo para este upload.",
-      })
-      return
-    }
+    const confirmed = window.confirm("Queres excluir esta imagem e remover o ficheiro do storage?")
+    if (!confirmed) return
 
     setStatus({
       tone: "info",
-      message: `A enviar "${selectedFile.name}"...`,
+      message: "A excluir a imagem guardada...",
     })
 
     try {
-      const upload = await uploadPublicImage.mutateAsync({
-        productId,
-        file: selectedFile,
-        replacePath: normalized.storage_path || null,
+      await deleteLessonStorageObject.mutateAsync({
+        productId: trimmedProductId,
+        moduleId: trimmedModuleId,
+        mediaBucket: currentBucket,
+        mediaPath: currentPath,
       })
 
       if (localPreviewUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(localPreviewUrl)
       }
 
-      onChange(
-        normalizeLessonImageBlockContent({
-          storage_bucket: upload.bucket,
-          storage_path: upload.path,
-          public_url: upload.public_url ?? null,
-          alt: normalized.alt || selectedFile.name.replace(/\.[^.]+$/, ""),
-          caption: normalized.caption,
-          link_url: normalized.link_url,
-          width_percent: normalized.width_percent,
-        }),
-      )
       setSelectedFile(null)
       setLocalPreviewUrl(null)
-      setResolvedPreviewUrl(upload.public_url ?? null)
+      setResolvedPreviewUrl(null)
+      onChange(
+        normalizeLessonImageBlockContent({
+          storage_bucket: null,
+          storage_path: "",
+          public_url: null,
+          alt: "Imagem da aula",
+          caption: "",
+          link_url: null,
+          width_percent: 100,
+        }),
+      )
       setStatus({
         tone: "success",
-        message: "Imagem enviada com sucesso.",
+        message: "Imagem excluída com sucesso.",
       })
-    } catch (uploadError) {
+    } catch (deleteError) {
       setStatus({
         tone: "error",
-        message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar a imagem.",
+        message: deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a imagem.",
       })
     }
   }
@@ -596,11 +652,11 @@ function ImageBlockEditor({
           </button>
           <button
             type="button"
-            disabled={pendingUpload || !selectedFile}
-            onClick={() => void handleUpload()}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
+            disabled={pendingUpload || !normalized.storage_path.trim()}
+            onClick={() => void handleDeleteImage()}
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-50"
           >
-            Enviar imagem
+            Excluir imagem
           </button>
         </div>
       </div>
@@ -629,7 +685,11 @@ function ImageBlockEditor({
         </div>
       </div>
 
-      {selectedFile ? <p className="text-xs font-medium text-slate-500">Selecionado: {selectedFile.name}</p> : null}
+      {selectedFile ? (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          <span className="font-bold">Selecionada:</span> {selectedFile.name}. A imagem está a ser enviada e salva automaticamente.
+        </div>
+      ) : null}
 
       {status ? (
         <p

@@ -21,6 +21,7 @@ type Action =
   | "create_asset"
   | "update_asset"
   | "delete_asset"
+  | "delete_storage_object"
 
 type ModuleType = "pdf" | "video" | "external_link" | "mixed"
 type AccessType = "public" | "registered" | "paid_only"
@@ -31,6 +32,9 @@ type AssetStatus = "active" | "inactive"
 type LessonType = "video" | "text" | "hybrid" | "file"
 type LessonStatus = "draft" | "published" | "archived"
 type AssessmentType = "module" | "final"
+
+const LESSON_PUBLIC_MEDIA_BUCKET = "course-cover-public"
+const LESSON_PRIVATE_MEDIA_BUCKET = "course-assets-private"
 
 interface Body {
   action: Action
@@ -80,6 +84,9 @@ interface Body {
   allow_stream?: boolean
   watermark_enabled?: boolean
   asset_status?: AssetStatus
+
+  media_bucket?: string | null
+  media_path?: string | null
 }
 
 function requireUuid(value: string | undefined, label: string) {
@@ -215,6 +222,49 @@ function validateAssetSource(body: Body) {
     storage_bucket: hasStorage ? bucket : null,
     storage_path: hasStorage ? path : null,
   }
+}
+
+function validateLessonMediaRemovalTarget(body: Body) {
+  const bucket = normalizeNullableText(body.media_bucket)
+  const path = normalizeNullableText(body.media_path)
+  const productId = normalizeNullableText(body.productId)
+  const moduleId = normalizeNullableText(body.moduleId)
+
+  if (!bucket || !path) {
+    throw badRequest("media_bucket e media_path sao obrigatorios")
+  }
+
+  if (bucket !== LESSON_PUBLIC_MEDIA_BUCKET && bucket !== LESSON_PRIVATE_MEDIA_BUCKET) {
+    throw badRequest("Bucket de media nao permitido")
+  }
+
+  if (bucket === LESSON_PUBLIC_MEDIA_BUCKET) {
+    if (!productId) {
+      throw badRequest("productId e obrigatorio para remover media publica")
+    }
+
+    const allowedPrefix = `products/${productId}/cover/`
+    if (!path.startsWith(allowedPrefix)) {
+      throw badRequest("Caminho de media invalido para este material")
+    }
+  }
+
+  if (bucket === LESSON_PRIVATE_MEDIA_BUCKET) {
+    if (!moduleId) {
+      throw badRequest("moduleId e obrigatorio para remover media privada")
+    }
+
+    const privatePrefixes = [
+      `products/`,
+      `modules/`,
+    ]
+
+    if (!privatePrefixes.some((prefix) => path.startsWith(prefix))) {
+      throw badRequest("Caminho de media invalido para este modulo")
+    }
+  }
+
+  return { bucket, path }
 }
 
 async function removeStorageObjectIfPresent(
@@ -740,6 +790,27 @@ Deno.serve(async (req) => {
         existingAsset?.storage_bucket,
         existingAsset?.storage_path,
       )
+      return jsonResponse({ success: true, request_id: requestId })
+    }
+
+    if (body.action === "delete_storage_object") {
+      const target = validateLessonMediaRemovalTarget(body)
+
+      await removeStorageObjectIfPresent(serviceClient, target.bucket, target.path)
+
+      await writeAuditLog(serviceClient, context, {
+        action: "admin.storage_object_deleted",
+        entityType: "storage_object",
+        entityId: null,
+        metadata: {
+          bucket: target.bucket,
+          path: target.path,
+          product_id: body.productId ?? null,
+          module_id: body.moduleId ?? null,
+        },
+        ...auditMeta,
+      })
+
       return jsonResponse({ success: true, request_id: requestId })
     }
 
