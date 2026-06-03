@@ -126,6 +126,14 @@ function buildVideoTooLargeMessage(limitBytes?: number | null) {
   return "O vídeo excede o limite de tamanho permitido neste projeto. Envia um ficheiro menor ou ajusta o limite global de upload em Storage > Settings no Supabase."
 }
 
+function getVideoUploadLimitInstruction(limitBytes?: number | null) {
+  if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
+    return `Limite máximo por ficheiro: ${formatBytes(limitBytes)}.`
+  }
+
+  return "O limite de upload é definido pela configuração do Storage do Supabase para este projeto."
+}
+
 async function resolveLessonStorageUrl(bucket: string | null | undefined, path: string) {
   const trimmedBucket = bucket?.trim() || LESSON_PRIVATE_MEDIA_BUCKET
   const trimmedPath = path.trim()
@@ -795,6 +803,7 @@ function VideoBlockEditor({
   const embedUrl = getYoutubeEmbedUrl(videoUrl)
   const externalVideoUrl = getExternalVideoUrl(videoUrl)
   const pendingUpload = uploadVideo.isPending || deleteLessonStorageObject.isPending || disabled
+  const uploadLimitInstruction = getVideoUploadLimitInstruction(maxVideoUploadBytes)
 
   useEffect(() => {
     return () => {
@@ -1084,6 +1093,10 @@ function VideoBlockEditor({
             Excluir vídeo
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+        <span className="font-bold text-slate-800">Limite do vídeo:</span> {uploadLimitInstruction}
       </div>
 
       {selectedFile ? (

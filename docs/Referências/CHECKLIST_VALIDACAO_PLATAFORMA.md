@@ -110,7 +110,7 @@ Este checklist foi criado para apoiar a validacao funcional da plataforma por se
 - [OK] Avaliacoes (`.../avaliacoes/:assessmentId`) salva e publica regras.
 - [OK] Public page (`.../public-page`) reflete configuracoes no front publico.
 - [ ] Bloco de imagem da aula mostra pré-visualização correta e aceita tamanho, legenda com alinhamento horizontal e link.
-- [ ] Bloco de vídeo da aula faz upload automático ao selecionar o ficheiro, mostra aviso com o tamanho máximo permitido quando excede o limite, permite exclusão e mostra pré-visualização correta.
+- [ ] Bloco de vídeo da aula faz upload automático ao selecionar o ficheiro, exibe o tamanho máximo permitido no card, mostra aviso quando excede o limite, permite exclusão e mostra pré-visualização correta.
 - [OK] Settings (`.../settings`) persiste configuracoes do curso.
 - [OK] Releases (`.../releases`) aplica regras de acesso esperadas.
 - [OK] Assessments final (`.../assessments` e `.../assessments/final`) funciona sem erro.
