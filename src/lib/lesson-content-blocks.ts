@@ -6,6 +6,7 @@ export interface LessonImageBlockContent {
   public_url?: string | null
   alt: string
   caption: string
+  caption_align: "left" | "center" | "right"
   link_url: string | null
   width_percent: number
 }
@@ -57,6 +58,11 @@ function asText(value: unknown, fallback = "") {
   return value.trim()
 }
 
+function asRawText(value: unknown, fallback = "") {
+  if (typeof value !== "string") return fallback
+  return value
+}
+
 function asNumber(value: unknown, fallback: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback
   return value
@@ -83,7 +89,11 @@ export function normalizeLessonImageBlockContent(input: unknown): LessonImageBlo
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     alt: asText(assetRaw.alt) || asText(raw.alt) || "Imagem da aula",
-    caption: asText(assetRaw.caption) || asText(raw.caption) || "",
+    caption: asRawText(assetRaw.caption) || asRawText(raw.caption) || "",
+    caption_align:
+      ["left", "center", "right"].includes(asText(assetRaw.caption_align) || asText(raw.caption_align))
+        ? (asText(assetRaw.caption_align) || asText(raw.caption_align)) as "left" | "center" | "right"
+        : "left",
     link_url: asText(assetRaw.link_url) || asText(raw.link_url) || null,
     width_percent: clamp(asNumber(assetRaw.width_percent ?? raw.width_percent, 100), 25, 100),
   }
@@ -105,6 +115,7 @@ function serializeImageFallback(content: LessonImageBlockContent) {
   const src = resolveLessonImageSrc(content)
   const alt = escapeHtml(content.alt || "Imagem da aula")
   const caption = escapeHtml(content.caption || "")
+  const captionAlign = content.caption_align || "left"
   const linkUrl = content.link_url?.trim() ?? ""
   const widthPercent = clamp(content.width_percent || 100, 25, 100)
   const payload = encodeURIComponent(JSON.stringify(content))
@@ -116,7 +127,7 @@ function serializeImageFallback(content: LessonImageBlockContent) {
     : imageMarkup
 
   return src
-    ? `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}" style="width:${widthPercent}%;max-width:100%;margin:0 auto;">${wrappedImage}${caption ? `<figcaption>${caption}</figcaption>` : ""}</figure>`
+    ? `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}" style="width:${widthPercent}%;max-width:100%;margin:0 auto;">${wrappedImage}${caption ? `<figcaption style="text-align:${captionAlign};">${caption}</figcaption>` : ""}</figure>`
     : `<figure class="hcm-image-block" data-hcm-block="image" data-hcm-payload="${payload}"></figure>`
 }
 

@@ -57,6 +57,12 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
   const [resolvingImageUrl, setResolvingImageUrl] = useState(false)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
   const imageUrl = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedImageUrl
+  const captionAlignClass =
+    normalized.caption_align === "center"
+      ? "text-center"
+      : normalized.caption_align === "right"
+        ? "text-right"
+        : "text-left"
 
   useEffect(() => {
     if (!directSource) {
@@ -126,7 +132,9 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
             </div>
           </div>
           {normalized.caption.trim() ? (
-            <figcaption className="px-1 text-sm leading-6 text-slate-600">{normalized.caption}</figcaption>
+            <figcaption className={`px-1 text-sm leading-6 text-slate-600 ${captionAlignClass}`}>
+              {normalized.caption}
+            </figcaption>
           ) : null}
         </div>
       ) : (

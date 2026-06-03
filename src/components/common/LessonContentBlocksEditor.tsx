@@ -91,6 +91,7 @@ function emptyImageContent(): LessonImageBlockContent {
     public_url: null,
     alt: "Imagem da aula",
     caption: "",
+    caption_align: "left",
     link_url: null,
     width_percent: 100,
   }
@@ -364,6 +365,12 @@ function ImageBlockEditor({
   const normalized = normalizeLessonImageBlockContent(value)
   const imageUrl = localPreviewUrl || resolvedPreviewUrl
   const pendingUpload = uploadPublicImage.isPending || deleteLessonStorageObject.isPending || disabled
+  const captionAlignClass =
+    normalized.caption_align === "center"
+      ? "text-center"
+      : normalized.caption_align === "right"
+        ? "text-right"
+        : "text-left"
 
   useEffect(() => {
     return () => {
@@ -426,6 +433,15 @@ function ImageBlockEditor({
     )
   }
 
+  const updateCaptionAlign = (caption_align: LessonImageBlockContent["caption_align"]) => {
+    onChange(
+      normalizeLessonImageBlockContent({
+        ...normalized,
+        caption_align,
+      }),
+    )
+  }
+
   const updateLink = (link_url: string) => {
     onChange(
       normalizeLessonImageBlockContent({
@@ -478,6 +494,7 @@ function ImageBlockEditor({
         public_url: upload.public_url ?? null,
         alt: normalized.alt || file.name.replace(/\.[^.]+$/, ""),
         caption: normalized.caption,
+        caption_align: normalized.caption_align,
         link_url: normalized.link_url,
         width_percent: normalized.width_percent,
       }),
@@ -574,6 +591,7 @@ function ImageBlockEditor({
           public_url: null,
           alt: "Imagem da aula",
           caption: "",
+          caption_align: "left",
           link_url: null,
           width_percent: 100,
         }),
@@ -617,7 +635,9 @@ function ImageBlockEditor({
               </div>
             </div>
             {normalized.caption.trim() ? (
-              <figcaption className="text-sm leading-6 text-slate-600">{normalized.caption}</figcaption>
+              <figcaption className={`text-sm leading-6 text-slate-600 ${captionAlignClass}`}>
+                {normalized.caption}
+              </figcaption>
             ) : null}
           </figure>
         ) : (
@@ -702,6 +722,25 @@ function ImageBlockEditor({
             placeholder="https://..."
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
           />
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+        <div className="space-y-2">
+          <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500">Alinhamento da legenda</label>
+          <select
+            disabled={disabled}
+            value={normalized.caption_align}
+            onChange={(event) => updateCaptionAlign(event.target.value as LessonImageBlockContent["caption_align"])}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+          >
+            <option value="left">Esquerda</option>
+            <option value="center">Centro</option>
+            <option value="right">Direita</option>
+          </select>
+        </div>
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+          Define para que lado a legenda fica alinhada em relação à imagem.
         </div>
       </div>
 

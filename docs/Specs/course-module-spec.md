@@ -758,7 +758,7 @@ Bloco de imagem simples:
 
 - imagem enviada por upload;
 - texto alternativo;
-- legenda opcional;
+- legenda opcional, com alinhamento horizontal configuravel;
 - link opcional;
 - controlo de tamanho;
 - pré-visualização imediata no editor;
