@@ -725,17 +725,27 @@ function VideoBlockEditor({
   disabled: boolean
 }) {
   const uploadVideo = useUploadAdminModuleAssetFile()
+  const deleteLessonStorageObject = useDeleteAdminLessonStorageObject()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonVideoBlockContent(value)
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null)
   const [resolvingVideoUrl, setResolvingVideoUrl] = useState(false)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const videoUrl = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl
+  const videoUrl = localPreviewUrl || (isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl)
   const embedUrl = getYoutubeEmbedUrl(videoUrl)
   const externalVideoUrl = getExternalVideoUrl(videoUrl)
-  const pendingUpload = uploadVideo.isPending || disabled
+  const pendingUpload = uploadVideo.isPending || deleteLessonStorageObject.isPending || disabled
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+    }
+  }, [localPreviewUrl])
 
   useEffect(() => {
     if (!directSource) {
@@ -791,6 +801,38 @@ function VideoBlockEditor({
     )
   }
 
+  const uploadSelectedVideo = async (file: File) => {
+    const trimmedModuleId = moduleId.trim()
+    if (!trimmedModuleId) {
+      throw new Error("Não foi possível identificar o módulo para este upload.")
+    }
+
+    setStatus({
+      tone: "info",
+      message: `A enviar e guardar "${file.name}" automaticamente...`,
+    })
+
+    const upload = await uploadVideo.mutateAsync({
+      moduleId: trimmedModuleId,
+      file,
+      replacePath: normalized.storage_path || null,
+    })
+
+    onChange(
+      normalizeLessonVideoBlockContent({
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        public_url: upload.public_url ?? null,
+        title: normalized.title || file.name.replace(/\.[^.]+$/, ""),
+      }),
+    )
+    setResolvedVideoUrl(upload.public_url ?? null)
+    setStatus({
+      tone: "success",
+      message: "Vídeo enviado e guardado automaticamente.",
+    })
+  }
+
   const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     if (!file) return
@@ -805,59 +847,84 @@ function VideoBlockEditor({
     }
 
     setSelectedFile(file)
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith("blob:")) {
+        URL.revokeObjectURL(previous)
+      }
+      return URL.createObjectURL(file)
+    })
     setStatus({
       tone: "info",
-      message: `Ficheiro selecionado: ${file.name}. Agora clica em "Enviar vídeo".`,
+      message: `Vídeo selecionado: ${file.name}. A guardar automaticamente agora...`,
     })
     event.target.value = ""
+    void uploadSelectedVideo(file)
+      .then(() => {
+        setSelectedFile(null)
+        setLocalPreviewUrl(null)
+      })
+      .catch((uploadError) => {
+        setStatus({
+          tone: "error",
+          message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o vídeo.",
+        })
+      })
   }
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
+  const handleDeleteVideo = async () => {
+    const currentPath = normalized.storage_path.trim()
+    const currentBucket = normalized.storage_bucket?.trim() || null
+    const hasExternalUrl = Boolean(normalized.public_url?.trim() && isRenderableLessonMediaUrl(normalized.public_url.trim()))
+
+    if (!currentPath && !hasExternalUrl) {
       setStatus({
         tone: "error",
-        message: "Seleciona um vídeo antes de enviar.",
+        message: "Não existe nenhum vídeo para excluir.",
       })
       return
     }
 
-    if (!moduleId.trim()) {
-      setStatus({
-        tone: "error",
-        message: "Não foi possível identificar o módulo para este upload.",
-      })
-      return
-    }
+    const confirmed = window.confirm("Queres excluir este vídeo?")
+    if (!confirmed) return
 
     setStatus({
       tone: "info",
-      message: `A enviar "${selectedFile.name}"...`,
+      message: "A excluir o vídeo guardado...",
     })
 
     try {
-      const upload = await uploadVideo.mutateAsync({
-        moduleId,
-        file: selectedFile,
-        replacePath: normalized.storage_path || null,
-      })
+      if (currentPath && currentBucket) {
+        await deleteLessonStorageObject.mutateAsync({
+          productId: null,
+          moduleId,
+          mediaBucket: currentBucket,
+          mediaPath: currentPath,
+        })
+      }
 
+      if (localPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+
+      setSelectedFile(null)
+      setLocalPreviewUrl(null)
+      setResolvedVideoUrl(null)
       onChange(
         normalizeLessonVideoBlockContent({
-          storage_bucket: upload.bucket,
-          storage_path: upload.path,
-          public_url: upload.public_url ?? null,
-          title: normalized.title || selectedFile.name.replace(/\.[^.]+$/, ""),
+          storage_bucket: null,
+          storage_path: "",
+          public_url: null,
+          title: "Vídeo da aula",
         }),
       )
-      setSelectedFile(null)
       setStatus({
         tone: "success",
-        message: "Vídeo enviado com sucesso.",
+        message: "Vídeo excluído com sucesso.",
       })
-    } catch (uploadError) {
+    } catch (deleteError) {
       setStatus({
         tone: "error",
-        message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o vídeo.",
+        message: deleteError instanceof Error ? deleteError.message : "Não foi possível excluir o vídeo.",
       })
     }
   }
@@ -939,16 +1006,20 @@ function VideoBlockEditor({
           </button>
           <button
             type="button"
-            disabled={pendingUpload || !selectedFile}
-            onClick={() => void handleUpload()}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
+            disabled={pendingUpload || (!normalized.storage_path.trim() && !normalized.public_url?.trim())}
+            onClick={() => void handleDeleteVideo()}
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-50"
           >
-            Enviar vídeo
+            Excluir vídeo
           </button>
         </div>
       </div>
 
-      {selectedFile ? <p className="text-xs font-medium text-slate-500">Selecionado: {selectedFile.name}</p> : null}
+      {selectedFile ? (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
+          <span className="font-bold">Selecionado:</span> {selectedFile.name}. O vídeo está a ser enviado e salvo automaticamente.
+        </div>
+      ) : null}
 
       {status ? (
         <p

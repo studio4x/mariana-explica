@@ -716,6 +716,9 @@ Video:
 - usa `youtube_url`;
 - aceita link do YouTube;
 - aceita URL direta de ficheiro de video;
+- aceita upload de ficheiro com envio automatico ao selecionar o arquivo;
+- permite excluir o video enviado e limpar o bloco;
+- preserva a resolucao por URL assinada para assets privados quando necessario;
 - aceita ficheiro privado enviado para a plataforma, persistido como `asset:<uuid>`;
 - pode ou nao ter descricao;
 - foco principal e media embed.
