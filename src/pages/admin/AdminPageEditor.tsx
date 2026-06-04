@@ -197,6 +197,12 @@ function getRichImagePlaceholderSrc() {
   ].join("")
 }
 
+function getCanvasDropHintLabel(payload: DragPayload | null) {
+  if (!payload) return "Mover/adicionar aqui"
+  if (payload.kind === "library") return "Adicionar aqui"
+  return "Mover aqui"
+}
+
 function escapeHtmlAttribute(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -927,6 +933,7 @@ export function AdminPageEditor() {
   }, [autosaveEnabled, autosaveSavedAt, autosaveStatus])
 
   const canvasPreviewCss = useMemo(() => getCanvasPreviewCss(), [])
+  const dragHintLabel = getCanvasDropHintLabel(dragPayloadRef.current)
 
   const isSaving =
     saveDraftMutation.isPending ||
@@ -1232,7 +1239,7 @@ export function AdminPageEditor() {
         const baseStyle = child.getAttribute("style") ?? ""
         const activeStyle =
           activeIndex === index
-            ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:grab;"
+            ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:grab;box-shadow:inset 0 -4px 0 #38bdf8;background:rgba(224,242,254,.32);"
             : "cursor:grab;"
         child.setAttribute("style", `${baseStyle}${baseStyle ? ";" : ""}${activeStyle}`)
       })
@@ -2662,11 +2669,11 @@ export function AdminPageEditor() {
               onDrop={(event) => handleDropAtIndex(0, event)}
               className={[
                 "relative z-10 mb-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
-                isDraggingBlockLike ? "h-10 opacity-100" : "h-3 opacity-70",
+                isDraggingBlockLike ? "h-12 opacity-100" : "h-3 opacity-70",
                 dragOverIndex === 0 ? "border-sky-500 bg-sky-100 text-sky-900" : "border-slate-300 bg-transparent text-slate-400",
               ].join(" ")}
             >
-              {isDraggingBlockLike ? "Solta aqui" : null}
+              {isDraggingBlockLike ? dragHintLabel : null}
             </div>
 
             {documentDraft.blocks.length === 0 ? (
@@ -2921,7 +2928,13 @@ export function AdminPageEditor() {
                                     : block.content,
                               }}
                             />
-                            {pendingRichInsertPoint?.blockId === block.id ? (
+                            {isDraggingCanvasBlock && selectedBlockId === block.id ? (
+                              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-semibold text-sky-800">
+                                {selectedRichNodeIndex !== null
+                                  ? `${dragHintLabel} apos o elemento destacado.`
+                                  : `${dragHintLabel} no fim deste texto.`}
+                              </div>
+                            ) : pendingRichInsertPoint?.blockId === block.id ? (
                               <p className="text-xs font-semibold text-sky-700">Ponto de insercao selecionado.</p>
                             ) : null}
                           </div>
@@ -3088,12 +3101,12 @@ export function AdminPageEditor() {
                                             }}
                                             onDrop={(event) => handleDropIntoContainerColumn(block.id, columnIndex, event, childIndex)}
                                             className={[
-                                              "flex items-center justify-center rounded-xl border border-dashed text-[10px] font-bold uppercase tracking-[0.14em] transition",
-                                              isDraggingBlockLike ? "h-8 opacity-100" : "h-2 opacity-60",
+                                              "flex items-center justify-center rounded-xl border border-dashed px-2 text-[10px] font-bold uppercase tracking-[0.14em] transition",
+                                              isDraggingBlockLike ? "h-10 opacity-100" : "h-2 opacity-60",
                                               "border-slate-300 bg-transparent text-slate-400",
                                             ].join(" ")}
                                           >
-                                            {isDraggingBlockLike ? "Solta aqui" : null}
+                                            {isDraggingBlockLike ? dragHintLabel : null}
                                           </div>
                                           <button
                                             type="button"
@@ -3134,12 +3147,12 @@ export function AdminPageEditor() {
                                       }}
                                       onDrop={(event) => handleDropIntoContainerColumn(block.id, columnIndex, event, columnBlocks.length)}
                                       className={[
-                                        "flex items-center justify-center rounded-xl border border-dashed text-[10px] font-bold uppercase tracking-[0.14em] transition",
-                                        isDraggingBlockLike ? "h-8 opacity-100" : "h-2 opacity-60",
+                                        "flex items-center justify-center rounded-xl border border-dashed px-2 text-[10px] font-bold uppercase tracking-[0.14em] transition",
+                                        isDraggingBlockLike ? "h-10 opacity-100" : "h-2 opacity-60",
                                         "border-slate-300 bg-transparent text-slate-400",
                                       ].join(" ")}
                                     >
-                                      {isDraggingBlockLike ? "Solta aqui" : null}
+                                      {isDraggingBlockLike ? dragHintLabel : null}
                                     </div>
                                   </div>
                                 )}
@@ -3202,13 +3215,13 @@ export function AdminPageEditor() {
                         onDrop={(event) => handleDropAtIndex(index + 1, event)}
                         className={[
                           "my-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
-                          isDraggingBlockLike ? "h-10 opacity-100" : "h-3 opacity-70",
+                          isDraggingBlockLike ? "h-12 opacity-100" : "h-3 opacity-70",
                           dragOverIndex === index + 1
                             ? "border-sky-500 bg-sky-100 text-sky-900"
                             : "border-slate-300 bg-transparent text-slate-400",
                         ].join(" ")}
                       >
-                        {isDraggingBlockLike ? "Solta aqui" : null}
+                        {isDraggingBlockLike ? dragHintLabel : null}
                       </div>
                     </div>
                   )
