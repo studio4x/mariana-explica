@@ -203,6 +203,12 @@ function getCanvasDropHintLabel(payload: DragPayload | null) {
   return "Mover aqui"
 }
 
+function parseSymmetricMarginValue(first: string | null | undefined, second: string | null | undefined, fallback = 0) {
+  const firstValue = parsePxValue(first, fallback)
+  const secondValue = parsePxValue(second, fallback)
+  return firstValue === secondValue ? firstValue : firstValue
+}
+
 function escapeHtmlAttribute(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -556,8 +562,22 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
     width: widthCss,
     marginTop: normalized.marginTop,
     marginBottom: normalized.marginBottom,
-    marginLeft: normalized.align === "right" ? "auto" : normalized.align === "center" ? "auto" : 0,
-    marginRight: normalized.align === "left" ? "auto" : normalized.align === "center" ? "auto" : 0,
+    marginLeft:
+      normalized.marginLeft > 0 || normalized.marginRight > 0
+        ? normalized.marginLeft
+        : normalized.align === "right"
+          ? "auto"
+          : normalized.align === "center"
+            ? "auto"
+            : 0,
+    marginRight:
+      normalized.marginLeft > 0 || normalized.marginRight > 0
+        ? normalized.marginRight
+        : normalized.align === "left"
+          ? "auto"
+          : normalized.align === "center"
+            ? "auto"
+            : 0,
     paddingTop: normalized.paddingTop,
     paddingRight: normalized.paddingRight,
     paddingBottom: normalized.paddingBottom,
@@ -895,6 +915,8 @@ export function AdminPageEditor() {
       linkHref: element.getAttribute("href") ?? "",
       textColor: normalizeColorForInput(element.style.color, "#0f172a"),
       backgroundColor: normalizeColorForInput(element.style.backgroundColor, "#ffffff"),
+      marginVerticalPx: parseSymmetricMarginValue(element.style.marginTop, element.style.marginBottom, 0),
+      marginHorizontalPx: parseSymmetricMarginValue(element.style.marginLeft, element.style.marginRight, 0),
       borderWidthPx: parsePxValue(element.style.borderWidth, 0),
       borderColor: normalizeColorForInput(element.style.borderColor, "#242742"),
       borderRadiusPx: parsePxValue(element.style.borderRadius, 999),
@@ -1239,7 +1261,7 @@ export function AdminPageEditor() {
         const baseStyle = child.getAttribute("style") ?? ""
         const activeStyle =
           activeIndex === index
-            ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:grab;box-shadow:inset 0 -4px 0 #38bdf8;background:rgba(224,242,254,.32);"
+            ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:grab;"
             : "cursor:grab;"
         child.setAttribute("style", `${baseStyle}${baseStyle ? ";" : ""}${activeStyle}`)
       })
@@ -1594,6 +1616,35 @@ export function AdminPageEditor() {
       }
       if (typeof partial.backgroundColor === "string") {
         targetNode.style.backgroundColor = partial.backgroundColor
+      }
+
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeMarginStyleEdit = useCallback(
+    (partial: { marginVertical?: number; marginHorizontal?: number }) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode) return
+
+      if (typeof partial.marginVertical === "number") {
+        const safeValue = Math.max(0, Math.min(240, partial.marginVertical))
+        targetNode.style.marginTop = `${safeValue}px`
+        targetNode.style.marginBottom = `${safeValue}px`
+      }
+
+      if (typeof partial.marginHorizontal === "number") {
+        const safeValue = Math.max(0, Math.min(240, partial.marginHorizontal))
+        targetNode.style.marginLeft = `${safeValue}px`
+        targetNode.style.marginRight = `${safeValue}px`
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -3612,27 +3663,33 @@ export function AdminPageEditor() {
 
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <label className="block text-xs font-semibold text-slate-600">
-                        Margem top
+                        Margem vertical (px)
                         <input
                           type="number"
                           min={0}
                           max={240}
                           value={selectedLayout.marginTop}
                           onChange={(event) =>
-                            updateSelectedBlockLayout({ marginTop: snapSpacing(Number(event.target.value) || 0) })
+                            updateSelectedBlockLayout({
+                              marginTop: snapSpacing(Number(event.target.value) || 0),
+                              marginBottom: snapSpacing(Number(event.target.value) || 0),
+                            })
                           }
                           className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
                         />
                       </label>
                       <label className="block text-xs font-semibold text-slate-600">
-                        Margem bottom
+                        Margem horizontal (px)
                         <input
                           type="number"
                           min={0}
                           max={240}
-                          value={selectedLayout.marginBottom}
+                          value={selectedLayout.marginLeft}
                           onChange={(event) =>
-                            updateSelectedBlockLayout({ marginBottom: snapSpacing(Number(event.target.value) || 0) })
+                            updateSelectedBlockLayout({
+                              marginLeft: snapSpacing(Number(event.target.value) || 0),
+                              marginRight: snapSpacing(Number(event.target.value) || 0),
+                            })
                           }
                           className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
                         />
@@ -3788,6 +3845,38 @@ export function AdminPageEditor() {
                         <div className="space-y-2">
                           <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
                             {selectedRichNodeText ? `Trecho selecionado: ${selectedRichNodeText}` : "Trecho HTML selecionado no canvas."}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem vertical (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedRichNodeDescriptor?.marginVerticalPx ?? 0}
+                                onChange={(event) =>
+                                  applyRichNodeMarginStyleEdit({
+                                    marginVertical: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                  })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem horizontal (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedRichNodeDescriptor?.marginHorizontalPx ?? 0}
+                                onChange={(event) =>
+                                  applyRichNodeMarginStyleEdit({
+                                    marginHorizontal: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                  })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
                           </div>
                           {selectedRichNodeDescriptor?.isTextEditable ? (
                             <div className="space-y-1">

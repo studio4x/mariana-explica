@@ -12,6 +12,8 @@ export interface BlockLayoutStyle {
   paddingLeft: number
   marginTop: number
   marginBottom: number
+  marginLeft: number
+  marginRight: number
   backgroundColor: string
   borderRadius: number
   contentAlignX: "left" | "center" | "right" | "stretch"
@@ -159,6 +161,8 @@ export function getBlockLayoutDefaults(): BlockLayoutStyle {
     paddingLeft: 16,
     marginTop: 0,
     marginBottom: 4,
+    marginLeft: 0,
+    marginRight: 0,
     backgroundColor: "transparent",
     borderRadius: 0,
     contentAlignX: "stretch",
@@ -185,6 +189,8 @@ export function normalizeLayoutStyle(raw: unknown): BlockLayoutStyle {
     paddingLeft: clamp(Number(record.paddingLeft ?? defaults.paddingLeft), 0, 240),
     marginTop: clamp(Number(record.marginTop ?? defaults.marginTop), 0, 240),
     marginBottom: clamp(Number(record.marginBottom ?? defaults.marginBottom), 0, 240),
+    marginLeft: clamp(Number(record.marginLeft ?? defaults.marginLeft), 0, 240),
+    marginRight: clamp(Number(record.marginRight ?? defaults.marginRight), 0, 240),
     backgroundColor: String(record.backgroundColor ?? defaults.backgroundColor),
     borderRadius: clamp(Number(record.borderRadius ?? defaults.borderRadius), 0, 120),
     contentAlignX: (
@@ -583,6 +589,8 @@ function createHomeRichSection(content: string) {
     paddingLeft: 0,
     marginTop: 0,
     marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
     backgroundColor: "transparent",
     borderRadius: 0,
   }
@@ -1184,6 +1192,8 @@ function setLegacyBlockLayout(block: PageBlock) {
     paddingLeft: 0,
     marginTop: 0,
     marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
     backgroundColor: "transparent",
     borderRadius: 0,
   }
@@ -1383,8 +1393,21 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
   const widthPercent = Math.round((layout.gridColumns / 12) * 10000) / 100
   const widthCss = `min(100%, ${widthPercent}%)`
 
-  const marginLeft = layout.align === "right" ? "auto" : layout.align === "center" ? "auto" : "0"
-  const marginRight = layout.align === "left" ? "auto" : layout.align === "center" ? "auto" : "0"
+  const hasExplicitHorizontalMargins = layout.marginLeft > 0 || layout.marginRight > 0
+  const marginLeft = hasExplicitHorizontalMargins
+    ? `${layout.marginLeft}px`
+    : layout.align === "right"
+      ? "auto"
+      : layout.align === "center"
+        ? "auto"
+        : "0"
+  const marginRight = hasExplicitHorizontalMargins
+    ? `${layout.marginRight}px`
+    : layout.align === "left"
+      ? "auto"
+      : layout.align === "center"
+        ? "auto"
+        : "0"
 
   const contentAlignItems =
     layout.contentAlignX === "left"
