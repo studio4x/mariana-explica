@@ -5016,7 +5016,7 @@ export function AdminPageEditor() {
       </section>
 
       <footer className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-start">
           <span className="text-[10px] font-medium tracking-[0.06em] text-[#5F7077]">Build {BUILD_VERSION}</span>
         </div>
       </footer>
