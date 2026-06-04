@@ -3016,14 +3016,6 @@ export function AdminPageEditor() {
                   const hasCustomSectionBackground =
                     backgroundImageUrl.length > 0 ||
                     (block.layout.backgroundColor.trim() !== "" && block.layout.backgroundColor.trim() !== "transparent")
-                  const backgroundImageFit =
-                    block.layout.backgroundImageSize === "stretch"
-                      ? "fill"
-                      : block.layout.backgroundImageSize === "contain"
-                        ? "contain"
-                        : block.layout.backgroundImageSize === "auto"
-                          ? "none"
-                          : "cover"
                   return (
                     <div key={block.id}>
                       <section
@@ -3065,23 +3057,9 @@ export function AdminPageEditor() {
                         style={getBlockContainerStyle(block.layout)}
                       >
                         {backgroundImageUrl ? (
-                          <>
-                            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
-                              <img
-                                src={backgroundImageUrl}
-                                alt=""
-                                className="h-full w-full select-none"
-                                style={{
-                                  objectFit: backgroundImageFit,
-                                  objectPosition: "center center",
-                                  opacity: 1,
-                                }}
-                              />
-                            </div>
-                            <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-sm">
-                              Fundo definido
-                            </div>
-                          </>
+                          <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-sm">
+                            Fundo definido
+                          </div>
                         ) : null}
 
                         <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
