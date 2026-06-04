@@ -925,6 +925,8 @@ export function AdminPageEditor() {
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
+  const canvasAreaRef = useRef<HTMLDivElement | null>(null)
+  const inspectorAreaRef = useRef<HTMLDivElement | null>(null)
   const loadedSlugRef = useRef<string>("")
   const loadedVersionRef = useRef<string>("")
   const autosaveTimerRef = useRef<number | null>(null)
@@ -1098,6 +1100,29 @@ export function AdminPageEditor() {
       window.removeEventListener("keydown", handleEscape)
     }
   }, [isMoreActionsMenuOpen])
+
+  useEffect(() => {
+    const handleOutsideEditorCanvasClick = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      if (canvasAreaRef.current?.contains(target)) return
+      if (inspectorAreaRef.current?.contains(target)) return
+      if (!selectedBlockId && selectedRichNodeIndex === null && !selectedContainerColumnTarget && !isSectionLayoutMode) return
+
+      setSelectedBlockId("")
+      setSelectedRichNodeIndex(null)
+      setSelectedContainerColumnTarget(null)
+      setPendingContainerInsertPoint(null)
+      setPendingRichInsertPoint(null)
+      setIsLayoutCardVisible(false)
+      setIsSectionLayoutMode(false)
+    }
+
+    window.addEventListener("mousedown", handleOutsideEditorCanvasClick)
+    return () => {
+      window.removeEventListener("mousedown", handleOutsideEditorCanvasClick)
+    }
+  }, [isSectionLayoutMode, selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex])
 
   const updateDocument = useCallback((updater: (current: SitePageBuilderDocument) => SitePageBuilderDocument) => {
     setDocumentDraft((current) => updater(current))
@@ -2830,7 +2855,7 @@ export function AdminPageEditor() {
       </div>
 
       <section className="flex min-h-0 flex-1 items-start gap-3">
-        <article className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
+        <article ref={canvasAreaRef} className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Canvas visual</p>
@@ -2897,7 +2922,13 @@ export function AdminPageEditor() {
                           }
                           selectBlockForEdit(block.id)
                         }}
-                        onClick={() => {
+                        onClick={(event) => {
+                          const target = event.target as HTMLElement | null
+                          if (target === event.currentTarget) {
+                            selectSectionForEdit(block.id)
+                            return
+                          }
+                          setIsSectionLayoutMode(false)
                           selectBlockForEdit(block.id)
                         }}
                         onDoubleClick={() => {
@@ -3051,7 +3082,7 @@ export function AdminPageEditor() {
                                 }
                                 const nextIndex = resolveRichNodeIndexFromTarget(target, richTextRoot)
                                 if (nextIndex === null) {
-                                  selectBlockForEdit(block.id)
+                                  selectSectionForEdit(block.id)
                                   return
                                 }
                                 selectRichNodeForEdit(block.id, nextIndex)
@@ -3061,7 +3092,7 @@ export function AdminPageEditor() {
                                 const target = event.target as HTMLElement | null
                                 const nextIndex = resolveRichNodeIndexFromTarget(target, event.currentTarget)
                                 if (nextIndex === null) {
-                                  selectBlockForEdit(block.id)
+                                  selectSectionForEdit(block.id)
                                   return
                                 }
                                 selectRichNodeForEdit(block.id, nextIndex)
@@ -3416,7 +3447,7 @@ export function AdminPageEditor() {
           </div>
         </article>
 
-        <div className="sticky top-20 h-[calc(100dvh-96px)] w-[350px] self-start">
+        <div ref={inspectorAreaRef} className="sticky top-20 h-[calc(100dvh-96px)] w-[350px] self-start">
         <aside className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white transition-all">
           <div className="border-b border-slate-200 px-3 py-2">
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Painel lateral</p>
