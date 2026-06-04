@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { DragEvent, FocusEvent } from "react"
 import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
@@ -937,6 +937,7 @@ export function AdminPageEditor() {
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
   const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
+  const [isMediaLibraryModalOpen, setIsMediaLibraryModalOpen] = useState(false)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
@@ -972,6 +973,12 @@ export function AdminPageEditor() {
     () => normalizeLayoutStyle(selectedBlock?.layout ?? getBlockLayoutDefaults()),
     [selectedBlock],
   )
+  const selectedSectionBackgroundAsset = useMemo(() => {
+    if (!selectedBlock || selectedSectionBlockId !== selectedBlock.id) return null
+    const backgroundImageUrl = selectedLayout.backgroundImageUrl.trim()
+    if (!backgroundImageUrl) return null
+    return assets.find((asset) => asset.public_url?.trim() === backgroundImageUrl) ?? null
+  }, [assets, selectedBlock, selectedLayout.backgroundImageUrl, selectedSectionBlockId])
   const structureTree = useMemo(() => buildStructureTree(documentDraft.blocks), [documentDraft.blocks])
 
   const selectedRichNodeHtml = useMemo(() => {
@@ -2462,6 +2469,14 @@ export function AdminPageEditor() {
     [selectedBlock, selectedSectionBlockId, updateSelectedBlockLayout],
   )
 
+  const handleSelectSectionBackgroundAsset = useCallback(
+    (asset: AdminSitePageAsset) => {
+      applySelectedSectionBackgroundImage(asset.public_url)
+      setIsMediaLibraryModalOpen(false)
+    },
+    [applySelectedSectionBackgroundImage],
+  )
+
   const handleSectionBackgroundUpload = async (file: File) => {
     setUploadingInspectorAsset(true)
     try {
@@ -2972,6 +2987,15 @@ export function AdminPageEditor() {
                 {documentDraft.blocks.map((block, index) => {
                   const isSelected = selectedBlockId === block.id
                   const isInlineEditing = inlineEditingBlockId === block.id
+                  const backgroundImageUrl = block.layout.backgroundImageUrl.trim()
+                  const backgroundImageFit =
+                    block.layout.backgroundImageSize === "stretch"
+                      ? "fill"
+                      : block.layout.backgroundImageSize === "contain"
+                        ? "contain"
+                        : block.layout.backgroundImageSize === "auto"
+                          ? "none"
+                          : "cover"
                   return (
                     <div key={block.id}>
                       <section
@@ -3007,11 +3031,31 @@ export function AdminPageEditor() {
                           }
                         }}
                         className={[
-                          "group relative rounded-xl border bg-white text-left transition",
+                          "group relative overflow-hidden rounded-xl border bg-white text-left transition",
                           isSelected ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200 hover:border-slate-300",
                         ].join(" ")}
                         style={getBlockContainerStyle(block.layout)}
                       >
+                        {backgroundImageUrl ? (
+                          <>
+                            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+                              <img
+                                src={backgroundImageUrl}
+                                alt=""
+                                className="h-full w-full select-none"
+                                style={{
+                                  objectFit: backgroundImageFit,
+                                  objectPosition: "center center",
+                                  opacity: 1,
+                                }}
+                              />
+                            </div>
+                            <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-sm">
+                              Fundo definido
+                            </div>
+                          </>
+                        ) : null}
+
                         <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             type="button"
@@ -3920,30 +3964,42 @@ export function AdminPageEditor() {
                           >
                             Remover fundo
                           </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            onClick={() => setIsMediaLibraryModalOpen(true)}
+                          >
+                            <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+                            Biblioteca de mídia
+                          </Button>
                         </div>
-                        {assets.length === 0 ? (
-                          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
-                            Ainda não existem imagens para esta página.
-                          </p>
-                        ) : (
-                          <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
-                            {assets.map((asset) => (
-                              <button
-                                key={asset.id}
-                                type="button"
-                                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
-                                onClick={() => applySelectedSectionBackgroundImage(asset.public_url)}
-                              >
-                                <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                                  <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
-                                  <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
-                                </div>
-                              </button>
-                            ))}
+                        {selectedLayout.backgroundImageUrl.trim() ? (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Fundo definido</p>
+                            <div className="mt-2 flex items-center gap-3">
+                              <div className="h-14 w-14 overflow-hidden rounded-lg border border-emerald-200 bg-white">
+                                <img
+                                  src={selectedLayout.backgroundImageUrl}
+                                  alt={selectedSectionBackgroundAsset?.file_name ?? "Fundo da seção"}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-emerald-950">
+                                  {selectedSectionBackgroundAsset?.file_name ?? "Imagem definida como fundo da seção"}
+                                </p>
+                                <p className="text-[11px] text-emerald-800">
+                                  {selectedSectionBackgroundAsset ? formatDateTime(selectedSectionBackgroundAsset.created_at) : "Definida manualmente"}
+                                </p>
+                              </div>
+                            </div>
                           </div>
+                        ) : (
+                          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                            Nenhuma imagem de fundo definida para esta seção.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -5771,6 +5827,56 @@ export function AdminPageEditor() {
                     </Button>
                   ))}
                 </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+      {isMediaLibraryModalOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-4"
+              onClick={() => setIsMediaLibraryModalOpen(false)}
+            >
+              <div
+                className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Biblioteca de mídia</p>
+                    <p className="text-xs text-slate-500">Escolhe uma imagem para definir como fundo da seção.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setIsMediaLibraryModalOpen(false)}>
+                    Fechar
+                  </Button>
+                </div>
+
+                {assets.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                    Ainda não existem imagens para esta página.
+                  </p>
+                ) : (
+                  <div className="grid max-h-[60vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+                    {assets.map((asset) => (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                        onClick={() => handleSelectSectionBackgroundAsset(asset)}
+                      >
+                        <div className="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                          <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
+                          <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
+                          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-sky-700">Definir como fundo</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>,
             document.body,
