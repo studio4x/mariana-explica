@@ -974,6 +974,7 @@ export function AdminPageEditor() {
   const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
   const canvasAreaRef = useRef<HTMLDivElement | null>(null)
   const inspectorAreaRef = useRef<HTMLDivElement | null>(null)
+  const insertBlockModalRef = useRef<HTMLDivElement | null>(null)
   const loadedSlugRef = useRef<string>("")
   const loadedVersionRef = useRef<string>("")
   const autosaveTimerRef = useRef<number | null>(null)
@@ -1161,6 +1162,7 @@ export function AdminPageEditor() {
       if (isMediaLibraryModalOpen) return
       if (canvasAreaRef.current?.contains(target)) return
       if (inspectorAreaRef.current?.contains(target)) return
+      if (insertBlockModalRef.current?.contains(target)) return
       if (
         !selectedBlockId &&
         selectedRichNodeIndex === null &&
@@ -6006,6 +6008,7 @@ export function AdminPageEditor() {
               }}
             >
               <div
+                ref={insertBlockModalRef}
                 className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
                 onClick={(event) => event.stopPropagation()}
               >
