@@ -918,6 +918,7 @@ export function AdminPageEditor() {
     columnIndex: number
   } | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
+  const [isSectionLayoutMode, setIsSectionLayoutMode] = useState(false)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
   const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
@@ -1014,6 +1015,10 @@ export function AdminPageEditor() {
     return selectedRichNodeDescriptor?.textContent ?? ""
   }, [selectedRichNodeDescriptor])
 
+  const showSectionLayoutOnlyInspector = useMemo(() => {
+    return isSectionLayoutMode && !!selectedBlock
+  }, [isSectionLayoutMode, selectedBlock])
+
   const selectedContainerColumnLayout = useMemo(() => {
     if (!selectedBlock || selectedBlock.type !== "container") return null
     if (selectedContainerColumnTarget?.containerId !== selectedBlock.id) return null
@@ -1025,10 +1030,10 @@ export function AdminPageEditor() {
   }, [selectedBlock, selectedContainerColumnTarget])
 
   const showLayoutSectionCard = useMemo(() => {
-    if (!isLayoutCardVisible) return false
+    if (!isLayoutCardVisible && !isSectionLayoutMode) return false
     if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null) return false
     return true
-  }, [isLayoutCardVisible, selectedBlock?.type, selectedRichNodeIndex])
+  }, [isLayoutCardVisible, isSectionLayoutMode, selectedBlock?.type, selectedRichNodeIndex])
 
   const autosaveLabel = useMemo(() => {
     if (!autosaveEnabled) return "Autosave desligado"
@@ -1122,6 +1127,7 @@ export function AdminPageEditor() {
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(true)
+    setIsSectionLayoutMode(false)
   }, [selectedBlockId])
 
   const selectBlockSilently = useCallback((blockId: string) => {
@@ -1133,7 +1139,19 @@ export function AdminPageEditor() {
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
+    setIsSectionLayoutMode(false)
   }, [selectedBlockId])
+
+  const selectSectionForEdit = useCallback((blockId: string) => {
+    setSelectedBlockId(blockId)
+    setSelectedRichNodeIndex(null)
+    setSelectedContainerColumnTarget(null)
+    setPendingContainerInsertPoint(null)
+    setPendingRichInsertPoint(null)
+    setSidebarTab("inspector")
+    setIsLayoutCardVisible(true)
+    setIsSectionLayoutMode(true)
+  }, [])
 
   const selectRichNodeForEdit = useCallback((blockId: string, richNodeIndex: number) => {
     setSelectedBlockId(blockId)
@@ -1143,11 +1161,21 @@ export function AdminPageEditor() {
     setSelectedRichNodeIndex(richNodeIndex)
     setSidebarTab("inspector")
     setIsLayoutCardVisible(true)
+    setIsSectionLayoutMode(false)
   }, [])
 
   const handleSelectStructureNode = useCallback(
     (node: EditorStructureNode, options?: { openInspector?: boolean }) => {
       const openInspector = options?.openInspector ?? false
+
+      if (node.kind === "section" && node.blockId) {
+        if (openInspector) {
+          selectSectionForEdit(node.blockId)
+          return
+        }
+        selectBlockSilently(node.blockId)
+        return
+      }
 
       if (node.kind === "rich_node" && node.blockId && typeof node.richNodeIndex === "number") {
         if (openInspector) {
@@ -1159,6 +1187,7 @@ export function AdminPageEditor() {
           setPendingRichInsertPoint(null)
           setSelectedRichNodeIndex(node.richNodeIndex)
           setIsLayoutCardVisible(false)
+          setIsSectionLayoutMode(false)
         }
         return
       }
@@ -1169,6 +1198,7 @@ export function AdminPageEditor() {
         setSelectedContainerColumnTarget({ containerId: node.containerId, columnIndex: node.columnIndex })
         setPendingContainerInsertPoint(null)
         setIsLayoutCardVisible(openInspector)
+        setIsSectionLayoutMode(false)
         if (openInspector) {
           setSidebarTab("inspector")
         }
@@ -1182,7 +1212,7 @@ export function AdminPageEditor() {
         selectBlockSilently(node.blockId)
       }
     },
-    [selectBlockForEdit, selectBlockSilently, selectRichNodeForEdit],
+    [selectBlockForEdit, selectBlockSilently, selectRichNodeForEdit, selectSectionForEdit],
   )
 
   const isStructureNodeSelected = useCallback(
@@ -1572,6 +1602,7 @@ export function AdminPageEditor() {
         setPendingRichInsertPoint(null)
         setSidebarTab("inspector")
         setIsLayoutCardVisible(true)
+        setIsSectionLayoutMode(false)
       }
 
       return moved
@@ -1936,6 +1967,7 @@ export function AdminPageEditor() {
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
+    setIsSectionLayoutMode(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
@@ -2096,6 +2128,7 @@ export function AdminPageEditor() {
       setSelectedContainerColumnTarget((current) => (current?.containerId === blockId ? null : current))
       setPendingContainerInsertPoint((current) => (current?.containerId === blockId ? null : current))
       setIsLayoutCardVisible(false)
+      setIsSectionLayoutMode(false)
     },
     [documentDraft.blocks, removeSelectedRichNode, selectedRichNodeIndex, updateDocument],
   )
@@ -2283,6 +2316,7 @@ export function AdminPageEditor() {
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
+    setIsSectionLayoutMode(false)
     setInlineEditingBlockId(null)
     setIsDirty(false)
     setAutosaveStatus("idle")
@@ -2403,6 +2437,7 @@ export function AdminPageEditor() {
     setSelectedRichNodeIndex(richNodeIndex)
     setSidebarTab("inspector")
     setIsLayoutCardVisible(true)
+    setIsSectionLayoutMode(false)
   }
 
   const clearDragState = useCallback(() => {
@@ -3655,17 +3690,34 @@ export function AdminPageEditor() {
               ) : (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold text-slate-900">{getBlockLabel(selectedBlock)}</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
-                      onClick={() => handleRemoveBlock(selectedBlock.id)}
-                    >
-                      <Trash2 className="mr-2 h-3.5 w-3.5" />
-                      {selectedBlock.type === "rich_text" && selectedRichNodeIndex !== null ? "Excluir elemento" : "Excluir bloco"}
-                    </Button>
+                    <p className="text-sm font-bold text-slate-900">
+                      {showSectionLayoutOnlyInspector ? "Secao" : getBlockLabel(selectedBlock)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {!showSectionLayoutOnlyInspector ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => selectSectionForEdit(selectedBlock.id)}
+                        >
+                          Editar seccao
+                        </Button>
+                      ) : null}
+                      {!showSectionLayoutOnlyInspector ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                          onClick={() => handleRemoveBlock(selectedBlock.id)}
+                        >
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
+                          {selectedBlock.type === "rich_text" && selectedRichNodeIndex !== null ? "Excluir elemento" : "Excluir bloco"}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
 
                   {showLayoutSectionCard ? (
@@ -3898,7 +3950,7 @@ export function AdminPageEditor() {
                     </div>
                   ) : null}
 
-                  {selectedBlock.type === "heading" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "heading" ? (
                     <>
                       <label className="block text-xs font-semibold text-slate-600">
                         Texto
@@ -3946,7 +3998,7 @@ export function AdminPageEditor() {
                     </>
                   ) : null}
 
-                  {selectedBlock.type === "rich_text" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "rich_text" ? (
                     <div className="space-y-2">
                       <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
                         Clica num texto, imagem ou link no canvas para editar o elemento. Para mover, arrasta o próprio elemento para outra posição.
@@ -4362,7 +4414,7 @@ export function AdminPageEditor() {
                     </div>
                   ) : null}
 
-                  {selectedBlock.type === "image" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "image" ? (
                     <div className="space-y-3">
                       <label className="block text-xs font-semibold text-slate-600">
                         URL da imagem
@@ -4440,7 +4492,7 @@ export function AdminPageEditor() {
                     </div>
                   ) : null}
 
-                  {selectedBlock.type === "button" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "button" ? (
                     <>
                       <label className="block text-xs font-semibold text-slate-600">
                         Label
@@ -4723,7 +4775,7 @@ export function AdminPageEditor() {
                     </>
                   ) : null}
 
-                  {selectedBlock.type === "container" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "container" ? (
                     <>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
@@ -5209,7 +5261,7 @@ export function AdminPageEditor() {
                     </>
                   ) : null}
 
-                  {selectedBlock.type === "columns" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "columns" ? (
                     <>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
@@ -5385,7 +5437,7 @@ export function AdminPageEditor() {
                     </>
                   ) : null}
 
-                  {selectedBlock.type === "divider" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "divider" ? (
                     <label className="block text-xs font-semibold text-slate-600">
                       Cor (CSS)
                       <input
@@ -5396,7 +5448,7 @@ export function AdminPageEditor() {
                     </label>
                   ) : null}
 
-                  {selectedBlock.type === "spacer" ? (
+                  {!showSectionLayoutOnlyInspector && selectedBlock.type === "spacer" ? (
                     <label className="block text-xs font-semibold text-slate-600">
                       Altura (px)
                       <input
