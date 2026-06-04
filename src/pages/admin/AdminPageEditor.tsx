@@ -203,16 +203,10 @@ function getCanvasDropHintLabel(payload: DragPayload | null) {
   return "Mover aqui"
 }
 
-function getRichTextStructuralInsertAnchor(node: Element, root: HTMLElement) {
-  let anchor = node
-  while (anchor.parentElement && anchor.parentElement !== root) {
-    const parent = anchor.parentElement
-    if ((parent.tagName === "UL" || parent.tagName === "OL") && anchor.tagName === "LI") {
-      break
-    }
-    anchor = parent
-  }
-  return anchor
+function getRichTextStructuralInsertAnchor(node: Element) {
+  const structuralSelector = "h1,h2,h3,h4,h5,h6,p,li,blockquote,img"
+  if (node.matches(structuralSelector)) return node
+  return node.closest(structuralSelector) ?? node
 }
 
 function isStructuralRichTextNode(node: Element) {
@@ -237,12 +231,12 @@ function insertHtmlIntoRichTextContent(
   const anchorNode = anchorIndex >= 0 && anchorIndex < nodes.length ? nodes[anchorIndex] : null
 
   if (anchorNode?.parentNode) {
-    const structuralAnchor = getRichTextStructuralInsertAnchor(anchorNode, parsed.body)
+    const structuralAnchor = getRichTextStructuralInsertAnchor(anchorNode)
     structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
   } else if (insertIndex >= nodes.length) {
     parsed.body.appendChild(replacement)
   } else if (nodes[insertIndex]) {
-    const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex], parsed.body)
+    const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex])
     structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
   } else {
     parsed.body.appendChild(replacement)
@@ -1731,12 +1725,12 @@ export function AdminPageEditor() {
           if (!replacement) return current
 
           if (typeof normalizedAfterNodeIndex === "number" && normalizedAfterNodeIndex >= 0 && normalizedAfterNodeIndex < nextNodes.length) {
-            const structuralAnchor = getRichTextStructuralInsertAnchor(nextNodes[normalizedAfterNodeIndex], parsed.body)
+            const structuralAnchor = getRichTextStructuralInsertAnchor(nextNodes[normalizedAfterNodeIndex])
             structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
           } else if (normalizedIndex >= nextNodes.length) {
             parsed.body.appendChild(replacement)
           } else {
-            const structuralTarget = getRichTextStructuralInsertAnchor(nextNodes[normalizedIndex], parsed.body)
+            const structuralTarget = getRichTextStructuralInsertAnchor(nextNodes[normalizedIndex])
             structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
           }
 
@@ -1776,12 +1770,12 @@ export function AdminPageEditor() {
         if (!replacement) return current
 
         if (typeof rawTargetAfterNodeIndex === "number" && rawTargetAfterNodeIndex >= 0 && rawTargetAfterNodeIndex < targetNodes.length) {
-          const structuralAnchor = getRichTextStructuralInsertAnchor(targetNodes[rawTargetAfterNodeIndex], targetParsed.body)
+          const structuralAnchor = getRichTextStructuralInsertAnchor(targetNodes[rawTargetAfterNodeIndex])
           structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
         } else if (normalizedIndex >= targetNodes.length) {
           targetParsed.body.appendChild(replacement)
         } else {
-          const structuralTarget = getRichTextStructuralInsertAnchor(targetNodes[normalizedIndex], targetParsed.body)
+          const structuralTarget = getRichTextStructuralInsertAnchor(targetNodes[normalizedIndex])
           structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
         }
 
