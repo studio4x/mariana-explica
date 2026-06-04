@@ -3167,109 +3167,158 @@ export function AdminPageEditor() {
 
                         {block.type === "rich_text" ? (
                           <div className="space-y-2">
-                            <div
-                              className="rich-text-editor min-h-[70px] max-w-full overflow-hidden [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
-                              onDragStart={(event) => {
-                                const target = event.target as HTMLElement | null
-                                const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
-                                if (!richNode) return
-                                const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
-                                if (!Number.isFinite(nextIndex) || nextIndex < 0) return
-                                event.stopPropagation()
-                                startDragRichNode(block.id, nextIndex, event)
-                              }}
-                              onDragEnd={clearDragState}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                const target = event.target as HTMLElement | null
-                                const richTextRoot = event.currentTarget
-                                const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
-                                if (dropSlot) {
-                                  selectBlockForEdit(block.id)
-                                  const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
-                                  const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
-                                  if (Number.isFinite(insertIndex) && insertIndex >= 0) {
-                                    setPendingRichInsertPoint({
-                                      blockId: block.id,
-                                      insertIndex,
-                                      insertAfterNodeIndex:
-                                        Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
-                                          ? insertAfterNodeIndex
-                                          : undefined,
-                                    })
-                                  }
-                                  return
-                                }
-                                const nextIndex = resolveRichNodeIndexFromTarget(target, richTextRoot)
-                                if (nextIndex === null) {
-                                  selectSectionForEdit(block.id)
-                                  return
-                                }
-                                selectRichNodeForEdit(block.id, nextIndex)
-                              }}
-                              onDoubleClick={(event) => {
-                                event.stopPropagation()
-                                const target = event.target as HTMLElement | null
-                                const nextIndex = resolveRichNodeIndexFromTarget(target, event.currentTarget)
-                                if (nextIndex === null) {
-                                  selectSectionForEdit(block.id)
-                                  return
-                                }
-                                selectRichNodeForEdit(block.id, nextIndex)
-                              }}
-                              onDragOver={(event) => {
-                                if (selectedBlockId !== block.id) {
-                                  selectBlockSilently(block.id)
-                                }
-                                event.preventDefault()
-                                event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                            {(() => {
+                              const richNodeCount = getEditableRichNodesFromHtml(block.content).length
+                              const isEndInsertPointActive =
+                                pendingRichInsertPoint?.blockId === block.id && pendingRichInsertPoint.insertIndex >= richNodeCount
+                              return (
+                                <>
+                                  <div
+                                    className="rich-text-editor min-h-[70px] max-w-full overflow-hidden [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                                    onDragStart={(event) => {
+                                      const target = event.target as HTMLElement | null
+                                      const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
+                                      if (!richNode) return
+                                      const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                      if (!Number.isFinite(nextIndex) || nextIndex < 0) return
+                                      event.stopPropagation()
+                                      startDragRichNode(block.id, nextIndex, event)
+                                    }}
+                                    onDragEnd={clearDragState}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      const target = event.target as HTMLElement | null
+                                      const richTextRoot = event.currentTarget
+                                      const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                      if (dropSlot) {
+                                        selectBlockForEdit(block.id)
+                                        const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                        const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
+                                        if (Number.isFinite(insertIndex) && insertIndex >= 0) {
+                                          setPendingRichInsertPoint({
+                                            blockId: block.id,
+                                            insertIndex,
+                                            insertAfterNodeIndex:
+                                              Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                                ? insertAfterNodeIndex
+                                                : undefined,
+                                          })
+                                        }
+                                        return
+                                      }
+                                      const nextIndex = resolveRichNodeIndexFromTarget(target, richTextRoot)
+                                      if (nextIndex === null) {
+                                        selectSectionForEdit(block.id)
+                                        return
+                                      }
+                                      selectRichNodeForEdit(block.id, nextIndex)
+                                    }}
+                                    onDoubleClick={(event) => {
+                                      event.stopPropagation()
+                                      const target = event.target as HTMLElement | null
+                                      const nextIndex = resolveRichNodeIndexFromTarget(target, event.currentTarget)
+                                      if (nextIndex === null) {
+                                        selectSectionForEdit(block.id)
+                                        return
+                                      }
+                                      selectRichNodeForEdit(block.id, nextIndex)
+                                    }}
+                                    onDragOver={(event) => {
+                                      if (selectedBlockId !== block.id) {
+                                        selectBlockSilently(block.id)
+                                      }
+                                      event.preventDefault()
+                                      event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
 
-                                const target = event.target as HTMLElement | null
-                                const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
-                                const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
-                                if (richNode) {
-                                  const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
-                                  if (Number.isFinite(nextIndex) && nextIndex >= 0) {
-                                    if (selectedRichNodeIndex !== nextIndex) {
-                                      setSelectedRichNodeIndex(nextIndex)
-                                    }
-                                    return
+                                      const target = event.target as HTMLElement | null
+                                      const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
+                                      const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                      if (richNode) {
+                                        const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                        if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                          if (selectedRichNodeIndex !== nextIndex) {
+                                            setSelectedRichNodeIndex(nextIndex)
+                                          }
+                                          return
+                                        }
+                                      }
+                                      if (!dropSlot) return
+                                    }}
+                                    onDrop={(event) => {
+                                      const target = event.target as HTMLElement | null
+                                      const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
+                                      const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                      if (richNode) {
+                                        const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                        if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                          handleDropIntoRichText(block.id, nextIndex + 1, event)
+                                          return
+                                        }
+                                      }
+                                      if (dropSlot) {
+                                        const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                        if (!Number.isFinite(insertIndex) || insertIndex < 0) return
+                                        handleDropIntoRichText(block.id, insertIndex, event)
+                                        return
+                                      }
+                                      handleDropIntoRichText(block.id, getEditableRichNodesFromHtml(block.content).length, event)
+                                    }}
+                                    dangerouslySetInnerHTML={{
+                                      __html: makeCanvasSectionContentRespectLayoutBackground(
+                                        isSelected && richSelectionMode
+                                          ? annotateRichTextNodes(
+                                              block.content,
+                                              selectedRichNodeIndex,
+                                              isDraggingCanvasBlock || pendingRichInsertPoint?.blockId === block.id,
+                                            )
+                                          : block.content,
+                                        hasCustomSectionBackground,
+                                      ),
+                                    }}
+                                  />
+                                  <div
+                                    onClick={(event) => {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      selectBlockForEdit(block.id)
+                                  setSelectedRichNodeIndex(null)
+                                  setPendingRichInsertPoint({
+                                    blockId: block.id,
+                                    insertIndex: richNodeCount,
+                                    insertAfterNodeIndex: richNodeCount > 0 ? richNodeCount - 1 : undefined,
+                                  })
+                                }}
+                                onDragOver={(event) => {
+                                  if (selectedBlockId !== block.id) {
+                                    selectBlockSilently(block.id)
                                   }
-                                }
-                                if (!dropSlot) return
-                              }}
-                              onDrop={(event) => {
-                                const target = event.target as HTMLElement | null
-                                const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
-                                const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
-                                if (richNode) {
-                                  const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
-                                  if (Number.isFinite(nextIndex) && nextIndex >= 0) {
-                                    handleDropIntoRichText(block.id, nextIndex + 1, event)
-                                    return
-                                  }
-                                }
-                                if (dropSlot) {
-                                  const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
-                                  if (!Number.isFinite(insertIndex) || insertIndex < 0) return
-                                  handleDropIntoRichText(block.id, insertIndex, event)
-                                  return
-                                }
-                                handleDropIntoRichText(block.id, getEditableRichNodesFromHtml(block.content).length, event)
-                              }}
-                              dangerouslySetInnerHTML={{
-                                __html: makeCanvasSectionContentRespectLayoutBackground(
-                                  isSelected && richSelectionMode
-                                    ? annotateRichTextNodes(
-                                        block.content,
-                                        selectedRichNodeIndex,
-                                        isDraggingCanvasBlock || pendingRichInsertPoint?.blockId === block.id,
-                                      )
-                                    : block.content,
-                                  hasCustomSectionBackground,
-                                ),
-                              }}
-                            />
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  setSelectedRichNodeIndex(null)
+                                  setPendingRichInsertPoint({
+                                    blockId: block.id,
+                                    insertIndex: richNodeCount,
+                                    insertAfterNodeIndex: richNodeCount > 0 ? richNodeCount - 1 : undefined,
+                                  })
+                                  event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
+                                }}
+                                onDrop={(event) => {
+                                  event.stopPropagation()
+                                  handleDropIntoRichText(block.id, richNodeCount, event)
+                                }}
+                                className={[
+                                  "flex items-center justify-center rounded-xl border border-dashed px-3 text-[10px] font-bold uppercase tracking-[0.14em] transition",
+                                  isDraggingCanvasBlock || isEndInsertPointActive ? "min-h-[42px] opacity-100" : "min-h-[22px] opacity-80",
+                                  isEndInsertPointActive
+                                    ? "border-sky-500 bg-sky-100 text-sky-900"
+                                    : "border-slate-300 bg-transparent text-slate-400",
+                                ].join(" ")}
+                              >
+                                <span className="pointer-events-none">{`${dragHintLabel} no fim deste texto`}</span>
+                              </div>
+                                </>
+                              )
+                            })()}
                             {isDraggingCanvasBlock && selectedBlockId === block.id ? (
                               <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-semibold text-sky-800">
                                 {selectedRichNodeIndex !== null
