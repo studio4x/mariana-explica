@@ -1013,19 +1013,30 @@ export function AdminPageEditor() {
     setIsLayoutCardVisible(false)
   }, [selectedBlockId])
 
+  const selectRichNodeForEdit = useCallback((blockId: string, richNodeIndex: number) => {
+    setSelectedBlockId(blockId)
+    setSelectedContainerColumnTarget(null)
+    setPendingContainerInsertPoint(null)
+    setPendingRichInsertPoint(null)
+    setSelectedRichNodeIndex(richNodeIndex)
+    setSidebarTab("inspector")
+    setIsLayoutCardVisible(true)
+  }, [])
+
   const handleSelectStructureNode = useCallback(
     (node: EditorStructureNode, options?: { openInspector?: boolean }) => {
       const openInspector = options?.openInspector ?? false
 
       if (node.kind === "rich_node" && node.blockId && typeof node.richNodeIndex === "number") {
-        setSelectedBlockId(node.blockId)
-        setSelectedContainerColumnTarget(null)
-        setPendingContainerInsertPoint(null)
-        setPendingRichInsertPoint(null)
-        setSelectedRichNodeIndex(node.richNodeIndex)
-        setIsLayoutCardVisible(openInspector)
         if (openInspector) {
-          setSidebarTab("inspector")
+          selectRichNodeForEdit(node.blockId, node.richNodeIndex)
+        } else {
+          setSelectedBlockId(node.blockId)
+          setSelectedContainerColumnTarget(null)
+          setPendingContainerInsertPoint(null)
+          setPendingRichInsertPoint(null)
+          setSelectedRichNodeIndex(node.richNodeIndex)
+          setIsLayoutCardVisible(false)
         }
         return
       }
@@ -1049,7 +1060,7 @@ export function AdminPageEditor() {
         selectBlockSilently(node.blockId)
       }
     },
-    [selectBlockForEdit, selectBlockSilently],
+    [selectBlockForEdit, selectBlockSilently, selectRichNodeForEdit],
   )
 
   const isStructureNodeSelected = useCallback(
@@ -2694,10 +2705,14 @@ export function AdminPageEditor() {
                           if (!anchor) return
                           event.preventDefault()
                           event.stopPropagation()
-                          selectBlockForEdit(block.id)
                           if (block.type === "rich_text" && richSelectionMode) {
-                            setSelectedRichNodeIndex(resolveRichNodeIndexFromTarget(target))
+                            const nextIndex = resolveRichNodeIndexFromTarget(target)
+                            if (nextIndex !== null) {
+                              selectRichNodeForEdit(block.id, nextIndex)
+                              return
+                            }
                           }
+                          selectBlockForEdit(block.id)
                         }}
                         onClick={() => {
                           selectBlockForEdit(block.id)
@@ -2831,10 +2846,11 @@ export function AdminPageEditor() {
                               }}
                               onDragEnd={clearDragState}
                               onClick={(event) => {
-                                selectBlockForEdit(block.id)
+                                event.stopPropagation()
                                 const target = event.target as HTMLElement | null
                                 const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
                                 if (dropSlot) {
+                                  selectBlockForEdit(block.id)
                                   const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
                                   const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
                                   if (Number.isFinite(insertIndex) && insertIndex >= 0) {
@@ -2851,12 +2867,20 @@ export function AdminPageEditor() {
                                 }
                                 const nextIndex = resolveRichNodeIndexFromTarget(target)
                                 if (nextIndex === null) {
-                                  setSelectedRichNodeIndex(null)
-                                  setPendingRichInsertPoint(null)
+                                  selectBlockForEdit(block.id)
                                   return
                                 }
-                                setPendingRichInsertPoint(null)
-                                setSelectedRichNodeIndex(nextIndex)
+                                selectRichNodeForEdit(block.id, nextIndex)
+                              }}
+                              onDoubleClick={(event) => {
+                                event.stopPropagation()
+                                const target = event.target as HTMLElement | null
+                                const nextIndex = resolveRichNodeIndexFromTarget(target)
+                                if (nextIndex === null) {
+                                  selectBlockForEdit(block.id)
+                                  return
+                                }
+                                selectRichNodeForEdit(block.id, nextIndex)
                               }}
                               onDragOver={(event) => {
                                 if (selectedBlockId !== block.id) {
