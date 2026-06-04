@@ -2099,6 +2099,21 @@ export function AdminPageEditor() {
     const shouldInsertInsideRichText = true
     const nextBlock = createDefaultBlock(type)
 
+    if (pendingRichInsertPoint) {
+      const inserted = insertRichNodeAtIndex(
+        pendingRichInsertPoint.blockId,
+        pendingRichInsertPoint.insertIndex,
+        getHtmlForBlockInsertion(nextBlock),
+        pendingRichInsertPoint.insertAfterNodeIndex,
+      )
+      if (inserted) {
+        setSelectedBlockId(pendingRichInsertPoint.blockId)
+        setSelectedRichNodeIndex(Math.max(0, pendingRichInsertPoint.insertIndex))
+      }
+      setPendingRichInsertPoint(null)
+      return
+    }
+
     if (selectedContainerColumnTarget) {
       updateDocument((current) => {
         const next = appendBlockToContainerColumnInTree(
@@ -2116,25 +2131,12 @@ export function AdminPageEditor() {
       return
     }
 
-    if (pendingRichInsertPoint) {
-      const inserted = insertRichNodeAtIndex(
-        pendingRichInsertPoint.blockId,
-        pendingRichInsertPoint.insertIndex,
-        getHtmlForBlockInsertion(nextBlock),
-        pendingRichInsertPoint.insertAfterNodeIndex,
-      )
+    if (selectedBlock?.type === "rich_text" && shouldInsertInsideRichText) {
+      const insertIndex =
+        selectedRichNodeIndex !== null ? selectedRichNodeIndex + 1 : getEditableRichNodesFromHtml(selectedBlock.content).length
+      const inserted = insertRichNodeAtIndex(selectedBlock.id, insertIndex, getHtmlForBlockInsertion(nextBlock))
       if (inserted) {
-        setSelectedBlockId(pendingRichInsertPoint.blockId)
-        setSelectedRichNodeIndex(Math.max(0, pendingRichInsertPoint.insertIndex))
-      }
-      setPendingRichInsertPoint(null)
-      return
-    }
-
-    if (selectedBlock?.type === "rich_text" && selectedRichNodeIndex !== null && shouldInsertInsideRichText) {
-      const inserted = insertRichNodeAtIndex(selectedBlock.id, selectedRichNodeIndex + 1, getHtmlForBlockInsertion(nextBlock))
-      if (inserted) {
-        setSelectedRichNodeIndex(selectedRichNodeIndex + 1)
+        setSelectedRichNodeIndex(insertIndex)
         selectBlockSilently(selectedBlock.id)
         return
       }
