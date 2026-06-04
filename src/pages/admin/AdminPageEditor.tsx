@@ -2992,11 +2992,11 @@ export function AdminPageEditor() {
               onDrop={(event) => handleDropAtIndex(0, event)}
               className={[
                 "relative z-10 mb-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
-                isDraggingBlockLike ? "h-12 opacity-100" : "h-3 opacity-70",
+                isDraggingBlockLike || dragOverIndex === 0 ? "h-12 opacity-100" : "h-5 opacity-80",
                 dragOverIndex === 0 ? "border-sky-500 bg-sky-100 text-sky-900" : "border-slate-300 bg-transparent text-slate-400",
               ].join(" ")}
             >
-              {isDraggingBlockLike ? dragHintLabel : null}
+              <span className="pointer-events-none">{dragHintLabel}</span>
             </div>
 
             {documentDraft.blocks.length === 0 ? (
@@ -3439,11 +3439,11 @@ export function AdminPageEditor() {
                                             onDrop={(event) => handleDropIntoContainerColumn(block.id, columnIndex, event, childIndex)}
                                             className={[
                                               "flex items-center justify-center rounded-xl border border-dashed px-2 text-[10px] font-bold uppercase tracking-[0.14em] transition",
-                                              isDraggingBlockLike ? "h-10 opacity-100" : "h-2 opacity-60",
+                                              isDraggingBlockLike ? "h-10 opacity-100" : "h-5 opacity-80",
                                               "border-slate-300 bg-transparent text-slate-400",
                                             ].join(" ")}
                                           >
-                                            {isDraggingBlockLike ? dragHintLabel : null}
+                                            <span className="pointer-events-none">{dragHintLabel}</span>
                                           </div>
                                           <button
                                             type="button"
@@ -3485,11 +3485,11 @@ export function AdminPageEditor() {
                                       onDrop={(event) => handleDropIntoContainerColumn(block.id, columnIndex, event, columnBlocks.length)}
                                       className={[
                                         "flex items-center justify-center rounded-xl border border-dashed px-2 text-[10px] font-bold uppercase tracking-[0.14em] transition",
-                                        isDraggingBlockLike ? "h-10 opacity-100" : "h-2 opacity-60",
+                                        isDraggingBlockLike ? "h-10 opacity-100" : "h-5 opacity-80",
                                         "border-slate-300 bg-transparent text-slate-400",
                                       ].join(" ")}
                                     >
-                                      {isDraggingBlockLike ? dragHintLabel : null}
+                                      <span className="pointer-events-none">{dragHintLabel}</span>
                                     </div>
                                   </div>
                                 )}
@@ -3554,13 +3554,13 @@ export function AdminPageEditor() {
                         onDrop={(event) => handleDropAtIndex(index + 1, event)}
                         className={[
                           "my-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
-                          isDraggingBlockLike ? "h-12 opacity-100" : "h-3 opacity-70",
+                          isDraggingBlockLike || dragOverIndex === index + 1 ? "h-12 opacity-100" : "h-5 opacity-80",
                           dragOverIndex === index + 1
                             ? "border-sky-500 bg-sky-100 text-sky-900"
                             : "border-slate-300 bg-transparent text-slate-400",
                         ].join(" ")}
                       >
-                        {isDraggingBlockLike ? dragHintLabel : null}
+                        <span className="pointer-events-none">{dragHintLabel}</span>
                       </div>
                     </div>
                   )
