@@ -646,6 +646,20 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
   }
 }
 
+function makeCanvasSectionContentRespectLayoutBackground(html: string, shouldNeutralize: boolean) {
+  if (!shouldNeutralize) return html
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
+
+  const parser = new DOMParser()
+  const parsed = parser.parseFromString(html, "text/html")
+  const directChildren = Array.from(parsed.body.children) as HTMLElement[]
+  directChildren.forEach((child) => {
+    child.style.setProperty("background", "transparent", "important")
+    child.style.setProperty("background-color", "transparent", "important")
+  })
+  return parsed.body.innerHTML
+}
+
 function getContainerColumnStyle(
   layout: BlockLayoutStyle,
   fallbackAlignX: "left" | "center" | "right" | "stretch",
@@ -938,6 +952,7 @@ export function AdminPageEditor() {
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
   const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
   const [isMediaLibraryModalOpen, setIsMediaLibraryModalOpen] = useState(false)
+  const [mediaLibraryTargetBlockId, setMediaLibraryTargetBlockId] = useState<string | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
@@ -1127,6 +1142,7 @@ export function AdminPageEditor() {
     const handleOutsideEditorCanvasClick = (event: MouseEvent) => {
       const target = event.target as Node | null
       if (!target) return
+      if (isMediaLibraryModalOpen) return
       if (canvasAreaRef.current?.contains(target)) return
       if (inspectorAreaRef.current?.contains(target)) return
       if (
@@ -1152,7 +1168,7 @@ export function AdminPageEditor() {
     return () => {
       window.removeEventListener("mousedown", handleOutsideEditorCanvasClick)
     }
-  }, [isSectionLayoutMode, selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex, selectedSectionBlockId])
+  }, [isMediaLibraryModalOpen, isSectionLayoutMode, selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex, selectedSectionBlockId])
 
   const updateDocument = useCallback((updater: (current: SitePageBuilderDocument) => SitePageBuilderDocument) => {
     setDocumentDraft((current) => updater(current))
@@ -2458,23 +2474,32 @@ export function AdminPageEditor() {
   }
 
   const applySelectedSectionBackgroundImage = useCallback(
-    (backgroundImageUrl: string) => {
-      if (!selectedBlock) return
-      if (selectedSectionBlockId !== selectedBlock.id) return
-      updateSelectedBlockLayout({
-        backgroundImageUrl,
-        backgroundImageSize: "cover",
+    (backgroundImageUrl: string, targetBlockId = selectedSectionBlockId ?? selectedBlock?.id ?? "") => {
+      if (!targetBlockId) return
+      updateDocument((current) => {
+        const next = updateBlockByIdInTree(current.blocks, targetBlockId, (block) => ({
+          ...block,
+          layout: normalizeLayoutStyle({
+            ...block.layout,
+            backgroundImageUrl,
+            backgroundImageSize: "cover",
+          }),
+        }))
+        if (!next.updated) return current
+        return { blocks: next.blocks }
       })
     },
-    [selectedBlock, selectedSectionBlockId, updateSelectedBlockLayout],
+    [selectedBlock?.id, selectedSectionBlockId, updateDocument],
   )
 
   const handleSelectSectionBackgroundAsset = useCallback(
     (asset: AdminSitePageAsset) => {
-      applySelectedSectionBackgroundImage(asset.public_url)
+      applySelectedSectionBackgroundImage(asset.public_url, mediaLibraryTargetBlockId ?? undefined)
+      setFeedback({ tone: "success", message: "Imagem definida como fundo da seção." })
       setIsMediaLibraryModalOpen(false)
+      setMediaLibraryTargetBlockId(null)
     },
-    [applySelectedSectionBackgroundImage],
+    [applySelectedSectionBackgroundImage, mediaLibraryTargetBlockId],
   )
 
   const handleSectionBackgroundUpload = async (file: File) => {
@@ -2988,6 +3013,9 @@ export function AdminPageEditor() {
                   const isSelected = selectedBlockId === block.id
                   const isInlineEditing = inlineEditingBlockId === block.id
                   const backgroundImageUrl = block.layout.backgroundImageUrl.trim()
+                  const hasCustomSectionBackground =
+                    backgroundImageUrl.length > 0 ||
+                    (block.layout.backgroundColor.trim() !== "" && block.layout.backgroundColor.trim() !== "transparent")
                   const backgroundImageFit =
                     block.layout.backgroundImageSize === "stretch"
                       ? "fill"
@@ -3251,7 +3279,7 @@ export function AdminPageEditor() {
                                 handleDropIntoRichText(block.id, getEditableRichNodesFromHtml(block.content).length, event)
                               }}
                               dangerouslySetInnerHTML={{
-                                __html:
+                                __html: makeCanvasSectionContentRespectLayoutBackground(
                                   isSelected && richSelectionMode
                                     ? annotateRichTextNodes(
                                         block.content,
@@ -3259,6 +3287,8 @@ export function AdminPageEditor() {
                                         isDraggingCanvasBlock || pendingRichInsertPoint?.blockId === block.id,
                                       )
                                     : block.content,
+                                  hasCustomSectionBackground,
+                                ),
                               }}
                             />
                             {isDraggingCanvasBlock && selectedBlockId === block.id ? (
@@ -3969,7 +3999,10 @@ export function AdminPageEditor() {
                             variant="outline"
                             size="sm"
                             className="rounded-full"
-                            onClick={() => setIsMediaLibraryModalOpen(true)}
+                            onClick={() => {
+                              setMediaLibraryTargetBlockId(selectedBlock.id)
+                              setIsMediaLibraryModalOpen(true)
+                            }}
                           >
                             <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
                             Biblioteca de mídia
@@ -5726,7 +5759,7 @@ export function AdminPageEditor() {
               )
             ) : null}
 
-            {sidebarTab === "inspector" && !showSectionLayoutOnlyInspector ? (
+            {sidebarTab === "inspector" && selectedBlock && !showSectionLayoutOnlyInspector ? (
               <div className="mt-6 border-t border-slate-200 pt-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de imagens</p>
@@ -5836,7 +5869,10 @@ export function AdminPageEditor() {
         ? createPortal(
             <div
               className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-4"
-              onClick={() => setIsMediaLibraryModalOpen(false)}
+              onClick={() => {
+                setIsMediaLibraryModalOpen(false)
+                setMediaLibraryTargetBlockId(null)
+              }}
             >
               <div
                 className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
@@ -5847,7 +5883,16 @@ export function AdminPageEditor() {
                     <p className="text-sm font-bold text-slate-900">Biblioteca de mídia</p>
                     <p className="text-xs text-slate-500">Escolhe uma imagem para definir como fundo da seção.</p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setIsMediaLibraryModalOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => {
+                      setIsMediaLibraryModalOpen(false)
+                      setMediaLibraryTargetBlockId(null)
+                    }}
+                  >
                     Fechar
                   </Button>
                 </div>
