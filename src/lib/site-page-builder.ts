@@ -1503,7 +1503,7 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
     `margin-left:${marginLeft}`,
     `margin-right:${marginRight}`,
     `padding:${layout.paddingTop}px ${layout.paddingRight}px ${layout.paddingBottom}px ${layout.paddingLeft}px`,
-    `background:${escapeHtml(layout.backgroundColor)}`,
+    `background-color:${escapeHtml(layout.backgroundColor)}`,
     backgroundImage ? `background-image:url("${escapeHtml(backgroundImage)}")` : "",
     backgroundImage ? `background-size:${backgroundSize}` : "",
     backgroundImage ? "background-position:center center" : "",
@@ -1575,10 +1575,10 @@ function renderSingleBlockToHtml(block: PageBlock): string {
                 : columnLayout.contentAlignY === "center"
                   ? "center"
                   : "flex-end"
-            return `<article class="me-managed-container-column" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;margin:${columnLayout.marginTop}px ${columnLayout.marginRight}px ${columnLayout.marginBottom}px ${columnLayout.marginLeft}px;padding:${columnLayout.paddingTop}px ${columnLayout.paddingRight}px ${columnLayout.paddingBottom}px ${columnLayout.paddingLeft}px;background:${escapeHtml(columnLayout.backgroundColor)};border-radius:${columnLayout.borderRadius}px;min-height:${columnLayout.minHeight}px;">${renderBlocksToHtml(columnBlocks)}</article>`
+            return `<article class="me-managed-container-column" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;margin:${columnLayout.marginTop}px ${columnLayout.marginRight}px ${columnLayout.marginBottom}px ${columnLayout.marginLeft}px;padding:${columnLayout.paddingTop}px ${columnLayout.paddingRight}px ${columnLayout.paddingBottom}px ${columnLayout.paddingLeft}px;background-color:${escapeHtml(columnLayout.backgroundColor)};border-radius:${columnLayout.borderRadius}px;min-height:${columnLayout.minHeight}px;">${renderBlocksToHtml(columnBlocks)}</article>`
           })
           .join("")
-        return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
+        return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background-color:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
       }
 
       const items = block.items

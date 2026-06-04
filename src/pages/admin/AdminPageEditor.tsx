@@ -344,7 +344,7 @@ function getHtmlForBlockInsertion(block: PageBlock): string {
             `gap:${block.columnContentGap}px`,
             `margin:${normalized.marginTop}px ${normalized.marginRight}px ${normalized.marginBottom}px ${normalized.marginLeft}px`,
             `padding:${normalized.paddingTop}px ${normalized.paddingRight}px ${normalized.paddingBottom}px ${normalized.paddingLeft}px`,
-            `background:${escapeHtmlAttribute(normalized.backgroundColor)}`,
+            `background-color:${escapeHtmlAttribute(normalized.backgroundColor)}`,
             `border-radius:${normalized.borderRadius}px`,
             `min-height:${normalized.minHeight}px`,
             "box-sizing:border-box",
@@ -353,7 +353,7 @@ function getHtmlForBlockInsertion(block: PageBlock): string {
         },
       )
       .join("")
-    return `<section style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background:${escapeHtmlAttribute(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
+    return `<section style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background-color:${escapeHtmlAttribute(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
   }
   return "<p>Novo bloco</p>"
 }
@@ -630,7 +630,7 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
     paddingRight: normalized.paddingRight,
     paddingBottom: normalized.paddingBottom,
     paddingLeft: normalized.paddingLeft,
-    background: normalized.backgroundColor,
+    backgroundColor: normalized.backgroundColor,
     backgroundImage: backgroundImage ? `url("${backgroundImage}")` : undefined,
     backgroundSize: backgroundImage ? backgroundSize : undefined,
     backgroundPosition: backgroundImage ? "center center" : undefined,
@@ -672,7 +672,7 @@ function getContainerColumnStyle(
     paddingRight: normalized.paddingRight,
     paddingBottom: normalized.paddingBottom,
     paddingLeft: normalized.paddingLeft,
-    background: normalized.backgroundColor,
+    backgroundColor: normalized.backgroundColor,
     borderRadius: normalized.borderRadius,
     minHeight: normalized.minHeight,
     boxSizing: "border-box",
@@ -2451,12 +2451,12 @@ export function AdminPageEditor() {
   }
 
   const applySelectedSectionBackgroundImage = useCallback(
-    (asset: AdminSitePageAsset | null) => {
+    (backgroundImageUrl: string) => {
       if (!selectedBlock) return
       if (selectedSectionBlockId !== selectedBlock.id) return
       updateSelectedBlockLayout({
-        backgroundImageUrl: asset?.public_url ?? "",
-        backgroundImageSize: asset ? "cover" : "cover",
+        backgroundImageUrl,
+        backgroundImageSize: "cover",
       })
     },
     [selectedBlock, selectedSectionBlockId, updateSelectedBlockLayout],
@@ -2468,11 +2468,11 @@ export function AdminPageEditor() {
       setFeedback(null)
       const uploaded = await uploadAssetMutation.mutateAsync({ slug: selectedSlug, file })
       setFeedback({ tone: "success", message: "Imagem enviada com sucesso." })
-      await detailQuery.refetch()
-
-      const uploadedAsset = uploaded.asset
-      if (uploadedAsset) {
-        applySelectedSectionBackgroundImage(uploadedAsset)
+      const refreshed = await detailQuery.refetch()
+      const uploadedBackgroundUrl =
+        uploaded.upload.public_url?.trim() || uploaded.asset.public_url?.trim() || refreshed.data?.assets?.[0]?.public_url?.trim() || ""
+      if (uploadedBackgroundUrl) {
+        applySelectedSectionBackgroundImage(uploadedBackgroundUrl)
       }
     } catch (error) {
       setFeedback({
@@ -3932,7 +3932,7 @@ export function AdminPageEditor() {
                                 key={asset.id}
                                 type="button"
                                 className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
-                                onClick={() => applySelectedSectionBackgroundImage(asset)}
+                                onClick={() => applySelectedSectionBackgroundImage(asset.public_url)}
                               >
                                 <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                                   <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
@@ -4051,14 +4051,24 @@ export function AdminPageEditor() {
                     </div>
 
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Fundo
-                        <input
-                          value={selectedLayout.backgroundColor}
-                          onChange={(event) => updateSelectedBlockLayout({ backgroundColor: event.target.value })}
-                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
-                        />
-                      </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Fundo
+                          <div className="mt-1 flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={normalizeColorForInput(selectedLayout.backgroundColor, "#ffffff")}
+                              onChange={(event) => updateSelectedBlockLayout({ backgroundColor: event.target.value })}
+                              className="h-9 w-12 rounded-lg border border-slate-200 bg-white p-1"
+                              aria-label="Selecionar cor de fundo"
+                            />
+                            <input
+                              value={selectedLayout.backgroundColor}
+                              onChange={(event) => updateSelectedBlockLayout({ backgroundColor: event.target.value })}
+                              className="h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                              placeholder="#ffffff"
+                            />
+                          </div>
+                        </label>
                       <label className="block text-xs font-semibold text-slate-600">
                         Raio (px)
                         <input
