@@ -3142,6 +3142,7 @@ export function AdminPageEditor() {
                           </button>
                         </div>
 
+                        <div className="relative z-10 space-y-2">
                         {block.type === "heading" ? (
                           block.level === 1 ? (
                             <h1
@@ -3567,6 +3568,7 @@ export function AdminPageEditor() {
 
                         {block.type === "divider" ? <hr style={{ borderColor: block.color }} /> : null}
                         {block.type === "spacer" ? <div style={{ height: `${block.height}px` }} /> : null}
+                        </div>
                       </section>
 
                       <div
