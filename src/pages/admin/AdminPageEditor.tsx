@@ -219,6 +219,38 @@ function isStructuralRichTextNode(node: Element) {
   return !node.parentElement?.closest(EDITABLE_RICH_TEXT_SELECTOR)
 }
 
+function insertHtmlIntoRichTextContent(
+  content: string,
+  insertIndex: number,
+  nextNodeHtml: string,
+  insertAfterNodeIndex?: number,
+) {
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") return { content, inserted: false }
+  const parser = new DOMParser()
+  const parsed = parser.parseFromString(content, "text/html")
+  const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+  const nextNodeDoc = parser.parseFromString(nextNodeHtml, "text/html")
+  const replacement = nextNodeDoc.body.firstElementChild
+  if (!replacement) return { content, inserted: false }
+
+  const anchorIndex = Number.isFinite(insertAfterNodeIndex) ? Number(insertAfterNodeIndex) : -1
+  const anchorNode = anchorIndex >= 0 && anchorIndex < nodes.length ? nodes[anchorIndex] : null
+
+  if (anchorNode?.parentNode) {
+    const structuralAnchor = getRichTextStructuralInsertAnchor(anchorNode, parsed.body)
+    structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
+  } else if (insertIndex >= nodes.length) {
+    parsed.body.appendChild(replacement)
+  } else if (nodes[insertIndex]) {
+    const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex], parsed.body)
+    structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
+  } else {
+    parsed.body.appendChild(replacement)
+  }
+
+  return { content: parsed.body.innerHTML, inserted: true }
+}
+
 function getContainerColumnLayoutDefaults(
   alignX: "left" | "center" | "right" | "stretch" = "stretch",
   alignY: "top" | "center" | "bottom" = "top",
@@ -1637,33 +1669,16 @@ export function AdminPageEditor() {
 
   const insertRichNodeAtIndex = useCallback(
     (blockId: string, insertIndex: number, nextNodeHtml: string, insertAfterNodeIndex?: number) => {
-      if (typeof window === "undefined" || typeof DOMParser === "undefined") return false
       let inserted = false
       updateDocument((current) => {
-        const nextBlocks = current.blocks.map((block) => {
-          if (block.id !== blockId || block.type !== "rich_text") return block
-          const parser = new DOMParser()
-          const parsed = parser.parseFromString(block.content, "text/html")
-          const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
-          const nextNodeDoc = parser.parseFromString(nextNodeHtml, "text/html")
-          const replacement = nextNodeDoc.body.firstElementChild
-          if (!replacement) return block
-          const anchorIndex = Number.isFinite(insertAfterNodeIndex) ? Number(insertAfterNodeIndex) : -1
-          const anchorNode = anchorIndex >= 0 && anchorIndex < nodes.length ? nodes[anchorIndex] : null
-
-          if (anchorNode?.parentNode) {
-            const structuralAnchor = getRichTextStructuralInsertAnchor(anchorNode, parsed.body)
-            structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
-          } else if (insertIndex >= nodes.length) {
-            parsed.body.appendChild(replacement)
-          } else {
-            const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex], parsed.body)
-            structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
-          }
+        const next = updateBlockByIdInTree(current.blocks, blockId, (block) => {
+          if (block.type !== "rich_text") return block
+          const result = insertHtmlIntoRichTextContent(block.content, insertIndex, nextNodeHtml, insertAfterNodeIndex)
+          if (!result.inserted) return block
           inserted = true
-          return { ...block, content: parsed.body.innerHTML }
+          return { ...block, content: result.content }
         })
-        return { blocks: nextBlocks }
+        return inserted && next.updated ? { blocks: next.blocks } : current
       })
       return inserted
     },
@@ -2768,28 +2783,21 @@ export function AdminPageEditor() {
         const removed = removeBlockByIdInTree(current.blocks, payload.blockId)
         if (!removed.removed) return current
 
-        const nextBlocks = removed.blocks
-          .map((block) => {
-            if (block.id !== blockId || block.type !== "rich_text") return block
-            const parser = new DOMParser()
-            const parsed = parser.parseFromString(block.content, "text/html")
-            const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
-            const nextNodeDoc = parser.parseFromString(getHtmlForBlockInsertion(movedBlock as PageBlock), "text/html")
-            const replacement = nextNodeDoc.body.firstElementChild
-            if (!replacement) return block
-            if (typeof insertAfterNodeIndex === "number" && insertAfterNodeIndex >= 0 && insertAfterNodeIndex < nodes.length) {
-              const structuralAnchor = getRichTextStructuralInsertAnchor(nodes[insertAfterNodeIndex], parsed.body)
-              structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
-            } else if (insertIndex >= nodes.length) {
-              parsed.body.appendChild(replacement)
-            } else {
-              const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex], parsed.body)
-              structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
-            }
-            return { ...block, content: parsed.body.innerHTML }
-          })
+        let inserted = false
+        const insertedTarget = updateBlockByIdInTree(removed.blocks, blockId, (block) => {
+          if (block.type !== "rich_text") return block
+          const result = insertHtmlIntoRichTextContent(
+            block.content,
+            insertIndex,
+            getHtmlForBlockInsertion(movedBlock as PageBlock),
+            insertAfterNodeIndex,
+          )
+          if (!result.inserted) return block
+          inserted = true
+          return { ...block, content: result.content }
+        })
 
-        return { blocks: nextBlocks }
+        return inserted && insertedTarget.updated ? { blocks: insertedTarget.blocks } : current
       })
       selectBlockSilently(blockId)
     },
