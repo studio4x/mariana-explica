@@ -28,6 +28,7 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { RichTextEditor, type RichTextEditorHandle } from "@/components/common/RichTextEditor"
 import { Button } from "@/components/ui"
+import { BUILD_VERSION } from "@/lib/build"
 import {
   useAdminSitePageDetail,
   useAdminSitePages,
@@ -1219,35 +1220,12 @@ export function AdminPageEditor() {
   )
 
   const annotateRichTextNodes = useCallback(
-    (html: string, activeIndex: number | null, showDropSlots = false) => {
+    (html: string, activeIndex: number | null, _showDropSlots = false) => {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
+      void _showDropSlots
       const parser = new DOMParser()
       const parsed = parser.parseFromString(html, "text/html")
       const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
-      if (showDropSlots) {
-        const createDropSlot = (insertIndex: number, insertAfterNodeIndex?: number) => {
-          const slot = parsed.createElement("div")
-          slot.setAttribute("data-me-drop-slot", String(insertIndex))
-          if (typeof insertAfterNodeIndex === "number") {
-            slot.setAttribute("data-me-drop-after", String(insertAfterNodeIndex))
-          }
-          slot.setAttribute(
-            "style",
-            "height:32px;border:1px dashed rgba(56,189,248,.65);border-radius:999px;background:rgba(224,242,254,.88);margin:10px 0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em;color:#0f4c81;cursor:copy;",
-          )
-          slot.textContent = "Solta ou insere aqui"
-          return slot
-        }
-
-        if (editableNodes.length === 0) {
-          parsed.body.appendChild(createDropSlot(0))
-        } else {
-          parsed.body.insertBefore(createDropSlot(0), editableNodes[0])
-          editableNodes.forEach((child, index) => {
-            child.parentNode?.insertBefore(createDropSlot(index + 1, index), child.nextSibling)
-          })
-        }
-      }
       editableNodes.forEach((child, index) => {
         child.setAttribute("data-me-node", String(index))
         child.setAttribute("draggable", "true")
@@ -5036,6 +5014,12 @@ export function AdminPageEditor() {
         </aside>
         </div>
       </section>
+
+      <footer className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="flex items-center justify-end">
+          <span className="text-[10px] font-medium tracking-[0.06em] text-[#5F7077]">Build {BUILD_VERSION}</span>
+        </div>
+      </footer>
 
       {(pendingRichInsertPoint || pendingContainerInsertPoint) && typeof document !== "undefined"
         ? createPortal(
