@@ -15,6 +15,8 @@ export interface BlockLayoutStyle {
   marginLeft: number
   marginRight: number
   backgroundColor: string
+  backgroundImageUrl: string
+  backgroundImageSize: "cover" | "contain" | "auto" | "stretch"
   borderRadius: number
   contentAlignX: "left" | "center" | "right" | "stretch"
   contentAlignY: "top" | "center" | "bottom"
@@ -165,6 +167,8 @@ export function getBlockLayoutDefaults(): BlockLayoutStyle {
     marginLeft: 0,
     marginRight: 0,
     backgroundColor: "transparent",
+    backgroundImageUrl: "",
+    backgroundImageSize: "cover",
     borderRadius: 0,
     contentAlignX: "stretch",
     contentAlignY: "top",
@@ -193,6 +197,12 @@ export function normalizeLayoutStyle(raw: unknown): BlockLayoutStyle {
     marginLeft: clamp(Number(record.marginLeft ?? defaults.marginLeft), 0, 240),
     marginRight: clamp(Number(record.marginRight ?? defaults.marginRight), 0, 240),
     backgroundColor: String(record.backgroundColor ?? defaults.backgroundColor),
+    backgroundImageUrl: String(record.backgroundImageUrl ?? defaults.backgroundImageUrl),
+    backgroundImageSize: (
+      ["cover", "contain", "auto", "stretch"].includes(String(record.backgroundImageSize))
+        ? String(record.backgroundImageSize)
+        : defaults.backgroundImageSize
+    ) as "cover" | "contain" | "auto" | "stretch",
     borderRadius: clamp(Number(record.borderRadius ?? defaults.borderRadius), 0, 120),
     contentAlignX: (
       ["left", "center", "right", "stretch"].includes(String(record.contentAlignX))
@@ -223,6 +233,8 @@ function getContainerColumnLayoutDefaults(
     marginLeft: 0,
     marginRight: 0,
     backgroundColor: "transparent",
+    backgroundImageUrl: "",
+    backgroundImageSize: "cover",
     borderRadius: 0,
     contentAlignX: partial?.contentAlignX ?? "stretch",
     contentAlignY: partial?.contentAlignY ?? "top",
@@ -619,6 +631,8 @@ function createHomeRichSection(content: string) {
     marginLeft: 0,
     marginRight: 0,
     backgroundColor: "transparent",
+    backgroundImageUrl: "",
+    backgroundImageSize: "cover",
     borderRadius: 0,
   }
   return block
@@ -1248,6 +1262,8 @@ function setLegacyBlockLayout(block: PageBlock) {
     marginLeft: 0,
     marginRight: 0,
     backgroundColor: "transparent",
+    backgroundImageUrl: "",
+    backgroundImageSize: "cover",
     borderRadius: 0,
   }
 }
@@ -1472,6 +1488,13 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
           : "stretch"
   const contentJustifyContent =
     layout.contentAlignY === "top" ? "flex-start" : layout.contentAlignY === "center" ? "center" : "flex-end"
+  const backgroundImage = layout.backgroundImageUrl.trim()
+  const backgroundSize =
+    layout.backgroundImageSize === "stretch"
+      ? "100% 100%"
+      : layout.backgroundImageSize === "auto"
+        ? "auto"
+        : layout.backgroundImageSize
 
   return [
     `width:${widthCss}`,
@@ -1481,6 +1504,10 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
     `margin-right:${marginRight}`,
     `padding:${layout.paddingTop}px ${layout.paddingRight}px ${layout.paddingBottom}px ${layout.paddingLeft}px`,
     `background:${escapeHtml(layout.backgroundColor)}`,
+    backgroundImage ? `background-image:url("${escapeHtml(backgroundImage)}")` : "",
+    backgroundImage ? `background-size:${backgroundSize}` : "",
+    backgroundImage ? "background-position:center center" : "",
+    backgroundImage ? "background-repeat:no-repeat" : "",
     `border-radius:${layout.borderRadius}px`,
     "display:flex",
     "flex-direction:column",

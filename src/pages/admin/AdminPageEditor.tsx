@@ -218,6 +218,8 @@ function getContainerColumnLayoutDefaults(
     marginLeft: 0,
     marginRight: 0,
     backgroundColor: "transparent",
+    backgroundImageUrl: "",
+    backgroundImageSize: "cover",
     borderRadius: 0,
     contentAlignX: alignX,
     contentAlignY: alignY,
@@ -596,6 +598,13 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
 
   const contentAlignItems = mapHorizontalAlignToFlex(normalized.contentAlignX)
   const contentJustifyContent = mapVerticalAlignToFlex(normalized.contentAlignY)
+  const backgroundImage = normalized.backgroundImageUrl.trim()
+  const backgroundSize =
+    normalized.backgroundImageSize === "stretch"
+      ? "100% 100%"
+      : normalized.backgroundImageSize === "auto"
+        ? "auto"
+        : normalized.backgroundImageSize
 
   return {
     width: widthCss,
@@ -622,6 +631,10 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
     paddingBottom: normalized.paddingBottom,
     paddingLeft: normalized.paddingLeft,
     background: normalized.backgroundColor,
+    backgroundImage: backgroundImage ? `url("${backgroundImage}")` : undefined,
+    backgroundSize: backgroundImage ? backgroundSize : undefined,
+    backgroundPosition: backgroundImage ? "center center" : undefined,
+    backgroundRepeat: backgroundImage ? "no-repeat" : undefined,
     borderRadius: normalized.borderRadius,
     display: "flex",
     flexDirection: "column",
@@ -919,6 +932,7 @@ export function AdminPageEditor() {
   } | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
   const [isSectionLayoutMode, setIsSectionLayoutMode] = useState(false)
+  const [selectedSectionBlockId, setSelectedSectionBlockId] = useState<string | null>(null)
   const [isSectionLayoutCardExpanded, setIsSectionLayoutCardExpanded] = useState(true)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
@@ -1019,8 +1033,8 @@ export function AdminPageEditor() {
   }, [selectedRichNodeDescriptor])
 
   const showSectionLayoutOnlyInspector = useMemo(() => {
-    return isSectionLayoutMode && !!selectedBlock
-  }, [isSectionLayoutMode, selectedBlock])
+    return !!selectedBlock && selectedSectionBlockId === selectedBlock.id
+  }, [selectedBlock, selectedSectionBlockId])
 
   const selectedContainerColumnLayout = useMemo(() => {
     if (!selectedBlock || selectedBlock.type !== "container") return null
@@ -1108,7 +1122,14 @@ export function AdminPageEditor() {
       if (!target) return
       if (canvasAreaRef.current?.contains(target)) return
       if (inspectorAreaRef.current?.contains(target)) return
-      if (!selectedBlockId && selectedRichNodeIndex === null && !selectedContainerColumnTarget && !isSectionLayoutMode) return
+      if (
+        !selectedBlockId &&
+        selectedRichNodeIndex === null &&
+        !selectedContainerColumnTarget &&
+        !selectedSectionBlockId &&
+        !isSectionLayoutMode
+      )
+        return
 
       setSelectedBlockId("")
       setSelectedRichNodeIndex(null)
@@ -1117,13 +1138,14 @@ export function AdminPageEditor() {
       setPendingRichInsertPoint(null)
       setIsLayoutCardVisible(false)
       setIsSectionLayoutMode(false)
+      setSelectedSectionBlockId(null)
     }
 
     window.addEventListener("mousedown", handleOutsideEditorCanvasClick)
     return () => {
       window.removeEventListener("mousedown", handleOutsideEditorCanvasClick)
     }
-  }, [isSectionLayoutMode, selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex])
+  }, [isSectionLayoutMode, selectedBlockId, selectedContainerColumnTarget, selectedRichNodeIndex, selectedSectionBlockId])
 
   const updateDocument = useCallback((updater: (current: SitePageBuilderDocument) => SitePageBuilderDocument) => {
     setDocumentDraft((current) => updater(current))
@@ -1154,6 +1176,7 @@ export function AdminPageEditor() {
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(true)
     setIsSectionLayoutMode(false)
+    setSelectedSectionBlockId(null)
     setIsSectionLayoutCardExpanded(true)
   }, [selectedBlockId])
 
@@ -1167,6 +1190,7 @@ export function AdminPageEditor() {
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
     setIsSectionLayoutMode(false)
+    setSelectedSectionBlockId(null)
   }, [selectedBlockId])
 
   const selectSectionForEdit = useCallback((blockId: string) => {
@@ -1178,6 +1202,7 @@ export function AdminPageEditor() {
     setSidebarTab("inspector")
     setIsLayoutCardVisible(true)
     setIsSectionLayoutMode(true)
+    setSelectedSectionBlockId(blockId)
     setIsSectionLayoutCardExpanded(true)
   }, [])
 
@@ -1190,6 +1215,7 @@ export function AdminPageEditor() {
     setSidebarTab("inspector")
     setIsLayoutCardVisible(true)
     setIsSectionLayoutMode(false)
+    setSelectedSectionBlockId(null)
   }, [])
 
   const handleSelectStructureNode = useCallback(
@@ -1216,6 +1242,7 @@ export function AdminPageEditor() {
           setSelectedRichNodeIndex(node.richNodeIndex)
           setIsLayoutCardVisible(false)
           setIsSectionLayoutMode(false)
+          setSelectedSectionBlockId(null)
         }
         return
       }
@@ -1227,6 +1254,7 @@ export function AdminPageEditor() {
         setPendingContainerInsertPoint(null)
         setIsLayoutCardVisible(openInspector)
         setIsSectionLayoutMode(false)
+        setSelectedSectionBlockId(null)
         if (openInspector) {
           setSidebarTab("inspector")
         }
@@ -1992,6 +2020,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
     setSelectedBlockId("")
+    setSelectedSectionBlockId(null)
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
@@ -2153,6 +2182,7 @@ export function AdminPageEditor() {
       setSelectedBlockId((current) => (current === blockId ? "" : current))
       setInlineEditingBlockId((current) => (current === blockId ? null : current))
       setSelectedRichNodeIndex(null)
+      setSelectedSectionBlockId((current) => (current === blockId ? null : current))
       setSelectedContainerColumnTarget((current) => (current?.containerId === blockId ? null : current))
       setPendingContainerInsertPoint((current) => (current?.containerId === blockId ? null : current))
       setIsLayoutCardVisible(false)
@@ -2341,6 +2371,7 @@ export function AdminPageEditor() {
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
     setSelectedBlockId("")
+    setSelectedSectionBlockId(null)
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
@@ -2419,6 +2450,40 @@ export function AdminPageEditor() {
     }
   }
 
+  const applySelectedSectionBackgroundImage = useCallback(
+    (asset: AdminSitePageAsset | null) => {
+      if (!selectedBlock) return
+      if (selectedSectionBlockId !== selectedBlock.id) return
+      updateSelectedBlockLayout({
+        backgroundImageUrl: asset?.public_url ?? "",
+        backgroundImageSize: asset ? "cover" : "cover",
+      })
+    },
+    [selectedBlock, selectedSectionBlockId, updateSelectedBlockLayout],
+  )
+
+  const handleSectionBackgroundUpload = async (file: File) => {
+    setUploadingInspectorAsset(true)
+    try {
+      setFeedback(null)
+      const uploaded = await uploadAssetMutation.mutateAsync({ slug: selectedSlug, file })
+      setFeedback({ tone: "success", message: "Imagem enviada com sucesso." })
+      await detailQuery.refetch()
+
+      const uploadedAsset = uploaded.asset
+      if (uploadedAsset) {
+        applySelectedSectionBackgroundImage(uploadedAsset)
+      }
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "NÃ£o foi possÃ­vel enviar a imagem.",
+      })
+    } finally {
+      setUploadingInspectorAsset(false)
+    }
+  }
+
   const handleInspectorImageUpload = async (file: File) => {
     setUploadingInspectorAsset(true)
     try {
@@ -2462,6 +2527,7 @@ export function AdminPageEditor() {
     event.dataTransfer.effectAllowed = "move"
     event.dataTransfer.setData("text/plain", `rich-node:${blockId}:${richNodeIndex}`)
     setSelectedBlockId(blockId)
+    setSelectedSectionBlockId(null)
     setSelectedRichNodeIndex(richNodeIndex)
     setSidebarTab("inspector")
     setIsLayoutCardVisible(true)
@@ -3794,6 +3860,92 @@ export function AdminPageEditor() {
                           <option value="right">Direita</option>
                         </select>
                       </label>
+                    </div>
+
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Imagem de fundo</p>
+                        <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
+                          <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
+                          {uploadingInspectorAsset ? "A enviar..." : "Upload"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                            className="sr-only"
+                            disabled={uploadingInspectorAsset}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              event.target.value = ""
+                              if (file) {
+                                void handleSectionBackgroundUpload(file)
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-slate-600">
+                          URL da imagem de fundo
+                          <input
+                            value={selectedLayout.backgroundImageUrl}
+                            onChange={(event) => updateSelectedBlockLayout({ backgroundImageUrl: event.target.value })}
+                            className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                            placeholder="https://..."
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Tamanho da imagem
+                          <select
+                            value={selectedLayout.backgroundImageSize}
+                            onChange={(event) =>
+                              updateSelectedBlockLayout({
+                                backgroundImageSize: event.target.value as "cover" | "contain" | "auto" | "stretch",
+                              })
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                          >
+                            <option value="cover">Cobrir</option>
+                            <option value="contain">Conter</option>
+                            <option value="stretch">Esticar</option>
+                            <option value="auto">Original</option>
+                          </select>
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            onClick={() => updateSelectedBlockLayout({ backgroundImageUrl: "", backgroundImageSize: "cover" })}
+                          >
+                            Remover fundo
+                          </Button>
+                        </div>
+                        {assets.length === 0 ? (
+                          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                            Ainda não existem imagens para esta página.
+                          </p>
+                        ) : (
+                          <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+                            {assets.map((asset) => (
+                              <button
+                                key={asset.id}
+                                type="button"
+                                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                onClick={() => applySelectedSectionBackgroundImage(asset)}
+                              >
+                                <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                                  <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
+                                  <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-2 grid grid-cols-2 gap-2">
@@ -5508,7 +5660,7 @@ export function AdminPageEditor() {
               )
             ) : null}
 
-            {sidebarTab === "inspector" ? (
+            {sidebarTab === "inspector" && !showSectionLayoutOnlyInspector ? (
               <div className="mt-6 border-t border-slate-200 pt-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de imagens</p>
