@@ -163,12 +163,20 @@ function isRichTextNodeTextEditable(tagName: string) {
   return ["h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "span"].includes(tagName)
 }
 
-function resolveRichNodeIndexFromTarget(target: HTMLElement | null) {
+function resolveRichNodeIndexFromTarget(target: HTMLElement | null, scope?: ParentNode | null) {
   const node = target?.closest?.("[data-me-node]") as HTMLElement | null
-  if (!node) return null
-  const value = Number(node.getAttribute("data-me-node") ?? "-1")
-  if (!Number.isFinite(value) || value < 0) return null
-  return value
+  if (node) {
+    const value = Number(node.getAttribute("data-me-node") ?? "-1")
+    if (Number.isFinite(value) && value >= 0) return value
+  }
+
+  if (!target || !scope) return null
+  const matchedNode = target.closest?.(EDITABLE_RICH_TEXT_SELECTOR) as HTMLElement | null
+  if (!matchedNode) return null
+
+  const editableNodes = Array.from(scope.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+  const index = editableNodes.findIndex((item) => item === matchedNode)
+  return index >= 0 ? index : null
 }
 
 function getRichImagePlaceholderSrc() {
@@ -2706,7 +2714,8 @@ export function AdminPageEditor() {
                           event.preventDefault()
                           event.stopPropagation()
                           if (block.type === "rich_text" && richSelectionMode) {
-                            const nextIndex = resolveRichNodeIndexFromTarget(target)
+                            const richTextRoot = event.currentTarget.querySelector(".rich-text-editor") as HTMLElement | null
+                            const nextIndex = resolveRichNodeIndexFromTarget(target, richTextRoot)
                             if (nextIndex !== null) {
                               selectRichNodeForEdit(block.id, nextIndex)
                               return
@@ -2848,6 +2857,7 @@ export function AdminPageEditor() {
                               onClick={(event) => {
                                 event.stopPropagation()
                                 const target = event.target as HTMLElement | null
+                                const richTextRoot = event.currentTarget
                                 const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
                                 if (dropSlot) {
                                   selectBlockForEdit(block.id)
@@ -2865,7 +2875,7 @@ export function AdminPageEditor() {
                                   }
                                   return
                                 }
-                                const nextIndex = resolveRichNodeIndexFromTarget(target)
+                                const nextIndex = resolveRichNodeIndexFromTarget(target, richTextRoot)
                                 if (nextIndex === null) {
                                   selectBlockForEdit(block.id)
                                   return
@@ -2875,7 +2885,7 @@ export function AdminPageEditor() {
                               onDoubleClick={(event) => {
                                 event.stopPropagation()
                                 const target = event.target as HTMLElement | null
-                                const nextIndex = resolveRichNodeIndexFromTarget(target)
+                                const nextIndex = resolveRichNodeIndexFromTarget(target, event.currentTarget)
                                 if (nextIndex === null) {
                                   selectBlockForEdit(block.id)
                                   return
@@ -2928,7 +2938,7 @@ export function AdminPageEditor() {
                                     ? annotateRichTextNodes(
                                         block.content,
                                         selectedRichNodeIndex,
-                                        isDraggingCanvasBlock || selectedRichNodeIndex !== null || pendingRichInsertPoint?.blockId === block.id,
+                                        isDraggingCanvasBlock || pendingRichInsertPoint?.blockId === block.id,
                                       )
                                     : block.content,
                               }}
