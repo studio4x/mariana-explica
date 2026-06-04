@@ -203,6 +203,22 @@ function getCanvasDropHintLabel(payload: DragPayload | null) {
   return "Mover aqui"
 }
 
+function getRichTextStructuralInsertAnchor(node: Element, root: HTMLElement) {
+  let anchor = node
+  while (anchor.parentElement && anchor.parentElement !== root) {
+    const parent = anchor.parentElement
+    if ((parent.tagName === "UL" || parent.tagName === "OL") && anchor.tagName === "LI") {
+      break
+    }
+    anchor = parent
+  }
+  return anchor
+}
+
+function isStructuralRichTextNode(node: Element) {
+  return !node.parentElement?.closest(EDITABLE_RICH_TEXT_SELECTOR)
+}
+
 function getContainerColumnLayoutDefaults(
   alignX: "left" | "center" | "right" | "stretch" = "stretch",
   alignY: "top" | "center" | "bottom" = "top",
@@ -1460,9 +1476,8 @@ export function AdminPageEditor() {
   )
 
   const annotateRichTextNodes = useCallback(
-    (html: string, activeIndex: number | null, _showDropSlots = false) => {
+    (html: string, activeIndex: number | null, showDropSlots = false) => {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return html
-      void _showDropSlots
       const parser = new DOMParser()
       const parsed = parser.parseFromString(html, "text/html")
       const editableNodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
@@ -1475,6 +1490,71 @@ export function AdminPageEditor() {
             ? "outline:2px solid #38bdf8;outline-offset:2px;cursor:grab;"
             : "cursor:grab;"
         child.setAttribute("style", `${baseStyle}${baseStyle ? ";" : ""}${activeStyle}`)
+
+        if (!isStructuralRichTextNode(child)) return
+
+        const insertControl = parsed.createElement(child.tagName.toLowerCase() === "li" ? "li" : "div")
+        insertControl.setAttribute("data-me-drop-slot", String(index + 1))
+        insertControl.setAttribute("data-me-drop-after", String(index))
+        insertControl.setAttribute("data-me-editor-control", "after-node")
+        insertControl.setAttribute("draggable", "false")
+
+        const isHighlighted = showDropSlots || activeIndex === index
+        const isListControl = insertControl.tagName.toLowerCase() === "li"
+        const controlStyle = [
+          "list-style:none",
+          "display:flex",
+          "align-items:center",
+          "justify-content:flex-end",
+          "gap:8px",
+          `margin:${isListControl ? "8px 0 4px" : "8px 0 12px"}`,
+          "padding:4px 8px",
+          "border:1px dashed rgba(100,116,139,0.35)",
+          "border-radius:999px",
+          `background:${isHighlighted ? "rgba(224,242,254,0.95)" : "rgba(255,255,255,0.92)"}`,
+          `color:${isHighlighted ? "#0f172a" : "#64748b"}`,
+          "font-size:10px",
+          "font-weight:800",
+          "letter-spacing:0.12em",
+          "text-transform:uppercase",
+          "cursor:pointer",
+        ].join(";")
+        insertControl.setAttribute("style", controlStyle)
+
+        const addButton = parsed.createElement("button")
+        addButton.setAttribute("type", "button")
+        addButton.setAttribute("data-me-add-after", String(index))
+        addButton.setAttribute("data-me-drop-slot", String(index + 1))
+        addButton.setAttribute("data-me-drop-after", String(index))
+        addButton.setAttribute("draggable", "false")
+        addButton.setAttribute(
+          "style",
+          [
+            "display:inline-flex",
+            "align-items:center",
+            "justify-content:center",
+            "width:22px",
+            "height:22px",
+            "border:1px solid rgba(14,116,144,0.35)",
+            "border-radius:999px",
+            "background:#ffffff",
+            "color:#0f172a",
+            "font-size:16px",
+            "font-weight:700",
+            "line-height:1",
+            "padding:0",
+            "cursor:pointer",
+            "box-shadow:0 1px 2px rgba(15,23,42,0.08)",
+          ].join(";"),
+        )
+        addButton.textContent = "+"
+
+        const label = parsed.createElement("span")
+        label.setAttribute("style", "pointer-events:none;white-space:nowrap;")
+        label.textContent = "Adicionar logo após"
+
+        insertControl.append(addButton, label)
+        child.insertAdjacentElement("afterend", insertControl)
       })
       return parsed.body.innerHTML
     },
@@ -1570,11 +1650,13 @@ export function AdminPageEditor() {
           const anchorNode = anchorIndex >= 0 && anchorIndex < nodes.length ? nodes[anchorIndex] : null
 
           if (anchorNode?.parentNode) {
-            anchorNode.parentNode.insertBefore(replacement, anchorNode.nextSibling)
+            const structuralAnchor = getRichTextStructuralInsertAnchor(anchorNode, parsed.body)
+            structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
           } else if (insertIndex >= nodes.length) {
             parsed.body.appendChild(replacement)
           } else {
-            nodes[insertIndex].parentNode?.insertBefore(replacement, nodes[insertIndex])
+            const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex], parsed.body)
+            structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
           }
           inserted = true
           return { ...block, content: parsed.body.innerHTML }
@@ -1587,7 +1669,13 @@ export function AdminPageEditor() {
   )
 
   const moveRichNodeToIndex = useCallback(
-    (sourceBlockId: string, sourceRichNodeIndex: number, targetBlockId: string, rawTargetInsertIndex: number) => {
+    (
+      sourceBlockId: string,
+      sourceRichNodeIndex: number,
+      targetBlockId: string,
+      rawTargetInsertIndex: number,
+      rawTargetAfterNodeIndex?: number,
+    ) => {
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return false
 
       let moved = false
@@ -1615,14 +1703,24 @@ export function AdminPageEditor() {
           const targetInsertIndex =
             sourceRichNodeIndex < rawTargetInsertIndex ? rawTargetInsertIndex - 1 : rawTargetInsertIndex
           const normalizedIndex = Math.max(0, Math.min(targetInsertIndex, nextNodes.length))
+          const normalizedAfterNodeIndex =
+            typeof rawTargetAfterNodeIndex === "number"
+              ? sourceRichNodeIndex < rawTargetAfterNodeIndex
+                ? rawTargetAfterNodeIndex - 1
+                : rawTargetAfterNodeIndex
+              : undefined
           const nextNodeDoc = parser.parseFromString(nodeHtml, "text/html")
           const replacement = nextNodeDoc.body.firstElementChild
           if (!replacement) return current
 
-          if (normalizedIndex >= nextNodes.length) {
+          if (typeof normalizedAfterNodeIndex === "number" && normalizedAfterNodeIndex >= 0 && normalizedAfterNodeIndex < nextNodes.length) {
+            const structuralAnchor = getRichTextStructuralInsertAnchor(nextNodes[normalizedAfterNodeIndex], parsed.body)
+            structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
+          } else if (normalizedIndex >= nextNodes.length) {
             parsed.body.appendChild(replacement)
           } else {
-            nextNodes[normalizedIndex].parentNode?.insertBefore(replacement, nextNodes[normalizedIndex])
+            const structuralTarget = getRichTextStructuralInsertAnchor(nextNodes[normalizedIndex], parsed.body)
+            structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
           }
 
           finalTargetIndex = normalizedIndex
@@ -1660,10 +1758,14 @@ export function AdminPageEditor() {
         const replacement = nextNodeDoc.body.firstElementChild
         if (!replacement) return current
 
-        if (normalizedIndex >= targetNodes.length) {
+        if (typeof rawTargetAfterNodeIndex === "number" && rawTargetAfterNodeIndex >= 0 && rawTargetAfterNodeIndex < targetNodes.length) {
+          const structuralAnchor = getRichTextStructuralInsertAnchor(targetNodes[rawTargetAfterNodeIndex], targetParsed.body)
+          structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
+        } else if (normalizedIndex >= targetNodes.length) {
           targetParsed.body.appendChild(replacement)
         } else {
-          targetNodes[normalizedIndex].parentNode?.insertBefore(replacement, targetNodes[normalizedIndex])
+          const structuralTarget = getRichTextStructuralInsertAnchor(targetNodes[normalizedIndex], targetParsed.body)
+          structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
         }
 
         finalTargetIndex = normalizedIndex
@@ -1906,7 +2008,7 @@ export function AdminPageEditor() {
     const parser = new DOMParser()
     const parsed = parser.parseFromString(html, "text/html")
 
-    Array.from(parsed.body.querySelectorAll("[data-me-drop-slot]")).forEach((slot) => slot.remove())
+    Array.from(parsed.body.querySelectorAll("[data-me-drop-slot], [data-me-editor-control]")).forEach((slot) => slot.remove())
 
     const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
     nodes.forEach((node) => {
@@ -2108,7 +2210,7 @@ export function AdminPageEditor() {
       )
       if (inserted) {
         setSelectedBlockId(pendingRichInsertPoint.blockId)
-        setSelectedRichNodeIndex(Math.max(0, pendingRichInsertPoint.insertIndex))
+        setSelectedRichNodeIndex(null)
       }
       setPendingRichInsertPoint(null)
       return
@@ -2134,9 +2236,14 @@ export function AdminPageEditor() {
     if (selectedBlock?.type === "rich_text" && shouldInsertInsideRichText) {
       const insertIndex =
         selectedRichNodeIndex !== null ? selectedRichNodeIndex + 1 : getEditableRichNodesFromHtml(selectedBlock.content).length
-      const inserted = insertRichNodeAtIndex(selectedBlock.id, insertIndex, getHtmlForBlockInsertion(nextBlock))
+      const inserted = insertRichNodeAtIndex(
+        selectedBlock.id,
+        insertIndex,
+        getHtmlForBlockInsertion(nextBlock),
+        selectedRichNodeIndex ?? undefined,
+      )
       if (inserted) {
-        setSelectedRichNodeIndex(insertIndex)
+        setSelectedRichNodeIndex(null)
         selectBlockSilently(selectedBlock.id)
         return
       }
@@ -2632,21 +2739,22 @@ export function AdminPageEditor() {
   )
 
   const handleDropIntoRichText = useCallback(
-    (blockId: string, insertIndex: number, event: DragEvent<HTMLElement>) => {
+    (blockId: string, insertIndex: number, event: DragEvent<HTMLElement>, insertAfterNodeIndex?: number) => {
       event.preventDefault()
+      event.stopPropagation()
       const payload = dragPayloadRef.current
       clearDragState()
       if (!payload) return
 
       if (payload.kind === "library") {
         const nextBlock = createDefaultBlock(payload.blockType)
-        const inserted = insertRichNodeAtIndex(blockId, insertIndex, getHtmlForBlockInsertion(nextBlock))
+        const inserted = insertRichNodeAtIndex(blockId, insertIndex, getHtmlForBlockInsertion(nextBlock), insertAfterNodeIndex)
         if (inserted) selectBlockSilently(blockId)
         return
       }
 
        if (payload.kind === "rich_node") {
-        moveRichNodeToIndex(payload.blockId, payload.richNodeIndex, blockId, insertIndex)
+        moveRichNodeToIndex(payload.blockId, payload.richNodeIndex, blockId, insertIndex, insertAfterNodeIndex)
         return
       }
 
@@ -2667,10 +2775,14 @@ export function AdminPageEditor() {
             const nextNodeDoc = parser.parseFromString(getHtmlForBlockInsertion(movedBlock as PageBlock), "text/html")
             const replacement = nextNodeDoc.body.firstElementChild
             if (!replacement) return block
-            if (insertIndex >= nodes.length) {
+            if (typeof insertAfterNodeIndex === "number" && insertAfterNodeIndex >= 0 && insertAfterNodeIndex < nodes.length) {
+              const structuralAnchor = getRichTextStructuralInsertAnchor(nodes[insertAfterNodeIndex], parsed.body)
+              structuralAnchor.parentNode?.insertBefore(replacement, structuralAnchor.nextSibling)
+            } else if (insertIndex >= nodes.length) {
               parsed.body.appendChild(replacement)
             } else {
-              nodes[insertIndex].parentNode?.insertBefore(replacement, nodes[insertIndex])
+              const structuralTarget = getRichTextStructuralInsertAnchor(nodes[insertIndex], parsed.body)
+              structuralTarget.parentNode?.insertBefore(replacement, structuralTarget)
             }
             return { ...block, content: parsed.body.innerHTML }
           })
@@ -3191,12 +3303,39 @@ export function AdminPageEditor() {
                                       event.stopPropagation()
                                       const target = event.target as HTMLElement | null
                                       const richTextRoot = event.currentTarget
+                                      const addAfterButton = target?.closest?.("[data-me-add-after]") as HTMLElement | null
+                                      if (addAfterButton) {
+                                        selectBlockForEdit(block.id)
+                                        const insertIndex = Number(addAfterButton.getAttribute("data-me-drop-slot") ?? "-1")
+                                        const insertAfterNodeIndex = Number(addAfterButton.getAttribute("data-me-drop-after") ?? "-1")
+                                        if (Number.isFinite(insertIndex) && insertIndex >= 0) {
+                                          setSelectedRichNodeIndex(
+                                            Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                              ? insertAfterNodeIndex
+                                              : null,
+                                          )
+                                          setPendingRichInsertPoint({
+                                            blockId: block.id,
+                                            insertIndex,
+                                            insertAfterNodeIndex:
+                                              Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                                ? insertAfterNodeIndex
+                                                : undefined,
+                                          })
+                                        }
+                                        return
+                                      }
                                       const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
                                       if (dropSlot) {
                                         selectBlockForEdit(block.id)
                                         const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
                                         const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
                                         if (Number.isFinite(insertIndex) && insertIndex >= 0) {
+                                          setSelectedRichNodeIndex(
+                                            Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                              ? insertAfterNodeIndex
+                                              : null,
+                                          )
                                           setPendingRichInsertPoint({
                                             blockId: block.id,
                                             insertIndex,
@@ -3230,6 +3369,7 @@ export function AdminPageEditor() {
                                         selectBlockSilently(block.id)
                                       }
                                       event.preventDefault()
+                                      event.stopPropagation()
                                       event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
 
                                       const target = event.target as HTMLElement | null
@@ -3253,14 +3393,22 @@ export function AdminPageEditor() {
                                       if (richNode) {
                                         const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
                                         if (Number.isFinite(nextIndex) && nextIndex >= 0) {
-                                          handleDropIntoRichText(block.id, nextIndex + 1, event)
+                                          handleDropIntoRichText(block.id, nextIndex + 1, event, nextIndex)
                                           return
                                         }
                                       }
                                       if (dropSlot) {
                                         const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                        const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
                                         if (!Number.isFinite(insertIndex) || insertIndex < 0) return
-                                        handleDropIntoRichText(block.id, insertIndex, event)
+                                        handleDropIntoRichText(
+                                          block.id,
+                                          insertIndex,
+                                          event,
+                                          Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                            ? insertAfterNodeIndex
+                                            : undefined,
+                                        )
                                         return
                                       }
                                       handleDropIntoRichText(block.id, getEditableRichNodesFromHtml(block.content).length, event)
