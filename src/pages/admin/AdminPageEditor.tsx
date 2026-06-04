@@ -919,6 +919,7 @@ export function AdminPageEditor() {
   } | null>(null)
   const [isLayoutCardVisible, setIsLayoutCardVisible] = useState(false)
   const [isSectionLayoutMode, setIsSectionLayoutMode] = useState(false)
+  const [isSectionLayoutCardExpanded, setIsSectionLayoutCardExpanded] = useState(true)
   const [isVersionHistoryExpanded, setIsVersionHistoryExpanded] = useState(false)
   const [pendingRichInsertPoint, setPendingRichInsertPoint] = useState<PendingRichInsertPoint | null>(null)
   const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
@@ -1153,6 +1154,7 @@ export function AdminPageEditor() {
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(true)
     setIsSectionLayoutMode(false)
+    setIsSectionLayoutCardExpanded(true)
   }, [selectedBlockId])
 
   const selectBlockSilently = useCallback((blockId: string) => {
@@ -1176,6 +1178,7 @@ export function AdminPageEditor() {
     setSidebarTab("inspector")
     setIsLayoutCardVisible(true)
     setIsSectionLayoutMode(true)
+    setIsSectionLayoutCardExpanded(true)
   }, [])
 
   const selectRichNodeForEdit = useCallback((blockId: string, richNodeIndex: number) => {
@@ -2949,11 +2952,11 @@ export function AdminPageEditor() {
                             onClick={(event) => {
                               event.preventDefault()
                               event.stopPropagation()
-                              selectBlockForEdit(block.id)
+                              selectSectionForEdit(block.id)
                             }}
                             className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
-                            aria-label={`Editar bloco ${index + 1}`}
-                            title="Editar bloco"
+                            aria-label={`Editar seção ${index + 1}`}
+                            title="Editar seção"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -3730,17 +3733,6 @@ export function AdminPageEditor() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="rounded-full"
-                          onClick={() => selectSectionForEdit(selectedBlock.id)}
-                        >
-                          Editar seccao
-                        </Button>
-                      ) : null}
-                      {!showSectionLayoutOnlyInspector ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
                           className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
                           onClick={() => handleRemoveBlock(selectedBlock.id)}
                         >
@@ -3753,7 +3745,23 @@ export function AdminPageEditor() {
 
                   {showLayoutSectionCard ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-2 text-left"
+                      onClick={() => setIsSectionLayoutCardExpanded((current) => !current)}
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Layout da seccao</span>
+                      {isSectionLayoutCardExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-slate-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-slate-500" />
+                      )}
+                    </button>
+                    {isSectionLayoutCardExpanded ? (
+                    <>
+                    <div className="sr-only">
                     <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Layout da seção</p>
+                    </div>
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <label className="block text-xs font-semibold text-slate-600">
                         Largura (1-12)
@@ -3978,6 +3986,8 @@ export function AdminPageEditor() {
                         />
                       </label>
                     </div>
+                    </>
+                    ) : null}
                     </div>
                   ) : null}
 
