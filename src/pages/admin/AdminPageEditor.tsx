@@ -3062,7 +3062,7 @@ export function AdminPageEditor() {
                           </div>
                         ) : null}
 
-                        <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                        <div className="absolute right-2 top-2 z-30 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             type="button"
                             onClick={(event) => {
@@ -3120,7 +3120,7 @@ export function AdminPageEditor() {
                           </button>
                         </div>
 
-                        <div className="relative z-10 space-y-2">
+                        <div className="relative z-0 space-y-2">
                         {block.type === "heading" ? (
                           block.level === 1 ? (
                             <h1
