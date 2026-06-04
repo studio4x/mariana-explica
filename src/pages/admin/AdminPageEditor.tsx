@@ -203,10 +203,27 @@ function getCanvasDropHintLabel(payload: DragPayload | null) {
   return "Mover aqui"
 }
 
-function parseSymmetricMarginValue(first: string | null | undefined, second: string | null | undefined, fallback = 0) {
-  const firstValue = parsePxValue(first, fallback)
-  const secondValue = parsePxValue(second, fallback)
-  return firstValue === secondValue ? firstValue : firstValue
+function getContainerColumnLayoutDefaults(
+  alignX: "left" | "center" | "right" | "stretch" = "stretch",
+  alignY: "top" | "center" | "bottom" = "top",
+) {
+  return {
+    ...getBlockLayoutDefaults(),
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    contentAlignX: alignX,
+    contentAlignY: alignY,
+    contentGap: 0,
+    minHeight: 0,
+  } satisfies BlockLayoutStyle
 }
 
 function escapeHtmlAttribute(value: string) {
@@ -303,13 +320,35 @@ function getHtmlForBlockInsertion(block: PageBlock): string {
     return `<div style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};">${items}</div>`
   }
   if (block.type === "container") {
-    const alignItems = mapHorizontalAlignToFlex(block.columnContentAlignX)
-    const justifyContent = mapVerticalAlignToFlex(block.columnContentAlignY)
     const items: string = block.children
       .slice(0, block.columns)
       .map(
-        (columnBlocks: PageBlock[]) =>
-          `<div style="min-width:0;display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;">${columnBlocks.map((child: PageBlock) => getHtmlForBlockInsertion(child)).join("")}</div>`,
+        (columnBlocks: PageBlock[], columnIndex: number) => {
+          const columnLayout =
+            block.columnLayouts[columnIndex] ??
+            getContainerColumnLayoutDefaults(block.columnContentAlignX, block.columnContentAlignY)
+          const normalized = normalizeLayoutStyle({
+            ...getContainerColumnLayoutDefaults(block.columnContentAlignX, block.columnContentAlignY),
+            ...columnLayout,
+          })
+          const alignItems = mapHorizontalAlignToFlex(normalized.contentAlignX)
+          const justifyContent = mapVerticalAlignToFlex(normalized.contentAlignY)
+          const styleString = [
+            "min-width:0",
+            "display:flex",
+            "flex-direction:column",
+            `align-items:${alignItems}`,
+            `justify-content:${justifyContent}`,
+            `gap:${block.columnContentGap}px`,
+            `margin:${normalized.marginTop}px ${normalized.marginRight}px ${normalized.marginBottom}px ${normalized.marginLeft}px`,
+            `padding:${normalized.paddingTop}px ${normalized.paddingRight}px ${normalized.paddingBottom}px ${normalized.paddingLeft}px`,
+            `background:${escapeHtmlAttribute(normalized.backgroundColor)}`,
+            `border-radius:${normalized.borderRadius}px`,
+            `min-height:${normalized.minHeight}px`,
+            "box-sizing:border-box",
+          ].join(";")
+          return `<div style="${styleString}">${columnBlocks.map((child: PageBlock) => getHtmlForBlockInsertion(child)).join("")}</div>`
+        },
       )
       .join("")
     return `<section style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background:${escapeHtmlAttribute(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
@@ -589,6 +628,39 @@ function getBlockContainerStyle(layout?: BlockLayoutStyle): CSSProperties {
     alignItems: contentAlignItems,
     justifyContent: contentJustifyContent,
     gap: normalized.contentGap,
+    minHeight: normalized.minHeight,
+    boxSizing: "border-box",
+  }
+}
+
+function getContainerColumnStyle(
+  layout: BlockLayoutStyle,
+  fallbackAlignX: "left" | "center" | "right" | "stretch",
+  fallbackAlignY: "top" | "center" | "bottom",
+  contentGap: number,
+): CSSProperties {
+  const normalized = normalizeLayoutStyle({
+    ...getContainerColumnLayoutDefaults(fallbackAlignX, fallbackAlignY),
+    ...layout,
+  })
+
+  return {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: mapHorizontalAlignToFlex(normalized.contentAlignX),
+    justifyContent: mapVerticalAlignToFlex(normalized.contentAlignY),
+    gap: contentGap,
+    marginTop: normalized.marginTop,
+    marginRight: normalized.marginRight,
+    marginBottom: normalized.marginBottom,
+    marginLeft: normalized.marginLeft,
+    paddingTop: normalized.paddingTop,
+    paddingRight: normalized.paddingRight,
+    paddingBottom: normalized.paddingBottom,
+    paddingLeft: normalized.paddingLeft,
+    background: normalized.backgroundColor,
+    borderRadius: normalized.borderRadius,
     minHeight: normalized.minHeight,
     boxSizing: "border-box",
   }
@@ -915,8 +987,10 @@ export function AdminPageEditor() {
       linkHref: element.getAttribute("href") ?? "",
       textColor: normalizeColorForInput(element.style.color, "#0f172a"),
       backgroundColor: normalizeColorForInput(element.style.backgroundColor, "#ffffff"),
-      marginVerticalPx: parseSymmetricMarginValue(element.style.marginTop, element.style.marginBottom, 0),
-      marginHorizontalPx: parseSymmetricMarginValue(element.style.marginLeft, element.style.marginRight, 0),
+      marginTopPx: parsePxValue(element.style.marginTop, 0),
+      marginBottomPx: parsePxValue(element.style.marginBottom, 0),
+      marginLeftPx: parsePxValue(element.style.marginLeft, 0),
+      marginRightPx: parsePxValue(element.style.marginRight, 0),
       borderWidthPx: parsePxValue(element.style.borderWidth, 0),
       borderColor: normalizeColorForInput(element.style.borderColor, "#242742"),
       borderRadiusPx: parsePxValue(element.style.borderRadius, 999),
@@ -939,6 +1013,16 @@ export function AdminPageEditor() {
   const selectedRichNodeText = useMemo(() => {
     return selectedRichNodeDescriptor?.textContent ?? ""
   }, [selectedRichNodeDescriptor])
+
+  const selectedContainerColumnLayout = useMemo(() => {
+    if (!selectedBlock || selectedBlock.type !== "container") return null
+    if (selectedContainerColumnTarget?.containerId !== selectedBlock.id) return null
+    const columnIndex = selectedContainerColumnTarget.columnIndex
+    return (
+      selectedBlock.columnLayouts[columnIndex] ??
+      getContainerColumnLayoutDefaults(selectedBlock.columnContentAlignX, selectedBlock.columnContentAlignY)
+    )
+  }, [selectedBlock, selectedContainerColumnTarget])
 
   const showLayoutSectionCard = useMemo(() => {
     if (!isLayoutCardVisible) return false
@@ -1246,6 +1330,24 @@ export function AdminPageEditor() {
       }))
     },
     [updateSelectedBlock],
+  )
+
+  const updateSelectedContainerColumnLayout = useCallback(
+    (partial: Partial<BlockLayoutStyle>) => {
+      if (!selectedContainerColumnTarget) return
+      updateSelectedBlock((block) => {
+        if (block.type !== "container" || block.id !== selectedContainerColumnTarget.containerId) return block
+        const nextLayouts = [...block.columnLayouts]
+        const columnIndex = Math.max(0, Math.min(selectedContainerColumnTarget.columnIndex, block.columns - 1))
+        const fallback = getContainerColumnLayoutDefaults(block.columnContentAlignX, block.columnContentAlignY)
+        nextLayouts[columnIndex] = normalizeLayoutStyle({
+          ...(nextLayouts[columnIndex] ?? fallback),
+          ...partial,
+        })
+        return { ...block, columnLayouts: nextLayouts }
+      })
+    },
+    [selectedContainerColumnTarget, updateSelectedBlock],
   )
 
   const annotateRichTextNodes = useCallback(
@@ -1624,7 +1726,7 @@ export function AdminPageEditor() {
   )
 
   const applyRichNodeMarginStyleEdit = useCallback(
-    (partial: { marginVertical?: number; marginHorizontal?: number }) => {
+    (partial: { marginTop?: number; marginBottom?: number; marginLeft?: number; marginRight?: number }) => {
       if (!selectedBlock || selectedBlock.type !== "rich_text") return
       if (selectedRichNodeIndex === null) return
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return
@@ -1635,16 +1737,17 @@ export function AdminPageEditor() {
       const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
       if (!targetNode) return
 
-      if (typeof partial.marginVertical === "number") {
-        const safeValue = Math.max(0, Math.min(240, partial.marginVertical))
-        targetNode.style.marginTop = `${safeValue}px`
-        targetNode.style.marginBottom = `${safeValue}px`
+      if (typeof partial.marginTop === "number") {
+        targetNode.style.marginTop = `${Math.max(0, Math.min(240, partial.marginTop))}px`
       }
-
-      if (typeof partial.marginHorizontal === "number") {
-        const safeValue = Math.max(0, Math.min(240, partial.marginHorizontal))
-        targetNode.style.marginLeft = `${safeValue}px`
-        targetNode.style.marginRight = `${safeValue}px`
+      if (typeof partial.marginBottom === "number") {
+        targetNode.style.marginBottom = `${Math.max(0, Math.min(240, partial.marginBottom))}px`
+      }
+      if (typeof partial.marginLeft === "number") {
+        targetNode.style.marginLeft = `${Math.max(0, Math.min(240, partial.marginLeft))}px`
+      }
+      if (typeof partial.marginRight === "number") {
+        targetNode.style.marginRight = `${Math.max(0, Math.min(240, partial.marginRight))}px`
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -3068,11 +3171,15 @@ export function AdminPageEditor() {
                               padding: `${block.paddingY}px ${block.paddingX}px`,
                             }}
                           >
-                            {block.children.slice(0, block.columns).map((columnBlocks, columnIndex) => (
+                            {block.children.slice(0, block.columns).map((columnBlocks, columnIndex) => {
+                              const columnLayout =
+                                block.columnLayouts[columnIndex] ??
+                                getContainerColumnLayoutDefaults(block.columnContentAlignX, block.columnContentAlignY)
+                              return (
                               <article
                                 key={`${block.id}-container-col-${columnIndex}`}
                                 className={[
-                                  "rounded-xl border bg-white/80 p-3",
+                                  "rounded-xl border",
                                   selectedContainerColumnTarget?.containerId === block.id &&
                                   selectedContainerColumnTarget.columnIndex === columnIndex
                                     ? "border-sky-300 ring-2 ring-sky-100"
@@ -3095,6 +3202,7 @@ export function AdminPageEditor() {
                                   event.dataTransfer.dropEffect = dragPayloadRef.current?.kind === "library" ? "copy" : "move"
                                 }}
                                 onDrop={(event) => handleDropIntoContainerColumn(block.id, columnIndex, event)}
+                                style={getContainerColumnStyle(columnLayout, block.columnContentAlignX, block.columnContentAlignY, block.columnContentGap)}
                               >
                                 <div className="mb-2 flex items-center justify-between gap-2">
                                   <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Coluna {columnIndex + 1}</p>
@@ -3125,17 +3233,7 @@ export function AdminPageEditor() {
                                     Coluna vazia.
                                   </p>
                                 ) : (
-                                  <div
-                                    className="space-y-2"
-                                    style={{
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      alignItems: mapHorizontalAlignToFlex(block.columnContentAlignX),
-                                      justifyContent: mapVerticalAlignToFlex(block.columnContentAlignY),
-                                      gap: `${block.columnContentGap}px`,
-                                      minHeight: "100%",
-                                    }}
-                                  >
+                                  <div className="space-y-2">
                                     {columnBlocks.map((childBlock, childIndex) => {
                                       const isChildSelected = selectedBlockId === childBlock.id
                                       return (
@@ -3208,7 +3306,8 @@ export function AdminPageEditor() {
                                   </div>
                                 )}
                               </article>
-                            ))}
+                              )
+                            })}
                           </section>
                         ) : null}
 
@@ -3663,34 +3762,46 @@ export function AdminPageEditor() {
 
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <label className="block text-xs font-semibold text-slate-600">
-                        Margem vertical (px)
+                        Margem superior (px)
                         <input
                           type="number"
                           min={0}
                           max={240}
                           value={selectedLayout.marginTop}
-                          onChange={(event) =>
-                            updateSelectedBlockLayout({
-                              marginTop: snapSpacing(Number(event.target.value) || 0),
-                              marginBottom: snapSpacing(Number(event.target.value) || 0),
-                            })
-                          }
+                          onChange={(event) => updateSelectedBlockLayout({ marginTop: snapSpacing(Number(event.target.value) || 0) })}
                           className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
                         />
                       </label>
                       <label className="block text-xs font-semibold text-slate-600">
-                        Margem horizontal (px)
+                        Margem inferior (px)
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.marginBottom}
+                          onChange={(event) => updateSelectedBlockLayout({ marginBottom: snapSpacing(Number(event.target.value) || 0) })}
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Margem esquerda (px)
                         <input
                           type="number"
                           min={0}
                           max={240}
                           value={selectedLayout.marginLeft}
-                          onChange={(event) =>
-                            updateSelectedBlockLayout({
-                              marginLeft: snapSpacing(Number(event.target.value) || 0),
-                              marginRight: snapSpacing(Number(event.target.value) || 0),
-                            })
-                          }
+                          onChange={(event) => updateSelectedBlockLayout({ marginLeft: snapSpacing(Number(event.target.value) || 0) })}
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600">
+                        Margem direita (px)
+                        <input
+                          type="number"
+                          min={0}
+                          max={240}
+                          value={selectedLayout.marginRight}
+                          onChange={(event) => updateSelectedBlockLayout({ marginRight: snapSpacing(Number(event.target.value) || 0) })}
                           className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-xs"
                         />
                       </label>
@@ -3848,30 +3959,60 @@ export function AdminPageEditor() {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <label className="block text-xs font-semibold text-slate-600">
-                              Margem vertical (px)
+                              Margem superior (px)
                               <input
                                 type="number"
                                 min={0}
                                 max={240}
-                                value={selectedRichNodeDescriptor?.marginVerticalPx ?? 0}
+                                value={selectedRichNodeDescriptor?.marginTopPx ?? 0}
                                 onChange={(event) =>
                                   applyRichNodeMarginStyleEdit({
-                                    marginVertical: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                    marginTop: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
                                   })
                                 }
                                 className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                               />
                             </label>
                             <label className="block text-xs font-semibold text-slate-600">
-                              Margem horizontal (px)
+                              Margem inferior (px)
                               <input
                                 type="number"
                                 min={0}
                                 max={240}
-                                value={selectedRichNodeDescriptor?.marginHorizontalPx ?? 0}
+                                value={selectedRichNodeDescriptor?.marginBottomPx ?? 0}
                                 onChange={(event) =>
                                   applyRichNodeMarginStyleEdit({
-                                    marginHorizontal: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                    marginBottom: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                  })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem esquerda (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedRichNodeDescriptor?.marginLeftPx ?? 0}
+                                onChange={(event) =>
+                                  applyRichNodeMarginStyleEdit({
+                                    marginLeft: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                  })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem direita (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedRichNodeDescriptor?.marginRightPx ?? 0}
+                                onChange={(event) =>
+                                  applyRichNodeMarginStyleEdit({
+                                    marginRight: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
                                   })
                                 }
                                 className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
@@ -4454,6 +4595,52 @@ export function AdminPageEditor() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
+                          Margem superior (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={selectedLayout.marginTop}
+                            onChange={(event) => updateSelectedBlockLayout({ marginTop: snapSpacing(Number(event.target.value) || 0) })}
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Margem inferior (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={selectedLayout.marginBottom}
+                            onChange={(event) => updateSelectedBlockLayout({ marginBottom: snapSpacing(Number(event.target.value) || 0) })}
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Margem esquerda (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={selectedLayout.marginLeft}
+                            onChange={(event) => updateSelectedBlockLayout({ marginLeft: snapSpacing(Number(event.target.value) || 0) })}
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">
+                          Margem direita (px)
+                          <input
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={selectedLayout.marginRight}
+                            onChange={(event) => updateSelectedBlockLayout({ marginRight: snapSpacing(Number(event.target.value) || 0) })}
+                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-semibold text-slate-600">
                           Tamanho da fonte (px)
                           <input
                             type="number"
@@ -4549,7 +4736,18 @@ export function AdminPageEditor() {
                                 if (block.type !== "container") return block
                                 const nextChildren = [...block.children]
                                 while (nextChildren.length < nextColumns) nextChildren.push([createDefaultBlock("rich_text") as PageBlock])
-                                return { ...block, columns: nextColumns, children: nextChildren.slice(0, nextColumns) }
+                                const nextColumnLayouts = [...block.columnLayouts]
+                                while (nextColumnLayouts.length < nextColumns) {
+                                  nextColumnLayouts.push(
+                                    getContainerColumnLayoutDefaults(block.columnContentAlignX, block.columnContentAlignY),
+                                  )
+                                }
+                                return {
+                                  ...block,
+                                  columns: nextColumns,
+                                  children: nextChildren.slice(0, nextColumns),
+                                  columnLayouts: nextColumnLayouts.slice(0, nextColumns),
+                                }
                               })
                             }}
                             className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
@@ -4789,6 +4987,157 @@ export function AdminPageEditor() {
                           />
                         </label>
                       </div>
+
+                      {selectedContainerColumnLayout ? (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+                            Editar coluna {selectedContainerColumnTarget ? selectedContainerColumnTarget.columnIndex + 1 : ""}
+                          </p>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Elementos na horizontal
+                              <select
+                                value={selectedContainerColumnLayout.contentAlignX}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({
+                                    contentAlignX: event.target.value as "left" | "center" | "right" | "stretch",
+                                  })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              >
+                                <option value="left">Esquerda</option>
+                                <option value="center">Centro</option>
+                                <option value="right">Direita</option>
+                                <option value="stretch">Esticar</option>
+                              </select>
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Elementos na vertical
+                              <select
+                                value={selectedContainerColumnLayout.contentAlignY}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({
+                                    contentAlignY: event.target.value as "top" | "center" | "bottom",
+                                  })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              >
+                                <option value="top">Acima</option>
+                                <option value="center">Centro</option>
+                                <option value="bottom">Abaixo</option>
+                              </select>
+                            </label>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Padding superior (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.paddingTop}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ paddingTop: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Padding inferior (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.paddingBottom}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ paddingBottom: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Padding esquerda (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.paddingLeft}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ paddingLeft: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Padding direita (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.paddingRight}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ paddingRight: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem superior (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.marginTop}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ marginTop: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem inferior (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.marginBottom}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ marginBottom: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem esquerda (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.marginLeft}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ marginLeft: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                              Margem direita (px)
+                              <input
+                                type="number"
+                                min={0}
+                                max={240}
+                                value={selectedContainerColumnLayout.marginRight}
+                                onChange={(event) =>
+                                  updateSelectedContainerColumnLayout({ marginRight: snapSpacing(Number(event.target.value) || 0) })
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : null}
 
                       <div className="space-y-2">
                         {selectedContainerColumnTarget?.containerId === selectedBlock.id ? (

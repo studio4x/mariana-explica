@@ -102,6 +102,7 @@ export interface ContainerBlock extends BasePageBlock {
   columnContentAlignY: "top" | "center" | "bottom"
   columnContentGap: number
   children: PageBlock[][]
+  columnLayouts: BlockLayoutStyle[]
   backgroundColor: string
   borderColor: string
   borderWidth: number
@@ -208,6 +209,28 @@ export function normalizeLayoutStyle(raw: unknown): BlockLayoutStyle {
   }
 }
 
+function getContainerColumnLayoutDefaults(
+  partial?: Partial<Pick<BlockLayoutStyle, "contentAlignX" | "contentAlignY">>,
+): BlockLayoutStyle {
+  return {
+    ...getBlockLayoutDefaults(),
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    contentAlignX: partial?.contentAlignX ?? "stretch",
+    contentAlignY: partial?.contentAlignY ?? "top",
+    contentGap: 0,
+    minHeight: 0,
+  }
+}
+
 export function createDefaultBlock(type: PageBlockType): PageBlock {
   const layout = getBlockLayoutDefaults()
   const createDefaultContainerColumnBlock = (columnIndex: number): RichTextBlock => ({
@@ -309,6 +332,10 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
         columnContentAlignY: "top",
         columnContentGap: 8,
         children: [[createDefaultContainerColumnBlock(0)], [createDefaultContainerColumnBlock(1)]],
+        columnLayouts: [
+          getContainerColumnLayoutDefaults({ contentAlignX: "left", contentAlignY: "top" }),
+          getContainerColumnLayoutDefaults({ contentAlignX: "left", contentAlignY: "top" }),
+        ],
         backgroundColor: "#f8fafc",
         borderColor: "rgba(36,39,66,0.14)",
         borderWidth: 1,
@@ -978,6 +1005,29 @@ function normalizeContainerChildren(rawChildren: unknown, rawItems: unknown, col
   return normalizedColumns
 }
 
+function normalizeContainerColumnLayouts(
+  rawLayouts: unknown,
+  columns: 1 | 2 | 3 | 4,
+  fallbackAlignX: "left" | "center" | "right" | "stretch",
+  fallbackAlignY: "top" | "center" | "bottom",
+): BlockLayoutStyle[] {
+  const source = Array.isArray(rawLayouts) ? rawLayouts : []
+  const layouts: BlockLayoutStyle[] = []
+
+  for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
+    const fallback = getContainerColumnLayoutDefaults({
+      contentAlignX: fallbackAlignX,
+      contentAlignY: fallbackAlignY,
+    })
+    layouts.push({
+      ...fallback,
+      ...normalizeLayoutStyle(source[columnIndex] ?? fallback),
+    })
+  }
+
+  return layouts
+}
+
 function normalizeBlockList(items: unknown[]): PageBlock[] {
   const blocks: PageBlock[] = []
 
@@ -1116,6 +1166,16 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
     if (type === "container") {
       const columns = clamp(Number(block.columns ?? 2), 1, 4) as 1 | 2 | 3 | 4
       const baseGap = clamp(Number(block.gap ?? 16), 8, 64)
+      const columnContentAlignX = (
+        ["left", "center", "right", "stretch"].includes(String(block.columnContentAlignX))
+          ? String(block.columnContentAlignX)
+          : "left"
+      ) as "left" | "center" | "right" | "stretch"
+      const columnContentAlignY = (
+        ["top", "center", "bottom"].includes(String(block.columnContentAlignY))
+          ? String(block.columnContentAlignY)
+          : "top"
+      ) as "top" | "center" | "bottom"
       blocks.push({
         id: String(block.id ?? uid("container")),
         type,
@@ -1132,18 +1192,11 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
             ? String(block.justifyItems)
             : "stretch"
         ) as "start" | "center" | "end" | "stretch",
-        columnContentAlignX: (
-          ["left", "center", "right", "stretch"].includes(String(block.columnContentAlignX))
-            ? String(block.columnContentAlignX)
-            : "left"
-        ) as "left" | "center" | "right" | "stretch",
-        columnContentAlignY: (
-          ["top", "center", "bottom"].includes(String(block.columnContentAlignY))
-            ? String(block.columnContentAlignY)
-            : "top"
-        ) as "top" | "center" | "bottom",
+        columnContentAlignX,
+        columnContentAlignY,
         columnContentGap: clamp(Number(block.columnContentGap ?? 8), 0, 80),
         children: normalizeContainerChildren(block.children, block.items, columns),
+        columnLayouts: normalizeContainerColumnLayouts(block.columnLayouts, columns, columnContentAlignX, columnContentAlignY),
         backgroundColor: String(block.backgroundColor ?? "#f8fafc"),
         borderColor: String(block.borderColor ?? "rgba(36,39,66,0.14)"),
         borderWidth: clamp(Number(block.borderWidth ?? 1), 0, 12),
@@ -1476,22 +1529,26 @@ function renderSingleBlockToHtml(block: PageBlock): string {
       if (block.type === "container") {
         const items = block.children
           .slice(0, block.columns)
-          .map((columnBlocks) => {
+          .map((columnBlocks, columnIndex) => {
+            const columnLayout = block.columnLayouts[columnIndex] ?? getContainerColumnLayoutDefaults({
+              contentAlignX: block.columnContentAlignX,
+              contentAlignY: block.columnContentAlignY,
+            })
             const alignItems =
-              block.columnContentAlignX === "left"
+              columnLayout.contentAlignX === "left"
                 ? "flex-start"
-                : block.columnContentAlignX === "center"
+                : columnLayout.contentAlignX === "center"
                   ? "center"
-                  : block.columnContentAlignX === "right"
+                  : columnLayout.contentAlignX === "right"
                     ? "flex-end"
                     : "stretch"
             const justifyContent =
-              block.columnContentAlignY === "top"
+              columnLayout.contentAlignY === "top"
                 ? "flex-start"
-                : block.columnContentAlignY === "center"
+                : columnLayout.contentAlignY === "center"
                   ? "center"
                   : "flex-end"
-            return `<article class="me-managed-container-column" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;">${renderBlocksToHtml(columnBlocks)}</article>`
+            return `<article class="me-managed-container-column" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;margin:${columnLayout.marginTop}px ${columnLayout.marginRight}px ${columnLayout.marginBottom}px ${columnLayout.marginLeft}px;padding:${columnLayout.paddingTop}px ${columnLayout.paddingRight}px ${columnLayout.paddingBottom}px ${columnLayout.paddingLeft}px;background:${escapeHtml(columnLayout.backgroundColor)};border-radius:${columnLayout.borderRadius}px;min-height:${columnLayout.minHeight}px;">${renderBlocksToHtml(columnBlocks)}</article>`
           })
           .join("")
         return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
