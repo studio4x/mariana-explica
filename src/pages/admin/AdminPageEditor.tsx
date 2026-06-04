@@ -3018,6 +3018,21 @@ export function AdminPageEditor() {
                     (block.layout.backgroundColor.trim() !== "" && block.layout.backgroundColor.trim() !== "transparent")
                   return (
                     <div key={block.id}>
+                      {index > 0 ? (
+                        <div
+                          onDragOver={(event) => onDropZoneDragOver(index, event)}
+                          onDrop={(event) => handleDropAtIndex(index, event)}
+                          className={[
+                            "my-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
+                            isDraggingBlockLike || dragOverIndex === index ? "h-12 opacity-100" : "h-5 opacity-80",
+                            dragOverIndex === index
+                              ? "border-sky-500 bg-sky-100 text-sky-900"
+                              : "border-slate-300 bg-transparent text-slate-400",
+                          ].join(" ")}
+                        >
+                          <span className="pointer-events-none">{dragHintLabel}</span>
+                        </div>
+                      ) : null}
                       <section
                         onClickCapture={(event) => {
                           const target = event.target as HTMLElement | null
