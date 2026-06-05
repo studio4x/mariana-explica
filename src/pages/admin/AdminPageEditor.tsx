@@ -213,6 +213,61 @@ function isStructuralRichTextNode(node: Element) {
   return !node.parentElement?.closest(EDITABLE_RICH_TEXT_SELECTOR)
 }
 
+function getRichTextVisualBackgroundTarget(node: Element) {
+  const visualTargetSelector = [
+    ".me-about-card",
+    ".me-about-pillar-tag",
+    ".me-legal-hero-card",
+    ".me-legal-article",
+    ".me-legal-support",
+    "article",
+    "[class*='card']",
+    "[class*='tag']",
+    "[class*='pill']",
+    "[class*='chip']",
+    "[class*='badge']",
+    "[class*='callout']",
+    "[class*='panel']",
+    "[class*='box']",
+  ].join(",")
+  const stopSelector = [
+    "section",
+    ".me-home-shell",
+    ".me-about-shell",
+    ".me-legal-shell",
+    "[class*='grid']",
+    "[class*='page']",
+  ].join(",")
+
+  let current = node.parentElement
+  while (current && current !== node.ownerDocument.body) {
+    if (current.matches(visualTargetSelector)) return current as HTMLElement
+    if (current.matches(stopSelector)) return null
+    current = current.parentElement
+  }
+
+  return null
+}
+
+function getRichTextVisualBackgroundLabel(element: HTMLElement) {
+  const className = element.getAttribute("class") ?? ""
+  if (className.includes("me-about-pillar-tag")) return "pílula"
+  if (className.includes("me-about-card")) return "cartão"
+  if (element.tagName.toLowerCase() === "article") return "cartão"
+  if (className.includes("tag") || className.includes("pill") || className.includes("badge")) return "pílula"
+  return "caixa"
+}
+
+function getDefaultRichTextVisualBackgroundColor(element: HTMLElement) {
+  const className = element.getAttribute("class") ?? ""
+  if (className.includes("me-about-pillar-tag")) return "#9aa8bb"
+  if (className.includes("me-about-card")) return "#e8f0f4"
+  if (className.includes("me-legal-hero-card") || className.includes("me-legal-article") || className.includes("me-legal-support")) {
+    return "#ffffff"
+  }
+  return "#ffffff"
+}
+
 function insertHtmlIntoRichTextContent(
   content: string,
   insertIndex: number,
@@ -1048,10 +1103,13 @@ export function AdminPageEditor() {
   }, [selectedBlock, selectedRichNodeIndex])
 
   const selectedRichNodeDescriptor = useMemo(() => {
-    if (!selectedRichNodeHtml || typeof window === "undefined" || typeof DOMParser === "undefined") return null
+    if (!selectedBlock || selectedBlock.type !== "rich_text") return null
+    if (selectedRichNodeIndex === null) return null
+    if (typeof window === "undefined" || typeof DOMParser === "undefined") return null
     const parser = new DOMParser()
-    const parsed = parser.parseFromString(selectedRichNodeHtml, "text/html")
-    const element = parsed.body.firstElementChild as HTMLElement | null
+    const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+    const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+    const element = nodes[selectedRichNodeIndex] as HTMLElement | undefined
     if (!element) return null
 
     const tagName = element.tagName.toLowerCase()
@@ -1059,6 +1117,8 @@ export function AdminPageEditor() {
     const marginRight = element.style.marginRight.trim()
     const buttonAlign: "left" | "center" | "right" =
       marginLeft === "auto" && marginRight === "auto" ? "center" : marginLeft === "auto" ? "right" : "left"
+    const visualBackgroundTarget = getRichTextVisualBackgroundTarget(element)
+    const visualBackgroundDefault = visualBackgroundTarget ? getDefaultRichTextVisualBackgroundColor(visualBackgroundTarget) : "#ffffff"
     return {
       tagName,
       outerHtml: element.outerHTML,
@@ -1070,6 +1130,18 @@ export function AdminPageEditor() {
       linkHref: element.getAttribute("href") ?? "",
       textColor: normalizeColorForInput(element.style.color, "#0f172a"),
       backgroundColor: normalizeColorForInput(element.style.backgroundColor, "#ffffff"),
+      visualBackground: visualBackgroundTarget
+        ? {
+            label: getRichTextVisualBackgroundLabel(visualBackgroundTarget),
+            className: visualBackgroundTarget.getAttribute("class") ?? "",
+            color: normalizeColorForInput(
+              visualBackgroundTarget.style.backgroundColor || visualBackgroundTarget.style.background,
+              visualBackgroundDefault,
+            ),
+            isCustomized:
+              visualBackgroundTarget.style.backgroundColor.trim().length > 0 || visualBackgroundTarget.style.background.trim().length > 0,
+          }
+        : null,
       marginTopPx: parsePxValue(element.style.marginTop, 0),
       marginBottomPx: parsePxValue(element.style.marginBottom, 0),
       marginLeftPx: parsePxValue(element.style.marginLeft, 0),
@@ -1091,7 +1163,7 @@ export function AdminPageEditor() {
       imageSrc: element.getAttribute("src") ?? "",
       imageAlt: element.getAttribute("alt") ?? "",
     }
-  }, [selectedRichNodeHtml])
+  }, [selectedBlock, selectedRichNodeIndex])
 
   const selectedRichNodeText = useMemo(() => {
     return selectedRichNodeDescriptor?.textContent ?? ""
@@ -1952,6 +2024,33 @@ export function AdminPageEditor() {
       }
       if (typeof partial.backgroundColor === "string") {
         targetNode.style.backgroundColor = partial.backgroundColor
+      }
+
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeVisualBackgroundEdit = useCallback(
+    (backgroundColor: string | null) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex]
+      if (!targetNode) return
+
+      const visualTarget = getRichTextVisualBackgroundTarget(targetNode)
+      if (!visualTarget) return
+
+      if (backgroundColor === null) {
+        visualTarget.style.removeProperty("background")
+        visualTarget.style.removeProperty("background-color")
+      } else {
+        visualTarget.style.backgroundColor = backgroundColor
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -4595,6 +4694,42 @@ export function AdminPageEditor() {
                                   />
                                 </label>
                               </div>
+                              {selectedRichNodeDescriptor.visualBackground ? (
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-xs font-semibold text-slate-700">Fundo da caixa</p>
+                                      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                                        Altera o fundo da {selectedRichNodeDescriptor.visualBackground.label} que envolve este texto.
+                                      </p>
+                                    </div>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                      {selectedRichNodeDescriptor.visualBackground.label}
+                                    </span>
+                                  </div>
+                                  <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                                    <label className="block text-xs font-semibold text-slate-600">
+                                      Cor do fundo
+                                      <input
+                                        type="color"
+                                        value={selectedRichNodeDescriptor.visualBackground.color}
+                                        onChange={(event) => applyRichNodeVisualBackgroundEdit(event.target.value)}
+                                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
+                                      />
+                                    </label>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-10 rounded-lg px-3 text-xs"
+                                      disabled={!selectedRichNodeDescriptor.visualBackground.isCustomized}
+                                      onClick={() => applyRichNodeVisualBackgroundEdit(null)}
+                                    >
+                                      Repor
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : null}
                               <textarea
                                 key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
                                 value={selectedRichNodeDescriptor.textContent}
