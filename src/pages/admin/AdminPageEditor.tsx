@@ -1071,7 +1071,6 @@ export function AdminPageEditor() {
   const [autosaveEnabled, setAutosaveEnabled] = useState(true)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [autosaveSavedAt, setAutosaveSavedAt] = useState<string | null>(null)
-  const [uploadingAsset, setUploadingAsset] = useState(false)
   const [uploadingInspectorAsset, setUploadingInspectorAsset] = useState(false)
   const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null)
   const [sidebarTab, setSidebarTab] = useState<"blocks" | "structure" | "inspector" | "versions">("inspector")
@@ -1377,10 +1376,8 @@ export function AdminPageEditor() {
   )
 
   const selectBlockForEdit = useCallback((blockId: string) => {
-    if (selectedBlockId !== blockId) {
-      setSelectedRichNodeIndex(null)
-      setPendingRichInsertPoint(null)
-    }
+    setSelectedRichNodeIndex(null)
+    setPendingRichInsertPoint(null)
     setSelectedBlockId(blockId)
     setSidebarTab("inspector")
     setSelectedContainerColumnTarget(null)
@@ -1389,20 +1386,18 @@ export function AdminPageEditor() {
     setIsSectionLayoutMode(false)
     setSelectedSectionBlockId(null)
     setIsSectionLayoutCardExpanded(true)
-  }, [selectedBlockId])
+  }, [])
 
   const selectBlockSilently = useCallback((blockId: string) => {
-    if (selectedBlockId !== blockId) {
-      setSelectedRichNodeIndex(null)
-      setPendingRichInsertPoint(null)
-    }
+    setSelectedRichNodeIndex(null)
+    setPendingRichInsertPoint(null)
     setSelectedBlockId(blockId)
     setSelectedContainerColumnTarget(null)
     setPendingContainerInsertPoint(null)
     setIsLayoutCardVisible(false)
     setIsSectionLayoutMode(false)
     setSelectedSectionBlockId(null)
-  }, [selectedBlockId])
+  }, [])
 
   const selectSectionForEdit = useCallback((blockId: string) => {
     setSelectedBlockId(blockId)
@@ -2794,23 +2789,6 @@ export function AdminPageEditor() {
     const targetUrl = token ? createSitePagePreviewUrl(publicPath, token) : publicPath
     setLivePreviewUrl(targetUrl)
     window.open(targetUrl, "_blank", "noopener,noreferrer")
-  }
-
-  const handleUploadAsset = async (file: File) => {
-    setUploadingAsset(true)
-    setFeedback(null)
-    try {
-      await uploadAssetMutation.mutateAsync({ slug: selectedSlug, file })
-      setFeedback({ tone: "success", message: "Imagem enviada com sucesso." })
-      await detailQuery.refetch()
-    } catch (error) {
-      setFeedback({
-        tone: "danger",
-        message: error instanceof Error ? error.message : "Não foi possível enviar a imagem.",
-      })
-    } finally {
-      setUploadingAsset(false)
-    }
   }
 
   const handleInsertImage = (asset: AdminSitePageAsset) => {
@@ -6392,52 +6370,6 @@ export function AdminPageEditor() {
               )
             ) : null}
 
-            {sidebarTab === "inspector" && selectedBlock && !showSectionLayoutOnlyInspector ? (
-              <div className="mt-6 border-t border-slate-200 pt-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Biblioteca de imagens</p>
-                  <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
-                    <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
-                    {uploadingAsset ? "A enviar..." : "Upload"}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
-                      className="sr-only"
-                      disabled={uploadingAsset}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0]
-                        event.target.value = ""
-                        if (file) {
-                          void handleUploadAsset(file)
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-
-                <div className="space-y-2">
-                  {assets.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
-                      Ainda não existem imagens para esta página.
-                    </p>
-                  ) : (
-                    assets.map((asset) => (
-                      <div key={asset.id} className="rounded-xl border border-slate-200 p-2.5">
-                        <div className="h-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                          <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
-                        </div>
-                        <p className="mt-2 truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
-                        <p className="mt-1 text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
-                        <Button type="button" variant="outline" size="sm" className="mt-2 w-full rounded-full" onClick={() => handleInsertImage(asset)}>
-                          <ImagePlus className="mr-2 h-4 w-4" />
-                          Inserir no canvas
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            ) : null}
           </div>
         </aside>
         </div>
