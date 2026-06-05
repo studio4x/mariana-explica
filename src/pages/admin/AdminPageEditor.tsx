@@ -3155,7 +3155,7 @@ export function AdminPageEditor() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-110px)] flex-col gap-3">
+    <div className="flex h-full min-h-[calc(100vh-110px)] flex-col gap-3 pb-24">
       <PageHeader
         title="Editor Visual de Páginas"
         backTo={ROUTES.ADMIN}
@@ -3166,7 +3166,7 @@ export function AdminPageEditor() {
         }
       />
 
-      <div className="sticky top-0 z-40 -mx-1 space-y-2 bg-slate-50/95 px-1 pb-2 pt-1 backdrop-blur">
+      <div className="-mx-1 space-y-2 px-1 pb-2 pt-1">
       <section className="rounded-2xl border border-slate-200 bg-white/98 p-3 shadow-sm backdrop-blur">
         <div className="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)_auto] xl:items-end">
           <label className="block">
@@ -3214,18 +3214,6 @@ export function AdminPageEditor() {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2">
-            <ActionHint hint="Guarda um novo rascunho da página sem publicar.">
-              <Button type="button" className="rounded-full" onClick={() => void handleSaveDraft("manual")} disabled={isSaving}>
-                <Save className="mr-2 h-4 w-4" />
-                {saveDraftMutation.isPending ? "A guardar..." : "Guardar"}
-              </Button>
-            </ActionHint>
-            <ActionHint hint="Pública a versão atual para o site público.">
-              <Button type="button" className="rounded-full" onClick={() => void handlePublish()} disabled={isSaving || !selectedVersionId}>
-                <Send className="mr-2 h-4 w-4" />
-                {publishMutation.isPending ? "A publicar..." : "Publicar"}
-              </Button>
-            </ActionHint>
             <ActionHint hint="Abre uma pré-visualização da página com o estado atual do editor.">
               <Button type="button" variant="outline" className="rounded-full" onClick={() => handlePreview()} disabled={isSaving}>
                 <Eye className="mr-2 h-4 w-4" />
@@ -3320,7 +3308,7 @@ export function AdminPageEditor() {
 
       <section className="flex min-h-0 flex-1 items-start gap-3">
         <article ref={canvasAreaRef} className="min-h-0 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-3">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="sticky top-4 z-30 mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Canvas visual</p>
               <p className="text-xs text-slate-500">Clica para editar seções e elementos internos, e arrasta para reorganizar no canvas.</p>
@@ -4022,7 +4010,7 @@ export function AdminPageEditor() {
           </div>
         </article>
 
-        <div ref={inspectorAreaRef} className="sticky top-20 h-[calc(100dvh-96px)] w-[350px] self-start">
+        <div ref={inspectorAreaRef} className="sticky top-4 h-[calc(100dvh-32px)] w-[350px] self-start">
         <aside className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white transition-all">
           <div className="border-b border-slate-200 px-3 py-2">
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Painel lateral</p>
@@ -6376,6 +6364,23 @@ export function AdminPageEditor() {
         </aside>
         </div>
       </section>
+
+      <div className="fixed bottom-4 left-4 right-4 z-50 flex justify-end md:left-auto md:right-6">
+        <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur">
+          <ActionHint hint="Guarda um novo rascunho da página sem publicar.">
+            <Button type="button" className="rounded-full" onClick={() => void handleSaveDraft("manual")} disabled={isSaving}>
+              <Save className="mr-2 h-4 w-4" />
+              {saveDraftMutation.isPending ? "A guardar..." : "Guardar Rascunho"}
+            </Button>
+          </ActionHint>
+          <ActionHint hint="Pública a versão atual para o site público.">
+            <Button type="button" className="rounded-full" onClick={() => void handlePublish()} disabled={isSaving || !selectedVersionId}>
+              <Send className="mr-2 h-4 w-4" />
+              {publishMutation.isPending ? "A publicar..." : "Publicar"}
+            </Button>
+          </ActionHint>
+        </div>
+      </div>
 
       <footer className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
         <div className="flex items-center justify-start">
