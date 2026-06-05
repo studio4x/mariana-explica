@@ -4704,49 +4704,53 @@ export function AdminPageEditor() {
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "heading" ? (
                     <InspectorCollapsibleGroup title="Título">
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Texto
-                        <input
-                          value={selectedBlock.content}
-                          onChange={(event) => updateSelectedBlock((block) => (block.type === "heading" ? { ...block, content: event.target.value } : block))}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                        />
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <InspectorCollapsibleGroup title="Texto" defaultOpen={true}>
                         <label className="block text-xs font-semibold text-slate-600">
-                          Nível
-                          <select
-                            value={selectedBlock.level}
-                            onChange={(event) =>
-                              updateSelectedBlock((block) =>
-                                block.type === "heading" ? { ...block, level: Number(event.target.value) as 1 | 2 | 3 | 4 } : block,
-                              )
-                            }
+                          Texto
+                          <input
+                            value={selectedBlock.content}
+                            onChange={(event) => updateSelectedBlock((block) => (block.type === "heading" ? { ...block, content: event.target.value } : block))}
                             className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                          >
-                            <option value={1}>H1</option>
-                            <option value={2}>H2</option>
-                            <option value={3}>H3</option>
-                            <option value={4}>H4</option>
-                          </select>
+                          />
                         </label>
-                        <label className="block text-xs font-semibold text-slate-600">
-                          Alinhamento
-                          <select
-                            value={selectedBlock.align}
-                            onChange={(event) =>
-                              updateSelectedBlock((block) =>
-                                block.type === "heading" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block,
-                              )
-                            }
-                            className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                          >
-                            <option value="left">Esquerda</option>
-                            <option value="center">Centro</option>
-                            <option value="right">Direita</option>
-                          </select>
-                        </label>
-                      </div>
+                      </InspectorCollapsibleGroup>
+                      <InspectorCollapsibleGroup title="Formato" defaultOpen={false}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block text-xs font-semibold text-slate-600">
+                            Nível
+                            <select
+                              value={selectedBlock.level}
+                              onChange={(event) =>
+                                updateSelectedBlock((block) =>
+                                  block.type === "heading" ? { ...block, level: Number(event.target.value) as 1 | 2 | 3 | 4 } : block,
+                                )
+                              }
+                              className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                            >
+                              <option value={1}>H1</option>
+                              <option value={2}>H2</option>
+                              <option value={3}>H3</option>
+                              <option value={4}>H4</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-600">
+                            Alinhamento
+                            <select
+                              value={selectedBlock.align}
+                              onChange={(event) =>
+                                updateSelectedBlock((block) =>
+                                  block.type === "heading" ? { ...block, align: event.target.value as "left" | "center" | "right" } : block,
+                                )
+                              }
+                              className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                            >
+                              <option value="left">Esquerda</option>
+                              <option value="center">Centro</option>
+                              <option value="right">Direita</option>
+                            </select>
+                          </label>
+                        </div>
+                      </InspectorCollapsibleGroup>
                     </InspectorCollapsibleGroup>
                   ) : null}
 
@@ -4762,7 +4766,8 @@ export function AdminPageEditor() {
                           <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
                             {selectedRichNodeText ? `Trecho selecionado: ${selectedRichNodeText}` : "Trecho HTML selecionado no canvas."}
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
+                          <InspectorCollapsibleGroup title="Margens do trecho" defaultOpen={false}>
+                            <div className="grid grid-cols-2 gap-2">
                             <label className="block text-xs font-semibold text-slate-600">
                               Margem superior (px)
                               <input
@@ -4823,9 +4828,10 @@ export function AdminPageEditor() {
                                 className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                               />
                             </label>
-                          </div>
+                            </div>
+                          </InspectorCollapsibleGroup>
                           {selectedRichNodeDescriptor?.isTextEditable ? (
-                            <div className="space-y-1">
+                            <InspectorCollapsibleGroup title="Texto do trecho">
                               <p className="text-xs font-semibold text-slate-600">Conteúdo do elemento</p>
                               <div className="grid grid-cols-2 gap-2">
                                 <label className="block text-xs font-semibold text-slate-600">
@@ -4848,7 +4854,7 @@ export function AdminPageEditor() {
                                 </label>
                               </div>
                               {selectedRichNodeDescriptor.visualBackground ? (
-                                <div className="space-y-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                <InspectorCollapsibleGroup title="Caixa visual" defaultOpen={false}>
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
                                       <p className="text-xs font-semibold text-slate-700">Caixa visual</p>
@@ -5026,7 +5032,7 @@ export function AdminPageEditor() {
                                     </div>
                                     <p className="mt-1 text-[11px] leading-snug text-slate-400">Usa 0 para deixar largura/altura no padrão do layout.</p>
                                   </div>
-                                </div>
+                                </InspectorCollapsibleGroup>
                               ) : null}
                               <textarea
                                 key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
@@ -5034,10 +5040,10 @@ export function AdminPageEditor() {
                                 onChange={(event) => applyRichNodeTextContentEdit(event.target.value)}
                                 className="min-h-[120px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                               />
-                            </div>
+                            </InspectorCollapsibleGroup>
                           ) : null}
                           {selectedRichNodeDescriptor?.isLink ? (
-                            <div className="space-y-1.5">
+                            <InspectorCollapsibleGroup title="Link do botão" defaultOpen={false}>
                               <label className="block text-xs font-semibold text-slate-600">
                                 Link do botão
                                 <input
@@ -5250,10 +5256,11 @@ export function AdminPageEditor() {
                                   Abrir em nova aba
                                 </label>
                               </div>
-                            </div>
+                            </InspectorCollapsibleGroup>
                           ) : null}
                           {selectedRichNodeDescriptor?.isImage ? (
-                            <div className="grid gap-3">
+                            <InspectorCollapsibleGroup title="Imagem do trecho" defaultOpen={false}>
+                              <div className="grid gap-3">
                               <label className="block text-xs font-semibold text-slate-600">
                                 URL da imagem
                                 <input
@@ -5316,21 +5323,24 @@ export function AdminPageEditor() {
                                   </div>
                                 )}
                               </div>
-                            </div>
+                              </div>
+                            </InspectorCollapsibleGroup>
                           ) : null}
                           {!selectedRichNodeDescriptor?.isTextEditable && !selectedRichNodeDescriptor?.isImage ? (
-                            <label className="block text-xs font-semibold text-slate-600">
-                              HTML do trecho selecionado
-                              <textarea
-                                key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
-                                defaultValue={selectedRichNodeHtml}
-                                className="mt-1 min-h-[180px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
-                                onBlur={(event) => {
-                                  const next = event.target.value.trim()
-                                  if (next) applyRichNodeEdit(next)
-                                }}
-                              />
-                            </label>
+                            <InspectorCollapsibleGroup title="HTML bruto" defaultOpen={false}>
+                              <label className="block text-xs font-semibold text-slate-600">
+                                HTML do trecho selecionado
+                                <textarea
+                                  key={`${selectedBlock.id}-${selectedRichNodeIndex}`}
+                                  defaultValue={selectedRichNodeHtml}
+                                  className="mt-1 min-h-[180px] w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+                                  onBlur={(event) => {
+                                    const next = event.target.value.trim()
+                                    if (next) applyRichNodeEdit(next)
+                                  }}
+                                />
+                              </label>
+                            </InspectorCollapsibleGroup>
                           ) : null}
                           <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setSelectedRichNodeIndex(null)}>
                             Voltar para o bloco inteiro
@@ -5352,86 +5362,90 @@ export function AdminPageEditor() {
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "image" ? (
                     <InspectorCollapsibleGroup title="Imagem">
                       <div className="space-y-3">
-                      <label className="block text-xs font-semibold text-slate-600">
-                        URL da imagem
-                        <input
-                          value={selectedBlock.src}
-                          onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, src: event.target.value } : block))}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                        />
-                      </label>
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Alt
-                        <input
-                          value={selectedBlock.alt}
-                          onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, alt: event.target.value } : block))}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                        />
-                      </label>
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Borda (px)
-                        <input
-                          type="number"
-                          min={0}
-                          max={60}
-                          value={selectedBlock.radius}
-                          onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, radius: Number(event.target.value) || 0 } : block))}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                        />
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
-                          <UploadCloud className="mr-2 h-3.5 w-3.5" />
-                          {uploadingInspectorAsset ? "A enviar..." : "Upload"}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
-                            className="sr-only"
-                            disabled={uploadingInspectorAsset}
-                            onChange={(event) => {
-                              const file = event.target.files?.[0]
-                              event.target.value = ""
-                              if (file) {
-                                void handleInspectorImageUpload(file)
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-slate-600">Biblioteca de midia</p>
-                        {assets.length === 0 ? (
-                          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
-                            Ainda não existem imagens nesta página.
-                          </p>
-                        ) : (
-                          <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
-                            {assets.map((asset) => (
-                              <button
-                                key={asset.id}
-                                type="button"
-                                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
-                                onClick={() => handleApplyAssetToSelectedImageContext(asset)}
-                              >
-                                <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                                  <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
-                                  <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
-                                </div>
-                              </button>
-                            ))}
+                        <InspectorCollapsibleGroup title="Forma" defaultOpen={false}>
+                          <label className="block text-xs font-semibold text-slate-600">
+                            Borda (px)
+                            <input
+                              type="number"
+                              min={0}
+                              max={60}
+                              value={selectedBlock.radius}
+                              onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, radius: Number(event.target.value) || 0 } : block))}
+                              className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                            />
+                          </label>
+                        </InspectorCollapsibleGroup>
+                        <InspectorCollapsibleGroup title="Mídia" defaultOpen={true}>
+                          <label className="block text-xs font-semibold text-slate-600">
+                            URL da imagem
+                            <input
+                              value={selectedBlock.src}
+                              onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, src: event.target.value } : block))}
+                              className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-600">
+                            Alt
+                            <input
+                              value={selectedBlock.alt}
+                              onChange={(event) => updateSelectedBlock((block) => (block.type === "image" ? { ...block, alt: event.target.value } : block))}
+                              className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                            />
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-white">
+                              <UploadCloud className="mr-2 h-3.5 w-3.5" />
+                              {uploadingInspectorAsset ? "A enviar..." : "Upload"}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+                                className="sr-only"
+                                disabled={uploadingInspectorAsset}
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0]
+                                  event.target.value = ""
+                                  if (file) {
+                                    void handleInspectorImageUpload(file)
+                                  }
+                                }}
+                              />
+                            </label>
                           </div>
-                        )}
-                      </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-600">Biblioteca de midia</p>
+                            {assets.length === 0 ? (
+                              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                                Ainda não existem imagens nesta página.
+                              </p>
+                            ) : (
+                              <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+                                {assets.map((asset) => (
+                                  <button
+                                    key={asset.id}
+                                    type="button"
+                                    className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                    onClick={() => handleApplyAssetToSelectedImageContext(asset)}
+                                  >
+                                    <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                                      <img src={asset.public_url} alt={asset.file_name} className="h-full w-full object-cover" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-xs font-semibold text-slate-900">{asset.file_name}</p>
+                                      <p className="text-[11px] text-slate-500">{formatDateTime(asset.created_at)}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </InspectorCollapsibleGroup>
                       </div>
                     </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "button" ? (
-                    <InspectorCollapsibleGroup title="Botão">
-                      <>
+                    <div className="space-y-2">
+                      <InspectorCollapsibleGroup title="Conteúdo e destino" defaultOpen={true}>
                       <label className="block text-xs font-semibold text-slate-600">
                         Label
                         <input
@@ -5482,6 +5496,8 @@ export function AdminPageEditor() {
                           </select>
                         </label>
                       </div>
+                      </InspectorCollapsibleGroup>
+                      <InspectorCollapsibleGroup title="Estilo visual" defaultOpen={false}>
                       <label className="block text-xs font-semibold text-slate-600">
                         Espessura da borda (px)
                         <input
@@ -5551,6 +5567,8 @@ export function AdminPageEditor() {
                           />
                         </label>
                       </div>
+                      </InspectorCollapsibleGroup>
+                      <InspectorCollapsibleGroup title="Espaçamento e largura" defaultOpen={false}>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Padding vertical (px)
@@ -5583,6 +5601,8 @@ export function AdminPageEditor() {
                           />
                         </label>
                       </div>
+                      </InspectorCollapsibleGroup>
+                      <InspectorCollapsibleGroup title="Aparência" defaultOpen={false}>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Margem superior (px)
@@ -5710,13 +5730,14 @@ export function AdminPageEditor() {
                         />
                         Abrir link em nova aba
                       </label>
-                      </>
-                    </InspectorCollapsibleGroup>
+                      </InspectorCollapsibleGroup>
+                    </div>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "container" ? (
                     <InspectorCollapsibleGroup title="Container">
                       <>
+                      <InspectorCollapsibleGroup title="Layout do container" defaultOpen={true}>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Número de colunas
@@ -5979,6 +6000,8 @@ export function AdminPageEditor() {
                           />
                         </label>
                       </div>
+                      </InspectorCollapsibleGroup>
+                      <InspectorCollapsibleGroup title="Colunas internas" defaultOpen={false}>
 
                       {selectedContainerColumnLayout ? (
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -6198,6 +6221,7 @@ export function AdminPageEditor() {
                           </div>
                         ))}
                       </div>
+                      </InspectorCollapsibleGroup>
                       </>
                     </InspectorCollapsibleGroup>
                   ) : null}
@@ -6205,6 +6229,7 @@ export function AdminPageEditor() {
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "columns" ? (
                     <InspectorCollapsibleGroup title="Colunas">
                       <>
+                      <InspectorCollapsibleGroup title="Estrutura das colunas" defaultOpen={true}>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Número de colunas
@@ -6302,6 +6327,10 @@ export function AdminPageEditor() {
                             <option value="stretch">Esticar</option>
                           </select>
                         </label>
+                      </div>
+                      </InspectorCollapsibleGroup>
+                      <InspectorCollapsibleGroup title="Itens" defaultOpen={false}>
+                      <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Conteúdo do item (H)
                           <select
@@ -6376,6 +6405,7 @@ export function AdminPageEditor() {
                           className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                         />
                       </label>
+                      </InspectorCollapsibleGroup>
                       </>
                     </InspectorCollapsibleGroup>
                   ) : null}
