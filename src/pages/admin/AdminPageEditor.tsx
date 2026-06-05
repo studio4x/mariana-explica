@@ -1659,6 +1659,8 @@ export function AdminPageEditor() {
         child.setAttribute("style", `${baseStyle}${baseStyle ? ";" : ""}${activeStyle}`)
 
         if (!isStructuralRichTextNode(child)) return
+        const isLastDirectBodyNode = index === editableNodes.length - 1 && child.parentElement === parsed.body
+        if (isLastDirectBodyNode) return
 
         const insertControl = parsed.createElement(child.tagName.toLowerCase() === "li" ? "span" : "div")
         insertControl.setAttribute("data-me-drop-slot", String(index + 1))
