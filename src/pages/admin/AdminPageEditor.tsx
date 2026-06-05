@@ -75,6 +75,31 @@ const BLOCK_LIBRARY: Array<{ type: PageBlockType; label: string }> = [
   { type: "spacer", label: "Espaço" },
 ]
 
+function InspectorCollapsibleGroup({
+  title,
+  description,
+  defaultOpen = true,
+  children,
+}: {
+  title: string
+  description?: string
+  defaultOpen?: boolean
+  children: any
+}) {
+  return (
+    <details open={defaultOpen} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
+          {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
+        </div>
+        <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+      </summary>
+      <div className="mt-3 space-y-3">{children}</div>
+    </details>
+  )
+}
+
 type DragPayload =
   | { kind: "library"; blockType: PageBlockType }
   | { kind: "block"; blockId: string }
@@ -4678,7 +4703,7 @@ export function AdminPageEditor() {
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "heading" ? (
-                    <>
+                    <InspectorCollapsibleGroup title="Título">
                       <label className="block text-xs font-semibold text-slate-600">
                         Texto
                         <input
@@ -4722,11 +4747,12 @@ export function AdminPageEditor() {
                           </select>
                         </label>
                       </div>
-                    </>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "rich_text" ? (
-                    <div className="space-y-2">
+                    <InspectorCollapsibleGroup title="Texto e elementos">
+                      <div className="space-y-2">
                       <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
                         Clica num texto, imagem ou link no canvas para editar o elemento. Para mover, arrasta o próprio elemento para outra posição.
                       </div>
@@ -5319,11 +5345,13 @@ export function AdminPageEditor() {
                           minHeightPx={200}
                         />
                       )}
-                    </div>
+                      </div>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "image" ? (
-                    <div className="space-y-3">
+                    <InspectorCollapsibleGroup title="Imagem">
+                      <div className="space-y-3">
                       <label className="block text-xs font-semibold text-slate-600">
                         URL da imagem
                         <input
@@ -5397,11 +5425,13 @@ export function AdminPageEditor() {
                           </div>
                         )}
                       </div>
-                    </div>
+                      </div>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "button" ? (
-                    <>
+                    <InspectorCollapsibleGroup title="Botão">
+                      <>
                       <label className="block text-xs font-semibold text-slate-600">
                         Label
                         <input
@@ -5680,11 +5710,13 @@ export function AdminPageEditor() {
                         />
                         Abrir link em nova aba
                       </label>
-                    </>
+                      </>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "container" ? (
-                    <>
+                    <InspectorCollapsibleGroup title="Container">
+                      <>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Número de colunas
@@ -6166,11 +6198,13 @@ export function AdminPageEditor() {
                           </div>
                         ))}
                       </div>
-                    </>
+                      </>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "columns" ? (
-                    <>
+                    <InspectorCollapsibleGroup title="Colunas">
+                      <>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block text-xs font-semibold text-slate-600">
                           Número de colunas
@@ -6342,22 +6376,26 @@ export function AdminPageEditor() {
                           className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                         />
                       </label>
-                    </>
+                      </>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "divider" ? (
-                    <label className="block text-xs font-semibold text-slate-600">
+                    <InspectorCollapsibleGroup title="Divisor">
+                      <label className="block text-xs font-semibold text-slate-600">
                       Cor (CSS)
                       <input
                         value={selectedBlock.color}
                         onChange={(event) => updateSelectedBlock((block) => (block.type === "divider" ? { ...block, color: event.target.value } : block))}
                         className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                       />
-                    </label>
+                      </label>
+                    </InspectorCollapsibleGroup>
                   ) : null}
 
                   {!showSectionLayoutOnlyInspector && selectedBlock.type === "spacer" ? (
-                    <label className="block text-xs font-semibold text-slate-600">
+                    <InspectorCollapsibleGroup title="Espaço">
+                      <label className="block text-xs font-semibold text-slate-600">
                       Altura (px)
                       <input
                         type="number"
@@ -6369,7 +6407,8 @@ export function AdminPageEditor() {
                         }
                         className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                       />
-                    </label>
+                      </label>
+                    </InspectorCollapsibleGroup>
                   ) : null}
                 </div>
               )
