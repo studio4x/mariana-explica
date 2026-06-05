@@ -258,14 +258,62 @@ function getRichTextVisualBackgroundLabel(element: HTMLElement) {
   return "caixa"
 }
 
-function getDefaultRichTextVisualBackgroundColor(element: HTMLElement) {
+function getDefaultRichTextVisualBoxStyle(element: HTMLElement) {
   const className = element.getAttribute("class") ?? ""
-  if (className.includes("me-about-pillar-tag")) return "#9aa8bb"
-  if (className.includes("me-about-card")) return "#e8f0f4"
-  if (className.includes("me-legal-hero-card") || className.includes("me-legal-article") || className.includes("me-legal-support")) {
-    return "#ffffff"
+  if (className.includes("me-about-pillar-tag")) {
+    return {
+      backgroundColor: "#9aa8bb",
+      paddingTop: 20,
+      paddingRight: 20,
+      paddingBottom: 20,
+      paddingLeft: 20,
+      borderWidth: 0,
+      borderColor: "#9aa8bb",
+      borderRadius: 18,
+      minHeight: 94,
+      width: 0,
+    }
   }
-  return "#ffffff"
+  if (className.includes("me-about-card")) {
+    return {
+      backgroundColor: "#e8f0f4",
+      paddingTop: 36,
+      paddingRight: 40,
+      paddingBottom: 36,
+      paddingLeft: 40,
+      borderWidth: 0,
+      borderColor: "#e8f0f4",
+      borderRadius: 18,
+      minHeight: 0,
+      width: 0,
+    }
+  }
+  if (className.includes("me-legal-hero-card") || className.includes("me-legal-article") || className.includes("me-legal-support")) {
+    return {
+      backgroundColor: "#ffffff",
+      paddingTop: 32,
+      paddingRight: 32,
+      paddingBottom: 32,
+      paddingLeft: 32,
+      borderWidth: 0,
+      borderColor: "#e2e8f0",
+      borderRadius: 24,
+      minHeight: 0,
+      width: 0,
+    }
+  }
+  return {
+    backgroundColor: "#ffffff",
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    borderWidth: 0,
+    borderColor: "#e2e8f0",
+    borderRadius: 0,
+    minHeight: 0,
+    width: 0,
+  }
 }
 
 function insertHtmlIntoRichTextContent(
@@ -1118,7 +1166,23 @@ export function AdminPageEditor() {
     const buttonAlign: "left" | "center" | "right" =
       marginLeft === "auto" && marginRight === "auto" ? "center" : marginLeft === "auto" ? "right" : "left"
     const visualBackgroundTarget = getRichTextVisualBackgroundTarget(element)
-    const visualBackgroundDefault = visualBackgroundTarget ? getDefaultRichTextVisualBackgroundColor(visualBackgroundTarget) : "#ffffff"
+    const visualBoxDefault = visualBackgroundTarget ? getDefaultRichTextVisualBoxStyle(visualBackgroundTarget) : null
+    const visualBoxIsCustomized = visualBackgroundTarget
+      ? [
+          visualBackgroundTarget.style.backgroundColor,
+          visualBackgroundTarget.style.background,
+          visualBackgroundTarget.style.paddingTop,
+          visualBackgroundTarget.style.paddingRight,
+          visualBackgroundTarget.style.paddingBottom,
+          visualBackgroundTarget.style.paddingLeft,
+          visualBackgroundTarget.style.borderWidth,
+          visualBackgroundTarget.style.borderColor,
+          visualBackgroundTarget.style.borderStyle,
+          visualBackgroundTarget.style.borderRadius,
+          visualBackgroundTarget.style.width,
+          visualBackgroundTarget.style.minHeight,
+        ].some((value) => value.trim().length > 0)
+      : false
     return {
       tagName,
       outerHtml: element.outerHTML,
@@ -1136,10 +1200,18 @@ export function AdminPageEditor() {
             className: visualBackgroundTarget.getAttribute("class") ?? "",
             color: normalizeColorForInput(
               visualBackgroundTarget.style.backgroundColor || visualBackgroundTarget.style.background,
-              visualBackgroundDefault,
+              visualBoxDefault?.backgroundColor ?? "#ffffff",
             ),
-            isCustomized:
-              visualBackgroundTarget.style.backgroundColor.trim().length > 0 || visualBackgroundTarget.style.background.trim().length > 0,
+            paddingTopPx: parsePxValue(visualBackgroundTarget.style.paddingTop, visualBoxDefault?.paddingTop ?? 0),
+            paddingRightPx: parsePxValue(visualBackgroundTarget.style.paddingRight, visualBoxDefault?.paddingRight ?? 0),
+            paddingBottomPx: parsePxValue(visualBackgroundTarget.style.paddingBottom, visualBoxDefault?.paddingBottom ?? 0),
+            paddingLeftPx: parsePxValue(visualBackgroundTarget.style.paddingLeft, visualBoxDefault?.paddingLeft ?? 0),
+            borderWidthPx: parsePxValue(visualBackgroundTarget.style.borderWidth, visualBoxDefault?.borderWidth ?? 0),
+            borderColor: normalizeColorForInput(visualBackgroundTarget.style.borderColor, visualBoxDefault?.borderColor ?? "#e2e8f0"),
+            borderRadiusPx: parsePxValue(visualBackgroundTarget.style.borderRadius, visualBoxDefault?.borderRadius ?? 0),
+            minHeightPx: parsePxValue(visualBackgroundTarget.style.minHeight, visualBoxDefault?.minHeight ?? 0),
+            widthPx: parsePxValue(visualBackgroundTarget.style.width, visualBoxDefault?.width ?? 0),
+            isCustomized: visualBoxIsCustomized,
           }
         : null,
       marginTopPx: parsePxValue(element.style.marginTop, 0),
@@ -2031,8 +2103,20 @@ export function AdminPageEditor() {
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
   )
 
-  const applyRichNodeVisualBackgroundEdit = useCallback(
-    (backgroundColor: string | null) => {
+  const applyRichNodeVisualBoxStyleEdit = useCallback(
+    (partial: {
+      backgroundColor?: string
+      paddingTop?: number
+      paddingRight?: number
+      paddingBottom?: number
+      paddingLeft?: number
+      borderWidth?: number
+      borderColor?: string
+      borderRadius?: number
+      minHeight?: number
+      width?: number
+      reset?: boolean
+    }) => {
       if (!selectedBlock || selectedBlock.type !== "rich_text") return
       if (selectedRichNodeIndex === null) return
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return
@@ -2045,12 +2129,72 @@ export function AdminPageEditor() {
 
       const visualTarget = getRichTextVisualBackgroundTarget(targetNode)
       if (!visualTarget) return
+      const defaults = getDefaultRichTextVisualBoxStyle(visualTarget)
 
-      if (backgroundColor === null) {
+      if (partial.reset) {
         visualTarget.style.removeProperty("background")
         visualTarget.style.removeProperty("background-color")
+        visualTarget.style.removeProperty("padding")
+        visualTarget.style.removeProperty("padding-top")
+        visualTarget.style.removeProperty("padding-right")
+        visualTarget.style.removeProperty("padding-bottom")
+        visualTarget.style.removeProperty("padding-left")
+        visualTarget.style.removeProperty("border")
+        visualTarget.style.removeProperty("border-width")
+        visualTarget.style.removeProperty("border-color")
+        visualTarget.style.removeProperty("border-style")
+        visualTarget.style.removeProperty("border-radius")
+        visualTarget.style.removeProperty("width")
+        visualTarget.style.removeProperty("min-height")
       } else {
-        visualTarget.style.backgroundColor = backgroundColor
+        if (typeof partial.backgroundColor === "string") {
+          visualTarget.style.backgroundColor = partial.backgroundColor
+        }
+        if (typeof partial.paddingTop === "number") {
+          visualTarget.style.paddingTop = `${Math.max(0, Math.min(320, partial.paddingTop))}px`
+        }
+        if (typeof partial.paddingRight === "number") {
+          visualTarget.style.paddingRight = `${Math.max(0, Math.min(320, partial.paddingRight))}px`
+        }
+        if (typeof partial.paddingBottom === "number") {
+          visualTarget.style.paddingBottom = `${Math.max(0, Math.min(320, partial.paddingBottom))}px`
+        }
+        if (typeof partial.paddingLeft === "number") {
+          visualTarget.style.paddingLeft = `${Math.max(0, Math.min(320, partial.paddingLeft))}px`
+        }
+        if (typeof partial.borderWidth === "number") {
+          const nextBorderWidth = Math.max(0, Math.min(40, partial.borderWidth))
+          visualTarget.style.borderWidth = `${nextBorderWidth}px`
+          visualTarget.style.borderStyle = "solid"
+          if (!visualTarget.style.borderColor.trim()) {
+            visualTarget.style.borderColor = defaults.borderColor
+          }
+        }
+        if (typeof partial.borderColor === "string") {
+          visualTarget.style.borderColor = partial.borderColor
+          if (!visualTarget.style.borderStyle.trim()) {
+            visualTarget.style.borderStyle = "solid"
+          }
+        }
+        if (typeof partial.borderRadius === "number") {
+          visualTarget.style.borderRadius = `${Math.max(0, Math.min(240, partial.borderRadius))}px`
+        }
+        if (typeof partial.minHeight === "number") {
+          const nextMinHeight = Math.max(0, Math.min(900, partial.minHeight))
+          if (nextMinHeight === 0) {
+            visualTarget.style.removeProperty("min-height")
+          } else {
+            visualTarget.style.minHeight = `${nextMinHeight}px`
+          }
+        }
+        if (typeof partial.width === "number") {
+          const nextWidth = Math.max(0, Math.min(1400, partial.width))
+          if (nextWidth === 0) {
+            visualTarget.style.removeProperty("width")
+          } else {
+            visualTarget.style.width = `${nextWidth}px`
+          }
+        }
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -4695,25 +4839,25 @@ export function AdminPageEditor() {
                                 </label>
                               </div>
                               {selectedRichNodeDescriptor.visualBackground ? (
-                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                <div className="space-y-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
-                                      <p className="text-xs font-semibold text-slate-700">Fundo da caixa</p>
+                                      <p className="text-xs font-semibold text-slate-700">Caixa visual</p>
                                       <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-                                        Altera o fundo da {selectedRichNodeDescriptor.visualBackground.label} que envolve este texto.
+                                        Ajusta a {selectedRichNodeDescriptor.visualBackground.label} que envolve este texto.
                                       </p>
                                     </div>
                                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
                                       {selectedRichNodeDescriptor.visualBackground.label}
                                     </span>
                                   </div>
-                                  <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
                                     <label className="block text-xs font-semibold text-slate-600">
                                       Cor do fundo
                                       <input
                                         type="color"
                                         value={selectedRichNodeDescriptor.visualBackground.color}
-                                        onChange={(event) => applyRichNodeVisualBackgroundEdit(event.target.value)}
+                                        onChange={(event) => applyRichNodeVisualBoxStyleEdit({ backgroundColor: event.target.value })}
                                         className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"
                                       />
                                     </label>
@@ -4723,10 +4867,155 @@ export function AdminPageEditor() {
                                       size="sm"
                                       className="h-10 rounded-lg px-3 text-xs"
                                       disabled={!selectedRichNodeDescriptor.visualBackground.isCustomized}
-                                      onClick={() => applyRichNodeVisualBackgroundEdit(null)}
+                                      onClick={() => applyRichNodeVisualBoxStyleEdit({ reset: true })}
                                     >
                                       Repor
                                     </Button>
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Padding</p>
+                                    <div className="mt-2 grid grid-cols-2 gap-2">
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Topo
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={320}
+                                          value={selectedRichNodeDescriptor.visualBackground.paddingTopPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              paddingTop: Math.max(0, Math.min(320, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Direita
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={320}
+                                          value={selectedRichNodeDescriptor.visualBackground.paddingRightPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              paddingRight: Math.max(0, Math.min(320, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Baixo
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={320}
+                                          value={selectedRichNodeDescriptor.visualBackground.paddingBottomPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              paddingBottom: Math.max(0, Math.min(320, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Esquerda
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={320}
+                                          value={selectedRichNodeDescriptor.visualBackground.paddingLeftPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              paddingLeft: Math.max(0, Math.min(320, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Borda</p>
+                                    <div className="mt-2 grid grid-cols-2 gap-2">
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Espessura
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={40}
+                                          value={selectedRichNodeDescriptor.visualBackground.borderWidthPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              borderWidth: Math.max(0, Math.min(40, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Cor
+                                        <input
+                                          type="color"
+                                          value={selectedRichNodeDescriptor.visualBackground.borderColor}
+                                          onChange={(event) => applyRichNodeVisualBoxStyleEdit({ borderColor: event.target.value })}
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 p-1"
+                                        />
+                                      </label>
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Curvatura
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={240}
+                                          value={selectedRichNodeDescriptor.visualBackground.borderRadiusPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              borderRadius: Math.max(0, Math.min(240, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Dimensões</p>
+                                    <div className="mt-2 grid grid-cols-2 gap-2">
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Largura (px)
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={1400}
+                                          value={selectedRichNodeDescriptor.visualBackground.widthPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              width: Math.max(0, Math.min(1400, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                      <label className="block text-xs font-semibold text-slate-600">
+                                        Altura mín. (px)
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={900}
+                                          value={selectedRichNodeDescriptor.visualBackground.minHeightPx}
+                                          onChange={(event) =>
+                                            applyRichNodeVisualBoxStyleEdit({
+                                              minHeight: Math.max(0, Math.min(900, Number(event.target.value) || 0)),
+                                            })
+                                          }
+                                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm"
+                                        />
+                                      </label>
+                                    </div>
+                                    <p className="mt-1 text-[11px] leading-snug text-slate-400">Usa 0 para deixar largura/altura no padrão do layout.</p>
                                   </div>
                                 </div>
                               ) : null}
