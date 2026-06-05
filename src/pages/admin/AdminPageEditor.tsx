@@ -1521,29 +1521,30 @@ export function AdminPageEditor() {
 
         if (!isStructuralRichTextNode(child)) return
 
-        const insertControl = parsed.createElement(child.tagName.toLowerCase() === "li" ? "li" : "div")
+        const insertControl = parsed.createElement(child.tagName.toLowerCase() === "li" ? "span" : "div")
         insertControl.setAttribute("data-me-drop-slot", String(index + 1))
         insertControl.setAttribute("data-me-drop-after", String(index))
         insertControl.setAttribute("data-me-editor-control", "after-node")
         insertControl.setAttribute("draggable", "false")
 
         const isHighlighted = showDropSlots || activeIndex === index
-        const isListControl = insertControl.tagName.toLowerCase() === "li"
         const controlStyle = [
-          "list-style:none",
-          "display:flex",
+          "display:inline-flex",
           "align-items:center",
-          "justify-content:flex-end",
-          "gap:8px",
-          `margin:${isListControl ? "8px 0 4px" : "8px 0 12px"}`,
-          "padding:4px 8px",
+          "justify-content:center",
+          "gap:5px",
+          "width:max-content",
+          "max-width:100%",
+          "margin:3px 0 6px auto",
+          "padding:2px 6px",
           "border:1px dashed rgba(100,116,139,0.35)",
           "border-radius:999px",
           `background:${isHighlighted ? "rgba(224,242,254,0.95)" : "rgba(255,255,255,0.92)"}`,
           `color:${isHighlighted ? "#0f172a" : "#64748b"}`,
-          "font-size:10px",
+          "font-size:8px",
           "font-weight:800",
-          "letter-spacing:0.12em",
+          "line-height:1",
+          "letter-spacing:0.08em",
           "text-transform:uppercase",
           "cursor:pointer",
         ].join(";")
@@ -1561,13 +1562,13 @@ export function AdminPageEditor() {
             "display:inline-flex",
             "align-items:center",
             "justify-content:center",
-            "width:22px",
-            "height:22px",
+            "width:16px",
+            "height:16px",
             "border:1px solid rgba(14,116,144,0.35)",
             "border-radius:999px",
             "background:#ffffff",
             "color:#0f172a",
-            "font-size:16px",
+            "font-size:12px",
             "font-weight:700",
             "line-height:1",
             "padding:0",
@@ -1582,7 +1583,17 @@ export function AdminPageEditor() {
         label.textContent = "Adicionar logo após"
 
         insertControl.append(addButton, label)
-        child.insertAdjacentElement("afterend", insertControl)
+
+        if (child.tagName.toLowerCase() === "li") {
+          child.appendChild(insertControl)
+          return
+        }
+
+        const wrapper = parsed.createElement("div")
+        wrapper.setAttribute("data-me-editor-control", "node-wrapper")
+        wrapper.setAttribute("style", "display:block;width:100%;max-width:100%;min-width:0;")
+        child.parentNode?.insertBefore(wrapper, child)
+        wrapper.append(child, insertControl)
       })
       return parsed.body.innerHTML
     },
@@ -2019,6 +2030,9 @@ export function AdminPageEditor() {
     const parser = new DOMParser()
     const parsed = parser.parseFromString(html, "text/html")
 
+    Array.from(parsed.body.querySelectorAll('[data-me-editor-control="node-wrapper"]')).forEach((wrapper) => {
+      wrapper.replaceWith(...Array.from(wrapper.childNodes))
+    })
     Array.from(parsed.body.querySelectorAll("[data-me-drop-slot], [data-me-editor-control]")).forEach((slot) => slot.remove())
 
     const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
@@ -3379,6 +3393,18 @@ export function AdminPageEditor() {
                                       const target = event.target as HTMLElement | null
                                       const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
                                       const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
+                                      if (dropSlot) {
+                                        const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
+                                        const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
+                                        if (Number.isFinite(insertIndex) && insertIndex >= 0) {
+                                          setSelectedRichNodeIndex(
+                                            Number.isFinite(insertAfterNodeIndex) && insertAfterNodeIndex >= 0
+                                              ? insertAfterNodeIndex
+                                              : null,
+                                          )
+                                        }
+                                        return
+                                      }
                                       if (richNode) {
                                         const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
                                         if (Number.isFinite(nextIndex) && nextIndex >= 0) {
@@ -3394,13 +3420,6 @@ export function AdminPageEditor() {
                                       const target = event.target as HTMLElement | null
                                       const richNode = target?.closest?.("[data-me-node]") as HTMLElement | null
                                       const dropSlot = target?.closest?.("[data-me-drop-slot]") as HTMLElement | null
-                                      if (richNode) {
-                                        const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
-                                        if (Number.isFinite(nextIndex) && nextIndex >= 0) {
-                                          handleDropIntoRichText(block.id, nextIndex + 1, event, nextIndex)
-                                          return
-                                        }
-                                      }
                                       if (dropSlot) {
                                         const insertIndex = Number(dropSlot.getAttribute("data-me-drop-slot") ?? "-1")
                                         const insertAfterNodeIndex = Number(dropSlot.getAttribute("data-me-drop-after") ?? "-1")
@@ -3414,6 +3433,13 @@ export function AdminPageEditor() {
                                             : undefined,
                                         )
                                         return
+                                      }
+                                      if (richNode) {
+                                        const nextIndex = Number(richNode.getAttribute("data-me-node") ?? "-1")
+                                        if (Number.isFinite(nextIndex) && nextIndex >= 0) {
+                                          handleDropIntoRichText(block.id, nextIndex + 1, event, nextIndex)
+                                          return
+                                        }
                                       }
                                       handleDropIntoRichText(block.id, getEditableRichNodesFromHtml(block.content).length, event)
                                     }}
