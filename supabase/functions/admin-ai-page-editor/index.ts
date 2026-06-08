@@ -120,6 +120,10 @@ function parseJsonFromString(value: string) {
   }
 }
 
+function cloneJsonValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
 function normalizeJsonObjectField(value: unknown, fieldName: string, fallbackToEmptyObject = false) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>
@@ -143,6 +147,371 @@ function normalizeJsonObjectField(value: unknown, fieldName: string, fallbackToE
   }
 
   return null
+}
+
+function normalizeMessageForParsing(value: string) {
+  return value.replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
+}
+
+function hasKeyword(value: string, keywords: string[]) {
+  const normalized = value.toLowerCase()
+  return keywords.some((keyword) => normalized.includes(keyword))
+}
+
+function extractQuotedTextReplacement(message: string) {
+  const normalized = normalizeMessageForParsing(message)
+  const patterns = [
+    /(?:altera(?:r)?|troca(?:r)?|substitu[ií](?:r)?|muda(?:r)?)(?:\s+o\s+(?:texto|t[ií]tulo|conte[uú]do|copy|par[aá]grafo|headline|subt[ií]tulo|cta|bot[aã]o|bloco|trecho|frase))?\s+"([^"]+)"\s+(?:para|por)\s+"([^"]+)"/i,
+    /(?:altera(?:r)?|troca(?:r)?|substitu[ií](?:r)?|muda(?:r)?)(?:\s+o\s+(?:texto|t[ií]tulo|conte[uú]do|copy|par[aá]grafo|headline|subt[ií]tulo|cta|bot[aã]o|bloco|trecho|frase))?\s+'([^']+)'\s+(?:para|por)\s+'([^']+)'/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern)
+    if (!match) continue
+    const from = normalizeString(match[1])
+    const to = String(match[2] ?? "")
+    if (from) {
+      return { from, to }
+    }
+  }
+
+  return null
+}
+
+function isTextOnlyEditRequest(message: string) {
+  const normalized = normalizeMessageForParsing(message).toLowerCase()
+  if (extractQuotedTextReplacement(message)) return true
+
+  const textKeywords = [
+    "texto",
+    "frase",
+    "palavra",
+    "paragrafo",
+    "parágrafo",
+    "titulo",
+    "título",
+    "subtitulo",
+    "subtítulo",
+    "headline",
+    "copy",
+  ]
+  const structuralKeywords = [
+    "layout",
+    "estrutura",
+    "grid",
+    "coluna",
+    "secao",
+    "seção",
+    "secção",
+    "hero",
+    "header",
+    "footer",
+    "imagem",
+    "foto",
+    "icone",
+    "ícone",
+    "cor",
+    "fundo",
+    "padding",
+    "margin",
+    "borda",
+  ]
+
+  return hasKeyword(normalized, textKeywords) && !hasKeyword(normalized, structuralKeywords)
+}
+
+function requestExplicitlyMentionsMediaOrLayout(message: string) {
+  const normalized = normalizeMessageForParsing(message).toLowerCase()
+  return hasKeyword(normalized, [
+    "imagem",
+    "foto",
+    "media",
+    "mídia",
+    "video",
+    "vídeo",
+    "layout",
+    "estrutura",
+    "grid",
+    "secao",
+    "seção",
+    "secção",
+    "hero",
+    "header",
+    "footer",
+    "cor",
+    "fundo",
+  ])
+}
+
+function extractBlocksFromLayoutJson(layoutJson: Record<string, unknown>) {
+  const record = layoutJson && typeof layoutJson === "object" ? layoutJson : {}
+  const projectData =
+    record.projectData && typeof record.projectData === "object"
+      ? (record.projectData as Record<string, unknown>)
+      : null
+
+  if (Array.isArray(projectData?.blocks)) {
+    return projectData.blocks
+      .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+      .map((item) => item as Record<string, unknown>)
+  }
+
+  if (Array.isArray(record.blocks)) {
+    return record.blocks
+      .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+      .map((item) => item as Record<string, unknown>)
+  }
+
+  return null
+}
+
+function withBlocksAppliedToLayoutJson(layoutJson: Record<string, unknown>, blocks: Record<string, unknown>[]) {
+  const record = cloneJsonValue(layoutJson)
+  const nextBlocks = cloneJsonValue(blocks)
+  const projectData =
+    record.projectData && typeof record.projectData === "object"
+      ? ({ ...(record.projectData as Record<string, unknown>) } satisfies Record<string, unknown>)
+      : {}
+
+  projectData.blocks = nextBlocks
+  record.projectData = projectData
+  record.blocks = nextBlocks
+  return record
+}
+
+function replaceAllText(source: string, from: string, to: string) {
+  if (!from) return { value: source, replacements: 0 }
+  const parts = source.split(from)
+  if (parts.length <= 1) return { value: source, replacements: 0 }
+  return {
+    value: parts.join(to),
+    replacements: parts.length - 1,
+  }
+}
+
+function applyQuotedReplacementToBlock(
+  block: Record<string, unknown>,
+  replacement: { from: string; to: string },
+): { block: Record<string, unknown>; replacements: number } {
+  const type = normalizeString(block.type).toLowerCase()
+  const nextBlock = cloneJsonValue(block)
+
+  if (type === "rich_text" && typeof block.content === "string") {
+    const updated = replaceAllText(block.content, replacement.from, replacement.to)
+    nextBlock.content = updated.value
+    return { block: nextBlock, replacements: updated.replacements }
+  }
+
+  if (type === "heading" && typeof block.content === "string") {
+    const updated = replaceAllText(block.content, replacement.from, replacement.to)
+    nextBlock.content = updated.value
+    return { block: nextBlock, replacements: updated.replacements }
+  }
+
+  if (type === "button" && typeof block.label === "string") {
+    const updated = replaceAllText(block.label, replacement.from, replacement.to)
+    nextBlock.label = updated.value
+    return { block: nextBlock, replacements: updated.replacements }
+  }
+
+  if (type === "columns" && Array.isArray(block.items)) {
+    let replacements = 0
+    nextBlock.items = block.items.map((item) => {
+      const updated = replaceAllText(String(item ?? ""), replacement.from, replacement.to)
+      replacements += updated.replacements
+      return updated.value
+    })
+    return { block: nextBlock, replacements }
+  }
+
+  if (type === "container" && Array.isArray(block.children)) {
+    let replacements = 0
+    nextBlock.children = block.children.map((column) => {
+      if (!Array.isArray(column)) return column
+      return column.map((child) => {
+        if (!child || typeof child !== "object" || Array.isArray(child)) return child
+        const updated = applyQuotedReplacementToBlock(child as Record<string, unknown>, replacement)
+        replacements += updated.replacements
+        return updated.block
+      })
+    })
+    return { block: nextBlock, replacements }
+  }
+
+  return { block: nextBlock, replacements: 0 }
+}
+
+function applyQuotedTextReplacementToLayout(
+  currentLayoutJson: Record<string, unknown>,
+  replacement: { from: string; to: string },
+) {
+  const currentBlocks = extractBlocksFromLayoutJson(currentLayoutJson)
+  if (!currentBlocks || currentBlocks.length === 0) return null
+
+  let replacements = 0
+  const nextBlocks = currentBlocks.map((block) => {
+    const updated = applyQuotedReplacementToBlock(block, replacement)
+    replacements += updated.replacements
+    return updated.block
+  })
+
+  if (replacements === 0) {
+    return null
+  }
+
+  return withBlocksAppliedToLayoutJson(currentLayoutJson, nextBlocks)
+}
+
+function richTextIntroducesUnexpectedImage(currentContent: unknown, proposedContent: unknown) {
+  const current = typeof currentContent === "string" ? currentContent.toLowerCase() : ""
+  const proposed = typeof proposedContent === "string" ? proposedContent.toLowerCase() : ""
+  if (!proposed.includes("<img")) return false
+  if (current.includes("<img")) return false
+  return proposed.includes("nova imagem") || proposed.includes("placeholder") || proposed.includes('src=""') || proposed.includes('src="#"')
+}
+
+function mergeTextOnlyBlocks(
+  currentBlock: Record<string, unknown>,
+  proposedBlock: Record<string, unknown>,
+  allowMediaChanges: boolean,
+): { valid: boolean; changed: number; block: Record<string, unknown> } {
+  const currentType = normalizeString(currentBlock.type).toLowerCase()
+  const proposedType = normalizeString(proposedBlock.type).toLowerCase()
+
+  if (!currentType || currentType !== proposedType) {
+    return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+  }
+
+  const nextBlock = cloneJsonValue(currentBlock)
+
+  if (currentType === "rich_text") {
+    if (typeof proposedBlock.content === "string" && proposedBlock.content.trim()) {
+      if (!allowMediaChanges && richTextIntroducesUnexpectedImage(currentBlock.content, proposedBlock.content)) {
+        return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+      }
+
+      const changed = proposedBlock.content !== currentBlock.content ? 1 : 0
+      nextBlock.content = proposedBlock.content
+      return { valid: true, changed, block: nextBlock }
+    }
+
+    return { valid: true, changed: 0, block: nextBlock }
+  }
+
+  if (currentType === "heading") {
+    if (typeof proposedBlock.content === "string" && proposedBlock.content.trim()) {
+      const changed = proposedBlock.content !== currentBlock.content ? 1 : 0
+      nextBlock.content = proposedBlock.content
+      return { valid: true, changed, block: nextBlock }
+    }
+
+    return { valid: true, changed: 0, block: nextBlock }
+  }
+
+  if (currentType === "button") {
+    if (typeof proposedBlock.label === "string" && proposedBlock.label.trim()) {
+      const changed = proposedBlock.label !== currentBlock.label ? 1 : 0
+      nextBlock.label = proposedBlock.label
+      return { valid: true, changed, block: nextBlock }
+    }
+
+    return { valid: true, changed: 0, block: nextBlock }
+  }
+
+  if (currentType === "columns") {
+    const currentItems = Array.isArray(currentBlock.items) ? currentBlock.items : []
+    const proposedItems = Array.isArray(proposedBlock.items) ? proposedBlock.items : []
+    if (currentItems.length !== proposedItems.length) {
+      return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+    }
+
+    let changed = 0
+    nextBlock.items = currentItems.map((item, index) => {
+      const nextItem = typeof proposedItems[index] === "string" ? String(proposedItems[index]) : String(item ?? "")
+      if (nextItem !== item) changed += 1
+      return nextItem
+    })
+    return { valid: true, changed, block: nextBlock }
+  }
+
+  if (currentType === "container") {
+    const currentChildren = Array.isArray(currentBlock.children) ? currentBlock.children : []
+    const proposedChildren = Array.isArray(proposedBlock.children) ? proposedBlock.children : []
+    if (currentChildren.length !== proposedChildren.length) {
+      return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+    }
+
+    let changed = 0
+    const nextChildren = []
+    for (let columnIndex = 0; columnIndex < currentChildren.length; columnIndex += 1) {
+      const currentColumn = Array.isArray(currentChildren[columnIndex]) ? currentChildren[columnIndex] : []
+      const proposedColumn = Array.isArray(proposedChildren[columnIndex]) ? proposedChildren[columnIndex] : []
+      if (currentColumn.length !== proposedColumn.length) {
+        return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+      }
+
+      const nextColumn = []
+      for (let blockIndex = 0; blockIndex < currentColumn.length; blockIndex += 1) {
+        const childCurrent = currentColumn[blockIndex]
+        const childProposed = proposedColumn[blockIndex]
+        if (!childCurrent || typeof childCurrent !== "object" || Array.isArray(childCurrent)) {
+          nextColumn.push(childCurrent)
+          continue
+        }
+        if (!childProposed || typeof childProposed !== "object" || Array.isArray(childProposed)) {
+          return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+        }
+
+        const mergedChild = mergeTextOnlyBlocks(
+          childCurrent as Record<string, unknown>,
+          childProposed as Record<string, unknown>,
+          allowMediaChanges,
+        )
+        if (!mergedChild.valid) {
+          return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+        }
+        changed += mergedChild.changed
+        nextColumn.push(mergedChild.block)
+      }
+
+      nextChildren.push(nextColumn)
+    }
+
+    nextBlock.children = nextChildren
+    return { valid: true, changed, block: nextBlock }
+  }
+
+  return { valid: true, changed: 0, block: nextBlock }
+}
+
+function mergeTextOnlyProposalWithCurrentLayout(
+  currentLayoutJson: Record<string, unknown>,
+  proposedLayoutJson: Record<string, unknown>,
+  allowMediaChanges: boolean,
+) {
+  const currentBlocks = extractBlocksFromLayoutJson(currentLayoutJson)
+  const proposedBlocks = extractBlocksFromLayoutJson(proposedLayoutJson)
+
+  if (!currentBlocks || !proposedBlocks || currentBlocks.length !== proposedBlocks.length) {
+    return null
+  }
+
+  let changed = 0
+  const nextBlocks = []
+  for (let index = 0; index < currentBlocks.length; index += 1) {
+    const merged = mergeTextOnlyBlocks(currentBlocks[index], proposedBlocks[index], allowMediaChanges)
+    if (!merged.valid) {
+      return null
+    }
+    changed += merged.changed
+    nextBlocks.push(merged.block)
+  }
+
+  if (changed === 0) {
+    return null
+  }
+
+  return withBlocksAppliedToLayoutJson(currentLayoutJson, nextBlocks)
 }
 
 function extractDataUrlParts(dataUrl: string) {
@@ -625,6 +994,64 @@ function validateProposal(value: unknown) {
   }
 }
 
+function stabilizeProposalForSafeApplication(input: {
+  proposal: ReturnType<typeof validateProposal>
+  message: string
+  currentLayoutJson: Record<string, unknown>
+  currentStyleJson: Record<string, unknown>
+}) {
+  const textReplacement = extractQuotedTextReplacement(input.message)
+  const textOnlyRequest = isTextOnlyEditRequest(input.message)
+  const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
+
+  if (!textOnlyRequest) {
+    return input.proposal
+  }
+
+  if (textReplacement) {
+    const replacedLayout = applyQuotedTextReplacementToLayout(input.currentLayoutJson, textReplacement)
+    if (replacedLayout) {
+      return {
+        ...input.proposal,
+        warnings: [
+          ...input.proposal.warnings,
+          "Aplicação protegida: a estrutura original da página foi preservada e apenas o texto solicitado foi alterado.",
+        ],
+        proposal: {
+          ...input.proposal.proposal,
+          layout_json: replacedLayout,
+          style_json: cloneJsonValue(input.currentStyleJson),
+        },
+      }
+    }
+  }
+
+  const mergedLayout = mergeTextOnlyProposalWithCurrentLayout(
+    input.currentLayoutJson,
+    input.proposal.proposal.layout_json,
+    allowMediaChanges,
+  )
+
+  if (!mergedLayout) {
+    throw unprocessable(
+      "A proposta da IA alterou a estrutura da página num pedido textual. Nenhum rascunho foi aplicado para proteger o layout.",
+    )
+  }
+
+  return {
+    ...input.proposal,
+    warnings: [
+      ...input.proposal.warnings,
+      "Aplicação protegida: o layout atual foi preservado e apenas os conteúdos textuais foram atualizados.",
+    ],
+    proposal: {
+      ...input.proposal.proposal,
+      layout_json: mergedLayout,
+      style_json: cloneJsonValue(input.currentStyleJson),
+    },
+  }
+}
+
 async function getProviderSecrets(serviceClient: ReturnType<typeof createServiceClient>) {
   const [geminiApiKey, openaiApiKey] = await Promise.all([
     readSecret(serviceClient, GEMINI_SECRET_NAME),
@@ -957,7 +1384,12 @@ Deno.serve(async (req) => {
       }
 
       const parsed = parseJsonFromString(rawText)
-      const proposal = validateProposal(parsed)
+      const proposal = stabilizeProposalForSafeApplication({
+        proposal: validateProposal(parsed),
+        message,
+        currentLayoutJson,
+        currentStyleJson,
+      })
 
       await writeAuditLog(serviceClient, context, {
         action: "admin.ai_page_editor_proposal_generated",
