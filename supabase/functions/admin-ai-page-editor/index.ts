@@ -292,6 +292,7 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
     "Não alteres tipografia, cores, espaçamentos, alinhamentos, responsividade, ordem dos blocos ou wrappers globais a menos que o usuário peça isso de forma expressa.",
     "Se a solicitação puder ser atendida com uma mudança pontual, faz apenas essa mudança e mantém todo o resto igual.",
     "Se o pedido implicar mudanças estruturais ou de layout, deves assinalar isso claramente em warnings e evitar reestruturar a página sem pedido explícito.",
+    "Quando a página já estiver em blocos, devolve a mesma estrutura de blocos e altera só o conteúdo necessário. Mantém os ids dos blocos, a ordem e os estilos de layout sempre que possível.",
     "Não alteres o admin nem áreas privadas.",
     "Quando precisares propor edição, devolve JSON válido apenas com summary, explanation, warnings e proposal.",
     `Página atual: ${currentTitle} (${currentPath})`,
@@ -323,6 +324,8 @@ function buildUserPrompt(input: {
     "Executa apenas a alteração pedida, de forma pontual.",
     "Mantém o layout e a estrutura original inalterados, salvo se o pedido mencionar explicitamente redesign, reorganização, troca de secções, mudança de grid ou mudança visual ampla.",
     "Se houver ambiguidade, preferir a menor alteração possível e avisar em warnings.",
+    "Se a página atual já usa projectData.blocks, devolve a mesma estrutura e muda apenas o(s) bloco(s) necessário(s), sem recriar a página do zero.",
+    "Se precisares mudar apenas uma frase, altera apenas o campo de conteúdo do bloco correspondente.",
     "",
     "HTML atual de referência:",
     input.currentHtml.slice(0, MAX_PROMPT_LENGTH),
@@ -344,6 +347,81 @@ function buildUserPrompt(input: {
 
 function getResponseSchema() {
   return proposalSchema
+}
+
+function buildFallbackRichTextBlock(html: string) {
+  return {
+    id: `ai-text-${crypto.randomUUID()}`,
+    type: "rich_text",
+    content: html,
+    layout: {
+      gridColumns: 12,
+      align: "left",
+      paddingTop: 0,
+      paddingRight: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      marginTop: 0,
+      marginBottom: 0,
+      marginLeft: 0,
+      marginRight: 0,
+      backgroundColor: "transparent",
+      backgroundImageUrl: "",
+      backgroundImageSize: "cover",
+      borderRadius: 0,
+      contentAlignX: "stretch",
+      contentAlignY: "top",
+      contentGap: 0,
+      minHeight: 0,
+    },
+  }
+}
+
+function coerceLayoutJsonToBuilderCompatibleJson(layoutJson: Record<string, unknown>) {
+  const record = layoutJson && typeof layoutJson === "object" ? layoutJson : {}
+  const projectData =
+    record.projectData && typeof record.projectData === "object"
+      ? (record.projectData as Record<string, unknown>)
+      : null
+
+  const rootBlocks = Array.isArray(record.blocks) ? record.blocks : null
+  const projectBlocks = Array.isArray(projectData?.blocks) ? projectData.blocks : null
+  const htmlFromRecord = typeof record.html === "string" ? record.html.trim() : ""
+  const htmlFromProjectData = projectData && typeof projectData.html === "string" ? String(projectData.html).trim() : ""
+  const html = htmlFromRecord || htmlFromProjectData
+
+  if (projectBlocks && projectBlocks.length > 0) {
+    return {
+      ...record,
+      projectData: {
+        ...projectData,
+        blocks: projectBlocks,
+      },
+    }
+  }
+
+  if (rootBlocks && rootBlocks.length > 0) {
+    return {
+      ...record,
+      projectData: {
+        ...(projectData ?? {}),
+        blocks: rootBlocks,
+      },
+    }
+  }
+
+  if (html) {
+    return {
+      ...record,
+      projectData: {
+        ...(projectData ?? {}),
+        blocks: [buildFallbackRichTextBlock(html)],
+      },
+      html,
+    }
+  }
+
+  return null
 }
 
 async function callGemini(input: {
@@ -500,10 +578,9 @@ function validateProposal(value: unknown) {
     throw unprocessable("A proposta da IA está incompleta")
   }
 
-  const projectData = layoutJson.projectData && typeof layoutJson.projectData === "object" ? (layoutJson.projectData as Record<string, unknown>) : null
-  const blocks = Array.isArray(projectData?.blocks) ? projectData?.blocks : null
-  if (!projectData || !blocks) {
-    throw unprocessable("A proposta da IA precisa incluir projectData.blocks")
+  const normalizedLayoutJson = coerceLayoutJsonToBuilderCompatibleJson(layoutJson)
+  if (!normalizedLayoutJson) {
+    throw unprocessable("A proposta da IA precisa incluir projectData.blocks ou um HTML convertível")
   }
 
   return {
@@ -513,7 +590,7 @@ function validateProposal(value: unknown) {
     proposal: {
       slug,
       title,
-      layout_json: layoutJson,
+      layout_json: normalizedLayoutJson,
       style_json: styleJson,
       metadata,
     },
