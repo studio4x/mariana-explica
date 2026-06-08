@@ -188,6 +188,18 @@ function readResponseErrorMessage(payload: unknown, fallback: string) {
   return fallback
 }
 
+function isQuotaExceededErrorMessage(message: string) {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes("quota exceeded") ||
+    normalized.includes("rate limits") ||
+    normalized.includes("current quota") ||
+    normalized.includes("billing") ||
+    normalized.includes("free_tier") ||
+    normalized.includes("retry in")
+  )
+}
+
 async function readConfig(serviceClient: ReturnType<typeof createServiceClient>) {
   const { data, error } = await serviceClient
     .from("site_config")
@@ -520,6 +532,7 @@ async function testProviderByName(input: {
   if (!input.apiKey) {
     return {
       ok: false,
+      status: "missing_key" as const,
       message: `${input.provider} sem chave configurada`,
     }
   }
@@ -528,9 +541,34 @@ async function testProviderByName(input: {
   const userPrompt = "Gera JSON mínimo para testar conectividade."
 
   if (input.provider === "gemini") {
-    const result = await callGemini({
+    try {
+      const result = await callGemini({
+        apiKey: input.apiKey,
+        model: input.model || DEFAULT_GEMINI_MODEL,
+        systemPrompt,
+        userPrompt,
+        attachments: [],
+      })
+      const parsed = parseJsonFromString(result.text)
+      return {
+        ok: Boolean(parsed && typeof parsed === "object"),
+        status: "ok" as const,
+        message: "Gemini respondeu com sucesso",
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha desconhecida no Gemini"
+      return {
+        ok: false,
+        status: isQuotaExceededErrorMessage(message) ? "quota_exceeded" : "error",
+        message,
+      }
+    }
+  }
+
+  try {
+    const result = await callOpenAI({
       apiKey: input.apiKey,
-      model: input.model || DEFAULT_GEMINI_MODEL,
+      model: input.model || DEFAULT_OPENAI_MODEL,
       systemPrompt,
       userPrompt,
       attachments: [],
@@ -538,21 +576,16 @@ async function testProviderByName(input: {
     const parsed = parseJsonFromString(result.text)
     return {
       ok: Boolean(parsed && typeof parsed === "object"),
-      message: "Gemini respondeu com sucesso",
+      status: "ok" as const,
+      message: "OpenAI respondeu com sucesso",
     }
-  }
-
-  const result = await callOpenAI({
-    apiKey: input.apiKey,
-    model: input.model || DEFAULT_OPENAI_MODEL,
-    systemPrompt,
-    userPrompt,
-    attachments: [],
-  })
-  const parsed = parseJsonFromString(result.text)
-  return {
-    ok: Boolean(parsed && typeof parsed === "object"),
-    message: "OpenAI respondeu com sucesso",
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha desconhecida no OpenAI"
+    return {
+      ok: false,
+      status: isQuotaExceededErrorMessage(message) ? "quota_exceeded" : "error",
+      message,
+    }
   }
 }
 
@@ -652,14 +685,25 @@ Deno.serve(async (req) => {
       ] as const
 
       const outcomes = []
+      const providerResults = []
       for (const provider of providerOrder) {
-        try {
-          const result = await testProviderByName(provider)
-          outcomes.push(`${provider.provider}: ${result.message}`)
-        } catch (error) {
-          outcomes.push(`${provider.provider}: ${error instanceof Error ? error.message : "falha"}`)
-        }
+        const result = await testProviderByName(provider)
+        providerResults.push({
+          provider: provider.provider,
+          ok: result.ok,
+          status: result.status,
+          message: result.message,
+        })
+        outcomes.push(`${provider.provider}: ${result.message}`)
       }
+
+      const anyQuotaIssue = providerResults.some((item) => item.status === "quota_exceeded")
+      const anyMissingKey = providerResults.some((item) => item.status === "missing_key")
+      const summary = anyQuotaIssue
+        ? "Teste executado, mas um provedor excedeu a quota disponível."
+        : anyMissingKey
+          ? "Teste executado, mas ao menos um provedor não tem chave configurada."
+          : "Teste dos provedores executado com sucesso."
 
       await writeAuditLog(serviceClient, context, {
         action: "admin.ai_page_editor_provider_tested",
@@ -677,6 +721,8 @@ Deno.serve(async (req) => {
         request_id: requestId,
         provider_used: null,
         details: outcomes.join(" | "),
+        summary,
+        provider_results: providerResults,
         secret_status: secrets.secret_status,
       })
     }

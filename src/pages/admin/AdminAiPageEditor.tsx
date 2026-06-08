@@ -12,7 +12,7 @@ import {
   AI_PAGE_EDITOR_ROUTE_OPTIONS,
 } from "@/lib/ai-page-editor"
 import { ROUTES } from "@/lib/constants"
-import type { AdminAiPageEditorConfig } from "@/types/app.types"
+import type { AdminAiPageEditorConfig, AdminAiPageEditorProviderTestResult } from "@/types/app.types"
 
 type AllowedPathState = {
   path: string
@@ -52,6 +52,7 @@ export function AdminAiPageEditor() {
   const [customPath, setCustomPath] = useState("")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [providerTestOutput, setProviderTestOutput] = useState<string | null>(null)
+  const [providerTestResults, setProviderTestResults] = useState<AdminAiPageEditorProviderTestResult[]>([])
 
   const config = query.data
   const secretStatus = config?.secret_status ?? {
@@ -142,6 +143,7 @@ export function AdminAiPageEditor() {
           `OpenAI: ${response.secret_status.openai_api_key_present ? "configurada" : "pendente"}`,
         ].join(" | "),
       )
+      setProviderTestResults([])
     } catch (error) {
       setFeedback({
         tone: "danger",
@@ -153,11 +155,23 @@ export function AdminAiPageEditor() {
   async function handleTestProviders() {
     setFeedback(null)
     setProviderTestOutput(null)
+    setProviderTestResults([])
 
     try {
       const result = await testMutation.mutateAsync()
-      setProviderTestOutput(result.details)
-      setFeedback({ tone: "success", message: "Teste dos provedores executado com sucesso." })
+      setProviderTestOutput(result.summary ?? result.details)
+      setProviderTestResults(result.provider_results ?? [])
+
+      const hasWarnings = (result.provider_results ?? []).some(
+        (item) => item.status === "quota_exceeded" || item.status === "missing_key",
+      )
+
+      setFeedback({
+        tone: hasWarnings ? "danger" : "success",
+        message: hasWarnings
+          ? "O teste encontrou uma limitação operacional em pelo menos um provedor."
+          : "Teste dos provedores executado com sucesso.",
+      })
     } catch (error) {
       setFeedback({
         tone: "danger",
@@ -409,6 +423,26 @@ export function AdminAiPageEditor() {
             <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Último teste</p>
               <p className="mt-2">{providerTestOutput}</p>
+              {providerTestResults.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                  {providerTestResults.map((result) => (
+                    <div
+                      key={result.provider}
+                      className={[
+                        "rounded-2xl border px-3 py-2 text-sm",
+                        result.ok
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                          : result.status === "quota_exceeded"
+                            ? "border-amber-200 bg-amber-50 text-amber-900"
+                            : "border-rose-200 bg-rose-50 text-rose-900",
+                      ].join(" ")}
+                    >
+                      <p className="font-semibold capitalize">{result.provider}</p>
+                      <p className="mt-1 text-xs leading-5">{result.message}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

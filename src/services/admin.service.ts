@@ -4,6 +4,7 @@ import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminCheckoutModeConfig,
   AdminAiPageEditorConfig,
+  AdminAiPageEditorProviderTestResult,
   AdminAiPageEditorProposal,
   AdminAiPageEditorSecretStatus,
   AdminAffiliateReferralSummary,
@@ -1381,6 +1382,8 @@ export async function testAdminAiPageEditorProviders() {
     success: true
     provider_used: "gemini" | "openai" | null
     details: string
+    summary: string
+    provider_results: AdminAiPageEditorProviderTestResult[]
     secret_status: AdminAiPageEditorSecretStatus
   }>("admin-ai-page-editor", {
     action: "test_providers",

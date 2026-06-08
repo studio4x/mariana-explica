@@ -197,6 +197,13 @@ export interface AdminAiPageEditorSecretStatus {
   openai_api_key_present: boolean
 }
 
+export interface AdminAiPageEditorProviderTestResult {
+  provider: AiPageEditorProvider
+  ok: boolean
+  status: "ok" | "missing_key" | "quota_exceeded" | "error"
+  message: string
+}
+
 export interface AdminAiPageEditorDraftProposal {
   slug: string
   title: string
