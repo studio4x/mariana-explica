@@ -378,6 +378,30 @@ export function AdminAiPageEditor() {
               Exigir confirmação manual
             </label>
           </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <p className="text-sm leading-6 text-slate-600">
+              Salva apenas as alterações desse card, incluindo rotas, modelo e comportamento do launcher.
+            </p>
+            <Button
+              type="button"
+              className="rounded-full"
+              onClick={() => void handleSave()}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  A guardar...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar configurações
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
