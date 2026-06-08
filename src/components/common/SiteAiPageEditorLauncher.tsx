@@ -298,7 +298,9 @@ export function SiteAiPageEditorLauncher() {
         slug: pageSlug ?? pathname,
         title: routeOption?.label ?? document.title,
         path: pathname,
-        message: trimmedMessage || "Analisar os anexos e propor a melhor alteracao.",
+        message:
+          trimmedMessage ||
+          "Analisar os anexos e propor a melhor alteracao pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
@@ -320,7 +322,7 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "assistant",
-          text: `${result.summary}\n\n${result.explanation}\n\nQueres que eu implemente estes ajustes?`,
+          text: `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a não ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`,
         },
       ])
       setMessage("")

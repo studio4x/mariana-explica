@@ -287,7 +287,11 @@ async function writeSecret(
 function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, currentTitle: string, currentPath: string) {
   return [
     config.base_prompt || "Atua como editora sênior da Mariana Explica.",
-    "Preserva rotas, CTAs, estados de loading/erro/vazio e a lógica funcional existente.",
+    "Modo padrão: alteração cirúrgica e localizada.",
+    "Preserva a estrutura visual, o layout, o grid, o header, o footer, a navegação, os CTAs, os estados de loading/erro/vazio e a lógica funcional existente.",
+    "Não alteres tipografia, cores, espaçamentos, alinhamentos, responsividade, ordem dos blocos ou wrappers globais a menos que o usuário peça isso de forma expressa.",
+    "Se a solicitação puder ser atendida com uma mudança pontual, faz apenas essa mudança e mantém todo o resto igual.",
+    "Se o pedido implicar mudanças estruturais ou de layout, deves assinalar isso claramente em warnings e evitar reestruturar a página sem pedido explícito.",
     "Não alteres o admin nem áreas privadas.",
     "Quando precisares propor edição, devolve JSON válido apenas com summary, explanation, warnings e proposal.",
     `Página atual: ${currentTitle} (${currentPath})`,
@@ -314,6 +318,11 @@ function buildUserPrompt(input: {
   const prompt = [
     "Pedido do editor:",
     input.message.trim(),
+    "",
+    "Regra de execução:",
+    "Executa apenas a alteração pedida, de forma pontual.",
+    "Mantém o layout e a estrutura original inalterados, salvo se o pedido mencionar explicitamente redesign, reorganização, troca de secções, mudança de grid ou mudança visual ampla.",
+    "Se houver ambiguidade, preferir a menor alteração possível e avisar em warnings.",
     "",
     "HTML atual de referência:",
     input.currentHtml.slice(0, MAX_PROMPT_LENGTH),
