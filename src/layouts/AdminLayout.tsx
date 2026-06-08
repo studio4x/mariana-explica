@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Bell,
+  Bot,
   CircleHelp,
   LayoutDashboard,
   LifeBuoy,
@@ -57,6 +58,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_USERS, label: "Usuários", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
   { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Páginas", icon: LayoutTemplate },
+  { to: ROUTES.ADMIN_AI_PAGE_EDITOR, label: "Editor IA", icon: Bot },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formulários", icon: ClipboardList },
@@ -88,7 +90,9 @@ export function AdminLayout() {
   const markAllNotificationsAsRead = useMarkAllAdminNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Admin"
   const initials = getInitials(profile?.full_name, profile?.email)
-  const isPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
+  const isPageEditorRoute =
+    location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR) ||
+    location.pathname.startsWith(ROUTES.ADMIN_AI_PAGE_EDITOR)
 
   useEffect(() => {
     void queryClient.prefetchQuery({

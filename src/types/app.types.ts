@@ -169,6 +169,50 @@ export interface AdminSiteMaintenanceConfig {
   updated_at: string | null
 }
 
+export type AiPageEditorProvider = "gemini" | "openai"
+
+export interface AdminAiPageEditorConfig {
+  config_key: string
+  config_value: {
+    enabled: boolean
+    launcher_label: string
+    allowed_paths: string[]
+    primary_provider: AiPageEditorProvider
+    fallback_provider: AiPageEditorProvider
+    gemini_model: string
+    openai_model: string
+    max_attachments: number
+    max_attachment_size_mb: number
+    base_prompt: string
+    require_confirmation: boolean
+    panel_width: "compact" | "wide"
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
+export interface AdminAiPageEditorSecretStatus {
+  gemini_api_key_present: boolean
+  openai_api_key_present: boolean
+}
+
+export interface AdminAiPageEditorDraftProposal {
+  slug: string
+  title: string
+  layout_json: Record<string, unknown>
+  style_json: Record<string, unknown>
+  metadata: Record<string, unknown>
+}
+
+export interface AdminAiPageEditorProposal {
+  provider_used: AiPageEditorProvider
+  summary: string
+  explanation: string
+  warnings: string[]
+  proposal: AdminAiPageEditorDraftProposal
+}
+
 export type SitePageSlug = "home" | "sobre" | "privacidade" | "cookies" | "termos"
 
 export interface AdminSitePageSummary {

@@ -171,6 +171,9 @@ const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ defaul
 const AdminPageEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPageEditor })),
 )
+const AdminAiPageEditor = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminAiPageEditor })),
+)
 
 function withSuspense(node: ReactNode) {
   return (
@@ -571,6 +574,10 @@ export const router = createBrowserRouter(
         {
           path: "editor-paginas",
           element: withSuspense(<AdminPageEditor />),
+        },
+        {
+          path: "editor-ia",
+          element: withSuspense(<AdminAiPageEditor />),
         },
         {
           path: "produtos",

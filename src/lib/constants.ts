@@ -61,6 +61,7 @@ export const ROUTES = {
   ADMIN_AFFILIATES: "/admin/afiliados",
   ADMIN_COUPONS: "/admin/cupons",
   ADMIN_PAGE_EDITOR: "/admin/editor-paginas",
+  ADMIN_AI_PAGE_EDITOR: "/admin/editor-ia",
 } as const
 
 // API

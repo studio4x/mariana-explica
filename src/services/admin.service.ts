@@ -3,6 +3,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminCheckoutModeConfig,
+  AdminAiPageEditorConfig,
+  AdminAiPageEditorProposal,
+  AdminAiPageEditorSecretStatus,
   AdminAffiliateReferralSummary,
   AdminAffiliateSummary,
   AdminDashboardOverview,
@@ -155,6 +158,7 @@ const BRANDING_CONFIG_KEY = "site_branding"
 const TRACKING_CONFIG_KEY = "site_tracking"
 const PUBLIC_FORM_NOTIFICATIONS_KEY = "public_form_notifications"
 const SITE_MAINTENANCE_KEY = "site_maintenance_mode"
+const AI_PAGE_EDITOR_KEY = "ai_page_editor_config"
 
 export interface AdminModuleAssetSignedUploadResult {
   bucket: string
@@ -354,6 +358,42 @@ function normalizeAdminSiteMaintenanceConfig(
       row?.description ??
       "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicação.",
     is_public: row?.is_public ?? true,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminAiPageEditorConfig(
+  row?: Partial<AdminAiPageEditorConfig> | null,
+): AdminAiPageEditorConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  const allowedPaths = Array.isArray(value.allowed_paths)
+    ? value.allowed_paths.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : []
+
+  return {
+    config_key: row?.config_key ?? AI_PAGE_EDITOR_KEY,
+    config_value: {
+      enabled: value.enabled === true,
+      launcher_label: String(value.launcher_label ?? "Editar com IA").trim() || "Editar com IA",
+      allowed_paths: allowedPaths,
+      primary_provider: String(value.primary_provider ?? "").trim().toLowerCase() === "openai" ? "openai" : "gemini",
+      fallback_provider: String(value.fallback_provider ?? "").trim().toLowerCase() === "gemini" ? "gemini" : "openai",
+      gemini_model: String(value.gemini_model ?? "gemini-2.0-flash").trim() || "gemini-2.0-flash",
+      openai_model: String(value.openai_model ?? "gpt-4.1-mini").trim() || "gpt-4.1-mini",
+      max_attachments: Math.max(0, Math.min(6, Number(value.max_attachments ?? 2))),
+      max_attachment_size_mb: Math.max(1, Math.min(20, Number(value.max_attachment_size_mb ?? 8))),
+      base_prompt: String(value.base_prompt ?? "").trim(),
+      require_confirmation: value.require_confirmation !== false,
+      panel_width: String(value.panel_width ?? "wide") === "compact" ? "compact" : "wide",
+    },
+    description:
+      row?.description ??
+      "Configuração do editor via IA embutido no frontend. As chaves sensíveis ficam no backend seguro.",
+    is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
 }
@@ -1271,6 +1311,28 @@ export async function updateAdminSiteMaintenanceConfig(
   return normalizeAdminSiteMaintenanceConfig(data ?? payload)
 }
 
+export async function updateAdminAiPageEditorConfig(input: {
+  configValue: AdminAiPageEditorConfig["config_value"]
+  geminiApiKey?: string | null
+  openaiApiKey?: string | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminAiPageEditorConfig
+    secret_status: AdminAiPageEditorSecretStatus
+  }>("admin-ai-page-editor", {
+    action: "update_config",
+    configValue: input.configValue,
+    geminiApiKey: input.geminiApiKey ?? null,
+    openaiApiKey: input.openaiApiKey ?? null,
+  })
+
+  return {
+    ...normalizeAdminAiPageEditorConfig(response.config),
+    secret_status: response.secret_status,
+  }
+}
+
 export async function fetchAdminPublicFormNotificationsConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -1297,6 +1359,69 @@ export async function fetchAdminSiteMaintenanceConfig() {
   }
 
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
+}
+
+export async function fetchAdminAiPageEditorConfig() {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminAiPageEditorConfig
+    secret_status: AdminAiPageEditorSecretStatus
+  }>("admin-ai-page-editor", {
+    action: "get_config",
+  })
+
+  return {
+    ...normalizeAdminAiPageEditorConfig(response.config),
+    secret_status: response.secret_status,
+  }
+}
+
+export async function testAdminAiPageEditorProviders() {
+  return await invokeAdminFunction<{
+    success: true
+    provider_used: "gemini" | "openai" | null
+    details: string
+    secret_status: AdminAiPageEditorSecretStatus
+  }>("admin-ai-page-editor", {
+    action: "test_providers",
+  })
+}
+
+export async function generateAdminAiPageEditorProposal(input: {
+  slug: string
+  title: string
+  path: string
+  message: string
+  currentLayoutJson: Record<string, unknown>
+  currentStyleJson: Record<string, unknown>
+  currentHtml: string
+  attachments: Array<{
+    name: string
+    mime_type: string
+    data_url: string
+    size_bytes: number
+  }>
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    provider_used: "gemini" | "openai"
+    summary: string
+    explanation: string
+    warnings: string[]
+    proposal: AdminAiPageEditorProposal["proposal"]
+  }>("admin-ai-page-editor", {
+    action: "generate_proposal",
+    slug: input.slug,
+    title: input.title,
+    path: input.path,
+    message: input.message,
+    currentLayoutJson: input.currentLayoutJson,
+    currentStyleJson: input.currentStyleJson,
+    currentHtml: input.currentHtml,
+    attachments: input.attachments,
+  })
+
+  return response
 }
 
 export async function fetchAdminSitePages() {

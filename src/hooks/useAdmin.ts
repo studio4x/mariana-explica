@@ -28,6 +28,7 @@ import {
   fetchAdminAffiliates,
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
+  fetchAdminAiPageEditorConfig,
   fetchAdminEmailStatus,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
@@ -82,7 +83,10 @@ import {
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
   updateAdminPublicFormNotificationsConfig,
+  updateAdminAiPageEditorConfig,
   updateAdminSiteMaintenanceConfig,
+  testAdminAiPageEditorProviders,
+  generateAdminAiPageEditorProposal,
   publishAdminSitePageVersion,
   rollbackAdminSitePageVersion,
   saveAdminSitePageDraft,
@@ -243,6 +247,15 @@ export function useAdminSiteMaintenanceConfig() {
   return useQuery({
     queryKey: ["admin", "site-maintenance"],
     queryFn: fetchAdminSiteMaintenanceConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminAiPageEditorConfig(enabled = true) {
+  return useQuery({
+    queryKey: ["admin", "ai-page-editor"],
+    queryFn: fetchAdminAiPageEditorConfig,
+    enabled,
     ...getAdminQueryOptions(),
   })
 }
@@ -1216,6 +1229,19 @@ export function useUpdateAdminPublicFormNotificationsConfig() {
 export function useUpdateAdminSiteMaintenanceConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminSiteMaintenanceConfig, onSuccess: invalidate })
+}
+
+export function useUpdateAdminAiPageEditorConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminAiPageEditorConfig, onSuccess: invalidate })
+}
+
+export function useTestAdminAiPageEditorProviders() {
+  return useMutation({ mutationFn: testAdminAiPageEditorProviders })
+}
+
+export function useGenerateAdminAiPageEditorProposal() {
+  return useMutation({ mutationFn: generateAdminAiPageEditorProposal })
 }
 
 export function useSaveAdminSitePageDraft() {
