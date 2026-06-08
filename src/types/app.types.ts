@@ -169,6 +169,16 @@ export interface AdminSiteMaintenanceConfig {
   updated_at: string | null
 }
 
+export interface AdminLegacyPageEditorConfig {
+  config_key: string
+  config_value: {
+    enabled: boolean
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export type AiPageEditorProvider = "gemini" | "openai"
 
 export interface AdminAiPageEditorConfig {

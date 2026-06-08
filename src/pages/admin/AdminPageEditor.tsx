@@ -2,7 +2,7 @@
 import type { DragEvent, FocusEvent } from "react"
 import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
-import { Link, useBlocker, useSearchParams } from "react-router-dom"
+import { Link, Navigate, useBlocker, useSearchParams } from "react-router-dom"
 import {
   Blocks,
   ChevronDown,
@@ -32,6 +32,7 @@ import { BUILD_VERSION } from "@/lib/build"
 import {
   useAdminSitePageDetail,
   useAdminSitePages,
+  useAdminLegacyPageEditorConfig,
   usePublishAdminSitePageVersion,
   useRollbackAdminSitePageVersion,
   useSaveAdminSitePageDraft,
@@ -1141,6 +1142,7 @@ export function AdminPageEditor() {
   const rollbackMutation = useRollbackAdminSitePageVersion()
   const unpublishMutation = useUnpublishAdminSitePage()
   const uploadAssetMutation = useUploadAdminSitePageAssetFile()
+  const legacyEditorQuery = useAdminLegacyPageEditorConfig()
 
   const pageSummary = useMemo(() => {
     return (pagesQuery.data ?? []).find((page) => page.slug === selectedSlug) ?? null
@@ -3153,6 +3155,10 @@ export function AdminPageEditor() {
       }),
     }))
     setInlineEditingBlockId(null)
+  }
+
+  if (legacyEditorQuery.data?.config_value.enabled === false) {
+    return <Navigate to={ROUTES.ADMIN_AI_PAGE_EDITOR} replace />
   }
 
   if (pagesQuery.isLoading && !pagesQuery.data) {

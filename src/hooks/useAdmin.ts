@@ -29,6 +29,7 @@ import {
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
   fetchAdminAiPageEditorConfig,
+  fetchAdminLegacyPageEditorConfig,
   fetchAdminEmailStatus,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
@@ -83,6 +84,7 @@ import {
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
   updateAdminPublicFormNotificationsConfig,
+  updateAdminLegacyPageEditorConfig,
   updateAdminAiPageEditorConfig,
   updateAdminSiteMaintenanceConfig,
   testAdminAiPageEditorProviders,
@@ -247,6 +249,15 @@ export function useAdminSiteMaintenanceConfig() {
   return useQuery({
     queryKey: ["admin", "site-maintenance"],
     queryFn: fetchAdminSiteMaintenanceConfig,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminLegacyPageEditorConfig(enabled = true) {
+  return useQuery({
+    queryKey: ["admin", "legacy-page-editor"],
+    queryFn: fetchAdminLegacyPageEditorConfig,
+    enabled,
     ...getAdminQueryOptions(),
   })
 }
@@ -1229,6 +1240,11 @@ export function useUpdateAdminPublicFormNotificationsConfig() {
 export function useUpdateAdminSiteMaintenanceConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminSiteMaintenanceConfig, onSuccess: invalidate })
+}
+
+export function useUpdateAdminLegacyPageEditorConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminLegacyPageEditorConfig, onSuccess: invalidate })
 }
 
 export function useUpdateAdminAiPageEditorConfig() {

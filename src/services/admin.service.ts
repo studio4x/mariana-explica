@@ -29,6 +29,7 @@ import type {
   AdminCronScheduleSummary,
   AdminCronStatusOverview,
   AdminEmailStatus,
+  AdminLegacyPageEditorConfig,
   AdminPendingInfoConfig,
   AdminPublicFormNotificationsConfig,
   AdminSitePageAsset,
@@ -159,6 +160,7 @@ const BRANDING_CONFIG_KEY = "site_branding"
 const TRACKING_CONFIG_KEY = "site_tracking"
 const PUBLIC_FORM_NOTIFICATIONS_KEY = "public_form_notifications"
 const SITE_MAINTENANCE_KEY = "site_maintenance_mode"
+const LEGACY_PAGE_EDITOR_KEY = "legacy_page_editor_config"
 const AI_PAGE_EDITOR_KEY = "ai_page_editor_config"
 
 export interface AdminModuleAssetSignedUploadResult {
@@ -359,6 +361,26 @@ function normalizeAdminSiteMaintenanceConfig(
       row?.description ??
       "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicação.",
     is_public: row?.is_public ?? true,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminLegacyPageEditorConfig(
+  row?: Partial<AdminLegacyPageEditorConfig> | null,
+): AdminLegacyPageEditorConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  return {
+    config_key: row?.config_key ?? LEGACY_PAGE_EDITOR_KEY,
+    config_value: {
+      enabled: value.enabled === true,
+    },
+    description:
+      row?.description ?? "Controle da visibilidade do editor de páginas legado na plataforma admin.",
+    is_public: row?.is_public ?? false,
     updated_at: row?.updated_at ?? null,
   }
 }
@@ -1360,6 +1382,70 @@ export async function fetchAdminSiteMaintenanceConfig() {
   }
 
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
+}
+
+export async function fetchAdminLegacyPageEditorConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", LEGACY_PAGE_EDITOR_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminLegacyPageEditorConfig(data as Partial<AdminLegacyPageEditorConfig> | null)
+}
+
+export async function updateAdminLegacyPageEditorConfig(input: {
+  enabled: boolean
+}) {
+  const payload = normalizeAdminLegacyPageEditorConfig({
+    config_key: LEGACY_PAGE_EDITOR_KEY,
+    config_value: {
+      enabled: input.enabled,
+    },
+    description: "Controle da visibilidade do editor de páginas legado na plataforma admin.",
+    is_public: false,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (
+      values: {
+        config_key: string
+        config_value: { enabled: boolean }
+        description: string
+        is_public: boolean
+      },
+      options: { onConflict: "config_key" },
+    ) => {
+      select: (
+        fields: string,
+      ) => {
+        single: () => Promise<{ data: Partial<AdminLegacyPageEditorConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: LEGACY_PAGE_EDITOR_KEY,
+        config_value: payload.config_value,
+        description: payload.description ?? "",
+        is_public: false,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminLegacyPageEditorConfig(data as Partial<AdminLegacyPageEditorConfig> | null)
 }
 
 export async function fetchAdminAiPageEditorConfig() {

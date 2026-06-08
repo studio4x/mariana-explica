@@ -40,6 +40,7 @@ import {
 } from "@/services"
 import {
   useAdminNotifications,
+  useAdminLegacyPageEditorConfig,
   useAdminUsers,
   useMarkAdminNotificationAsRead,
   useMarkAllAdminNotificationsAsRead,
@@ -85,14 +86,16 @@ export function AdminLayout() {
   const queryClient = useQueryClient()
   const { profile, signOut } = useAuth()
   const notificationsQuery = useAdminNotifications()
+  const legacyPageEditorQuery = useAdminLegacyPageEditorConfig(Boolean(profile?.id))
   const usersQuery = useAdminUsers()
   const markNotificationAsRead = useMarkAdminNotificationAsRead()
   const markAllNotificationsAsRead = useMarkAllAdminNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Admin"
   const initials = getInitials(profile?.full_name, profile?.email)
-  const isPageEditorRoute =
-    location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR) ||
-    location.pathname.startsWith(ROUTES.ADMIN_AI_PAGE_EDITOR)
+  const showLegacyPageEditor = legacyPageEditorQuery.data?.config_value.enabled !== false
+  const isLegacyPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
+  const isPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_AI_PAGE_EDITOR) || (isLegacyPageEditorRoute && showLegacyPageEditor)
+  const visibleItems = items.filter((item) => item.to !== ROUTES.ADMIN_PAGE_EDITOR || showLegacyPageEditor)
 
   useEffect(() => {
     void queryClient.prefetchQuery({
@@ -229,7 +232,7 @@ export function AdminLayout() {
               <p className="mt-2 text-lg font-black text-slate-950">Admin</p>
             </div>
             <nav className="space-y-1 p-3">
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
