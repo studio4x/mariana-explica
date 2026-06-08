@@ -53,16 +53,17 @@ const proposalSchema = {
         slug: { type: "string" },
         title: { type: "string" },
         layout_json: {
-          type: "object",
-          additionalProperties: true,
+          type: "string",
+          description:
+            "JSON serializado com a estrutura de layout. Deve incluir projectData.blocks, blocks no root ou html convertível.",
         },
         style_json: {
-          type: "object",
-          additionalProperties: true,
+          type: "string",
+          description: "JSON serializado com os estilos da página. Usa {} quando não houver estilos específicos.",
         },
         metadata: {
-          type: "object",
-          additionalProperties: true,
+          type: "string",
+          description: "JSON serializado com metadados adicionais. Usa {} quando não houver metadados.",
         },
       },
       required: ["slug", "title", "layout_json", "style_json", "metadata"],
@@ -117,6 +118,31 @@ function parseJsonFromString(value: string) {
   } catch {
     return null
   }
+}
+
+function normalizeJsonObjectField(value: unknown, fieldName: string, fallbackToEmptyObject = false) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+
+  if (typeof value === "string") {
+    const parsed = parseJsonFromString(value)
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+
+    if (!value.trim() && fallbackToEmptyObject) {
+      return {}
+    }
+
+    throw unprocessable(`A proposta da IA devolveu ${fieldName} em formato inválido`)
+  }
+
+  if (fallbackToEmptyObject) {
+    return {}
+  }
+
+  return null
 }
 
 function extractDataUrlParts(dataUrl: string) {
@@ -295,6 +321,7 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
     "Quando a página já estiver em blocos, devolve a mesma estrutura de blocos e altera só o conteúdo necessário. Mantém os ids dos blocos, a ordem e os estilos de layout sempre que possível.",
     "Não alteres o admin nem áreas privadas.",
     "Quando precisares propor edição, devolve JSON válido apenas com summary, explanation, warnings e proposal.",
+    "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas, não como objetos literais.",
     `Página atual: ${currentTitle} (${currentPath})`,
     "A proposta deve continuar compatível com o builder atual de páginas públicas.",
   ].join("\n")
@@ -326,6 +353,7 @@ function buildUserPrompt(input: {
     "Se houver ambiguidade, preferir a menor alteração possível e avisar em warnings.",
     "Se a página atual já usa projectData.blocks, devolve a mesma estrutura e muda apenas o(s) bloco(s) necessário(s), sem recriar a página do zero.",
     "Se precisares mudar apenas uma frase, altera apenas o campo de conteúdo do bloco correspondente.",
+    "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas. Exemplo: \"{\\\"projectData\\\":{\\\"blocks\\\":[...]}}\".",
     "",
     "HTML atual de referência:",
     input.currentHtml.slice(0, MAX_PROMPT_LENGTH),
@@ -570,9 +598,9 @@ function validateProposal(value: unknown) {
 
   const slug = normalizeString(proposal.slug)
   const title = normalizeString(proposal.title)
-  const layoutJson = proposal.layout_json && typeof proposal.layout_json === "object" ? (proposal.layout_json as Record<string, unknown>) : null
-  const styleJson = proposal.style_json && typeof proposal.style_json === "object" ? (proposal.style_json as Record<string, unknown>) : null
-  const metadata = proposal.metadata && typeof proposal.metadata === "object" ? (proposal.metadata as Record<string, unknown>) : {}
+  const layoutJson = normalizeJsonObjectField(proposal.layout_json, "layout_json")
+  const styleJson = normalizeJsonObjectField(proposal.style_json, "style_json", true)
+  const metadata = normalizeJsonObjectField(proposal.metadata, "metadata", true)
 
   if (!slug || !title || !layoutJson || !styleJson) {
     throw unprocessable("A proposta da IA está incompleta")
