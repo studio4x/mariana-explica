@@ -22,6 +22,9 @@ verify_jwt = false
 [functions.admin-page-assets]
 verify_jwt = false
 
+[functions.admin-ai-page-editor]
+verify_jwt = false
+
 [functions.create-checkout]
 verify_jwt = false
 
