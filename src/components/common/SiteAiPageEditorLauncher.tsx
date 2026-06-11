@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ClipboardEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Bot, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui"
 import { broadcastBrandingUpdate } from "./site-branding"
 import {
   fetchAdminBrandingConfig,
+  generateAdminAiHeaderCopyProposal,
   generateAdminAiFooterCopyProposal,
   updateAdminBrandingConfig,
 } from "@/services"
@@ -27,7 +28,7 @@ import {
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
-import { APP_DESCRIPTION } from "@/lib/constants"
+import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
 import { getAiPageEditorRouteOption, isAiPageEditorAllowedPath } from "@/lib/ai-page-editor"
 import type { AdminAiPageEditorProposal, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 
@@ -102,6 +103,10 @@ function getChatRoleLabel(role: ChatMessage["role"]) {
   return "Sistema"
 }
 
+function messageTargetsGlobalHeader(message: string) {
+  return /\b(header|cabe[cç]alho|topo|navbar)\b/i.test(message)
+}
+
 function messageTargetsGlobalFooter(message: string) {
   return /\b(rodape|rodapé|footer)\b/i.test(message)
 }
@@ -132,6 +137,7 @@ export function SiteAiPageEditorLauncher() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const config = configQuery.data
   const allowedPath = Boolean(config && isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths))
@@ -150,6 +156,7 @@ export function SiteAiPageEditorLauncher() {
   }, [pageDetailQuery.data?.latest_draft, pageDetailQuery.data?.published_version, publicPageQuery.data?.version])
 
   const footerDescription = brandingQuery.data?.config_value.footer_description?.trim() || APP_DESCRIPTION
+  const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
   const canPersistDraft = Boolean(pageSlug && pageDetailQuery.data?.page)
 
@@ -196,6 +203,16 @@ export function SiteAiPageEditorLauncher() {
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const frame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, messages.length, awaitingImplementation, pendingPublication, feedback, proposal])
 
   function addAttachmentsFromFiles(files: FileList | File[]) {
     const limit = config?.config_value.max_attachments ?? 2
@@ -424,6 +441,43 @@ export function SiteAiPageEditorLauncher() {
     ])
 
     try {
+      if (messageTargetsGlobalHeader(trimmedMessage)) {
+        if (!brandingQuery.data) {
+          throw new Error("Não foi possível carregar o branding global do site.")
+        }
+
+        const result = await generateAdminAiHeaderCopyProposal({
+          title: routeOption?.label ?? document.title,
+          path: pathname,
+          message: trimmedMessage,
+          currentHeaderText: headerAnnouncement,
+        })
+
+        const updatedBranding = await updateAdminBrandingConfig({
+          ...brandingQuery.data.config_value,
+          header_announcement: result.header_announcement,
+        })
+
+        queryClient.setQueryData(["admin", "branding"], updatedBranding)
+        queryClient.setQueryData(["site", "branding"], updatedBranding)
+        broadcastBrandingUpdate(updatedBranding.updated_at)
+
+        setProposal(null)
+        setAwaitingImplementation(false)
+        setAttachments([])
+        setMessage("")
+        setMessages((current) => [
+          ...current,
+          {
+            id: uid("msg"),
+            role: "assistant",
+            text: `${result.summary}\n\n${result.explanation}\n\nO cabeçalho global foi atualizado e passa a valer em todas as páginas públicas.`,
+          },
+        ])
+        setFeedback("Cabeçalho global atualizado.")
+        return
+      }
+
       if (messageTargetsGlobalFooter(trimmedMessage)) {
         if (!brandingQuery.data) {
           throw new Error("Não foi possível carregar o branding global do site.")
@@ -636,7 +690,7 @@ export function SiteAiPageEditorLauncher() {
                 </div>
               ) : null}
 
-              {null}
+              <div ref={messagesEndRef} />
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white px-3 py-3 shadow-sm">

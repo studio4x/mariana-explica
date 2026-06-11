@@ -1,16 +1,27 @@
 import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
 import { SiteLogo } from "@/components/common"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
+import { APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
+import { fetchPublicBrandingConfig } from "@/services"
 import { cn } from "@/lib/cn"
 
 export function Navbar() {
   const location = useLocation()
   const { isAuthenticated, isAdmin, signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const brandingQuery = useQuery({
+    queryKey: ["site", "branding"],
+    queryFn: fetchPublicBrandingConfig,
+    staleTime: 0,
+    refetchOnMount: "always",
+  })
+  const headerAnnouncement =
+    brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
   const navItems = useMemo(
     () =>
@@ -32,7 +43,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-[#d9e6ec] bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/78">
       <div className="border-b border-[#e8f0f4] bg-[#f7fbfd]">
         <div className="container flex items-center justify-between gap-3 py-2 text-xs font-semibold text-[#21485e]">
-          <p className="truncate">Tens dificuldades a Português ou Filosofia? Começa com um plano claro de estudo.</p>
+          <p className="truncate">{headerAnnouncement}</p>
           <Link to={ROUTES.COURSES} className="hidden items-center gap-1 text-[#163d56] sm:inline-flex">
             Ver materiais
             <ArrowRight className="h-3.5 w-3.5" />

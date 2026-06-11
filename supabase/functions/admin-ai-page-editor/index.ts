@@ -4,7 +4,14 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody }
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 
-type Action = "get_config" | "update_config" | "test_providers" | "generate_proposal" | "generate_footer_copy" | "get_usage_metrics"
+type Action =
+  | "get_config"
+  | "update_config"
+  | "test_providers"
+  | "generate_proposal"
+  | "generate_header_copy"
+  | "generate_footer_copy"
+  | "get_usage_metrics"
 
 interface AttachmentInput {
   name: string
@@ -26,6 +33,7 @@ interface Body {
   currentLayoutJson?: Record<string, unknown>
   currentStyleJson?: Record<string, unknown>
   currentHtml?: string
+  currentHeaderText?: string
   currentFooterText?: string
   attachments?: AttachmentInput[]
 }
@@ -182,6 +190,21 @@ const footerCopySchema = {
     footer_description: { type: "string" },
   },
   required: ["summary", "explanation", "warnings", "footer_description"],
+} as const
+
+const headerCopySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    summary: { type: "string" },
+    explanation: { type: "string" },
+    warnings: {
+      type: "array",
+      items: { type: "string" },
+    },
+    header_announcement: { type: "string" },
+  },
+  required: ["summary", "explanation", "warnings", "header_announcement"],
 } as const
 
 function normalizeString(value: unknown, fallback = "") {
@@ -1115,6 +1138,21 @@ function buildFooterCopySystemPrompt(config: ReturnType<typeof normalizeConfigVa
   ].join("\n")
 }
 
+function buildHeaderCopySystemPrompt(config: ReturnType<typeof normalizeConfigValue>, currentTitle: string, currentPath: string) {
+  return [
+    config.base_prompt || "Atua como editora sênior da Mariana Explica.",
+    "Modo padrão: alteração cirúrgica e localizada.",
+    "O objetivo é atualizar apenas o texto global do cabeçalho do site.",
+    "Não inventes secções novas nem alteres o layout da página.",
+    "Mantém o tom claro, educacional e confiável da marca.",
+    "Se a solicitação for apenas uma alteração pontual, devolve um texto final curto e consistente.",
+    "Se houver ambiguidade, prefere a menor alteração possível e explica isso em warnings.",
+    "Devolve JSON válido apenas com summary, explanation, warnings e header_announcement.",
+    "header_announcement deve ser uma string final pronta para publicar no cabeçalho global.",
+    `Página atual: ${currentTitle} (${currentPath})`,
+  ].join("\n")
+}
+
 function buildUserPrompt(input: {
   message: string
   currentHtml: string
@@ -1177,6 +1215,33 @@ function buildFooterCopyUserPrompt(input: {
     "Regra de execução:",
     "Executa apenas a alteração pedida, de forma pontual.",
     "Mantém o footer global como uma única frase coerente.",
+    "Se precisares alterar apenas uma palavra ou sinal de pontuação, altera só isso.",
+    "Se a solicitação for ambígua, preferir a menor alteração possível e avisar em warnings.",
+    "",
+    `Página atual: ${input.currentTitle} (${input.currentPath})`,
+    "",
+    "Responde apenas com JSON válido.",
+  ].join("\n")
+
+  return prompt.slice(0, MAX_PROMPT_LENGTH)
+}
+
+function buildHeaderCopyUserPrompt(input: {
+  message: string
+  currentHeaderText: string
+  currentTitle: string
+  currentPath: string
+}) {
+  const prompt = [
+    "Pedido do editor:",
+    input.message.trim(),
+    "",
+    "Texto global atual do header:",
+    input.currentHeaderText.trim(),
+    "",
+    "Regra de execução:",
+    "Executa apenas a alteração pedida, de forma pontual.",
+    "Mantém o header global como um texto curto e coerente.",
     "Se precisares alterar apenas uma palavra ou sinal de pontuação, altera só isso.",
     "Se a solicitação for ambígua, preferir a menor alteração possível e avisar em warnings.",
     "",
@@ -1458,6 +1523,29 @@ function validateFooterCopyProposal(value: unknown) {
     explanation,
     warnings,
     footer_description: footerDescription,
+  }
+}
+
+function validateHeaderCopyProposal(value: unknown) {
+  if (!value || typeof value !== "object") {
+    throw unprocessable("Resposta da IA em formato inválido")
+  }
+
+  const record = value as Record<string, unknown>
+  const summary = normalizeString(record.summary)
+  const explanation = normalizeString(record.explanation)
+  const warnings = normalizeStringArray(record.warnings)
+  const headerAnnouncement = normalizeString(record.header_announcement)
+
+  if (!summary) throw unprocessable("A IA não devolveu um resumo válido")
+  if (!explanation) throw unprocessable("A IA não devolveu uma explicação válida")
+  if (!headerAnnouncement) throw unprocessable("A IA não devolveu um texto válido para o header")
+
+  return {
+    summary,
+    explanation,
+    warnings,
+    header_announcement: headerAnnouncement,
   }
 }
 
@@ -1785,6 +1873,160 @@ Deno.serve(async (req) => {
         success: true,
         request_id: requestId,
         ...metrics,
+      })
+    }
+
+    if (body.action === "generate_header_copy") {
+      const title = normalizeString(body.title)
+      const path = normalizeString(body.path)
+      const message = normalizeString(body.message)
+      const currentHeaderText = normalizeString(body.currentHeaderText ?? body.currentHtml)
+
+      if (!title) throw badRequest("title e obrigatorio")
+      if (!path) throw badRequest("path e obrigatorio")
+      if (!message) throw badRequest("message e obrigatorio")
+      if (!currentHeaderText) throw badRequest("currentHeaderText e obrigatorio")
+
+      const config = await readConfig(serviceClient)
+      if (!config.config_value.enabled) {
+        throw forbidden("Editor via IA desativado")
+      }
+
+      const secrets = await getProviderSecrets(serviceClient)
+      const systemPrompt = buildHeaderCopySystemPrompt(config.config_value, title, path)
+      const userPrompt = buildHeaderCopyUserPrompt({
+        message,
+        currentHeaderText,
+        currentTitle: title,
+        currentPath: path,
+      })
+
+      const providerCandidates = [
+        {
+          provider: config.config_value.primary_provider,
+          model: config.config_value.primary_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
+          apiKey: config.config_value.primary_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
+        },
+        {
+          provider: config.config_value.fallback_provider,
+          model: config.config_value.fallback_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
+          apiKey: config.config_value.fallback_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
+        },
+      ] as const
+
+      let lastError: unknown = null
+      let rawText = ""
+      let providerUsed: AiProvider | null = null
+      let modelUsed = ""
+      let rawPayload: unknown = null
+
+      for (const candidate of providerCandidates) {
+        if (!candidate.apiKey) {
+          lastError = new Error(`${candidate.provider} sem chave configurada`)
+          continue
+        }
+
+        try {
+          const result =
+            candidate.provider === "gemini"
+              ? await callGemini({
+                  apiKey: candidate.apiKey,
+                  model: candidate.model || DEFAULT_GEMINI_MODEL,
+                  systemPrompt,
+                  userPrompt,
+                  attachments: [],
+                  responseSchema: headerCopySchema,
+                })
+              : await callOpenAI({
+                  apiKey: candidate.apiKey,
+                  model: candidate.model || DEFAULT_OPENAI_MODEL,
+                  systemPrompt,
+                  userPrompt,
+                  attachments: [],
+                  responseSchema: headerCopySchema,
+                })
+
+          rawText = result.text
+          providerUsed = candidate.provider
+          modelUsed = candidate.model
+          rawPayload = result.raw
+          lastError = null
+          break
+        } catch (error) {
+          lastError = error
+        }
+      }
+
+      if (!providerUsed || !rawText.trim()) {
+        throw lastError instanceof Error ? lastError : new Error("Nenhum provedor disponível para gerar a proposta")
+      }
+
+      const parsed = parseJsonFromString(rawText)
+      const headerProposal = validateHeaderCopyProposal(parsed)
+
+      const usage =
+        providerUsed === "gemini"
+          ? extractGeminiUsage(rawPayload)
+          : providerUsed === "openai"
+            ? extractOpenAIUsage(rawPayload)
+            : { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+      const pricing =
+        providerUsed
+          ? estimateUsageCostUsd(
+              providerUsed,
+              modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+              usage,
+            )
+          : null
+
+      if (providerUsed) {
+        await recordUsageEvent(serviceClient, {
+          action: "generate_proposal",
+          provider: providerUsed,
+          model: modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+          user_id: context.user.id,
+          slug: "global-header",
+          path,
+          input_tokens: usage.input_tokens,
+          output_tokens: usage.output_tokens,
+          total_tokens: usage.total_tokens,
+          estimated_cost_usd: pricing?.estimated_cost_usd ?? null,
+          currency: "USD",
+          request_id: requestId,
+          metadata: {
+            target_scope: "global_header",
+            pricing_source: pricing?.pricing_source ?? null,
+          },
+        })
+      }
+
+      await writeAuditLog(serviceClient, context, {
+        action: "admin.ai_page_editor_header_copy_generated",
+        entityType: "site_config",
+        entityId: null,
+        metadata: {
+          config_key: BRANDING_CONFIG_KEY,
+          path,
+          provider_used: providerUsed,
+        },
+        ...auditMeta,
+      })
+
+      logInfo("AI page editor header copy generated", {
+        request_id: requestId,
+        user_id: context.user.id,
+        path,
+        provider_used: providerUsed,
+      })
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        provider_used: providerUsed,
+        summary: headerProposal.summary,
+        explanation: headerProposal.explanation,
+        warnings: headerProposal.warnings,
+        header_announcement: headerProposal.header_announcement,
       })
     }
 

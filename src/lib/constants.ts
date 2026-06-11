@@ -2,6 +2,7 @@
 export const APP_NAME = "Mariana Explica"
 export const APP_DESCRIPTION =
   "Materiais claros para exames nacionais, compra simples e Área do aluno organizada."
+export const APP_HEADER_ANNOUNCEMENT = "Tens dificuldades a Português ou Filosofia? Começa com um plano claro de estudo."
 
 // Routes
 export const ROUTES = {
