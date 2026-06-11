@@ -54,7 +54,7 @@ function uid(prefix: string) {
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error("Nao foi possivel ler o anexo."))
+    reader.onerror = () => reject(new Error("Não foi possível ler o anexo."))
     reader.onload = () => resolve(String(reader.result ?? ""))
     reader.readAsDataURL(file)
   })
@@ -221,7 +221,7 @@ export function SiteAiPageEditorLauncher() {
 
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
     if (!nextProposal || !pageSlug || !canPersistDraft) {
-      setFeedback("Este caminho ainda nao esta mapeado para persistencia de rascunho.")
+      setFeedback("Este caminho ainda não está mapeado para persistência de rascunho.")
       return
     }
 
@@ -260,22 +260,22 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Ajustes implementados apenas para revisao admin. A pagina foi atualizada para a revisao ${result.version.version_number} e ainda nao ficou visivel no site publico.`,
+          text: `Ajustes implementados apenas para revisão admin. A página foi atualizada para a revisão ${result.version.version_number} e ainda não ficou visível no site público.`,
         },
       ])
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
       setMessage("")
-      setFeedback("Ajustes implementados e pagina atualizada.")
+      setFeedback("Ajustes implementados e página atualizada.")
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Nao foi possivel guardar o rascunho.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
     }
   }
 
   async function handleConfirmAppliedChanges() {
     if (!pageSlug || !pendingPublication?.draftVersion.id) {
-      setFeedback("Nao encontrei uma revisao pendente para publicar.")
+      setFeedback("Não encontrei uma revisão pendente para publicar.")
       return
     }
 
@@ -293,18 +293,18 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Alteracoes confirmadas. A revisao ${result.version.version_number} foi publicada e ja esta visivel no site publico.`,
+          text: `Alterações confirmadas. A revisão ${result.version.version_number} foi publicada e já está visível no site público.`,
         },
       ])
-      setFeedback("Alteracoes publicadas com sucesso.")
+      setFeedback("Alterações publicadas com sucesso.")
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Nao foi possivel publicar as alteracoes.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
     }
   }
 
   async function handleUndoAppliedChanges() {
     if (!pageSlug || !pendingPublication?.previousVersionSnapshot) {
-      setFeedback("Nao encontrei um estado anterior para desfazer estas alteracoes.")
+      setFeedback("Não encontrei um estado anterior para desfazer estas alterações.")
       return
     }
 
@@ -331,18 +331,18 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Alteracoes desfeitas. A pagina voltou ao estado anterior na revisao ${result.version.version_number}.`,
+          text: `Alterações desfeitas. A página voltou ao estado anterior na revisão ${result.version.version_number}.`,
         },
       ])
-      setFeedback("Alteracoes desfeitas para o admin.")
+      setFeedback("Alterações desfeitas para o admin.")
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Nao foi possivel desfazer as alteracoes.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer as alterações.")
     }
   }
 
   async function handleRestoreRevision(version: AdminSitePageVersion) {
     if (!pageSlug || !canPersistDraft) {
-      setFeedback("Esta pagina nao suporta revisao persistivel neste momento.")
+      setFeedback("Esta página não suporta revisão persistível neste momento.")
       return
     }
 
@@ -370,7 +370,7 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Revisao restaurada para a versao ${version.version_number}. A pagina foi atualizada.`,
+          text: `Revisão restaurada para a versão ${version.version_number}. A página foi atualizada.`,
         },
       ])
       setProposal(null)
@@ -378,9 +378,9 @@ export function SiteAiPageEditorLauncher() {
       setAwaitingImplementation(false)
       setAttachments([])
       setMessage("")
-      setFeedback(`Revisao ${version.version_number} restaurada.`)
+      setFeedback(`Revisão ${version.version_number} restaurada.`)
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Nao foi possivel restaurar a revisao.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a revisão.")
     }
   }
 
@@ -392,7 +392,7 @@ export function SiteAiPageEditorLauncher() {
     setFeedback(null)
     setMessages((current) => [
       ...current,
-      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para analise visual." },
+      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
     ])
 
     try {
@@ -402,7 +402,7 @@ export function SiteAiPageEditorLauncher() {
         path: pathname,
         message:
           trimmedMessage ||
-          "Analisar os anexos e propor a melhor alteracao pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
+          "Analisar os anexos e propor a melhor alteração pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
@@ -429,7 +429,7 @@ export function SiteAiPageEditorLauncher() {
       ])
       setMessage("")
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Nao foi possivel gerar a proposta."
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar a proposta."
       setFeedback(errorMessage)
       setMessages((current) => [...current, { id: uid("msg"), role: "system", text: errorMessage }])
     }
@@ -471,7 +471,7 @@ export function SiteAiPageEditorLauncher() {
             <div className="min-h-0 flex-1 overflow-y-auto space-y-3 rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3">
               {messages.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-600">
-                  Ola! O site esta carregado. O que gostarias de alterar?
+                  Olá! O site está carregado. O que gostarias de alterar?
                 </div>
               ) : null}
 
@@ -494,9 +494,9 @@ export function SiteAiPageEditorLauncher() {
 
               {proposal && awaitingImplementation ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Confirmacao</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Confirmação</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-950">
-                    Desejas que eu implemente estes ajustes na pagina e atualize a visualizacao?
+                    Desejas que eu implemente estes ajustes na página e atualize a visualização?
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -524,7 +524,7 @@ export function SiteAiPageEditorLauncher() {
                         ])
                       }}
                     >
-                      Nao agora
+                      Não agora
                     </Button>
                   </div>
                 </div>
@@ -532,10 +532,10 @@ export function SiteAiPageEditorLauncher() {
 
               {pendingPublication ? (
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisao pronta</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisão pronta</p>
                   <p className="mt-2 text-sm leading-6 text-indigo-950">
-                    As alteracoes estao visiveis apenas para ti neste preview admin. Quando confirmares, a revisao{" "}
-                    {pendingPublication.draftVersion.version_number} sera publicada no site publico.
+                    As alterações estão visíveis apenas para ti neste preview admin. Quando confirmares, a revisão{" "}
+                    {pendingPublication.draftVersion.version_number} será publicada no site público.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -545,7 +545,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <Check className="mr-2 h-4 w-4" />
-                      {publishMutation.isPending ? "A publicar..." : "Confirmar alteracoes"}
+                      {publishMutation.isPending ? "A publicar..." : "Confirmar alterações"}
                     </Button>
                     <Button
                       type="button"
@@ -555,7 +555,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <RotateCcw className="mr-2 h-4 w-4" />
-                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alteracoes"}
+                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alterações"}
                     </Button>
                   </div>
                 </div>
@@ -567,11 +567,11 @@ export function SiteAiPageEditorLauncher() {
                 </div>
               ) : null}
 
-              {pageSlug && revisions.length > 0 ? (
+              {false && pageSlug && revisions.length > 0 ? (
                 <details className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
                   <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
                     <History className="h-4 w-4" />
-                    Revisoes
+                    Revisões
                   </summary>
                   <div className="mt-3 space-y-2">
                     {revisions.map((version) => {
@@ -580,7 +580,7 @@ export function SiteAiPageEditorLauncher() {
                         <div key={version.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-950">Versao {version.version_number}</p>
+                              <p className="text-sm font-semibold text-slate-950">Versão {version.version_number}</p>
                               <p className="text-xs text-slate-500">
                                 {version.status} • {formatDateTime(version.created_at)}
                               </p>
@@ -675,6 +675,42 @@ export function SiteAiPageEditorLauncher() {
                   )}
                 </Button>
               </div>
+
+              {pageSlug && revisions.length > 0 ? (
+                <details className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-500">
+                  <summary className="flex cursor-pointer items-center gap-2 font-medium text-slate-500 transition hover:text-slate-700">
+                    <History className="h-3.5 w-3.5" />
+                    Revisões
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {revisions.map((version) => {
+                      const isCurrent = version.id === currentVersionId
+                      return (
+                        <div key={version.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-950">Versão {version.version_number}</p>
+                              <p className="text-xs text-slate-500">
+                                {version.status} • {formatDateTime(version.created_at)}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-8 rounded-full"
+                              onClick={() => void handleRestoreRevision(version)}
+                              disabled={isCurrent || saveDraftMutation.isPending}
+                            >
+                              <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                              {isCurrent ? "Atual" : "Reverter"}
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </details>
+              ) : null}
             </div>
           </div>
         </div>
