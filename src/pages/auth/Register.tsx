@@ -57,6 +57,14 @@ function buildAuthRedirectHref(basePath: string, redirectPath: string) {
   return `${basePath}?${params.toString()}`
 }
 
+function resolvePostRegisterDestination(isAdmin: boolean, redirectPath: string) {
+  if (redirectPath.startsWith("/aluno")) {
+    return redirectPath
+  }
+
+  return isAdmin ? ROUTES.ADMIN : redirectPath
+}
+
 export function Register() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -72,12 +80,13 @@ export function Register() {
   const [error, setError] = useState<string | null>(null)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
   const redirectPath = resolveRegisterRedirect(location.state, searchParams)
+  const destinationPath = resolvePostRegisterDestination(isAdmin, redirectPath)
 
   useEffect(() => {
     if (isAuthenticated && !pendingVerificationEmail) {
-      navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
+      navigate(destinationPath, { replace: true })
     }
-  }, [isAdmin, isAuthenticated, navigate, pendingVerificationEmail, redirectPath])
+  }, [destinationPath, isAuthenticated, navigate, pendingVerificationEmail])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

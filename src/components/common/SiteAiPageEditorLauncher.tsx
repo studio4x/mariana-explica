@@ -73,7 +73,7 @@ function getSanitizedDomSnapshot() {
 function useSupportedCurrentPage() {
   const location = useLocation()
   const routeOption = getAiPageEditorRouteOption(location.pathname)
-  const publicPageQuery = usePublicSitePage(routeOption?.slug)
+  const publicPageQuery = usePublicSitePage(routeOption?.slug ?? undefined)
   return { routeOption, publicPageQuery, pathname: location.pathname, search: location.search }
 }
 
@@ -424,13 +424,15 @@ export function SiteAiPageEditorLauncher() {
       }
 
       setProposal(nextProposal)
-      setAwaitingImplementation(true)
+      setAwaitingImplementation(canPersistDraft)
       setMessages((current) => [
         ...current,
         {
           id: uid("msg"),
           role: "assistant",
-          text: `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a não ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`,
+          text: canPersistDraft
+            ? `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a não ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`
+            : `${result.summary}\n\n${result.explanation}\n\nEstou a analisar esta área no modo de preview admin. O launcher já pode acompanhar o contexto da área do aluno e do visualizador, mas a aplicação automática ainda não está ativa nesta superfície.`,
         },
       ])
       setMessage("")

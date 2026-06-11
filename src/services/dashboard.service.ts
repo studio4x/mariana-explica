@@ -39,6 +39,26 @@ async function getCurrentUserId() {
   return userId
 }
 
+async function getCurrentProfileSummary() {
+  const userId = await getCurrentUserId()
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,role,is_admin,status")
+    .eq("id", userId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  const profile = data && typeof data === "object" ? (data as { is_admin?: boolean; role?: string; status?: string }) : null
+
+  return {
+    userId,
+    isAdmin: Boolean(profile?.is_admin === true && profile?.role === "admin" && profile?.status === "active"),
+  }
+}
+
 async function fetchProductsByIds(productIds: string[]) {
   if (productIds.length === 0) {
     return [] as ProductSummary[]
@@ -199,6 +219,72 @@ export async function fetchMyAccessGrants() {
 }
 
 export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
+  const { isAdmin } = await getCurrentProfileSummary()
+  if (isAdmin) {
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at,updated_at",
+      )
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    const products = (data ?? []) as Array<ProductSummary & { updated_at?: string | null }>
+    const modules = await fetchModulesByProductIds(products.map((product) => product.id))
+    const lessons = await fetchLessonsByModuleIds(modules.map((module) => module.id))
+    const assets = await fetchModuleAssets(modules.map((module) => module.id))
+    const modulesByProduct = new Map<string, ProductModuleSummary[]>()
+    const assetsByModule = new Map<string, ModuleAssetSummary[]>()
+    const lessonsByModule = new Map<string, ProductLessonSummary[]>()
+
+    for (const module of modules) {
+      const list = modulesByProduct.get(module.product_id) ?? []
+      list.push(module)
+      modulesByProduct.set(module.product_id, list)
+    }
+
+    for (const asset of assets) {
+      const list = assetsByModule.get(asset.module_id) ?? []
+      list.push(asset)
+      assetsByModule.set(asset.module_id, list)
+    }
+
+    for (const lesson of lessons) {
+      const list = lessonsByModule.get(lesson.module_id) ?? []
+      list.push(lesson)
+      lessonsByModule.set(lesson.module_id, list)
+    }
+
+    return products.map((product) => {
+      const productModules = modulesByProduct.get(product.id) ?? []
+      const productLessons = productModules.flatMap((module) => lessonsByModule.get(module.id) ?? [])
+      const productAssets = productModules.flatMap((module) => assetsByModule.get(module.id) ?? [])
+      const modulePdfCount = productModules.filter(
+        (module) => Boolean(module.module_pdf_storage_path && module.module_pdf_file_name),
+      ).length
+      const previewGrantedAt = product.published_at ?? product.updated_at ?? new Date().toISOString()
+
+      return {
+        ...product,
+        grant_id: `admin-preview-${product.id}`,
+        granted_at: previewGrantedAt,
+        expires_at: null,
+        module_count: productModules.length,
+        lesson_count: productLessons.length,
+        asset_count: productAssets.length + modulePdfCount,
+        preview_count: productModules.filter((module) => module.is_preview).length,
+        download_count: productAssets.filter((asset) => asset.allow_download).length + modulePdfCount,
+        completed_lessons: 0,
+        progress_percent: 0,
+      }
+    })
+  }
+
   const grants = await fetchMyAccessGrants()
   const productIds = grants.map((grant) => grant.product_id)
   const [products, modules] = await Promise.all([

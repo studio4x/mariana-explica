@@ -167,6 +167,7 @@ Deno.serve(async (req) => {
     const auditMeta = extractRequestAuditContext(req)
     const body = await readJsonBody<Input>(req)
     const moduleId = body.moduleId?.trim()
+    const isAdminPreview = context.profile.is_admin === true && context.profile.role === "admin"
 
     if (!moduleId) {
       throw badRequest("moduleId e obrigatorio")
@@ -183,14 +184,16 @@ Deno.serve(async (req) => {
     if (moduleError) throw moduleError
     if (!moduleRow) throw forbidden("Modulo indisponivel")
 
-    const { data: canAccessRow, error: canAccessError } = await context.serviceClient
-      .rpc("can_access_product_module", {
-        target_module_id: moduleId,
-        target_user: context.user.id,
-      })
+    if (!isAdminPreview) {
+      const { data: canAccessRow, error: canAccessError } = await context.serviceClient
+        .rpc("can_access_product_module", {
+          target_module_id: moduleId,
+          target_user: context.user.id,
+        })
 
-    if (canAccessError) throw canAccessError
-    if (!canAccessRow) throw forbidden("Voce nao possui acesso a este PDF")
+      if (canAccessError) throw canAccessError
+      if (!canAccessRow) throw forbidden("Voce nao possui acesso a este PDF")
+    }
 
     if (!moduleRow.module_pdf_storage_path || !moduleRow.module_pdf_file_name) {
       throw forbidden("Este modulo nao possui PDF base configurado")

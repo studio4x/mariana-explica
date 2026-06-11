@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
     const context = await requireActiveUser(req)
     const body = await readJsonBody<NavigationInput>(req)
     const productId = requireText(body.productId, "productId")
+    const isAdminPreview = context.profile.is_admin === true && context.profile.role === "admin"
 
     const { data: product, error: productError } = await context.serviceClient
       .from("products")
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (grantError) throw grantError
-    if (!grant || !isGrantActive(grant.granted_at, grant.expires_at)) {
+    if (!isAdminPreview && (!grant || !isGrantActive(grant.granted_at, grant.expires_at))) {
       throw forbidden("Material indisponivel para este usuario")
     }
 
@@ -146,7 +147,9 @@ Deno.serve(async (req) => {
         .map((item) => item.lesson_id),
     )
 
-    const grantReleaseAt = new Date(grant.granted_at).getTime()
+    const grantReleaseAt = grant?.granted_at
+      ? new Date(grant.granted_at).getTime()
+      : Date.now()
 
     for (const module of orderedModules) {
       let locked = false

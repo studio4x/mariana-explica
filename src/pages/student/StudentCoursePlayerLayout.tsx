@@ -3,7 +3,7 @@ import { ArrowLeft, BookOpen, ClipboardCheck, PanelLeftClose, PlayCircle } from 
 import { useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { SiteAiPageEditorLauncher, StatusBadge } from "@/components/common"
 import { useDashboardProductContent } from "@/hooks/useDashboard"
 import {
   buildCoursePlayerEntries,
@@ -389,6 +389,7 @@ export function StudentCoursePlayerLayout() {
           <Outlet context={context} />
         </main>
       </div>
+      <SiteAiPageEditorLauncher />
     </div>
   )
 }

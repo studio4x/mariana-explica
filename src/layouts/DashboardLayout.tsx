@@ -8,7 +8,7 @@ import {
   User,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteBrandingManager, SiteLogo, SiteThemeManager, SiteTrackingManager } from "@/components/common"
+import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteAiPageEditorLauncher, SiteBrandingManager, SiteLogo, SiteThemeManager, SiteTrackingManager } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
@@ -72,7 +72,7 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 export function DashboardLayout() {
-  const { profile, signOut } = useAuth()
+  const { profile, isAdmin, signOut } = useAuth()
   const profilePreferencesQuery = useProfilePreferences()
   const unreadNotificationsQuery = useUnreadNotificationsCount()
   const notificationsQuery = useNotifications()
@@ -159,7 +159,9 @@ export function DashboardLayout() {
               )}
               <div className="min-w-0">
                 <p className="truncate font-black text-[#163138]">{displayName}</p>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1398B7]">Aluno</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1398B7]">
+                  {isAdmin ? "Admin em preview" : "Aluno"}
+                </p>
               </div>
             </div>
             {email ? (
@@ -228,6 +230,7 @@ export function DashboardLayout() {
         markAsReadPending={markAsRead.isPending}
         clearAllPending={markAllAsRead.isPending}
       />
+      <SiteAiPageEditorLauncher />
       <InstallPrompt />
     </div>
   )

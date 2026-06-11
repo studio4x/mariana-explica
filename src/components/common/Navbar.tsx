@@ -83,12 +83,20 @@ export function Navbar() {
           ) : (
             <>
               {isAdmin ? (
-                <Button asChild size="sm" className="rounded-full">
-                  <Link to={ROUTES.ADMIN}>
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    Operação
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild variant="ghost" size="sm" className="rounded-full">
+                    <Link to={ROUTES.DASHBOARD}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Área do Aluno
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className="rounded-full">
+                    <Link to={ROUTES.ADMIN}>
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Operação
+                    </Link>
+                  </Button>
+                </>
               ) : (
                 <Button asChild variant="ghost" size="sm" className="rounded-full">
                   <Link to={ROUTES.DASHBOARD}>
@@ -172,11 +180,18 @@ export function Navbar() {
               ) : (
                 <>
                   {isAdmin ? (
-                    <Button asChild className="w-full rounded-full">
-                      <Link to={ROUTES.ADMIN} onClick={closeMenu}>
-                        Painel admin
-                      </Link>
-                    </Button>
+                    <>
+                      <Button asChild variant="outline" className="w-full rounded-full">
+                        <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
+                          Área do Aluno
+                        </Link>
+                      </Button>
+                      <Button asChild className="w-full rounded-full">
+                        <Link to={ROUTES.ADMIN} onClick={closeMenu}>
+                          Painel admin
+                        </Link>
+                      </Button>
+                    </>
                   ) : (
                     <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>

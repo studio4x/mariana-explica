@@ -6,6 +6,14 @@ import { ROUTES, APP_NAME } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 
+function resolvePostLoginDestination(isAdmin: boolean, redirectPath: string) {
+  if (redirectPath.startsWith("/aluno")) {
+    return redirectPath
+  }
+
+  return isAdmin ? ROUTES.ADMIN : redirectPath
+}
+
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -23,12 +31,13 @@ export function Login() {
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState<string | null>(null)
 
   const redirectPath = resolveLoginRedirect(location.state, searchParams)
+  const destinationPath = resolvePostLoginDestination(isAdmin, redirectPath)
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
+      navigate(destinationPath, { replace: true })
     }
-  }, [isAdmin, isAuthenticated, navigate, redirectPath])
+  }, [destinationPath, isAuthenticated, navigate])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -47,7 +56,7 @@ export function Login() {
       return
     }
 
-    navigate(isAdmin ? ROUTES.ADMIN : redirectPath, { replace: true })
+    navigate(destinationPath, { replace: true })
   }
 
   const handleOpenForgotPassword = () => {
