@@ -105,6 +105,7 @@ export interface AdminBrandingConfig {
     logo_light: AdminBrandingAsset
     logo_dark: AdminBrandingAsset
     favicon: AdminBrandingAsset
+    footer_description: string
   }
   description: string | null
   is_public: boolean
@@ -274,6 +275,14 @@ export interface AdminAiPageEditorProposal {
   explanation: string
   warnings: string[]
   proposal: AdminAiPageEditorDraftProposal
+}
+
+export interface AdminAiFooterCopyProposal {
+  provider_used: AiPageEditorProvider
+  summary: string
+  explanation: string
+  warnings: string[]
+  footer_description: string
 }
 
 export type AdminAiPageEditorUsageAction = "generate_proposal" | "test_providers"

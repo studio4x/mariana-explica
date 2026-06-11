@@ -25,7 +25,7 @@ import type {
 import { AdminOperations } from "./AdminOperations"
 import { AdminSiteThemeSettings } from "./AdminSiteThemeSettings"
 
-type BrandingRole = keyof AdminBrandingConfig["config_value"]
+type BrandingRole = Exclude<keyof AdminBrandingConfig["config_value"], "footer_description">
 type SettingsTab = "branding" | "tracking" | "maintenance" | "legacy-editor" | "operations" | "site-theme"
 
 const assetCards: Array<{

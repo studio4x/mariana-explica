@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ClipboardEvent } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Bot, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
@@ -11,6 +12,12 @@ import {
 } from "@/hooks/useAdmin"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
 import { Button } from "@/components/ui"
+import { broadcastBrandingUpdate } from "./site-branding"
+import {
+  fetchAdminBrandingConfig,
+  generateAdminAiFooterCopyProposal,
+  updateAdminBrandingConfig,
+} from "@/services"
 import {
   readSitePagePreviewFromSearch,
   storeSitePagePreview,
@@ -20,6 +27,7 @@ import {
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
+import { APP_DESCRIPTION } from "@/lib/constants"
 import { getAiPageEditorRouteOption, isAiPageEditorAllowedPath } from "@/lib/ai-page-editor"
 import type { AdminAiPageEditorProposal, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 
@@ -94,8 +102,13 @@ function getChatRoleLabel(role: ChatMessage["role"]) {
   return "Sistema"
 }
 
+function messageTargetsGlobalFooter(message: string) {
+  return /\b(rodape|rodapé|footer)\b/i.test(message)
+}
+
 export function SiteAiPageEditorLauncher() {
   const { isAdmin, loading: authLoading } = useAuth()
+  const queryClient = useQueryClient()
   const configQuery = useAdminAiPageEditorConfig(isAdmin && !authLoading)
   const generateMutation = useGenerateAdminAiPageEditorProposal()
   const saveDraftMutation = useSaveAdminSitePageDraft()
@@ -103,6 +116,13 @@ export function SiteAiPageEditorLauncher() {
   const { routeOption, publicPageQuery, pathname, search } = useSupportedCurrentPage()
   const pageDetailQuery = useAdminSitePageDetail(isAdmin && !authLoading && Boolean(routeOption?.slug) ? String(routeOption?.slug) : undefined)
   const navigate = useNavigate()
+  const brandingQuery = useQuery({
+    queryKey: ["admin", "branding"],
+    queryFn: fetchAdminBrandingConfig,
+    enabled: isAdmin && !authLoading,
+    staleTime: 0,
+    refetchOnMount: "always",
+  })
 
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState("")
@@ -128,6 +148,8 @@ export function SiteAiPageEditorLauncher() {
     if (publicPageQuery.data?.version) return publicPageQuery.data.version
     return null
   }, [pageDetailQuery.data?.latest_draft, pageDetailQuery.data?.published_version, publicPageQuery.data?.version])
+
+  const footerDescription = brandingQuery.data?.config_value.footer_description?.trim() || APP_DESCRIPTION
 
   const canPersistDraft = Boolean(pageSlug && pageDetailQuery.data?.page)
 
@@ -402,6 +424,43 @@ export function SiteAiPageEditorLauncher() {
     ])
 
     try {
+      if (messageTargetsGlobalFooter(trimmedMessage)) {
+        if (!brandingQuery.data) {
+          throw new Error("Não foi possível carregar o branding global do site.")
+        }
+
+        const result = await generateAdminAiFooterCopyProposal({
+          title: routeOption?.label ?? document.title,
+          path: pathname,
+          message: trimmedMessage,
+          currentFooterText: footerDescription,
+        })
+
+        const updatedBranding = await updateAdminBrandingConfig({
+          ...brandingQuery.data.config_value,
+          footer_description: result.footer_description,
+        })
+
+        queryClient.setQueryData(["admin", "branding"], updatedBranding)
+        queryClient.setQueryData(["site", "branding"], updatedBranding)
+        broadcastBrandingUpdate(updatedBranding.updated_at)
+
+        setProposal(null)
+        setAwaitingImplementation(false)
+        setAttachments([])
+        setMessage("")
+        setMessages((current) => [
+          ...current,
+          {
+            id: uid("msg"),
+            role: "assistant",
+            text: `${result.summary}\n\n${result.explanation}\n\nO rodapé global foi atualizado e passa a valer em todas as páginas públicas.`,
+          },
+        ])
+        setFeedback("Rodapé global atualizado.")
+        return
+      }
+
       const result = await generateMutation.mutateAsync({
         slug: pageSlug ?? pathname,
         title: routeOption?.label ?? document.title,
@@ -577,41 +636,7 @@ export function SiteAiPageEditorLauncher() {
                 </div>
               ) : null}
 
-              {false && pageSlug && revisions.length > 0 ? (
-                <details className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                  <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
-                    <History className="h-4 w-4" />
-                    Revisões
-                  </summary>
-                  <div className="mt-3 space-y-2">
-                    {revisions.map((version) => {
-                      const isCurrent = version.id === currentVersionId
-                      return (
-                        <div key={version.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-950">Versão {version.version_number}</p>
-                              <p className="text-xs text-slate-500">
-                                {version.status} • {formatDateTime(version.created_at)}
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-8 rounded-full"
-                              onClick={() => void handleRestoreRevision(version)}
-                              disabled={isCurrent || saveDraftMutation.isPending}
-                            >
-                              <RotateCcw className="mr-2 h-3.5 w-3.5" />
-                              {isCurrent ? "Atual" : "Reverter"}
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </details>
-              ) : null}
+              {null}
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white px-3 py-3 shadow-sm">

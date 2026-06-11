@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
+import { fetchPublicBrandingConfig } from "@/services"
 import { BUILD_VERSION } from "@/lib/build"
 import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
 
@@ -31,6 +33,13 @@ export function FooterCopyright({ className = "" }: { className?: string }) {
 
 export function Footer() {
   const { isAdmin } = useAuth()
+  const brandingQuery = useQuery({
+    queryKey: ["site", "branding"],
+    queryFn: fetchPublicBrandingConfig,
+    staleTime: 0,
+    refetchOnMount: "always",
+  })
+  const footerDescription = brandingQuery.data?.config_value.footer_description?.trim() || APP_DESCRIPTION
 
   return (
     <footer className="border-t border-white/60 bg-[linear-gradient(180deg,#f5fbfd_0%,#eef7fb_100%)]">
@@ -38,7 +47,7 @@ export function Footer() {
         <div className="space-y-4">
           <div>
             <p className="font-display text-2xl font-bold text-slate-950">{APP_NAME}</p>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">{APP_DESCRIPTION}</p>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">{footerDescription}</p>
           </div>
           <p className="text-sm leading-7 text-slate-600">
             Uma experiência pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e

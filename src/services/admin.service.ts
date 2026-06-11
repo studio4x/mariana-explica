@@ -1,11 +1,12 @@
 import { supabase } from "@/integrations/supabase"
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
+import { APP_DESCRIPTION, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminCheckoutModeConfig,
   AdminAiPageEditorConfig,
   AdminAiPageEditorProviderTestResult,
   AdminAiPageEditorProposal,
+  AdminAiFooterCopyProposal,
   AdminAiPageEditorSecretStatus,
   AdminAiPageEditorUsageMetrics,
   AdminAffiliateReferralSummary,
@@ -403,6 +404,7 @@ function normalizeAdminBrandingConfig(
       logo_light: normalizeBrandingAsset(value.logo_light),
       logo_dark: normalizeBrandingAsset(value.logo_dark),
       favicon: normalizeBrandingAsset(value.favicon),
+      footer_description: String(value.footer_description ?? APP_DESCRIPTION).trim() || APP_DESCRIPTION,
     },
     description: row?.description ?? "Assets oficiais de branding usados nas Áreas pública, aluno e admin.",
     is_public: row?.is_public ?? true,
@@ -1838,6 +1840,30 @@ export async function generateAdminAiPageEditorProposal(input: {
   })
 
   return response
+}
+
+export async function generateAdminAiFooterCopyProposal(input: {
+  title: string
+  path: string
+  message: string
+  currentFooterText: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    provider_used: "gemini" | "openai"
+    summary: string
+    explanation: string
+    warnings: string[]
+    footer_description: string
+  }>("admin-ai-page-editor", {
+    action: "generate_footer_copy",
+    title: input.title,
+    path: input.path,
+    message: input.message,
+    currentFooterText: input.currentFooterText,
+  })
+
+  return response as AdminAiFooterCopyProposal
 }
 
 export async function fetchAdminSitePages() {
