@@ -4,7 +4,7 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody }
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 
-type Action = "get_config" | "update_config" | "test_providers" | "generate_proposal"
+type Action = "get_config" | "update_config" | "test_providers" | "generate_proposal" | "get_usage_metrics"
 
 interface AttachmentInput {
   name: string
@@ -15,6 +15,7 @@ interface AttachmentInput {
 
 interface Body {
   action: Action
+  periodDays?: number
   slug?: string
   title?: string
   path?: string
@@ -35,6 +36,102 @@ const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 const MAX_PROMPT_LENGTH = 24_000
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+const DEFAULT_USAGE_PERIOD_DAYS = 30
+const MAX_USAGE_PERIOD_DAYS = 365
+
+type AiProvider = "gemini" | "openai"
+type UsageAction = "generate_proposal" | "test_providers"
+
+interface ModelPricing {
+  input_per_million_usd: number
+  output_per_million_usd: number
+  source_label: string
+}
+
+interface UsageSnapshot {
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+}
+
+interface UsageEventRecord {
+  action: UsageAction
+  provider: AiProvider
+  model: string
+  user_id: string | null
+  slug: string | null
+  path: string | null
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  estimated_cost_usd: number | null
+  currency: "USD"
+  request_id: string
+  metadata: Record<string, unknown>
+}
+
+const MODEL_PRICING_CATALOG: Record<AiProvider, Array<{ match: RegExp; pricing: ModelPricing }>> = {
+  gemini: [
+    {
+      match: /^gemini-2\.0-flash(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 0.1,
+        output_per_million_usd: 0.4,
+        source_label: "Gemini 2.0 Flash Standard",
+      },
+    },
+    {
+      match: /^gemini-2\.5-flash-lite(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 0.1,
+        output_per_million_usd: 0.4,
+        source_label: "Gemini 2.5 Flash-Lite Standard",
+      },
+    },
+    {
+      match: /^gemini-2\.5-flash(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 0.3,
+        output_per_million_usd: 2.5,
+        source_label: "Gemini 2.5 Flash Standard",
+      },
+    },
+    {
+      match: /^gemini-2\.5-pro(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 1.25,
+        output_per_million_usd: 10,
+        source_label: "Gemini 2.5 Pro Standard",
+      },
+    },
+  ],
+  openai: [
+    {
+      match: /^gpt-4\.1-mini(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 0.4,
+        output_per_million_usd: 1.6,
+        source_label: "GPT-4.1 mini",
+      },
+    },
+    {
+      match: /^gpt-4\.1(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 2,
+        output_per_million_usd: 8,
+        source_label: "GPT-4.1",
+      },
+    },
+    {
+      match: /^gpt-4o-mini(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 0.15,
+        output_per_million_usd: 0.6,
+        source_label: "GPT-4o mini",
+      },
+    },
+  ],
+}
 
 const proposalSchema = {
   type: "object",
@@ -83,6 +180,46 @@ function normalizeStringArray(value: unknown) {
 
 function normalizeProvider(value: unknown) {
   return String(value ?? "").trim().toLowerCase() === "openai" ? "openai" : "gemini"
+}
+
+function normalizePeriodDays(value: unknown) {
+  return Math.max(1, Math.min(MAX_USAGE_PERIOD_DAYS, Number(value ?? DEFAULT_USAGE_PERIOD_DAYS) || DEFAULT_USAGE_PERIOD_DAYS))
+}
+
+function normalizeTokenCount(value: unknown) {
+  return Math.max(0, Math.round(Number(value ?? 0) || 0))
+}
+
+function roundUsd(value: number) {
+  return Math.round(value * 1_000_000) / 1_000_000
+}
+
+function getModelPricing(provider: AiProvider, model: string) {
+  const normalizedModel = normalizeString(model).toLowerCase()
+  return MODEL_PRICING_CATALOG[provider].find((entry) => entry.match.test(normalizedModel))?.pricing ?? null
+}
+
+function estimateUsageCostUsd(
+  provider: AiProvider,
+  model: string,
+  usage: UsageSnapshot,
+) {
+  const pricing = getModelPricing(provider, model)
+  if (!pricing) {
+    return {
+      estimated_cost_usd: null,
+      pricing_source: null,
+    }
+  }
+
+  const estimatedCostUsd =
+    (usage.input_tokens / 1_000_000) * pricing.input_per_million_usd +
+    (usage.output_tokens / 1_000_000) * pricing.output_per_million_usd
+
+  return {
+    estimated_cost_usd: roundUsd(estimatedCostUsd),
+    pricing_source: pricing.source_label,
+  }
 }
 
 function normalizeConfigValue(raw: unknown) {
@@ -573,6 +710,48 @@ function extractTextFromOpenAIResponse(payload: unknown) {
   return ""
 }
 
+function extractGeminiUsage(payload: unknown): UsageSnapshot {
+  if (!payload || typeof payload !== "object") {
+    return { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+  }
+
+  const usageMetadata =
+    "usageMetadata" in (payload as Record<string, unknown>) && typeof (payload as Record<string, unknown>).usageMetadata === "object"
+      ? ((payload as Record<string, unknown>).usageMetadata as Record<string, unknown>)
+      : {}
+
+  const input_tokens = normalizeTokenCount(usageMetadata.promptTokenCount)
+  const output_tokens = normalizeTokenCount(usageMetadata.candidatesTokenCount)
+  const total_tokens = normalizeTokenCount(usageMetadata.totalTokenCount) || input_tokens + output_tokens
+
+  return {
+    input_tokens,
+    output_tokens,
+    total_tokens,
+  }
+}
+
+function extractOpenAIUsage(payload: unknown): UsageSnapshot {
+  if (!payload || typeof payload !== "object") {
+    return { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+  }
+
+  const usage =
+    "usage" in (payload as Record<string, unknown>) && typeof (payload as Record<string, unknown>).usage === "object"
+      ? ((payload as Record<string, unknown>).usage as Record<string, unknown>)
+      : {}
+
+  const input_tokens = normalizeTokenCount(usage.input_tokens)
+  const output_tokens = normalizeTokenCount(usage.output_tokens)
+  const total_tokens = normalizeTokenCount(usage.total_tokens) || input_tokens + output_tokens
+
+  return {
+    input_tokens,
+    output_tokens,
+    total_tokens,
+  }
+}
+
 function readResponseErrorMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") return fallback
   const record = payload as Record<string, unknown>
@@ -676,6 +855,178 @@ async function writeSecret(
 
   if (error) {
     throw error
+  }
+}
+
+async function recordUsageEvent(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  event: UsageEventRecord,
+) {
+  const { error } = await serviceClient.from("ai_page_editor_usage_events").insert(event)
+  if (error) {
+    throw error
+  }
+}
+
+async function readUsageMetrics(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  periodDays: number,
+) {
+  const sinceIso = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await serviceClient
+    .from("ai_page_editor_usage_events")
+    .select(
+      "id,action,provider,model,slug,path,input_tokens,output_tokens,total_tokens,estimated_cost_usd,currency,request_id,metadata,created_at",
+    )
+    .gte("created_at", sinceIso)
+    .order("created_at", { ascending: false })
+    .limit(1000)
+
+  if (error) {
+    throw error
+  }
+
+  const events = Array.isArray(data)
+    ? data
+        .filter((item) => item && typeof item === "object")
+        .map((item) => item as Record<string, unknown>)
+    : []
+
+  const summary = {
+    period_days: periodDays,
+    currency: "USD" as const,
+    total_requests: 0,
+    total_generate_requests: 0,
+    total_test_requests: 0,
+    total_input_tokens: 0,
+    total_output_tokens: 0,
+    total_tokens: 0,
+    total_estimated_cost_usd: 0,
+    priced_requests: 0,
+    unpriced_requests: 0,
+    last_event_at: null as string | null,
+  }
+
+  const breakdownMap = new Map<
+    string,
+    {
+      provider: AiProvider
+      model: string
+      action: UsageAction
+      requests: number
+      input_tokens: number
+      output_tokens: number
+      total_tokens: number
+      estimated_cost_usd: number
+      priced_requests: number
+      unpriced_requests: number
+      last_event_at: string | null
+    }
+  >()
+
+  const recent_events = events.slice(0, 20).map((event) => ({
+    id: normalizeString(event.id),
+    created_at: normalizeString(event.created_at),
+    action: normalizeString(event.action) === "test_providers" ? "test_providers" : "generate_proposal",
+    provider: normalizeProvider(event.provider) as AiProvider,
+    model: normalizeString(event.model),
+    slug: normalizeString(event.slug) || null,
+    path: normalizeString(event.path) || null,
+    input_tokens: normalizeTokenCount(event.input_tokens),
+    output_tokens: normalizeTokenCount(event.output_tokens),
+    total_tokens: normalizeTokenCount(event.total_tokens),
+    estimated_cost_usd:
+      event.estimated_cost_usd === null || event.estimated_cost_usd === undefined
+        ? null
+        : roundUsd(Number(event.estimated_cost_usd) || 0),
+    currency: normalizeString(event.currency, "USD"),
+    request_id: normalizeString(event.request_id) || null,
+    metadata:
+      event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+        ? (event.metadata as Record<string, unknown>)
+        : {},
+  }))
+
+  for (const event of events) {
+    const provider = normalizeProvider(event.provider) as AiProvider
+    const action = normalizeString(event.action) === "test_providers" ? "test_providers" : "generate_proposal"
+    const model = normalizeString(event.model)
+    const inputTokens = normalizeTokenCount(event.input_tokens)
+    const outputTokens = normalizeTokenCount(event.output_tokens)
+    const totalTokens = normalizeTokenCount(event.total_tokens)
+    const estimatedCostUsd =
+      event.estimated_cost_usd === null || event.estimated_cost_usd === undefined
+        ? null
+        : roundUsd(Number(event.estimated_cost_usd) || 0)
+    const createdAt = normalizeString(event.created_at) || null
+
+    summary.total_requests += 1
+    summary.total_input_tokens += inputTokens
+    summary.total_output_tokens += outputTokens
+    summary.total_tokens += totalTokens
+    if (action === "generate_proposal") {
+      summary.total_generate_requests += 1
+    } else {
+      summary.total_test_requests += 1
+    }
+    if (estimatedCostUsd === null) {
+      summary.unpriced_requests += 1
+    } else {
+      summary.priced_requests += 1
+      summary.total_estimated_cost_usd = roundUsd(summary.total_estimated_cost_usd + estimatedCostUsd)
+    }
+    if (!summary.last_event_at || (createdAt && createdAt > summary.last_event_at)) {
+      summary.last_event_at = createdAt
+    }
+
+    const key = `${provider}:${model}:${action}`
+    const current =
+      breakdownMap.get(key) ?? {
+        provider,
+        model,
+        action,
+        requests: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost_usd: 0,
+        priced_requests: 0,
+        unpriced_requests: 0,
+        last_event_at: null,
+      }
+
+    current.requests += 1
+    current.input_tokens += inputTokens
+    current.output_tokens += outputTokens
+    current.total_tokens += totalTokens
+    if (estimatedCostUsd === null) {
+      current.unpriced_requests += 1
+    } else {
+      current.priced_requests += 1
+      current.estimated_cost_usd = roundUsd(current.estimated_cost_usd + estimatedCostUsd)
+    }
+    if (!current.last_event_at || (createdAt && createdAt > current.last_event_at)) {
+      current.last_event_at = createdAt
+    }
+
+    breakdownMap.set(key, current)
+  }
+
+  const breakdown = Array.from(breakdownMap.values()).sort((left, right) => {
+    if (right.estimated_cost_usd !== left.estimated_cost_usd) {
+      return right.estimated_cost_usd - left.estimated_cost_usd
+    }
+    return right.requests - left.requests
+  })
+
+  return {
+    summary,
+    breakdown,
+    recent_events,
+    pricing_reference: {
+      currency: "USD" as const,
+      source: "Tabela interna baseada nos preÃ§os oficiais dos provedores para tokens de entrada e saÃ­da.",
+    },
   }
 }
 
@@ -1066,7 +1417,7 @@ async function getProviderSecrets(serviceClient: ReturnType<typeof createService
 }
 
 async function testProviderByName(input: {
-  provider: "gemini" | "openai"
+  provider: AiProvider
   model: string
   apiKey: string | null
 }) {
@@ -1095,6 +1446,7 @@ async function testProviderByName(input: {
         ok: Boolean(parsed && typeof parsed === "object"),
         status: "ok" as const,
         message: "Gemini respondeu com sucesso",
+        usage: extractGeminiUsage(result.raw),
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha desconhecida no Gemini"
@@ -1102,6 +1454,7 @@ async function testProviderByName(input: {
         ok: false,
         status: isQuotaExceededErrorMessage(message) ? "quota_exceeded" : "error",
         message,
+        usage: null,
       }
     }
   }
@@ -1119,6 +1472,7 @@ async function testProviderByName(input: {
       ok: Boolean(parsed && typeof parsed === "object"),
       status: "ok" as const,
       message: "OpenAI respondeu com sucesso",
+      usage: extractOpenAIUsage(result.raw),
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha desconhecida no OpenAI"
@@ -1126,6 +1480,7 @@ async function testProviderByName(input: {
       ok: false,
       status: isQuotaExceededErrorMessage(message) ? "quota_exceeded" : "error",
       message,
+      usage: null,
     }
   }
 }
@@ -1236,6 +1591,28 @@ Deno.serve(async (req) => {
           message: result.message,
         })
         outcomes.push(`${provider.provider}: ${result.message}`)
+
+        if (result.ok && result.usage) {
+          const pricing = estimateUsageCostUsd(provider.provider, provider.model, result.usage)
+          await recordUsageEvent(serviceClient, {
+            action: "test_providers",
+            provider: provider.provider,
+            model: provider.model,
+            user_id: context.user.id,
+            slug: null,
+            path: null,
+            input_tokens: result.usage.input_tokens,
+            output_tokens: result.usage.output_tokens,
+            total_tokens: result.usage.total_tokens,
+            estimated_cost_usd: pricing.estimated_cost_usd,
+            currency: "USD",
+            request_id: requestId,
+            metadata: {
+              pricing_source: pricing.pricing_source,
+              result_status: result.status,
+            },
+          })
+        }
       }
 
       const anyQuotaIssue = providerResults.some((item) => item.status === "quota_exceeded")
@@ -1265,6 +1642,17 @@ Deno.serve(async (req) => {
         summary,
         provider_results: providerResults,
         secret_status: secrets.secret_status,
+      })
+    }
+
+    if (body.action === "get_usage_metrics") {
+      const periodDays = normalizePeriodDays(body.periodDays)
+      const metrics = await readUsageMetrics(serviceClient, periodDays)
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        ...metrics,
       })
     }
 
@@ -1344,7 +1732,9 @@ Deno.serve(async (req) => {
 
       let lastError: unknown = null
       let rawText = ""
-      let providerUsed: "gemini" | "openai" | null = null
+      let providerUsed: AiProvider | null = null
+      let modelUsed = ""
+      let rawPayload: unknown = null
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
@@ -1372,6 +1762,8 @@ Deno.serve(async (req) => {
 
           rawText = result.text
           providerUsed = candidate.provider
+          modelUsed = candidate.model
+          rawPayload = result.raw
           lastError = null
           break
         } catch (error) {
@@ -1390,6 +1782,43 @@ Deno.serve(async (req) => {
         currentLayoutJson,
         currentStyleJson,
       })
+
+      const usage =
+        providerUsed === "gemini"
+          ? extractGeminiUsage(rawPayload)
+          : providerUsed === "openai"
+            ? extractOpenAIUsage(rawPayload)
+            : { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+      const pricing =
+        providerUsed
+          ? estimateUsageCostUsd(
+              providerUsed,
+              modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+              usage,
+            )
+          : null
+
+      if (providerUsed) {
+        await recordUsageEvent(serviceClient, {
+          action: "generate_proposal",
+          provider: providerUsed,
+          model: modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+          user_id: context.user.id,
+          slug,
+          path,
+          input_tokens: usage.input_tokens,
+          output_tokens: usage.output_tokens,
+          total_tokens: usage.total_tokens,
+          estimated_cost_usd: pricing?.estimated_cost_usd ?? null,
+          currency: "USD",
+          request_id: requestId,
+          metadata: {
+            attachment_count: validAttachments.length,
+            require_confirmation: config.config_value.require_confirmation,
+            pricing_source: pricing?.pricing_source ?? null,
+          },
+        })
+      }
 
       await writeAuditLog(serviceClient, context, {
         action: "admin.ai_page_editor_proposal_generated",

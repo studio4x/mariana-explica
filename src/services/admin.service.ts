@@ -7,6 +7,7 @@ import type {
   AdminAiPageEditorProviderTestResult,
   AdminAiPageEditorProposal,
   AdminAiPageEditorSecretStatus,
+  AdminAiPageEditorUsageMetrics,
   AdminAffiliateReferralSummary,
   AdminAffiliateSummary,
   AdminDashboardOverview,
@@ -1786,6 +1787,19 @@ export async function testAdminAiPageEditorProviders() {
     secret_status: AdminAiPageEditorSecretStatus
   }>("admin-ai-page-editor", {
     action: "test_providers",
+  })
+}
+
+export async function fetchAdminAiPageEditorUsageMetrics(periodDays = 30) {
+  return await invokeAdminFunction<{
+    success: true
+    summary: AdminAiPageEditorUsageMetrics["summary"]
+    breakdown: AdminAiPageEditorUsageMetrics["breakdown"]
+    recent_events: AdminAiPageEditorUsageMetrics["recent_events"]
+    pricing_reference: AdminAiPageEditorUsageMetrics["pricing_reference"]
+  }>("admin-ai-page-editor", {
+    action: "get_usage_metrics",
+    periodDays,
   })
 }
 

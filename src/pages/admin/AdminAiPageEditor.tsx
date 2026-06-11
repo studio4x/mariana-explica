@@ -5,6 +5,7 @@ import { Button } from "@/components/ui"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import {
   useAdminAiPageEditorConfig,
+  useAdminAiPageEditorUsageMetrics,
   useTestAdminAiPageEditorProviders,
   useUpdateAdminAiPageEditorConfig,
 } from "@/hooks/useAdmin"
@@ -12,7 +13,11 @@ import {
   AI_PAGE_EDITOR_ROUTE_OPTIONS,
 } from "@/lib/ai-page-editor"
 import { ROUTES } from "@/lib/constants"
-import type { AdminAiPageEditorConfig, AdminAiPageEditorProviderTestResult } from "@/types/app.types"
+import type {
+  AdminAiPageEditorConfig,
+  AdminAiPageEditorProviderTestResult,
+  AdminAiPageEditorUsageAction,
+} from "@/types/app.types"
 
 type AllowedPathState = {
   path: string
@@ -31,8 +36,34 @@ function mergeAllowedPaths(current: AllowedPathState[], nextPath: string) {
   return [...current, { path: normalized, label: normalized, preset: false }]
 }
 
+const numberFormatter = new Intl.NumberFormat("pt-PT")
+const currencyFormatter = new Intl.NumberFormat("pt-PT", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+})
+
+function formatUsageActionLabel(action: AdminAiPageEditorUsageAction) {
+  return action === "test_providers" ? "Teste de provedor" : "Pedido do editor"
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Sem registo"
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return "Sem registo"
+  return new Date(parsed).toLocaleString("pt-PT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
 export function AdminAiPageEditor() {
   const query = useAdminAiPageEditorConfig()
+  const usageQuery = useAdminAiPageEditorUsageMetrics(30)
   const updateMutation = useUpdateAdminAiPageEditorConfig()
   const testMutation = useTestAdminAiPageEditorProviders()
   const [allowedPaths, setAllowedPaths] = useState<AllowedPathState[]>([])
@@ -55,6 +86,7 @@ export function AdminAiPageEditor() {
   const [providerTestResults, setProviderTestResults] = useState<AdminAiPageEditorProviderTestResult[]>([])
 
   const config = query.data
+  const usageMetrics = usageQuery.data
   const secretStatus = config?.secret_status ?? {
     gemini_api_key_present: false,
     openai_api_key_present: false,
@@ -161,6 +193,7 @@ export function AdminAiPageEditor() {
       const result = await testMutation.mutateAsync()
       setProviderTestOutput(result.summary ?? result.details)
       setProviderTestResults(result.provider_results ?? [])
+      void usageQuery.refetch()
 
       const hasWarnings = (result.provider_results ?? []).some(
         (item) => item.status === "quota_exceeded" || item.status === "missing_key",
@@ -509,6 +542,188 @@ export function AdminAiPageEditor() {
             </Button>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Utilização e custos</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Monitoriza o consumo do editor via IA nos últimos 30 dias, com tokens, pedidos e custo estimado por modelo.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusBadge label="Janela de 30 dias" tone="neutral" />
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => void usageQuery.refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Atualizar métricas
+            </Button>
+          </div>
+        </div>
+
+        {usageQuery.isLoading ? (
+          <LoadingState message="A carregar métricas de utilização do editor via IA..." />
+        ) : usageQuery.isError ? (
+          <ErrorState
+            title="Não foi possível carregar a utilização do editor via IA"
+            message={usageQuery.error instanceof Error ? usageQuery.error.message : "Tenta novamente dentro de instantes."}
+            onRetry={() => void usageQuery.refetch()}
+          />
+        ) : usageMetrics ? (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Pedidos</p>
+                <p className="mt-3 text-2xl font-bold text-slate-950">{numberFormatter.format(usageMetrics.summary.total_requests)}</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {numberFormatter.format(usageMetrics.summary.total_generate_requests)} do editor e{" "}
+                  {numberFormatter.format(usageMetrics.summary.total_test_requests)} testes.
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Custo estimado</p>
+                <p className="mt-3 text-2xl font-bold text-slate-950">{currencyFormatter.format(usageMetrics.summary.total_estimated_cost_usd)}</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {numberFormatter.format(usageMetrics.summary.priced_requests)} pedido(s) com tabela de preço conhecida.
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Tokens de entrada</p>
+                <p className="mt-3 text-2xl font-bold text-slate-950">{numberFormatter.format(usageMetrics.summary.total_input_tokens)}</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Saída: {numberFormatter.format(usageMetrics.summary.total_output_tokens)} tokens.
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Última atividade</p>
+                <p className="mt-3 text-lg font-bold text-slate-950">{formatDateTime(usageMetrics.summary.last_event_at)}</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Total analisado: {numberFormatter.format(usageMetrics.summary.total_tokens)} tokens.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm leading-6 text-slate-600">
+                {usageMetrics.pricing_reference.source}
+              </p>
+              {usageMetrics.summary.unpriced_requests > 0 ? (
+                <p className="mt-2 text-sm font-medium text-amber-800">
+                  {numberFormatter.format(usageMetrics.summary.unpriced_requests)} pedido(s) ficaram sem custo estimado porque o modelo usado ainda não tem preço mapeado nesta tela.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-950">Breakdown por modelo</h3>
+                    <p className="text-sm text-slate-600">Agrupado por provedor, modelo e tipo de ação.</p>
+                  </div>
+                  <StatusBadge
+                    label={`${numberFormatter.format(usageMetrics.breakdown.length)} combinações`}
+                    tone={usageMetrics.breakdown.length > 0 ? "success" : "neutral"}
+                  />
+                </div>
+
+                {usageMetrics.breakdown.length > 0 ? (
+                  <div className="space-y-3">
+                    {usageMetrics.breakdown.map((item) => (
+                      <div key={`${item.provider}-${item.model}-${item.action}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">
+                              {item.provider === "gemini" ? "Gemini" : "OpenAI"} · {item.model}
+                            </p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{formatUsageActionLabel(item.action)}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-700">{currencyFormatter.format(item.estimated_cost_usd)}</p>
+                        </div>
+
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Pedidos</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{numberFormatter.format(item.requests)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Entrada</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{numberFormatter.format(item.input_tokens)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Saída</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{numberFormatter.format(item.output_tokens)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Sem preço</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{numberFormatter.format(item.unpriced_requests)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    Ainda não há registos de utilização do editor via IA nesta janela.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-950">Atividade recente</h3>
+                    <p className="text-sm text-slate-600">Últimos pedidos e testes registados pelo backend.</p>
+                  </div>
+                  <StatusBadge
+                    label={`${numberFormatter.format(usageMetrics.recent_events.length)} itens`}
+                    tone={usageMetrics.recent_events.length > 0 ? "success" : "neutral"}
+                  />
+                </div>
+
+                {usageMetrics.recent_events.length > 0 ? (
+                  <div className="space-y-3">
+                    {usageMetrics.recent_events.map((event) => (
+                      <div key={event.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">{formatUsageActionLabel(event.action)}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {event.provider === "gemini" ? "Gemini" : "OpenAI"} · {event.model}
+                            </p>
+                          </div>
+                          <p className="text-xs font-medium text-slate-500">{formatDateTime(event.created_at)}</p>
+                        </div>
+
+                        <div className="mt-3 space-y-1 text-sm text-slate-600">
+                          <p>Rota: {event.path ?? "n/d"}</p>
+                          <p>Página: {event.slug ?? "n/d"}</p>
+                          <p>
+                            Tokens: {numberFormatter.format(event.total_tokens)}{" "}
+                            <span className="text-slate-400">
+                              ({numberFormatter.format(event.input_tokens)} entrada / {numberFormatter.format(event.output_tokens)} saída)
+                            </span>
+                          </p>
+                          <p>
+                            Custo:{" "}
+                            {event.estimated_cost_usd === null ? "n/d" : currencyFormatter.format(event.estimated_cost_usd)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    Ainda não há atividade recente para mostrar.
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        ) : null}
       </section>
 
       <section className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">

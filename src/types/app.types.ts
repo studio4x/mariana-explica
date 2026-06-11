@@ -276,6 +276,64 @@ export interface AdminAiPageEditorProposal {
   proposal: AdminAiPageEditorDraftProposal
 }
 
+export type AdminAiPageEditorUsageAction = "generate_proposal" | "test_providers"
+
+export interface AdminAiPageEditorUsageSummary {
+  period_days: number
+  currency: "USD"
+  total_requests: number
+  total_generate_requests: number
+  total_test_requests: number
+  total_input_tokens: number
+  total_output_tokens: number
+  total_tokens: number
+  total_estimated_cost_usd: number
+  priced_requests: number
+  unpriced_requests: number
+  last_event_at: string | null
+}
+
+export interface AdminAiPageEditorUsageBreakdownItem {
+  provider: AiPageEditorProvider
+  model: string
+  action: AdminAiPageEditorUsageAction
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  estimated_cost_usd: number
+  priced_requests: number
+  unpriced_requests: number
+  last_event_at: string | null
+}
+
+export interface AdminAiPageEditorUsageRecentItem {
+  id: string
+  created_at: string
+  action: AdminAiPageEditorUsageAction
+  provider: AiPageEditorProvider
+  model: string
+  slug: string | null
+  path: string | null
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  estimated_cost_usd: number | null
+  currency: string
+  request_id: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface AdminAiPageEditorUsageMetrics {
+  summary: AdminAiPageEditorUsageSummary
+  breakdown: AdminAiPageEditorUsageBreakdownItem[]
+  recent_events: AdminAiPageEditorUsageRecentItem[]
+  pricing_reference: {
+    currency: "USD"
+    source: string
+  }
+}
+
 export type SitePageSlug = "home" | "sobre" | "privacidade" | "cookies" | "termos"
 
 export interface AdminSitePageSummary {

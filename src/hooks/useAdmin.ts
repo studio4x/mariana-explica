@@ -29,6 +29,7 @@ import {
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
   fetchAdminAiPageEditorConfig,
+  fetchAdminAiPageEditorUsageMetrics,
   fetchAdminLegacyPageEditorConfig,
   fetchAdminEmailStatus,
   fetchAdminModulePdfWatermarkConfig,
@@ -266,6 +267,15 @@ export function useAdminAiPageEditorConfig(enabled = true) {
   return useQuery({
     queryKey: ["admin", "ai-page-editor"],
     queryFn: fetchAdminAiPageEditorConfig,
+    enabled,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminAiPageEditorUsageMetrics(periodDays = 30, enabled = true) {
+  return useQuery({
+    queryKey: ["admin", "ai-page-editor", "usage-metrics", periodDays],
+    queryFn: () => fetchAdminAiPageEditorUsageMetrics(periodDays),
     enabled,
     ...getAdminQueryOptions(),
   })
