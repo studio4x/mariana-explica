@@ -35,7 +35,6 @@ const OPENAI_SECRET_NAME = "mariana_explica_ai_openai_api_key"
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 const MAX_PROMPT_LENGTH = 24_000
-const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
 const DEFAULT_USAGE_PERIOD_DAYS = 30
 const MAX_USAGE_PERIOD_DAYS = 365
 
@@ -315,9 +314,39 @@ function extractQuotedTextReplacement(message: string) {
   return null
 }
 
+function extractQuotedTextInsertion(message: string) {
+  const normalized = normalizeMessageForParsing(message)
+  const patterns = [
+    /(?:insira|adicione|acrescente|coloque|inclua|introduza)\s+(?:um|uma|o|a)?\s+"([^"]+)"\s+(?:ao|no)\s+(final|fim|in[ií]cio|come[cç]o)\s+(?:do\s+)?texto\s+"([^"]+)"/i,
+    /(?:insira|adicione|acrescente|coloque|inclua|introduza)\s+(?:um|uma|o|a)?\s+'([^']+)'\s+(?:ao|no)\s+(final|fim|in[ií]cio|come[cç]o)\s+(?:do\s+)?texto\s+'([^']+)'/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern)
+    if (!match) continue
+
+    const insertion = normalizeString(match[1])
+    const position = normalizeString(match[2]).toLowerCase()
+    const target = normalizeString(match[3])
+    if (!insertion || !target) continue
+
+    const to = position === "inicio" || position === "início" || position === "comeco" || position === "começo"
+      ? `${insertion}${target}`
+      : `${target}${insertion}`
+
+    return { from: target, to }
+  }
+
+  return null
+}
+
+function extractTextEditReplacement(message: string) {
+  return extractQuotedTextReplacement(message) ?? extractQuotedTextInsertion(message)
+}
+
 function isTextOnlyEditRequest(message: string) {
   const normalized = normalizeMessageForParsing(message).toLowerCase()
-  if (extractQuotedTextReplacement(message)) return true
+  if (extractTextEditReplacement(message)) return true
 
   const textKeywords = [
     "texto",
@@ -397,6 +426,14 @@ function extractBlocksFromLayoutJson(layoutJson: Record<string, unknown>) {
     return record.blocks
       .filter((item) => item && typeof item === "object" && !Array.isArray(item))
       .map((item) => item as Record<string, unknown>)
+  }
+
+  const htmlFromRecord = typeof record.html === "string" ? record.html.trim() : ""
+  const htmlFromProjectData = projectData && typeof projectData.html === "string" ? String(projectData.html).trim() : ""
+  const html = htmlFromRecord || htmlFromProjectData
+
+  if (html) {
+    return [buildFallbackRichTextBlock(html)]
   }
 
   return null
@@ -1351,7 +1388,7 @@ function stabilizeProposalForSafeApplication(input: {
   currentLayoutJson: Record<string, unknown>
   currentStyleJson: Record<string, unknown>
 }) {
-  const textReplacement = extractQuotedTextReplacement(input.message)
+  const textReplacement = extractTextEditReplacement(input.message)
   const textOnlyRequest = isTextOnlyEditRequest(input.message)
   const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
 
