@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { DragEvent, FocusEvent } from "react"
+import type { DragEvent, FocusEvent, ReactNode } from "react"
 import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { Link, Navigate, useBlocker, useSearchParams } from "react-router-dom"
@@ -85,7 +85,7 @@ function InspectorCollapsibleGroup({
   title: string
   description?: string
   defaultOpen?: boolean
-  children: any
+  children: ReactNode
 }) {
   return (
     <details open={defaultOpen} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -476,7 +476,7 @@ function getHtmlForBlockInsertion(block: PageBlock): string {
     return `<a href="${escapeHtmlAttribute(block.href)}"${targetAttr} style="text-decoration:none;font-weight:800;${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtmlAttribute(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtmlAttribute(block.backgroundColor)};color:${escapeHtmlAttribute(block.textColor)};padding:${block.paddingY}px ${block.paddingX}px;font-size:${block.fontSize}px;text-transform:${textTransform};letter-spacing:${letterSpacing};">${escapeHtmlAttribute(block.label)}</a>`
   }
   if (block.type === "divider") {
-    return `<hr style="border-color:${escapeHtmlAttribute(block.color)};" />`
+    return `<div role="separator" aria-hidden="true" style="width:100%;height:1px;background:${escapeHtmlAttribute(block.color)};"></div>`
   }
   if (block.type === "spacer") {
     return `<div style="height:${block.height}px"></div>`

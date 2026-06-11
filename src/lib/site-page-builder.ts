@@ -1546,7 +1546,7 @@ function renderSingleBlockToHtml(block: PageBlock): string {
       }
 
       if (block.type === "divider") {
-        return `<hr style="border:0;border-top:1px solid ${escapeHtml(block.color)};" />`
+        return `<div role="separator" aria-hidden="true" style="width:100%;height:1px;background:${escapeHtml(block.color)};"></div>`
       }
 
       if (block.type === "spacer") {
