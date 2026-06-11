@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700;800&family=Lora:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Merriweather:wght@400;700&family=Montserrat:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Playfair+Display:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -30,6 +30,93 @@
   --input: 201 28% 84%;
   --ring: 236 28% 21%;
   --radius: 1rem;
+  --site-page-background: #f4fbfd;
+  --site-surface-background: #ffffff;
+  --site-border-color: #d8e6eb;
+  --site-heading-color: #15323b;
+  --site-body-color: #5f7077;
+  --site-muted-color: #7b8b92;
+  --site-link-color: #1398b7;
+  --site-link-hover-color: #0a3640;
+  --site-selection-background: #dff2f8;
+  --site-selection-foreground: #15323b;
+  --site-h1-font-family: "Arvo", Georgia, serif;
+  --site-h1-font-size: 3.5rem;
+  --site-h1-font-weight: 700;
+  --site-h1-line-height: 1.1;
+  --site-h1-letter-spacing: -0.02em;
+  --site-h1-text-transform: none;
+  --site-h1-color: var(--site-heading-color);
+  --site-h2-font-family: "Arvo", Georgia, serif;
+  --site-h2-font-size: 3rem;
+  --site-h2-font-weight: 700;
+  --site-h2-line-height: 1.15;
+  --site-h2-letter-spacing: -0.02em;
+  --site-h2-text-transform: none;
+  --site-h2-color: var(--site-heading-color);
+  --site-h3-font-family: "Arvo", Georgia, serif;
+  --site-h3-font-size: 2.25rem;
+  --site-h3-font-weight: 700;
+  --site-h3-line-height: 1.2;
+  --site-h3-letter-spacing: -0.02em;
+  --site-h3-text-transform: none;
+  --site-h3-color: var(--site-heading-color);
+  --site-h4-font-family: "Arvo", Georgia, serif;
+  --site-h4-font-size: 1.75rem;
+  --site-h4-font-weight: 700;
+  --site-h4-line-height: 1.25;
+  --site-h4-letter-spacing: -0.01em;
+  --site-h4-text-transform: none;
+  --site-h4-color: var(--site-heading-color);
+  --site-h5-font-family: "Arvo", Georgia, serif;
+  --site-h5-font-size: 1.375rem;
+  --site-h5-font-weight: 700;
+  --site-h5-line-height: 1.3;
+  --site-h5-letter-spacing: -0.01em;
+  --site-h5-text-transform: none;
+  --site-h5-color: var(--site-heading-color);
+  --site-h6-font-family: "Arvo", Georgia, serif;
+  --site-h6-font-size: 1.125rem;
+  --site-h6-font-weight: 700;
+  --site-h6-line-height: 1.35;
+  --site-h6-letter-spacing: 0;
+  --site-h6-text-transform: none;
+  --site-h6-color: var(--site-heading-color);
+  --site-paragraph-font-family: "Inter", system-ui, sans-serif;
+  --site-paragraph-font-size: 1rem;
+  --site-paragraph-font-weight: 400;
+  --site-paragraph-line-height: 1.7;
+  --site-paragraph-letter-spacing: 0;
+  --site-paragraph-text-transform: none;
+  --site-paragraph-color: var(--site-body-color);
+  --site-list-item-font-family: "Inter", system-ui, sans-serif;
+  --site-list-item-font-size: 1rem;
+  --site-list-item-font-weight: 400;
+  --site-list-item-line-height: 1.7;
+  --site-list-item-letter-spacing: 0;
+  --site-list-item-text-transform: none;
+  --site-list-item-color: var(--site-body-color);
+  --site-link-font-family: "Inter", system-ui, sans-serif;
+  --site-link-font-size: 1rem;
+  --site-link-font-weight: 600;
+  --site-link-line-height: 1.7;
+  --site-link-letter-spacing: 0;
+  --site-link-text-transform: none;
+  --site-link-color-rule: var(--site-link-color);
+  --site-label-font-family: "Inter", system-ui, sans-serif;
+  --site-label-font-size: 0.875rem;
+  --site-label-font-weight: 600;
+  --site-label-line-height: 1.45;
+  --site-label-letter-spacing: 0.01em;
+  --site-label-text-transform: none;
+  --site-label-color: var(--site-muted-color);
+  --site-small-font-family: "Inter", system-ui, sans-serif;
+  --site-small-font-size: 0.875rem;
+  --site-small-font-weight: 500;
+  --site-small-line-height: 1.5;
+  --site-small-letter-spacing: 0.01em;
+  --site-small-text-transform: none;
+  --site-small-color: var(--site-muted-color);
   color: hsl(var(--foreground));
   background-color: hsl(var(--background));
   font-family: Inter, system-ui, sans-serif;
@@ -67,19 +154,17 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(36, 39, 66, 0.08), transparent 28%),
-    linear-gradient(180deg, #f4fbfd 0%, #ecf7fb 52%, #ffffff 100%);
-  color: hsl(var(--foreground));
+  background: var(--site-page-background);
+  color: var(--site-body-color);
 }
 
 a {
-  color: inherit;
+  color: var(--site-link-color);
   text-decoration: none;
 }
 
 * {
-  border-color: hsl(var(--border));
+  border-color: var(--site-border-color);
 }
 
 *,
@@ -106,7 +191,8 @@ textarea {
 }
 
 ::selection {
-  background: rgba(36, 39, 66, 0.16);
+  background: var(--site-selection-background);
+  color: var(--site-selection-foreground);
 }
 
 @layer base {
@@ -116,8 +202,7 @@ textarea {
   h4,
   h5,
   h6 {
-    font-family: "Arvo", Georgia, serif;
-    letter-spacing: -0.02em;
+    color: var(--site-heading-color);
   }
 }
 
@@ -198,7 +283,7 @@ textarea {
   .rich-text-editor a,
   .rich-text-editor-quill .ql-editor a,
   .rich-text-content a {
-    color: rgb(3 105 161);
+    color: var(--site-link-color);
     text-decoration: underline;
   }
 
@@ -225,4 +310,118 @@ textarea {
     content: "—";
     color: rgb(148 163 184);
   }
+}
+
+h1 {
+  font-family: var(--site-h1-font-family);
+  font-size: var(--site-h1-font-size);
+  font-weight: var(--site-h1-font-weight);
+  line-height: var(--site-h1-line-height);
+  letter-spacing: var(--site-h1-letter-spacing);
+  text-transform: var(--site-h1-text-transform);
+  color: var(--site-h1-color);
+}
+
+h2 {
+  font-family: var(--site-h2-font-family);
+  font-size: var(--site-h2-font-size);
+  font-weight: var(--site-h2-font-weight);
+  line-height: var(--site-h2-line-height);
+  letter-spacing: var(--site-h2-letter-spacing);
+  text-transform: var(--site-h2-text-transform);
+  color: var(--site-h2-color);
+}
+
+h3 {
+  font-family: var(--site-h3-font-family);
+  font-size: var(--site-h3-font-size);
+  font-weight: var(--site-h3-font-weight);
+  line-height: var(--site-h3-line-height);
+  letter-spacing: var(--site-h3-letter-spacing);
+  text-transform: var(--site-h3-text-transform);
+  color: var(--site-h3-color);
+}
+
+h4 {
+  font-family: var(--site-h4-font-family);
+  font-size: var(--site-h4-font-size);
+  font-weight: var(--site-h4-font-weight);
+  line-height: var(--site-h4-line-height);
+  letter-spacing: var(--site-h4-letter-spacing);
+  text-transform: var(--site-h4-text-transform);
+  color: var(--site-h4-color);
+}
+
+h5 {
+  font-family: var(--site-h5-font-family);
+  font-size: var(--site-h5-font-size);
+  font-weight: var(--site-h5-font-weight);
+  line-height: var(--site-h5-line-height);
+  letter-spacing: var(--site-h5-letter-spacing);
+  text-transform: var(--site-h5-text-transform);
+  color: var(--site-h5-color);
+}
+
+h6 {
+  font-family: var(--site-h6-font-family);
+  font-size: var(--site-h6-font-size);
+  font-weight: var(--site-h6-font-weight);
+  line-height: var(--site-h6-line-height);
+  letter-spacing: var(--site-h6-letter-spacing);
+  text-transform: var(--site-h6-text-transform);
+  color: var(--site-h6-color);
+}
+
+p {
+  font-family: var(--site-paragraph-font-family);
+  font-size: var(--site-paragraph-font-size);
+  font-weight: var(--site-paragraph-font-weight);
+  line-height: var(--site-paragraph-line-height);
+  letter-spacing: var(--site-paragraph-letter-spacing);
+  text-transform: var(--site-paragraph-text-transform);
+  color: var(--site-paragraph-color);
+}
+
+li {
+  font-family: var(--site-list-item-font-family);
+  font-size: var(--site-list-item-font-size);
+  font-weight: var(--site-list-item-font-weight);
+  line-height: var(--site-list-item-line-height);
+  letter-spacing: var(--site-list-item-letter-spacing);
+  text-transform: var(--site-list-item-text-transform);
+  color: var(--site-list-item-color);
+}
+
+a {
+  font-family: var(--site-link-font-family);
+  font-size: var(--site-link-font-size);
+  font-weight: var(--site-link-font-weight);
+  line-height: var(--site-link-line-height);
+  letter-spacing: var(--site-link-letter-spacing);
+  text-transform: var(--site-link-text-transform);
+  color: var(--site-link-color-rule);
+}
+
+a:hover {
+  color: var(--site-link-hover-color);
+}
+
+label {
+  font-family: var(--site-label-font-family);
+  font-size: var(--site-label-font-size);
+  font-weight: var(--site-label-font-weight);
+  line-height: var(--site-label-line-height);
+  letter-spacing: var(--site-label-letter-spacing);
+  text-transform: var(--site-label-text-transform);
+  color: var(--site-label-color);
+}
+
+small {
+  font-family: var(--site-small-font-family);
+  font-size: var(--site-small-font-size);
+  font-weight: var(--site-small-font-weight);
+  line-height: var(--site-small-line-height);
+  letter-spacing: var(--site-small-letter-spacing);
+  text-transform: var(--site-small-text-transform);
+  color: var(--site-small-color);
 }

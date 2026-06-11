@@ -23,9 +23,10 @@ import type {
   AdminTrackingConfig,
 } from "@/types/app.types"
 import { AdminOperations } from "./AdminOperations"
+import { AdminSiteThemeSettings } from "./AdminSiteThemeSettings"
 
 type BrandingRole = keyof AdminBrandingConfig["config_value"]
-type SettingsTab = "branding" | "tracking" | "maintenance" | "legacy-editor" | "operations"
+type SettingsTab = "branding" | "tracking" | "maintenance" | "legacy-editor" | "operations" | "site-theme"
 
 const assetCards: Array<{
   role: BrandingRole
@@ -58,7 +59,7 @@ const assetCards: Array<{
     role: "favicon",
     eyebrow: "Navegador",
     title: "Favicon",
-    description: "Usado na aba do navegador e em atalhos quando a aplicaÃ§Ã£o e aberta.",
+    description: "Usado na aba do navegador e em atalhos quando a aplicação é aberta.",
     defaultFileName: "favicon.svg",
     fallbackSrc: "/favicon.svg",
     previewTone: "icon",
@@ -187,6 +188,8 @@ export function AdminSettings() {
   const activeTab: SettingsTab =
     currentTab === "operacoes"
       ? "operations"
+      : currentTab === "tipografia"
+        ? "site-theme"
       : currentTab === "editor-antigo"
         ? "legacy-editor"
       : currentTab === "rastreamento"
@@ -284,7 +287,7 @@ export function AdminSettings() {
     } catch (error) {
       setFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "NÃ£o foi possÃ­vel publicar o asset.",
+        message: error instanceof Error ? error.message : "Não foi possível publicar o asset.",
       })
     } finally {
       setUploadingRole(null)
@@ -294,7 +297,7 @@ export function AdminSettings() {
   if (brandingQuery.isError) {
     return (
       <ErrorState
-        title="NÃ£o foi possÃ­vel carregar as configuraÃ§Ãµes"
+        title="Não foi possível carregar as configurações"
         message={brandingQuery.error instanceof Error ? brandingQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void brandingQuery.refetch()}
       />
@@ -304,7 +307,7 @@ export function AdminSettings() {
   if (trackingQuery.isError) {
     return (
       <ErrorState
-        title="NÃ£o foi possÃ­vel carregar as configuraÃ§Ãµes"
+        title="Não foi possível carregar as configurações"
         message={trackingQuery.error instanceof Error ? trackingQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void trackingQuery.refetch()}
       />
@@ -314,7 +317,7 @@ export function AdminSettings() {
   if (maintenanceQuery.isError) {
     return (
       <ErrorState
-        title="NÃ£o foi possÃ­vel carregar as configuraÃ§Ãµes"
+        title="Não foi possível carregar as configurações"
         message={maintenanceQuery.error instanceof Error ? maintenanceQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void maintenanceQuery.refetch()}
       />
@@ -324,7 +327,7 @@ export function AdminSettings() {
   if (legacyEditorQuery.isError) {
     return (
       <ErrorState
-        title="NÃƒÂ£o foi possÃƒÂ­vel carregar as configuraÃƒÂ§ÃƒÂµes"
+        title="Não foi possível carregar as configurações"
         message={legacyEditorQuery.error instanceof Error ? legacyEditorQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void legacyEditorQuery.refetch()}
       />
@@ -350,7 +353,7 @@ export function AdminSettings() {
     config_key: "site_maintenance_mode",
     config_value: {
       enabled: false,
-      message: "Estamos em manutencao para melhorar a tua experiÃªncia. Voltamos em breve.",
+      message: "Estamos em manutenção para melhorar a tua experiência. Voltamos em breve.",
     },
     description: null,
     is_public: true,
@@ -369,24 +372,30 @@ export function AdminSettings() {
   const readyCount = branding ? countReady(branding) : 0
   const tabs: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
     { key: "branding", label: "Branding", icon: Palette },
+    { key: "site-theme", label: "Tipografia & cores", icon: Palette },
     { key: "tracking", label: "Rastreamento", icon: Code2 as typeof Palette },
-    { key: "maintenance", label: "Manutencao", icon: Activity },
+    { key: "maintenance", label: "Manutenção", icon: Activity },
     { key: "legacy-editor", label: "Editor antigo", icon: EyeOff as typeof Palette },
-    { key: "operations", label: "OperaÃ§Ãµes", icon: Activity },
+    { key: "operations", label: "Operações", icon: Activity },
   ]
   const sectionCopy = {
     branding: {
       title: "Branding e logotipos",
       description:
-        "Envie aqui os arquivos oficiais da marca. O sistema escolhe automaticamente o logotipo light ou dark de acordo com o fundo em cada Ãrea da plataforma.",
+        "Envie aqui os arquivos oficiais da marca. O sistema escolhe automaticamente o logotipo light ou dark de acordo com o fundo em cada área da plataforma.",
+    },
+    "site-theme": {
+      title: "Tipografia e cores do site",
+      description:
+        "Define a base global de headings, parágrafos, links, labels e palette visual usada nas tags estruturais do site.",
     },
     tracking: {
-      title: "Rastreamento e cÃ³digos globais",
+      title: "Rastreamento e códigos globais",
       description:
-        "Configure GTM, Meta Pixel e cÃ³digos personalizados do site. Os identificadores de rastreamento respeitam o centro de preferÃªncias de cookies da plataforma.",
+        "Configure GTM, Meta Pixel e códigos personalizados do site. Os identificadores de rastreamento respeitam o centro de preferências de cookies da plataforma.",
     },
     maintenance: {
-      title: "Modo manutencao",
+      title: "Modo manutenção",
       description:
         "Ative este modo para restringir o acesso da plataforma durante ajustes operacionais. Admins autenticados continuam com acesso total.",
     },
@@ -396,9 +405,9 @@ export function AdminSettings() {
         "Desative o editor de páginas antigo para escondê-lo da plataforma e concentrar a edição no novo fluxo com IA.",
     },
     operations: {
-      title: "OperaÃ§Ãµes do ambiente",
+      title: "Operações do ambiente",
       description:
-        "Acompanhe rotinas operacionais, jobs, entregas tÃ©cnicas e ajustes sensÃ­veis do ambiente de producao.",
+        "Acompanhe rotinas operacionais, jobs, entregas técnicas e ajustes sensíveis do ambiente de produção.",
     },
   } as const
 
@@ -410,7 +419,7 @@ export function AdminSettings() {
     <div className="space-y-7">
       <div className="border-b border-slate-200 pb-6">
         <div className="inline-flex border border-slate-200 bg-[#eef6f9] px-4 py-2">
-          <p className="text-[11px] font-black uppercase tracking-[0.32em] text-sky-700">ConfiguraÃ§Ãµes do site</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.32em] text-sky-700">Configurações do site</p>
         </div>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -419,29 +428,31 @@ export function AdminSettings() {
               {sectionCopy[activeTab].description}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (activeTab === "tracking") {
-                void trackingQuery.refetch()
-                return
-              }
-              if (activeTab === "maintenance") {
-                void maintenanceQuery.refetch()
-                return
-              }
-              if (activeTab === "legacy-editor") {
-                void legacyEditorQuery.refetch()
-                return
-              }
-              void brandingQuery.refetch()
-            }}
-            disabled={brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching || legacyEditorQuery.isFetching}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 disabled:opacity-60"
-          >
-            <RefreshCw className="h-4 w-4" />
-            {brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching || legacyEditorQuery.isFetching ? "A atualizar..." : "Atualizar"}
-          </button>
+          {activeTab !== "site-theme" ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTab === "tracking") {
+                  void trackingQuery.refetch()
+                  return
+                }
+                if (activeTab === "maintenance") {
+                  void maintenanceQuery.refetch()
+                  return
+                }
+                if (activeTab === "legacy-editor") {
+                  void legacyEditorQuery.refetch()
+                  return
+                }
+                void brandingQuery.refetch()
+              }}
+              disabled={brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching || legacyEditorQuery.isFetching}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 disabled:opacity-60"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching || legacyEditorQuery.isFetching ? "A atualizar..." : "Atualizar"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -457,6 +468,8 @@ export function AdminSettings() {
               onClick={() => {
                 if (tab.key === "branding") {
                   setSearchParams({})
+                } else if (tab.key === "site-theme") {
+                  setSearchParams({ tab: "tipografia" })
                 } else if (tab.key === "tracking") {
                   setSearchParams({ tab: "rastreamento" })
                 } else if (tab.key === "maintenance") {
@@ -481,7 +494,9 @@ export function AdminSettings() {
         })}
       </div>
 
-      {activeTab === "maintenance" ? (
+      {activeTab === "site-theme" ? (
+        <AdminSiteThemeSettings />
+      ) : activeTab === "maintenance" ? (
         <>
           {feedback ? (
             <div
@@ -501,7 +516,7 @@ export function AdminSettings() {
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Estado atual</p>
               <p className="mt-4 text-2xl font-bold text-slate-950">{maintenanceState.enabled ? "Ativo" : "Inativo"}</p>
               <p className="mt-2 text-sm text-slate-600">
-                Quando ativo, visitantes e alunos veem a pÃ¡gina de manutencao.
+                Quando ativo, visitantes e alunos veem a página de manutenção.
               </p>
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
@@ -511,8 +526,8 @@ export function AdminSettings() {
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Visibilidade</p>
-              <p className="mt-4 text-2xl font-bold text-slate-950">PÃºblica</p>
-              <p className="mt-2 text-sm text-slate-600">ConfiguraÃ§Ã£o lida pelo frontend em tempo quase real.</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Pública</p>
+              <p className="mt-2 text-sm text-slate-600">Configuração lida pelo frontend em tempo quase real.</p>
             </div>
           </div>
 
@@ -535,16 +550,16 @@ export function AdminSettings() {
                     : "bg-emerald-600 text-white hover:bg-emerald-700",
                 ].join(" ")}
               >
-                {maintenanceState.enabled ? "Desativar modo manutencao" : "Ativar modo manutencao"}
+                {maintenanceState.enabled ? "Desativar modo manutenção" : "Ativar modo manutenção"}
               </button>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Salva a configuraÃ§Ã£o para aplicar imediatamente o comportamento no site.
+                Salva a configuração para aplicar imediatamente o comportamento no site.
               </p>
             </div>
 
             <label className="block">
               <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                Mensagem exibida na pÃ¡gina de manutencao
+                Mensagem exibida na página de manutenção
               </span>
               <textarea
                 value={maintenanceState.message}
@@ -556,7 +571,7 @@ export function AdminSettings() {
                   })
                 }}
                 rows={5}
-                placeholder="Escreve aqui o recado para os visitantes durante a manutencao."
+                placeholder="Escreve aqui o recado para os visitantes durante a manutenção."
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
               />
             </label>
@@ -570,7 +585,7 @@ export function AdminSettings() {
                 }}
                 className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300"
               >
-                Repor alteraÃ§Ãµes
+                Repor alterações
               </button>
               <button
                 type="button"
@@ -579,18 +594,18 @@ export function AdminSettings() {
                   try {
                     await saveMaintenance.mutateAsync(maintenanceState)
                     setMaintenanceDraft(null)
-                    setFeedback({ tone: "success", message: "Modo manutencao atualizado com sucesso." })
+                    setFeedback({ tone: "success", message: "Modo manutenção atualizado com sucesso." })
                   } catch (error) {
                     setFeedback({
                       tone: "danger",
-                      message: error instanceof Error ? error.message : "NÃ£o foi possÃ­vel atualizar o modo manutencao.",
+                      message: error instanceof Error ? error.message : "Não foi possível atualizar o modo manutenção.",
                     })
                   }
                 }}
                 disabled={saveMaintenance.isPending}
                 className="inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60"
               >
-                {saveMaintenance.isPending ? "A guardar..." : "Guardar manutencao"}
+                {saveMaintenance.isPending ? "A guardar..." : "Guardar manutenção"}
               </button>
             </div>
           </section>
@@ -715,7 +730,7 @@ export function AdminSettings() {
               <p className="mt-2 text-sm text-slate-600">Carregado apenas com consentimento de marketing.</p>
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">CÃ³digos globais</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Códigos globais</p>
               <p className="mt-4 text-2xl font-bold text-slate-950">
                 {[trackingState.custom_head_code, trackingState.custom_body_code, trackingState.custom_footer_code].some((value) => value.trim())
                   ? "Ativos"
@@ -753,7 +768,7 @@ export function AdminSettings() {
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                 />
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  O pixel sÃ³ dispara quando o utilizador aceita cookies de marketing.
+                  O pixel só dispara quando o utilizador aceita cookies de marketing.
                 </p>
               </label>
             </div>
@@ -761,12 +776,12 @@ export function AdminSettings() {
             <div className="grid gap-4">
               <label className="block">
                 <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                  CÃ³digo personalizado no head
+                  Código personalizado no head
                 </span>
                 <textarea
                   value={trackingState.custom_head_code}
                   onChange={(event) => handleTrackingDraft({ custom_head_code: event.target.value })}
-                  placeholder="<script>/* cÃ³digo global no head */</script>"
+                  placeholder="<script>/* código global no head */</script>"
                   rows={6}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                 />
@@ -774,12 +789,12 @@ export function AdminSettings() {
 
               <label className="block">
                 <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                  CÃ³digo personalizado no body
+                  Código personalizado no body
                 </span>
                 <textarea
                   value={trackingState.custom_body_code}
                   onChange={(event) => handleTrackingDraft({ custom_body_code: event.target.value })}
-                  placeholder="<script>/* cÃ³digo no body */</script>"
+                  placeholder="<script>/* código no body */</script>"
                   rows={6}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                 />
@@ -787,12 +802,12 @@ export function AdminSettings() {
 
               <label className="block">
                 <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                  CÃ³digo personalizado no footer
+                  Código personalizado no footer
                 </span>
                 <textarea
                   value={trackingState.custom_footer_code}
                   onChange={(event) => handleTrackingDraft({ custom_footer_code: event.target.value })}
-                  placeholder="<script>/* cÃ³digo no footer */</script>"
+                  placeholder="<script>/* código no footer */</script>"
                   rows={6}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                 />
@@ -801,7 +816,7 @@ export function AdminSettings() {
 
             <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-200 bg-[#f4f9fb] p-4 text-sm leading-7 text-slate-600">
               <p>
-                O GTM e o Meta Pixel respeitam o centro de preferÃªncias de cookies. JÃ os cÃ³digos personalizados sÃ£o
+                O GTM e o Meta Pixel respeitam o centro de preferências de cookies. Já os códigos personalizados são
                 injetados conforme inseridos aqui, por isso use esses campos apenas para snippets que realmente devam
                 existir no site.
               </p>
@@ -814,7 +829,7 @@ export function AdminSettings() {
                   }}
                   className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300"
                 >
-                  Repor alteraÃ§Ãµes
+                  Repor alterações
                 </button>
                 <button
                   type="button"
@@ -823,11 +838,11 @@ export function AdminSettings() {
                     try {
                       await saveTracking.mutateAsync(trackingState)
                       setTrackingDraft(null)
-                      setFeedback({ tone: "success", message: "ConfiguraÃ§Ãµes de rastreamento guardadas com sucesso." })
+                      setFeedback({ tone: "success", message: "Configurações de rastreamento guardadas com sucesso." })
                     } catch (error) {
                       setFeedback({
                         tone: "danger",
-                        message: error instanceof Error ? error.message : "NÃ£o foi possÃ­vel guardar o rastreamento.",
+                        message: error instanceof Error ? error.message : "Não foi possível guardar o rastreamento.",
                       })
                     }
                   }}
@@ -862,8 +877,8 @@ export function AdminSettings() {
               <p className="mt-2 text-sm text-slate-600">Assets de branding publicados</p>
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">SeleÃ§Ã£o dinamica</p>
-              <p className="mt-4 text-2xl font-bold text-slate-950">AutomÃ¡tica</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Seleção dinâmica</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Automática</p>
               <p className="mt-2 text-sm text-slate-600">Light em fundo escuro, dark em fundo claro.</p>
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
@@ -872,7 +887,7 @@ export function AdminSettings() {
                 <p className="text-2xl font-bold text-slate-950">Ativo</p>
                 <StatusBadge label="OK" tone="success" />
               </div>
-              <p className="mt-2 text-sm text-slate-600">Atualizado para as proximas sessÃµes do navegador.</p>
+              <p className="mt-2 text-sm text-slate-600">Atualizado para as próximas sessões do navegador.</p>
             </div>
           </div>
 
@@ -898,7 +913,7 @@ export function AdminSettings() {
             <Image className="mt-1 h-4 w-4 shrink-0 text-sky-700" />
             <p>
               Formatos aceitos: SVG, PNG, JPG, WEBP, GIF, AVIF e ICO. Use SVG ou PNG com fundo transparente para manter a
-              nitidez em telas de alta resoluÃ§Ã£o.
+              nitidez em telas de alta resolução.
             </p>
           </div>
         </>

@@ -39,7 +39,10 @@ import type {
   AdminSiteMaintenanceConfig,
   SitePageSlug,
   AdminTrackingConfig,
+  AdminSiteThemeConfig,
+  AdminSiteThemeTextStyle,
   AdminStorageUploadResult,
+  SiteThemeTextTransform,
   ProductLessonSummary,
   AdminSupportTicketSummary,
   PublicFormSubmissionSummary,
@@ -162,6 +165,122 @@ const PUBLIC_FORM_NOTIFICATIONS_KEY = "public_form_notifications"
 const SITE_MAINTENANCE_KEY = "site_maintenance_mode"
 const LEGACY_PAGE_EDITOR_KEY = "legacy_page_editor_config"
 const AI_PAGE_EDITOR_KEY = "ai_page_editor_config"
+const SITE_THEME_KEY = "site_theme"
+
+const DEFAULT_SITE_THEME_PALETTE: AdminSiteThemeConfig["config_value"]["palette"] = {
+  page_background: "#f4fbfd",
+  surface_background: "#ffffff",
+  border_color: "#d8e6eb",
+  heading_color: "#15323b",
+  body_color: "#5f7077",
+  muted_color: "#7b8b92",
+  link_color: "#1398b7",
+  link_hover_color: "#0a3640",
+  selection_background: "#dff2f8",
+  selection_foreground: "#15323b",
+}
+
+const DEFAULT_SITE_THEME_TYPOGRAPHY: AdminSiteThemeConfig["config_value"]["typography"] = {
+  h1: {
+    font_family: '"Arvo", Georgia, serif',
+    font_size: "3.5rem",
+    font_weight: "700",
+    line_height: "1.1",
+    letter_spacing: "-0.02em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  },
+  h2: {
+    font_family: '"Arvo", Georgia, serif',
+    font_size: "3rem",
+    font_weight: "700",
+    line_height: "1.15",
+    letter_spacing: "-0.02em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  },
+  h3: {
+    font_family: '"Arvo", Georgia, serif',
+    font_size: "2.25rem",
+    font_weight: "700",
+    line_height: "1.2",
+    letter_spacing: "-0.02em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  },
+  h4: {
+    font_family: '"Arvo", Georgia, serif',
+    font_size: "1.75rem",
+    font_weight: "700",
+    line_height: "1.25",
+    letter_spacing: "-0.01em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  },
+  h5: {
+    font_family: '"Arvo", Georgia, serif',
+    font_size: "1.375rem",
+    font_weight: "700",
+    line_height: "1.3",
+    letter_spacing: "-0.01em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  },
+  h6: {
+    font_family: '"Arvo", Georgia, serif',
+    font_size: "1.125rem",
+    font_weight: "700",
+    line_height: "1.35",
+    letter_spacing: "0",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  },
+  paragraph: {
+    font_family: '"Inter", system-ui, sans-serif',
+    font_size: "1rem",
+    font_weight: "400",
+    line_height: "1.7",
+    letter_spacing: "0",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.body_color,
+  },
+  list_item: {
+    font_family: '"Inter", system-ui, sans-serif',
+    font_size: "1rem",
+    font_weight: "400",
+    line_height: "1.7",
+    letter_spacing: "0",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.body_color,
+  },
+  link: {
+    font_family: '"Inter", system-ui, sans-serif',
+    font_size: "1rem",
+    font_weight: "600",
+    line_height: "1.7",
+    letter_spacing: "0",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.link_color,
+  },
+  label: {
+    font_family: '"Inter", system-ui, sans-serif',
+    font_size: "0.875rem",
+    font_weight: "600",
+    line_height: "1.45",
+    letter_spacing: "0.01em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.muted_color,
+  },
+  small: {
+    font_family: '"Inter", system-ui, sans-serif',
+    font_size: "0.875rem",
+    font_weight: "500",
+    line_height: "1.5",
+    letter_spacing: "0.01em",
+    text_transform: "none",
+    color: DEFAULT_SITE_THEME_PALETTE.muted_color,
+  },
+}
 
 export interface AdminModuleAssetSignedUploadResult {
   bucket: string
@@ -312,6 +431,132 @@ function normalizeAdminTrackingConfig(
     description:
       row?.description ??
       "Configuração pública de rastreamento e códigos personalizados do site, respeitando consentimento quando aplicável.",
+    is_public: row?.is_public ?? true,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeThemeColor(value: unknown, fallback: string) {
+  const nextValue = String(value ?? "").trim()
+  return nextValue || fallback
+}
+
+function normalizeThemeTransform(value: unknown, fallback: SiteThemeTextTransform): SiteThemeTextTransform {
+  const nextValue = String(value ?? "").trim() as SiteThemeTextTransform
+  if (
+    nextValue === "none" ||
+    nextValue === "uppercase" ||
+    nextValue === "lowercase" ||
+    nextValue === "capitalize" ||
+    nextValue === "inherit"
+  ) {
+    return nextValue
+  }
+
+  return fallback
+}
+
+function normalizeSiteThemeTextStyle(
+  value: unknown,
+  fallback: AdminSiteThemeTextStyle,
+): AdminSiteThemeTextStyle {
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+
+  return {
+    font_family: String(record.font_family ?? "").trim() || fallback.font_family,
+    font_size: String(record.font_size ?? "").trim() || fallback.font_size,
+    font_weight: String(record.font_weight ?? "").trim() || fallback.font_weight,
+    line_height: String(record.line_height ?? "").trim() || fallback.line_height,
+    letter_spacing: String(record.letter_spacing ?? "").trim() || fallback.letter_spacing,
+    text_transform: normalizeThemeTransform(record.text_transform, fallback.text_transform),
+    color: normalizeThemeColor(record.color, fallback.color),
+  }
+}
+
+function normalizeAdminSiteThemeConfig(
+  row?: Partial<AdminSiteThemeConfig> | null,
+): AdminSiteThemeConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+  const paletteValue =
+    value.palette && typeof value.palette === "object"
+      ? (value.palette as Record<string, unknown>)
+      : {}
+  const typographyValue =
+    value.typography && typeof value.typography === "object"
+      ? (value.typography as Record<string, unknown>)
+      : {}
+
+  return {
+    config_key: row?.config_key ?? SITE_THEME_KEY,
+    config_value: {
+      palette: {
+        page_background: normalizeThemeColor(
+          paletteValue.page_background,
+          DEFAULT_SITE_THEME_PALETTE.page_background,
+        ),
+        surface_background: normalizeThemeColor(
+          paletteValue.surface_background,
+          DEFAULT_SITE_THEME_PALETTE.surface_background,
+        ),
+        border_color: normalizeThemeColor(
+          paletteValue.border_color,
+          DEFAULT_SITE_THEME_PALETTE.border_color,
+        ),
+        heading_color: normalizeThemeColor(
+          paletteValue.heading_color,
+          DEFAULT_SITE_THEME_PALETTE.heading_color,
+        ),
+        body_color: normalizeThemeColor(
+          paletteValue.body_color,
+          DEFAULT_SITE_THEME_PALETTE.body_color,
+        ),
+        muted_color: normalizeThemeColor(
+          paletteValue.muted_color,
+          DEFAULT_SITE_THEME_PALETTE.muted_color,
+        ),
+        link_color: normalizeThemeColor(
+          paletteValue.link_color,
+          DEFAULT_SITE_THEME_PALETTE.link_color,
+        ),
+        link_hover_color: normalizeThemeColor(
+          paletteValue.link_hover_color,
+          DEFAULT_SITE_THEME_PALETTE.link_hover_color,
+        ),
+        selection_background: normalizeThemeColor(
+          paletteValue.selection_background,
+          DEFAULT_SITE_THEME_PALETTE.selection_background,
+        ),
+        selection_foreground: normalizeThemeColor(
+          paletteValue.selection_foreground,
+          DEFAULT_SITE_THEME_PALETTE.selection_foreground,
+        ),
+      },
+      typography: {
+        h1: normalizeSiteThemeTextStyle(typographyValue.h1, DEFAULT_SITE_THEME_TYPOGRAPHY.h1),
+        h2: normalizeSiteThemeTextStyle(typographyValue.h2, DEFAULT_SITE_THEME_TYPOGRAPHY.h2),
+        h3: normalizeSiteThemeTextStyle(typographyValue.h3, DEFAULT_SITE_THEME_TYPOGRAPHY.h3),
+        h4: normalizeSiteThemeTextStyle(typographyValue.h4, DEFAULT_SITE_THEME_TYPOGRAPHY.h4),
+        h5: normalizeSiteThemeTextStyle(typographyValue.h5, DEFAULT_SITE_THEME_TYPOGRAPHY.h5),
+        h6: normalizeSiteThemeTextStyle(typographyValue.h6, DEFAULT_SITE_THEME_TYPOGRAPHY.h6),
+        paragraph: normalizeSiteThemeTextStyle(
+          typographyValue.paragraph,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.paragraph,
+        ),
+        list_item: normalizeSiteThemeTextStyle(
+          typographyValue.list_item,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.list_item,
+        ),
+        link: normalizeSiteThemeTextStyle(typographyValue.link, DEFAULT_SITE_THEME_TYPOGRAPHY.link),
+        label: normalizeSiteThemeTextStyle(typographyValue.label, DEFAULT_SITE_THEME_TYPOGRAPHY.label),
+        small: normalizeSiteThemeTextStyle(typographyValue.small, DEFAULT_SITE_THEME_TYPOGRAPHY.small),
+      },
+    },
+    description:
+      row?.description ??
+      "Configuração pública de tipografia e cores base do site, aplicada às tags globais e conteúdos textuais.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
@@ -973,6 +1218,35 @@ export async function fetchPublicSiteMaintenanceConfig() {
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
 }
 
+export async function fetchAdminSiteThemeConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", SITE_THEME_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminSiteThemeConfig(data as Partial<AdminSiteThemeConfig> | null)
+}
+
+export async function fetchPublicSiteThemeConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", SITE_THEME_KEY)
+    .eq("is_public", true)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminSiteThemeConfig(data as Partial<AdminSiteThemeConfig> | null)
+}
+
 export async function fetchAdminModulePdfWatermarkConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -1196,6 +1470,45 @@ export async function updateAdminTrackingConfig(
   }
 
   return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig>)
+}
+
+export async function updateAdminSiteThemeConfig(
+  input: AdminSiteThemeConfig["config_value"],
+) {
+  const payload = normalizeAdminSiteThemeConfig({
+    config_key: SITE_THEME_KEY,
+    config_value: input,
+    description:
+      "Configuração pública de tipografia e cores base do site, aplicada às tags globais e conteúdos textuais.",
+    is_public: true,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<AdminSiteThemeConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: SITE_THEME_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: true,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return normalizeAdminSiteThemeConfig(data as Partial<AdminSiteThemeConfig>)
 }
 
 export async function updateAdminPendingInfoConfig(

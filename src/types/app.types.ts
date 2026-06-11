@@ -148,6 +148,52 @@ export interface AdminTrackingConfig {
   updated_at: string | null
 }
 
+export type SiteThemeTextTransform = "none" | "uppercase" | "lowercase" | "capitalize" | "inherit"
+
+export interface AdminSiteThemeTextStyle {
+  font_family: string
+  font_size: string
+  font_weight: string
+  line_height: string
+  letter_spacing: string
+  text_transform: SiteThemeTextTransform
+  color: string
+}
+
+export interface AdminSiteThemeConfig {
+  config_key: string
+  config_value: {
+    palette: {
+      page_background: string
+      surface_background: string
+      border_color: string
+      heading_color: string
+      body_color: string
+      muted_color: string
+      link_color: string
+      link_hover_color: string
+      selection_background: string
+      selection_foreground: string
+    }
+    typography: {
+      h1: AdminSiteThemeTextStyle
+      h2: AdminSiteThemeTextStyle
+      h3: AdminSiteThemeTextStyle
+      h4: AdminSiteThemeTextStyle
+      h5: AdminSiteThemeTextStyle
+      h6: AdminSiteThemeTextStyle
+      paragraph: AdminSiteThemeTextStyle
+      list_item: AdminSiteThemeTextStyle
+      link: AdminSiteThemeTextStyle
+      label: AdminSiteThemeTextStyle
+      small: AdminSiteThemeTextStyle
+    }
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
 export interface AdminPublicFormNotificationsConfig {
   config_key: string
   config_value: {

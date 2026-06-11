@@ -6,6 +6,7 @@ import {
   ScrollToTop,
   SiteAiPageEditorLauncher,
   SiteBrandingManager,
+  SiteThemeManager,
   SiteTrackingManager,
 } from "@/components/common"
 import { ROUTES } from "@/lib/constants"
@@ -18,6 +19,7 @@ export function PublicLayout() {
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
       <SiteBrandingManager />
+      <SiteThemeManager />
       <SiteTrackingManager />
       {isCheckout ? null : <Navbar />}
       <main className="flex-1">
