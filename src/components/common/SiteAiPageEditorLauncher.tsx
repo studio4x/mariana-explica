@@ -88,6 +88,12 @@ function formatDateTime(value: string) {
   }
 }
 
+function getChatRoleLabel(role: ChatMessage["role"]) {
+  if (role === "user") return "Tu"
+  if (role === "assistant") return "Assistente IA"
+  return "Sistema"
+}
+
 export function SiteAiPageEditorLauncher() {
   const { isAdmin, loading: authLoading } = useAuth()
   const configQuery = useAdminAiPageEditorConfig(isAdmin && !authLoading)
@@ -487,7 +493,9 @@ export function SiteAiPageEditorLauncher() {
                         : "border-amber-200 bg-amber-50 text-amber-950",
                   ].join(" ")}
                 >
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-70">{entry.role}</p>
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-[0.24em] opacity-70">
+                    {getChatRoleLabel(entry.role)}
+                  </p>
                   <p className="whitespace-pre-line break-words">{entry.text}</p>
                 </div>
               ))}
