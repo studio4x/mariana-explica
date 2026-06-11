@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import {
   useAdminAiPageEditorConfig,
+  usePublishAdminSitePageVersion,
   useAdminSitePageDetail,
   useGenerateAdminAiPageEditorProposal,
   useSaveAdminSitePageDraft,
@@ -34,6 +35,16 @@ type AttachmentItem = {
   mime_type: string
   data_url: string
   size_bytes: number
+}
+
+type PendingPublicationState = {
+  draftVersion: AdminSitePageVersion
+  previousVersionSnapshot: {
+    title: string
+    layout_json: Record<string, unknown>
+    style_json: Record<string, unknown>
+    metadata: Record<string, unknown>
+  } | null
 }
 
 function uid(prefix: string) {
@@ -82,6 +93,7 @@ export function SiteAiPageEditorLauncher() {
   const configQuery = useAdminAiPageEditorConfig(isAdmin && !authLoading)
   const generateMutation = useGenerateAdminAiPageEditorProposal()
   const saveDraftMutation = useSaveAdminSitePageDraft()
+  const publishMutation = usePublishAdminSitePageVersion()
   const { routeOption, publicPageQuery, pathname, search } = useSupportedCurrentPage()
   const pageDetailQuery = useAdminSitePageDetail(isAdmin && !authLoading && Boolean(routeOption?.slug) ? String(routeOption?.slug) : undefined)
   const navigate = useNavigate()
@@ -93,6 +105,7 @@ export function SiteAiPageEditorLauncher() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [feedback, setFeedback] = useState<string | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
+  const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
 
   const config = configQuery.data
   const allowedPath = Boolean(config && isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths))
@@ -182,6 +195,14 @@ export function SiteAiPageEditorLauncher() {
     addAttachmentsFromFiles(files)
   }
 
+  function clearPreviewFromCurrentPage() {
+    const nextParams = new URLSearchParams(search)
+    if (!nextParams.has("builder-preview")) return
+    nextParams.delete("builder-preview")
+    const nextSearch = nextParams.toString()
+    navigate({ pathname, search: nextSearch ? `?${nextSearch}` : "" }, { replace: true })
+  }
+
   function pushPreviewToCurrentPage(version: Pick<AdminSitePageVersion, "layout_json" | "style_json">) {
     if (!pageSlug) return
     const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
@@ -206,6 +227,15 @@ export function SiteAiPageEditorLauncher() {
 
     setFeedback(null)
     try {
+      const previousVersionSnapshot = pageContextVersion
+        ? {
+            title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
+            layout_json: structuredClone(pageContextVersion.layout_json),
+            style_json: structuredClone(pageContextVersion.style_json),
+            metadata: structuredClone(pageContextVersion.metadata ?? {}),
+          }
+        : null
+
       const result = await saveDraftMutation.mutateAsync({
         slug: pageSlug,
         title: nextProposal.proposal.title,
@@ -221,12 +251,16 @@ export function SiteAiPageEditorLauncher() {
       })
 
       pushPreviewToCurrentPage(result.version)
+      setPendingPublication({
+        draftVersion: result.version,
+        previousVersionSnapshot,
+      })
       setMessages((current) => [
         ...current,
         {
           id: uid("msg"),
           role: "system",
-          text: `Ajustes implementados como rascunho. A pagina foi atualizada para a revisao ${result.version.version_number}.`,
+          text: `Ajustes implementados apenas para revisao admin. A pagina foi atualizada para a revisao ${result.version.version_number} e ainda nao ficou visivel no site publico.`,
         },
       ])
       setProposal(null)
@@ -236,6 +270,73 @@ export function SiteAiPageEditorLauncher() {
       setFeedback("Ajustes implementados e pagina atualizada.")
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Nao foi possivel guardar o rascunho.")
+    }
+  }
+
+  async function handleConfirmAppliedChanges() {
+    if (!pageSlug || !pendingPublication?.draftVersion.id) {
+      setFeedback("Nao encontrei uma revisao pendente para publicar.")
+      return
+    }
+
+    setFeedback(null)
+    try {
+      const result = await publishMutation.mutateAsync({
+        slug: pageSlug,
+        versionId: pendingPublication.draftVersion.id,
+      })
+
+      clearPreviewFromCurrentPage()
+      setPendingPublication(null)
+      setMessages((current) => [
+        ...current,
+        {
+          id: uid("msg"),
+          role: "system",
+          text: `Alteracoes confirmadas. A revisao ${result.version.version_number} foi publicada e ja esta visivel no site publico.`,
+        },
+      ])
+      setFeedback("Alteracoes publicadas com sucesso.")
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Nao foi possivel publicar as alteracoes.")
+    }
+  }
+
+  async function handleUndoAppliedChanges() {
+    if (!pageSlug || !pendingPublication?.previousVersionSnapshot) {
+      setFeedback("Nao encontrei um estado anterior para desfazer estas alteracoes.")
+      return
+    }
+
+    setFeedback(null)
+    try {
+      const snapshot = pendingPublication.previousVersionSnapshot
+      const result = await saveDraftMutation.mutateAsync({
+        slug: pageSlug,
+        title: snapshot.title,
+        layoutJson: snapshot.layout_json,
+        styleJson: snapshot.style_json,
+        metadata: {
+          ...snapshot.metadata,
+          editor: "ai-page-editor",
+          source: "undo_pending_ai_changes",
+          updated_at: new Date().toISOString(),
+        },
+      })
+
+      pushPreviewToCurrentPage(result.version)
+      setPendingPublication(null)
+      setMessages((current) => [
+        ...current,
+        {
+          id: uid("msg"),
+          role: "system",
+          text: `Alteracoes desfeitas. A pagina voltou ao estado anterior na revisao ${result.version.version_number}.`,
+        },
+      ])
+      setFeedback("Alteracoes desfeitas para o admin.")
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Nao foi possivel desfazer as alteracoes.")
     }
   }
 
@@ -273,6 +374,7 @@ export function SiteAiPageEditorLauncher() {
         },
       ])
       setProposal(null)
+      setPendingPublication(null)
       setAwaitingImplementation(false)
       setAttachments([])
       setMessage("")
@@ -423,6 +525,37 @@ export function SiteAiPageEditorLauncher() {
                       }}
                     >
                       Nao agora
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {pendingPublication ? (
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisao pronta</p>
+                  <p className="mt-2 text-sm leading-6 text-indigo-950">
+                    As alteracoes estao visiveis apenas para ti neste preview admin. Quando confirmares, a revisao{" "}
+                    {pendingPublication.draftVersion.version_number} sera publicada no site publico.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      className="h-9 rounded-full"
+                      onClick={() => void handleConfirmAppliedChanges()}
+                      disabled={publishMutation.isPending || saveDraftMutation.isPending}
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      {publishMutation.isPending ? "A publicar..." : "Confirmar alteracoes"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 rounded-full"
+                      onClick={() => void handleUndoAppliedChanges()}
+                      disabled={publishMutation.isPending || saveDraftMutation.isPending}
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alteracoes"}
                     </Button>
                   </div>
                 </div>
