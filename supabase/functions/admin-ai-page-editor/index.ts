@@ -1459,6 +1459,15 @@ async function callOpenAI(input: {
   }
 }
 
+function formatProviderFailureDetails(
+  failures: Array<{ provider: AiProvider; message: string }>,
+  fallbackMessage = "sem detalhes adicionais",
+) {
+  return failures.length
+    ? failures.map((item) => `${item.provider}: ${item.message}`).join(" | ")
+    : fallbackMessage
+}
+
 function validateProposal(value: unknown) {
   if (!value || typeof value !== "object") {
     throw unprocessable("Resposta da IA em formato inválido")
@@ -1915,6 +1924,7 @@ Deno.serve(async (req) => {
       ] as const
 
       let lastError: unknown = null
+      const providerFailures: Array<{ provider: AiProvider; message: string }> = []
       let rawText = ""
       let providerUsed: AiProvider | null = null
       let modelUsed = ""
@@ -1922,7 +1932,9 @@ Deno.serve(async (req) => {
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
-          lastError = new Error(`${candidate.provider} sem chave configurada`)
+          const message = `${candidate.provider} sem chave configurada`
+          providerFailures.push({ provider: candidate.provider, message })
+          lastError = new Error(message)
           continue
         }
 
@@ -1953,12 +1965,21 @@ Deno.serve(async (req) => {
           lastError = null
           break
         } catch (error) {
+          providerFailures.push({
+            provider: candidate.provider,
+            message: error instanceof Error ? error.message : String(error),
+          })
           lastError = error
         }
       }
 
       if (!providerUsed || !rawText.trim()) {
-        throw lastError instanceof Error ? lastError : new Error("Nenhum provedor disponível para gerar a proposta")
+        const details = providerFailures.length
+          ? providerFailures.map((item) => `${item.provider}: ${item.message}`).join(" | ")
+          : lastError instanceof Error
+            ? lastError.message
+            : "sem detalhes adicionais"
+        throw new Error(`Nenhum provedor disponível para gerar a proposta. ${details}`)
       }
 
       const parsed = parseJsonFromString(rawText)
@@ -2069,6 +2090,7 @@ Deno.serve(async (req) => {
       ] as const
 
       let lastError: unknown = null
+      const providerFailures: Array<{ provider: AiProvider; message: string }> = []
       let rawText = ""
       let providerUsed: AiProvider | null = null
       let modelUsed = ""
@@ -2076,7 +2098,9 @@ Deno.serve(async (req) => {
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
-          lastError = new Error(`${candidate.provider} sem chave configurada`)
+          const message = `${candidate.provider} sem chave configurada`
+          providerFailures.push({ provider: candidate.provider, message })
+          lastError = new Error(message)
           continue
         }
 
@@ -2107,12 +2131,20 @@ Deno.serve(async (req) => {
           lastError = null
           break
         } catch (error) {
+          providerFailures.push({
+            provider: candidate.provider,
+            message: error instanceof Error ? error.message : String(error),
+          })
           lastError = error
         }
       }
 
       if (!providerUsed || !rawText.trim()) {
-        throw lastError instanceof Error ? lastError : new Error("Nenhum provedor disponível para gerar a proposta")
+        const details = formatProviderFailureDetails(
+          providerFailures,
+          lastError instanceof Error ? lastError.message : "sem detalhes adicionais",
+        )
+        throw new Error(`Nenhum provedor disponível para gerar a proposta. ${details}`)
       }
 
       const parsed = parseJsonFromString(rawText)
@@ -2259,6 +2291,7 @@ Deno.serve(async (req) => {
       ] as const
 
       let lastError: unknown = null
+      const providerFailures: Array<{ provider: AiProvider; message: string }> = []
       let rawText = ""
       let providerUsed: AiProvider | null = null
       let modelUsed = ""
@@ -2266,7 +2299,9 @@ Deno.serve(async (req) => {
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
-          lastError = new Error(`${candidate.provider} sem chave configurada`)
+          const message = `${candidate.provider} sem chave configurada`
+          providerFailures.push({ provider: candidate.provider, message })
+          lastError = new Error(message)
           continue
         }
 
@@ -2297,12 +2332,20 @@ Deno.serve(async (req) => {
           lastError = null
           break
         } catch (error) {
+          providerFailures.push({
+            provider: candidate.provider,
+            message: error instanceof Error ? error.message : String(error),
+          })
           lastError = error
         }
       }
 
       if (!providerUsed || !rawText.trim()) {
-        throw lastError instanceof Error ? lastError : new Error("Nenhum provedor disponível para gerar a proposta")
+        const details = formatProviderFailureDetails(
+          providerFailures,
+          lastError instanceof Error ? lastError.message : "sem detalhes adicionais",
+        )
+        throw new Error(`Nenhum provedor disponível para gerar a proposta. ${details}`)
       }
 
       const parsed = parseJsonFromString(rawText)

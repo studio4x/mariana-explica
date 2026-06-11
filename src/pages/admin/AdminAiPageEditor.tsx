@@ -69,8 +69,8 @@ export function AdminAiPageEditor() {
   const [allowedPaths, setAllowedPaths] = useState<AllowedPathState[]>([])
   const [launcherLabel, setLauncherLabel] = useState("Editar com IA")
   const [enabled, setEnabled] = useState(false)
-  const [primaryProvider, setPrimaryProvider] = useState<AdminAiPageEditorConfig["config_value"]["primary_provider"]>("gemini")
-  const [fallbackProvider, setFallbackProvider] = useState<AdminAiPageEditorConfig["config_value"]["fallback_provider"]>("openai")
+  const [primaryProvider, setPrimaryProvider] = useState<AdminAiPageEditorConfig["config_value"]["primary_provider"]>("openai")
+  const [fallbackProvider, setFallbackProvider] = useState<AdminAiPageEditorConfig["config_value"]["fallback_provider"]>("gemini")
   const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash")
   const [openaiModel, setOpenaiModel] = useState("gpt-4.1-mini")
   const [maxAttachments, setMaxAttachments] = useState(2)
@@ -92,6 +92,7 @@ export function AdminAiPageEditor() {
     openai_api_key_present: false,
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sincroniza o formulário com a configuração carregada do backend */
   useEffect(() => {
     if (!config) return
 
@@ -115,6 +116,7 @@ export function AdminAiPageEditor() {
     setRequireConfirmation(value.require_confirmation)
     setPanelWidth(value.panel_width)
   }, [config])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const routeCards = useMemo(
     () =>
