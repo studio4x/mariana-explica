@@ -887,10 +887,9 @@ export function SiteAiPageEditorLauncher() {
         </div>
       ) : null}
       {open && !isCaptureModeActive ? (
-        <div className="pointer-events-auto flex h-[min(78vh,720px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
+        <div className="pointer-events-auto flex h-[min(78vh,720px)] w-[min(92vw,460px)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-500">Editor via IA</p>
               <h2 className="mt-1 truncate font-display text-lg font-bold text-slate-950">{panelTitle}</h2>
               <p className="mt-1 truncate text-xs leading-5 text-slate-600">{currentLabel}</p>
             </div>
