@@ -477,6 +477,23 @@ export function SiteAiPageEditorLauncher() {
     navigate({ pathname, search: nextSearch ? `?${nextSearch}` : "" }, { replace: true })
   }
 
+  async function refreshCurrentPageContent() {
+    if (!pageSlug) return
+
+    const publicPageKey = ["site", "page", pageSlug] as const
+    const adminPageKey = ["admin", "site-pages", pageSlug] as const
+
+    queryClient.removeQueries({ queryKey: publicPageKey, exact: true })
+    queryClient.removeQueries({ queryKey: adminPageKey, exact: true })
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: publicPageKey }),
+      queryClient.invalidateQueries({ queryKey: adminPageKey }),
+      queryClient.refetchQueries({ queryKey: publicPageKey, type: "active" }),
+      queryClient.refetchQueries({ queryKey: adminPageKey, type: "active" }),
+    ])
+  }
+
   function pushPreviewToCurrentPage(version: Pick<AdminSitePageVersion, "layout_json" | "style_json">) {
     if (!pageSlug) return
     const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
@@ -570,6 +587,7 @@ export function SiteAiPageEditorLauncher() {
       })
 
       clearPreviewFromCurrentPage()
+      await refreshCurrentPageContent()
       setPendingPublication(null)
       setProposal(null)
       setAwaitingImplementation(false)
