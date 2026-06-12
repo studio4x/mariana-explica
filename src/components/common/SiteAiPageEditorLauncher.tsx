@@ -112,8 +112,8 @@ function formatDateTime(value: string) {
 
 function getChatRoleLabel(role: ChatMessage["role"]) {
   if (role === "user") return "Tu"
-  if (role === "assistant") return "Assistente IA"
-  return "Sistema"
+  if (role === "assistant") return "Mariana"
+  return "Aviso"
 }
 
 function buildConversationIntroMessages(): ChatMessage[] {
@@ -122,7 +122,7 @@ function buildConversationIntroMessages(): ChatMessage[] {
       id: uid("msg"),
       role: "assistant",
       text:
-        "Posso ajustar texto, blocos e partes globais do site sem mexer no que não pediste.\n\n" +
+        "Posso ajustar texto, partes da página e áreas globais do site sem mexer no que não pediste.\n\n" +
         "Como interagir:\n" +
         "- descreve o ajuste de forma direta;\n" +
         "- se a mudança for no header ou footer global, indica isso explicitamente;\n" +
@@ -130,7 +130,7 @@ function buildConversationIntroMessages(): ChatMessage[] {
         "Limitações:\n" +
         "- não altero permissões, pagamentos, RLS, integrações ou segredos;\n" +
         "- pedidos vagos tendem a gerar propostas conservadoras para preservar o layout;\n" +
-        "- quando uma alteração é concluída, a conversa é reiniciada para poupar tokens.",
+        "- quando uma alteração é concluída, a conversa recomeça para manter tudo simples.",
     },
   ]
 }
@@ -512,7 +512,7 @@ export function SiteAiPageEditorLauncher() {
 
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
     if (!nextProposal || !pageSlug || !canPersistDraft) {
-      setFeedback("Este caminho ainda não está mapeado para persistência de rascunho.")
+      setFeedback("Esta área ainda não guarda alterações automáticas.")
       return
     }
 
@@ -552,13 +552,13 @@ export function SiteAiPageEditorLauncher() {
       setAttachments([])
       setFeedback(null)
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível guardar a alteração.")
     }
   }
 
   async function handleConfirmAppliedChanges() {
     if (!pageSlug || !pendingPublication?.draftVersion.id) {
-      setFeedback("Não encontrei uma revisão pendente para publicar.")
+      setFeedback("Não encontrei uma alteração pronta para confirmar.")
       return
     }
 
@@ -580,18 +580,18 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Alterações confirmadas. A revisão ${result.version.version_number} foi publicada e já está visível no site público.`,
+          text: "A alteração foi confirmada e já está visível no site.",
         },
       ])
       setFeedback(null)
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível confirmar a alteração.")
     }
   }
 
   async function handleUndoAppliedChanges() {
     if (!pageSlug || !pendingPublication?.previousVersionSnapshot) {
-      setFeedback("Não encontrei um estado anterior para desfazer estas alterações.")
+      setFeedback("Não encontrei um estado anterior para desfazer esta alteração.")
       return
     }
 
@@ -622,18 +622,18 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Alterações desfeitas. A página voltou ao estado anterior na revisão ${result.version.version_number}.`,
+          text: "A alteração foi desfeita e a página voltou ao estado anterior.",
         },
       ])
       setFeedback(null)
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer as alterações.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer a alteração.")
     }
   }
 
   async function handleRestoreRevision(version: AdminSitePageVersion) {
     if (!pageSlug || !canPersistDraft) {
-      setFeedback("Esta página não suporta revisão persistível neste momento.")
+      setFeedback("Esta página ainda não guarda esse tipo de alteração.")
       return
     }
 
@@ -661,17 +661,17 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Revisão restaurada para a versão ${version.version_number}. A página foi atualizada.`,
+          text: "A página voltou ao estado escolhido.",
         },
       ])
       setProposal(null)
       setPendingPublication(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback(`Revisão ${version.version_number} restaurada.`)
+      setFeedback("A página foi atualizada.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a revisão.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a alteração.")
     }
   }
 
@@ -695,7 +695,7 @@ export function SiteAiPageEditorLauncher() {
     if (!trimmedMessage && attachments.length === 0) return
 
     setFeedback(null)
-    setSendStatus("Mensagem enviada. A IA está a processar a tua informação e vais ver o resultado já a seguir.")
+    setSendStatus("Mensagem recebida. Estou a analisar o pedido e a área da página agora.")
     setMessages((current) => [
       ...current,
       { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
@@ -732,10 +732,10 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO cabeçalho global foi atualizado e passa a valer em todas as páginas públicas.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO topo do site foi atualizado.`,
           },
         ])
-        setFeedback("Cabeçalho global atualizado.")
+        setFeedback("Topo do site atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
@@ -770,10 +770,10 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO rodapé global foi atualizado e passa a valer em todas as páginas públicas.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO rodapé do site foi atualizado.`,
           },
         ])
-        setFeedback("Rodapé global atualizado.")
+        setFeedback("Rodapé do site atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
@@ -784,7 +784,7 @@ export function SiteAiPageEditorLauncher() {
         path: pathname,
         message:
           trimmedMessage ||
-          "Analisar os anexos e propor a melhor alteração pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
+          "Analisar os anexos e propor a melhor alteração pontual, preservando a página como está e mudando apenas o ponto solicitado.",
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
@@ -807,8 +807,8 @@ export function SiteAiPageEditorLauncher() {
           id: uid("msg"),
           role: "assistant",
           text: canPersistDraft
-            ? `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a não ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`
-            : `${result.summary}\n\n${result.explanation}\n\nEstou a analisar esta área no modo de preview admin. O launcher já pode acompanhar o contexto da área do aluno e do visualizador, mas a aplicação automática ainda não está ativa nesta superfície.`,
+            ? `Analisei o teu pedido e a área da página onde ele se aplica.\n\nVou fazer isto:\n${result.summary}\n\n${result.explanation}\n\nA mudança será pequena e vai manter o resto da página como está, a não ser que tenhas pedido outra coisa.\nQueres que eu aplique esta alteração?`
+            : `Analisei o teu pedido e a área da página onde ele se aplica.\n\nVou fazer isto:\n${result.summary}\n\n${result.explanation}\n\nSe quiseres, posso continuar a partir daqui com um ajuste pontual nesta parte da página.`,
         },
       ])
       setMessage("")
@@ -825,7 +825,7 @@ export function SiteAiPageEditorLauncher() {
     return null
   }
 
-  const panelTitle = config?.config_value.launcher_label ?? "Editar com IA"
+  const panelTitle = config?.config_value.launcher_label ?? "Fazer ajustes"
   const currentLabel = routeOption?.label ?? pathname
   const currentVersionId = pageContextVersion?.id ?? null
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
@@ -972,8 +972,7 @@ export function SiteAiPageEditorLauncher() {
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisão pronta</p>
                   <p className="mt-2 text-sm leading-6 text-indigo-950">
-                    As alterações já foram aplicadas neste preview admin e estão visíveis apenas para ti. Se confirmares, a revisão{" "}
-                    {pendingPublication.draftVersion.version_number} vai para o site público. Se não confirmares, podes desfazer e voltar ao estado anterior.
+                    As alterações já foram aplicadas e estão visíveis apenas para ti. Se confirmares, esta mudança vai para o site. Se não confirmares, podes desfazer e voltar ao que estava antes.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -1003,14 +1002,14 @@ export function SiteAiPageEditorLauncher() {
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Ajuste guardado</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-950">
-                    A revisão {postApplyDecision.version_number} foi guardada no preview. Podes continuar a mesma sessão para mais ajustes ou finalizar para limpar o contexto e começar uma nova conversa.
+                    A alteração foi guardada. Podes continuar a mesma conversa para mais ajustes ou terminar e começar uma nova.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button type="button" className="h-9 rounded-full" onClick={continueAppliedSession}>
                       Manter esta sessão
                     </Button>
                     <Button type="button" variant="outline" className="h-9 rounded-full" onClick={finalizeAppliedSession}>
-                      Encerrar e abrir nova
+                      Terminar e começar nova
                     </Button>
                   </div>
                 </div>
@@ -1070,7 +1069,7 @@ export function SiteAiPageEditorLauncher() {
                   className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
                   placeholder={
                     isChatBusy
-                      ? "Envio em processamento. Aguarda a resposta da IA..."
+                      ? "Envio em processamento. Aguarda a resposta..."
                       : "Ex.: deixa o hero mais direto e destaca o CTA principal..."
                   }
                 />
