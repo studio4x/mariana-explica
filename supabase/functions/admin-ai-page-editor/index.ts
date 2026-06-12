@@ -332,6 +332,13 @@ function normalizeJsonObjectField(value: unknown, fieldName: string, fallbackToE
       return parsed as Record<string, unknown>
     }
 
+    if (fieldName === "layout_json") {
+      const trimmed = value.trim()
+      if (trimmed.includes("<") && trimmed.includes(">")) {
+        return { html: trimmed }
+      }
+    }
+
     if (!value.trim() && fallbackToEmptyObject) {
       return {}
     }
@@ -1208,6 +1215,7 @@ function buildUserPrompt(input: {
     "Se houver ambiguidade, preferir a menor alteração possível e avisar em warnings.",
     "Se a página atual já usa projectData.blocks, devolve a mesma estrutura e muda apenas o(s) bloco(s) necessário(s), sem recriar a página do zero.",
     "Se precisares mudar apenas uma frase, altera apenas o campo de conteúdo do bloco correspondente.",
+    "Se o pedido mencionar HTML bruto, por exemplo um <hr> ou um fragmento de marcação, não devolvas só o fragmento: atualiza a estrutura completa e mantém projectData.blocks ou html como JSON válido.",
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas. Exemplo: \"{\\\"projectData\\\":{\\\"blocks\\\":[...]}}\".",
     "",
     "HTML atual de referência:",
