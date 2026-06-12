@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react"
+import html2canvas from "html2canvas"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Bot, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
+import { Bot, Camera, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -103,6 +104,25 @@ function getChatRoleLabel(role: ChatMessage["role"]) {
   return "Sistema"
 }
 
+function buildConversationIntroMessages(): ChatMessage[] {
+  return [
+    {
+      id: uid("msg"),
+      role: "assistant",
+      text:
+        "Posso ajustar texto, blocos e partes globais do site sem mexer no que não pediste.\n\n" +
+        "Como interagir:\n" +
+        "- descreve o ajuste de forma direta;\n" +
+        "- se a mudança for no header ou footer global, indica isso explicitamente;\n" +
+        "- podes colar uma imagem no campo de mensagem ou usar o botão \"Capturar página\" para anexar um print automático.\n\n" +
+        "Limitações:\n" +
+        "- não altero permissões, pagamentos, RLS, integrações ou segredos;\n" +
+        "- pedidos vagos tendem a gerar propostas conservadoras para preservar o layout;\n" +
+        "- quando uma alteração é concluída, a conversa é reiniciada para poupar tokens.",
+    },
+  ]
+}
+
 function messageTargetsGlobalHeader(message: string) {
   return /\b(header|cabe[cç]alho|topo|navbar)\b/i.test(message)
 }
@@ -133,10 +153,11 @@ export function SiteAiPageEditorLauncher() {
   const [message, setMessage] = useState("")
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [proposal, setProposal] = useState<AdminAiPageEditorProposal | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(() => buildConversationIntroMessages())
   const [feedback, setFeedback] = useState<string | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
+  const [isCapturingPage, setIsCapturingPage] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const config = configQuery.data
@@ -191,6 +212,17 @@ export function SiteAiPageEditorLauncher() {
     return (pageDetailQuery.data?.versions ?? []).slice(0, 6)
   }, [pageDetailQuery.data?.versions])
 
+  function resetConversation(options?: { keepFeedback?: boolean }) {
+    setMessages(buildConversationIntroMessages())
+    setMessage("")
+    setAttachments([])
+    setProposal(null)
+    setAwaitingImplementation(false)
+    if (!options?.keepFeedback) {
+      setFeedback(null)
+    }
+  }
+
   useEffect(() => {
     if (!open) return
 
@@ -238,6 +270,60 @@ export function SiteAiPageEditorLauncher() {
     if (files.length === 0) return
     event.preventDefault()
     addAttachmentsFromFiles(files)
+  }
+
+  async function capturePageScreenshot() {
+    if (typeof document === "undefined") return
+
+    const limit = config?.config_value.max_attachments ?? 2
+    if (attachments.length >= limit) {
+      setFeedback(`Limite de anexos atingido (${limit}). Remove um anexo antes de capturar outra imagem.`)
+      return
+    }
+
+    setFeedback(null)
+    setIsCapturingPage(true)
+
+    try {
+      const canvas = await html2canvas(document.body, {
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        scale: Math.min(2, window.devicePixelRatio || 1),
+        logging: false,
+        windowWidth: document.documentElement.clientWidth,
+        windowHeight: document.documentElement.clientHeight,
+        scrollX: -window.scrollX,
+        scrollY: -window.scrollY,
+        ignoreElements: (element) =>
+          element instanceof HTMLElement && Boolean(element.closest("[data-ai-page-editor-root]")),
+      })
+
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.88)
+      const attachment: AttachmentItem = {
+        id: uid("attachment"),
+        name: `print-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
+        mime_type: "image/jpeg",
+        data_url: dataUrl,
+        size_bytes: Math.round((dataUrl.length * 3) / 4),
+      }
+
+      setAttachments((current) => {
+        if (current.length >= limit) return current
+        return [...current, attachment]
+      })
+      setMessages((current) => [
+        ...current,
+        {
+          id: uid("msg"),
+          role: "system",
+          text: "Captura da página anexada. Agora descreve o ajuste que queres fazer com base na imagem.",
+        },
+      ])
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Não foi possível capturar a página.")
+    } finally {
+      setIsCapturingPage(false)
+    }
   }
 
   function clearPreviewFromCurrentPage() {
@@ -311,8 +397,8 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setMessage("")
       setFeedback("Ajustes implementados e página atualizada.")
+      resetConversation({ keepFeedback: true })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
     }
@@ -342,6 +428,7 @@ export function SiteAiPageEditorLauncher() {
         },
       ])
       setFeedback("Alterações publicadas com sucesso.")
+      resetConversation({ keepFeedback: true })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
     }
@@ -380,6 +467,7 @@ export function SiteAiPageEditorLauncher() {
         },
       ])
       setFeedback("Alterações desfeitas para o admin.")
+      resetConversation({ keepFeedback: true })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer as alterações.")
     }
@@ -422,8 +510,8 @@ export function SiteAiPageEditorLauncher() {
       setPendingPublication(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setMessage("")
       setFeedback(`Revisão ${version.version_number} restaurada.`)
+      resetConversation({ keepFeedback: true })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a revisão.")
     }
@@ -475,6 +563,7 @@ export function SiteAiPageEditorLauncher() {
           },
         ])
         setFeedback("Cabeçalho global atualizado.")
+        resetConversation({ keepFeedback: true })
         return
       }
 
@@ -512,6 +601,7 @@ export function SiteAiPageEditorLauncher() {
           },
         ])
         setFeedback("Rodapé global atualizado.")
+        resetConversation({ keepFeedback: true })
         return
       }
 
@@ -701,6 +791,9 @@ export function SiteAiPageEditorLauncher() {
                       key={attachment.id}
                       className="inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700"
                     >
+                      {attachment.mime_type.startsWith("image/") ? (
+                        <img src={attachment.data_url} alt={attachment.name} className="h-5 w-5 rounded object-cover" />
+                      ) : null}
                       <span className="truncate">{attachment.name}</span>
                       <button
                         type="button"
@@ -744,6 +837,26 @@ export function SiteAiPageEditorLauncher() {
                     }}
                   />
                 </label>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-full"
+                  onClick={() => void capturePageScreenshot()}
+                  disabled={isCapturingPage}
+                >
+                  {isCapturingPage ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A captar...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="mr-2 h-4 w-4" />
+                      Capturar página
+                    </>
+                  )}
+                </Button>
 
                 <Button
                   type="button"
