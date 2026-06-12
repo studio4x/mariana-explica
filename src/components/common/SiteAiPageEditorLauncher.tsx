@@ -31,7 +31,7 @@ import {
 } from "@/lib/site-page-builder"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
 import { getAiPageEditorRouteOption, isAiPageEditorAllowedPath } from "@/lib/ai-page-editor"
-import type { AdminAiPageEditorProposal, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
+import type { AdminAiPageEditorProposal, AdminSitePageDetail, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 
 type ChatMessage = {
   id: string
@@ -493,6 +493,23 @@ export function SiteAiPageEditorLauncher() {
     navigate({ pathname, search: `?${nextParams.toString()}` }, { replace: true })
   }
 
+  function syncPageDetailCache(nextVersion: AdminSitePageVersion, nextPage = pageDetailQuery.data?.page) {
+    if (!pageSlug || !nextPage) return
+
+    const cacheKey = ["admin", "site-pages", pageSlug] as const
+    const currentDetail = queryClient.getQueryData<AdminSitePageDetail>(cacheKey) ?? pageDetailQuery.data ?? null
+    const currentVersions = currentDetail?.versions ?? []
+    const filteredVersions = currentVersions.filter((version) => version.id !== nextVersion.id)
+
+    queryClient.setQueryData<AdminSitePageDetail>(cacheKey, {
+      page: nextPage,
+      versions: [nextVersion, ...filteredVersions],
+      published_version: currentDetail?.published_version ?? null,
+      latest_draft: nextVersion,
+      assets: currentDetail?.assets ?? [],
+    })
+  }
+
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
     if (!nextProposal || !pageSlug || !canPersistDraft) {
       setFeedback("Este caminho ainda não está mapeado para persistência de rascunho.")
@@ -525,6 +542,7 @@ export function SiteAiPageEditorLauncher() {
       })
 
       pushPreviewToCurrentPage(result.version)
+      syncPageDetailCache(result.version, result.page)
       setPendingPublication({
         draftVersion: result.version,
         previousVersionSnapshot,
