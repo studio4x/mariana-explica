@@ -69,15 +69,6 @@ type CaptureRect = {
   height: number
 }
 
-type CapturePreview = {
-  dataUrl: string
-  name: string
-  mimeType: string
-  sizeBytes: number
-  width: number
-  height: number
-}
-
 function uid(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`
 }
@@ -85,7 +76,7 @@ function uid(prefix: string) {
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error("Não foi possível ler o anexo."))
+    reader.onerror = () => reject(new Error("NÃ£o foi possÃ­vel ler o anexo."))
     reader.onload = () => resolve(String(reader.result ?? ""))
     reader.readAsDataURL(file)
   })
@@ -131,25 +122,25 @@ function buildConversationIntroMessages(): ChatMessage[] {
       id: uid("msg"),
       role: "assistant",
       text:
-        "Posso ajustar texto, blocos e partes globais do site sem mexer no que não pediste.\n\n" +
+        "Posso ajustar texto, blocos e partes globais do site sem mexer no que nÃ£o pediste.\n\n" +
         "Como interagir:\n" +
         "- descreve o ajuste de forma direta;\n" +
-        "- se a mudança for no header ou footer global, indica isso explicitamente;\n" +
-        "- podes colar uma imagem no campo de mensagem ou usar o botão \"Capturar área\" para abrir um seletor e anexar um recorte.\n\n" +
-        "Limitações:\n" +
-        "- não altero permissões, pagamentos, RLS, integrações ou segredos;\n" +
+        "- se a mudanÃ§a for no header ou footer global, indica isso explicitamente;\n" +
+        "- podes colar uma imagem no campo de mensagem ou usar o botÃ£o \"Capturar Ã¡rea\" para abrir um seletor e anexar um recorte.\n\n" +
+        "LimitaÃ§Ãµes:\n" +
+        "- nÃ£o altero permissÃµes, pagamentos, RLS, integraÃ§Ãµes ou segredos;\n" +
         "- pedidos vagos tendem a gerar propostas conservadoras para preservar o layout;\n" +
-        "- quando uma alteração é concluída, a conversa é reiniciada para poupar tokens.",
+        "- quando uma alteraÃ§Ã£o Ã© concluÃ­da, a conversa Ã© reiniciada para poupar tokens.",
     },
   ]
 }
 
 function messageTargetsGlobalHeader(message: string) {
-  return /\b(header|cabe[cç]alho|topo|navbar)\b/i.test(message)
+  return /\b(header|cabe[cÃ§]alho|topo|navbar)\b/i.test(message)
 }
 
 function messageTargetsGlobalFooter(message: string) {
-  return /\b(rodape|rodapé|footer)\b/i.test(message)
+  return /\b(rodape|rodapÃ©|footer)\b/i.test(message)
 }
 
 function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRect {
@@ -190,7 +181,6 @@ export function SiteAiPageEditorLauncher() {
   const [isSelectingCaptureArea, setIsSelectingCaptureArea] = useState(false)
   const [captureStartPoint, setCaptureStartPoint] = useState<CapturePoint | null>(null)
   const [captureRect, setCaptureRect] = useState<CaptureRect | null>(null)
-  const [capturePreview, setCapturePreview] = useState<CapturePreview | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const config = configQuery.data
@@ -245,6 +235,8 @@ export function SiteAiPageEditorLauncher() {
     return (pageDetailQuery.data?.versions ?? []).slice(0, 6)
   }, [pageDetailQuery.data?.versions])
 
+  const isCaptureModeActive = isSelectingCaptureArea || Boolean(captureRect) || isCapturingPage
+
   function resetConversation(options?: { keepFeedback?: boolean }) {
     setMessages(buildConversationIntroMessages())
     setMessage("")
@@ -254,7 +246,6 @@ export function SiteAiPageEditorLauncher() {
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
-    setCapturePreview(null)
     setIsCapturingPage(false)
     if (!options?.keepFeedback) {
       setFeedback(null)
@@ -286,32 +277,46 @@ export function SiteAiPageEditorLauncher() {
 
   useEffect(() => {
     if (open) return
-    if (!isSelectingCaptureArea && !captureStartPoint && !captureRect && !capturePreview) return
+    if (!isSelectingCaptureArea && !captureStartPoint && !captureRect) return
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
-    setCapturePreview(null)
-  }, [capturePreview, captureRect, captureStartPoint, isSelectingCaptureArea, open])
+  }, [captureRect, captureStartPoint, isSelectingCaptureArea, open])
 
   useEffect(() => {
-    if (!isSelectingCaptureArea) return
-
-    const cancelSelection = () => {
-      setIsSelectingCaptureArea(false)
-      setCaptureStartPoint(null)
-      setCaptureRect(null)
-    }
+    if (!isCaptureModeActive) return
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        cancelSelection()
+        setIsSelectingCaptureArea(false)
+        setCaptureStartPoint(null)
+        setCaptureRect(null)
         setFeedback("Seleção de área cancelada.")
       }
     }
 
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [isSelectingCaptureArea])
+  }, [isCaptureModeActive])
+
+  useEffect(() => {
+    if (!isCaptureModeActive || typeof document === "undefined") return
+
+    const { body, documentElement } = document
+    const previousBodyCursor = body.style.cursor
+    const previousDocumentCursor = documentElement.style.cursor
+    const previousBodyUserSelect = body.style.userSelect
+
+    body.style.cursor = "crosshair"
+    documentElement.style.cursor = "crosshair"
+    body.style.userSelect = "none"
+
+    return () => {
+      body.style.cursor = previousBodyCursor
+      documentElement.style.cursor = previousDocumentCursor
+      body.style.userSelect = previousBodyUserSelect
+    }
+  }, [isCaptureModeActive])
 
   function addAttachmentsFromFiles(files: FileList | File[]) {
     const limit = config?.config_value.max_attachments ?? 2
@@ -340,17 +345,17 @@ export function SiteAiPageEditorLauncher() {
   }
 
   async function captureSelectedArea(rect: CaptureRect) {
-    if (typeof document === "undefined") return
+    if (typeof document === "undefined") return false
 
     const limit = config?.config_value.max_attachments ?? 2
     if (attachments.length >= limit) {
       setFeedback(`Limite de anexos atingido (${limit}). Remove um anexo antes de capturar outra imagem.`)
-      return
+      return false
     }
 
     if (rect.width < 24 || rect.height < 24) {
-      setFeedback("A área selecionada é demasiado pequena.")
-      return
+      setFeedback("A Ã¡rea selecionada Ã© demasiado pequena.")
+      return false
     }
 
     setFeedback(null)
@@ -375,16 +380,29 @@ export function SiteAiPageEditorLauncher() {
       })
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.88)
-      setCapturePreview({
-        dataUrl,
-        name: `recorte-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
-        mimeType: "image/jpeg",
-        sizeBytes: Math.round((dataUrl.length * 3) / 4),
-        width: Math.max(1, Math.round(rect.width)),
-        height: Math.max(1, Math.round(rect.height)),
-      })
+      setAttachments((current) => [
+        ...current,
+        {
+          id: uid("attachment"),
+          name: `recorte-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
+          mime_type: "image/jpeg",
+          data_url: dataUrl,
+          size_bytes: Math.round((dataUrl.length * 3) / 4),
+        },
+      ])
+      setMessages((current) => [
+        ...current,
+        {
+          id: uid("msg"),
+          role: "system",
+          text: "Recorte da area selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
+        },
+      ])
+      setFeedback("Recorte adicionado como anexo.")
+      return true
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível capturar a área selecionada.")
+      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel capturar a Ã¡rea selecionada.")
+      return false
     } finally {
       setIsCapturingPage(false)
     }
@@ -401,48 +419,35 @@ export function SiteAiPageEditorLauncher() {
       {
         id: uid("msg"),
         role: "system",
-        text: "Modo de seleção ativo. Arrasta na página para escolher a área que queres capturar. Carrega em Esc para cancelar.",
+        text: "Modo de seleÃ§Ã£o ativo. Arrasta na pÃ¡gina para escolher a Ã¡rea que queres capturar. Carrega em Esc para cancelar.",
       },
     ])
   }
 
-  function confirmCapturePreview() {
-    if (!capturePreview) return
+  async function confirmCaptureSelection() {
+    if (!captureRect || isCapturingPage) return
 
-    const limit = config?.config_value.max_attachments ?? 2
-    setAttachments((current) => {
-      if (current.length >= limit) return current
-      return [
-        ...current,
-        {
-          id: uid("attachment"),
-          name: capturePreview.name,
-          mime_type: capturePreview.mimeType,
-          data_url: capturePreview.dataUrl,
-          size_bytes: capturePreview.sizeBytes,
-        },
-      ]
-    })
-    setMessages((current) => [
-      ...current,
-      {
-        id: uid("msg"),
-        role: "system",
-        text: "Recorte da área selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
-      },
-    ])
-    setCapturePreview(null)
-    setFeedback("Recorte adicionado como anexo.")
+    const rect = captureRect
+    const captured = await captureSelectedArea(rect)
+    if (captured) {
+      setCaptureRect(null)
+      setCaptureStartPoint(null)
+      setIsSelectingCaptureArea(false)
+    }
   }
 
-  function cancelCapturePreview() {
-    setCapturePreview(null)
+  function cancelCaptureSelection() {
+    setIsSelectingCaptureArea(false)
+    setCaptureStartPoint(null)
+    setCaptureRect(null)
     setFeedback("Captura descartada.")
   }
 
   function handleCaptureSelectionMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
     if (event.button !== 0) return
     event.preventDefault()
+    setFeedback(null)
+    setCaptureRect(null)
     setCaptureStartPoint({ x: event.clientX, y: event.clientY })
     setCaptureRect({ left: event.clientX, top: event.clientY, width: 0, height: 0 })
   }
@@ -460,8 +465,7 @@ export function SiteAiPageEditorLauncher() {
     const rect = normalizeCaptureRect(captureStartPoint, { x: event.clientX, y: event.clientY })
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
-    setCaptureRect(null)
-    await captureSelectedArea(rect)
+    setCaptureRect(rect)
   }
 
   function clearPreviewFromCurrentPage() {
@@ -490,7 +494,7 @@ export function SiteAiPageEditorLauncher() {
 
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
     if (!nextProposal || !pageSlug || !canPersistDraft) {
-      setFeedback("Este caminho ainda não está mapeado para persistência de rascunho.")
+      setFeedback("Este caminho ainda nÃ£o estÃ¡ mapeado para persistÃªncia de rascunho.")
       return
     }
 
@@ -529,22 +533,22 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Ajustes implementados apenas para revisão admin. A página foi atualizada para a revisão ${result.version.version_number} e ainda não ficou visível no site público.`,
+          text: `Ajustes implementados apenas para revisÃ£o admin. A pÃ¡gina foi atualizada para a revisÃ£o ${result.version.version_number} e ainda nÃ£o ficou visÃ­vel no site pÃºblico.`,
         },
       ])
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback("Ajustes implementados e página atualizada.")
+      setFeedback("Ajustes implementados e pÃ¡gina atualizada.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
+      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel guardar o rascunho.")
     }
   }
 
   async function handleConfirmAppliedChanges() {
     if (!pageSlug || !pendingPublication?.draftVersion.id) {
-      setFeedback("Não encontrei uma revisão pendente para publicar.")
+      setFeedback("NÃ£o encontrei uma revisÃ£o pendente para publicar.")
       return
     }
 
@@ -562,19 +566,19 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Alterações confirmadas. A revisão ${result.version.version_number} foi publicada e já está visível no site público.`,
+          text: `AlteraÃ§Ãµes confirmadas. A revisÃ£o ${result.version.version_number} foi publicada e jÃ¡ estÃ¡ visÃ­vel no site pÃºblico.`,
         },
       ])
-      setFeedback("Alterações publicadas com sucesso.")
+      setFeedback("AlteraÃ§Ãµes publicadas com sucesso.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
+      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel publicar as alteraÃ§Ãµes.")
     }
   }
 
   async function handleUndoAppliedChanges() {
     if (!pageSlug || !pendingPublication?.previousVersionSnapshot) {
-      setFeedback("Não encontrei um estado anterior para desfazer estas alterações.")
+      setFeedback("NÃ£o encontrei um estado anterior para desfazer estas alteraÃ§Ãµes.")
       return
     }
 
@@ -601,19 +605,19 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Alterações desfeitas. A página voltou ao estado anterior na revisão ${result.version.version_number}.`,
+          text: `AlteraÃ§Ãµes desfeitas. A pÃ¡gina voltou ao estado anterior na revisÃ£o ${result.version.version_number}.`,
         },
       ])
-      setFeedback("Alterações desfeitas para o admin.")
+      setFeedback("AlteraÃ§Ãµes desfeitas para o admin.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer as alterações.")
+      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel desfazer as alteraÃ§Ãµes.")
     }
   }
 
   async function handleRestoreRevision(version: AdminSitePageVersion) {
     if (!pageSlug || !canPersistDraft) {
-      setFeedback("Esta página não suporta revisão persistível neste momento.")
+      setFeedback("Esta pÃ¡gina nÃ£o suporta revisÃ£o persistÃ­vel neste momento.")
       return
     }
 
@@ -641,17 +645,17 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Revisão restaurada para a versão ${version.version_number}. A página foi atualizada.`,
+          text: `RevisÃ£o restaurada para a versÃ£o ${version.version_number}. A pÃ¡gina foi atualizada.`,
         },
       ])
       setProposal(null)
       setPendingPublication(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback(`Revisão ${version.version_number} restaurada.`)
+      setFeedback(`RevisÃ£o ${version.version_number} restaurada.`)
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a revisão.")
+      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel restaurar a revisÃ£o.")
     }
   }
 
@@ -663,13 +667,13 @@ export function SiteAiPageEditorLauncher() {
     setFeedback(null)
     setMessages((current) => [
       ...current,
-      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
+      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para anÃ¡lise visual." },
     ])
 
     try {
       if (messageTargetsGlobalHeader(trimmedMessage)) {
         if (!brandingQuery.data) {
-          throw new Error("Não foi possível carregar o branding global do site.")
+          throw new Error("NÃ£o foi possÃ­vel carregar o branding global do site.")
         }
 
         const result = await generateAdminAiHeaderCopyProposal({
@@ -697,17 +701,17 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO cabeçalho global foi atualizado e passa a valer em todas as páginas públicas.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO cabeÃ§alho global foi atualizado e passa a valer em todas as pÃ¡ginas pÃºblicas.`,
           },
         ])
-        setFeedback("Cabeçalho global atualizado.")
+        setFeedback("CabeÃ§alho global atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
 
       if (messageTargetsGlobalFooter(trimmedMessage)) {
         if (!brandingQuery.data) {
-          throw new Error("Não foi possível carregar o branding global do site.")
+          throw new Error("NÃ£o foi possÃ­vel carregar o branding global do site.")
         }
 
         const result = await generateAdminAiFooterCopyProposal({
@@ -735,10 +739,10 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO rodapé global foi atualizado e passa a valer em todas as páginas públicas.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO rodapÃ© global foi atualizado e passa a valer em todas as pÃ¡ginas pÃºblicas.`,
           },
         ])
-        setFeedback("Rodapé global atualizado.")
+        setFeedback("RodapÃ© global atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
@@ -749,7 +753,7 @@ export function SiteAiPageEditorLauncher() {
         path: pathname,
         message:
           trimmedMessage ||
-          "Analisar os anexos e propor a melhor alteração pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
+          "Analisar os anexos e propor a melhor alteraÃ§Ã£o pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
@@ -772,13 +776,13 @@ export function SiteAiPageEditorLauncher() {
           id: uid("msg"),
           role: "assistant",
           text: canPersistDraft
-            ? `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a não ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`
-            : `${result.summary}\n\n${result.explanation}\n\nEstou a analisar esta área no modo de preview admin. O launcher já pode acompanhar o contexto da área do aluno e do visualizador, mas a aplicação automática ainda não está ativa nesta superfície.`,
+            ? `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a nÃ£o ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`
+            : `${result.summary}\n\n${result.explanation}\n\nEstou a analisar esta Ã¡rea no modo de preview admin. O launcher jÃ¡ pode acompanhar o contexto da Ã¡rea do aluno e do visualizador, mas a aplicaÃ§Ã£o automÃ¡tica ainda nÃ£o estÃ¡ ativa nesta superfÃ­cie.`,
         },
       ])
       setMessage("")
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar a proposta."
+      const errorMessage = error instanceof Error ? error.message : "NÃ£o foi possÃ­vel gerar a proposta."
       setFeedback(errorMessage)
       setMessages((current) => [...current, { id: uid("msg"), role: "system", text: errorMessage }])
     }
@@ -798,9 +802,9 @@ export function SiteAiPageEditorLauncher() {
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
-      {isSelectingCaptureArea ? (
+      {isCaptureModeActive ? (
         <div
-          className="fixed inset-0 z-[95] cursor-crosshair bg-slate-950/10"
+          className="fixed inset-0 z-[95] cursor-crosshair bg-transparent pointer-events-auto select-none"
           onMouseDown={handleCaptureSelectionMouseDown}
           onMouseMove={handleCaptureSelectionMouseMove}
           onMouseUp={(event) => void handleCaptureSelectionMouseUp(event)}
@@ -809,7 +813,11 @@ export function SiteAiPageEditorLauncher() {
           <div className="absolute left-4 top-4 max-w-[min(92vw,420px)] rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm leading-6 text-slate-700 shadow-lg backdrop-blur">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">Seleção de área</p>
             <p className="mt-1">
-              Arrasta para selecionar apenas a área que queres capturar. Carrega em `Esc` para cancelar.
+              {isCapturingPage
+                ? "A capturar a imagem... aguarda um instante."
+                : captureRect
+                  ? "Área selecionada. Confirma para anexar ou redefine a seleção arrastando novamente."
+                  : "Arrasta para selecionar apenas a área que queres capturar. Carrega em Esc para cancelar."}
             </p>
           </div>
           {captureRect ? (
@@ -823,22 +831,27 @@ export function SiteAiPageEditorLauncher() {
               }}
             />
           ) : null}
-          <button
-            type="button"
-            className="absolute right-4 top-4 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-lg transition hover:border-slate-300 hover:text-slate-950"
-            onClick={() => {
-              setIsSelectingCaptureArea(false)
-              setCaptureStartPoint(null)
-              setCaptureRect(null)
-              setFeedback("Seleção de área cancelada.")
-            }}
-          >
-            Cancelar
-          </button>
+          <div className="absolute right-4 top-4 flex flex-wrap gap-2">
+            {captureRect && !isCapturingPage ? (
+              <button
+                type="button"
+                className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-lg transition hover:border-sky-300 hover:text-sky-950"
+                onClick={() => void confirmCaptureSelection()}
+              >
+                Confirmar
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-lg transition hover:border-slate-300 hover:text-slate-950"
+              onClick={cancelCaptureSelection}
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       ) : null}
-
-      {open ? (
+      {open && !isCaptureModeActive ? (
         <div className="pointer-events-auto flex h-[min(78vh,720px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
             <div className="min-w-0">
@@ -860,7 +873,7 @@ export function SiteAiPageEditorLauncher() {
             <div className="min-h-0 flex-1 overflow-y-auto space-y-3 rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3">
               {messages.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-600">
-                  Olá! O site está carregado. O que gostarias de alterar?
+                  OlÃ¡! O site estÃ¡ carregado. O que gostarias de alterar?
                 </div>
               ) : null}
 
@@ -885,9 +898,9 @@ export function SiteAiPageEditorLauncher() {
 
               {proposal && awaitingImplementation ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Confirmação</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">ConfirmaÃ§Ã£o</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-950">
-                    Desejas que eu implemente estes ajustes na página e atualize a visualização?
+                    Desejas que eu implemente estes ajustes na pÃ¡gina e atualize a visualizaÃ§Ã£o?
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -915,7 +928,7 @@ export function SiteAiPageEditorLauncher() {
                         ])
                       }}
                     >
-                      Não agora
+                      NÃ£o agora
                     </Button>
                   </div>
                 </div>
@@ -923,10 +936,10 @@ export function SiteAiPageEditorLauncher() {
 
               {pendingPublication ? (
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisão pronta</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">RevisÃ£o pronta</p>
                   <p className="mt-2 text-sm leading-6 text-indigo-950">
-                    As alterações estão visíveis apenas para ti neste preview admin. Quando confirmares, a revisão{" "}
-                    {pendingPublication.draftVersion.version_number} será publicada no site público.
+                    As alteraÃ§Ãµes estÃ£o visÃ­veis apenas para ti neste preview admin. Quando confirmares, a revisÃ£o{" "}
+                    {pendingPublication.draftVersion.version_number} serÃ¡ publicada no site pÃºblico.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -936,7 +949,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <Check className="mr-2 h-4 w-4" />
-                      {publishMutation.isPending ? "A publicar..." : "Confirmar alterações"}
+                      {publishMutation.isPending ? "A publicar..." : "Confirmar alteraÃ§Ãµes"}
                     </Button>
                     <Button
                       type="button"
@@ -946,7 +959,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <RotateCcw className="mr-2 h-4 w-4" />
-                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alterações"}
+                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alteraÃ§Ãµes"}
                     </Button>
                   </div>
                 </div>
@@ -958,39 +971,6 @@ export function SiteAiPageEditorLauncher() {
                 </div>
               ) : null}
 
-              {capturePreview ? (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-700">Pré-visualização</p>
-                  <p className="mt-1 text-sm leading-6 text-sky-950">
-                    Confere o recorte antes de anexar. Se estiver certo, confirma para enviar no chat.
-                  </p>
-                  <div className="mt-3 overflow-hidden rounded-2xl border border-sky-200 bg-white">
-                    <img
-                      src={capturePreview.dataUrl}
-                      alt="Pré-visualização do recorte"
-                      className="max-h-[220px] w-full object-contain"
-                    />
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-sky-900">
-                    <span className="rounded-full bg-white px-2 py-1 font-semibold">
-                      {capturePreview.width}px × {capturePreview.height}px
-                    </span>
-                    <span className="rounded-full bg-white px-2 py-1 font-semibold">
-                      {(capturePreview.sizeBytes / 1024).toFixed(1)} KB
-                    </span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button type="button" className="h-9 rounded-full" onClick={() => void confirmCapturePreview()}>
-                      <Check className="mr-2 h-4 w-4" />
-                      Anexar recorte
-                    </Button>
-                    <Button type="button" variant="outline" className="h-9 rounded-full" onClick={cancelCapturePreview}>
-                      <X className="mr-2 h-4 w-4" />
-                      Descarta
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
 
               <div ref={messagesEndRef} />
             </div>
@@ -1065,12 +1045,12 @@ export function SiteAiPageEditorLauncher() {
                   ) : isSelectingCaptureArea ? (
                     <>
                       <Camera className="mr-2 h-4 w-4" />
-                      Seleciona a área
+                      Seleciona a Ã¡rea
                     </>
                   ) : (
                     <>
                       <Camera className="mr-2 h-4 w-4" />
-                      Capturar área
+                      Capturar Ã¡rea
                     </>
                   )}
                 </Button>
@@ -1099,7 +1079,7 @@ export function SiteAiPageEditorLauncher() {
                 <details className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-500">
                   <summary className="flex cursor-pointer items-center gap-2 font-medium text-slate-500 transition hover:text-slate-700">
                     <History className="h-3.5 w-3.5" />
-                    Revisões
+                    RevisÃµes
                   </summary>
                   <div className="mt-3 space-y-2">
                     {revisions.map((version) => {
@@ -1108,9 +1088,9 @@ export function SiteAiPageEditorLauncher() {
                         <div key={version.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-950">Versão {version.version_number}</p>
+                              <p className="text-sm font-semibold text-slate-950">VersÃ£o {version.version_number}</p>
                               <p className="text-xs text-slate-500">
-                                {version.status} • {formatDateTime(version.created_at)}
+                                {version.status} â€¢ {formatDateTime(version.created_at)}
                               </p>
                             </div>
                             <Button
@@ -1148,3 +1128,5 @@ export function SiteAiPageEditorLauncher() {
     </div>
   )
 }
+
+
