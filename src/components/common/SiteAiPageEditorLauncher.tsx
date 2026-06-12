@@ -178,6 +178,7 @@ export function SiteAiPageEditorLauncher() {
   const [sendStatus, setSendStatus] = useState<string | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
+  const [postApplyDecision, setPostApplyDecision] = useState<AdminSitePageVersion | null>(null)
   const [isCapturingPage, setIsCapturingPage] = useState(false)
   const [isSelectingCaptureArea, setIsSelectingCaptureArea] = useState(false)
   const [captureStartPoint, setCaptureStartPoint] = useState<CapturePoint | null>(null)
@@ -246,6 +247,7 @@ export function SiteAiPageEditorLauncher() {
     setProposal(null)
     setAwaitingImplementation(false)
     setSendStatus(null)
+    setPostApplyDecision(null)
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
@@ -545,19 +547,19 @@ export function SiteAiPageEditorLauncher() {
         draftVersion: result.version,
         previousVersionSnapshot,
       })
+      setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
         {
           id: uid("msg"),
           role: "system",
-          text: `Ajustes implementados apenas para revisão admin. A página foi atualizada para a revisão ${result.version.version_number} e ainda não ficou visível no site público.`,
+          text: `Ajustes implementados apenas para revisão admin. A página foi atualizada para a revisão ${result.version.version_number} e ainda não ficou visível no site público. Podes continuar a ajustar a mesma sessão ou finalizar para começar uma nova.`,
         },
       ])
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
       setFeedback("Ajustes implementados e página atualizada.")
-      resetConversation({ keepFeedback: true })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
     }
@@ -674,6 +676,19 @@ export function SiteAiPageEditorLauncher() {
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a revisão.")
     }
+  }
+
+  function continueAppliedSession() {
+    if (!postApplyDecision) return
+    setPostApplyDecision(null)
+    setFeedback("Sessão mantida aberta para novos ajustes.")
+  }
+
+  function finalizeAppliedSession() {
+    if (!postApplyDecision) return
+    setPostApplyDecision(null)
+    setFeedback("Sessão finalizada. Nova conversa iniciada.")
+    resetConversation({ keepFeedback: true })
   }
 
   async function handleSend() {
@@ -982,6 +997,23 @@ export function SiteAiPageEditorLauncher() {
                     >
                       <RotateCcw className="mr-2 h-4 w-4" />
                       {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alterações"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {postApplyDecision ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Ajuste aplicado</p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-950">
+                    A revisão {postApplyDecision.version_number} foi guardada. Queres continuar esta sessão ou finalizar e abrir uma nova?
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button type="button" className="h-9 rounded-full" onClick={continueAppliedSession}>
+                      Continuar ajustes
+                    </Button>
+                    <Button type="button" variant="outline" className="h-9 rounded-full" onClick={finalizeAppliedSession}>
+                      Finalizar ajustes
                     </Button>
                   </div>
                 </div>
