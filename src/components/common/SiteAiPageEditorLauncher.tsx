@@ -277,14 +277,6 @@ export function SiteAiPageEditorLauncher() {
   }, [open, messages.length, awaitingImplementation, pendingPublication, feedback, proposal])
 
   useEffect(() => {
-    if (open) return
-    if (!isSelectingCaptureArea && !captureStartPoint && !captureRect) return
-    setIsSelectingCaptureArea(false)
-    setCaptureStartPoint(null)
-    setCaptureRect(null)
-  }, [captureRect, captureStartPoint, isSelectingCaptureArea, open])
-
-  useEffect(() => {
     if (!isCaptureModeActive) return
 
     const onKeyDown = (event: KeyboardEvent) => {
