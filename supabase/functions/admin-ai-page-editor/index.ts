@@ -81,6 +81,14 @@ interface UsageEventRecord {
 const MODEL_PRICING_CATALOG: Record<AiProvider, Array<{ match: RegExp; pricing: ModelPricing }>> = {
   gemini: [
     {
+      match: /^gemini-3\.5-flash(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 1.5,
+        output_per_million_usd: 9,
+        source_label: "Gemini 3.5 Flash Standard",
+      },
+    },
+    {
       match: /^gemini-3\.1-flash-lite(?:$|-)/i,
       pricing: {
         input_per_million_usd: 0.25,
