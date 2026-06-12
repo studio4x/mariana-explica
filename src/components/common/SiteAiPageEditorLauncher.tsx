@@ -175,6 +175,7 @@ export function SiteAiPageEditorLauncher() {
   const [proposal, setProposal] = useState<AdminAiPageEditorProposal | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(() => buildConversationIntroMessages())
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [sendStatus, setSendStatus] = useState<string | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
   const [isCapturingPage, setIsCapturingPage] = useState(false)
@@ -244,6 +245,7 @@ export function SiteAiPageEditorLauncher() {
     setAttachments([])
     setProposal(null)
     setAwaitingImplementation(false)
+    setSendStatus(null)
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
@@ -680,6 +682,7 @@ export function SiteAiPageEditorLauncher() {
     if (!trimmedMessage && attachments.length === 0) return
 
     setFeedback(null)
+    setSendStatus("Mensagem enviada. A IA está a processar a tua informação e vais ver o resultado já a seguir.")
     setMessages((current) => [
       ...current,
       { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
@@ -800,6 +803,8 @@ export function SiteAiPageEditorLauncher() {
       const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar a proposta."
       setFeedback(errorMessage)
       setMessages((current) => [...current, { id: uid("msg"), role: "system", text: errorMessage }])
+    } finally {
+      setSendStatus(null)
     }
   }
 
@@ -810,6 +815,7 @@ export function SiteAiPageEditorLauncher() {
   const panelTitle = config?.config_value.launcher_label ?? "Editar com IA"
   const currentLabel = routeOption?.label ?? pathname
   const currentVersionId = pageContextVersion?.id ?? null
+  const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
@@ -987,6 +993,13 @@ export function SiteAiPageEditorLauncher() {
                 </div>
               ) : null}
 
+              {sendStatus ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-700">A processar</p>
+                  <p className="mt-1 leading-6">{sendStatus}</p>
+                </div>
+              ) : null}
+
 
               <div ref={messagesEndRef} />
             </div>
@@ -1023,13 +1036,24 @@ export function SiteAiPageEditorLauncher() {
                   onChange={(event) => setMessage(event.target.value)}
                   onPaste={(event) => void handlePaste(event)}
                   rows={3}
-                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-400"
-                  placeholder="Ex.: deixa o hero mais direto e destaca o CTA principal..."
+                  disabled={isChatBusy}
+                  aria-busy={isChatBusy}
+                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
+                  placeholder={
+                    isChatBusy
+                      ? "Envio em processamento. Aguarda a resposta da IA..."
+                      : "Ex.: deixa o hero mais direto e destaca o CTA principal..."
+                  }
                 />
               </label>
 
               <div className="mt-3 flex items-center gap-2">
-                <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300">
+                <label
+                  className={[
+                    "inline-flex h-10 items-center gap-2 rounded-full border bg-slate-50 px-3 text-sm font-semibold text-slate-700 transition",
+                    isChatBusy ? "cursor-not-allowed border-slate-100 opacity-60" : "cursor-pointer border-slate-200 hover:border-slate-300",
+                  ].join(" ")}
+                >
                   <ImagePlus className="h-4 w-4" />
                   Anexo
                   <input
@@ -1037,6 +1061,7 @@ export function SiteAiPageEditorLauncher() {
                     accept="image/*"
                     multiple
                     className="hidden"
+                    disabled={isChatBusy}
                     onChange={(event) => {
                       if (event.target.files?.length) {
                         addAttachmentsFromFiles(event.target.files)
@@ -1051,7 +1076,7 @@ export function SiteAiPageEditorLauncher() {
                   variant="outline"
                   className="h-10 rounded-full"
                   onClick={() => void beginCaptureSelection()}
-                  disabled={isCapturingPage || isSelectingCaptureArea}
+                  disabled={isCapturingPage || isSelectingCaptureArea || isChatBusy}
                 >
                   {isCapturingPage ? (
                     <>
@@ -1075,12 +1100,12 @@ export function SiteAiPageEditorLauncher() {
                   type="button"
                   className="h-10 flex-1 rounded-full"
                   onClick={() => void handleSend()}
-                  disabled={generateMutation.isPending}
+                  disabled={isChatBusy}
                 >
-                  {generateMutation.isPending ? (
+                  {isChatBusy ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      A gerar...
+                      A processar...
                     </>
                   ) : (
                     <>
