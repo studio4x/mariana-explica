@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
 export const BUILD_DEPLOY_NUMBER = "73"
-export const BUILD_COMMIT = "fix-managed-padding-top"
+export const BUILD_COMMIT = "63d115b"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
