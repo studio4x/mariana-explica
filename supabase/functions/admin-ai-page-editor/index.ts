@@ -81,6 +81,14 @@ interface UsageEventRecord {
 const MODEL_PRICING_CATALOG: Record<AiProvider, Array<{ match: RegExp; pricing: ModelPricing }>> = {
   gemini: [
     {
+      match: /^gemini-3\.1-flash-lite(?:$|-)/i,
+      pricing: {
+        input_per_million_usd: 0.25,
+        output_per_million_usd: 1.5,
+        source_label: "Gemini 3.1 Flash-Lite Standard",
+      },
+    },
+    {
       match: /^gemini-2\.0-flash(?:$|-)/i,
       pricing: {
         input_per_million_usd: 0.1,
@@ -258,6 +266,20 @@ function estimateUsageCostUsd(
     estimated_cost_usd: roundUsd(estimatedCostUsd),
     pricing_source: pricing.source_label,
   }
+}
+
+function resolveUsageEventCostUsd(
+  provider: AiProvider,
+  model: string,
+  usage: UsageSnapshot,
+  storedEstimatedCostUsd: unknown,
+) {
+  if (storedEstimatedCostUsd !== null && storedEstimatedCostUsd !== undefined) {
+    return roundUsd(Number(storedEstimatedCostUsd) || 0)
+  }
+
+  const pricing = estimateUsageCostUsd(provider, model, usage)
+  return pricing.estimated_cost_usd
 }
 
 function normalizeConfigValue(raw: unknown) {
@@ -1011,10 +1033,16 @@ async function readUsageMetrics(
     input_tokens: normalizeTokenCount(event.input_tokens),
     output_tokens: normalizeTokenCount(event.output_tokens),
     total_tokens: normalizeTokenCount(event.total_tokens),
-    estimated_cost_usd:
-      event.estimated_cost_usd === null || event.estimated_cost_usd === undefined
-        ? null
-        : roundUsd(Number(event.estimated_cost_usd) || 0),
+    estimated_cost_usd: resolveUsageEventCostUsd(
+      normalizeProvider(event.provider) as AiProvider,
+      normalizeString(event.model),
+      {
+        input_tokens: normalizeTokenCount(event.input_tokens),
+        output_tokens: normalizeTokenCount(event.output_tokens),
+        total_tokens: normalizeTokenCount(event.total_tokens),
+      },
+      event.estimated_cost_usd,
+    ),
     currency: normalizeString(event.currency, "USD"),
     request_id: normalizeString(event.request_id) || null,
     metadata:
@@ -1030,10 +1058,11 @@ async function readUsageMetrics(
     const inputTokens = normalizeTokenCount(event.input_tokens)
     const outputTokens = normalizeTokenCount(event.output_tokens)
     const totalTokens = normalizeTokenCount(event.total_tokens)
-    const estimatedCostUsd =
-      event.estimated_cost_usd === null || event.estimated_cost_usd === undefined
-        ? null
-        : roundUsd(Number(event.estimated_cost_usd) || 0)
+    const estimatedCostUsd = resolveUsageEventCostUsd(provider, model, {
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      total_tokens: totalTokens,
+    }, event.estimated_cost_usd)
     const createdAt = normalizeString(event.created_at) || null
 
     summary.total_requests += 1
@@ -1101,7 +1130,7 @@ async function readUsageMetrics(
     recent_events,
     pricing_reference: {
       currency: "USD" as const,
-      source: "Tabela interna baseada nos preÃ§os oficiais dos provedores para tokens de entrada e saÃ­da.",
+      source: "Tabela interna baseada nos preços oficiais dos provedores para tokens de entrada e saída.",
     },
   }
 }
