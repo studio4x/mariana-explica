@@ -1010,10 +1010,10 @@ export function SiteAiPageEditorLauncher() {
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button type="button" className="h-9 rounded-full" onClick={continueAppliedSession}>
-                      Continuar ajustes
+                      Manter esta sessão
                     </Button>
                     <Button type="button" variant="outline" className="h-9 rounded-full" onClick={finalizeAppliedSession}>
-                      Finalizar ajustes
+                      Encerrar e abrir nova
                     </Button>
                   </div>
                 </div>
