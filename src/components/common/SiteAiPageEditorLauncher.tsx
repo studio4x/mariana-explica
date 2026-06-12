@@ -975,8 +975,8 @@ export function SiteAiPageEditorLauncher() {
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisão pronta</p>
                   <p className="mt-2 text-sm leading-6 text-indigo-950">
-                    As alterações estão visíveis apenas para ti neste preview admin. Quando confirmares, a revisão{" "}
-                    {pendingPublication.draftVersion.version_number} será publicada no site público.
+                    As alterações já foram aplicadas neste preview admin e estão visíveis apenas para ti. Se confirmares, a revisão{" "}
+                    {pendingPublication.draftVersion.version_number} vai para o site público. Se não confirmares, podes desfazer e voltar ao estado anterior.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -996,7 +996,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <RotateCcw className="mr-2 h-4 w-4" />
-                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alterações"}
+                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer e voltar"}
                     </Button>
                   </div>
                 </div>
@@ -1004,9 +1004,9 @@ export function SiteAiPageEditorLauncher() {
 
               {postApplyDecision ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Ajuste aplicado</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Ajuste guardado</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-950">
-                    A revisão {postApplyDecision.version_number} foi guardada. Queres continuar esta sessão ou finalizar e abrir uma nova?
+                    A revisão {postApplyDecision.version_number} foi guardada no preview. Podes continuar a mesma sessão para mais ajustes ou finalizar para limpar o contexto e começar uma nova conversa.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button type="button" className="h-9 rounded-full" onClick={continueAppliedSession}>
