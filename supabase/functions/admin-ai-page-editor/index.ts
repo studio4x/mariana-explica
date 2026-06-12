@@ -485,6 +485,44 @@ function requestExplicitlyMentionsMediaOrLayout(message: string) {
   ])
 }
 
+function isCssClassEditRequest(message: string) {
+  const normalized = normalizeMessageForParsing(message).toLowerCase()
+  const cssKeywords = [
+    "css",
+    "classe",
+    "class",
+    "seletor",
+    "selector",
+    "padding",
+    "margin",
+    "max-width",
+    "min-width",
+    "width",
+    "height",
+    "gap",
+    "border",
+    "border-radius",
+    "background",
+    "font-size",
+    "line-height",
+  ]
+
+  return hasKeyword(normalized, cssKeywords) || /(^|\\s)[.#][a-z0-9_-]+/i.test(normalized)
+}
+
+function isManagedBlockPage(layoutJson: Record<string, unknown>) {
+  const record = layoutJson && typeof layoutJson === "object" ? layoutJson : {}
+  const projectData =
+    record.projectData && typeof record.projectData === "object"
+      ? (record.projectData as Record<string, unknown>)
+      : null
+
+  return (
+    (Array.isArray(projectData?.blocks) && projectData.blocks.length > 0) ||
+    (Array.isArray(record.blocks) && record.blocks.length > 0)
+  )
+}
+
 function extractBlocksFromLayoutJson(layoutJson: Record<string, unknown>) {
   const record = layoutJson && typeof layoutJson === "object" ? layoutJson : {}
   const projectData =
@@ -1824,6 +1862,12 @@ Deno.serve(async (req) => {
           OPENAI_SECRET_NAME,
           body.openaiApiKey.trim(),
           "Chave OpenAI usada como fallback do editor via IA",
+        )
+      }
+
+      if (isCssClassEditRequest(message) && isManagedBlockPage(currentLayoutJson)) {
+        throw unprocessable(
+          "Pedido de CSS/classe detectado numa pÃ¡gina gerida por blocos. Para proteger o layout, o editor IA nÃ£o reescreve a estrutura da pÃ¡gina nesse tipo de ajuste. Usa o editor visual ou um ajuste tÃ©cnico no builder/base CSS.",
         )
       }
 

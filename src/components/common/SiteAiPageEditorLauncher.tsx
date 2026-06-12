@@ -143,6 +143,39 @@ function messageTargetsGlobalFooter(message: string) {
   return /\b(rodape|rodapé|footer)\b/i.test(message)
 }
 
+function messageTargetsCssClassEdit(message: string) {
+  const normalized = message.toLowerCase()
+  return (
+    /\.[a-z0-9_-]+/i.test(message) ||
+    [
+      "css",
+      "classe",
+      "class",
+      "seletor",
+      "selector",
+      "padding",
+      "margin",
+      "max-width",
+      "min-width",
+      "font-size",
+      "line-height",
+      "border-radius",
+    ].some((keyword) => normalized.includes(keyword))
+  )
+}
+
+function pageUsesManagedBlocks(layoutJson: Record<string, unknown>) {
+  const projectData =
+    layoutJson.projectData && typeof layoutJson.projectData === "object"
+      ? (layoutJson.projectData as Record<string, unknown>)
+      : null
+
+  return (
+    (Array.isArray(projectData?.blocks) && projectData.blocks.length > 0) ||
+    (Array.isArray(layoutJson.blocks) && layoutJson.blocks.length > 0)
+  )
+}
+
 function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRect {
   const left = Math.min(start.x, end.x)
   const top = Math.min(start.y, end.y)
@@ -793,6 +826,25 @@ export function SiteAiPageEditorLauncher() {
         ])
         setFeedback("Rodapé do site atualizado.")
         resetConversation({ keepFeedback: true })
+        return
+      }
+
+      if (messageTargetsCssClassEdit(trimmedMessage) && pageUsesManagedBlocks(currentLayoutJson)) {
+        const protectionMessage =
+          "Identifiquei um pedido de CSS/classe numa pÃ¡gina gerida por blocos. Para nÃ£o quebrar o layout, este editor nÃ£o vai reescrever a pÃ¡gina inteira para cumprir esse tipo de ajuste. Usa o editor visual ou um ajuste tÃ©cnico no builder/base CSS."
+
+        setProposal(null)
+        setAwaitingImplementation(false)
+        setMessages((current) => [
+          ...current,
+          {
+            id: uid("msg"),
+            role: "assistant",
+            text: protectionMessage,
+          },
+        ])
+        setFeedback(protectionMessage)
+        setMessage("")
         return
       }
 
