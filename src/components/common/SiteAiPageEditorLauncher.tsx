@@ -831,7 +831,12 @@ export function SiteAiPageEditorLauncher() {
               }}
             />
           ) : null}
-          <div className="absolute right-4 top-4 flex flex-wrap gap-2">
+          <div
+            className="absolute right-4 top-4 flex flex-wrap gap-2"
+            onMouseDown={(event) => event.stopPropagation()}
+            onMouseUp={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
             {captureRect && !isCapturingPage ? (
               <button
                 type="button"
