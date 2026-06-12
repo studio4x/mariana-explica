@@ -837,7 +837,7 @@ export function SiteAiPageEditorLauncher() {
             {captureRect && !isCapturingPage ? (
               <button
                 type="button"
-                className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-lg transition hover:border-sky-300 hover:text-sky-950"
+                className="rounded-full border border-emerald-300 bg-emerald-500 px-5 py-2.5 text-sm font-bold tracking-wide text-white shadow-[0_16px_30px_rgba(16,185,129,0.35)] transition hover:bg-emerald-600 hover:border-emerald-400 hover:shadow-[0_18px_36px_rgba(16,185,129,0.42)] focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2"
                 onClick={() => void confirmCaptureSelection()}
               >
                 Confirmar
@@ -845,7 +845,7 @@ export function SiteAiPageEditorLauncher() {
             ) : null}
             <button
               type="button"
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-lg transition hover:border-slate-300 hover:text-slate-950"
+              className="rounded-full border border-rose-300 bg-white px-5 py-2.5 text-sm font-bold tracking-wide text-rose-700 shadow-[0_16px_30px_rgba(15,23,42,0.18)] transition hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2"
               onClick={cancelCaptureSelection}
             >
               Cancelar
