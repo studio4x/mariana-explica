@@ -2063,7 +2063,7 @@ Deno.serve(async (req) => {
         entityType: "site_config",
         entityId: null,
         metadata: {
-          config_key: BRANDING_CONFIG_KEY,
+          config_key: CONFIG_KEY,
           path,
           provider_used: providerUsed,
         },
@@ -2228,7 +2228,7 @@ Deno.serve(async (req) => {
         entityType: "site_config",
         entityId: null,
         metadata: {
-          config_key: BRANDING_CONFIG_KEY,
+          config_key: CONFIG_KEY,
           path,
           provider_used: providerUsed,
         },
