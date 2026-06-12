@@ -184,8 +184,9 @@ export function SiteAiPageEditorLauncher() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const config = configQuery.data
-  const allowedPath = Boolean(config && isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths))
-  const isReady = Boolean(isAdmin && !authLoading && config?.config_value.enabled && allowedPath)
+  const allowedPath = !config || isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths)
+  const canRenderLauncher = Boolean(isAdmin && !authLoading && allowedPath)
+  const isReady = Boolean(canRenderLauncher && config?.config_value.enabled)
   const pageSlug = routeOption?.slug ?? null
   const previewPayload = useMemo(() => {
     if (!pageSlug) return null
@@ -788,11 +789,7 @@ export function SiteAiPageEditorLauncher() {
     }
   }
 
-  if (!isReady) {
-    return null
-  }
-
-  if (configQuery.isError) {
+  if (!canRenderLauncher) {
     return null
   }
 
