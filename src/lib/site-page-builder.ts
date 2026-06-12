@@ -1625,7 +1625,7 @@ export function getDefaultStyleCss() {
 .me-managed-page-root {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 56px 20px 76px;
+  padding: 0 20px 76px;
 }
 .me-managed-block {
   box-sizing: border-box;
