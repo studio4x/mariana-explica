@@ -76,7 +76,7 @@ function uid(prefix: string) {
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error("NÃ£o foi possÃ­vel ler o anexo."))
+    reader.onerror = () => reject(new Error("Não foi possível ler o anexo."))
     reader.onload = () => resolve(String(reader.result ?? ""))
     reader.readAsDataURL(file)
   })
@@ -122,25 +122,25 @@ function buildConversationIntroMessages(): ChatMessage[] {
       id: uid("msg"),
       role: "assistant",
       text:
-        "Posso ajustar texto, blocos e partes globais do site sem mexer no que nÃ£o pediste.\n\n" +
+        "Posso ajustar texto, blocos e partes globais do site sem mexer no que não pediste.\n\n" +
         "Como interagir:\n" +
         "- descreve o ajuste de forma direta;\n" +
-        "- se a mudanÃ§a for no header ou footer global, indica isso explicitamente;\n" +
-        "- podes colar uma imagem no campo de mensagem ou usar o botÃ£o \"Capturar Ã¡rea\" para abrir um seletor e anexar um recorte.\n\n" +
-        "LimitaÃ§Ãµes:\n" +
-        "- nÃ£o altero permissÃµes, pagamentos, RLS, integraÃ§Ãµes ou segredos;\n" +
+        "- se a mudança for no header ou footer global, indica isso explicitamente;\n" +
+        "- podes colar uma imagem no campo de mensagem ou usar o botão \"Capturar área\" para abrir um seletor e anexar um recorte.\n\n" +
+        "Limitações:\n" +
+        "- não altero permissões, pagamentos, RLS, integrações ou segredos;\n" +
         "- pedidos vagos tendem a gerar propostas conservadoras para preservar o layout;\n" +
-        "- quando uma alteraÃ§Ã£o Ã© concluÃ­da, a conversa Ã© reiniciada para poupar tokens.",
+        "- quando uma alteração é concluída, a conversa é reiniciada para poupar tokens.",
     },
   ]
 }
 
 function messageTargetsGlobalHeader(message: string) {
-  return /\b(header|cabe[cÃ§]alho|topo|navbar)\b/i.test(message)
+  return /\b(header|cabe[cç]alho|topo|navbar)\b/i.test(message)
 }
 
 function messageTargetsGlobalFooter(message: string) {
-  return /\b(rodape|rodapÃ©|footer)\b/i.test(message)
+  return /\b(rodape|rodapé|footer)\b/i.test(message)
 }
 
 function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRect {
@@ -354,7 +354,7 @@ export function SiteAiPageEditorLauncher() {
     }
 
     if (rect.width < 24 || rect.height < 24) {
-      setFeedback("A Ã¡rea selecionada Ã© demasiado pequena.")
+      setFeedback("A área selecionada é demasiado pequena.")
       return false
     }
 
@@ -395,13 +395,13 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: "Recorte da area selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
+          text: "Recorte da área selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
         },
       ])
       setFeedback("Recorte adicionado como anexo.")
       return true
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel capturar a Ã¡rea selecionada.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível capturar a área selecionada.")
       return false
     } finally {
       setIsCapturingPage(false)
@@ -419,7 +419,7 @@ export function SiteAiPageEditorLauncher() {
       {
         id: uid("msg"),
         role: "system",
-        text: "Modo de seleÃ§Ã£o ativo. Arrasta na pÃ¡gina para escolher a Ã¡rea que queres capturar. Carrega em Esc para cancelar.",
+        text: "Modo de seleção ativo. Arrasta na página para escolher a área que queres capturar. Carrega em Esc para cancelar.",
       },
     ])
   }
@@ -494,7 +494,7 @@ export function SiteAiPageEditorLauncher() {
 
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
     if (!nextProposal || !pageSlug || !canPersistDraft) {
-      setFeedback("Este caminho ainda nÃ£o estÃ¡ mapeado para persistÃªncia de rascunho.")
+      setFeedback("Este caminho ainda não está mapeado para persistência de rascunho.")
       return
     }
 
@@ -533,22 +533,22 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `Ajustes implementados apenas para revisÃ£o admin. A pÃ¡gina foi atualizada para a revisÃ£o ${result.version.version_number} e ainda nÃ£o ficou visÃ­vel no site pÃºblico.`,
+          text: `Ajustes implementados apenas para revisão admin. A página foi atualizada para a revisão ${result.version.version_number} e ainda não ficou visível no site público.`,
         },
       ])
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback("Ajustes implementados e pÃ¡gina atualizada.")
+      setFeedback("Ajustes implementados e página atualizada.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel guardar o rascunho.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
     }
   }
 
   async function handleConfirmAppliedChanges() {
     if (!pageSlug || !pendingPublication?.draftVersion.id) {
-      setFeedback("NÃ£o encontrei uma revisÃ£o pendente para publicar.")
+      setFeedback("Não encontrei uma revisão pendente para publicar.")
       return
     }
 
@@ -566,19 +566,19 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `AlteraÃ§Ãµes confirmadas. A revisÃ£o ${result.version.version_number} foi publicada e jÃ¡ estÃ¡ visÃ­vel no site pÃºblico.`,
+          text: `Alterações confirmadas. A revisão ${result.version.version_number} foi publicada e já está visível no site público.`,
         },
       ])
-      setFeedback("AlteraÃ§Ãµes publicadas com sucesso.")
+      setFeedback("Alterações publicadas com sucesso.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel publicar as alteraÃ§Ãµes.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
     }
   }
 
   async function handleUndoAppliedChanges() {
     if (!pageSlug || !pendingPublication?.previousVersionSnapshot) {
-      setFeedback("NÃ£o encontrei um estado anterior para desfazer estas alteraÃ§Ãµes.")
+      setFeedback("Não encontrei um estado anterior para desfazer estas alterações.")
       return
     }
 
@@ -605,19 +605,19 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `AlteraÃ§Ãµes desfeitas. A pÃ¡gina voltou ao estado anterior na revisÃ£o ${result.version.version_number}.`,
+          text: `Alterações desfeitas. A página voltou ao estado anterior na revisão ${result.version.version_number}.`,
         },
       ])
-      setFeedback("AlteraÃ§Ãµes desfeitas para o admin.")
+      setFeedback("Alterações desfeitas para o admin.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel desfazer as alteraÃ§Ãµes.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer as alterações.")
     }
   }
 
   async function handleRestoreRevision(version: AdminSitePageVersion) {
     if (!pageSlug || !canPersistDraft) {
-      setFeedback("Esta pÃ¡gina nÃ£o suporta revisÃ£o persistÃ­vel neste momento.")
+      setFeedback("Esta página não suporta revisão persistível neste momento.")
       return
     }
 
@@ -645,17 +645,17 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: `RevisÃ£o restaurada para a versÃ£o ${version.version_number}. A pÃ¡gina foi atualizada.`,
+          text: `Revisão restaurada para a versão ${version.version_number}. A página foi atualizada.`,
         },
       ])
       setProposal(null)
       setPendingPublication(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback(`RevisÃ£o ${version.version_number} restaurada.`)
+      setFeedback(`Revisão ${version.version_number} restaurada.`)
       resetConversation({ keepFeedback: true })
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel restaurar a revisÃ£o.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a revisão.")
     }
   }
 
@@ -667,13 +667,13 @@ export function SiteAiPageEditorLauncher() {
     setFeedback(null)
     setMessages((current) => [
       ...current,
-      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para anÃ¡lise visual." },
+      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
     ])
 
     try {
       if (messageTargetsGlobalHeader(trimmedMessage)) {
         if (!brandingQuery.data) {
-          throw new Error("NÃ£o foi possÃ­vel carregar o branding global do site.")
+          throw new Error("Não foi possível carregar o branding global do site.")
         }
 
         const result = await generateAdminAiHeaderCopyProposal({
@@ -701,17 +701,17 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO cabeÃ§alho global foi atualizado e passa a valer em todas as pÃ¡ginas pÃºblicas.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO cabeçalho global foi atualizado e passa a valer em todas as páginas públicas.`,
           },
         ])
-        setFeedback("CabeÃ§alho global atualizado.")
+        setFeedback("Cabeçalho global atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
 
       if (messageTargetsGlobalFooter(trimmedMessage)) {
         if (!brandingQuery.data) {
-          throw new Error("NÃ£o foi possÃ­vel carregar o branding global do site.")
+          throw new Error("Não foi possível carregar o branding global do site.")
         }
 
         const result = await generateAdminAiFooterCopyProposal({
@@ -739,10 +739,10 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO rodapÃ© global foi atualizado e passa a valer em todas as pÃ¡ginas pÃºblicas.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO rodapé global foi atualizado e passa a valer em todas as páginas públicas.`,
           },
         ])
-        setFeedback("RodapÃ© global atualizado.")
+        setFeedback("Rodapé global atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
@@ -753,7 +753,7 @@ export function SiteAiPageEditorLauncher() {
         path: pathname,
         message:
           trimmedMessage ||
-          "Analisar os anexos e propor a melhor alteraÃ§Ã£o pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
+          "Analisar os anexos e propor a melhor alteração pontual, preservando o layout existente e mudando apenas o ponto solicitado.",
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
@@ -776,13 +776,13 @@ export function SiteAiPageEditorLauncher() {
           id: uid("msg"),
           role: "assistant",
           text: canPersistDraft
-            ? `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a nÃ£o ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`
-            : `${result.summary}\n\n${result.explanation}\n\nEstou a analisar esta Ã¡rea no modo de preview admin. O launcher jÃ¡ pode acompanhar o contexto da Ã¡rea do aluno e do visualizador, mas a aplicaÃ§Ã£o automÃ¡tica ainda nÃ£o estÃ¡ ativa nesta superfÃ­cie.`,
+            ? `${result.summary}\n\n${result.explanation}\n\nVou fazer isto de forma pontual e sem alterar o layout, a não ser que tenhas pedido isso explicitamente.\nQueres que eu implemente estes ajustes?`
+            : `${result.summary}\n\n${result.explanation}\n\nEstou a analisar esta área no modo de preview admin. O launcher já pode acompanhar o contexto da área do aluno e do visualizador, mas a aplicação automática ainda não está ativa nesta superfície.`,
         },
       ])
       setMessage("")
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "NÃ£o foi possÃ­vel gerar a proposta."
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar a proposta."
       setFeedback(errorMessage)
       setMessages((current) => [...current, { id: uid("msg"), role: "system", text: errorMessage }])
     }
@@ -873,7 +873,7 @@ export function SiteAiPageEditorLauncher() {
             <div className="min-h-0 flex-1 overflow-y-auto space-y-3 rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3">
               {messages.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-600">
-                  OlÃ¡! O site estÃ¡ carregado. O que gostarias de alterar?
+                  Olá! O site está carregado. O que gostarias de alterar?
                 </div>
               ) : null}
 
@@ -898,9 +898,9 @@ export function SiteAiPageEditorLauncher() {
 
               {proposal && awaitingImplementation ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">ConfirmaÃ§Ã£o</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Confirmação</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-950">
-                    Desejas que eu implemente estes ajustes na pÃ¡gina e atualize a visualizaÃ§Ã£o?
+                    Desejas que eu implemente estes ajustes na página e atualize a visualização?
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -928,7 +928,7 @@ export function SiteAiPageEditorLauncher() {
                         ])
                       }}
                     >
-                      NÃ£o agora
+                      Não agora
                     </Button>
                   </div>
                 </div>
@@ -936,10 +936,10 @@ export function SiteAiPageEditorLauncher() {
 
               {pendingPublication ? (
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">RevisÃ£o pronta</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Revisão pronta</p>
                   <p className="mt-2 text-sm leading-6 text-indigo-950">
-                    As alteraÃ§Ãµes estÃ£o visÃ­veis apenas para ti neste preview admin. Quando confirmares, a revisÃ£o{" "}
-                    {pendingPublication.draftVersion.version_number} serÃ¡ publicada no site pÃºblico.
+                    As alterações estão visíveis apenas para ti neste preview admin. Quando confirmares, a revisão{" "}
+                    {pendingPublication.draftVersion.version_number} será publicada no site público.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -949,7 +949,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <Check className="mr-2 h-4 w-4" />
-                      {publishMutation.isPending ? "A publicar..." : "Confirmar alteraÃ§Ãµes"}
+                      {publishMutation.isPending ? "A publicar..." : "Confirmar alterações"}
                     </Button>
                     <Button
                       type="button"
@@ -959,7 +959,7 @@ export function SiteAiPageEditorLauncher() {
                       disabled={publishMutation.isPending || saveDraftMutation.isPending}
                     >
                       <RotateCcw className="mr-2 h-4 w-4" />
-                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alteraÃ§Ãµes"}
+                      {saveDraftMutation.isPending ? "A desfazer..." : "Desfazer alterações"}
                     </Button>
                   </div>
                 </div>
@@ -1045,12 +1045,12 @@ export function SiteAiPageEditorLauncher() {
                   ) : isSelectingCaptureArea ? (
                     <>
                       <Camera className="mr-2 h-4 w-4" />
-                      Seleciona a Ã¡rea
+                      Seleciona a área
                     </>
                   ) : (
                     <>
                       <Camera className="mr-2 h-4 w-4" />
-                      Capturar Ã¡rea
+                      Capturar área
                     </>
                   )}
                 </Button>
@@ -1079,7 +1079,7 @@ export function SiteAiPageEditorLauncher() {
                 <details className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-500">
                   <summary className="flex cursor-pointer items-center gap-2 font-medium text-slate-500 transition hover:text-slate-700">
                     <History className="h-3.5 w-3.5" />
-                    RevisÃµes
+                    Revisões
                   </summary>
                   <div className="mt-3 space-y-2">
                     {revisions.map((version) => {
@@ -1088,9 +1088,9 @@ export function SiteAiPageEditorLauncher() {
                         <div key={version.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-950">VersÃ£o {version.version_number}</p>
+                              <p className="text-sm font-semibold text-slate-950">Versão {version.version_number}</p>
                               <p className="text-xs text-slate-500">
-                                {version.status} â€¢ {formatDateTime(version.created_at)}
+                                {version.status} • {formatDateTime(version.created_at)}
                               </p>
                             </div>
                             <Button
