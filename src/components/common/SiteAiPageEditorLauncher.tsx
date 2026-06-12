@@ -69,6 +69,15 @@ type CaptureRect = {
   height: number
 }
 
+type CapturePreview = {
+  dataUrl: string
+  name: string
+  mimeType: string
+  sizeBytes: number
+  width: number
+  height: number
+}
+
 function uid(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`
 }
@@ -181,6 +190,7 @@ export function SiteAiPageEditorLauncher() {
   const [isSelectingCaptureArea, setIsSelectingCaptureArea] = useState(false)
   const [captureStartPoint, setCaptureStartPoint] = useState<CapturePoint | null>(null)
   const [captureRect, setCaptureRect] = useState<CaptureRect | null>(null)
+  const [capturePreview, setCapturePreview] = useState<CapturePreview | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const config = configQuery.data
@@ -244,6 +254,7 @@ export function SiteAiPageEditorLauncher() {
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
+    setCapturePreview(null)
     setIsCapturingPage(false)
     if (!options?.keepFeedback) {
       setFeedback(null)
@@ -275,11 +286,12 @@ export function SiteAiPageEditorLauncher() {
 
   useEffect(() => {
     if (open) return
-    if (!isSelectingCaptureArea && !captureStartPoint && !captureRect) return
+    if (!isSelectingCaptureArea && !captureStartPoint && !captureRect && !capturePreview) return
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
-  }, [captureRect, captureStartPoint, isSelectingCaptureArea, open])
+    setCapturePreview(null)
+  }, [capturePreview, captureRect, captureStartPoint, isSelectingCaptureArea, open])
 
   useEffect(() => {
     if (!isSelectingCaptureArea) return
@@ -363,26 +375,14 @@ export function SiteAiPageEditorLauncher() {
       })
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.88)
-      const attachment: AttachmentItem = {
-        id: uid("attachment"),
+      setCapturePreview({
+        dataUrl,
         name: `recorte-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
-        mime_type: "image/jpeg",
-        data_url: dataUrl,
-        size_bytes: Math.round((dataUrl.length * 3) / 4),
-      }
-
-      setAttachments((current) => {
-        if (current.length >= limit) return current
-        return [...current, attachment]
+        mimeType: "image/jpeg",
+        sizeBytes: Math.round((dataUrl.length * 3) / 4),
+        width: Math.max(1, Math.round(rect.width)),
+        height: Math.max(1, Math.round(rect.height)),
       })
-      setMessages((current) => [
-        ...current,
-        {
-          id: uid("msg"),
-          role: "system",
-          text: "Recorte da área selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
-        },
-      ])
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível capturar a área selecionada.")
     } finally {
@@ -404,6 +404,40 @@ export function SiteAiPageEditorLauncher() {
         text: "Modo de seleção ativo. Arrasta na página para escolher a área que queres capturar. Carrega em Esc para cancelar.",
       },
     ])
+  }
+
+  function confirmCapturePreview() {
+    if (!capturePreview) return
+
+    const limit = config?.config_value.max_attachments ?? 2
+    setAttachments((current) => {
+      if (current.length >= limit) return current
+      return [
+        ...current,
+        {
+          id: uid("attachment"),
+          name: capturePreview.name,
+          mime_type: capturePreview.mimeType,
+          data_url: capturePreview.dataUrl,
+          size_bytes: capturePreview.sizeBytes,
+        },
+      ]
+    })
+    setMessages((current) => [
+      ...current,
+      {
+        id: uid("msg"),
+        role: "system",
+        text: "Recorte da área selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
+      },
+    ])
+    setCapturePreview(null)
+    setFeedback("Recorte adicionado como anexo.")
+  }
+
+  function cancelCapturePreview() {
+    setCapturePreview(null)
+    setFeedback("Captura descartada.")
   }
 
   function handleCaptureSelectionMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
@@ -921,6 +955,40 @@ export function SiteAiPageEditorLauncher() {
               {feedback ? (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
                   {feedback}
+                </div>
+              ) : null}
+
+              {capturePreview ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-700">Pré-visualização</p>
+                  <p className="mt-1 text-sm leading-6 text-sky-950">
+                    Confere o recorte antes de anexar. Se estiver certo, confirma para enviar no chat.
+                  </p>
+                  <div className="mt-3 overflow-hidden rounded-2xl border border-sky-200 bg-white">
+                    <img
+                      src={capturePreview.dataUrl}
+                      alt="Pré-visualização do recorte"
+                      className="max-h-[220px] w-full object-contain"
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-sky-900">
+                    <span className="rounded-full bg-white px-2 py-1 font-semibold">
+                      {capturePreview.width}px × {capturePreview.height}px
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-1 font-semibold">
+                      {(capturePreview.sizeBytes / 1024).toFixed(1)} KB
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button type="button" className="h-9 rounded-full" onClick={() => void confirmCapturePreview()}>
+                      <Check className="mr-2 h-4 w-4" />
+                      Anexar recorte
+                    </Button>
+                    <Button type="button" variant="outline" className="h-9 rounded-full" onClick={cancelCapturePreview}>
+                      <X className="mr-2 h-4 w-4" />
+                      Descarta
+                    </Button>
+                  </div>
                 </div>
               ) : null}
 
