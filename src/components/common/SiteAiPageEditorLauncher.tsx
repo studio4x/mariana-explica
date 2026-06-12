@@ -580,6 +580,9 @@ export function SiteAiPageEditorLauncher() {
 
       clearPreviewFromCurrentPage()
       setPendingPublication(null)
+      setProposal(null)
+      setAwaitingImplementation(false)
+      setAttachments([])
       setMessages((current) => [
         ...current,
         {
@@ -589,7 +592,7 @@ export function SiteAiPageEditorLauncher() {
         },
       ])
       setFeedback("Alterações publicadas com sucesso.")
-      resetConversation({ keepFeedback: true })
+      setPostApplyDecision(result.version)
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
     }
@@ -687,6 +690,7 @@ export function SiteAiPageEditorLauncher() {
   function finalizeAppliedSession() {
     if (!postApplyDecision) return
     setPostApplyDecision(null)
+    setPendingPublication(null)
     setFeedback("Sessão finalizada. Nova conversa iniciada.")
     resetConversation({ keepFeedback: true })
   }
