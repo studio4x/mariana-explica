@@ -415,6 +415,7 @@ export function SiteAiPageEditorLauncher() {
     setCaptureStartPoint(null)
     setCaptureRect(null)
     setIsSelectingCaptureArea(true)
+    setOpen(false)
     setMessages((current) => [
       ...current,
       {
@@ -430,10 +431,12 @@ export function SiteAiPageEditorLauncher() {
 
     const rect = captureRect
     const captured = await captureSelectedArea(rect)
+    setIsSelectingCaptureArea(false)
+    setCaptureStartPoint(null)
+    setCaptureRect(null)
+    setOpen(true)
     if (captured) {
-      setCaptureRect(null)
-      setCaptureStartPoint(null)
-      setIsSelectingCaptureArea(false)
+      setFeedback("Recorte adicionado como anexo.")
     }
   }
 
@@ -441,6 +444,7 @@ export function SiteAiPageEditorLauncher() {
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
+    setOpen(true)
     setFeedback("Captura descartada.")
   }
 
