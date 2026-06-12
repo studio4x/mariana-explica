@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent as ReactMouseEvent } from "react"
 import html2canvas from "html2canvas"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Bot, Camera, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
@@ -55,6 +55,18 @@ type PendingPublicationState = {
     style_json: Record<string, unknown>
     metadata: Record<string, unknown>
   } | null
+}
+
+type CapturePoint = {
+  x: number
+  y: number
+}
+
+type CaptureRect = {
+  left: number
+  top: number
+  width: number
+  height: number
 }
 
 function uid(prefix: string) {
@@ -114,7 +126,7 @@ function buildConversationIntroMessages(): ChatMessage[] {
         "Como interagir:\n" +
         "- descreve o ajuste de forma direta;\n" +
         "- se a mudança for no header ou footer global, indica isso explicitamente;\n" +
-        "- podes colar uma imagem no campo de mensagem ou usar o botão \"Capturar página\" para anexar um print automático.\n\n" +
+        "- podes colar uma imagem no campo de mensagem ou usar o botão \"Capturar área\" para abrir um seletor e anexar um recorte.\n\n" +
         "Limitações:\n" +
         "- não altero permissões, pagamentos, RLS, integrações ou segredos;\n" +
         "- pedidos vagos tendem a gerar propostas conservadoras para preservar o layout;\n" +
@@ -129,6 +141,14 @@ function messageTargetsGlobalHeader(message: string) {
 
 function messageTargetsGlobalFooter(message: string) {
   return /\b(rodape|rodapé|footer)\b/i.test(message)
+}
+
+function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRect {
+  const left = Math.min(start.x, end.x)
+  const top = Math.min(start.y, end.y)
+  const width = Math.abs(end.x - start.x)
+  const height = Math.abs(end.y - start.y)
+  return { left, top, width, height }
 }
 
 export function SiteAiPageEditorLauncher() {
@@ -158,6 +178,9 @@ export function SiteAiPageEditorLauncher() {
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
   const [isCapturingPage, setIsCapturingPage] = useState(false)
+  const [isSelectingCaptureArea, setIsSelectingCaptureArea] = useState(false)
+  const [captureStartPoint, setCaptureStartPoint] = useState<CapturePoint | null>(null)
+  const [captureRect, setCaptureRect] = useState<CaptureRect | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const config = configQuery.data
@@ -218,6 +241,10 @@ export function SiteAiPageEditorLauncher() {
     setAttachments([])
     setProposal(null)
     setAwaitingImplementation(false)
+    setIsSelectingCaptureArea(false)
+    setCaptureStartPoint(null)
+    setCaptureRect(null)
+    setIsCapturingPage(false)
     if (!options?.keepFeedback) {
       setFeedback(null)
     }
@@ -246,6 +273,34 @@ export function SiteAiPageEditorLauncher() {
     return () => window.cancelAnimationFrame(frame)
   }, [open, messages.length, awaitingImplementation, pendingPublication, feedback, proposal])
 
+  useEffect(() => {
+    if (open) return
+    if (!isSelectingCaptureArea && !captureStartPoint && !captureRect) return
+    setIsSelectingCaptureArea(false)
+    setCaptureStartPoint(null)
+    setCaptureRect(null)
+  }, [captureRect, captureStartPoint, isSelectingCaptureArea, open])
+
+  useEffect(() => {
+    if (!isSelectingCaptureArea) return
+
+    const cancelSelection = () => {
+      setIsSelectingCaptureArea(false)
+      setCaptureStartPoint(null)
+      setCaptureRect(null)
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        cancelSelection()
+        setFeedback("Seleção de área cancelada.")
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [isSelectingCaptureArea])
+
   function addAttachmentsFromFiles(files: FileList | File[]) {
     const limit = config?.config_value.max_attachments ?? 2
     const nextFiles = Array.from(files).slice(0, Math.max(0, limit - attachments.length))
@@ -272,12 +327,17 @@ export function SiteAiPageEditorLauncher() {
     addAttachmentsFromFiles(files)
   }
 
-  async function capturePageScreenshot() {
+  async function captureSelectedArea(rect: CaptureRect) {
     if (typeof document === "undefined") return
 
     const limit = config?.config_value.max_attachments ?? 2
     if (attachments.length >= limit) {
       setFeedback(`Limite de anexos atingido (${limit}). Remove um anexo antes de capturar outra imagem.`)
+      return
+    }
+
+    if (rect.width < 24 || rect.height < 24) {
+      setFeedback("A área selecionada é demasiado pequena.")
       return
     }
 
@@ -294,6 +354,10 @@ export function SiteAiPageEditorLauncher() {
         windowHeight: document.documentElement.clientHeight,
         scrollX: -window.scrollX,
         scrollY: -window.scrollY,
+        x: rect.left + window.scrollX,
+        y: rect.top + window.scrollY,
+        width: rect.width,
+        height: rect.height,
         ignoreElements: (element) =>
           element instanceof HTMLElement && Boolean(element.closest("[data-ai-page-editor-root]")),
       })
@@ -301,7 +365,7 @@ export function SiteAiPageEditorLauncher() {
       const dataUrl = canvas.toDataURL("image/jpeg", 0.88)
       const attachment: AttachmentItem = {
         id: uid("attachment"),
-        name: `print-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
+        name: `recorte-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
         mime_type: "image/jpeg",
         data_url: dataUrl,
         size_bytes: Math.round((dataUrl.length * 3) / 4),
@@ -316,14 +380,54 @@ export function SiteAiPageEditorLauncher() {
         {
           id: uid("msg"),
           role: "system",
-          text: "Captura da página anexada. Agora descreve o ajuste que queres fazer com base na imagem.",
+          text: "Recorte da área selecionada anexado. Agora descreve o ajuste que queres fazer com base na imagem.",
         },
       ])
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível capturar a página.")
+      setFeedback(error instanceof Error ? error.message : "Não foi possível capturar a área selecionada.")
     } finally {
       setIsCapturingPage(false)
     }
+  }
+
+  function beginCaptureSelection() {
+    if (typeof document === "undefined") return
+    setFeedback(null)
+    setCaptureStartPoint(null)
+    setCaptureRect(null)
+    setIsSelectingCaptureArea(true)
+    setMessages((current) => [
+      ...current,
+      {
+        id: uid("msg"),
+        role: "system",
+        text: "Modo de seleção ativo. Arrasta na página para escolher a área que queres capturar. Carrega em Esc para cancelar.",
+      },
+    ])
+  }
+
+  function handleCaptureSelectionMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    setCaptureStartPoint({ x: event.clientX, y: event.clientY })
+    setCaptureRect({ left: event.clientX, top: event.clientY, width: 0, height: 0 })
+  }
+
+  function handleCaptureSelectionMouseMove(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!captureStartPoint) return
+    event.preventDefault()
+    setCaptureRect(normalizeCaptureRect(captureStartPoint, { x: event.clientX, y: event.clientY }))
+  }
+
+  async function handleCaptureSelectionMouseUp(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!captureStartPoint) return
+    event.preventDefault()
+
+    const rect = normalizeCaptureRect(captureStartPoint, { x: event.clientX, y: event.clientY })
+    setIsSelectingCaptureArea(false)
+    setCaptureStartPoint(null)
+    setCaptureRect(null)
+    await captureSelectedArea(rect)
   }
 
   function clearPreviewFromCurrentPage() {
@@ -660,6 +764,46 @@ export function SiteAiPageEditorLauncher() {
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
+      {isSelectingCaptureArea ? (
+        <div
+          className="fixed inset-0 z-[95] cursor-crosshair bg-slate-950/10"
+          onMouseDown={handleCaptureSelectionMouseDown}
+          onMouseMove={handleCaptureSelectionMouseMove}
+          onMouseUp={(event) => void handleCaptureSelectionMouseUp(event)}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <div className="absolute left-4 top-4 max-w-[min(92vw,420px)] rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-sm leading-6 text-slate-700 shadow-lg backdrop-blur">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">Seleção de área</p>
+            <p className="mt-1">
+              Arrasta para selecionar apenas a área que queres capturar. Carrega em `Esc` para cancelar.
+            </p>
+          </div>
+          {captureRect ? (
+            <div
+              className="absolute border-2 border-sky-500 bg-sky-400/20 shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
+              style={{
+                left: `${captureRect.left}px`,
+                top: `${captureRect.top}px`,
+                width: `${captureRect.width}px`,
+                height: `${captureRect.height}px`,
+              }}
+            />
+          ) : null}
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-lg transition hover:border-slate-300 hover:text-slate-950"
+            onClick={() => {
+              setIsSelectingCaptureArea(false)
+              setCaptureStartPoint(null)
+              setCaptureRect(null)
+              setFeedback("Seleção de área cancelada.")
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      ) : null}
+
       {open ? (
         <div className="pointer-events-auto flex h-[min(78vh,720px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
@@ -842,18 +986,23 @@ export function SiteAiPageEditorLauncher() {
                   type="button"
                   variant="outline"
                   className="h-10 rounded-full"
-                  onClick={() => void capturePageScreenshot()}
-                  disabled={isCapturingPage}
+                  onClick={() => void beginCaptureSelection()}
+                  disabled={isCapturingPage || isSelectingCaptureArea}
                 >
                   {isCapturingPage ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       A captar...
                     </>
+                  ) : isSelectingCaptureArea ? (
+                    <>
+                      <Camera className="mr-2 h-4 w-4" />
+                      Seleciona a área
+                    </>
                   ) : (
                     <>
                       <Camera className="mr-2 h-4 w-4" />
-                      Capturar página
+                      Capturar área
                     </>
                   )}
                 </Button>
