@@ -547,19 +547,10 @@ export function SiteAiPageEditorLauncher() {
         draftVersion: result.version,
         previousVersionSnapshot,
       })
-      setPostApplyDecision(result.version)
-      setMessages((current) => [
-        ...current,
-        {
-          id: uid("msg"),
-          role: "system",
-          text: `Ajustes implementados apenas para revisão admin. A página foi atualizada para a revisão ${result.version.version_number} e ainda não ficou visível no site público. Podes continuar a ajustar a mesma sessão ou finalizar para começar uma nova.`,
-        },
-      ])
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback("Ajustes implementados e página atualizada.")
+      setFeedback(null)
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível guardar o rascunho.")
     }
@@ -583,6 +574,7 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
+      setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
         {
@@ -591,8 +583,7 @@ export function SiteAiPageEditorLauncher() {
           text: `Alterações confirmadas. A revisão ${result.version.version_number} foi publicada e já está visível no site público.`,
         },
       ])
-      setFeedback("Alterações publicadas com sucesso.")
-      setPostApplyDecision(result.version)
+      setFeedback(null)
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível publicar as alterações.")
     }
@@ -622,6 +613,10 @@ export function SiteAiPageEditorLauncher() {
 
       pushPreviewToCurrentPage(result.version)
       setPendingPublication(null)
+      setProposal(null)
+      setAwaitingImplementation(false)
+      setAttachments([])
+      setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
         {
@@ -630,8 +625,7 @@ export function SiteAiPageEditorLauncher() {
           text: `Alterações desfeitas. A página voltou ao estado anterior na revisão ${result.version.version_number}.`,
         },
       ])
-      setFeedback("Alterações desfeitas para o admin.")
-      resetConversation({ keepFeedback: true })
+      setFeedback(null)
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível desfazer as alterações.")
     }
