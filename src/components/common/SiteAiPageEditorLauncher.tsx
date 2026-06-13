@@ -901,7 +901,7 @@ export function SiteAiPageEditorLauncher() {
 
       if (messageTargetsCssClassEdit(trimmedMessage) && pageUsesManagedBlocks(currentLayoutJson)) {
         const protectionMessage =
-          "Identifiquei um pedido de CSS/classe numa pÃ¡gina gerida por blocos. Para nÃ£o quebrar o layout, este editor nÃ£o vai reescrever a pÃ¡gina inteira para cumprir esse tipo de ajuste. Usa o editor visual ou um ajuste tÃ©cnico no builder/base CSS."
+          "Identifiquei um pedido de CSS/classe numa p\u00e1gina gerida por blocos. Para n\u00e3o quebrar o layout, este editor n\u00e3o vai reescrever a p\u00e1gina inteira para cumprir esse tipo de ajuste. Usa o editor visual ou um ajuste t\u00e9cnico no builder/base CSS."
 
         setProposal(null)
         setAwaitingImplementation(false)

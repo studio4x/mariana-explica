@@ -1867,7 +1867,7 @@ Deno.serve(async (req) => {
 
       if (isCssClassEditRequest(message) && isManagedBlockPage(currentLayoutJson)) {
         throw unprocessable(
-          "Pedido de CSS/classe detectado numa pÃ¡gina gerida por blocos. Para proteger o layout, o editor IA nÃ£o reescreve a estrutura da pÃ¡gina nesse tipo de ajuste. Usa o editor visual ou um ajuste tÃ©cnico no builder/base CSS.",
+          "Pedido de CSS/classe detectado numa p\u00e1gina gerida por blocos. Para proteger o layout, o editor IA n\u00e3o reescreve a estrutura da p\u00e1gina nesse tipo de ajuste. Usa o editor visual ou um ajuste t\u00e9cnico no builder/base CSS.",
         )
       }
 
