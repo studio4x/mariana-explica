@@ -470,6 +470,7 @@ function hasTypographyEditRequest(message: string) {
     "font-family",
     "font family",
     "font-weight",
+    "fotn-weight",
     "font weight",
     "font-style",
     "font style",
@@ -1520,6 +1521,8 @@ function buildUserPrompt(input: {
     "Se houver ambiguidade, preferir a menor alteração possível e avisar em warnings.",
     "Se a página atual já usa projectData.blocks, devolve a mesma estrutura e muda apenas o(s) bloco(s) necessário(s), sem recriar a página do zero.",
     "Se precisares mudar apenas uma frase, altera apenas o campo de conteúdo do bloco correspondente.",
+    "Se o pedido citar uma frase existente apenas para identificar o alvo de um ajuste de tipografia, trata essa frase como referência visual e não como pedido de reescrita do conteúdo.",
+    "Quando o pedido for tipográfico, usa preferencialmente classes e seletores .me- já existentes no HTML atual para aplicar o CSS mínimo necessário, sem mexer no layout_json.",
     "Se o pedido mencionar HTML bruto, por exemplo um <hr> ou um fragmento de marcação, não devolvas só o fragmento: atualiza a estrutura completa e mantém projectData.blocks ou html como JSON válido.",
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas. Exemplo: \"{\\\"projectData\\\":{\\\"blocks\\\":[...]}}\".",
     "",
@@ -1913,8 +1916,8 @@ function stabilizeProposalForSafeApplication(input: {
   currentStyleJson: Record<string, unknown>
 }) {
   const textReplacement = extractTextEditReplacement(input.message)
-  const textContentRequest = hasTextContentEditRequest(input.message)
   const typographyRequest = hasTypographyEditRequest(input.message)
+  const textContentRequest = hasTextContentEditRequest(input.message) && !(typographyRequest && !textReplacement)
   const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
   const structuralLayoutRequest = requestExplicitlyMentionsStructuralLayout(input.message)
 

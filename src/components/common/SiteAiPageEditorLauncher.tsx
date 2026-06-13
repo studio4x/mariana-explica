@@ -156,6 +156,7 @@ function messageTargetsTypographyEdit(message: string) {
       "font-family",
       "font weight",
       "font-weight",
+      "fotn-weight",
       "line-height",
       "letter-spacing",
       "tamanho da fonte",
