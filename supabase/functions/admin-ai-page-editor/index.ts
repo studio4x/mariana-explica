@@ -1140,6 +1140,39 @@ function applyTypographyClassToHtmlContent(content: string, targetPhrase: string
   }
 }
 
+function applyTypographyClassToJsonValue(
+  value: unknown,
+  targetPhrase: string,
+  className: string,
+): { value: unknown; matched: boolean } {
+  if (typeof value === "string") {
+    return applyTypographyClassToHtmlContent(value, targetPhrase, className)
+  }
+
+  if (Array.isArray(value)) {
+    let matched = false
+    const nextValue = value.map((item) => {
+      const updated = applyTypographyClassToJsonValue(item, targetPhrase, className)
+      matched = matched || updated.matched
+      return updated.value
+    })
+    return { value: nextValue, matched }
+  }
+
+  if (value && typeof value === "object") {
+    let matched = false
+    const nextValue: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      const updated = applyTypographyClassToJsonValue(item, targetPhrase, className)
+      matched = matched || updated.matched
+      nextValue[key] = updated.value
+    }
+    return { value: nextValue, matched }
+  }
+
+  return { value, matched: false }
+}
+
 function applyTypographyClassToBlock(
   block: Record<string, unknown>,
   targetPhrase: string,
@@ -1224,8 +1257,16 @@ function applyTypographyTargetToLayout(
     matched = updated.matched
   }
 
-  if (!matched) return null
-  return withBlocksAppliedToLayoutJson(currentLayoutJson, nextBlocks)
+  if (matched) {
+    return withBlocksAppliedToLayoutJson(currentLayoutJson, nextBlocks)
+  }
+
+  const recursiveUpdate = applyTypographyClassToJsonValue(currentLayoutJson, targetPhrase, className)
+  if (!recursiveUpdate.matched || !recursiveUpdate.value || typeof recursiveUpdate.value !== "object" || Array.isArray(recursiveUpdate.value)) {
+    return null
+  }
+
+  return recursiveUpdate.value as Record<string, unknown>
 }
 
 function buildTypographyCssRule(
