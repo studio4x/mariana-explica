@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent as ReactMouseEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react"
 import html2canvas from "html2canvas"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Bot, Camera, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
@@ -997,6 +997,19 @@ export function SiteAiPageEditorLauncher() {
     }
   }
 
+  function handleComposerSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    void handleSend()
+  }
+
+  function handleComposerKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault()
+      void handleSend()
+    }
+  }
+
   if (!canRenderLauncher) {
     return null
   }
@@ -1209,7 +1222,12 @@ export function SiteAiPageEditorLauncher() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+            <form
+              className="rounded-3xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+              onSubmit={handleComposerSubmit}
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
               {attachments.length > 0 ? (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((attachment) => (
@@ -1240,6 +1258,7 @@ export function SiteAiPageEditorLauncher() {
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
                   onPaste={(event) => void handlePaste(event)}
+                  onKeyDown={handleComposerKeyDown}
                   rows={3}
                   disabled={isChatBusy || isEditorDisabled}
                   aria-busy={isChatBusy}
@@ -1306,9 +1325,8 @@ export function SiteAiPageEditorLauncher() {
                 </Button>
 
                 <Button
-                  type="button"
+                  type="submit"
                   className="h-10 flex-1 rounded-full"
-                  onClick={() => void handleSend()}
                   disabled={isChatBusy || isEditorDisabled}
                 >
                   {isChatBusy ? (
@@ -1393,7 +1411,7 @@ export function SiteAiPageEditorLauncher() {
                   </div>
                 </details>
               ) : null}
-            </div>
+            </form>
           </div>
         </div>
       ) : null}
