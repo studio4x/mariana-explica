@@ -256,7 +256,6 @@ export function SiteAiPageEditorLauncher() {
   const config = configQuery.data
   const allowedPath = !config || isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths)
   const canRenderLauncher = Boolean(isAdmin && !authLoading && allowedPath)
-  const isReady = Boolean(canRenderLauncher && config?.config_value.enabled)
   const pageSlug = routeOption?.slug ?? null
   const previewPayload = useMemo(() => {
     if (!pageSlug) return null
@@ -844,7 +843,11 @@ export function SiteAiPageEditorLauncher() {
   }
 
   async function handleSend() {
-    if (!config || !isReady) return
+    if (!canRenderLauncher) return
+    if (config?.config_value.enabled === false) {
+      setFeedback("O editor de IA está desativado nas configurações.")
+      return
+    }
     const trimmedMessage = message.trim()
     if (!trimmedMessage && attachments.length === 0) return
 
@@ -1002,6 +1005,7 @@ export function SiteAiPageEditorLauncher() {
   const currentLabel = routeOption?.label ?? pathname
   const currentVersionId = pageDetailQuery.data?.published_version?.id ?? pageContextVersion?.id ?? null
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
+  const isEditorDisabled = config?.config_value.enabled === false
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
@@ -1237,13 +1241,15 @@ export function SiteAiPageEditorLauncher() {
                   onChange={(event) => setMessage(event.target.value)}
                   onPaste={(event) => void handlePaste(event)}
                   rows={3}
-                  disabled={isChatBusy}
+                  disabled={isChatBusy || isEditorDisabled}
                   aria-busy={isChatBusy}
                   className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
                   placeholder={
-                    isChatBusy
-                      ? "Envio em processamento. Aguarda a resposta..."
-                      : "Ex.: deixa o hero mais direto e destaca o CTA principal..."
+                    isEditorDisabled
+                      ? "Editor desativado nas configurações."
+                      : isChatBusy
+                        ? "Envio em processamento. Aguarda a resposta..."
+                        : "Ex.: deixa o hero mais direto e destaca o CTA principal..."
                   }
                 />
               </label>
@@ -1252,7 +1258,9 @@ export function SiteAiPageEditorLauncher() {
                 <label
                   className={[
                     "inline-flex h-10 items-center gap-2 rounded-full border bg-slate-50 px-3 text-sm font-semibold text-slate-700 transition",
-                    isChatBusy ? "cursor-not-allowed border-slate-100 opacity-60" : "cursor-pointer border-slate-200 hover:border-slate-300",
+                    isChatBusy || isEditorDisabled
+                      ? "cursor-not-allowed border-slate-100 opacity-60"
+                      : "cursor-pointer border-slate-200 hover:border-slate-300",
                   ].join(" ")}
                 >
                   <ImagePlus className="h-4 w-4" />
@@ -1262,7 +1270,7 @@ export function SiteAiPageEditorLauncher() {
                     accept="image/*"
                     multiple
                     className="hidden"
-                    disabled={isChatBusy}
+                    disabled={isChatBusy || isEditorDisabled}
                     onChange={(event) => {
                       if (event.target.files?.length) {
                         addAttachmentsFromFiles(event.target.files)
@@ -1301,7 +1309,7 @@ export function SiteAiPageEditorLauncher() {
                   type="button"
                   className="h-10 flex-1 rounded-full"
                   onClick={() => void handleSend()}
-                  disabled={isChatBusy}
+                  disabled={isChatBusy || isEditorDisabled}
                 >
                   {isChatBusy ? (
                     <>
