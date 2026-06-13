@@ -475,8 +475,8 @@ function extractTypographyDeclarations(message: string) {
   const normalized = normalizeMessageForParsing(message)
   const declarations = new Map<string, string>()
   const explicitPatterns: Array<{ property: string; pattern: RegExp }> = [
-    { property: "font-size", pattern: /(?:font-size|tamanho da fonte)\s*[:=]?\s*([0-9.]+(?:px|rem|em|%)?)/i },
-    { property: "font-weight", pattern: /(?:font-weight|fotn-weight|peso da fonte)\s*[:=]?\s*((?:100|200|300|400|500|600|700|800|900)|normal|bold|bolder|lighter)/i },
+    { property: "font-size", pattern: /(?:font-size|font size|tamanho da fonte|tamanho)\s*[:=]?\s*([0-9.]+(?:px|rem|em|%)?)/i },
+    { property: "font-weight", pattern: /(?:font-weight|font weight|fotn-weight|peso da fonte|peso)\s*[:=]?\s*((?:100|200|300|400|500|600|700|800|900)|normal|bold|bolder|lighter)/i },
     { property: "font-family", pattern: /(?:font-family|font family|fam[ií]lia da fonte)\s*[:=]?\s*([^\n;]+)/i },
     { property: "line-height", pattern: /(?:line-height|line height|entrelinha)\s*[:=]?\s*([0-9.]+(?:px|rem|em|%)?)/i },
     { property: "letter-spacing", pattern: /(?:letter-spacing|letter spacing)\s*[:=]?\s*(-?[0-9.]+(?:px|rem|em))/i },
@@ -562,9 +562,11 @@ function hasTypographyEditRequest(message: string) {
     "entrelinha",
     "letter-spacing",
     "letter spacing",
+    "tamanho",
     "tamanho da fonte",
     "familia da fonte",
     "famÃ­lia da fonte",
+    "peso",
     "peso da fonte",
     "caixa alta",
     "caixa baixa",
