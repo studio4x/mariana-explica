@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth"
 import {
   useAdminAiPageEditorConfig,
   usePublishAdminSitePageVersion,
+  useRollbackAdminSitePageVersion,
   useAdminSitePageDetail,
   useGenerateAdminAiPageEditorProposal,
   useSaveAdminSitePageDraft,
@@ -191,6 +192,7 @@ export function SiteAiPageEditorLauncher() {
   const generateMutation = useGenerateAdminAiPageEditorProposal()
   const saveDraftMutation = useSaveAdminSitePageDraft()
   const publishMutation = usePublishAdminSitePageVersion()
+  const rollbackMutation = useRollbackAdminSitePageVersion()
   const { routeOption, publicPageQuery, pathname, search } = useSupportedCurrentPage()
   const pageDetailQuery = useAdminSitePageDetail(isAdmin && !authLoading && Boolean(routeOption?.slug) ? String(routeOption?.slug) : undefined)
   const navigate = useNavigate()
@@ -212,6 +214,7 @@ export function SiteAiPageEditorLauncher() {
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
   const [postApplyDecision, setPostApplyDecision] = useState<AdminSitePageVersion | null>(null)
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [isCapturingPage, setIsCapturingPage] = useState(false)
   const [isSelectingCaptureArea, setIsSelectingCaptureArea] = useState(false)
   const [captureStartPoint, setCaptureStartPoint] = useState<CapturePoint | null>(null)
@@ -268,10 +271,26 @@ export function SiteAiPageEditorLauncher() {
   }, [pageContextVersion, pageSlug, previewPayload?.html])
 
   const revisions = useMemo(() => {
-    return (pageDetailQuery.data?.versions ?? []).slice(0, 6)
+    return pageDetailQuery.data?.versions ?? []
   }, [pageDetailQuery.data?.versions])
 
+  const selectedRevision = useMemo(() => {
+    if (!selectedRevisionId) return null
+    return revisions.find((version) => version.id === selectedRevisionId) ?? null
+  }, [revisions, selectedRevisionId])
+
   const isCaptureModeActive = isSelectingCaptureArea || Boolean(captureRect) || isCapturingPage
+
+  function buildCurrentVersionSnapshot() {
+    if (!pageContextVersion) return null
+
+    return {
+      title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
+      layout_json: structuredClone(pageContextVersion.layout_json),
+      style_json: structuredClone(pageContextVersion.style_json),
+      metadata: structuredClone(pageContextVersion.metadata ?? {}),
+    }
+  }
 
   function resetConversation(options?: { keepFeedback?: boolean }) {
     setMessages(buildConversationIntroMessages())
@@ -281,6 +300,7 @@ export function SiteAiPageEditorLauncher() {
     setAwaitingImplementation(false)
     setSendStatus(null)
     setPostApplyDecision(null)
+    setSelectedRevisionId(null)
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
@@ -568,14 +588,7 @@ export function SiteAiPageEditorLauncher() {
 
     setFeedback(null)
     try {
-      const previousVersionSnapshot = pageContextVersion
-        ? {
-            title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
-            layout_json: structuredClone(pageContextVersion.layout_json),
-            style_json: structuredClone(pageContextVersion.style_json),
-            metadata: structuredClone(pageContextVersion.metadata ?? {}),
-          }
-        : null
+      const previousVersionSnapshot = buildCurrentVersionSnapshot()
 
       const result = await saveDraftMutation.mutateAsync({
         slug: pageSlug,
@@ -597,6 +610,7 @@ export function SiteAiPageEditorLauncher() {
         draftVersion: result.version,
         previousVersionSnapshot,
       })
+      setSelectedRevisionId(null)
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
@@ -622,6 +636,7 @@ export function SiteAiPageEditorLauncher() {
       clearPreviewFromCurrentPage()
       await refreshCurrentPageContent()
       setPendingPublication(null)
+      setSelectedRevisionId(null)
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
@@ -663,7 +678,9 @@ export function SiteAiPageEditorLauncher() {
       })
 
       pushPreviewToCurrentPage(result.version)
+      syncPageDetailCache(result.version, result.page)
       setPendingPublication(null)
+      setSelectedRevisionId(null)
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
@@ -723,6 +740,59 @@ export function SiteAiPageEditorLauncher() {
       resetConversation({ keepFeedback: true })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível restaurar a alteração.")
+    }
+  }
+
+  void handleRestoreRevision
+
+  function handlePreviewRevision(version: AdminSitePageVersion) {
+    setSelectedRevisionId(version.id)
+    pushPreviewToCurrentPage(version)
+    setProposal(null)
+    setPendingPublication(null)
+    setAwaitingImplementation(false)
+    setPostApplyDecision(null)
+    setFeedback(`Pré-visualização da versão ${version.version_number} carregada. Se estiver certa, usa "Definir esta revisão".`)
+  }
+
+  function handleCancelRevisionPreview() {
+    clearPreviewFromCurrentPage()
+    setSelectedRevisionId(null)
+    setFeedback("Pré-visualização descartada. A página voltou à versão publicada.")
+  }
+
+  async function handleApplySelectedRevision() {
+    if (!pageSlug || !selectedRevision) {
+      setFeedback("Seleciona uma revisão antes de defini-la.")
+      return
+    }
+
+    setFeedback(null)
+    try {
+      const result = await rollbackMutation.mutateAsync({
+        slug: pageSlug,
+        versionId: selectedRevision.id,
+      })
+
+      clearPreviewFromCurrentPage()
+      await refreshCurrentPageContent()
+      setSelectedRevisionId(null)
+      setPendingPublication(null)
+      setProposal(null)
+      setAwaitingImplementation(false)
+      setAttachments([])
+      setPostApplyDecision(result.version)
+      setMessages((current) => [
+        ...current,
+        {
+          id: uid("msg"),
+          role: "system",
+          text: `A versão ${selectedRevision.version_number} foi definida como a revisão atual da página.`,
+        },
+      ])
+      setFeedback(null)
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Não foi possível definir esta revisão.")
     }
   }
 
@@ -897,7 +967,7 @@ export function SiteAiPageEditorLauncher() {
 
   const panelTitle = config?.config_value.launcher_label ?? "Fazer ajustes"
   const currentLabel = routeOption?.label ?? pathname
-  const currentVersionId = pageContextVersion?.id ?? null
+  const currentVersionId = pageDetailQuery.data?.published_version?.id ?? pageContextVersion?.id ?? null
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
 
   return (
@@ -1220,11 +1290,18 @@ export function SiteAiPageEditorLauncher() {
                     <History className="h-3.5 w-3.5" />
                     Revisões
                   </summary>
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                     {revisions.map((version) => {
                       const isCurrent = version.id === currentVersionId
+                      const isSelected = version.id === selectedRevisionId
                       return (
-                        <div key={version.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                        <div
+                          key={version.id}
+                          className={[
+                            "rounded-2xl border bg-white px-3 py-2 transition",
+                            isSelected ? "border-sky-300 shadow-sm" : "border-slate-200",
+                          ].join(" ")}
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-slate-950">Versão {version.version_number}</p>
@@ -1232,16 +1309,42 @@ export function SiteAiPageEditorLauncher() {
                                 {version.status} • {formatDateTime(version.created_at)}
                               </p>
                             </div>
+                            {isCurrent ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">Atual</span> : null}
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
                             <Button
                               type="button"
                               variant="outline"
                               className="h-8 rounded-full"
-                              onClick={() => void handleRestoreRevision(version)}
-                              disabled={isCurrent || saveDraftMutation.isPending}
+                              onClick={() => handlePreviewRevision(version)}
+                              disabled={saveDraftMutation.isPending || rollbackMutation.isPending}
                             >
-                              <RotateCcw className="mr-2 h-3.5 w-3.5" />
-                              {isCurrent ? "Atual" : "Reverter"}
+                              <History className="mr-2 h-3.5 w-3.5" />
+                              {isSelected ? "Prévia carregada" : "Ver revisão"}
                             </Button>
+                            {isSelected ? (
+                              <Button
+                                type="button"
+                                className="h-8 rounded-full"
+                                onClick={() => void handleApplySelectedRevision()}
+                                disabled={isCurrent || rollbackMutation.isPending}
+                              >
+                                <Check className="mr-2 h-3.5 w-3.5" />
+                                {rollbackMutation.isPending ? "A definir..." : isCurrent ? "Já atual" : "Definir esta revisão"}
+                              </Button>
+                            ) : null}
+                            {isSelected ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-8 rounded-full"
+                                onClick={handleCancelRevisionPreview}
+                                disabled={rollbackMutation.isPending}
+                              >
+                                <X className="mr-2 h-3.5 w-3.5" />
+                                Voltar à publicada
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
                       )
