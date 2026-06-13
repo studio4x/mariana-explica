@@ -26,7 +26,7 @@ import {
   storeSitePagePreview,
 } from "@/lib/site-page-preview"
 import {
-  getDefaultStyleCss,
+  composeManagedPageCss,
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
@@ -581,10 +581,11 @@ export function SiteAiPageEditorLauncher() {
     if (!pageSlug) return
     const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
     const html = renderDocumentToHtml(document)
-    const css =
+    const css = composeManagedPageCss(
       typeof version.style_json.css === "string" && String(version.style_json.css).trim()
         ? String(version.style_json.css)
-        : getDefaultStyleCss()
+        : "",
+    )
     const token = storeSitePagePreview({ slug: pageSlug, html, css })
     if (!token) return
 

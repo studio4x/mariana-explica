@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "78"
-export const BUILD_COMMIT = "ai-editor-typography-target-fix"
+export const BUILD_DEPLOY_NUMBER = "79"
+export const BUILD_COMMIT = "ai-editor-targeted-typography-safe"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

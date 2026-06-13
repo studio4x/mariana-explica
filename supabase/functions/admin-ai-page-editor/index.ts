@@ -420,6 +420,89 @@ function extractTextEditReplacement(message: string) {
   return extractQuotedTextReplacement(message) ?? extractQuotedTextInsertion(message)
 }
 
+function extractQuotedTypographyTarget(message: string) {
+  const normalized = normalizeMessageForParsing(message)
+  const targetPatterns = [
+    /(?:frase|texto|trecho|palavra|par[aá]grafo|t[ií]tulo|headline|copy)\s+"([^"]+)"/i,
+    /(?:frase|texto|trecho|palavra|par[aá]grafo|t[ií]tulo|headline|copy)\s+'([^']+)'/i,
+  ]
+
+  for (const pattern of targetPatterns) {
+    const match = normalized.match(pattern)
+    const value = normalizeString(match?.[1])
+    if (value) return value
+  }
+
+  const anyQuotePatterns = [/"([^"]+)"/, /'([^']+)'/]
+  for (const pattern of anyQuotePatterns) {
+    const match = normalized.match(pattern)
+    const value = normalizeString(match?.[1])
+    if (value) return value
+  }
+
+  return null
+}
+
+function normalizeTypographyValue(property: string, value: string) {
+  const trimmed = value.trim().replace(/[;,]+$/, "")
+  if (!trimmed) return null
+
+  if (property === "font-size" || property === "line-height") {
+    return /^-?\d+(?:\.\d+)?(?:px|rem|em|%)?$/.test(trimmed) ? trimmed : null
+  }
+
+  if (property === "font-weight") {
+    return /^(?:100|200|300|400|500|600|700|800|900|normal|bold|bolder|lighter)$/i.test(trimmed) ? trimmed : null
+  }
+
+  if (property === "font-family") {
+    const sanitized = trimmed.replace(/["']/g, "").trim()
+    return /^[a-zA-Z0-9,\s_-]+$/.test(sanitized) ? sanitized : null
+  }
+
+  if (property === "letter-spacing") {
+    return /^-?\d+(?:\.\d+)?(?:px|rem|em)$/.test(trimmed) ? trimmed : null
+  }
+
+  if (property === "text-transform") {
+    return /^(?:uppercase|lowercase|capitalize|none)$/i.test(trimmed) ? trimmed.toLowerCase() : null
+  }
+
+  return null
+}
+
+function extractTypographyDeclarations(message: string) {
+  const normalized = normalizeMessageForParsing(message)
+  const declarations = new Map<string, string>()
+  const explicitPatterns: Array<{ property: string; pattern: RegExp }> = [
+    { property: "font-size", pattern: /(?:font-size|tamanho da fonte)\s*[:=]?\s*([0-9.]+(?:px|rem|em|%)?)/i },
+    { property: "font-weight", pattern: /(?:font-weight|fotn-weight|peso da fonte)\s*[:=]?\s*((?:100|200|300|400|500|600|700|800|900)|normal|bold|bolder|lighter)/i },
+    { property: "font-family", pattern: /(?:font-family|font family|fam[ií]lia da fonte)\s*[:=]?\s*([^\n;]+)/i },
+    { property: "line-height", pattern: /(?:line-height|line height|entrelinha)\s*[:=]?\s*([0-9.]+(?:px|rem|em|%)?)/i },
+    { property: "letter-spacing", pattern: /(?:letter-spacing|letter spacing)\s*[:=]?\s*(-?[0-9.]+(?:px|rem|em))/i },
+    { property: "text-transform", pattern: /(?:text-transform)\s*[:=]?\s*(uppercase|lowercase|capitalize|none)/i },
+  ]
+
+  for (const entry of explicitPatterns) {
+    const value = normalizeTypographyValue(entry.property, normalizeString(normalized.match(entry.pattern)?.[1]))
+    if (value) {
+      declarations.set(entry.property, value)
+    }
+  }
+
+  if (!declarations.has("text-transform")) {
+    if (/\bcaixa alta\b/i.test(normalized) || /\buppercase\b/i.test(normalized)) {
+      declarations.set("text-transform", "uppercase")
+    } else if (/\bcaixa baixa\b/i.test(normalized) || /\blowercase\b/i.test(normalized)) {
+      declarations.set("text-transform", "lowercase")
+    } else if (/\bcapitalize\b/i.test(normalized)) {
+      declarations.set("text-transform", "capitalize")
+    }
+  }
+
+  return Array.from(declarations.entries()).map(([property, value]) => ({ property, value }))
+}
+
 function hasTextContentEditRequest(message: string) {
   const normalized = normalizeMessageForParsing(message).toLowerCase()
   if (extractTextEditReplacement(message)) return true
@@ -982,6 +1065,160 @@ function mergeTypographyOnlyProposalWithCurrentStyles(
   }
 }
 
+function appendCssPatchToStyleJson(styleJson: Record<string, unknown>, cssPatch: string) {
+  const nextStyleJson = cloneJsonValue(styleJson)
+  const currentCss = typeof nextStyleJson.css === "string" ? String(nextStyleJson.css).trim() : ""
+  const patch = cssPatch.trim()
+  nextStyleJson.css = [currentCss, patch].filter(Boolean).join("\n\n")
+  return nextStyleJson
+}
+
+function addClassToTag(tagHtml: string, className: string) {
+  if (!tagHtml.trim()) return tagHtml
+  if (/\bclass\s*=/i.test(tagHtml)) {
+    return tagHtml.replace(/\bclass\s*=\s*(['"])([^'"]*)\1/i, (_match, quote: string, classes: string) => {
+      const nextClasses = `${classes} ${className}`.trim()
+      return `class=${quote}${nextClasses}${quote}`
+    })
+  }
+
+  return tagHtml.replace(/<([a-z0-9-]+)/i, `<$1 class="${className}"`)
+}
+
+function applyTypographyClassToHtmlContent(content: string, targetPhrase: string, className: string) {
+  const tagPatterns = [
+    /<p\b[^>]*>[\s\S]*?<\/p>/gi,
+    /<li\b[^>]*>[\s\S]*?<\/li>/gi,
+    /<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>/gi,
+    /<span\b[^>]*>[\s\S]*?<\/span>/gi,
+    /<a\b[^>]*>[\s\S]*?<\/a>/gi,
+  ]
+
+  for (const pattern of tagPatterns) {
+    const match = content.match(pattern)?.find((chunk) => chunk.includes(targetPhrase))
+    if (!match) continue
+    const openingTagMatch = match.match(/^<[^>]+>/)
+    if (!openingTagMatch) continue
+    const updatedChunk = `${addClassToTag(openingTagMatch[0], className)}${match.slice(openingTagMatch[0].length)}`
+    return {
+      content: content.replace(match, updatedChunk),
+      matched: true,
+    }
+  }
+
+  if (!content.includes(targetPhrase)) {
+    return { content, matched: false }
+  }
+
+  return {
+    content: content.replace(targetPhrase, `<span class="${className}">${targetPhrase}</span>`),
+    matched: true,
+  }
+}
+
+function applyTypographyClassToBlock(
+  block: Record<string, unknown>,
+  targetPhrase: string,
+  className: string,
+): { block: Record<string, unknown>; matched: boolean } {
+  const nextBlock = cloneJsonValue(block)
+  const type = normalizeString(block.type).toLowerCase()
+
+  if (type === "heading" && typeof block.content === "string" && block.content.includes(targetPhrase)) {
+    nextBlock.customClassName = normalizeString(`${normalizeString(block.customClassName)} ${className}`)
+    return { block: nextBlock, matched: true }
+  }
+
+  if (type === "button" && typeof block.label === "string" && block.label.includes(targetPhrase)) {
+    nextBlock.customClassName = normalizeString(`${normalizeString(block.customClassName)} ${className}`)
+    return { block: nextBlock, matched: true }
+  }
+
+  if (type === "rich_text" && typeof block.content === "string") {
+    const updated = applyTypographyClassToHtmlContent(block.content, targetPhrase, className)
+    if (updated.matched) {
+      nextBlock.content = updated.content
+      return { block: nextBlock, matched: true }
+    }
+    return { block: nextBlock, matched: false }
+  }
+
+  if (type === "columns" && Array.isArray(block.items)) {
+    for (let index = 0; index < block.items.length; index += 1) {
+      const item = String(block.items[index] ?? "")
+      const updated = applyTypographyClassToHtmlContent(item, targetPhrase, className)
+      if (updated.matched) {
+        const nextItems = [...block.items]
+        nextItems[index] = updated.content
+        nextBlock.items = nextItems
+        return { block: nextBlock, matched: true }
+      }
+    }
+    return { block: nextBlock, matched: false }
+  }
+
+  if (type === "container" && Array.isArray(block.children)) {
+    const nextChildren = cloneJsonValue(block.children)
+    for (let columnIndex = 0; columnIndex < nextChildren.length; columnIndex += 1) {
+      const column = nextChildren[columnIndex]
+      if (!Array.isArray(column)) continue
+      for (let blockIndex = 0; blockIndex < column.length; blockIndex += 1) {
+        const child = column[blockIndex]
+        if (!child || typeof child !== "object" || Array.isArray(child)) continue
+        const updated = applyTypographyClassToBlock(child as Record<string, unknown>, targetPhrase, className)
+        if (updated.matched) {
+          column[blockIndex] = updated.block
+          nextBlock.children = nextChildren
+          return { block: nextBlock, matched: true }
+        }
+      }
+    }
+  }
+
+  return { block: nextBlock, matched: false }
+}
+
+function applyTypographyTargetToLayout(
+  currentLayoutJson: Record<string, unknown>,
+  targetPhrase: string,
+  className: string,
+) {
+  const currentBlocks = extractBlocksFromLayoutJson(currentLayoutJson)
+  if (!currentBlocks || currentBlocks.length === 0) return null
+
+  const nextBlocks: Record<string, unknown>[] = []
+  let matched = false
+
+  for (const block of currentBlocks) {
+    if (matched) {
+      nextBlocks.push(cloneJsonValue(block))
+      continue
+    }
+
+    const updated = applyTypographyClassToBlock(block, targetPhrase, className)
+    nextBlocks.push(updated.block)
+    matched = updated.matched
+  }
+
+  if (!matched) return null
+  return withBlocksAppliedToLayoutJson(currentLayoutJson, nextBlocks)
+}
+
+function buildTypographyCssRule(
+  className: string,
+  declarations: Array<{ property: string; value: string }>,
+) {
+  const safeDeclarations = declarations
+    .filter((entry) => SAFE_TYPOGRAPHY_PROPERTIES.has(entry.property) && declarationValueIsSafe(entry.value))
+    .map((entry) => `${entry.property}: ${entry.value};`)
+
+  if (safeDeclarations.length === 0) {
+    return ""
+  }
+
+  return `.${className} {\n  ${safeDeclarations.join("\n  ")}\n}`
+}
+
 function finalizeSafeTextAndTypographyProposal(input: {
   proposal: ReturnType<typeof validateProposal>
   currentLayoutJson: Record<string, unknown>
@@ -989,6 +1226,8 @@ function finalizeSafeTextAndTypographyProposal(input: {
   textReplacement: { from: string; to: string } | null
   textContentRequest: boolean
   typographyRequest: boolean
+  typographyTargetPhrase: string | null
+  typographyDeclarations: Array<{ property: string; value: string }>
   allowMediaChanges: boolean
 }) {
   const warnings = [...input.proposal.warnings]
@@ -1023,8 +1262,33 @@ function finalizeSafeTextAndTypographyProposal(input: {
   }
 
   if (input.typographyRequest) {
+    const deterministicTargetClassName =
+      input.typographyTargetPhrase && input.typographyDeclarations.length > 0
+        ? `me-ai-typography-target-${crypto.randomUUID().replace(/-/g, "")}`
+        : null
+
+    if (deterministicTargetClassName && input.typographyTargetPhrase) {
+      const targetedLayout = applyTypographyTargetToLayout(nextLayoutJson, input.typographyTargetPhrase, deterministicTargetClassName)
+      const targetedCssRule = buildTypographyCssRule(deterministicTargetClassName, input.typographyDeclarations)
+
+      if (targetedLayout && targetedCssRule) {
+        nextLayoutJson = targetedLayout
+        nextStyleJson = appendCssPatchToStyleJson(nextStyleJson, `/* Mariana AI: targeted typography patch */\n${targetedCssRule}`)
+        warnings.push("Aplicação protegida: a tipografia foi ajustada apenas no trecho pedido, sem alterar a estrutura da página.")
+        return {
+          ...input.proposal,
+          warnings,
+          proposal: {
+            ...input.proposal.proposal,
+            layout_json: nextLayoutJson,
+            style_json: nextStyleJson,
+          },
+        }
+      }
+    }
+
     const mergedTypographyStyle = mergeTypographyOnlyProposalWithCurrentStyles(
-      input.currentStyleJson,
+      nextStyleJson,
       input.proposal.proposal.style_json,
     )
 
@@ -1918,6 +2182,8 @@ function stabilizeProposalForSafeApplication(input: {
   const textReplacement = extractTextEditReplacement(input.message)
   const typographyRequest = hasTypographyEditRequest(input.message)
   const textContentRequest = hasTextContentEditRequest(input.message) && !(typographyRequest && !textReplacement)
+  const typographyTargetPhrase = typographyRequest ? extractQuotedTypographyTarget(input.message) : null
+  const typographyDeclarations = typographyRequest ? extractTypographyDeclarations(input.message) : []
   const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
   const structuralLayoutRequest = requestExplicitlyMentionsStructuralLayout(input.message)
 
@@ -1932,6 +2198,8 @@ function stabilizeProposalForSafeApplication(input: {
     textReplacement,
     textContentRequest,
     typographyRequest,
+    typographyTargetPhrase,
+    typographyDeclarations,
     allowMediaChanges,
   })
 

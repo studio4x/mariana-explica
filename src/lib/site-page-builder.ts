@@ -28,6 +28,7 @@ interface BasePageBlock {
   id: string
   type: PageBlockType
   layout: BlockLayoutStyle
+  customClassName?: string
 }
 
 export interface HeadingBlock extends BasePageBlock {
@@ -145,6 +146,25 @@ function escapeHtml(value: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
+}
+
+function normalizeCustomClassName(value: unknown) {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  return normalized
+}
+
+function buildClassAttribute(...values: Array<string | null | undefined>) {
+  const className = values
+    .flatMap((value) => String(value ?? "").split(/\s+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(" ")
+
+  return className ? ` class="${escapeHtml(className)}"` : ""
 }
 
 function sanitizeRichText(html: string) {
@@ -1063,6 +1083,7 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
           | "center"
           | "right",
         color: String(block.color ?? "#0f122c"),
+        customClassName: normalizeCustomClassName(block.customClassName) || undefined,
         layout,
       })
       continue
@@ -1073,6 +1094,7 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
         id: String(block.id ?? uid("text")),
         type,
         content: String(block.content ?? "<p></p>"),
+        customClassName: normalizeCustomClassName(block.customClassName) || undefined,
         layout,
       })
       continue
@@ -1115,6 +1137,7 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
         widthPercent: clamp(Number(block.widthPercent ?? 0), 0, 100),
         fullWidth: Boolean(block.fullWidth),
         openInNewTab: Boolean(block.openInNewTab),
+        customClassName: normalizeCustomClassName(block.customClassName) || undefined,
         layout,
       })
       continue
@@ -1521,11 +1544,13 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
 function renderSingleBlockToHtml(block: PageBlock): string {
       if (block.type === "heading") {
         const tag = `h${block.level}`
-        return `<${tag} style="margin:0;color:${escapeHtml(block.color)};text-align:${block.align};font-weight:800;line-height:1.12;">${escapeHtml(block.content)}</${tag}>`
+        const classAttribute = buildClassAttribute(block.customClassName)
+        return `<${tag}${classAttribute} style="margin:0;color:${escapeHtml(block.color)};text-align:${block.align};font-weight:800;line-height:1.12;">${escapeHtml(block.content)}</${tag}>`
       }
 
       if (block.type === "rich_text") {
-        return `<div class="me-managed-richtext">${sanitizeRichText(block.content)}</div>`
+        const classAttribute = buildClassAttribute("me-managed-richtext", block.customClassName)
+        return `<div${classAttribute}>${sanitizeRichText(block.content)}</div>`
       }
 
       if (block.type === "image") {
@@ -1542,7 +1567,8 @@ function renderSingleBlockToHtml(block: PageBlock): string {
         const display = `inline-flex;width:${widthCss};justify-content:${justifyContent};`
         const textTransform = block.fontSize <= 13 ? "uppercase" : "none"
         const letterSpacing = block.fontSize <= 13 ? ".08em" : ".02em"
-        return `<div style="text-align:${block.align};"><a href="${escapeHtml(block.href)}"${targetAttrs} style="${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
+        const classAttribute = buildClassAttribute(block.customClassName)
+        return `<div style="text-align:${block.align};"><a${classAttribute} href="${escapeHtml(block.href)}"${targetAttrs} style="${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
       }
 
       if (block.type === "divider") {
@@ -2218,6 +2244,12 @@ export function getDefaultStyleCss() {
   }
 }
   `.trim()
+}
+
+export function composeManagedPageCss(additionalCss?: string | null) {
+  const baseCss = getDefaultStyleCss().trim()
+  const extraCss = String(additionalCss ?? "").trim()
+  return extraCss ? `${baseCss}\n\n${extraCss}` : baseCss
 }
 
 

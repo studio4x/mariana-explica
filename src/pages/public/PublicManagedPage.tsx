@@ -5,7 +5,7 @@ import { useLocation } from "react-router-dom"
 import { LoadingState } from "@/components/feedback"
 import { HomeReviewsFeed } from "@/components/reviews"
 import {
-  getDefaultStyleCss,
+  composeManagedPageCss,
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
@@ -41,7 +41,7 @@ function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSit
 
     return {
       html: renderDocumentToHtml(document),
-      css: getDefaultStyleCss(),
+      css: composeManagedPageCss(normalizeCss(version.style_json)),
     }
   }
 
