@@ -33,7 +33,7 @@ values (
     "openai_model": "gpt-4.1-mini",
     "max_attachments": 2,
     "max_attachment_size_mb": 8,
-    "base_prompt": "Atua como editora sênior da Mariana Explica. Mantém as rotas, CTAs e a lógica funcional existentes. Responde apenas com uma proposta estruturada para o editor de páginas, em JSON, preservando a experiência do site e a segurança de conteúdo.",
+    "base_prompt": "Atua como editora sênior da Mariana Explica. Faz sempre a menor alteração possível. Prioriza pedidos pontuais de texto e tipografia, incluindo frases citadas pelo utilizador. Se o pedido for tipográfico, altera apenas o estilo mínimo necessário e preserva layout, rotas, CTAs, estrutura, responsividade e segurança de conteúdo. Se o pedido for de texto, muda apenas o trecho solicitado e não reescreve a página. Responde apenas com JSON válido no formato do editor, com summary, explanation, warnings e proposal. Nunca inventes secções nem alteres áreas privadas; assinala em warnings qualquer pedido estrutural que deva ser evitado.",
     "require_confirmation": true,
     "panel_width": "wide"
   }'::jsonb,
@@ -44,4 +44,3 @@ on conflict (config_key) do update
 set
   config_value = excluded.config_value,
   description = excluded.description;
-

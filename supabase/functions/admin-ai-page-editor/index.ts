@@ -43,6 +43,8 @@ const GEMINI_SECRET_NAME = "mariana_explica_ai_gemini_api_key"
 const OPENAI_SECRET_NAME = "mariana_explica_ai_openai_api_key"
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+const DEFAULT_AI_PAGE_EDITOR_BASE_PROMPT =
+  "Atua como editora sênior da Mariana Explica. Faz sempre a menor alteração possível. Prioriza pedidos pontuais de texto e tipografia, incluindo frases citadas pelo utilizador. Se o pedido for tipográfico, altera apenas o estilo mínimo necessário e preserva layout, rotas, CTAs, estrutura, responsividade e segurança de conteúdo. Se o pedido for de texto, muda apenas o trecho solicitado e não reescreve a página. Responde apenas com JSON válido no formato do editor, com summary, explanation, warnings e proposal. Nunca inventes secções nem alteres áreas privadas; assinala em warnings qualquer pedido estrutural que deva ser evitado."
 const MAX_PROMPT_LENGTH = 24_000
 const DEFAULT_USAGE_PERIOD_DAYS = 30
 const MAX_USAGE_PERIOD_DAYS = 365
@@ -1087,6 +1089,23 @@ function addClassToTag(tagHtml: string, className: string) {
   return tagHtml.replace(/<([a-z0-9-]+)/i, `<$1 class="${className}"`)
 }
 
+function normalizeTypographyTargetText(value: string) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
+function matchesTypographyTarget(content: string, targetPhrase: string) {
+  if (!content.includes(targetPhrase)) {
+    return normalizeTypographyTargetText(content).includes(normalizeTypographyTargetText(targetPhrase))
+  }
+
+  return true
+}
+
 function applyTypographyClassToHtmlContent(content: string, targetPhrase: string, className: string) {
   const tagPatterns = [
     /<p\b[^>]*>[\s\S]*?<\/p>/gi,
@@ -1094,10 +1113,13 @@ function applyTypographyClassToHtmlContent(content: string, targetPhrase: string
     /<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>/gi,
     /<span\b[^>]*>[\s\S]*?<\/span>/gi,
     /<a\b[^>]*>[\s\S]*?<\/a>/gi,
+    /<div\b[^>]*>[\s\S]*?<\/div>/gi,
+    /<article\b[^>]*>[\s\S]*?<\/article>/gi,
+    /<section\b[^>]*>[\s\S]*?<\/section>/gi,
   ]
 
   for (const pattern of tagPatterns) {
-    const match = content.match(pattern)?.find((chunk) => chunk.includes(targetPhrase))
+    const match = content.match(pattern)?.find((chunk) => matchesTypographyTarget(chunk, targetPhrase))
     if (!match) continue
     const openingTagMatch = match.match(/^<[^>]+>/)
     if (!openingTagMatch) continue
@@ -1703,7 +1725,7 @@ async function readUsageMetrics(
 
 function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, currentTitle: string, currentPath: string) {
   return [
-    config.base_prompt || "Atua como editora sênior da Mariana Explica.",
+    config.base_prompt || DEFAULT_AI_PAGE_EDITOR_BASE_PROMPT,
     "Modo padrão: alteração cirúrgica e localizada.",
     "Antes de responder, analisa com atenção o pedido do usuário e a área exata da página onde a mudança acontece.",
     "Observa também os elementos próximos, o impacto visual e a relação com o restante da página antes de propor qualquer alteração.",
@@ -1719,6 +1741,7 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
     `Página atual: ${currentTitle} (${currentPath})`,
     "A proposta deve continuar compatível com o builder atual de páginas públicas.",
     "Pedidos de texto e de tipografia pontual s\u00e3o permitidos e devem ser tratados sem reescrever a p\u00e1gina inteira.",
+    "Se o pedido citar uma frase existente, trata essa frase como alvo exato do ajuste, mesmo que venha com aspas, HTML ou quebras de linha.",
     "Se o pedido for apenas de tipografia, preserva o layout_json atual e prop\u00f5e apenas o CSS/estilo m\u00ednimo necess\u00e1rio para fonte, tamanho, peso, entrelinha, espa\u00e7amento entre letras ou capitaliza\u00e7\u00e3o.",
     "Se o pedido combinar texto e tipografia, altera apenas o conte\u00fado solicitado e o ajuste tipogr\u00e1fico correspondente, sem mexer no resto da p\u00e1gina.",
   ].join("\n")
@@ -1726,7 +1749,7 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
 
 function buildFooterCopySystemPrompt(config: ReturnType<typeof normalizeConfigValue>, currentTitle: string, currentPath: string) {
   return [
-    config.base_prompt || "Atua como editora sênior da Mariana Explica.",
+    config.base_prompt || DEFAULT_AI_PAGE_EDITOR_BASE_PROMPT,
     "Modo padrão: alteração cirúrgica e localizada.",
     "Antes de responder, analisa com atenção o pedido do usuário e o texto global atual do rodapé.",
     "Depois da análise, explica em linguagem simples e direta o que será feito, sem termos técnicos, siglas internas ou nomes de ficheiros.",
@@ -1743,7 +1766,7 @@ function buildFooterCopySystemPrompt(config: ReturnType<typeof normalizeConfigVa
 
 function buildHeaderCopySystemPrompt(config: ReturnType<typeof normalizeConfigValue>, currentTitle: string, currentPath: string) {
   return [
-    config.base_prompt || "Atua como editora sênior da Mariana Explica.",
+    config.base_prompt || DEFAULT_AI_PAGE_EDITOR_BASE_PROMPT,
     "Modo padrão: alteração cirúrgica e localizada.",
     "Antes de responder, analisa com atenção o pedido do usuário e o texto global atual do cabeçalho.",
     "Depois da análise, explica em linguagem simples e direta o que será feito, sem termos técnicos, siglas internas ou nomes de ficheiros.",
