@@ -144,9 +144,33 @@ function messageTargetsGlobalFooter(message: string) {
   return /\b(rodape|rodapé|footer)\b/i.test(message)
 }
 
-function messageTargetsCssClassEdit(message: string) {
+function messageTargetsTypographyEdit(message: string) {
   const normalized = message.toLowerCase()
   return (
+    [
+      "tipografia",
+      "fonte",
+      "font",
+      "font-size",
+      "font family",
+      "font-family",
+      "font weight",
+      "font-weight",
+      "line-height",
+      "letter-spacing",
+      "tamanho da fonte",
+      "entrelinha",
+      "caixa alta",
+      "caixa baixa",
+      "uppercase",
+      "lowercase",
+    ].some((keyword) => normalized.includes(keyword))
+  )
+}
+
+function messageTargetsStructuralCssClassEdit(message: string) {
+  const normalized = message.toLowerCase()
+  const mentionsSelectorOrCss =
     /\.[a-z0-9_-]+/i.test(message) ||
     [
       "css",
@@ -158,11 +182,16 @@ function messageTargetsCssClassEdit(message: string) {
       "margin",
       "max-width",
       "min-width",
-      "font-size",
-      "line-height",
+      "width",
+      "height",
+      "gap",
       "border-radius",
+      "border",
+      "background",
+      "grid",
     ].some((keyword) => normalized.includes(keyword))
-  )
+
+  return mentionsSelectorOrCss && !messageTargetsTypographyEdit(message)
 }
 
 function pageUsesManagedBlocks(layoutJson: Record<string, unknown>) {
@@ -899,9 +928,9 @@ export function SiteAiPageEditorLauncher() {
         return
       }
 
-      if (messageTargetsCssClassEdit(trimmedMessage) && pageUsesManagedBlocks(currentLayoutJson)) {
+      if (messageTargetsStructuralCssClassEdit(trimmedMessage) && pageUsesManagedBlocks(currentLayoutJson)) {
         const protectionMessage =
-          "Identifiquei um pedido de CSS/classe numa p\u00e1gina gerida por blocos. Para n\u00e3o quebrar o layout, este editor n\u00e3o vai reescrever a p\u00e1gina inteira para cumprir esse tipo de ajuste. Usa o editor visual ou um ajuste t\u00e9cnico no builder/base CSS."
+          "Identifiquei um pedido estrutural de CSS/classe numa p\u00e1gina gerida por blocos. Para n\u00e3o quebrar o layout, este editor aplica aqui apenas ajustes pontuais de texto e tipografia. Para padding, margens, larguras, grids ou wrappers, usa o editor visual ou um ajuste t\u00e9cnico no builder/base CSS."
 
         setProposal(null)
         setAwaitingImplementation(false)

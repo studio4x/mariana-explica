@@ -420,7 +420,7 @@ function extractTextEditReplacement(message: string) {
   return extractQuotedTextReplacement(message) ?? extractQuotedTextInsertion(message)
 }
 
-function isTextOnlyEditRequest(message: string) {
+function hasTextContentEditRequest(message: string) {
   const normalized = normalizeMessageForParsing(message).toLowerCase()
   if (extractTextEditReplacement(message)) return true
 
@@ -437,7 +437,7 @@ function isTextOnlyEditRequest(message: string) {
     "headline",
     "copy",
   ]
-  const structuralKeywords = [
+  const disallowedKeywords = [
     "layout",
     "estrutura",
     "grid",
@@ -452,14 +452,80 @@ function isTextOnlyEditRequest(message: string) {
     "foto",
     "icone",
     "ícone",
-    "cor",
-    "fundo",
-    "padding",
-    "margin",
-    "borda",
+    "video",
+    "vÃ­deo",
   ]
 
-  return hasKeyword(normalized, textKeywords) && !hasKeyword(normalized, structuralKeywords)
+  return hasKeyword(normalized, textKeywords) && !hasKeyword(normalized, disallowedKeywords)
+}
+
+function hasTypographyEditRequest(message: string) {
+  const normalized = normalizeMessageForParsing(message).toLowerCase()
+  return hasKeyword(normalized, [
+    "tipografia",
+    "fonte",
+    "font",
+    "font-size",
+    "font size",
+    "font-family",
+    "font family",
+    "font-weight",
+    "font weight",
+    "font-style",
+    "font style",
+    "line-height",
+    "line height",
+    "entrelinha",
+    "letter-spacing",
+    "letter spacing",
+    "tamanho da fonte",
+    "familia da fonte",
+    "famÃ­lia da fonte",
+    "peso da fonte",
+    "caixa alta",
+    "caixa baixa",
+    "maiuscula",
+    "maiÃºscula",
+    "minuscula",
+    "minÃºscula",
+    "uppercase",
+    "lowercase",
+    "capitalize",
+  ])
+}
+
+function requestExplicitlyMentionsStructuralLayout(message: string) {
+  const normalized = normalizeMessageForParsing(message).toLowerCase()
+  return hasKeyword(normalized, [
+    "layout",
+    "estrutura",
+    "grid",
+    "coluna",
+    "secao",
+    "seÃ§Ã£o",
+    "secÃ§Ã£o",
+    "hero",
+    "header",
+    "footer",
+    "padding",
+    "margin",
+    "max-width",
+    "min-width",
+    "width",
+    "height",
+    "gap",
+    "borda",
+    "border",
+    "border-radius",
+    "background",
+    "fundo",
+    "reposicionar",
+    "reorganizar",
+    "mover bloco",
+    "trocar secao",
+    "trocar seÃ§Ã£o",
+    "trocar secÃ§Ã£o",
+  ])
 }
 
 function requestExplicitlyMentionsMediaOrLayout(message: string) {
@@ -503,8 +569,6 @@ function isCssClassEditRequest(message: string) {
     "border",
     "border-radius",
     "background",
-    "font-size",
-    "line-height",
   ]
 
   return hasKeyword(normalized, cssKeywords) || /(^|\\s)[.#][a-z0-9_-]+/i.test(normalized)
@@ -800,6 +864,188 @@ function mergeTextOnlyProposalWithCurrentLayout(
   }
 
   return withBlocksAppliedToLayoutJson(currentLayoutJson, nextBlocks)
+}
+
+const SAFE_TYPOGRAPHY_PROPERTIES = new Set([
+  "color",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-weight",
+  "letter-spacing",
+  "line-height",
+  "text-align",
+  "text-decoration",
+  "text-transform",
+])
+
+function selectorIsSafeForTypographyRule(selector: string) {
+  const normalized = selector.trim().toLowerCase()
+  if (!normalized || normalized.startsWith("@")) return false
+  if (normalized.includes("{") || normalized.includes("}")) return false
+  return normalized.includes(".me-")
+}
+
+function declarationValueIsSafe(value: string) {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return false
+
+  return !(
+    normalized.includes("url(") ||
+    normalized.includes("expression(") ||
+    normalized.includes("@import") ||
+    normalized.includes("javascript:") ||
+    normalized.includes("</style")
+  )
+}
+
+function sanitizeTypographyCss(css: string) {
+  const safeRules: string[] = []
+  let droppedRules = 0
+  let droppedDeclarations = 0
+  const rulePattern = /([^{}]+)\{([^{}]+)\}/g
+
+  for (const match of css.matchAll(rulePattern)) {
+    const rawSelectors = String(match[1] ?? "")
+    const rawDeclarations = String(match[2] ?? "")
+    const selectors = rawSelectors
+      .split(",")
+      .map((selector) => selector.trim())
+      .filter(selectorIsSafeForTypographyRule)
+
+    if (selectors.length === 0) {
+      droppedRules += 1
+      continue
+    }
+
+    const declarations = rawDeclarations
+      .split(";")
+      .map((declaration) => declaration.trim())
+      .filter(Boolean)
+      .flatMap((declaration) => {
+        const colonIndex = declaration.indexOf(":")
+        if (colonIndex <= 0) {
+          droppedDeclarations += 1
+          return []
+        }
+
+        const property = declaration.slice(0, colonIndex).trim().toLowerCase()
+        const value = declaration.slice(colonIndex + 1).trim()
+        if (!SAFE_TYPOGRAPHY_PROPERTIES.has(property) || !declarationValueIsSafe(value)) {
+          droppedDeclarations += 1
+          return []
+        }
+
+        return [`${property}: ${value}`]
+      })
+
+    if (declarations.length === 0) {
+      droppedRules += 1
+      continue
+    }
+
+    safeRules.push(`${selectors.join(", ")} {\n  ${declarations.join(";\n  ")};\n}`)
+  }
+
+  return {
+    css: safeRules.join("\n\n"),
+    droppedRules,
+    droppedDeclarations,
+  }
+}
+
+function mergeTypographyOnlyProposalWithCurrentStyles(
+  currentStyleJson: Record<string, unknown>,
+  proposedStyleJson: Record<string, unknown>,
+) {
+  const proposedCss = normalizeString(proposedStyleJson.css)
+  if (!proposedCss) {
+    return null
+  }
+
+  const sanitized = sanitizeTypographyCss(proposedCss)
+  if (!sanitized.css.trim()) {
+    return null
+  }
+
+  const nextStyleJson = cloneJsonValue(currentStyleJson)
+  const currentCss = typeof nextStyleJson.css === "string" ? String(nextStyleJson.css).trim() : ""
+  nextStyleJson.css = [currentCss, "/* Mariana AI: typography patch */", sanitized.css].filter(Boolean).join("\n\n")
+
+  return {
+    styleJson: nextStyleJson,
+    warning:
+      sanitized.droppedRules > 0 || sanitized.droppedDeclarations > 0
+        ? "Aplicação protegida: apenas regras tipográficas seguras foram aproveitadas; qualquer trecho estrutural foi ignorado."
+        : "Aplicação protegida: o layout atual foi preservado e apenas a tipografia pedida foi aplicada.",
+  }
+}
+
+function finalizeSafeTextAndTypographyProposal(input: {
+  proposal: ReturnType<typeof validateProposal>
+  currentLayoutJson: Record<string, unknown>
+  currentStyleJson: Record<string, unknown>
+  textReplacement: { from: string; to: string } | null
+  textContentRequest: boolean
+  typographyRequest: boolean
+  allowMediaChanges: boolean
+}) {
+  const warnings = [...input.proposal.warnings]
+  let nextLayoutJson = input.currentLayoutJson
+  let nextStyleJson = input.currentStyleJson
+
+  if (input.textContentRequest) {
+    if (input.textReplacement) {
+      const replacedLayout = applyQuotedTextReplacementToLayout(input.currentLayoutJson, input.textReplacement)
+      if (replacedLayout) {
+        nextLayoutJson = replacedLayout
+        warnings.push("Aplicação protegida: a estrutura original da página foi preservada e apenas o texto solicitado foi alterado.")
+      }
+    }
+
+    if (nextLayoutJson === input.currentLayoutJson) {
+      const mergedLayout = mergeTextOnlyProposalWithCurrentLayout(
+        input.currentLayoutJson,
+        input.proposal.proposal.layout_json,
+        input.allowMediaChanges,
+      )
+
+      if (!mergedLayout) {
+        throw unprocessable(
+          "A proposta da IA alterou a estrutura da página num pedido textual. Nenhum rascunho foi aplicado para proteger o layout.",
+        )
+      }
+
+      nextLayoutJson = mergedLayout
+      warnings.push("Aplicação protegida: o layout atual foi preservado e apenas os conteúdos textuais foram atualizados.")
+    }
+  }
+
+  if (input.typographyRequest) {
+    const mergedTypographyStyle = mergeTypographyOnlyProposalWithCurrentStyles(
+      input.currentStyleJson,
+      input.proposal.proposal.style_json,
+    )
+
+    if (!mergedTypographyStyle) {
+      throw unprocessable(
+        "A proposta da IA não devolveu uma regra tipográfica segura para aplicar sem mexer no layout da página.",
+      )
+    }
+
+    nextStyleJson = mergedTypographyStyle.styleJson
+    warnings.push(mergedTypographyStyle.warning)
+  }
+
+  return {
+    ...input.proposal,
+    warnings,
+    proposal: {
+      ...input.proposal.proposal,
+      layout_json: nextLayoutJson,
+      style_json: nextStyleJson,
+    },
+  }
 }
 
 function extractDataUrlParts(dataUrl: string) {
@@ -1205,6 +1451,9 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas, não como objetos literais.",
     `Página atual: ${currentTitle} (${currentPath})`,
     "A proposta deve continuar compatível com o builder atual de páginas públicas.",
+    "Pedidos de texto e de tipografia pontual s\u00e3o permitidos e devem ser tratados sem reescrever a p\u00e1gina inteira.",
+    "Se o pedido for apenas de tipografia, preserva o layout_json atual e prop\u00f5e apenas o CSS/estilo m\u00ednimo necess\u00e1rio para fonte, tamanho, peso, entrelinha, espa\u00e7amento entre letras ou capitaliza\u00e7\u00e3o.",
+    "Se o pedido combinar texto e tipografia, altera apenas o conte\u00fado solicitado e o ajuste tipogr\u00e1fico correspondente, sem mexer no resto da p\u00e1gina.",
   ].join("\n")
 }
 
@@ -1664,12 +1913,24 @@ function stabilizeProposalForSafeApplication(input: {
   currentStyleJson: Record<string, unknown>
 }) {
   const textReplacement = extractTextEditReplacement(input.message)
-  const textOnlyRequest = isTextOnlyEditRequest(input.message)
+  const textContentRequest = hasTextContentEditRequest(input.message)
+  const typographyRequest = hasTypographyEditRequest(input.message)
   const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
+  const structuralLayoutRequest = requestExplicitlyMentionsStructuralLayout(input.message)
 
-  if (!textOnlyRequest) {
+  if ((!textContentRequest && !typographyRequest) || structuralLayoutRequest) {
     return input.proposal
   }
+
+  return finalizeSafeTextAndTypographyProposal({
+    proposal: input.proposal,
+    currentLayoutJson: input.currentLayoutJson,
+    currentStyleJson: input.currentStyleJson,
+    textReplacement,
+    textContentRequest,
+    typographyRequest,
+    allowMediaChanges,
+  })
 
   if (textReplacement) {
     const replacedLayout = applyQuotedTextReplacementToLayout(input.currentLayoutJson, textReplacement)
@@ -1864,13 +2125,6 @@ Deno.serve(async (req) => {
           "Chave OpenAI usada como fallback do editor via IA",
         )
       }
-
-      if (isCssClassEditRequest(message) && isManagedBlockPage(currentLayoutJson)) {
-        throw unprocessable(
-          "Pedido de CSS/classe detectado numa p\u00e1gina gerida por blocos. Para proteger o layout, o editor IA n\u00e3o reescreve a estrutura da p\u00e1gina nesse tipo de ajuste. Usa o editor visual ou um ajuste t\u00e9cnico no builder/base CSS.",
-        )
-      }
-
       const secrets = await getProviderSecrets(serviceClient)
 
       await writeAuditLog(serviceClient, context, {
@@ -2346,6 +2600,16 @@ Deno.serve(async (req) => {
 
       if (config.config_value.allowed_paths.length > 0 && !config.config_value.allowed_paths.includes(path)) {
         throw forbidden("Rota nao habilitada para o editor via IA")
+      }
+
+      if (
+        isManagedBlockPage(currentLayoutJson) &&
+        isCssClassEditRequest(message) &&
+        !hasTypographyEditRequest(message)
+      ) {
+        throw unprocessable(
+          "Pedido de CSS/classe estrutural detectado numa página gerida por blocos. Para proteger o layout, o editor IA só aplica aqui ajustes pontuais de texto e tipografia. Para padding, margens, larguras, grids ou wrappers, usa o editor visual ou um ajuste técnico no builder/base CSS.",
+        )
       }
 
       const validAttachments = attachments.map((item, index) => {
