@@ -830,6 +830,36 @@ function richTextIntroducesUnexpectedImage(currentContent: unknown, proposedCont
   return proposed.includes("nova imagem") || proposed.includes("placeholder") || proposed.includes('src=""') || proposed.includes('src="#"')
 }
 
+function richTextLooksLikePartialFragment(currentContent: unknown, proposedContent: unknown) {
+  const current = typeof currentContent === "string" ? currentContent : ""
+  const proposed = typeof proposedContent === "string" ? proposedContent : ""
+  const normalizedCurrent = normalizeTypographyTargetText(current)
+  const normalizedProposed = normalizeTypographyTargetText(proposed)
+
+  if (!normalizedCurrent || !normalizedProposed || normalizedCurrent === normalizedProposed) {
+    return false
+  }
+
+  const currentLength = normalizedCurrent.length
+  const proposedLength = normalizedProposed.length
+  const currentSectionCount = (current.match(/<section\b/gi) ?? []).length + (current.match(/<article\b/gi) ?? []).length
+  const proposedSectionCount = (proposed.match(/<section\b/gi) ?? []).length + (proposed.match(/<article\b/gi) ?? []).length
+
+  if (normalizedCurrent.includes(normalizedProposed) && proposedLength < currentLength * 0.82) {
+    return true
+  }
+
+  if (current.includes("data-me-page-canonical") && !proposed.includes("data-me-page-canonical") && proposedLength < currentLength * 0.9) {
+    return true
+  }
+
+  if (currentSectionCount > 1 && proposedSectionCount > 0 && proposedSectionCount < currentSectionCount) {
+    return true
+  }
+
+  return false
+}
+
 function mergeTextOnlyBlocks(
   currentBlock: Record<string, unknown>,
   proposedBlock: Record<string, unknown>,
@@ -847,6 +877,10 @@ function mergeTextOnlyBlocks(
   if (currentType === "rich_text") {
     if (typeof proposedBlock.content === "string" && proposedBlock.content.trim()) {
       if (!allowMediaChanges && richTextIntroducesUnexpectedImage(currentBlock.content, proposedBlock.content)) {
+        return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+      }
+
+      if (richTextLooksLikePartialFragment(currentBlock.content, proposedBlock.content)) {
         return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
       }
 
