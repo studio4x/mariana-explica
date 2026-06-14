@@ -250,6 +250,8 @@ function shouldUsePublishedVersionForAiContext(
 ) {
   if (!draft || !published) return false
 
+  if (draft.version_number < published.version_number) return true
+
   const draftBlocks = countManagedBlocks(draft.layout_json)
   const publishedBlocks = countManagedBlocks(published.layout_json)
   if (publishedBlocks > 0 && draftBlocks > 0 && draftBlocks < publishedBlocks) return true
