@@ -85,6 +85,26 @@ function wait(ms: number) {
   })
 }
 
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs = 45_000) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("A IA demorou demasiado tempo a responder. Tenta novamente.")
+    }
+
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
   let lastError: Error | null = null
 
@@ -95,7 +115,7 @@ async function invokeAdminFunction<TResponse>(name: string, body: unknown) {
         throw new Error("Sessão expirada")
       }
 
-      const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`, {
+      const response = await fetchWithTimeout(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/${name}`, {
         method: "POST",
         headers: {
           apikey: SUPABASE_ANON_KEY,

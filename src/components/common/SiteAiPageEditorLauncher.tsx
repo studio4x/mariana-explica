@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react"
+import { flushSync } from "react-dom"
 import html2canvas from "html2canvas"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Bot, Camera, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } from "lucide-react"
@@ -215,6 +216,12 @@ function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRe
   const width = Math.abs(end.x - start.x)
   const height = Math.abs(end.y - start.y)
   return { left, top, width, height }
+}
+
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve())
+  })
 }
 
 export function SiteAiPageEditorLauncher() {
@@ -851,12 +858,16 @@ export function SiteAiPageEditorLauncher() {
     const trimmedMessage = message.trim()
     if (!trimmedMessage && attachments.length === 0) return
 
-    setFeedback(null)
-    setSendStatus("Mensagem recebida. Estou a analisar o pedido e a área da página agora.")
-    setMessages((current) => [
-      ...current,
-      { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
-    ])
+    flushSync(() => {
+      setFeedback(null)
+      setSendStatus("Mensagem recebida. Estou a analisar o pedido e a área da página agora.")
+      setMessages((current) => [
+        ...current,
+        { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
+      ])
+    })
+
+    await waitForNextPaint()
 
     try {
       if (messageTargetsGlobalHeader(trimmedMessage)) {
