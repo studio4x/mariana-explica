@@ -497,6 +497,7 @@ function extractTypographyDeclarations(message: string) {
   if (!declarations.has("font-size")) {
     const inferredFontSizePatterns = [
       /(?:aumenta(?:r)?|aumente|deixa(?:r)?|deixe|coloca(?:r)?|coloque|mete|ponha|põe|ajusta(?:r)?|ajuste|passa(?:r)?)(?:\s+[^\n]{0,120}?)?\s+para\s*([0-9.]+(?:px|rem|em|%)?)/i,
+      /(?:fonte|font-size|font size|tamanho da fonte|tamanho)\s*(?:em|para|com|de)?\s*([0-9.]+(?:px|rem|em|%)?)/i,
       /([0-9.]+(?:px|rem|em|%)?)\s*(?:de\s+fonte|de\s+font-size|de\s+tamanho)/i,
     ]
 
