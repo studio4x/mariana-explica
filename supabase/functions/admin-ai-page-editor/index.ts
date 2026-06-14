@@ -860,6 +860,30 @@ function richTextLooksLikePartialFragment(currentContent: unknown, proposedConte
   return false
 }
 
+function collectHtmlTagCounts(content: string) {
+  const tags = ["section", "article", "div", "header", "footer", "main", "aside", "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "a", "img", "span"]
+  return Object.fromEntries(
+    tags.map((tag) => [tag, (content.match(new RegExp(`<${tag}\\b`, "gi")) ?? []).length]),
+  ) as Record<string, number>
+}
+
+function richTextPreservesStructuralFootprint(currentContent: unknown, proposedContent: unknown) {
+  const current = typeof currentContent === "string" ? currentContent : ""
+  const proposed = typeof proposedContent === "string" ? proposedContent : ""
+  if (!current.trim() || !proposed.trim()) return false
+
+  const currentHasCanonical = current.includes("data-me-page-canonical")
+  const proposedHasCanonical = proposed.includes("data-me-page-canonical")
+  if (currentHasCanonical !== proposedHasCanonical) {
+    return false
+  }
+
+  const currentTags = collectHtmlTagCounts(current)
+  const proposedTags = collectHtmlTagCounts(proposed)
+
+  return Object.keys(currentTags).every((tag) => currentTags[tag] === proposedTags[tag])
+}
+
 function mergeTextOnlyBlocks(
   currentBlock: Record<string, unknown>,
   proposedBlock: Record<string, unknown>,
@@ -881,6 +905,10 @@ function mergeTextOnlyBlocks(
       }
 
       if (richTextLooksLikePartialFragment(currentBlock.content, proposedBlock.content)) {
+        return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
+      }
+
+      if (!richTextPreservesStructuralFootprint(currentBlock.content, proposedBlock.content)) {
         return { valid: false, changed: 0, block: cloneJsonValue(currentBlock) }
       }
 
