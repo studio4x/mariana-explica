@@ -279,7 +279,7 @@ export function SiteAiPageEditorLauncher() {
   const footerDescription = brandingQuery.data?.config_value.footer_description?.trim() || APP_DESCRIPTION
   const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
-  const canPersistDraft = Boolean(pageSlug && pageDetailQuery.data?.page)
+  const canPersistDraft = Boolean(pageSlug)
 
   const currentLayoutJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.layout_json
