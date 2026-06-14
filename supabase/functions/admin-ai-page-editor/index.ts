@@ -427,18 +427,20 @@ function extractQuotedTypographyTarget(message: string) {
   const targetPatterns = [
     /(?:frase|texto|trecho|palavra|par[aá]grafo|t[ií]tulo|headline|copy)\s+"([^"]+)"/i,
     /(?:frase|texto|trecho|palavra|par[aá]grafo|t[ií]tulo|headline|copy)\s+'([^']+)'/i,
+    /(?:frase|texto|trecho|palavra|par[aá]grafo|t[ií]tulo|headline|copy)\s*:\s*["']?(.+?)\s+(?:para|com|em)\s+(?:fonte|font-size|font size|tamanho da fonte|tamanho|peso|line-height|line height|letter-spacing)\b/i,
+    /(?:frase|texto|trecho|palavra|par[aá]grafo|t[ií]tulo|headline|copy)\s*:\s*["']?(.+?)\s+para\s+[0-9.]+(?:px|rem|em|%)?\b/i,
   ]
 
   for (const pattern of targetPatterns) {
     const match = normalized.match(pattern)
-    const value = normalizeString(match?.[1])
+    const value = normalizeString(match?.[1]).replace(/^["']+|["']+$/g, "").trim()
     if (value) return value
   }
 
   const anyQuotePatterns = [/"([^"]+)"/, /'([^']+)'/]
   for (const pattern of anyQuotePatterns) {
     const match = normalized.match(pattern)
-    const value = normalizeString(match?.[1])
+    const value = normalizeString(match?.[1]).replace(/^["']+|["']+$/g, "").trim()
     if (value) return value
   }
 
@@ -1093,6 +1095,10 @@ function normalizeTypographyTargetText(value: string) {
   return String(value ?? "")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")
+    .replace(/[“”„‟«»]/g, '"')
+    .replace(/[‘’‚‛‹›]/g, "'")
+    .replace(/[.,!?;:()[\]{}]+/g, " ")
+    .replace(/["']/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase()
@@ -1181,12 +1187,12 @@ function applyTypographyClassToBlock(
   const nextBlock = cloneJsonValue(block)
   const type = normalizeString(block.type).toLowerCase()
 
-  if (type === "heading" && typeof block.content === "string" && block.content.includes(targetPhrase)) {
+  if (type === "heading" && typeof block.content === "string" && matchesTypographyTarget(block.content, targetPhrase)) {
     nextBlock.customClassName = normalizeString(`${normalizeString(block.customClassName)} ${className}`)
     return { block: nextBlock, matched: true }
   }
 
-  if (type === "button" && typeof block.label === "string" && block.label.includes(targetPhrase)) {
+  if (type === "button" && typeof block.label === "string" && matchesTypographyTarget(block.label, targetPhrase)) {
     nextBlock.customClassName = normalizeString(`${normalizeString(block.customClassName)} ${className}`)
     return { block: nextBlock, matched: true }
   }
