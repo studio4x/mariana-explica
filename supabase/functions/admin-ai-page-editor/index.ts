@@ -1108,6 +1108,69 @@ function proposalRepresentsLocalizedTextPatch(
   return new Set(changes).size <= 1
 }
 
+function blockPreservesLayoutEnvelope(currentBlock: Record<string, unknown>, proposedBlock: Record<string, unknown>): boolean {
+  const currentType = normalizeString(currentBlock.type).toLowerCase()
+  const proposedType = normalizeString(proposedBlock.type).toLowerCase()
+
+  if (!currentType || currentType !== proposedType) {
+    return false
+  }
+
+  if (currentType === "rich_text") {
+    return richTextPreservesStructuralFootprint(currentBlock.content, proposedBlock.content)
+  }
+
+  if (currentType === "columns") {
+    const currentItems = Array.isArray(currentBlock.items) ? currentBlock.items : []
+    const proposedItems = Array.isArray(proposedBlock.items) ? proposedBlock.items : []
+    return currentItems.length === proposedItems.length
+  }
+
+  if (currentType === "container") {
+    const currentChildren = Array.isArray(currentBlock.children) ? currentBlock.children : []
+    const proposedChildren = Array.isArray(proposedBlock.children) ? proposedBlock.children : []
+    if (currentChildren.length !== proposedChildren.length) return false
+
+    for (let columnIndex = 0; columnIndex < currentChildren.length; columnIndex += 1) {
+      const currentColumn = Array.isArray(currentChildren[columnIndex]) ? currentChildren[columnIndex] : []
+      const proposedColumn = Array.isArray(proposedChildren[columnIndex]) ? proposedChildren[columnIndex] : []
+      if (currentColumn.length !== proposedColumn.length) return false
+
+      for (let blockIndex = 0; blockIndex < currentColumn.length; blockIndex += 1) {
+        const currentChild = currentColumn[blockIndex]
+        const proposedChild = proposedColumn[blockIndex]
+        if (!currentChild || typeof currentChild !== "object" || Array.isArray(currentChild)) continue
+        if (!proposedChild || typeof proposedChild !== "object" || Array.isArray(proposedChild)) return false
+        if (!blockPreservesLayoutEnvelope(currentChild as Record<string, unknown>, proposedChild as Record<string, unknown>)) {
+          return false
+        }
+      }
+    }
+  }
+
+  return true
+}
+
+function proposalPreservesLayoutEnvelope(
+  currentLayoutJson: Record<string, unknown>,
+  proposedLayoutJson: Record<string, unknown>,
+) {
+  const currentBlocks = extractBlocksFromLayoutJson(currentLayoutJson)
+  const proposedBlocks = extractBlocksFromLayoutJson(proposedLayoutJson)
+
+  if (!currentBlocks || !proposedBlocks || currentBlocks.length !== proposedBlocks.length) {
+    return false
+  }
+
+  for (let index = 0; index < currentBlocks.length; index += 1) {
+    if (!blockPreservesLayoutEnvelope(currentBlocks[index], proposedBlocks[index])) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function mergeTextOnlyProposalWithCurrentLayout(
   currentLayoutJson: Record<string, unknown>,
   proposedLayoutJson: Record<string, unknown>,
@@ -2158,6 +2221,13 @@ function coerceLayoutJsonToBuilderCompatibleJson(layoutJson: Record<string, unkn
   const htmlFromProjectData = projectData && typeof projectData.html === "string" ? String(projectData.html).trim() : ""
   const html = htmlFromRecord || htmlFromProjectData
 
+  if (html) {
+    const parsedHtml = parseJsonFromString(html)
+    if (parsedHtml && typeof parsedHtml === "object" && !Array.isArray(parsedHtml)) {
+      return coerceLayoutJsonToBuilderCompatibleJson(parsedHtml as Record<string, unknown>)
+    }
+  }
+
   if (projectBlocks && projectBlocks.length > 0) {
     return {
       ...record,
@@ -2437,6 +2507,12 @@ function stabilizeProposalForSafeApplication(input: {
   const structuralLayoutRequest = requestExplicitlyMentionsStructuralLayout(input.message)
 
   if ((!textContentRequest && !typographyRequest) || structuralLayoutRequest) {
+    if (!proposalPreservesLayoutEnvelope(input.currentLayoutJson, input.proposal.proposal.layout_json)) {
+      throw unprocessable(
+        "A proposta da IA não preservou a estrutura completa da página atual. Nenhum rascunho foi aplicado.",
+      )
+    }
+
     return input.proposal
   }
 
