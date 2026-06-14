@@ -944,6 +944,108 @@ function mergeTextOnlyBlocks(
   return { valid: true, changed: 0, block: nextBlock }
 }
 
+function collectLocalizedTextChanges(
+  currentBlock: Record<string, unknown>,
+  proposedBlock: Record<string, unknown>,
+  changes: string[],
+): boolean {
+  const currentType = normalizeString(currentBlock.type).toLowerCase()
+  const proposedType = normalizeString(proposedBlock.type).toLowerCase()
+
+  if (!currentType || currentType !== proposedType) {
+    return false
+  }
+
+  if (currentType === "rich_text") {
+    const currentContent = typeof currentBlock.content === "string" ? currentBlock.content : ""
+    const proposedContent = typeof proposedBlock.content === "string" ? proposedBlock.content : ""
+    if (proposedContent.trim() && currentContent !== proposedContent) {
+      changes.push(`rich_text:${normalizeString(currentBlock.id) || crypto.randomUUID()}`)
+    }
+    return true
+  }
+
+  if (currentType === "heading") {
+    const currentContent = typeof currentBlock.content === "string" ? currentBlock.content : ""
+    const proposedContent = typeof proposedBlock.content === "string" ? proposedBlock.content : ""
+    if (proposedContent.trim() && currentContent !== proposedContent) {
+      changes.push(`heading:${normalizeString(currentBlock.id) || crypto.randomUUID()}`)
+    }
+    return true
+  }
+
+  if (currentType === "button") {
+    const currentLabel = typeof currentBlock.label === "string" ? currentBlock.label : ""
+    const proposedLabel = typeof proposedBlock.label === "string" ? proposedBlock.label : ""
+    if (proposedLabel.trim() && currentLabel !== proposedLabel) {
+      changes.push(`button:${normalizeString(currentBlock.id) || crypto.randomUUID()}`)
+    }
+    return true
+  }
+
+  if (currentType === "columns") {
+    const currentItems = Array.isArray(currentBlock.items) ? currentBlock.items : []
+    const proposedItems = Array.isArray(proposedBlock.items) ? proposedBlock.items : []
+    if (currentItems.length !== proposedItems.length) return false
+
+    for (let index = 0; index < currentItems.length; index += 1) {
+      const currentItem = String(currentItems[index] ?? "")
+      const proposedItem = String(proposedItems[index] ?? "")
+      if (currentItem !== proposedItem) {
+        changes.push(`columns:${normalizeString(currentBlock.id) || crypto.randomUUID()}:${index}`)
+      }
+    }
+    return true
+  }
+
+  if (currentType === "container") {
+    const currentChildren = Array.isArray(currentBlock.children) ? currentBlock.children : []
+    const proposedChildren = Array.isArray(proposedBlock.children) ? proposedBlock.children : []
+    if (currentChildren.length !== proposedChildren.length) return false
+
+    for (let columnIndex = 0; columnIndex < currentChildren.length; columnIndex += 1) {
+      const currentColumn = Array.isArray(currentChildren[columnIndex]) ? currentChildren[columnIndex] : []
+      const proposedColumn = Array.isArray(proposedChildren[columnIndex]) ? proposedChildren[columnIndex] : []
+      if (currentColumn.length !== proposedColumn.length) return false
+
+      for (let blockIndex = 0; blockIndex < currentColumn.length; blockIndex += 1) {
+        const childCurrent = currentColumn[blockIndex]
+        const childProposed = proposedColumn[blockIndex]
+        if (!childCurrent || typeof childCurrent !== "object" || Array.isArray(childCurrent)) continue
+        if (!childProposed || typeof childProposed !== "object" || Array.isArray(childProposed)) return false
+        if (!collectLocalizedTextChanges(childCurrent as Record<string, unknown>, childProposed as Record<string, unknown>, changes)) {
+          return false
+        }
+      }
+    }
+
+    return true
+  }
+
+  return true
+}
+
+function proposalRepresentsLocalizedTextPatch(
+  currentLayoutJson: Record<string, unknown>,
+  proposedLayoutJson: Record<string, unknown>,
+) {
+  const currentBlocks = extractBlocksFromLayoutJson(currentLayoutJson)
+  const proposedBlocks = extractBlocksFromLayoutJson(proposedLayoutJson)
+
+  if (!currentBlocks || !proposedBlocks || currentBlocks.length !== proposedBlocks.length) {
+    return false
+  }
+
+  const changes: string[] = []
+  for (let index = 0; index < currentBlocks.length; index += 1) {
+    if (!collectLocalizedTextChanges(currentBlocks[index], proposedBlocks[index], changes)) {
+      return false
+    }
+  }
+
+  return new Set(changes).size <= 1
+}
+
 function mergeTextOnlyProposalWithCurrentLayout(
   currentLayoutJson: Record<string, unknown>,
   proposedLayoutJson: Record<string, unknown>,
@@ -1333,6 +1435,12 @@ function finalizeSafeTextAndTypographyProposal(input: {
     }
 
     if (nextLayoutJson === input.currentLayoutJson) {
+      if (!proposalRepresentsLocalizedTextPatch(input.currentLayoutJson, input.proposal.proposal.layout_json)) {
+        throw unprocessable(
+          "A proposta da IA alterou mais do que o trecho pedido. Apenas ajustes locais num único ponto da página podem ser aplicados.",
+        )
+      }
+
       const mergedLayout = mergeTextOnlyProposalWithCurrentLayout(
         input.currentLayoutJson,
         input.proposal.proposal.layout_json,
@@ -1375,20 +1483,9 @@ function finalizeSafeTextAndTypographyProposal(input: {
         }
       }
     }
-
-    const mergedTypographyStyle = mergeTypographyOnlyProposalWithCurrentStyles(
-      nextStyleJson,
-      input.proposal.proposal.style_json,
+    throw unprocessable(
+      "Não encontrei um alvo tipográfico local e seguro na página atual para aplicar esse ajuste sem mexer no resto da página.",
     )
-
-    if (!mergedTypographyStyle) {
-      throw unprocessable(
-        "A proposta da IA não devolveu uma regra tipográfica segura para aplicar sem mexer no layout da página.",
-      )
-    }
-
-    nextStyleJson = mergedTypographyStyle.styleJson
-    warnings.push(mergedTypographyStyle.warning)
   }
 
   return {
