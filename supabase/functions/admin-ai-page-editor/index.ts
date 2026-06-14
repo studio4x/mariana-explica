@@ -494,6 +494,24 @@ function extractTypographyDeclarations(message: string) {
     }
   }
 
+  if (!declarations.has("font-size")) {
+    const inferredFontSizePatterns = [
+      /(?:aumenta(?:r)?|aumente|deixa(?:r)?|deixe|coloca(?:r)?|coloque|mete|ponha|põe|ajusta(?:r)?|ajuste|passa(?:r)?)(?:\s+[^\n]{0,120}?)?\s+para\s*([0-9.]+(?:px|rem|em|%)?)/i,
+      /([0-9.]+(?:px|rem|em|%)?)\s*(?:de\s+fonte|de\s+font-size|de\s+tamanho)/i,
+    ]
+
+    const mentionsTypographyScale = /(?:fonte|font-size|font size|tamanho da fonte|tamanho|tipografia)\b/i.test(normalized)
+    if (mentionsTypographyScale) {
+      for (const pattern of inferredFontSizePatterns) {
+        const inferredValue = normalizeTypographyValue("font-size", normalizeString(normalized.match(pattern)?.[1]))
+        if (inferredValue) {
+          declarations.set("font-size", inferredValue)
+          break
+        }
+      }
+    }
+  }
+
   if (!declarations.has("text-transform")) {
     if (/\bcaixa alta\b/i.test(normalized) || /\buppercase\b/i.test(normalized)) {
       declarations.set("text-transform", "uppercase")
