@@ -9,11 +9,15 @@ import type {
 
 type GenerateProposalResponse = {
   success: true
+  request_id?: string
+  client_request_id?: string | null
   provider_used: AdminAiPageEditorConversationResponse["provider_used"]
   conversation_phase: AdminAiPageEditorConversationResponse["conversation_phase"]
   assistant_message: string
   quick_replies: string[]
   understanding_summary: string | null
+  confirmation_token?: string | null
+  confirmation_consumed?: boolean
   requires_user_confirmation: boolean
   can_generate_proposal: boolean
   warnings: string[]
@@ -249,6 +253,16 @@ export function ensureAdminAiPageEditorConversationResponse(value: unknown): Gen
     assistant_message: String(value.assistant_message).trim(),
     quick_replies: ensureQuickReplies(value.quick_replies),
     understanding_summary: hasNonEmptyString(value.understanding_summary) ? String(value.understanding_summary).trim() : null,
+    ...(hasNonEmptyString(value.request_id) ? { request_id: String(value.request_id).trim() } : {}),
+    ...(value.client_request_id === null || hasNonEmptyString(value.client_request_id)
+      ? { client_request_id: value.client_request_id === null ? null : String(value.client_request_id).trim() }
+      : {}),
+    ...(value.confirmation_token === null || hasNonEmptyString(value.confirmation_token)
+      ? { confirmation_token: value.confirmation_token === null ? null : String(value.confirmation_token).trim() }
+      : {}),
+    ...(typeof value.confirmation_consumed === "boolean"
+      ? { confirmation_consumed: value.confirmation_consumed }
+      : {}),
     requires_user_confirmation: value.requires_user_confirmation,
     can_generate_proposal: value.can_generate_proposal,
     warnings: value.warnings as string[],

@@ -37,6 +37,7 @@ export interface ConfirmedIntentProposalResult {
   operationalState: PersistibleProposalOperationalState
   diagnosis: SpacingSourceDiagnosis[]
   sourceText: string
+  scope: ConfirmedSpacingScope
 }
 
 interface ConfirmedIntentProposalInput {
@@ -54,6 +55,27 @@ interface ConfirmedIntentProposalInput {
   publishedVersionId?: string | null
   latestDraftId?: string | null
 }
+
+export type ConfirmedIntentMaterializationResult =
+  | {
+      status: "not_applicable"
+      scope: null
+      sourceText: string
+      understandingSummary: string | null
+      reason: "missing_understanding_summary" | "not_known_spacing_intent"
+    }
+  | {
+      status: "failed"
+      scope: ConfirmedSpacingScope
+      sourceText: string
+      understandingSummary: string | null
+      reason: string
+      assistantMessage: string
+      warnings: string[]
+    }
+  | ({
+      status: "success"
+    } & ConfirmedIntentProposalResult)
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -292,13 +314,44 @@ const KNOWN_SPACING_TARGET_IDS = new Set([
   "section_internal_spacing",
 ])
 
+function createFriendlyConfirmedIntentFailure(input: {
+  scope: ConfirmedSpacingScope
+  sourceText: string
+  understandingSummary: string | null
+  reason: string
+  warnings?: string[]
+}): ConfirmedIntentMaterializationResult {
+  return {
+    status: "failed",
+    scope: input.scope,
+    sourceText: input.sourceText,
+    understandingSummary: input.understandingSummary,
+    reason: input.reason,
+    assistantMessage:
+      "Percebi o que queres mudar, mas esta tentativa segura não conseguiu preparar a prévia. Vou precisar ajustar melhor o alvo.",
+    warnings: input.warnings ?? [],
+  }
+}
+
 export function materializeConfirmedIntentProposal(
   input: ConfirmedIntentProposalInput,
-): ConfirmedIntentProposalResult | null {
+): ConfirmedIntentMaterializationResult {
   const sourceTexts = buildConfirmedIntentSourceTexts({
     confirmationMessage: input.confirmationMessage,
     conversationContext: input.conversationContext,
   })
+
+  const understandingSummary = sourceTexts.understandingSummary || null
+  const sourceText = sourceTexts.understandingSummary || sourceTexts.aggregate
+  if (!understandingSummary) {
+    return {
+      status: "not_applicable",
+      scope: null,
+      sourceText,
+      understandingSummary,
+      reason: "missing_understanding_summary",
+    }
+  }
 
   const scope =
     resolveConfirmedSpacingScope({
@@ -310,103 +363,136 @@ export function materializeConfirmedIntentProposal(
       quickReplySelected: input.conversationContext.quick_reply_selected,
     })
 
-  const sourceText = sourceTexts.understandingSummary || sourceTexts.aggregate
-
-  if (!scope) return null
-
-  const refined = refineSpacingEditPlanForKnownWrappers({
-    message: buildCanonicalSpacingMessage(scope),
-    editPlan: buildSeedSpacingPlan(scope),
-    baseVersion: input.baseVersion,
-  })
-
-  const patched = applyPatchPlan({
-    slug: input.slug,
-    title: input.title,
-    path: input.path,
-    message: buildCanonicalSpacingMessage(scope),
-    editPlan: refined.editPlan,
-    baseVersion: input.baseVersion,
-  })
-
-  const operationalState = resolvePersistibleProposalOperationalState({
-    editPlan: refined.editPlan,
-    baseLayoutJson: input.baseVersion.layout_json,
-    baseStyleJson: input.baseVersion.style_json,
-    proposalLayoutJson: patched.layoutJson,
-    proposalStyleJson: patched.styleJson,
-    targetResolutions: patched.resolutions,
-    previewRenderable: true,
-    desktopRenderable: true,
-    mobileRenderable: true,
-  })
-
-  const onlyKnownSpacingTargets =
-    refined.editPlan.target_ids.length > 0 &&
-    refined.editPlan.target_ids.every((targetId) => KNOWN_SPACING_TARGET_IDS.has(targetId)) &&
-    patched.resolutions.length > 0 &&
-    patched.resolutions.every(
-      (resolution) =>
-        KNOWN_SPACING_TARGET_IDS.has(resolution.requested_target_id) &&
-        resolution.requested_target_id === resolution.resolved_target_id,
-    )
-
-  const normalizedOperationalState =
-    onlyKnownSpacingTargets && operationalState.change_detected
-      ? {
-          ...operationalState,
-          final_status: "proposal_ready" as const,
-          preview_available: true,
-        }
-      : operationalState
-
-  if (!patched.resolutions.length || normalizedOperationalState.final_status === "needs_clarification") {
-    return null
+  if (!scope) {
+    return {
+      status: "not_applicable",
+      scope: null,
+      sourceText,
+      understandingSummary,
+      reason: "not_known_spacing_intent",
+    }
   }
 
-  const copy = buildUserFacingCopy(refined.editPlan.target_ids, input.title)
-  const warnings = [...refined.warnings, ...patched.warnings]
-  const proposal = {
-    slug: input.slug,
-    title: input.title,
-    layout_json: patched.layoutJson,
-    style_json: patched.styleJson,
-    metadata: buildProposalMetadata({
+  try {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message: buildCanonicalSpacingMessage(scope),
+      editPlan: buildSeedSpacingPlan(scope),
+      baseVersion: input.baseVersion,
+    })
+
+    const patched = applyPatchPlan({
+      slug: input.slug,
+      title: input.title,
+      path: input.path,
+      message: buildCanonicalSpacingMessage(scope),
       editPlan: refined.editPlan,
       baseVersion: input.baseVersion,
-      baseVersionSource: input.baseVersionSource,
-      degradedDraftBypassed: input.degradedDraftBypassed,
-      baseVersionSelectionReason: input.baseVersionSelectionReason,
-      publishedVersionId: input.publishedVersionId,
-      latestDraftId: input.latestDraftId,
-      sourceText,
-      diagnosis: refined.diagnosis,
-      patchedInvariants: patched.invariants,
-      targetResolutions: patched.resolutions,
-    }),
-  }
+    })
 
-  return {
-    providerUsed: input.providerUsed,
-    modelUsed: input.modelUsed,
-    summary: copy.summary,
-    explanation: copy.explanation,
-    assistantMessage: copy.assistantMessage,
-    warnings,
-    conversationPhase: "ready_for_proposal",
-    understandingSummary: input.conversationContext.understanding_summary,
-    requiresUserConfirmation: false,
-    canGenerateProposal: true,
-    editPlan: refined.editPlan,
-    proposal,
-    operationalState: {
-      ...normalizedOperationalState,
-      final_status:
-        normalizedOperationalState.final_status === "awaiting_intent_confirmation"
-          ? ("proposal_ready" satisfies AiPageEditorFinalStatus)
-          : normalizedOperationalState.final_status,
-    },
-    diagnosis: refined.diagnosis,
-    sourceText,
+    const operationalState = resolvePersistibleProposalOperationalState({
+      editPlan: refined.editPlan,
+      baseLayoutJson: input.baseVersion.layout_json,
+      baseStyleJson: input.baseVersion.style_json,
+      proposalLayoutJson: patched.layoutJson,
+      proposalStyleJson: patched.styleJson,
+      targetResolutions: patched.resolutions,
+      previewRenderable: true,
+      desktopRenderable: true,
+      mobileRenderable: true,
+    })
+
+    const onlyKnownSpacingTargets =
+      refined.editPlan.target_ids.length > 0 &&
+      refined.editPlan.target_ids.every((targetId) => KNOWN_SPACING_TARGET_IDS.has(targetId)) &&
+      patched.resolutions.length > 0 &&
+      patched.resolutions.every(
+        (resolution) =>
+          KNOWN_SPACING_TARGET_IDS.has(resolution.requested_target_id) &&
+          resolution.requested_target_id === resolution.resolved_target_id,
+      )
+
+    const normalizedOperationalState =
+      onlyKnownSpacingTargets && operationalState.change_detected
+        ? {
+            ...operationalState,
+            final_status: "proposal_ready" as const,
+            preview_available: true,
+          }
+        : operationalState
+
+    if (!patched.resolutions.length) {
+      return createFriendlyConfirmedIntentFailure({
+        scope,
+        sourceText,
+        understandingSummary,
+        reason: "no_target_resolutions",
+        warnings: [...refined.warnings, ...patched.warnings],
+      })
+    }
+
+    if (normalizedOperationalState.final_status === "needs_clarification") {
+      return createFriendlyConfirmedIntentFailure({
+        scope,
+        sourceText,
+        understandingSummary,
+        reason: "needs_clarification_after_patch",
+        warnings: [...refined.warnings, ...patched.warnings],
+      })
+    }
+
+    const copy = buildUserFacingCopy(refined.editPlan.target_ids, input.title)
+    const warnings = [...refined.warnings, ...patched.warnings]
+    const proposal = {
+      slug: input.slug,
+      title: input.title,
+      layout_json: patched.layoutJson,
+      style_json: patched.styleJson,
+      metadata: buildProposalMetadata({
+        editPlan: refined.editPlan,
+        baseVersion: input.baseVersion,
+        baseVersionSource: input.baseVersionSource,
+        degradedDraftBypassed: input.degradedDraftBypassed,
+        baseVersionSelectionReason: input.baseVersionSelectionReason,
+        publishedVersionId: input.publishedVersionId,
+        latestDraftId: input.latestDraftId,
+        sourceText,
+        diagnosis: refined.diagnosis,
+        patchedInvariants: patched.invariants,
+        targetResolutions: patched.resolutions,
+      }),
+    }
+
+    return {
+      status: "success",
+      providerUsed: input.providerUsed,
+      modelUsed: input.modelUsed,
+      summary: copy.summary,
+      explanation: copy.explanation,
+      assistantMessage: copy.assistantMessage,
+      warnings,
+      conversationPhase: "ready_for_proposal",
+      understandingSummary,
+      requiresUserConfirmation: false,
+      canGenerateProposal: true,
+      editPlan: refined.editPlan,
+      proposal,
+      operationalState: {
+        ...normalizedOperationalState,
+        final_status:
+          normalizedOperationalState.final_status === "awaiting_intent_confirmation"
+            ? ("proposal_ready" satisfies AiPageEditorFinalStatus)
+            : normalizedOperationalState.final_status,
+      },
+      diagnosis: refined.diagnosis,
+      sourceText,
+      scope,
+    }
+  } catch (error) {
+    return createFriendlyConfirmedIntentFailure({
+      scope,
+      sourceText,
+      understandingSummary,
+      reason: error instanceof Error ? error.message : String(error),
+    })
   }
 }

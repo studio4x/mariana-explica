@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 import {
+  buildUnderstandingConfirmationToken,
   isExplicitUnderstandingConfirmation,
   isExplicitUnderstandingRejection,
+  matchesUnderstandingConfirmationToken,
   normalizeConversationContext,
   sanitizeConversationReplies,
   sanitizeConversationText,
@@ -14,6 +16,7 @@ describe("conversation helpers", () => {
       understanding_summary: "tirar o espaco no topo da pagina Sobre",
       clarification_questions_count: 2,
       quick_reply_selected: "Nos dois",
+      confirmation_token: "intent_123",
       recent_messages: [
         { role: "assistant", text: "Percebi assim..." },
         { role: "user", text: "Sim, e isso" },
@@ -22,6 +25,7 @@ describe("conversation helpers", () => {
 
     expect(context.phase).toBe("awaiting_intent_confirmation")
     expect(context.clarification_questions_count).toBe(2)
+    expect(context.confirmation_token).toBe("intent_123")
     expect(context.recent_messages).toHaveLength(2)
   })
 
@@ -42,5 +46,13 @@ describe("conversation helpers", () => {
       "Mudar o bloco",
       "Trocar o espaco",
     ])
+  })
+
+  it("builds and validates a confirmation token for the pending understanding summary", () => {
+    const token = buildUnderstandingConfirmationToken("tirar o espaco do topo da pagina Sobre")
+
+    expect(token).toMatch(/^intent_/)
+    expect(matchesUnderstandingConfirmationToken("tirar o espaco do topo da pagina Sobre", token)).toBe(true)
+    expect(matchesUnderstandingConfirmationToken("tirar o espaco da primeira secao", token)).toBe(false)
   })
 })

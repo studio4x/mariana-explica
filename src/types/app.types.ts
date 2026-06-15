@@ -413,15 +413,20 @@ export interface AdminAiPageEditorConversationContext {
   understanding_summary?: string | null
   clarification_questions_count?: number
   quick_reply_selected?: string | null
+  confirmation_token?: string | null
   recent_messages?: AdminAiPageEditorConversationContextMessage[]
 }
 
 export interface AdminAiPageEditorConversationResponse extends AdminAiPageEditorOperationalState {
+  request_id?: string
+  client_request_id?: string | null
   provider_used: AiPageEditorProvider
   conversation_phase: AdminAiPageEditorConversationPhase
   assistant_message: string
   quick_replies: string[]
   understanding_summary: string | null
+  confirmation_token?: string | null
+  confirmation_consumed?: boolean
   requires_user_confirmation: boolean
   can_generate_proposal: boolean
   warnings: string[]

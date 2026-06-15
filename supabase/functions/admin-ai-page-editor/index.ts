@@ -1,7 +1,7 @@
 import { extractRequestAuditContext, requireAdmin, writeAuditLog } from "../_shared/mod.ts"
 import { badRequest, forbidden, unprocessable } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
-import { logError, logInfo } from "../_shared/logger.ts"
+import { logError, logInfo, logWarn } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import {
   normalizeAiEditPlan,
@@ -30,6 +30,8 @@ import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion 
 import {
   isExplicitUnderstandingConfirmation,
   isExplicitUnderstandingRejection,
+  buildUnderstandingConfirmationToken,
+  matchesUnderstandingConfirmationToken,
   normalizeConversationContext,
   sanitizeConversationReplies,
   sanitizeConversationText,
@@ -70,6 +72,7 @@ interface Body {
   currentFooterText?: string
   attachments?: AttachmentInput[]
   conversationContext?: Record<string, unknown>
+  client_request_id?: string
 }
 
 const CONFIG_KEY = "ai_page_editor_config"
@@ -384,6 +387,36 @@ function createEmptyChangeSummary(): AiPageEditorChangeSummary {
 function createConversationOperationalState(phase: AiConversationPhase) {
   return {
     final_status: phase === "needs_clarification" ? "needs_clarification" : "awaiting_intent_confirmation",
+    change_detected: false,
+    draft_saved: false as const,
+    preview_available: false as const,
+    change_summary: createEmptyChangeSummary(),
+  }
+}
+
+function createFriendlyConfirmedIntentFailureResponse(input: {
+  requestId: string
+  clientRequestId: string | null
+  providerUsed: AiProvider
+  understandingSummary: string | null
+  assistantMessage: string
+  warnings?: string[]
+}) {
+  return {
+    success: true as const,
+    request_id: input.requestId,
+    client_request_id: input.clientRequestId,
+    provider_used: input.providerUsed,
+    conversation_phase: "ready_for_proposal" as const,
+    assistant_message: input.assistantMessage,
+    quick_replies: [] as string[],
+    understanding_summary: input.understandingSummary,
+    confirmation_token: null,
+    confirmation_consumed: true,
+    requires_user_confirmation: false,
+    can_generate_proposal: false,
+    warnings: input.warnings ?? [],
+    final_status: "error" as const,
     change_detected: false,
     draft_saved: false as const,
     preview_available: false as const,
@@ -3830,10 +3863,34 @@ Deno.serve(async (req) => {
       }
 
       const conversationContext = normalizeConversationContext(body.conversationContext)
+      const clientRequestId = normalizeString(body.client_request_id) || null
+      const confirmationTokenMatches = matchesUnderstandingConfirmationToken(
+        conversationContext.understanding_summary,
+        conversationContext.confirmation_token,
+      )
       const understandingConfirmed =
         isExplicitUnderstandingConfirmation(message, conversationContext.phase) &&
-        Boolean(conversationContext.understanding_summary)
+        Boolean(conversationContext.understanding_summary) &&
+        (!conversationContext.confirmation_token || confirmationTokenMatches)
       const understandingRejected = isExplicitUnderstandingRejection(message, conversationContext.phase)
+      const routingContext = {
+        request_id: requestId,
+        client_request_id: clientRequestId,
+        slug,
+        path,
+        conversation_phase_received: conversationContext.phase,
+        understanding_summary_used: conversationContext.understanding_summary,
+        confirmation_message: message,
+        confirmation_token_received: conversationContext.confirmation_token,
+        confirmation_token_matches: confirmationTokenMatches,
+      }
+
+      logInfo("AI page editor conversation routing evaluated", {
+        ...routingContext,
+        explicit_confirmation_detected: isExplicitUnderstandingConfirmation(message, conversationContext.phase),
+        explicit_rejection_detected: understandingRejected,
+        understanding_confirmed: understandingConfirmed,
+      })
 
       if (!understandingConfirmed) {
         const secrets = await getProviderSecrets(serviceClient)
@@ -3885,20 +3942,28 @@ Deno.serve(async (req) => {
 
         logInfo("AI page editor understanding progressed", {
           request_id: requestId,
+          client_request_id: clientRequestId,
           user_id: context.user.id,
           slug,
           path,
           conversation_phase: understanding.turn.phase,
+          branch_selected: "understanding_turn",
         })
 
         return jsonResponse({
           success: true,
           request_id: requestId,
+          client_request_id: clientRequestId,
           provider_used: understanding.providerUsed,
           conversation_phase: understanding.turn.phase,
           assistant_message: understanding.turn.assistant_message,
           quick_replies: understanding.turn.quick_replies,
           understanding_summary: understanding.turn.understanding_summary,
+          confirmation_token:
+            understanding.turn.phase === "awaiting_intent_confirmation"
+              ? buildUnderstandingConfirmationToken(understanding.turn.understanding_summary)
+              : null,
+          confirmation_consumed: false,
           requires_user_confirmation: understanding.turn.phase === "awaiting_intent_confirmation",
           can_generate_proposal: false,
           warnings: [],
@@ -3925,7 +3990,20 @@ Deno.serve(async (req) => {
         latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
       })
 
-      if (deterministicProposal) {
+      logInfo("AI page editor confirmed intent branch decided", {
+        ...routingContext,
+        branch_selected:
+          deterministicProposal.status === "success"
+            ? "confirmed_intent_patch"
+            : deterministicProposal.status === "failed"
+              ? "confirmed_intent_patch_failed"
+              : "provider_full_proposal",
+        confirmed_intent_scope: deterministicProposal.scope,
+        fallback_reason: deterministicProposal.status === "not_applicable" ? deterministicProposal.reason : null,
+        patch_failure_reason: deterministicProposal.status === "failed" ? deterministicProposal.reason : null,
+      })
+
+      if (deterministicProposal.status === "success") {
         const proposalInvariants = extractPersistibleProposalInvariants({
           proposal: deterministicProposal.proposal,
         })
@@ -4043,21 +4121,26 @@ Deno.serve(async (req) => {
 
         logInfo("AI page editor proposal materialized from confirmed intent", {
           request_id: requestId,
+          client_request_id: clientRequestId,
           user_id: context.user.id,
           slug,
           path,
           conversation_phase: deterministicProposal.conversationPhase,
           target_ids: deterministicProposal.editPlan.target_ids,
+          branch_selected: "confirmed_intent_patch",
         })
 
         return jsonResponse({
           success: true,
           request_id: requestId,
+          client_request_id: clientRequestId,
           provider_used: deterministicProposal.providerUsed,
           conversation_phase: deterministicProposal.conversationPhase,
           assistant_message: deterministicProposal.assistantMessage,
           quick_replies: [],
           understanding_summary: deterministicProposal.understandingSummary,
+          confirmation_token: null,
+          confirmation_consumed: true,
           requires_user_confirmation: deterministicProposal.requiresUserConfirmation,
           can_generate_proposal: deterministicProposal.canGenerateProposal,
           warnings: deterministicProposal.warnings,
@@ -4067,6 +4150,51 @@ Deno.serve(async (req) => {
           proposal: deterministicProposal.proposal,
           ...deterministicProposal.operationalState,
         })
+      }
+
+      if (deterministicProposal.status === "failed") {
+        const friendlyFailure = createFriendlyConfirmedIntentFailureResponse({
+          requestId,
+          clientRequestId,
+          providerUsed: config.config_value.primary_provider,
+          understandingSummary: deterministicProposal.understandingSummary,
+          assistantMessage: deterministicProposal.assistantMessage,
+          warnings: deterministicProposal.warnings,
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: config.config_value.primary_provider,
+            conversation_phase: friendlyFailure.conversation_phase,
+            user_confirmed_understanding: true,
+            understanding_summary: deterministicProposal.understandingSummary,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            final_status: friendlyFailure.final_status,
+            branch_selected: "confirmed_intent_patch",
+            fallback_allowed: false,
+            fallback_reason: deterministicProposal.reason,
+            confirmed_intent_scope: deterministicProposal.scope,
+            confirmed_intent_source_text: deterministicProposal.sourceText,
+          },
+          ...auditMeta,
+        })
+
+        logWarn("AI page editor confirmed intent patch failed without provider fallback", {
+          ...routingContext,
+          branch_selected: "confirmed_intent_patch",
+          final_status: friendlyFailure.final_status,
+          confirmed_intent_scope: deterministicProposal.scope,
+          fallback_allowed: false,
+          fallback_reason: deterministicProposal.reason,
+        })
+
+        return jsonResponse(friendlyFailure)
       }
 
       const secrets = await getProviderSecrets(serviceClient)
@@ -4267,6 +4395,8 @@ Deno.serve(async (req) => {
             draft_saved: operationalState.draft_saved,
             preview_available: operationalState.preview_available,
             change_summary: operationalState.change_summary,
+            branch_selected: "provider_full_proposal",
+            fallback_reason: deterministicProposal.reason,
           },
         })
       }
@@ -4314,6 +4444,8 @@ Deno.serve(async (req) => {
           draft_saved: operationalState.draft_saved,
           preview_available: operationalState.preview_available,
           change_summary: operationalState.change_summary,
+          branch_selected: "provider_full_proposal",
+          fallback_reason: deterministicProposal.reason,
         },
         ...auditMeta,
       })
@@ -4327,16 +4459,22 @@ Deno.serve(async (req) => {
         mode: editPlan?.mode ?? null,
         scope: editPlan?.scope ?? null,
         risk_level: editPlan?.risk_level ?? null,
+        client_request_id: clientRequestId,
+        branch_selected: "provider_full_proposal",
+        fallback_reason: deterministicProposal.reason,
       })
 
       return jsonResponse({
         success: true,
         request_id: requestId,
+        client_request_id: clientRequestId,
         provider_used: providerUsed,
         conversation_phase: "ready_for_proposal",
         assistant_message: assistantMessage,
         quick_replies: [],
         understanding_summary: confirmedUnderstandingSummary,
+        confirmation_token: null,
+        confirmation_consumed: true,
         requires_user_confirmation: false,
         can_generate_proposal: true,
         summary: proposal.summary,

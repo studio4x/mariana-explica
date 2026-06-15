@@ -14,6 +14,7 @@ export interface AiConversationContextInput {
   understanding_summary?: string | null
   clarification_questions_count?: number | null
   quick_reply_selected?: string | null
+  confirmation_token?: string | null
   recent_messages?: AiConversationContextMessage[] | null
 }
 
@@ -22,6 +23,7 @@ export interface AiConversationContext {
   understanding_summary: string | null
   clarification_questions_count: number
   quick_reply_selected: string | null
+  confirmation_token: string | null
   recent_messages: AiConversationContextMessage[]
 }
 
@@ -104,6 +106,7 @@ export function normalizeConversationContext(value: unknown): AiConversationCont
       ? Math.max(0, Math.min(3, Math.round(clarificationCount)))
       : 0,
     quick_reply_selected: normalizeText(record.quick_reply_selected) || null,
+    confirmation_token: normalizeText(record.confirmation_token) || null,
     recent_messages: normalizeRecentMessages(record.recent_messages),
   }
 }
@@ -119,6 +122,26 @@ export function sanitizeConversationText(text: string) {
 
 export function sanitizeConversationReplies(replies: string[]) {
   return replies.map((reply) => sanitizeConversationText(reply)).filter(Boolean).slice(0, 4)
+}
+
+export function buildUnderstandingConfirmationToken(summary: string | null | undefined) {
+  const normalized = normalizeComparableText(summary)
+  if (!normalized) return null
+
+  let hash = 2166136261
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return `intent_${(hash >>> 0).toString(16)}`
+}
+
+export function matchesUnderstandingConfirmationToken(summary: string | null | undefined, token: string | null | undefined) {
+  const normalizedToken = normalizeText(token)
+  if (!normalizedToken) return false
+  const expected = buildUnderstandingConfirmationToken(summary)
+  return Boolean(expected && expected === normalizedToken)
 }
 
 function stripLeadingConfirmation(text: string) {

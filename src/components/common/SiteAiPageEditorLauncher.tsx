@@ -176,6 +176,23 @@ function normalizeLauncherComparableText(value: unknown) {
     .toLowerCase()
 }
 
+function stripQuickReplies(messages: ChatMessage[]) {
+  return messages.map((entry) => (entry.quickReplies && entry.quickReplies.length > 0 ? { ...entry, quickReplies: [] } : entry))
+}
+
+function isPlainUnderstandingConfirmationReply(
+  message: string,
+  phase: AdminAiPageEditorConversationPhase | null,
+  confirmationToken: string | null,
+) {
+  if (phase !== "awaiting_intent_confirmation" || !confirmationToken) return false
+  const normalized = normalizeLauncherComparableText(message)
+  if (!normalized) return false
+  if (!/^(sim|e isso|isso|certo|perfeito|exatamente)(?:[,.! ]|$)/.test(normalized)) return false
+  const trailing = normalized.replace(/^(sim|e isso|isso|certo|perfeito|exatamente)(?:[,.! ]|$)*/, "").trim()
+  return trailing.length <= 18
+}
+
 function messageStrictlyTargetsGlobalHeader(message: string) {
   const normalizedMessage = normalizeLauncherComparableText(message)
   return (
@@ -286,6 +303,7 @@ export function SiteAiPageEditorLauncher() {
   const [understandingSummary, setUnderstandingSummary] = useState<string | null>(null)
   const [clarificationQuestionsCount, setClarificationQuestionsCount] = useState(0)
   const [lastQuickReplySelected, setLastQuickReplySelected] = useState<string | null>(null)
+  const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
   const [postApplyDecision, setPostApplyDecision] = useState<AdminSitePageVersion | null>(null)
@@ -295,6 +313,8 @@ export function SiteAiPageEditorLauncher() {
   const [captureStartPoint, setCaptureStartPoint] = useState<CapturePoint | null>(null)
   const [captureRect, setCaptureRect] = useState<CaptureRect | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const activeClientRequestIdRef = useRef<string | null>(null)
+  const requestSequenceRef = useRef(0)
 
   const config = configQuery.data
   const allowedPath = !config || isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths)
@@ -382,6 +402,7 @@ export function SiteAiPageEditorLauncher() {
       understanding_summary: understandingSummary,
       clarification_questions_count: clarificationQuestionsCount,
       quick_reply_selected: lastQuickReplySelected,
+      confirmation_token: confirmationToken,
       recent_messages: messages
         .flatMap((entry) =>
           entry.role === "user" || entry.role === "assistant"
@@ -408,12 +429,14 @@ export function SiteAiPageEditorLauncher() {
     setUnderstandingSummary(null)
     setClarificationQuestionsCount(0)
     setLastQuickReplySelected(null)
+    setConfirmationToken(null)
     setPostApplyDecision(null)
     setSelectedRevisionId(null)
     setIsSelectingCaptureArea(false)
     setCaptureStartPoint(null)
     setCaptureRect(null)
     setIsCapturingPage(false)
+    activeClientRequestIdRef.current = null
     if (!options?.keepFeedback) {
       setFeedback(null)
     }
@@ -1024,12 +1047,24 @@ export function SiteAiPageEditorLauncher() {
     const trimmedMessage = (messageOverride ?? message).trim()
     if (!trimmedMessage && attachments.length === 0) return
     const conversationContext = buildConversationContext()
+    const clientRequestId = `ai-editor-${Date.now()}-${requestSequenceRef.current + 1}`
+    const consumesPendingConfirmation = isPlainUnderstandingConfirmationReply(
+      trimmedMessage,
+      conversationContext.phase ?? null,
+      conversationContext.confirmation_token ?? null,
+    )
+    requestSequenceRef.current += 1
+    activeClientRequestIdRef.current = clientRequestId
 
     flushSync(() => {
       setFeedback(null)
       setSendStatus("Estou a tentar perceber exatamente o que queres mudar.")
+      if (consumesPendingConfirmation) {
+        setConversationPhase(null)
+        setConfirmationToken(null)
+      }
       setMessages((current) => [
-        ...current,
+        ...stripQuickReplies(current),
         { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para analise visual." },
       ])
     })
@@ -1216,6 +1251,7 @@ export function SiteAiPageEditorLauncher() {
       }
 
       const result = await generateMutation.mutateAsync({
+        clientRequestId,
         slug: pageSlug ?? pathname,
         title: routeOption?.label ?? document.title,
         path: pathname,
@@ -1231,17 +1267,38 @@ export function SiteAiPageEditorLauncher() {
           quick_reply_selected: options?.quickReplySelected ?? conversationContext.quick_reply_selected ?? null,
         },
       })
-      setConversationPhase(result.conversation_phase)
+      if (!result || typeof result !== "object") {
+        throw new Error("O editor com IA recebeu uma resposta incompleta do servidor. Nenhuma alteracao foi aplicada.")
+      }
+
+      if (result.client_request_id && result.client_request_id !== clientRequestId) {
+        return
+      }
+      if (activeClientRequestIdRef.current !== clientRequestId) {
+        return
+      }
+
+      const nextConversationPhase =
+        result.final_status === "blocked" || result.final_status === "error" ? null : result.conversation_phase
+
+      setConversationPhase(nextConversationPhase)
       setUnderstandingSummary(result.understanding_summary)
       setClarificationQuestionsCount((current) => {
-        if (result.conversation_phase === "needs_clarification") {
+        if (nextConversationPhase === "needs_clarification") {
           return Math.min(3, current + 1)
         }
-        if (result.conversation_phase === "ready_for_proposal") {
+        if (nextConversationPhase === "ready_for_proposal") {
           return 0
         }
         return current
       })
+      setConfirmationToken(
+        result.confirmation_consumed
+          ? null
+          : nextConversationPhase === "awaiting_intent_confirmation"
+            ? result.confirmation_token ?? null
+            : null,
+      )
       setLastQuickReplySelected(null)
 
       let nextProposal: AdminAiPageEditorProposal | null = null
@@ -1290,11 +1347,17 @@ export function SiteAiPageEditorLauncher() {
       setMessage("")
       setFeedback(feedbackMessage)
     } catch (error) {
+      if (activeClientRequestIdRef.current !== clientRequestId) {
+        return
+      }
       const errorMessage = normalizeAdminAiPageEditorError(error).message
       setFeedback(errorMessage)
       setMessages((current) => [...current, { id: uid("msg"), role: "system", text: errorMessage }])
     } finally {
-      setSendStatus(null)
+      if (activeClientRequestIdRef.current === clientRequestId) {
+        activeClientRequestIdRef.current = null
+        setSendStatus(null)
+      }
     }
   }
 

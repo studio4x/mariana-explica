@@ -117,11 +117,14 @@ window.HTMLElement.prototype.scrollIntoView = vi.fn()
 
 function createProposalResponse(overrides: Record<string, unknown> = {}) {
   return {
+    request_id: "req-1",
     provider_used: "openai",
     conversation_phase: "ready_for_proposal",
     assistant_message: "Percebi assim: queres tirar o espaco do topo desta pagina sem mexer no resto. Esta certo?",
     quick_replies: [],
     understanding_summary: "tirar o espaco do topo desta pagina sem mexer no resto",
+    confirmation_token: null,
+    confirmation_consumed: true,
     requires_user_confirmation: false,
     can_generate_proposal: true,
     summary: "Remover espaco visivel do topo",
@@ -226,11 +229,14 @@ function createProposalResponse(overrides: Record<string, unknown> = {}) {
 
 function createClarificationResponse(overrides: Record<string, unknown> = {}) {
   return {
+    request_id: "req-clarify",
     provider_used: "openai",
     conversation_phase: "needs_clarification",
     assistant_message: "Queres mexer so nesta parte ou na secao inteira?",
     quick_replies: ["So nesta parte", "Na secao inteira"],
     understanding_summary: "mexer nesta area da pagina",
+    confirmation_token: null,
+    confirmation_consumed: false,
     requires_user_confirmation: false,
     can_generate_proposal: false,
     warnings: [],
@@ -302,6 +308,13 @@ async function sendMessage(user: ReturnType<typeof userEvent.setup>, value: stri
 describe("SiteAiPageEditorLauncher", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGenerateProposalMutateAsync.mockReset()
+    mockSaveDraftMutateAsync.mockReset()
+    mockGenerateHeaderCopyProposal.mockReset()
+    mockGenerateFooterCopyProposal.mockReset()
+    mockUpdateBrandingConfig.mockReset()
+    mockFetchAdminBrandingConfig.mockReset()
+    mockStoreSitePagePreview.mockReset()
     mockUseAuth.mockReturnValue({
       isAdmin: true,
       loading: false,
@@ -367,6 +380,8 @@ describe("SiteAiPageEditorLauncher", () => {
           quick_replies: ["Sim, e isso", "Nao, quero explicar melhor"],
           requires_user_confirmation: true,
           conversation_phase: "awaiting_intent_confirmation",
+          confirmation_token: "intent_confirm_1",
+          confirmation_consumed: false,
           can_generate_proposal: false,
           summary: undefined,
           explanation: undefined,
@@ -396,6 +411,7 @@ describe("SiteAiPageEditorLauncher", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     })
+    expect(screen.queryByText(/falta so a tua confirmacao/i)).not.toBeInTheDocument()
   })
 
   it("allows the success path only after diff real, draft saved and preview available", async () => {
@@ -439,6 +455,96 @@ describe("SiteAiPageEditorLauncher", () => {
     })
     expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     expect(screen.queryByText(/\bpadding\b|\bwrapper\b|\bproposal\b/i)).not.toBeInTheDocument()
+  })
+
+  it("shows a friendly error without reopening confirmation when the confirmed safe patch fails", async () => {
+    mockGenerateProposalMutateAsync
+      .mockResolvedValueOnce(
+        createProposalResponse({
+          assistant_message: "Percebi assim: queres tirar o espaco do topo da pagina Sobre. Esta certo?",
+          quick_replies: ["Sim, e isso"],
+          understanding_summary: "tirar o espaco do topo da pagina Sobre",
+          conversation_phase: "awaiting_intent_confirmation",
+          confirmation_token: "intent_confirm_failure",
+          confirmation_consumed: false,
+          requires_user_confirmation: true,
+          can_generate_proposal: false,
+          summary: undefined,
+          explanation: undefined,
+          edit_plan: undefined,
+          proposal: undefined,
+          final_status: "awaiting_intent_confirmation",
+          change_detected: false,
+          preview_available: false,
+          change_summary: {
+            layout_changed: false,
+            style_changed: false,
+            html_changed: false,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        createClarificationResponse({
+          conversation_phase: "ready_for_proposal",
+          assistant_message:
+            "Percebi o que queres mudar, mas esta tentativa segura não conseguiu preparar a prévia. Vou precisar ajustar melhor o alvo.",
+          understanding_summary: "tirar o espaco do topo da pagina Sobre",
+          quick_replies: [],
+          confirmation_token: null,
+          confirmation_consumed: true,
+          final_status: "error",
+        }),
+      )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Quero tirar o espaço do topo da página Sobre.")
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sim, e isso/i })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole("button", { name: /sim, e isso/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((content) => content.includes("tentativa segura") && content.includes("preparar a prévia")),
+      ).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/falta so a tua confirmacao/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /sim, e isso/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
+  })
+
+  it("ignores stale responses whose client_request_id does not match the active request", async () => {
+    mockGenerateProposalMutateAsync
+      .mockImplementationOnce(async () =>
+        createProposalResponse({
+          client_request_id: "stale-client-request",
+          assistant_message: "Resposta antiga que nao devia entrar.",
+        }))
+      .mockImplementationOnce(async (input: { clientRequestId: string }) =>
+        createProposalResponse({
+          client_request_id: input.clientRequestId,
+          assistant_message: "Entendi. Esta e a resposta atual.",
+        }))
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Primeiro pedido.")
+
+    await waitFor(() => {
+      expect(screen.queryByText(/resposta antiga que nao devia entrar/i)).not.toBeInTheDocument()
+    })
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByLabelText(/mensagem/i)).not.toBeDisabled()
+    })
+
+    await sendMessage(user, "Segundo pedido.")
+
+    await waitFor(() => {
+      expect(screen.getByText(/esta e a resposta atual/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
   })
 
   it("does not show success when the draft save fails", async () => {

@@ -12,11 +12,15 @@ describe("ai-page-editor-response", () => {
   it("accepts a complete hybrid proposal response with operational state", () => {
     const response = ensureAdminAiPageEditorConversationResponse({
       success: true,
+      request_id: "req-1",
+      client_request_id: "client-1",
       provider_used: "openai",
       conversation_phase: "ready_for_proposal",
       assistant_message: "Entendi. Vou preparar a alteração.",
       quick_replies: [],
       understanding_summary: "tirar o espaço do topo",
+      confirmation_token: null,
+      confirmation_consumed: true,
       requires_user_confirmation: false,
       can_generate_proposal: true,
       summary: "Ajustar topo",
@@ -49,6 +53,7 @@ describe("ai-page-editor-response", () => {
     })
 
     expect(response.proposal?.slug).toBe("sobre")
+    expect(response.client_request_id).toBe("client-1")
     expect(response.final_status).toBe("proposal_ready")
     expect(response.change_detected).toBe(true)
     expect(response.preview_available).toBe(true)
@@ -103,6 +108,38 @@ describe("ai-page-editor-response", () => {
 
     expect(response.can_generate_proposal).toBe(false)
     expect(response.quick_replies).toHaveLength(2)
+  })
+
+  it("accepts a friendly confirmed-intent failure without proposal or repeated confirmation", () => {
+    const response = ensureAdminAiPageEditorConversationResponse({
+      success: true,
+      request_id: "req-2",
+      client_request_id: "client-2",
+      provider_used: "openai",
+      conversation_phase: "ready_for_proposal",
+      assistant_message:
+        "Percebi o que queres mudar, mas esta tentativa segura não conseguiu preparar a prévia. Vou precisar ajustar melhor o alvo.",
+      quick_replies: [],
+      understanding_summary: "tirar o espaço do topo da página Sobre",
+      confirmation_token: null,
+      confirmation_consumed: true,
+      requires_user_confirmation: false,
+      can_generate_proposal: false,
+      warnings: [],
+      final_status: "error",
+      change_detected: false,
+      draft_saved: false,
+      preview_available: false,
+      change_summary: {
+        layout_changed: false,
+        style_changed: false,
+        html_changed: false,
+      },
+    })
+
+    expect(response.can_generate_proposal).toBe(false)
+    expect(response.confirmation_consumed).toBe(true)
+    expect(response.client_request_id).toBe("client-2")
   })
 
   it("detects a no-op diff when layout, style and html stay equal", () => {

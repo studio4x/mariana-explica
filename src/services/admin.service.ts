@@ -1837,6 +1837,7 @@ export async function generateAdminAiPageEditorProposal(input: {
   slug: string
   title: string
   path: string
+  clientRequestId: string
   message: string
   currentLayoutJson: Record<string, unknown>
   currentStyleJson: Record<string, unknown>
@@ -1852,11 +1853,15 @@ export async function generateAdminAiPageEditorProposal(input: {
   try {
     const response = await invokeAdminFunction<{
       success: true
+      request_id?: string
+      client_request_id?: string | null
       provider_used: AdminAiPageEditorConversationResponse["provider_used"]
       conversation_phase: AdminAiPageEditorConversationResponse["conversation_phase"]
       assistant_message: string
       quick_replies: string[]
       understanding_summary: string | null
+      confirmation_token?: string | null
+      confirmation_consumed?: boolean
       requires_user_confirmation: boolean
       can_generate_proposal: boolean
       warnings: string[]
@@ -1871,6 +1876,7 @@ export async function generateAdminAiPageEditorProposal(input: {
       change_summary: AdminAiPageEditorConversationResponse["change_summary"]
     }>("admin-ai-page-editor", {
       action: "generate_proposal",
+      client_request_id: input.clientRequestId,
       slug: input.slug,
       title: input.title,
       path: input.path,
