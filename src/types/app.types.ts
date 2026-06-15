@@ -262,6 +262,43 @@ export interface AdminAiPageEditorProviderTestResult {
   message: string
 }
 
+export type AdminAiPageEditorScope = "text" | "block" | "section" | "page" | "header" | "footer"
+export type AdminAiPageEditorMode =
+  | "text_patch"
+  | "style_patch"
+  | "spacing_patch"
+  | "section_layout_patch"
+  | "section_replace"
+export type AdminAiPageEditorRiskLevel = "low" | "medium" | "high"
+export type AdminAiPageEditorOperationType =
+  | "set_style"
+  | "remove_style"
+  | "update_text"
+  | "move_node"
+  | "replace_section"
+  | "set_responsive_rule"
+  | "wrap_children"
+  | "unwrap_children"
+  | "change_columns"
+export type AdminAiPageEditorBreakpoint = "mobile" | "tablet" | "desktop" | "all"
+
+export interface AdminAiPageEditorOperation {
+  type: AdminAiPageEditorOperationType
+  target_id: string
+  path?: string
+  value?: unknown
+  breakpoint: AdminAiPageEditorBreakpoint
+}
+
+export interface AdminAiPageEditorEditPlan {
+  scope: AdminAiPageEditorScope
+  mode: AdminAiPageEditorMode
+  target_ids: string[]
+  risk_level: AdminAiPageEditorRiskLevel
+  requires_strict_confirmation: boolean
+  operations: AdminAiPageEditorOperation[]
+}
+
 export interface AdminAiPageEditorDraftProposal {
   slug: string
   title: string
@@ -275,6 +312,7 @@ export interface AdminAiPageEditorProposal {
   summary: string
   explanation: string
   warnings: string[]
+  edit_plan: AdminAiPageEditorEditPlan
   proposal: AdminAiPageEditorDraftProposal
 }
 
@@ -309,6 +347,9 @@ export interface AdminAiPageEditorUsageSummary {
   priced_requests: number
   unpriced_requests: number
   last_event_at: string | null
+  by_mode: Record<string, number>
+  by_scope: Record<string, number>
+  by_risk_level: Record<string, number>
 }
 
 export interface AdminAiPageEditorUsageBreakdownItem {
@@ -333,6 +374,13 @@ export interface AdminAiPageEditorUsageRecentItem {
   model: string
   slug: string | null
   path: string | null
+  mode: AdminAiPageEditorMode | string | null
+  scope: AdminAiPageEditorScope | string | null
+  risk_level: AdminAiPageEditorRiskLevel | string | null
+  target_ids: string[]
+  requires_strict_confirmation: boolean
+  contract_version: string | null
+  invariants: Record<string, unknown>
   input_tokens: number
   output_tokens: number
   total_tokens: number

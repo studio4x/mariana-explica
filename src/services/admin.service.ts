@@ -1849,6 +1849,7 @@ export async function generateAdminAiPageEditorProposal(input: {
     summary: string
     explanation: string
     warnings: string[]
+    edit_plan: AdminAiPageEditorProposal["edit_plan"]
     proposal: AdminAiPageEditorProposal["proposal"]
   }>("admin-ai-page-editor", {
     action: "generate_proposal",

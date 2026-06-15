@@ -1041,6 +1041,7 @@ export function SiteAiPageEditorLauncher() {
         summary: result.summary,
         explanation: result.explanation,
         warnings: result.warnings,
+        edit_plan: result.edit_plan,
         proposal: result.proposal,
       }
 

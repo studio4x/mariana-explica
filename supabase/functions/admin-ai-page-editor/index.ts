@@ -3,6 +3,12 @@ import { badRequest, forbidden, unprocessable } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
+import {
+  normalizeAiEditPlan,
+  type AiEditMode,
+  type AiEditScope,
+  type AiRiskLevel,
+} from "./contract.ts"
 
 type Action =
   | "get_config"
@@ -77,6 +83,13 @@ interface UsageEventRecord {
   estimated_cost_usd: number | null
   currency: "USD"
   request_id: string
+  mode?: AiEditMode | null
+  scope?: AiEditScope | null
+  risk_level?: AiRiskLevel | null
+  target_ids?: string[]
+  requires_strict_confirmation?: boolean
+  contract_version?: string | null
+  invariants?: Record<string, unknown>
   metadata: Record<string, unknown>
 }
 
@@ -168,6 +181,65 @@ const proposalSchema = {
     warnings: {
       type: "array",
       items: { type: "string" },
+    },
+    edit_plan: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        scope: {
+          type: "string",
+          enum: ["text", "block", "section", "page", "header", "footer"],
+        },
+        mode: {
+          type: "string",
+          enum: ["text_patch", "style_patch", "spacing_patch", "section_layout_patch", "section_replace"],
+        },
+        target_ids: {
+          type: "array",
+          items: { type: "string" },
+        },
+        risk_level: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+        },
+        requires_strict_confirmation: {
+          type: "boolean",
+        },
+        operations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              type: {
+                type: "string",
+                enum: [
+                  "set_style",
+                  "remove_style",
+                  "update_text",
+                  "move_node",
+                  "replace_section",
+                  "set_responsive_rule",
+                  "wrap_children",
+                  "unwrap_children",
+                  "change_columns",
+                ],
+              },
+              target_id: { type: "string" },
+              path: { type: "string" },
+              value: {
+                type: ["string", "number", "boolean", "object", "array", "null"],
+              },
+              breakpoint: {
+                type: "string",
+                enum: ["mobile", "tablet", "desktop", "all"],
+              },
+            },
+            required: ["type", "target_id"],
+          },
+        },
+      },
+      required: ["scope", "mode", "target_ids", "risk_level", "requires_strict_confirmation", "operations"],
     },
     proposal: {
       type: "object",
@@ -658,42 +730,6 @@ function requestExplicitlyMentionsMediaOrLayout(message: string) {
     "cor",
     "fundo",
   ])
-}
-
-function isCssClassEditRequest(message: string) {
-  const normalized = normalizeMessageForParsing(message).toLowerCase()
-  const cssKeywords = [
-    "css",
-    "classe",
-    "class",
-    "seletor",
-    "selector",
-    "padding",
-    "margin",
-    "max-width",
-    "min-width",
-    "width",
-    "height",
-    "gap",
-    "border",
-    "border-radius",
-    "background",
-  ]
-
-  return hasKeyword(normalized, cssKeywords) || /(^|\\s)[.#][a-z0-9_-]+/i.test(normalized)
-}
-
-function isManagedBlockPage(layoutJson: Record<string, unknown>) {
-  const record = layoutJson && typeof layoutJson === "object" ? layoutJson : {}
-  const projectData =
-    record.projectData && typeof record.projectData === "object"
-      ? (record.projectData as Record<string, unknown>)
-      : null
-
-  return (
-    (Array.isArray(projectData?.blocks) && projectData.blocks.length > 0) ||
-    (Array.isArray(record.blocks) && record.blocks.length > 0)
-  )
 }
 
 function extractBlocksFromLayoutJson(layoutJson: Record<string, unknown>) {
@@ -1832,13 +1868,59 @@ async function writeSecret(
   }
 }
 
+function isAiPageEditorUsageSchemaMismatch(error: unknown) {
+  if (!error || typeof error !== "object") return false
+  const record = error as Record<string, unknown>
+  const fullText = `${record.code ?? ""} ${record.message ?? ""} ${record.details ?? ""} ${record.hint ?? ""}`.toLowerCase()
+  return (
+    fullText.includes("schema cache") ||
+    (fullText.includes("column") && fullText.includes("does not exist")) ||
+    (fullText.includes("could not find") && fullText.includes("column"))
+  )
+}
+
 async function recordUsageEvent(
   serviceClient: ReturnType<typeof createServiceClient>,
   event: UsageEventRecord,
 ) {
   const { error } = await serviceClient.from("ai_page_editor_usage_events").insert(event)
-  if (error) {
+  if (!error) {
+    return
+  }
+
+  if (!isAiPageEditorUsageSchemaMismatch(error)) {
     throw error
+  }
+
+  const legacyMetadata = {
+    ...event.metadata,
+    mode: event.mode ?? null,
+    scope: event.scope ?? null,
+    risk_level: event.risk_level ?? null,
+    target_ids: event.target_ids ?? [],
+    requires_strict_confirmation: event.requires_strict_confirmation ?? false,
+    contract_version: event.contract_version ?? "hybrid_v1",
+    invariants: event.invariants ?? {},
+  }
+
+  const { error: legacyError } = await serviceClient.from("ai_page_editor_usage_events").insert({
+    action: event.action,
+    provider: event.provider,
+    model: event.model,
+    user_id: event.user_id,
+    slug: event.slug,
+    path: event.path,
+    input_tokens: event.input_tokens,
+    output_tokens: event.output_tokens,
+    total_tokens: event.total_tokens,
+    estimated_cost_usd: event.estimated_cost_usd,
+    currency: event.currency,
+    request_id: event.request_id,
+    metadata: legacyMetadata,
+  })
+
+  if (legacyError) {
+    throw legacyError
   }
 }
 
@@ -1847,14 +1929,34 @@ async function readUsageMetrics(
   periodDays: number,
 ) {
   const sinceIso = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString()
-  const { data, error } = await serviceClient
+  let data: unknown[] | null = null
+  let error: unknown = null
+
+  const richQuery = await serviceClient
     .from("ai_page_editor_usage_events")
     .select(
-      "id,action,provider,model,slug,path,input_tokens,output_tokens,total_tokens,estimated_cost_usd,currency,request_id,metadata,created_at",
+      "id,action,provider,model,slug,path,input_tokens,output_tokens,total_tokens,estimated_cost_usd,currency,request_id,mode,scope,risk_level,target_ids,requires_strict_confirmation,contract_version,invariants,metadata,created_at",
     )
     .gte("created_at", sinceIso)
     .order("created_at", { ascending: false })
     .limit(1000)
+
+  data = Array.isArray(richQuery.data) ? (richQuery.data as unknown[]) : null
+  error = richQuery.error
+
+  if (error && isAiPageEditorUsageSchemaMismatch(error)) {
+    const legacyQuery = await serviceClient
+      .from("ai_page_editor_usage_events")
+      .select(
+        "id,action,provider,model,slug,path,input_tokens,output_tokens,total_tokens,estimated_cost_usd,currency,request_id,metadata,created_at",
+      )
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: false })
+      .limit(1000)
+
+    data = Array.isArray(legacyQuery.data) ? (legacyQuery.data as unknown[]) : null
+    error = legacyQuery.error
+  }
 
   if (error) {
     throw error
@@ -1879,6 +1981,9 @@ async function readUsageMetrics(
     priced_requests: 0,
     unpriced_requests: 0,
     last_event_at: null as string | null,
+    by_mode: {} as Record<string, number>,
+    by_scope: {} as Record<string, number>,
+    by_risk_level: {} as Record<string, number>,
   }
 
   const breakdownMap = new Map<
@@ -1906,6 +2011,60 @@ async function readUsageMetrics(
     model: normalizeString(event.model),
     slug: normalizeString(event.slug) || null,
     path: normalizeString(event.path) || null,
+    mode:
+      normalizeString(event.mode) ||
+      normalizeString(
+        event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+          ? (event.metadata as Record<string, unknown>).mode
+          : null,
+      ) ||
+      null,
+    scope:
+      normalizeString(event.scope) ||
+      normalizeString(
+        event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+          ? (event.metadata as Record<string, unknown>).scope
+          : null,
+      ) ||
+      null,
+    risk_level:
+      normalizeString(event.risk_level) ||
+      normalizeString(
+        event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+          ? (event.metadata as Record<string, unknown>).risk_level
+          : null,
+      ) ||
+      null,
+    target_ids:
+      Array.isArray(event.target_ids)
+        ? normalizeStringArray(event.target_ids)
+        : event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+          ? normalizeStringArray((event.metadata as Record<string, unknown>).target_ids)
+          : [],
+    requires_strict_confirmation:
+      event.requires_strict_confirmation === true ||
+      (event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+        ? (event.metadata as Record<string, unknown>).requires_strict_confirmation === true
+        : false),
+    contract_version:
+      normalizeString(event.contract_version) ||
+      normalizeString(
+        event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+          ? (event.metadata as Record<string, unknown>).contract_version
+          : null,
+      ) ||
+      null,
+    invariants:
+      event.invariants && typeof event.invariants === "object" && !Array.isArray(event.invariants)
+        ? (event.invariants as Record<string, unknown>)
+        : event.metadata &&
+            typeof event.metadata === "object" &&
+            !Array.isArray(event.metadata) &&
+            (event.metadata as Record<string, unknown>).invariants &&
+            typeof (event.metadata as Record<string, unknown>).invariants === "object" &&
+            !Array.isArray((event.metadata as Record<string, unknown>).invariants)
+          ? ((event.metadata as Record<string, unknown>).invariants as Record<string, unknown>)
+          : {},
     input_tokens: normalizeTokenCount(event.input_tokens),
     output_tokens: normalizeTokenCount(event.output_tokens),
     total_tokens: normalizeTokenCount(event.total_tokens),
@@ -1940,6 +2099,13 @@ async function readUsageMetrics(
       total_tokens: totalTokens,
     }, event.estimated_cost_usd)
     const createdAt = normalizeString(event.created_at) || null
+    const eventMetadata =
+      event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+        ? (event.metadata as Record<string, unknown>)
+        : {}
+    const mode = normalizeString(event.mode) || normalizeString(eventMetadata.mode)
+    const scope = normalizeString(event.scope) || normalizeString(eventMetadata.scope)
+    const riskLevel = normalizeString(event.risk_level) || normalizeString(eventMetadata.risk_level)
 
     summary.total_requests += 1
     summary.total_input_tokens += inputTokens
@@ -1958,6 +2124,15 @@ async function readUsageMetrics(
     }
     if (!summary.last_event_at || (createdAt && createdAt > summary.last_event_at)) {
       summary.last_event_at = createdAt
+    }
+    if (mode) {
+      summary.by_mode[mode] = (summary.by_mode[mode] ?? 0) + 1
+    }
+    if (scope) {
+      summary.by_scope[scope] = (summary.by_scope[scope] ?? 0) + 1
+    }
+    if (riskLevel) {
+      summary.by_risk_level[riskLevel] = (summary.by_risk_level[riskLevel] ?? 0) + 1
     }
 
     const key = `${provider}:${model}:${action}`
@@ -2024,7 +2199,11 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
     "Se o pedido implicar mudanças estruturais ou de layout, deves assinalar isso claramente em warnings e evitar reestruturar a página sem pedido explícito.",
     "Quando a página já estiver em blocos, devolve a mesma estrutura de blocos e altera só o conteúdo necessário. Mantém os ids dos blocos, a ordem e os estilos de layout sempre que possível.",
     "Não alteres o admin nem áreas privadas.",
-    "Quando precisares propor edição, devolve JSON válido apenas com summary, explanation, warnings e proposal.",
+    "Quando precisares propor edição, devolve JSON válido apenas com summary, explanation, warnings, edit_plan e proposal.",
+    "Em edit_plan, usa obrigatoriamente um mode entre text_patch, style_patch, spacing_patch, section_layout_patch e section_replace.",
+    "Em edit_plan, usa obrigatoriamente um scope entre text, block, section, page, header e footer.",
+    "Em edit_plan.operations, usa apenas operações compatíveis com o contrato: set_style, remove_style, update_text, move_node, replace_section, set_responsive_rule, wrap_children, unwrap_children, change_columns.",
+    "Se houver risco estrutural, marca risk_level como high e requires_strict_confirmation como true.",
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas, não como objetos literais.",
     `Página atual: ${currentTitle} (${currentPath})`,
     "A proposta deve continuar compatível com o builder atual de páginas públicas.",
@@ -2101,6 +2280,8 @@ function buildUserPrompt(input: {
     "Se o pedido citar uma frase existente apenas para identificar o alvo de um ajuste de tipografia, trata essa frase como referência visual e não como pedido de reescrita do conteúdo.",
     "Quando o pedido for tipográfico, usa preferencialmente classes e seletores .me- já existentes no HTML atual para aplicar o CSS mínimo necessário, sem mexer no layout_json.",
     "Se o pedido mencionar HTML bruto, por exemplo um <hr> ou um fragmento de marcação, não devolvas só o fragmento: atualiza a estrutura completa e mantém projectData.blocks ou html como JSON válido.",
+    "Preenche edit_plan com scope, mode, target_ids, risk_level, requires_strict_confirmation e operations antes de devolver proposal.",
+    "Usa exatamente o nome section_layout_patch para pedidos de layout interno por seção.",
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas. Exemplo: \"{\\\"projectData\\\":{\\\"blocks\\\":[...]}}\".",
     "",
     "HTML atual de referência:",
@@ -2437,6 +2618,7 @@ function validateProposal(value: unknown) {
     summary,
     explanation,
     warnings,
+    edit_plan: record.edit_plan ?? null,
     proposal: {
       slug,
       title,
@@ -2496,29 +2678,62 @@ function validateHeaderCopyProposal(value: unknown) {
 function stabilizeProposalForSafeApplication(input: {
   proposal: ReturnType<typeof validateProposal>
   message: string
+  slug: string
+  path: string
   currentLayoutJson: Record<string, unknown>
   currentStyleJson: Record<string, unknown>
 }) {
+  const normalizedPlan = normalizeAiEditPlan({
+    rawEditPlan: input.proposal.edit_plan,
+    message: input.message,
+    slug: input.slug,
+    path: input.path,
+    legacyContractFallback: !input.proposal.edit_plan,
+  })
   const textReplacement = extractTextEditReplacement(input.message)
   const typographyRequest = hasTypographyEditRequest(input.message)
   const textContentRequest = hasTextContentEditRequest(input.message) && !(typographyRequest && !textReplacement)
   const typographyTargetPhrase = typographyRequest ? extractQuotedTypographyTarget(input.message) : null
   const typographyDeclarations = typographyRequest ? extractTypographyDeclarations(input.message) : []
   const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
-  const structuralLayoutRequest = requestExplicitlyMentionsStructuralLayout(input.message)
+  const structuralLayoutRequest =
+    requestExplicitlyMentionsStructuralLayout(input.message) ||
+    normalizedPlan.editPlan.mode === "spacing_patch" ||
+    normalizedPlan.editPlan.mode === "section_layout_patch" ||
+    normalizedPlan.editPlan.mode === "section_replace"
+  const normalizedProposal = {
+    ...input.proposal,
+    warnings:
+      normalizedPlan.planSource === "legacy_compat"
+        ? [
+            ...input.proposal.warnings,
+            "Compatibilidade protegida: o plano de edição foi inferido no backend a partir do pedido atual para manter o contrato novo sem quebrar o launcher atual.",
+          ]
+        : input.proposal.warnings,
+    edit_plan: normalizedPlan.editPlan,
+    proposal: {
+      ...input.proposal.proposal,
+      metadata: {
+        ...input.proposal.proposal.metadata,
+        ai_contract_version: "hybrid_v1",
+        ai_edit_plan: normalizedPlan.editPlan,
+        ai_invariants: normalizedPlan.invariants,
+      },
+    },
+  }
 
   if ((!textContentRequest && !typographyRequest) || structuralLayoutRequest) {
-    if (!proposalPreservesLayoutEnvelope(input.currentLayoutJson, input.proposal.proposal.layout_json)) {
+    if (!proposalPreservesLayoutEnvelope(input.currentLayoutJson, normalizedProposal.proposal.layout_json)) {
       throw unprocessable(
         "A proposta da IA não preservou a estrutura completa da página atual. Nenhum rascunho foi aplicado.",
       )
     }
 
-    return input.proposal
+    return normalizedProposal
   }
 
   return finalizeSafeTextAndTypographyProposal({
-    proposal: input.proposal,
+    proposal: normalizedProposal,
     currentLayoutJson: input.currentLayoutJson,
     currentStyleJson: input.currentStyleJson,
     textReplacement,
@@ -2955,6 +3170,13 @@ Deno.serve(async (req) => {
               usage,
             )
           : null
+      const editPlan = proposal.edit_plan
+      const proposalInvariants =
+        proposal.proposal.metadata.ai_invariants &&
+        typeof proposal.proposal.metadata.ai_invariants === "object" &&
+        !Array.isArray(proposal.proposal.metadata.ai_invariants)
+          ? (proposal.proposal.metadata.ai_invariants as Record<string, unknown>)
+          : {}
 
       if (providerUsed) {
         await recordUsageEvent(serviceClient, {
@@ -3199,16 +3421,6 @@ Deno.serve(async (req) => {
         throw forbidden("Rota nao habilitada para o editor via IA")
       }
 
-      if (
-        isManagedBlockPage(currentLayoutJson) &&
-        isCssClassEditRequest(message) &&
-        !hasTypographyEditRequest(message)
-      ) {
-        throw unprocessable(
-          "Pedido de CSS/classe estrutural detectado numa página gerida por blocos. Para proteger o layout, o editor IA só aplica aqui ajustes pontuais de texto e tipografia. Para padding, margens, larguras, grids ou wrappers, usa o editor visual ou um ajuste técnico no builder/base CSS.",
-        )
-      }
-
       const validAttachments = attachments.map((item, index) => {
         const attachment = item as AttachmentInput
         const name = normalizeString(attachment.name, `anexo-${index + 1}`)
@@ -3318,6 +3530,8 @@ Deno.serve(async (req) => {
       const proposal = stabilizeProposalForSafeApplication({
         proposal: validateProposal(parsed),
         message,
+        slug,
+        path,
         currentLayoutJson,
         currentStyleJson,
       })
@@ -3351,10 +3565,24 @@ Deno.serve(async (req) => {
           estimated_cost_usd: pricing?.estimated_cost_usd ?? null,
           currency: "USD",
           request_id: requestId,
+          mode: editPlan?.mode ?? null,
+          scope: editPlan?.scope ?? null,
+          risk_level: editPlan?.risk_level ?? null,
+          target_ids: editPlan?.target_ids ?? [],
+          requires_strict_confirmation: editPlan?.requires_strict_confirmation ?? false,
+          contract_version: normalizeString(proposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+          invariants: proposalInvariants,
           metadata: {
             attachment_count: validAttachments.length,
             require_confirmation: config.config_value.require_confirmation,
             pricing_source: pricing?.pricing_source ?? null,
+            mode: editPlan?.mode ?? null,
+            scope: editPlan?.scope ?? null,
+            risk_level: editPlan?.risk_level ?? null,
+            target_ids: editPlan?.target_ids ?? [],
+            requires_strict_confirmation: editPlan?.requires_strict_confirmation ?? false,
+            contract_version: normalizeString(proposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+            invariants: proposalInvariants,
           },
         })
       }
@@ -3369,6 +3597,13 @@ Deno.serve(async (req) => {
           path,
           provider_used: providerUsed,
           attachment_count: validAttachments.length,
+          mode: editPlan?.mode ?? null,
+          scope: editPlan?.scope ?? null,
+          risk_level: editPlan?.risk_level ?? null,
+          target_ids: editPlan?.target_ids ?? [],
+          requires_strict_confirmation: editPlan?.requires_strict_confirmation ?? false,
+          contract_version: normalizeString(proposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+          invariants: proposalInvariants,
         },
         ...auditMeta,
       })
@@ -3379,6 +3614,9 @@ Deno.serve(async (req) => {
         slug,
         path,
         provider_used: providerUsed,
+        mode: editPlan?.mode ?? null,
+        scope: editPlan?.scope ?? null,
+        risk_level: editPlan?.risk_level ?? null,
       })
 
       return jsonResponse({
@@ -3388,6 +3626,7 @@ Deno.serve(async (req) => {
         summary: proposal.summary,
         explanation: proposal.explanation,
         warnings: proposal.warnings,
+        edit_plan: proposal.edit_plan,
         proposal: proposal.proposal,
       })
     }
