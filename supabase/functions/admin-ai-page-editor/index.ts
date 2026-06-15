@@ -10,7 +10,11 @@ import {
   type AiEditScope,
   type AiRiskLevel,
 } from "./contract.ts"
-import { applyPatchPlan, type PatchEngineBaseVersion } from "./patch-engine.ts"
+import {
+  applyPatchPlan,
+  refineSpacingEditPlanForKnownWrappers,
+  type PatchEngineBaseVersion,
+} from "./patch-engine.ts"
 import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 
 type Action =
@@ -2757,6 +2761,11 @@ function stabilizeProposalForSafeApplication(input: {
     path: input.path,
     legacyContractFallback: !input.proposal.edit_plan,
   })
+  const refinedSpacingPlan = refineSpacingEditPlanForKnownWrappers({
+    message: input.message,
+    editPlan: normalizedPlan.editPlan,
+    baseVersion: input.baseVersion,
+  })
   if (!isKnownManagedSitePageSlug(input.slug)) {
     throw unprocessable("Esta fase do editor seguro está restrita a páginas com slug conhecido e site_page_versions.")
   }
@@ -2768,7 +2777,7 @@ function stabilizeProposalForSafeApplication(input: {
       title: input.title,
       path: input.path,
       message: input.message,
-      editPlan: normalizedPlan.editPlan,
+      editPlan: refinedSpacingPlan.editPlan,
       baseVersion: input.baseVersion,
       proposalLayoutJson: input.proposal.proposal.layout_json,
       proposalStyleJson: input.proposal.proposal.style_json,
@@ -2790,9 +2799,10 @@ function stabilizeProposalForSafeApplication(input: {
             "Compatibilidade protegida: o plano de edição foi inferido no backend a partir do pedido atual para manter o contrato novo sem quebrar o launcher atual.",
           ]
         : []),
+      ...refinedSpacingPlan.warnings,
       ...patched.warnings,
     ],
-    edit_plan: normalizedPlan.editPlan,
+    edit_plan: refinedSpacingPlan.editPlan,
     proposal: {
       slug: input.slug,
       title: input.title,
@@ -2801,10 +2811,11 @@ function stabilizeProposalForSafeApplication(input: {
       metadata: {
         ...input.proposal.proposal.metadata,
         ai_contract_version: "hybrid_v1",
-        ai_edit_plan: normalizedPlan.editPlan,
+        ai_edit_plan: refinedSpacingPlan.editPlan,
         ai_invariants: {
           ...normalizedPlan.invariants,
           ...patched.invariants,
+          spacing_diagnosis: refinedSpacingPlan.diagnosis,
           target_resolutions: patched.resolutions,
           context_source: input.baseVersionSource,
           degraded_draft_bypassed: input.degradedDraftBypassed,

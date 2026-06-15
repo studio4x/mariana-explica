@@ -57,6 +57,20 @@ export interface PatchEngineResult {
   resolutions: PatchEngineTargetResolution[]
 }
 
+export interface SpacingSourceDiagnosis {
+  source: "page_wrapper_spacing" | "first_section_spacing" | "section_internal_spacing"
+  target_id: string
+  selector: string
+  detected_value: number | null
+  reason: string
+}
+
+export interface RefinedSpacingPlanResult {
+  editPlan: AiEditPlan
+  warnings: string[]
+  diagnosis: SpacingSourceDiagnosis[]
+}
+
 interface TargetCandidate {
   target_id: string
   path: Array<string | number>
@@ -74,6 +88,7 @@ interface TargetCandidate {
   links: string[]
   button_links: string[]
   raw_block: Record<string, unknown> | null
+  patch_strategy?: "json_or_css" | "css_only"
 }
 
 interface ResolvedTargetCandidate {
@@ -122,6 +137,11 @@ const ORDINAL_HINTS: Array<{ pattern: RegExp; index: number }> = [
 
 const CRITICAL_ROUTE_HINTS = ["/checkout", "/login", "/criar-conta", "/suporte", "/aluno", "/cursos"]
 const CTA_LABEL_HINTS = ["comprar", "checkout", "matricule-se", "começar", "comecar", "inscrever", "assinar"]
+const KNOWN_SECTION_WRAPPER_TOP_SPACING: Record<string, number> = {
+  "me-about-page": 56,
+  "me-home-section": 72,
+  "me-legal-page": 28,
+}
 
 function normalizeString(value: unknown, fallback = "") {
   return String(value ?? "").trim() || fallback
@@ -235,6 +255,70 @@ function collectDataAttributes(source: string) {
 function collectLinksFromHtml(source: string) {
   const links = Array.from(source.matchAll(/\shref=(['"])(.*?)\1/gi)).map((match) => normalizeString(match[2]))
   return uniqueStrings(links.filter(Boolean))
+}
+
+function collectSectionClassNamesFromHtml(source: string) {
+  const matches = Array.from(source.matchAll(/<section[^>]*class=(['"])(.*?)\1/gi))
+  return uniqueStrings(
+    matches.flatMap((match) =>
+      normalizeString(match[2])
+        .split(/\s+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  )
+}
+
+function collectSectionClassNamesFromBlock(block: Record<string, unknown>) {
+  const type = normalizeString(block.type).toLowerCase()
+  const values: string[] = []
+
+  if (type === "rich_text" && typeof block.content === "string") {
+    values.push(...collectSectionClassNamesFromHtml(block.content))
+  }
+
+  if (type === "columns" && Array.isArray(block.items)) {
+    for (const item of block.items) {
+      values.push(...collectSectionClassNamesFromHtml(normalizeString(item)))
+    }
+  }
+
+  if (type === "container" && Array.isArray(block.children)) {
+    for (const column of block.children) {
+      if (!Array.isArray(column)) continue
+      for (const child of column) {
+        if (!child || typeof child !== "object" || Array.isArray(child)) continue
+        values.push(...collectSectionClassNamesFromBlock(child as Record<string, unknown>))
+      }
+    }
+  }
+
+  return uniqueStrings(values)
+}
+
+function getKnownSectionSpacingClass(block: Record<string, unknown>) {
+  const classes = collectSectionClassNamesFromBlock(block)
+  return (
+    classes.find((className) => Object.prototype.hasOwnProperty.call(KNOWN_SECTION_WRAPPER_TOP_SPACING, className)) ?? null
+  )
+}
+
+function isPageStartSpacingRequest(message: string) {
+  return /\b(in[ií]cio da p[aá]gina|come[cç]o da p[aá]gina|espa[cç]o no in[ií]cio|espa[cç]o antes do conte[uú]do da primeira se[cç][aã]o)\b/i.test(
+    message,
+  )
+}
+
+function wantsOnlyPageWrapperSpacing(message: string) {
+  return /\b(wrapper global|wrapper da p[aá]gina|page root|page wrapper|me-managed-page-root)\b/i.test(message)
+}
+
+function wantsOnlyFirstSectionSpacing(message: string) {
+  return /\b(primeira se[cç][aã]o|me-about-page|me-home-section|me-legal-page)\b/i.test(message)
+}
+
+function wantsOnlySectionInternalSpacing(message: string) {
+  return /\b(interno da se[cç][aã]o|padding interno|bloco inline|bloco interno|dentro da primeira se[cç][aã]o)\b/i.test(message)
 }
 
 function collectButtonLinksFromBlock(block: Record<string, unknown>) {
@@ -390,6 +474,25 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
       button_links: uniqueStrings(blocks.flatMap((block) => collectButtonLinksFromBlock(block))),
       raw_block: null,
     },
+    {
+      target_id: "page_wrapper_spacing",
+      path: [0],
+      path_key: "page-wrapper-spacing",
+      selector: ".me-managed-page-root",
+      wrapper_selector: ".me-managed-page-root",
+      content_selector: ".me-managed-page-root",
+      scope: "section",
+      block_type: "page_wrapper_spacing",
+      section_index: 0,
+      visual_order: 0,
+      text: `wrapper global da pagina me-managed-page-root ${blocks.map((block) => collectBlockText(block)).join(" ")}`,
+      heading: "",
+      data_attributes: uniqueStrings(blocks.flatMap((block) => collectBlockDataAttributes(block))),
+      links: uniqueStrings(blocks.flatMap((block) => collectBlockLinks(block))),
+      button_links: uniqueStrings(blocks.flatMap((block) => collectButtonLinksFromBlock(block))),
+      raw_block: null,
+      patch_strategy: "css_only",
+    },
   ]
 
   let lastHeading = ""
@@ -452,6 +555,53 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
       "section",
       `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
     )
+
+    if (index === 0) {
+      const knownSectionClass = getKnownSectionSpacingClass(block)
+      const firstSectionSelector = knownSectionClass
+        ? `.me-managed-page-root > .me-managed-block:nth-of-type(1) section.${knownSectionClass}`
+        : `.me-managed-page-root > .me-managed-block:nth-of-type(1) section:first-of-type`
+
+      candidates.push({
+        target_id: "first_section_spacing",
+        path: [index],
+        path_key: "first-section-spacing",
+        selector: firstSectionSelector,
+        wrapper_selector: firstSectionSelector,
+        content_selector: firstSectionSelector,
+        scope: "section",
+        block_type: "first_section_spacing",
+        section_index: 0,
+        visual_order: 1,
+        text: `primeira secao wrapper ${knownSectionClass ?? "section"} ${collectBlockText(block)}`,
+        heading: findFirstHeadingText(block),
+        data_attributes: collectBlockDataAttributes(block),
+        links: collectBlockLinks(block),
+        button_links: collectButtonLinksFromBlock(block),
+        raw_block: block,
+        patch_strategy: "css_only",
+      })
+
+      candidates.push({
+        target_id: "section_internal_spacing",
+        path: [index],
+        path_key: "section-internal-spacing",
+        selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1)`,
+        wrapper_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1)`,
+        content_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1)`,
+        scope: "section",
+        block_type: "section_internal_spacing",
+        section_index: 0,
+        visual_order: 1,
+        text: `padding interno primeira secao bloco inline ${collectBlockText(block)}`,
+        heading: findFirstHeadingText(block),
+        data_attributes: collectBlockDataAttributes(block),
+        links: collectBlockLinks(block),
+        button_links: collectButtonLinksFromBlock(block),
+        raw_block: block,
+        patch_strategy: "json_or_css",
+      })
+    }
   })
 
   return candidates
@@ -513,6 +663,142 @@ function buildSignalMap(): PatchEngineTargetSignalMap {
   }
 }
 
+export function refineSpacingEditPlanForKnownWrappers(input: {
+  message: string
+  editPlan: AiEditPlan
+  baseVersion: PatchEngineBaseVersion
+}): RefinedSpacingPlanResult {
+  if (input.editPlan.mode !== "spacing_patch" && !isPageStartSpacingRequest(input.message)) {
+    return {
+      editPlan: input.editPlan,
+      warnings: [],
+      diagnosis: [],
+    }
+  }
+
+  const blocks = extractBlocksFromLayoutJson(input.baseVersion.layout_json)
+  const firstBlock = blocks[0] ?? null
+  if (!firstBlock) {
+    return {
+      editPlan: input.editPlan,
+      warnings: [],
+      diagnosis: [],
+    }
+  }
+
+  const diagnosis: SpacingSourceDiagnosis[] = [
+    {
+      source: "page_wrapper_spacing",
+      target_id: "page_wrapper_spacing",
+      selector: ".me-managed-page-root",
+      detected_value: 56,
+      reason: "A raiz renderizada usa padding-top global conhecido em .me-managed-page-root.",
+    },
+  ]
+
+  const knownSectionClass = getKnownSectionSpacingClass(firstBlock)
+  if (knownSectionClass) {
+    diagnosis.push({
+      source: "first_section_spacing",
+      target_id: "first_section_spacing",
+      selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1) section.${knownSectionClass}`,
+      detected_value: KNOWN_SECTION_WRAPPER_TOP_SPACING[knownSectionClass] ?? null,
+      reason: `A primeira seção renderizada usa a classe conhecida .${knownSectionClass}.`,
+    })
+  }
+
+  const firstLayout =
+    firstBlock.layout && typeof firstBlock.layout === "object" && !Array.isArray(firstBlock.layout)
+      ? (firstBlock.layout as Record<string, unknown>)
+      : {}
+  const internalSpacing = Math.max(
+    Number(firstLayout.paddingTop ?? 0) || 0,
+    Number(firstLayout.marginTop ?? 0) || 0,
+  )
+  if (internalSpacing > 0) {
+    diagnosis.push({
+      source: "section_internal_spacing",
+      target_id: "section_internal_spacing",
+      selector: ".me-managed-page-root > .me-managed-block:nth-of-type(1)",
+      detected_value: internalSpacing,
+      reason: "O primeiro bloco inline ainda possui spacing próprio no wrapper gerido.",
+    })
+  }
+
+  if (!isPageStartSpacingRequest(input.message)) {
+    return {
+      editPlan: input.editPlan,
+      warnings: [],
+      diagnosis,
+    }
+  }
+
+  const sourceById = new Map(diagnosis.map((item) => [item.target_id, item]))
+  const explicitTargetIds = input.editPlan.target_ids.filter((targetId) => sourceById.has(targetId))
+
+  let selectedTargetIds: string[]
+  if (wantsOnlyPageWrapperSpacing(input.message)) {
+    selectedTargetIds = ["page_wrapper_spacing"]
+  } else if (wantsOnlySectionInternalSpacing(input.message)) {
+    selectedTargetIds = diagnosis.some((item) => item.target_id === "section_internal_spacing")
+      ? ["section_internal_spacing"]
+      : []
+  } else if (wantsOnlyFirstSectionSpacing(input.message)) {
+    selectedTargetIds = diagnosis.some((item) => item.target_id === "first_section_spacing")
+      ? ["first_section_spacing"]
+      : []
+  } else if (explicitTargetIds.length > 0) {
+    selectedTargetIds = explicitTargetIds
+  } else {
+    selectedTargetIds = diagnosis.map((item) => item.target_id)
+  }
+
+  selectedTargetIds = uniqueStrings(
+    selectedTargetIds.filter((targetId) => {
+      const source = sourceById.get(targetId)
+      return Boolean(source && (source.detected_value === null || source.detected_value > 0))
+    }),
+  )
+
+  if (selectedTargetIds.length === 0) {
+    return {
+      editPlan: input.editPlan,
+      warnings: [],
+      diagnosis,
+    }
+  }
+
+  const breakpoint = input.editPlan.operations[0]?.breakpoint ?? "all"
+  const refinedPlan: AiEditPlan = {
+    scope: "section",
+    mode: "spacing_patch",
+    target_ids: selectedTargetIds,
+    risk_level: selectedTargetIds.length > 1 ? "medium" : input.editPlan.risk_level,
+    requires_strict_confirmation: true,
+    operations: selectedTargetIds.map((targetId) => ({
+      type: "set_style",
+      target_id: targetId,
+      path: "padding-top",
+      value: 0,
+      breakpoint,
+    })),
+  }
+
+  const selectedSources = selectedTargetIds.map((targetId) => sourceById.get(targetId)).filter(Boolean) as SpacingSourceDiagnosis[]
+  const warnings: string[] = []
+  if (selectedSources.length > 1) {
+    warnings.push(
+      "Encontrei espaço no wrapper da página e dentro da primeira seção. Posso remover apenas um deles ou ambos; por segurança, o plano atual remove apenas as fontes reais de spacing detectadas.",
+    )
+  }
+
+  return {
+    editPlan: refinedPlan,
+    warnings,
+    diagnosis,
+  }
+}
+
 function scoreCandidate(input: {
   candidate: TargetCandidate
   requestedTarget: string
@@ -522,6 +808,11 @@ function scoreCandidate(input: {
   attachments: PatchEngineAttachmentContext[]
 }) {
   const normalizedRequestedTarget = normalizeIdentifier(input.requestedTarget).toLowerCase()
+  const requestedVirtualSpacingTarget = [
+    "page_wrapper_spacing",
+    "first_section_spacing",
+    "section_internal_spacing",
+  ].includes(normalizedRequestedTarget)
   const candidateId = input.candidate.target_id.toLowerCase()
   const candidatePath = input.candidate.path_key.toLowerCase()
   const candidateHeading = input.candidate.heading
@@ -549,6 +840,54 @@ function scoreCandidate(input: {
   if (candidateData) {
     const attributeOverlap = compareTokenOverlap(`${normalizedRequestedTarget} ${input.message}`, candidateData)
     signals.data_attributes = Math.min(0.16, attributeOverlap * 0.2)
+  }
+
+  if (isPageStartSpacingRequest(input.message)) {
+    if (input.candidate.block_type === "page_wrapper_spacing") {
+      signals.id_structural = Math.max(signals.id_structural, 0.34)
+      signals.visual_order = Math.max(signals.visual_order, 0.14)
+    }
+
+    if (input.candidate.block_type === "first_section_spacing") {
+      signals.id_structural = Math.max(signals.id_structural, 0.38)
+      signals.visual_order = Math.max(signals.visual_order, 0.2)
+    }
+
+    if (input.candidate.block_type === "section_internal_spacing") {
+      signals.id_structural = Math.max(signals.id_structural, 0.26)
+      signals.visual_order = Math.max(signals.visual_order, 0.16)
+    }
+  }
+
+  if (wantsOnlyPageWrapperSpacing(input.message) && input.candidate.block_type === "page_wrapper_spacing") {
+    signals.id_structural = Math.max(signals.id_structural, 0.52)
+  }
+
+  if (wantsOnlyFirstSectionSpacing(input.message)) {
+    if (input.candidate.block_type === "first_section_spacing") {
+      signals.id_structural = Math.max(signals.id_structural, 0.5)
+    }
+
+    if (input.candidate.block_type === "section_internal_spacing") {
+      signals.id_structural = Math.max(signals.id_structural, 0.44)
+    }
+
+    if (
+      !requestedVirtualSpacingTarget &&
+      input.candidate.section_index === 0 &&
+      input.candidate.scope === "section" &&
+      input.candidate.block_type !== "page_wrapper_spacing" &&
+      input.candidate.block_type !== "first_section_spacing" &&
+      input.candidate.block_type !== "section_internal_spacing"
+    ) {
+      signals.id_structural = Math.max(signals.id_structural, 0.62)
+      signals.visual_order = Math.max(signals.visual_order, 0.24)
+      signals.textual_similarity = Math.max(signals.textual_similarity, 0.16)
+    }
+  }
+
+  if (wantsOnlySectionInternalSpacing(input.message) && input.candidate.block_type === "section_internal_spacing") {
+    signals.id_structural = Math.max(signals.id_structural, 0.48)
   }
 
   if (candidateHeading) {
@@ -1556,8 +1895,8 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
     resolvedCandidates.push(resolution)
     touchedSectionIndexes.push(resolution.candidate.section_index)
 
-    const currentBlock = getBlockAtPath(nextBlocks, resolution.candidate.path)
-    if (!currentBlock) {
+    const currentBlock = resolution.candidate.raw_block ?? getBlockAtPath(nextBlocks, resolution.candidate.path)
+    if (!currentBlock && resolution.candidate.patch_strategy !== "css_only") {
       throw new Error(`O alvo resolvido para "${operation.target_id}" deixou de existir durante a aplicação do patch.`)
     }
 
@@ -1638,7 +1977,7 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       operation,
       mode: input.editPlan.mode,
       message: input.message,
-      currentBlock,
+      currentBlock: currentBlock ?? {},
       templateBlock,
     })
 
@@ -1651,7 +1990,8 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
         // style_patch pode conviver com alguns ajustes leves; o resto fica no caminho natural de spacing_patch.
       }
 
-      const shouldEmitCss = operation.breakpoint !== "all" || instruction.kind === "css"
+      const shouldEmitCss =
+        operation.breakpoint !== "all" || instruction.kind === "css" || resolution.candidate.patch_strategy === "css_only"
       if (shouldEmitCss) {
         const selector = instruction.target === "wrapper" ? resolution.candidate.wrapper_selector : resolution.candidate.content_selector
         nextStyleJson = appendCssPatchToStyleJson(
@@ -1659,6 +1999,10 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
           buildCssRule(selector, instruction.css_property, instruction.value, operation.breakpoint),
         )
         continue
+      }
+
+      if (!currentBlock) {
+        throw new Error(`O alvo "${operation.target_id}" só aceita patch CSS seguro nesta fase.`)
       }
 
       const updatedBlock = applyJsonStyleInstructionToBlock(currentBlock, instruction)
@@ -1697,7 +2041,7 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
     warnings,
     resolutions,
     invariants: {
-      patch_engine_version: "phase3_scoped_v1",
+      patch_engine_version: "phase5_wrapper_spacing_v1",
       base_version_id: input.baseVersion.id,
       base_version_number: input.baseVersion.version_number,
       base_version_status: input.baseVersion.status,

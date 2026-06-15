@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { AiEditPlan } from "./contract.ts"
-import { applyPatchPlan } from "./patch-engine.ts"
+import { applyPatchPlan, refineSpacingEditPlanForKnownWrappers } from "./patch-engine.ts"
 
 function createBaseVersion() {
   return {
@@ -219,6 +219,82 @@ function createBaseVersion() {
               paddingLeft: 16,
               marginTop: 0,
               marginBottom: 8,
+              marginLeft: 0,
+              marginRight: 0,
+              backgroundColor: "transparent",
+              backgroundImageUrl: "",
+              backgroundImageSize: "cover",
+              borderRadius: 0,
+              contentAlignX: "stretch",
+              contentAlignY: "top",
+              contentGap: 0,
+              minHeight: 0,
+            },
+          },
+        ],
+      },
+    },
+    style_json: {},
+    metadata: {},
+  }
+}
+
+function createAboutSpacingBaseVersion() {
+  return {
+    id: "version-about-1",
+    page_id: "page-about-1",
+    version_number: 12,
+    status: "published",
+    layout_json: {
+      projectData: {
+        blocks: [
+          {
+            id: "about-hero-inline",
+            type: "rich_text",
+            content: `
+              <section class="me-about-page">
+                <div class="me-about-shell">
+                  <div class="me-about-section-head">
+                    <h2>Sobre a Mariana</h2>
+                  </div>
+                  <p>Conteúdo da primeira seção.</p>
+                </div>
+              </section>
+            `,
+            layout: {
+              gridColumns: 12,
+              align: "center",
+              paddingTop: 0,
+              paddingRight: 16,
+              paddingBottom: 0,
+              paddingLeft: 16,
+              marginTop: 0,
+              marginBottom: 0,
+              marginLeft: 0,
+              marginRight: 0,
+              backgroundColor: "transparent",
+              backgroundImageUrl: "",
+              backgroundImageSize: "cover",
+              borderRadius: 0,
+              contentAlignX: "stretch",
+              contentAlignY: "top",
+              contentGap: 0,
+              minHeight: 0,
+            },
+          },
+          {
+            id: "about-followup",
+            type: "rich_text",
+            content: "<p>Segunda seção preservada.</p>",
+            layout: {
+              gridColumns: 12,
+              align: "center",
+              paddingTop: 16,
+              paddingRight: 16,
+              paddingBottom: 16,
+              paddingLeft: 16,
+              marginTop: 0,
+              marginBottom: 0,
               marginLeft: 0,
               marginRight: 0,
               backgroundColor: "transparent",
@@ -519,6 +595,107 @@ describe("applyPatchPlan", () => {
     const heroCta = heroChildren.find((block) => block.id === "hero-cta")
     expect(heroCta?.href).toBe("/checkout")
     expect((blocks[2].content as string)).toContain("/suporte")
+  })
+
+  it("detects page-wrapper and first-section spacing on the real Sobre HTML and avoids broad rewrites", () => {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message: "remover o espaço no início da página",
+      editPlan: createPlan({
+        mode: "section_replace",
+        target_ids: ["sobre-section"],
+        operations: [
+          {
+            type: "replace_section",
+            target_id: "sobre-section",
+            value: { instruction: "reescrever a seção" },
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect(refined.editPlan.mode).toBe("spacing_patch")
+    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing", "first_section_spacing"])
+    expect(refined.warnings.join(" ")).toContain("wrapper da página e dentro da primeira seção")
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remover o espaço no início da página",
+      editPlan: refined.editPlan,
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect((result.styleJson.css as string)).toContain(".me-managed-page-root")
+    expect((result.styleJson.css as string)).toContain("padding-top: 0px !important;")
+    expect((result.styleJson.css as string)).toContain("section.me-about-page")
+    const blocks = (((result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks))
+    expect(((blocks[0].layout as Record<string, unknown>).paddingTop)).toBe(0)
+    expect(blocks[1].id).toBe("about-followup")
+  })
+
+  it("patches the wrapper .me-managed-page-root when that is the explicit spacing target", () => {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message: "remover o espaço no wrapper global da página",
+      editPlan: createPlan({
+        target_ids: ["page_wrapper_spacing"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "page_wrapper_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remover o espaço no wrapper global da página",
+      editPlan: refined.editPlan,
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect((result.styleJson.css as string)).toContain(".me-managed-page-root")
+    expect((result.styleJson.css as string)).not.toContain("section.me-about-page")
+  })
+
+  it("patches the first section .me-about-page when the user points to the first section", () => {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message: "remover o espaçamento acima da primeira seção .me-about-page",
+      editPlan: createPlan({
+        target_ids: ["first_section_spacing"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "first_section_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remover o espaçamento acima da primeira seção .me-about-page",
+      editPlan: refined.editPlan,
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect((result.styleJson.css as string)).toContain("section.me-about-page")
+    expect((result.styleJson.css as string)).not.toContain(".me-managed-page-root {\n  padding-top: 0 !important;")
   })
 
   it("rejects ambiguous or low-confidence targets with a clear reason", () => {

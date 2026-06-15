@@ -312,6 +312,14 @@ export interface AdminAiPageEditorTargetResolution {
   signals: AdminAiPageEditorTargetResolutionSignals
 }
 
+export interface AdminAiPageEditorSpacingDiagnosis {
+  source: "page_wrapper_spacing" | "first_section_spacing" | "section_internal_spacing"
+  target_id: string
+  selector: string
+  detected_value: number | null
+  reason: string
+}
+
 export interface AdminAiPageEditorBaseVersionInfo {
   id: string
   version_number: number
@@ -332,6 +340,7 @@ export type AdminAiPageEditorProposalMetadata = Record<string, unknown> & {
   ai_edit_plan?: AdminAiPageEditorEditPlan
   ai_invariants?: Record<string, unknown> & {
     target_resolutions?: AdminAiPageEditorTargetResolution[]
+    spacing_diagnosis?: AdminAiPageEditorSpacingDiagnosis[]
     supports_persistible_flow?: boolean
     scoped_patch?: boolean
     preview_renderable?: boolean
