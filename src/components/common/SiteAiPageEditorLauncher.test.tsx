@@ -417,6 +417,30 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(screen.getByText(/revisao pronta/i)).toBeInTheDocument()
   })
 
+  it("keeps the chat copy simple when a confirmed spacing request already comes back as preview-ready", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(
+      createProposalResponse({
+        assistant_message: "Entendi. Preparei uma prévia só para tirar esse espaço do topo, sem mexer no resto da página.",
+        quick_replies: [],
+        conversation_phase: "ready_for_proposal",
+        understanding_summary: "tirar o espaço do topo da página Sobre",
+        requires_user_confirmation: false,
+        can_generate_proposal: true,
+      }),
+    )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Sim, é isso mesmo.")
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((content) => content.includes("Preparei uma prévia só para tirar esse espaço do topo")),
+      ).toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+    expect(screen.queryByText(/\bpadding\b|\bwrapper\b|\bproposal\b/i)).not.toBeInTheDocument()
+  })
+
   it("does not show success when the draft save fails", async () => {
     mockGenerateProposalMutateAsync.mockResolvedValueOnce(createProposalResponse())
     mockSaveDraftMutateAsync.mockRejectedValueOnce(new Error("Falha ao guardar draft"))

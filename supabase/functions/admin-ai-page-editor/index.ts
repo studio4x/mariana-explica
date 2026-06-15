@@ -15,6 +15,7 @@ import {
   refineSpacingEditPlanForKnownWrappers,
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
+import { materializeConfirmedIntentProposal } from "./confirmed-intent.ts"
 import {
   extractPersistibleProposalInvariants,
   requirePersistiblePageEditorProposal,
@@ -3833,9 +3834,9 @@ Deno.serve(async (req) => {
         isExplicitUnderstandingConfirmation(message, conversationContext.phase) &&
         Boolean(conversationContext.understanding_summary)
       const understandingRejected = isExplicitUnderstandingRejection(message, conversationContext.phase)
-      const secrets = await getProviderSecrets(serviceClient)
 
       if (!understandingConfirmed) {
+        const secrets = await getProviderSecrets(serviceClient)
         const understanding = await generateUnderstandingTurn({
           config: config.config_value,
           secrets,
@@ -3905,6 +3906,170 @@ Deno.serve(async (req) => {
         })
       }
 
+      const deterministicProposal = materializeConfirmedIntentProposal({
+        providerUsed: config.config_value.primary_provider,
+        modelUsed:
+          config.config_value.primary_provider === "gemini"
+            ? config.config_value.gemini_model || DEFAULT_GEMINI_MODEL
+            : config.config_value.openai_model || DEFAULT_OPENAI_MODEL,
+        confirmationMessage: message,
+        slug,
+        title,
+        path,
+        conversationContext,
+        baseVersion: managedPageContext.baseVersion,
+        baseVersionSource: managedPageContext.baseVersionSource,
+        degradedDraftBypassed: managedPageContext.degradedDraftBypassed,
+        baseVersionSelectionReason: managedPageContext.baseVersionSelectionReason,
+        publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
+        latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
+      })
+
+      if (deterministicProposal) {
+        const proposalInvariants = extractPersistibleProposalInvariants({
+          proposal: deterministicProposal.proposal,
+        })
+
+        await recordUsageEvent(serviceClient, {
+          action: "generate_proposal",
+          provider: deterministicProposal.providerUsed,
+          model: deterministicProposal.modelUsed,
+          user_id: context.user.id,
+          slug,
+          path,
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          estimated_cost_usd: 0,
+          currency: "USD",
+          request_id: requestId,
+          mode: deterministicProposal.editPlan.mode,
+          scope: deterministicProposal.editPlan.scope,
+          risk_level: deterministicProposal.editPlan.risk_level,
+          target_ids: deterministicProposal.editPlan.target_ids,
+          requires_strict_confirmation: deterministicProposal.editPlan.requires_strict_confirmation,
+          contract_version: normalizeString(deterministicProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+          invariants: proposalInvariants,
+          metadata: {
+            attachment_count: validAttachments.length,
+            conversation_phase: deterministicProposal.conversationPhase,
+            clarification_questions_count: conversationContext.clarification_questions_count,
+            user_confirmed_understanding: true,
+            understanding_summary: deterministicProposal.understandingSummary,
+            ambiguity_detected: false,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            proposal_summary: deterministicProposal.summary,
+            edit_plan_operation_count: deterministicProposal.editPlan.operations.length,
+            warning_count: deterministicProposal.warnings.length,
+            target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+              ? proposalInvariants.target_resolutions.length
+              : 0,
+            require_confirmation: config.config_value.require_confirmation,
+            pricing_source: "deterministic_confirmed_intent",
+            base_version_id: managedPageContext.baseVersion.id,
+            base_version_number: managedPageContext.baseVersion.version_number,
+            base_version_status: managedPageContext.baseVersion.status,
+            context_source: managedPageContext.baseVersionSource,
+            degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+            context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            published_version_id: managedPageContext.publishedVersion?.id ?? null,
+            latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+            provider_failures: [],
+            mode: deterministicProposal.editPlan.mode,
+            scope: deterministicProposal.editPlan.scope,
+            risk_level: deterministicProposal.editPlan.risk_level,
+            target_ids: deterministicProposal.editPlan.target_ids,
+            requires_strict_confirmation: deterministicProposal.editPlan.requires_strict_confirmation,
+            contract_version: normalizeString(deterministicProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+            invariants: proposalInvariants,
+            final_status: deterministicProposal.operationalState.final_status,
+            change_detected: deterministicProposal.operationalState.change_detected,
+            draft_saved: deterministicProposal.operationalState.draft_saved,
+            preview_available: deterministicProposal.operationalState.preview_available,
+            change_summary: deterministicProposal.operationalState.change_summary,
+            materialized_deterministically: true,
+            confirmed_intent_source_text: deterministicProposal.sourceText,
+          },
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: deterministicProposal.providerUsed,
+            attachment_count: validAttachments.length,
+            conversation_phase: deterministicProposal.conversationPhase,
+            clarification_questions_count: conversationContext.clarification_questions_count,
+            user_confirmed_understanding: true,
+            understanding_summary: deterministicProposal.understandingSummary,
+            ambiguity_detected: false,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            proposal_summary: deterministicProposal.summary,
+            edit_plan_operation_count: deterministicProposal.editPlan.operations.length,
+            warning_count: deterministicProposal.warnings.length,
+            target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+              ? proposalInvariants.target_resolutions.length
+              : 0,
+            base_version_id: managedPageContext.baseVersion.id,
+            base_version_number: managedPageContext.baseVersion.version_number,
+            base_version_status: managedPageContext.baseVersion.status,
+            context_source: managedPageContext.baseVersionSource,
+            degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+            context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            published_version_id: managedPageContext.publishedVersion?.id ?? null,
+            latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+            provider_failures: [],
+            mode: deterministicProposal.editPlan.mode,
+            scope: deterministicProposal.editPlan.scope,
+            risk_level: deterministicProposal.editPlan.risk_level,
+            target_ids: deterministicProposal.editPlan.target_ids,
+            requires_strict_confirmation: deterministicProposal.editPlan.requires_strict_confirmation,
+            contract_version: normalizeString(deterministicProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+            invariants: proposalInvariants,
+            final_status: deterministicProposal.operationalState.final_status,
+            change_detected: deterministicProposal.operationalState.change_detected,
+            draft_saved: deterministicProposal.operationalState.draft_saved,
+            preview_available: deterministicProposal.operationalState.preview_available,
+            change_summary: deterministicProposal.operationalState.change_summary,
+            materialized_deterministically: true,
+            confirmed_intent_source_text: deterministicProposal.sourceText,
+          },
+          ...auditMeta,
+        })
+
+        logInfo("AI page editor proposal materialized from confirmed intent", {
+          request_id: requestId,
+          user_id: context.user.id,
+          slug,
+          path,
+          conversation_phase: deterministicProposal.conversationPhase,
+          target_ids: deterministicProposal.editPlan.target_ids,
+        })
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          provider_used: deterministicProposal.providerUsed,
+          conversation_phase: deterministicProposal.conversationPhase,
+          assistant_message: deterministicProposal.assistantMessage,
+          quick_replies: [],
+          understanding_summary: deterministicProposal.understandingSummary,
+          requires_user_confirmation: deterministicProposal.requiresUserConfirmation,
+          can_generate_proposal: deterministicProposal.canGenerateProposal,
+          warnings: deterministicProposal.warnings,
+          summary: deterministicProposal.summary,
+          explanation: deterministicProposal.explanation,
+          edit_plan: deterministicProposal.editPlan,
+          proposal: deterministicProposal.proposal,
+          ...deterministicProposal.operationalState,
+        })
+      }
+
+      const secrets = await getProviderSecrets(serviceClient)
       const systemPrompt = buildSystemPrompt(config.config_value, title, path)
       const userPrompt = buildUserPrompt({
         message,
