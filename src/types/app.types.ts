@@ -290,6 +290,34 @@ export interface AdminAiPageEditorOperation {
   breakpoint: AdminAiPageEditorBreakpoint
 }
 
+export interface AdminAiPageEditorTargetResolutionSignals {
+  id_structural: number
+  internal_path: number
+  data_attributes: number
+  nearest_heading: number
+  anchor_text: number
+  visual_order: number
+  textual_similarity: number
+  capture_attachment: number
+}
+
+export interface AdminAiPageEditorTargetResolution {
+  requested_target_id: string
+  resolved_target_id: string
+  candidate_path: string
+  confidence: number
+  section_index: number
+  block_type: string
+  selector: string
+  signals: AdminAiPageEditorTargetResolutionSignals
+}
+
+export interface AdminAiPageEditorBaseVersionInfo {
+  id: string
+  version_number: number
+  status: string
+}
+
 export interface AdminAiPageEditorEditPlan {
   scope: AdminAiPageEditorScope
   mode: AdminAiPageEditorMode
@@ -299,12 +327,28 @@ export interface AdminAiPageEditorEditPlan {
   operations: AdminAiPageEditorOperation[]
 }
 
+export type AdminAiPageEditorProposalMetadata = Record<string, unknown> & {
+  ai_contract_version?: string
+  ai_edit_plan?: AdminAiPageEditorEditPlan
+  ai_invariants?: Record<string, unknown> & {
+    target_resolutions?: AdminAiPageEditorTargetResolution[]
+    supports_persistible_flow?: boolean
+    scoped_patch?: boolean
+    preview_renderable?: boolean
+    desktop_renderable?: boolean
+    mobile_renderable?: boolean
+    plan_source?: string
+    patch_engine_version?: string
+  }
+  base_version?: AdminAiPageEditorBaseVersionInfo | null
+}
+
 export interface AdminAiPageEditorDraftProposal {
   slug: string
   title: string
   layout_json: Record<string, unknown>
   style_json: Record<string, unknown>
-  metadata: Record<string, unknown>
+  metadata: AdminAiPageEditorProposalMetadata
 }
 
 export interface AdminAiPageEditorProposal {

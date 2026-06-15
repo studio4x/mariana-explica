@@ -732,7 +732,7 @@ export function AdminAiPageEditor() {
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Rotas permitidas</h2>
-            <p className="mt-1 text-sm text-slate-600">Marca as rotas que podem carregar o launcher no frontend. O editor funciona melhor nas páginas públicas já geridas pelo builder.</p>
+            <p className="mt-1 text-sm text-slate-600">Marca as rotas que podem carregar o launcher no frontend. Nesta fase, o fluxo persistível completo com draft, preview, publish e rollback fica restrito às páginas públicas com slug conhecido em site_page_versions.</p>
           </div>
           <StatusBadge label={`${configuredCount} rota(s)`} tone={configuredCount > 0 ? "success" : "warning"} />
         </div>
@@ -753,6 +753,9 @@ export function AdminAiPageEditor() {
               <div>
                 <p className="text-sm font-semibold">{route.label}</p>
                 <p className="mt-1 text-xs text-slate-500">{route.path}</p>
+                <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                  {route.slug ? "Fluxo persistível suportado" : "Apenas contexto/launcher nesta fase"}
+                </p>
               </div>
               {route.active ? <Check className="h-5 w-5 text-emerald-600" /> : <Plus className="h-5 w-5 text-slate-400" />}
             </button>
@@ -797,7 +800,7 @@ export function AdminAiPageEditor() {
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Ajuda</p>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            O editor grava apenas rascunhos. A publicação continua manual através do fluxo normal do builder.
+            O editor da fase 4 gera draft derivado do patch seguro, abre preview no frontend e só publica após confirmação explícita do admin.
           </p>
         </div>
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">

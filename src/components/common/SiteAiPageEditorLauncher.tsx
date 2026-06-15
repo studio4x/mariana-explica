@@ -32,8 +32,25 @@ import {
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
-import { getAiPageEditorRouteOption, isAiPageEditorAllowedPath } from "@/lib/ai-page-editor"
-import type { AdminAiPageEditorProposal, AdminSitePageDetail, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
+import {
+  assessAiPageEditorProposal,
+  formatAiPageEditorBreakpointLabel,
+  formatAiPageEditorConfidence,
+  formatAiPageEditorModeLabel,
+  formatAiPageEditorOperationTypeLabel,
+  formatAiPageEditorRiskLabel,
+  formatAiPageEditorScopeLabel,
+  getAiPageEditorRouteCapability,
+  getAiPageEditorRouteOption,
+  isAiPageEditorAllowedPath,
+} from "@/lib/ai-page-editor"
+import type {
+  AdminAiPageEditorProposal,
+  AdminAiPageEditorProposalMetadata,
+  AdminSitePageDetail,
+  AdminSitePageVersion,
+  SitePageSlug,
+} from "@/types/app.types"
 
 type ChatMessage = {
   id: string
@@ -145,71 +162,6 @@ function messageTargetsGlobalFooter(message: string) {
   return /\b(rodape|rodapé|footer)\b/i.test(message)
 }
 
-function messageTargetsTypographyEdit(message: string) {
-  const normalized = message.toLowerCase()
-  return (
-    [
-      "tipografia",
-      "fonte",
-      "font",
-      "font-size",
-      "font family",
-      "font-family",
-      "font weight",
-      "font-weight",
-      "fotn-weight",
-      "line-height",
-      "letter-spacing",
-      "tamanho",
-      "tamanho da fonte",
-      "peso",
-      "entrelinha",
-      "caixa alta",
-      "caixa baixa",
-      "uppercase",
-      "lowercase",
-    ].some((keyword) => normalized.includes(keyword))
-  )
-}
-
-function messageTargetsStructuralCssClassEdit(message: string) {
-  const normalized = message.toLowerCase()
-  const mentionsSelectorOrCss =
-    /\.[a-z0-9_-]+/i.test(message) ||
-    [
-      "css",
-      "classe",
-      "class",
-      "seletor",
-      "selector",
-      "padding",
-      "margin",
-      "max-width",
-      "min-width",
-      "width",
-      "height",
-      "gap",
-      "border-radius",
-      "border",
-      "background",
-      "grid",
-    ].some((keyword) => normalized.includes(keyword))
-
-  return mentionsSelectorOrCss && !messageTargetsTypographyEdit(message)
-}
-
-function pageUsesManagedBlocks(layoutJson: Record<string, unknown>) {
-  const projectData =
-    layoutJson.projectData && typeof layoutJson.projectData === "object"
-      ? (layoutJson.projectData as Record<string, unknown>)
-      : null
-
-  return (
-    (Array.isArray(projectData?.blocks) && projectData.blocks.length > 0) ||
-    (Array.isArray(layoutJson.blocks) && layoutJson.blocks.length > 0)
-  )
-}
-
 function countManagedBlocks(layoutJson: Record<string, unknown>) {
   const projectData =
     layoutJson.projectData && typeof layoutJson.projectData === "object"
@@ -277,6 +229,29 @@ function waitForNextPaint() {
   })
 }
 
+function normalizeProposalMetadata(
+  metadata: AdminAiPageEditorProposalMetadata | Record<string, unknown> | null | undefined,
+) {
+  if (!metadata || typeof metadata !== "object") return {}
+  return metadata as AdminAiPageEditorProposalMetadata
+}
+
+function buildPreviewProposalPayload(proposal: AdminAiPageEditorProposal) {
+  const metadata = normalizeProposalMetadata(proposal.proposal.metadata)
+  return {
+    summary: proposal.summary,
+    explanation: proposal.explanation,
+    warnings: proposal.warnings,
+    editPlan: proposal.edit_plan,
+    baseVersion: metadata.base_version ?? null,
+    targetResolutions: metadata.ai_invariants?.target_resolutions ?? [],
+    aiInvariants: metadata.ai_invariants ?? null,
+    highlightSelectors: (metadata.ai_invariants?.target_resolutions ?? [])
+      .map((item) => item.selector)
+      .filter((selector): selector is string => typeof selector === "string" && selector.trim().length > 0),
+  }
+}
+
 export function SiteAiPageEditorLauncher() {
   const { isAdmin, loading: authLoading } = useAuth()
   const queryClient = useQueryClient()
@@ -286,6 +261,7 @@ export function SiteAiPageEditorLauncher() {
   const publishMutation = usePublishAdminSitePageVersion()
   const rollbackMutation = useRollbackAdminSitePageVersion()
   const { routeOption, publicPageQuery, pathname, search } = useSupportedCurrentPage()
+  const routeCapability = useMemo(() => getAiPageEditorRouteCapability(pathname), [pathname])
   const pageDetailQuery = useAdminSitePageDetail(isAdmin && !authLoading && Boolean(routeOption?.slug) ? String(routeOption?.slug) : undefined)
   const navigate = useNavigate()
   const brandingQuery = useQuery({
@@ -316,7 +292,7 @@ export function SiteAiPageEditorLauncher() {
   const config = configQuery.data
   const allowedPath = !config || isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths)
   const canRenderLauncher = Boolean(isAdmin && !authLoading && allowedPath)
-  const pageSlug = routeOption?.slug ?? null
+  const pageSlug = routeCapability.routeOption?.slug ?? null
   const previewPayload = useMemo(() => {
     if (!pageSlug) return null
     return readSitePagePreviewFromSearch(pageSlug, search)
@@ -337,7 +313,7 @@ export function SiteAiPageEditorLauncher() {
   const footerDescription = brandingQuery.data?.config_value.footer_description?.trim() || APP_DESCRIPTION
   const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
-  const canPersistDraft = Boolean(pageSlug)
+  const canPersistDraft = routeCapability.supportsPersistibleFlow && Boolean(pageSlug)
 
   const currentLayoutJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.layout_json
@@ -376,6 +352,7 @@ export function SiteAiPageEditorLauncher() {
   }, [revisions, selectedRevisionId])
 
   const isCaptureModeActive = isSelectingCaptureArea || Boolean(captureRect) || isCapturingPage
+  const proposalAssessment = useMemo(() => assessAiPageEditorProposal(proposal, { canPersistDraft }), [proposal, canPersistDraft])
 
   function buildCurrentVersionSnapshot() {
     if (!pageContextVersion) return null
@@ -643,7 +620,10 @@ export function SiteAiPageEditorLauncher() {
     ])
   }
 
-  function pushPreviewToCurrentPage(version: Pick<AdminSitePageVersion, "layout_json" | "style_json">) {
+  function pushPreviewToCurrentPage(
+    version: Pick<AdminSitePageVersion, "layout_json" | "style_json">,
+    previewContext?: ReturnType<typeof buildPreviewProposalPayload> | null,
+  ) {
     if (!pageSlug) return
     const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
     const html = renderDocumentToHtml(document)
@@ -652,7 +632,19 @@ export function SiteAiPageEditorLauncher() {
         ? String(version.style_json.css)
         : "",
     )
-    const token = storeSitePagePreview({ slug: pageSlug, html, css })
+    const token = storeSitePagePreview({
+      slug: pageSlug,
+      html,
+      css,
+      summary: previewContext?.summary,
+      explanation: previewContext?.explanation,
+      warnings: previewContext?.warnings,
+      editPlan: previewContext?.editPlan,
+      baseVersion: previewContext?.baseVersion,
+      targetResolutions: previewContext?.targetResolutions,
+      aiInvariants: previewContext?.aiInvariants,
+      highlightSelectors: previewContext?.highlightSelectors,
+    })
     if (!token) return
 
     const nextParams = new URLSearchParams(search)
@@ -678,8 +670,13 @@ export function SiteAiPageEditorLauncher() {
   }
 
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
+    const nextAssessment = assessAiPageEditorProposal(nextProposal, { canPersistDraft })
     if (!nextProposal || !pageSlug || !canPersistDraft) {
       setFeedback("Esta área ainda não guarda alterações automáticas.")
+      return
+    }
+    if (!nextAssessment?.canApply) {
+      setFeedback(nextAssessment?.reasons[0] ?? "Esta proposta precisa de revisão antes de ser aplicada.")
       return
     }
 
@@ -701,7 +698,7 @@ export function SiteAiPageEditorLauncher() {
         },
       })
 
-      pushPreviewToCurrentPage(result.version)
+      pushPreviewToCurrentPage(result.version, buildPreviewProposalPayload(nextProposal))
       syncPageDetailCache(result.version, result.page)
       setPendingPublication({
         draftVersion: result.version,
@@ -711,7 +708,7 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback(null)
+      setFeedback("Rascunho derivado do patch seguro aplicado. Revê a prévia antes de publicar.")
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível guardar a alteração.")
     }
@@ -1004,9 +1001,10 @@ export function SiteAiPageEditorLauncher() {
         return
       }
 
-      if (messageTargetsStructuralCssClassEdit(trimmedMessage) && pageUsesManagedBlocks(currentLayoutJson)) {
-        const protectionMessage =
-          "Identifiquei um pedido estrutural de CSS/classe numa p\u00e1gina gerida por blocos. Para n\u00e3o quebrar o layout, este editor aplica aqui apenas ajustes pontuais de texto e tipografia. Para padding, margens, larguras, grids ou wrappers, usa o editor visual ou um ajuste t\u00e9cnico no builder/base CSS."
+      if (!canPersistDraft) {
+        const blockedMessage =
+          routeCapability.reason ??
+          "Nesta fase, o editor com IA aplica patches persistíveis apenas em páginas públicas com slug conhecido."
 
         setProposal(null)
         setAwaitingImplementation(false)
@@ -1015,10 +1013,12 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: protectionMessage,
+            text:
+              `${blockedMessage}\n\n` +
+              "Se quiseres editar uma seção com preview e publicação segura, abre uma página pública gerida por `site_page_versions` como Home, Sobre, Privacidade, Cookies ou Termos.",
           },
         ])
-        setFeedback(protectionMessage)
+        setFeedback(blockedMessage)
         setMessage("")
         return
       }
@@ -1044,20 +1044,42 @@ export function SiteAiPageEditorLauncher() {
         edit_plan: result.edit_plan,
         proposal: result.proposal,
       }
+      const nextAssessment = assessAiPageEditorProposal(nextProposal, { canPersistDraft })
+      const planLabel = `${formatAiPageEditorModeLabel(result.edit_plan.mode)} · ${formatAiPageEditorScopeLabel(result.edit_plan.scope)} · risco ${formatAiPageEditorRiskLabel(result.edit_plan.risk_level).toLowerCase()}`
+      const nextMinConfidence = nextAssessment?.minConfidence ?? null
+      const confidenceSummary =
+        nextMinConfidence !== null
+          ? `Confidence mínima: ${formatAiPageEditorConfidence(nextMinConfidence)}.`
+          : "Confidence não informada pelo resolvedor de alvo."
+      const reviewMessage =
+        nextAssessment && nextAssessment.status === "blocked"
+          ? `Preciso que refines o pedido antes de aplicar.\n\nMotivo principal: ${nextAssessment.reasons[0] ?? "o alvo ainda está ambíguo."}`
+          : nextAssessment?.status === "review"
+            ? "Encontrei um alvo com confidence intermediária. A proposta continua disponível, mas exige revisão cuidadosa antes de aplicar."
+            : "A proposta ficou pronta para o fluxo de draft, preview e confirmação."
 
       setProposal(nextProposal)
-      setAwaitingImplementation(canPersistDraft)
+      setAwaitingImplementation(Boolean(nextAssessment?.canApply))
       setMessages((current) => [
         ...current,
         {
           id: uid("msg"),
           role: "assistant",
-          text: canPersistDraft
-            ? `Analisei o teu pedido e a área da página onde ele se aplica.\n\nVou fazer isto:\n${result.summary}\n\n${result.explanation}\n\nA mudança será pequena e vai manter o resto da página como está, a não ser que tenhas pedido outra coisa.\nQueres que eu aplique esta alteração?`
-            : `Analisei o teu pedido e a área da página onde ele se aplica.\n\nVou fazer isto:\n${result.summary}\n\n${result.explanation}\n\nSe quiseres, posso continuar a partir daqui com um ajuste pontual nesta parte da página.`,
+          text:
+            `Analisei o pedido e gerei um plano derivado do patch engine.\n\n` +
+            `${result.summary}\n\n` +
+            `${result.explanation}\n\n` +
+            `Plano: ${planLabel}\n${confidenceSummary}\n\n${reviewMessage}`,
         },
       ])
       setMessage("")
+      setFeedback(
+        nextAssessment?.status === "blocked"
+          ? nextAssessment.reasons[0] ?? "A proposta precisa de refinamento antes da aplicação."
+          : nextAssessment?.status === "review"
+            ? "A proposta ficou em revisão: confirme o alvo antes de aplicar."
+            : null,
+      )
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar a proposta."
       setFeedback(errorMessage)
@@ -1089,6 +1111,16 @@ export function SiteAiPageEditorLauncher() {
   const currentVersionId = pageDetailQuery.data?.published_version?.id ?? pageContextVersion?.id ?? null
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
   const isEditorDisabled = config?.config_value.enabled === false
+  const showPersistibleRestriction = !canPersistDraft
+  const proposalWarnings = proposalAssessment?.warnings ?? proposal?.warnings ?? []
+  const shouldDisableApply = saveDraftMutation.isPending || !proposalAssessment?.canApply
+  const composerPlaceholder = isEditorDisabled
+    ? "Editor desativado nas configurações."
+    : isChatBusy
+      ? "Envio em processamento. Aguarda a resposta..."
+      : showPersistibleRestriction
+        ? "Header/footer global ainda podem ser editados; o fluxo persistível por seção fica nas páginas públicas geridas."
+        : "Ex.: remove o padding-top da primeira seção e mantém o resto da página intacto..."
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
@@ -1165,6 +1197,18 @@ export function SiteAiPageEditorLauncher() {
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
             <div className="min-h-0 flex-1 overflow-y-auto space-y-3 rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3">
+              {showPersistibleRestriction ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-700">Escopo desta fase</p>
+                  <p className="mt-2">
+                    {routeCapability.reason}
+                  </p>
+                  <p className="mt-2">
+                    Header e footer globais continuam suportados. Para preview persistível por seção, usa uma página pública com slug conhecido.
+                  </p>
+                </div>
+              ) : null}
+
               {messages.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-600">
                   Olá! O site está carregado. O que gostarias de alterar?
@@ -1190,18 +1234,127 @@ export function SiteAiPageEditorLauncher() {
                 </div>
               ))}
 
+              {proposal && proposalAssessment ? (
+                <div
+                  className={[
+                    "rounded-2xl border px-3 py-3",
+                    proposalAssessment.status === "blocked"
+                      ? "border-rose-200 bg-rose-50"
+                      : proposalAssessment.status === "review"
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-slate-200 bg-white",
+                  ].join(" ")}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-600">Plano derivado</p>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                      {formatAiPageEditorModeLabel(proposal.edit_plan.mode)}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                      {formatAiPageEditorScopeLabel(proposal.edit_plan.scope)}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                      Risco {formatAiPageEditorRiskLabel(proposal.edit_plan.risk_level).toLowerCase()}
+                    </span>
+                    {proposalAssessment.baseVersion ? (
+                      <span className="rounded-full bg-sky-100 px-2 py-1 text-[11px] font-semibold text-sky-800">
+                        Base v{proposalAssessment.baseVersion.version_number}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-3 text-sm font-semibold text-slate-950">{proposal.summary}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{proposal.explanation}</p>
+
+                  <div className="mt-3 grid gap-2 text-xs text-slate-700 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="font-semibold text-slate-900">Resolução de alvo</p>
+                      <p className="mt-1">Targets: {proposalAssessment.targetIds.length > 0 ? proposalAssessment.targetIds.join(", ") : "escopo amplo"}</p>
+                      <p className="mt-1">Confidence mínima: {formatAiPageEditorConfidence(proposalAssessment.minConfidence)}</p>
+                      <p className="mt-1">Confidence média: {formatAiPageEditorConfidence(proposalAssessment.averageConfidence)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="font-semibold text-slate-900">Invariantes</p>
+                      <p className="mt-1">Preview: {proposalAssessment.previewRenderable ? "renderizável" : "inválido"}</p>
+                      <p className="mt-1">Desktop: {proposalAssessment.desktopRenderable ? "ok" : "falhou"}</p>
+                      <p className="mt-1">Mobile: {proposalAssessment.mobileRenderable ? "ok" : "falhou"}</p>
+                    </div>
+                  </div>
+
+                  {proposal.edit_plan.operations.length > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <p className="text-xs font-semibold text-slate-900">Operações</p>
+                      <div className="mt-2 space-y-2">
+                        {proposal.edit_plan.operations.slice(0, 6).map((operation, index) => (
+                          <div key={`${operation.type}-${operation.target_id}-${index}`} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+                            <p className="font-semibold text-slate-900">
+                              {formatAiPageEditorOperationTypeLabel(operation.type)} · {operation.target_id}
+                            </p>
+                            <p className="mt-1">
+                              Breakpoint: {formatAiPageEditorBreakpointLabel(operation.breakpoint)}
+                              {operation.path ? ` · path ${operation.path}` : ""}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {proposalAssessment.targetResolutions.length > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <p className="text-xs font-semibold text-slate-900">Targets resolvidos</p>
+                      <div className="mt-2 space-y-2">
+                        {proposalAssessment.targetResolutions.slice(0, 4).map((resolution) => (
+                          <div key={`${resolution.requested_target_id}-${resolution.resolved_target_id}`} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+                            <p className="font-semibold text-slate-900">
+                              {resolution.requested_target_id} → {resolution.resolved_target_id}
+                            </p>
+                            <p className="mt-1">
+                              Confidence {formatAiPageEditorConfidence(resolution.confidence)} · seção {resolution.section_index + 1}
+                            </p>
+                            <p className="mt-1 break-all text-slate-500">{resolution.selector || resolution.candidate_path}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {proposalWarnings.length > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-950">
+                      <p className="font-semibold text-amber-900">Warnings</p>
+                      <ul className="mt-2 space-y-1">
+                        {proposalWarnings.map((warning) => (
+                          <li key={warning}>• {warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {proposalAssessment.reasons.length > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs leading-5 text-rose-950">
+                      <p className="font-semibold text-rose-900">Bloqueios desta proposta</p>
+                      <ul className="mt-2 space-y-1">
+                        {proposalAssessment.reasons.map((reason) => (
+                          <li key={reason}>• {reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               {proposal && awaitingImplementation ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">Confirmação</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-950">
-                    Desejas que eu implemente estes ajustes na página e atualize a visualização?
+                    Desejas que eu implemente este plano derivado na base v{proposalAssessment?.baseVersion?.version_number ?? "?"}, gere o draft e atualize a prévia da página?
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       type="button"
                       className="h-9 rounded-full"
                       onClick={() => void applyDraftFromProposal(proposal)}
-                      disabled={saveDraftMutation.isPending}
+                      disabled={shouldDisableApply}
                     >
                       <Check className="mr-2 h-4 w-4" />
                       {saveDraftMutation.isPending ? "A aplicar..." : "Implementar"}
@@ -1333,13 +1486,7 @@ export function SiteAiPageEditorLauncher() {
                   disabled={isChatBusy || isEditorDisabled}
                   aria-busy={isChatBusy}
                   className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
-                  placeholder={
-                    isEditorDisabled
-                      ? "Editor desativado nas configurações."
-                      : isChatBusy
-                        ? "Envio em processamento. Aguarda a resposta..."
-                        : "Ex.: deixa o hero mais direto e destaca o CTA principal..."
-                  }
+                  placeholder={composerPlaceholder}
                 />
               </label>
 
