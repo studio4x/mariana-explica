@@ -667,6 +667,32 @@ describe("applyPatchPlan", () => {
     expect((result.styleJson.css as string)).not.toContain("section.me-about-page")
   })
 
+  it("keeps the wrapper-first strategy for the exact production prompt before falling back to the first section", () => {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message:
+        "Existe espaco visivel no inicio da pagina Sobre. Verifica o wrapper global da pagina e a primeira secao real. Remove primeiro o padding-top do wrapper global. Se ainda restar espaco visivel, remove tambem o padding-top da primeira secao. Aplica apenas patch seguro e localizado, sem reescrever a pagina inteira.",
+      editPlan: createPlan({
+        mode: "section_replace",
+        target_ids: ["sobre-section"],
+        operations: [
+          {
+            type: "replace_section",
+            target_id: "sobre-section",
+            value: { instruction: "reescrever a secao" },
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(refined.editPlan.operations.map((operation) => operation.target_id)).toEqual([
+      "page_wrapper_spacing",
+    ])
+    expect(refined.diagnosis.map((entry) => entry.source)).toContain("page_wrapper_spacing")
+  })
+
   it("patches the first section .me-about-page when the user points to the first section", () => {
     const refined = refineSpacingEditPlanForKnownWrappers({
       message: "remover o espaçamento acima da primeira seção .me-about-page",
@@ -696,6 +722,29 @@ describe("applyPatchPlan", () => {
 
     expect((result.styleJson.css as string)).toContain("section.me-about-page")
     expect((result.styleJson.css as string)).not.toContain(".me-managed-page-root {\n  padding-top: 0 !important;")
+  })
+
+  it("detects a wrapper-only diagnosis when the prompt limits the change to the global wrapper", () => {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message:
+        "Existe espaco visivel no inicio da pagina Sobre. Verifica o wrapper global da pagina. Remove apenas o padding-top do wrapper global.",
+      editPlan: createPlan({
+        target_ids: ["page_wrapper_spacing"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "page_wrapper_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(refined.diagnosis.map((entry) => entry.source)).toContain("page_wrapper_spacing")
   })
 
   it("rejects ambiguous or low-confidence targets with a clear reason", () => {

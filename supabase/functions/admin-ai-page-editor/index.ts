@@ -15,6 +15,10 @@ import {
   refineSpacingEditPlanForKnownWrappers,
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
+import {
+  extractPersistibleProposalInvariants,
+  requirePersistiblePageEditorProposal,
+} from "./proposal-guards.ts"
 import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 
 type Action =
@@ -2754,12 +2758,16 @@ function stabilizeProposalForSafeApplication(input: {
   latestDraftId?: string | null
   attachments: AttachmentInput[]
 }) {
+  const sourceProposal = requirePersistiblePageEditorProposal(input.proposal, "stabilize_proposal_input", {
+    allowMissingEditPlan: true,
+  })
+  const rawEditPlan = input.proposal.edit_plan
   const normalizedPlan = normalizeAiEditPlan({
-    rawEditPlan: input.proposal.edit_plan,
+    rawEditPlan,
     message: input.message,
     slug: input.slug,
     path: input.path,
-    legacyContractFallback: !input.proposal.edit_plan,
+    legacyContractFallback: !rawEditPlan,
   })
   const refinedSpacingPlan = refineSpacingEditPlanForKnownWrappers({
     message: input.message,
@@ -2779,8 +2787,8 @@ function stabilizeProposalForSafeApplication(input: {
       message: input.message,
       editPlan: refinedSpacingPlan.editPlan,
       baseVersion: input.baseVersion,
-      proposalLayoutJson: input.proposal.proposal.layout_json,
-      proposalStyleJson: input.proposal.proposal.style_json,
+      proposalLayoutJson: sourceProposal.proposal.layout_json,
+      proposalStyleJson: sourceProposal.proposal.style_json,
       attachments: input.attachments.map((attachment) => ({
         name: attachment.name,
         mime_type: attachment.mime_type,
@@ -2790,10 +2798,10 @@ function stabilizeProposalForSafeApplication(input: {
     throw unprocessable(error instanceof Error ? error.message : String(error))
   }
 
-  return {
-    ...input.proposal,
+  return requirePersistiblePageEditorProposal({
+    ...sourceProposal,
     warnings: [
-      ...input.proposal.warnings,
+      ...sourceProposal.warnings,
       ...(normalizedPlan.planSource === "legacy_compat"
         ? [
             "Compatibilidade protegida: o plano de edição foi inferido no backend a partir do pedido atual para manter o contrato novo sem quebrar o launcher atual.",
@@ -2809,7 +2817,7 @@ function stabilizeProposalForSafeApplication(input: {
       layout_json: patched.layoutJson,
       style_json: patched.styleJson,
       metadata: {
-        ...input.proposal.proposal.metadata,
+        ...sourceProposal.proposal.metadata,
         ai_contract_version: "hybrid_v1",
         ai_edit_plan: refinedSpacingPlan.editPlan,
         ai_invariants: {
@@ -2830,7 +2838,7 @@ function stabilizeProposalForSafeApplication(input: {
         },
       },
     },
-  }
+  }, "stabilize_proposal_output")
 }
 
 async function getProviderSecrets(serviceClient: ReturnType<typeof createServiceClient>) {
@@ -3215,13 +3223,6 @@ Deno.serve(async (req) => {
               usage,
             )
           : null
-      const editPlan = proposal.edit_plan
-      const proposalInvariants =
-        proposal.proposal.metadata.ai_invariants &&
-        typeof proposal.proposal.metadata.ai_invariants === "object" &&
-        !Array.isArray(proposal.proposal.metadata.ai_invariants)
-          ? (proposal.proposal.metadata.ai_invariants as Record<string, unknown>)
-          : {}
 
       if (providerUsed) {
         await recordUsageEvent(serviceClient, {
@@ -3578,7 +3579,7 @@ Deno.serve(async (req) => {
       }
 
       const parsed = parseJsonFromString(rawText)
-      const proposal = stabilizeProposalForSafeApplication({
+      const proposal = requirePersistiblePageEditorProposal(stabilizeProposalForSafeApplication({
         proposal: validateProposal(parsed),
         message,
         slug,
@@ -3591,14 +3592,9 @@ Deno.serve(async (req) => {
         publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
         latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
         attachments: validAttachments,
-      })
+      }), "generate_proposal_response")
       const editPlan = proposal.edit_plan
-      const proposalInvariants =
-        proposal.proposal.metadata.ai_invariants &&
-        typeof proposal.proposal.metadata.ai_invariants === "object" &&
-        !Array.isArray(proposal.proposal.metadata.ai_invariants)
-          ? (proposal.proposal.metadata.ai_invariants as Record<string, unknown>)
-          : {}
+      const proposalInvariants = extractPersistibleProposalInvariants(proposal)
 
       const usage =
         providerUsed === "gemini"

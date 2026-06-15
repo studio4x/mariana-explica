@@ -1,4 +1,8 @@
 import { supabase } from "@/integrations/supabase"
+import {
+  ensureAdminAiPageEditorProposalResponse,
+  normalizeAdminAiPageEditorError,
+} from "@/lib/ai-page-editor-response"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
@@ -1843,27 +1847,31 @@ export async function generateAdminAiPageEditorProposal(input: {
     size_bytes: number
   }>
 }) {
-  const response = await invokeAdminFunction<{
-    success: true
-    provider_used: "gemini" | "openai"
-    summary: string
-    explanation: string
-    warnings: string[]
-    edit_plan: AdminAiPageEditorProposal["edit_plan"]
-    proposal: AdminAiPageEditorProposal["proposal"]
-  }>("admin-ai-page-editor", {
-    action: "generate_proposal",
-    slug: input.slug,
-    title: input.title,
-    path: input.path,
-    message: input.message,
-    currentLayoutJson: input.currentLayoutJson,
-    currentStyleJson: input.currentStyleJson,
-    currentHtml: input.currentHtml,
-    attachments: input.attachments,
-  })
+  try {
+    const response = await invokeAdminFunction<{
+      success: true
+      provider_used: "gemini" | "openai"
+      summary: string
+      explanation: string
+      warnings: string[]
+      edit_plan: AdminAiPageEditorProposal["edit_plan"]
+      proposal: AdminAiPageEditorProposal["proposal"]
+    }>("admin-ai-page-editor", {
+      action: "generate_proposal",
+      slug: input.slug,
+      title: input.title,
+      path: input.path,
+      message: input.message,
+      currentLayoutJson: input.currentLayoutJson,
+      currentStyleJson: input.currentStyleJson,
+      currentHtml: input.currentHtml,
+      attachments: input.attachments,
+    })
 
-  return response
+    return ensureAdminAiPageEditorProposalResponse(response)
+  } catch (error) {
+    throw normalizeAdminAiPageEditorError(error)
+  }
 }
 
 export async function generateAdminAiFooterCopyProposal(input: {

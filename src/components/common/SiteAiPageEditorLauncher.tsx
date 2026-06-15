@@ -32,6 +32,7 @@ import {
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
+import { normalizeAdminAiPageEditorError } from "@/lib/ai-page-editor-response"
 import {
   assessAiPageEditorProposal,
   formatAiPageEditorBreakpointLabel,
@@ -1029,7 +1030,7 @@ export function SiteAiPageEditorLauncher() {
             : null,
       )
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar a proposta."
+      const errorMessage = normalizeAdminAiPageEditorError(error).message
       setFeedback(errorMessage)
       setMessages((current) => [...current, { id: uid("msg"), role: "system", text: errorMessage }])
     } finally {

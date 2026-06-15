@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "99"
-export const BUILD_COMMIT = "ai-editor-spacing-resolution"
+export const BUILD_DEPLOY_NUMBER = "100"
+export const BUILD_COMMIT = "ai-editor-proposal-guard"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
