@@ -1,4 +1,5 @@
 import type {
+  AdminAiPageEditorConversationResponse,
   AdminAiFooterCopyProposal,
   AdminAiHeaderCopyProposal,
   AdminAiPageEditorChangeSummary,
@@ -8,12 +9,18 @@ import type {
 
 type GenerateProposalResponse = {
   success: true
-  provider_used: AdminAiPageEditorProposal["provider_used"]
-  summary: string
-  explanation: string
+  provider_used: AdminAiPageEditorConversationResponse["provider_used"]
+  conversation_phase: AdminAiPageEditorConversationResponse["conversation_phase"]
+  assistant_message: string
+  quick_replies: string[]
+  understanding_summary: string | null
+  requires_user_confirmation: boolean
+  can_generate_proposal: boolean
   warnings: string[]
-  edit_plan: AdminAiPageEditorProposal["edit_plan"]
-  proposal: AdminAiPageEditorProposal["proposal"]
+  edit_plan?: AdminAiPageEditorProposal["edit_plan"]
+  proposal?: AdminAiPageEditorProposal["proposal"]
+  summary?: string
+  explanation?: string
   final_status: AdminAiPageEditorFinalStatus
   change_detected: boolean
   draft_saved: boolean
@@ -139,6 +146,14 @@ function ensureOperationalFields(value: Record<string, unknown>) {
   }
 }
 
+function ensureQuickReplies(value: unknown) {
+  if (!Array.isArray(value)) {
+    throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
+  }
+
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean)
+}
+
 export function normalizeAdminAiPageEditorError(error: unknown) {
   if (
     error instanceof Error &&
@@ -171,34 +186,91 @@ export function detectManagedPageOperationDiff(
   }
 }
 
-export function ensureAdminAiPageEditorProposalResponse(value: unknown): GenerateProposalResponse {
+export function ensureAdminAiPageEditorConversationResponse(value: unknown): GenerateProposalResponse {
   if (!isRecord(value)) {
     throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
   }
 
-  if (!hasNonEmptyString(value.provider_used) || !hasNonEmptyString(value.summary) || !hasNonEmptyString(value.explanation)) {
+  if (!hasNonEmptyString(value.provider_used) || !hasNonEmptyString(value.assistant_message)) {
     throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
   }
 
-  if (!Array.isArray(value.warnings) || !isRecord(value.edit_plan) || !isRecord(value.proposal)) {
-    throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
-  }
-
-  const proposal = value.proposal
   if (
-    !hasNonEmptyString(proposal.slug) ||
-    !hasNonEmptyString(proposal.title) ||
-    !isRecord(proposal.layout_json) ||
-    !isRecord(proposal.style_json) ||
-    !isRecord(proposal.metadata)
+    !hasNonEmptyString(value.conversation_phase) ||
+    !Array.isArray(value.warnings) ||
+    typeof value.requires_user_confirmation !== "boolean" ||
+    typeof value.can_generate_proposal !== "boolean"
   ) {
     throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
   }
 
-  return {
-    ...(value as Omit<GenerateProposalResponse, "final_status" | "change_detected" | "draft_saved" | "preview_available" | "change_summary">),
-    ...ensureOperationalFields(value),
+  if (value.can_generate_proposal) {
+    if (!isRecord(value.edit_plan) || !isRecord(value.proposal) || !hasNonEmptyString(value.summary) || !hasNonEmptyString(value.explanation)) {
+      throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
+    }
+
+    const proposal = value.proposal
+    if (
+      !hasNonEmptyString(proposal.slug) ||
+      !hasNonEmptyString(proposal.title) ||
+      !isRecord(proposal.layout_json) ||
+      !isRecord(proposal.style_json) ||
+      !isRecord(proposal.metadata)
+    ) {
+      throw new Error(INCOMPLETE_PROPOSAL_MESSAGE)
+    }
   }
+
+  const operationalFields = ensureOperationalFields(value)
+  const response: GenerateProposalResponse = {
+    ...(value as Omit<
+      GenerateProposalResponse,
+      | "provider_used"
+      | "conversation_phase"
+      | "assistant_message"
+      | "quick_replies"
+      | "understanding_summary"
+      | "requires_user_confirmation"
+      | "can_generate_proposal"
+      | "warnings"
+      | "edit_plan"
+      | "proposal"
+      | "summary"
+      | "explanation"
+      | "final_status"
+      | "change_detected"
+      | "draft_saved"
+      | "preview_available"
+      | "change_summary"
+    >),
+    ...operationalFields,
+    provider_used: value.provider_used as GenerateProposalResponse["provider_used"],
+    conversation_phase: String(value.conversation_phase).trim() as GenerateProposalResponse["conversation_phase"],
+    assistant_message: String(value.assistant_message).trim(),
+    quick_replies: ensureQuickReplies(value.quick_replies),
+    understanding_summary: hasNonEmptyString(value.understanding_summary) ? String(value.understanding_summary).trim() : null,
+    requires_user_confirmation: value.requires_user_confirmation,
+    can_generate_proposal: value.can_generate_proposal,
+    warnings: value.warnings as string[],
+  }
+
+  if (isRecord(value.edit_plan)) {
+    response.edit_plan = value.edit_plan as unknown as AdminAiPageEditorProposal["edit_plan"]
+  }
+
+  if (isRecord(value.proposal)) {
+    response.proposal = value.proposal as unknown as AdminAiPageEditorProposal["proposal"]
+  }
+
+  if (hasNonEmptyString(value.summary)) {
+    response.summary = String(value.summary).trim()
+  }
+
+  if (hasNonEmptyString(value.explanation)) {
+    response.explanation = String(value.explanation).trim()
+  }
+
+  return response
 }
 
 export function ensureAdminAiHeaderCopyProposalResponse(value: unknown): AdminAiHeaderCopyProposal {

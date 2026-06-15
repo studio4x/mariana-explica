@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase"
 import {
+  ensureAdminAiPageEditorConversationResponse,
   ensureAdminAiFooterCopyProposalResponse,
   ensureAdminAiHeaderCopyProposalResponse,
-  ensureAdminAiPageEditorProposalResponse,
   normalizeAdminAiPageEditorError,
 } from "@/lib/ai-page-editor-response"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
@@ -10,8 +10,9 @@ import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminCheckoutModeConfig,
   AdminAiPageEditorConfig,
+  AdminAiPageEditorConversationContext,
+  AdminAiPageEditorConversationResponse,
   AdminAiPageEditorProviderTestResult,
-  AdminAiPageEditorProposal,
   AdminAiPageEditorSecretStatus,
   AdminAiPageEditorUsageMetrics,
   AdminAffiliateReferralSummary,
@@ -1846,21 +1847,28 @@ export async function generateAdminAiPageEditorProposal(input: {
     data_url: string
     size_bytes: number
   }>
+  conversationContext?: AdminAiPageEditorConversationContext
 }) {
   try {
     const response = await invokeAdminFunction<{
       success: true
-      provider_used: "gemini" | "openai"
-      summary: string
-      explanation: string
+      provider_used: AdminAiPageEditorConversationResponse["provider_used"]
+      conversation_phase: AdminAiPageEditorConversationResponse["conversation_phase"]
+      assistant_message: string
+      quick_replies: string[]
+      understanding_summary: string | null
+      requires_user_confirmation: boolean
+      can_generate_proposal: boolean
       warnings: string[]
-      edit_plan: AdminAiPageEditorProposal["edit_plan"]
-      proposal: AdminAiPageEditorProposal["proposal"]
-      final_status: AdminAiPageEditorProposal["final_status"]
+      edit_plan?: AdminAiPageEditorConversationResponse["edit_plan"]
+      proposal?: AdminAiPageEditorConversationResponse["proposal"]
+      summary?: string
+      explanation?: string
+      final_status: AdminAiPageEditorConversationResponse["final_status"]
       change_detected: boolean
       draft_saved: boolean
       preview_available: boolean
-      change_summary: AdminAiPageEditorProposal["change_summary"]
+      change_summary: AdminAiPageEditorConversationResponse["change_summary"]
     }>("admin-ai-page-editor", {
       action: "generate_proposal",
       slug: input.slug,
@@ -1871,9 +1879,10 @@ export async function generateAdminAiPageEditorProposal(input: {
       currentStyleJson: input.currentStyleJson,
       currentHtml: input.currentHtml,
       attachments: input.attachments,
+      conversationContext: input.conversationContext,
     })
 
-    return ensureAdminAiPageEditorProposalResponse(response)
+    return ensureAdminAiPageEditorConversationResponse(response)
   } catch (error) {
     throw normalizeAdminAiPageEditorError(error)
   }

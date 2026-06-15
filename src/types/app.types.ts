@@ -290,6 +290,12 @@ export type AdminAiPageEditorFinalStatus =
   | "blocked"
   | "error"
 
+export type AdminAiPageEditorConversationPhase =
+  | "understanding"
+  | "needs_clarification"
+  | "awaiting_intent_confirmation"
+  | "ready_for_proposal"
+
 export interface AdminAiPageEditorOperation {
   type: AdminAiPageEditorOperationType
   target_id: string
@@ -395,6 +401,34 @@ export interface AdminAiPageEditorProposal extends AdminAiPageEditorOperationalS
   warnings: string[]
   edit_plan: AdminAiPageEditorEditPlan
   proposal: AdminAiPageEditorDraftProposal
+}
+
+export interface AdminAiPageEditorConversationContextMessage {
+  role: "user" | "assistant"
+  text: string
+}
+
+export interface AdminAiPageEditorConversationContext {
+  phase?: AdminAiPageEditorConversationPhase | null
+  understanding_summary?: string | null
+  clarification_questions_count?: number
+  quick_reply_selected?: string | null
+  recent_messages?: AdminAiPageEditorConversationContextMessage[]
+}
+
+export interface AdminAiPageEditorConversationResponse extends AdminAiPageEditorOperationalState {
+  provider_used: AiPageEditorProvider
+  conversation_phase: AdminAiPageEditorConversationPhase
+  assistant_message: string
+  quick_replies: string[]
+  understanding_summary: string | null
+  requires_user_confirmation: boolean
+  can_generate_proposal: boolean
+  warnings: string[]
+  edit_plan?: AdminAiPageEditorEditPlan
+  proposal?: AdminAiPageEditorDraftProposal
+  summary?: string
+  explanation?: string
 }
 
 export interface AdminAiFooterCopyProposal extends AdminAiPageEditorOperationalState {

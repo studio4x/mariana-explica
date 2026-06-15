@@ -118,6 +118,12 @@ window.HTMLElement.prototype.scrollIntoView = vi.fn()
 function createProposalResponse(overrides: Record<string, unknown> = {}) {
   return {
     provider_used: "openai",
+    conversation_phase: "ready_for_proposal",
+    assistant_message: "Percebi assim: queres tirar o espaco do topo desta pagina sem mexer no resto. Esta certo?",
+    quick_replies: [],
+    understanding_summary: "tirar o espaco do topo desta pagina sem mexer no resto",
+    requires_user_confirmation: false,
+    can_generate_proposal: true,
     summary: "Remover espaco visivel do topo",
     explanation: "Analisei o wrapper global e a primeira secao.",
     warnings: [],
@@ -218,6 +224,29 @@ function createProposalResponse(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function createClarificationResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    provider_used: "openai",
+    conversation_phase: "needs_clarification",
+    assistant_message: "Queres mexer so nesta parte ou na secao inteira?",
+    quick_replies: ["So nesta parte", "Na secao inteira"],
+    understanding_summary: "mexer nesta area da pagina",
+    requires_user_confirmation: false,
+    can_generate_proposal: false,
+    warnings: [],
+    final_status: "needs_clarification",
+    change_detected: false,
+    draft_saved: false,
+    preview_available: false,
+    change_summary: {
+      layout_changed: false,
+      style_changed: false,
+      html_changed: false,
+    },
+    ...overrides,
+  }
+}
+
 function createSavedDraftResult(overrides: Record<string, unknown> = {}) {
   return {
     page: {
@@ -302,7 +331,7 @@ describe("SiteAiPageEditorLauncher", () => {
     })
     expect(mockGenerateHeaderCopyProposal).not.toHaveBeenCalled()
     expect(screen.queryByText(/topo do site foi atualizado/i)).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /implementar/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
   })
 
   it("shows no_visible_change instead of success when the backend reports a no-op", async () => {
@@ -325,8 +354,48 @@ describe("SiteAiPageEditorLauncher", () => {
     await waitFor(() => {
       expect(screen.getAllByText(new RegExp(AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE, "i")).length).toBeGreaterThan(0)
     })
-    expect(screen.queryByRole("button", { name: /implementar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/atualizado/i)).not.toBeInTheDocument()
+  })
+
+  it("renders quick replies and waits for confirmation before showing the preview action", async () => {
+    mockGenerateProposalMutateAsync
+      .mockResolvedValueOnce(createClarificationResponse())
+      .mockResolvedValueOnce(
+        createProposalResponse({
+          assistant_message: "Percebi assim: queres mexer so nesta parte. Esta certo?",
+          quick_replies: ["Sim, e isso", "Nao, quero explicar melhor"],
+          requires_user_confirmation: true,
+          conversation_phase: "awaiting_intent_confirmation",
+          can_generate_proposal: false,
+          summary: undefined,
+          explanation: undefined,
+          edit_plan: undefined,
+          proposal: undefined,
+        }),
+      )
+      .mockResolvedValueOnce(createProposalResponse())
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Quero mudar esta parte.")
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /so nesta parte/i })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: /so nesta parte/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sim, e isso/i })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: /sim, e isso/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+    })
   })
 
   it("allows the success path only after diff real, draft saved and preview available", async () => {
@@ -337,15 +406,15 @@ describe("SiteAiPageEditorLauncher", () => {
     await sendMessage(user, "Remove o espaco do topo da pagina Sobre com patch localizado.")
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /implementar/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole("button", { name: /implementar/i }))
+    await user.click(screen.getByRole("button", { name: /preparar previa/i }))
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /confirmar altera/i })).toBeInTheDocument()
     })
-    expect(screen.getByText(/revisão pronta/i)).toBeInTheDocument()
+    expect(screen.getByText(/revisao pronta/i)).toBeInTheDocument()
   })
 
   it("does not show success when the draft save fails", async () => {
@@ -356,10 +425,10 @@ describe("SiteAiPageEditorLauncher", () => {
     await sendMessage(user, "Aplica o patch seguro no topo da pagina.")
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /implementar/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole("button", { name: /implementar/i }))
+    await user.click(screen.getByRole("button", { name: /preparar previa/i }))
 
     await waitFor(() => {
       expect(screen.getByText(/falha ao guardar draft/i)).toBeInTheDocument()
@@ -377,10 +446,10 @@ describe("SiteAiPageEditorLauncher", () => {
     await sendMessage(user, "Remove o espaco do topo e abre a previa segura.")
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /implementar/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole("button", { name: /implementar/i }))
+    await user.click(screen.getByRole("button", { name: /preparar previa/i }))
 
     await waitFor(() => {
       expect(screen.getByText(/nenhum sucesso foi confirmado/i)).toBeInTheDocument()
@@ -414,7 +483,7 @@ describe("SiteAiPageEditorLauncher", () => {
     await sendMessage(user, "Tenta agora remover o padding-top do wrapper global da pagina Sobre.")
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /implementar/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     })
     expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(2)
   })

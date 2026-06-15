@@ -26,6 +26,15 @@ import {
   type AiPageEditorFinalStatus,
 } from "./operational-state.ts"
 import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
+import {
+  isExplicitUnderstandingConfirmation,
+  isExplicitUnderstandingRejection,
+  normalizeConversationContext,
+  sanitizeConversationReplies,
+  sanitizeConversationText,
+  type AiConversationContext,
+  type AiConversationPhase,
+} from "./conversation.ts"
 
 type Action =
   | "get_config"
@@ -59,6 +68,7 @@ interface Body {
   currentHeaderText?: string
   currentFooterText?: string
   attachments?: AttachmentInput[]
+  conversationContext?: Record<string, unknown>
 }
 
 const CONFIG_KEY = "ai_page_editor_config"
@@ -316,8 +326,75 @@ const headerCopySchema = {
   required: ["summary", "explanation", "warnings", "header_announcement"],
 } as const
 
+const understandingSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    phase: {
+      type: "string",
+      enum: ["needs_clarification", "awaiting_intent_confirmation"],
+    },
+    classification: {
+      type: "string",
+      enum: ["clear", "ambiguous", "incomplete", "multiple_targets"],
+    },
+    assistant_message: { type: "string" },
+    understanding_summary: { type: "string" },
+    clarification_question: { type: ["string", "null"] },
+    quick_replies: {
+      type: "array",
+      items: { type: "string" },
+    },
+    ambiguity_detected: { type: "boolean" },
+  },
+  required: [
+    "phase",
+    "classification",
+    "assistant_message",
+    "understanding_summary",
+    "clarification_question",
+    "quick_replies",
+    "ambiguity_detected",
+  ],
+} as const
+
+interface UnderstandingTurn {
+  phase: "needs_clarification" | "awaiting_intent_confirmation"
+  classification: "clear" | "ambiguous" | "incomplete" | "multiple_targets"
+  assistant_message: string
+  understanding_summary: string
+  clarification_question: string | null
+  quick_replies: string[]
+  ambiguity_detected: boolean
+}
+
 function normalizeString(value: unknown, fallback = "") {
   return String(value ?? "").trim() || fallback
+}
+
+function createEmptyChangeSummary(): AiPageEditorChangeSummary {
+  return {
+    layout_changed: false,
+    style_changed: false,
+    html_changed: false,
+  }
+}
+
+function createConversationOperationalState(phase: AiConversationPhase) {
+  return {
+    final_status: phase === "needs_clarification" ? "needs_clarification" : "awaiting_intent_confirmation",
+    change_detected: false,
+    draft_saved: false as const,
+    preview_available: false as const,
+    change_summary: createEmptyChangeSummary(),
+  }
+}
+
+function normalizeConversationReplies(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[]
+  return sanitizeConversationReplies(
+    value.map((item) => normalizeString(item)).filter(Boolean),
+  )
 }
 
 function normalizeStringArray(value: unknown) {
@@ -2326,6 +2403,7 @@ function buildUserPrompt(input: {
   currentLayoutJson: Record<string, unknown>
   currentStyleJson: Record<string, unknown>
   attachments: AttachmentInput[]
+  understandingSummary?: string | null
 }) {
   const attachmentsSummary = input.attachments.length
     ? input.attachments
@@ -2339,6 +2417,9 @@ function buildUserPrompt(input: {
   const prompt = [
     "Pedido do editor:",
     input.message.trim(),
+    ...(input.understandingSummary
+      ? ["", "Entendimento confirmado:", input.understandingSummary.trim()]
+      : []),
     "",
     "Regra de execução:",
     "Executa apenas a alteração pedida, de forma pontual.",
@@ -2375,6 +2456,67 @@ function buildUserPrompt(input: {
   ].join("\n")
 
   return prompt.slice(0, MAX_PROMPT_LENGTH)
+}
+
+function buildConversationTranscript(context: AiConversationContext) {
+  if (context.recent_messages.length === 0) return "Sem histÃ³rico anterior."
+
+  return context.recent_messages
+    .map((message, index) => `${index + 1}. ${message.role === "assistant" ? "Assistente" : "Mariana"}: ${message.text}`)
+    .join("\n")
+}
+
+function buildUnderstandingSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, currentTitle: string, currentPath: string) {
+  return [
+    config.base_prompt || DEFAULT_AI_PAGE_EDITOR_BASE_PROMPT,
+    "Neste momento ainda nao vais propor a edicao tecnica da pagina.",
+    "Primeiro tens de entender o que a Mariana quer dizer.",
+    "Fala sempre em portugues simples, natural e acolhedor.",
+    "Nunca uses termos tecnicos como padding, margin, wrapper, layout, patch, proposal, invariants, edit_plan, css, DOM ou target resolution.",
+    "Se faltar contexto, faz apenas uma pergunta curta por vez.",
+    "Se houver dois alvos provaveis, mostra opcoes simples e claras.",
+    "Se ja estiver claro, resume em linguagem simples o que entendeste e pergunta se esta certo.",
+    "Quando estiver claro, devolve phase=awaiting_intent_confirmation.",
+    "Quando ainda faltar contexto, devolve phase=needs_clarification.",
+    "understanding_summary deve descrever em uma frase simples o que sera mudado, sem linguagem tecnica.",
+    "assistant_message deve ser amigavel e pronta para aparecer no chat.",
+    "quick_replies deve trazer de 0 a 4 respostas curtas e clicaveis.",
+    `Pagina atual: ${currentTitle} (${currentPath})`,
+  ].join("\n")
+}
+
+function buildUnderstandingUserPrompt(input: {
+  message: string
+  currentTitle: string
+  currentPath: string
+  conversationContext: AiConversationContext
+}) {
+  const clarificationCount = input.conversationContext.clarification_questions_count
+  const mustStopAsking =
+    clarificationCount >= 2 || input.conversationContext.phase === "awaiting_intent_confirmation"
+
+  return [
+    "Pedido atual da Mariana:",
+    input.message.trim(),
+    "",
+    "Resumo anterior do entendimento:",
+    input.conversationContext.understanding_summary ?? "Sem resumo anterior.",
+    "",
+    "Ultima resposta rapida escolhida:",
+    input.conversationContext.quick_reply_selected ?? "Nenhuma.",
+    "",
+    "Historico curto da conversa:",
+    buildConversationTranscript(input.conversationContext),
+    "",
+    `Perguntas ja feitas: ${clarificationCount}.`,
+    mustStopAsking
+      ? "Agora evita fazer mais perguntas. Faz o melhor resumo simples do que entendeste e pede confirmacao."
+      : "Se ainda houver ambiguidade, podes fazer uma pergunta curta para fechar o alvo.",
+    "",
+    `Pagina atual: ${input.currentTitle} (${input.currentPath})`,
+    "",
+    "Responde apenas com JSON valido.",
+  ].join("\n")
 }
 
 function buildFooterCopyUserPrompt(input: {
@@ -2435,6 +2577,116 @@ function buildHeaderCopyUserPrompt(input: {
   ].join("\n")
 
   return prompt.slice(0, MAX_PROMPT_LENGTH)
+}
+
+async function generateUnderstandingTurn(input: {
+  config: ReturnType<typeof normalizeConfigValue>
+  secrets: Awaited<ReturnType<typeof getProviderSecrets>>
+  title: string
+  path: string
+  message: string
+  conversationContext: AiConversationContext
+}) {
+  const systemPrompt = buildUnderstandingSystemPrompt(input.config, input.title, input.path)
+  const userPrompt = buildUnderstandingUserPrompt({
+    message: input.message,
+    currentTitle: input.title,
+    currentPath: input.path,
+    conversationContext: input.conversationContext,
+  })
+
+  const providerCandidates = [
+    {
+      provider: input.config.primary_provider,
+      model: input.config.primary_provider === "gemini" ? input.config.gemini_model : input.config.openai_model,
+      apiKey: input.config.primary_provider === "gemini" ? input.secrets.geminiApiKey : input.secrets.openaiApiKey,
+    },
+    {
+      provider: input.config.fallback_provider,
+      model: input.config.fallback_provider === "gemini" ? input.config.gemini_model : input.config.openai_model,
+      apiKey: input.config.fallback_provider === "gemini" ? input.secrets.geminiApiKey : input.secrets.openaiApiKey,
+    },
+  ] as const
+
+  let lastError: unknown = null
+  const providerFailures: Array<{ provider: AiProvider; message: string }> = []
+  let rawText = ""
+  let providerUsed: AiProvider | null = null
+  let modelUsed = ""
+  let rawPayload: unknown = null
+
+  for (const candidate of providerCandidates) {
+    if (!candidate.apiKey) {
+      const message = `${candidate.provider} sem chave configurada`
+      providerFailures.push({ provider: candidate.provider, message })
+      lastError = new Error(message)
+      continue
+    }
+
+    try {
+      const result =
+        candidate.provider === "gemini"
+          ? await callGemini({
+              apiKey: candidate.apiKey,
+              model: candidate.model || DEFAULT_GEMINI_MODEL,
+              systemPrompt,
+              userPrompt,
+              attachments: [],
+              responseSchema: understandingSchema,
+            })
+          : await callOpenAI({
+              apiKey: candidate.apiKey,
+              model: candidate.model || DEFAULT_OPENAI_MODEL,
+              systemPrompt,
+              userPrompt,
+              attachments: [],
+              responseSchema: understandingSchema,
+            })
+
+      rawText = result.text
+      providerUsed = candidate.provider
+      modelUsed = candidate.model
+      rawPayload = result.raw
+      lastError = null
+      break
+    } catch (error) {
+      providerFailures.push({
+        provider: candidate.provider,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      lastError = error
+    }
+  }
+
+  if (!providerUsed || !rawText.trim()) {
+    const details = formatProviderFailureDetails(
+      providerFailures,
+      lastError instanceof Error ? lastError.message : "sem detalhes adicionais",
+    )
+    throw new Error(`Nenhum provedor disponÃ­vel para entender o pedido. ${details}`)
+  }
+
+  const parsed = parseJsonFromString(rawText)
+  const turn = validateUnderstandingTurn(parsed)
+  const usage =
+    providerUsed === "gemini"
+      ? extractGeminiUsage(rawPayload)
+      : extractOpenAIUsage(rawPayload)
+  const pricing = estimateUsageCostUsd(
+    providerUsed,
+    modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+    usage,
+  )
+
+  return {
+    providerUsed,
+    modelUsed: modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
+    rawPayload,
+    providerFailures,
+    usage,
+    pricing,
+    turn,
+  }
 }
 
 function buildFallbackRichTextBlock(html: string) {
@@ -2657,6 +2909,61 @@ function formatProviderFailureDetails(
   return failures.length
     ? failures.map((item) => `${item.provider}: ${item.message}`).join(" | ")
     : fallbackMessage
+}
+
+function validateUnderstandingTurn(value: unknown): UnderstandingTurn {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw unprocessable("A resposta de entendimento da IA veio em formato invÃ¡lido.")
+  }
+
+  const record = value as Record<string, unknown>
+  const phase =
+    record.phase === "needs_clarification" || record.phase === "awaiting_intent_confirmation"
+      ? record.phase
+      : null
+
+  if (!phase) {
+    throw unprocessable("A resposta de entendimento da IA nÃ£o informou uma fase vÃ¡lida.")
+  }
+
+  const classification =
+    record.classification === "clear" ||
+      record.classification === "ambiguous" ||
+      record.classification === "incomplete" ||
+      record.classification === "multiple_targets"
+      ? record.classification
+      : null
+
+  if (!classification) {
+    throw unprocessable("A resposta de entendimento da IA nÃ£o informou uma classificaÃ§Ã£o vÃ¡lida.")
+  }
+
+  const understandingSummary = sanitizeConversationText(normalizeString(record.understanding_summary))
+  const clarificationQuestion = sanitizeConversationText(normalizeString(record.clarification_question))
+  const assistantMessage = sanitizeConversationText(normalizeString(record.assistant_message))
+  const quickReplies = normalizeConversationReplies(record.quick_replies)
+
+  if (!assistantMessage || !understandingSummary) {
+    throw unprocessable("A resposta de entendimento da IA veio incompleta.")
+  }
+
+  return {
+    phase,
+    classification,
+    assistant_message:
+      phase === "needs_clarification" && clarificationQuestion
+        ? [assistantMessage, clarificationQuestion].filter(Boolean).join("\n\n")
+        : assistantMessage,
+    understanding_summary: understandingSummary,
+    clarification_question: clarificationQuestion || null,
+    quick_replies:
+      quickReplies.length > 0
+        ? quickReplies
+        : phase === "awaiting_intent_confirmation"
+          ? ["Sim, Ã© isso", "NÃ£o, quero explicar melhor"]
+          : [],
+    ambiguity_detected: record.ambiguity_detected === true,
+  }
 }
 
 function validateProposal(value: unknown) {
@@ -3521,7 +3828,83 @@ Deno.serve(async (req) => {
         throw badRequest("Número de anexos acima do limite configurado")
       }
 
+      const conversationContext = normalizeConversationContext(body.conversationContext)
+      const understandingConfirmed =
+        isExplicitUnderstandingConfirmation(message, conversationContext.phase) &&
+        Boolean(conversationContext.understanding_summary)
+      const understandingRejected = isExplicitUnderstandingRejection(message, conversationContext.phase)
       const secrets = await getProviderSecrets(serviceClient)
+
+      if (!understandingConfirmed) {
+        const understanding = await generateUnderstandingTurn({
+          config: config.config_value,
+          secrets,
+          title,
+          path,
+          message,
+          conversationContext: understandingRejected
+            ? {
+                ...conversationContext,
+                phase: "needs_clarification",
+                understanding_summary: null,
+              }
+            : conversationContext,
+        })
+        const operationalState = createConversationOperationalState(understanding.turn.phase)
+
+        await recordUsageEvent(serviceClient, {
+          action: "generate_proposal",
+          provider: understanding.providerUsed,
+          model: understanding.modelUsed,
+          user_id: context.user.id,
+          slug,
+          path,
+          input_tokens: understanding.usage.input_tokens,
+          output_tokens: understanding.usage.output_tokens,
+          total_tokens: understanding.usage.total_tokens,
+          estimated_cost_usd: understanding.pricing.estimated_cost_usd ?? null,
+          currency: "USD",
+          request_id: requestId,
+          metadata: {
+            attachment_count: validAttachments.length,
+            conversation_phase: understanding.turn.phase,
+            clarification_questions_count:
+              understanding.turn.phase === "needs_clarification"
+                ? Math.min(3, conversationContext.clarification_questions_count + 1)
+                : conversationContext.clarification_questions_count,
+            user_confirmed_understanding: false,
+            understanding_summary: understanding.turn.understanding_summary,
+            ambiguity_detected: understanding.turn.ambiguity_detected,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            quick_replies: understanding.turn.quick_replies,
+            provider_failures: understanding.providerFailures,
+            pricing_source: understanding.pricing.pricing_source ?? null,
+          },
+        })
+
+        logInfo("AI page editor understanding progressed", {
+          request_id: requestId,
+          user_id: context.user.id,
+          slug,
+          path,
+          conversation_phase: understanding.turn.phase,
+        })
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          provider_used: understanding.providerUsed,
+          conversation_phase: understanding.turn.phase,
+          assistant_message: understanding.turn.assistant_message,
+          quick_replies: understanding.turn.quick_replies,
+          understanding_summary: understanding.turn.understanding_summary,
+          requires_user_confirmation: understanding.turn.phase === "awaiting_intent_confirmation",
+          can_generate_proposal: false,
+          warnings: [],
+          ...operationalState,
+        })
+      }
+
       const systemPrompt = buildSystemPrompt(config.config_value, title, path)
       const userPrompt = buildUserPrompt({
         message,
@@ -3529,6 +3912,7 @@ Deno.serve(async (req) => {
         currentLayoutJson: authoritativeLayoutJson,
         currentStyleJson: authoritativeStyleJson,
         attachments: validAttachments,
+        understandingSummary: conversationContext.understanding_summary,
       })
 
       const providerCandidates = [
@@ -3635,6 +4019,15 @@ Deno.serve(async (req) => {
         desktopRenderable,
         mobileRenderable,
       })
+      const confirmedUnderstandingSummary = sanitizeConversationText(
+        conversationContext.understanding_summary ?? proposal.summary,
+      )
+      const assistantMessage =
+        operationalState.final_status === "no_visible_change"
+          ? "Entendi, mas esta tentativa nÃ£o mostrou uma mudanÃ§a visÃ­vel. Se quiseres, explica de outra forma."
+          : operationalState.final_status === "blocked" || operationalState.final_status === "error"
+            ? "Entendi o pedido, mas ainda nÃ£o consegui preparar isso com seguranÃ§a. Se quiseres, posso tentar de novo com mais detalhe."
+            : "Entendi. Vou preparar a alteraÃ§Ã£o para tu veres antes de publicar."
 
       const usage =
         providerUsed === "gemini"
@@ -3674,6 +4067,12 @@ Deno.serve(async (req) => {
           invariants: proposalInvariants,
           metadata: {
             attachment_count: validAttachments.length,
+            conversation_phase: "ready_for_proposal",
+            clarification_questions_count: conversationContext.clarification_questions_count,
+            user_confirmed_understanding: true,
+            understanding_summary: confirmedUnderstandingSummary,
+            ambiguity_detected: false,
+            quick_reply_selected: conversationContext.quick_reply_selected,
             proposal_summary: proposal.summary,
             edit_plan_operation_count: editPlan?.operations.length ?? 0,
             warning_count: proposal.warnings.length,
@@ -3717,6 +4116,12 @@ Deno.serve(async (req) => {
           path,
           provider_used: providerUsed,
           attachment_count: validAttachments.length,
+          conversation_phase: "ready_for_proposal",
+          clarification_questions_count: conversationContext.clarification_questions_count,
+          user_confirmed_understanding: true,
+          understanding_summary: confirmedUnderstandingSummary,
+          ambiguity_detected: false,
+          quick_reply_selected: conversationContext.quick_reply_selected,
           proposal_summary: proposal.summary,
           edit_plan_operation_count: editPlan?.operations.length ?? 0,
           warning_count: proposal.warnings.length,
@@ -3763,6 +4168,12 @@ Deno.serve(async (req) => {
         success: true,
         request_id: requestId,
         provider_used: providerUsed,
+        conversation_phase: "ready_for_proposal",
+        assistant_message: assistantMessage,
+        quick_replies: [],
+        understanding_summary: confirmedUnderstandingSummary,
+        requires_user_confirmation: false,
+        can_generate_proposal: true,
         summary: proposal.summary,
         explanation: proposal.explanation,
         warnings: proposal.warnings,
