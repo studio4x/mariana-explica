@@ -32,7 +32,11 @@ import {
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
-import { normalizeAdminAiPageEditorError } from "@/lib/ai-page-editor-response"
+import {
+  AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE,
+  detectManagedPageOperationDiff,
+  normalizeAdminAiPageEditorError,
+} from "@/lib/ai-page-editor-response"
 import {
   assessAiPageEditorProposal,
   formatAiPageEditorBreakpointLabel,
@@ -156,20 +160,37 @@ function buildConversationIntroMessages(): ChatMessage[] {
   ]
 }
 
-function messageTargetsGlobalHeader(message: string) {
-  return /\b(header|cabe[cç]alho|topo|navbar)\b/i.test(message)
-}
-
-function messageTargetsGlobalFooter(message: string) {
-  return /\b(rodape|rodapé|footer)\b/i.test(message)
-}
-
 function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRect {
   const left = Math.min(start.x, end.x)
   const top = Math.min(start.y, end.y)
   const width = Math.abs(end.x - start.x)
   const height = Math.abs(end.y - start.y)
   return { left, top, width, height }
+}
+
+function normalizeLauncherComparableText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
+function messageStrictlyTargetsGlobalHeader(message: string) {
+  const normalizedMessage = normalizeLauncherComparableText(message)
+  return (
+    /\b(header|navbar)\b/.test(normalizedMessage) ||
+    /\bcabecalho(?:\s+(?:global|do site))?\b/.test(normalizedMessage) ||
+    /\btopo do site\b/.test(normalizedMessage) ||
+    /\banuncio do topo\b/.test(normalizedMessage)
+  )
+}
+
+function messageStrictlyTargetsGlobalFooter(message: string) {
+  const normalizedMessage = normalizeLauncherComparableText(message)
+  return /\bfooter\b/.test(normalizedMessage) || /\brodape(?:\s+(?:global|do site))?\b/.test(normalizedMessage)
 }
 
 function waitForNextPaint() {
@@ -199,6 +220,14 @@ function buildPreviewProposalPayload(proposal: AdminAiPageEditorProposal) {
       .map((item) => item.selector)
       .filter((selector): selector is string => typeof selector === "string" && selector.trim().length > 0),
   }
+}
+
+function proposalRequiresPersistedPreview(proposal: AdminAiPageEditorProposal) {
+  return proposal.final_status === "proposal_ready" || proposal.final_status === "awaiting_intent_confirmation"
+}
+
+function proposalAllowsDraftFlow(proposal: AdminAiPageEditorProposal) {
+  return proposal.change_detected && proposal.preview_available && proposalRequiresPersistedPreview(proposal)
 }
 
 export function SiteAiPageEditorLauncher() {
@@ -569,13 +598,18 @@ export function SiteAiPageEditorLauncher() {
     ])
   }
 
+  function renderManagedVersionHtml(version: Pick<AdminSitePageVersion, "layout_json">) {
+    if (!pageSlug) return ""
+    const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
+    return renderDocumentToHtml(document)
+  }
+
   function pushPreviewToCurrentPage(
     version: Pick<AdminSitePageVersion, "layout_json" | "style_json">,
     previewContext?: ReturnType<typeof buildPreviewProposalPayload> | null,
   ) {
-    if (!pageSlug) return
-    const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
-    const html = renderDocumentToHtml(document)
+    if (!pageSlug) return false
+    const html = renderManagedVersionHtml(version)
     const css = composeManagedPageCss(
       typeof version.style_json.css === "string" && String(version.style_json.css).trim()
         ? String(version.style_json.css)
@@ -594,11 +628,12 @@ export function SiteAiPageEditorLauncher() {
       aiInvariants: previewContext?.aiInvariants,
       highlightSelectors: previewContext?.highlightSelectors,
     })
-    if (!token) return
+    if (!token) return false
 
     const nextParams = new URLSearchParams(search)
     nextParams.set("builder-preview", token)
     navigate({ pathname, search: `?${nextParams.toString()}` }, { replace: true })
+    return true
   }
 
   function syncPageDetailCache(nextVersion: AdminSitePageVersion, nextPage = pageDetailQuery.data?.page) {
@@ -621,17 +656,29 @@ export function SiteAiPageEditorLauncher() {
   async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
     const nextAssessment = assessAiPageEditorProposal(nextProposal, { canPersistDraft })
     if (!nextProposal || !pageSlug || !canPersistDraft) {
-      setFeedback("Esta área ainda não guarda alterações automáticas.")
+      setFeedback("Esta area ainda nao guarda alteracoes automaticas.")
+      return
+    }
+    if (!proposalAllowsDraftFlow(nextProposal)) {
+      setAwaitingImplementation(false)
+      setFeedback(
+        nextProposal.final_status === "no_visible_change" || !nextProposal.change_detected
+          ? AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE
+          : "Ainda nao existe evidencia suficiente para abrir o fluxo seguro de draft e previa desta proposta.",
+      )
       return
     }
     if (!nextAssessment?.canApply) {
-      setFeedback(nextAssessment?.reasons[0] ?? "Esta proposta precisa de revisão antes de ser aplicada.")
+      setFeedback(nextAssessment?.reasons[0] ?? "Esta proposta precisa de revisao antes de ser aplicada.")
       return
     }
 
     setFeedback(null)
     try {
       const previousVersionSnapshot = buildCurrentVersionSnapshot()
+      if (!previousVersionSnapshot) {
+        throw new Error("Nao foi possivel confirmar a base atual da pagina antes de guardar o rascunho.")
+      }
 
       const result = await saveDraftMutation.mutateAsync({
         slug: pageSlug,
@@ -647,8 +694,54 @@ export function SiteAiPageEditorLauncher() {
         },
       })
 
-      pushPreviewToCurrentPage(result.version, buildPreviewProposalPayload(nextProposal))
       syncPageDetailCache(result.version, result.page)
+
+      const persistedDiff = detectManagedPageOperationDiff(
+        {
+          title: previousVersionSnapshot.title,
+          layout_json: previousVersionSnapshot.layout_json,
+          style_json: previousVersionSnapshot.style_json,
+          html: renderManagedVersionHtml({ layout_json: previousVersionSnapshot.layout_json }),
+        },
+        {
+          title: nextProposal.proposal.title,
+          layout_json: result.version.layout_json,
+          style_json: result.version.style_json,
+          html: renderManagedVersionHtml(result.version),
+        },
+      )
+
+      if (!persistedDiff.change_detected) {
+        setPendingPublication(null)
+        setAwaitingImplementation(false)
+        setFeedback(AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE)
+        setMessages((current) => [
+          ...current,
+          {
+            id: uid("msg"),
+            role: "system",
+            text: AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE,
+          },
+        ])
+        return
+      }
+
+      const previewStored = pushPreviewToCurrentPage(result.version, buildPreviewProposalPayload(nextProposal))
+      if (proposalRequiresPersistedPreview(nextProposal) && !previewStored) {
+        setPendingPublication(null)
+        setAwaitingImplementation(false)
+        setFeedback("O rascunho foi salvo, mas a pre-visualizacao segura nao ficou disponivel. Nenhum sucesso foi confirmado.")
+        setMessages((current) => [
+          ...current,
+          {
+            id: uid("msg"),
+            role: "system",
+            text: "Guardei o rascunho, mas a pre-visualizacao segura nao ficou disponivel. Vou precisar de uma nova tentativa antes de confirmar sucesso.",
+          },
+        ])
+        return
+      }
+
       setPendingPublication({
         draftVersion: result.version,
         previousVersionSnapshot,
@@ -657,9 +750,9 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback("Rascunho derivado do patch seguro aplicado. Revê a prévia antes de publicar.")
+      setFeedback("Rascunho derivado do patch seguro aplicado. Reve a previa antes de publicar.")
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível guardar a alteração.")
+      setFeedback(error instanceof Error ? error.message : "Nao foi possivel guardar a alteracao.")
     }
   }
 
@@ -856,7 +949,7 @@ export function SiteAiPageEditorLauncher() {
   async function handleSend() {
     if (!canRenderLauncher) return
     if (config?.config_value.enabled === false) {
-      setFeedback("O editor de IA está desativado nas configurações.")
+      setFeedback("O editor de IA esta desativado nas configuracoes.")
       return
     }
     const trimmedMessage = message.trim()
@@ -864,19 +957,19 @@ export function SiteAiPageEditorLauncher() {
 
     flushSync(() => {
       setFeedback(null)
-      setSendStatus("Mensagem recebida. Estou a analisar o pedido e a área da página agora.")
+      setSendStatus("Mensagem recebida. Estou a analisar o pedido e a area da pagina agora.")
       setMessages((current) => [
         ...current,
-        { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para análise visual." },
+        { id: uid("msg"), role: "user", text: trimmedMessage || "Anexo enviado para analise visual." },
       ])
     })
 
     await waitForNextPaint()
 
     try {
-      if (messageTargetsGlobalHeader(trimmedMessage)) {
+      if (messageStrictlyTargetsGlobalHeader(trimmedMessage)) {
         if (!brandingQuery.data) {
-          throw new Error("Não foi possível carregar o branding global do site.")
+          throw new Error("Nao foi possivel carregar o branding global do site.")
         }
 
         const result = await generateAdminAiHeaderCopyProposal({
@@ -886,10 +979,50 @@ export function SiteAiPageEditorLauncher() {
           currentHeaderText: headerAnnouncement,
         })
 
+        if (result.final_status === "no_visible_change" || !result.change_detected) {
+          setProposal(null)
+          setAwaitingImplementation(false)
+          setMessage("")
+          setMessages((current) => [
+            ...current,
+            {
+              id: uid("msg"),
+              role: "assistant",
+              text: `${result.summary}\n\n${result.explanation}\n\n${AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE}`,
+            },
+          ])
+          setFeedback(AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE)
+          return
+        }
+
+        if (result.final_status !== "proposal_ready") {
+          const blockedMessage = "Ainda nao existe confirmacao suficiente para atualizar o topo global com seguranca."
+          setProposal(null)
+          setAwaitingImplementation(false)
+          setMessage("")
+          setMessages((current) => [
+            ...current,
+            {
+              id: uid("msg"),
+              role: "assistant",
+              text: `${result.summary}\n\n${result.explanation}\n\n${blockedMessage}`,
+            },
+          ])
+          setFeedback(blockedMessage)
+          return
+        }
+
         const updatedBranding = await updateAdminBrandingConfig({
           ...brandingQuery.data.config_value,
           header_announcement: result.header_announcement,
         })
+        const persistedHeaderText = normalizeLauncherComparableText(updatedBranding.config_value.header_announcement)
+        const requestedHeaderText = normalizeLauncherComparableText(result.header_announcement)
+        const previousHeaderText = normalizeLauncherComparableText(headerAnnouncement)
+
+        if (persistedHeaderText !== requestedHeaderText || persistedHeaderText === previousHeaderText) {
+          throw new Error("O topo global nao confirmou uma alteracao persistida. Nenhum sucesso foi validado.")
+        }
 
         queryClient.setQueryData(["admin", "branding"], updatedBranding)
         queryClient.setQueryData(["site", "branding"], updatedBranding)
@@ -912,9 +1045,9 @@ export function SiteAiPageEditorLauncher() {
         return
       }
 
-      if (messageTargetsGlobalFooter(trimmedMessage)) {
+      if (messageStrictlyTargetsGlobalFooter(trimmedMessage)) {
         if (!brandingQuery.data) {
-          throw new Error("Não foi possível carregar o branding global do site.")
+          throw new Error("Nao foi possivel carregar o branding global do site.")
         }
 
         const result = await generateAdminAiFooterCopyProposal({
@@ -924,10 +1057,50 @@ export function SiteAiPageEditorLauncher() {
           currentFooterText: footerDescription,
         })
 
+        if (result.final_status === "no_visible_change" || !result.change_detected) {
+          setProposal(null)
+          setAwaitingImplementation(false)
+          setMessage("")
+          setMessages((current) => [
+            ...current,
+            {
+              id: uid("msg"),
+              role: "assistant",
+              text: `${result.summary}\n\n${result.explanation}\n\n${AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE}`,
+            },
+          ])
+          setFeedback(AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE)
+          return
+        }
+
+        if (result.final_status !== "proposal_ready") {
+          const blockedMessage = "Ainda nao existe confirmacao suficiente para atualizar o rodape global com seguranca."
+          setProposal(null)
+          setAwaitingImplementation(false)
+          setMessage("")
+          setMessages((current) => [
+            ...current,
+            {
+              id: uid("msg"),
+              role: "assistant",
+              text: `${result.summary}\n\n${result.explanation}\n\n${blockedMessage}`,
+            },
+          ])
+          setFeedback(blockedMessage)
+          return
+        }
+
         const updatedBranding = await updateAdminBrandingConfig({
           ...brandingQuery.data.config_value,
           footer_description: result.footer_description,
         })
+        const persistedFooterText = normalizeLauncherComparableText(updatedBranding.config_value.footer_description)
+        const requestedFooterText = normalizeLauncherComparableText(result.footer_description)
+        const previousFooterText = normalizeLauncherComparableText(footerDescription)
+
+        if (persistedFooterText !== requestedFooterText || persistedFooterText === previousFooterText) {
+          throw new Error("O rodape global nao confirmou uma alteracao persistida. Nenhum sucesso foi validado.")
+        }
 
         queryClient.setQueryData(["admin", "branding"], updatedBranding)
         queryClient.setQueryData(["site", "branding"], updatedBranding)
@@ -942,10 +1115,10 @@ export function SiteAiPageEditorLauncher() {
           {
             id: uid("msg"),
             role: "assistant",
-            text: `${result.summary}\n\n${result.explanation}\n\nO rodapé do site foi atualizado.`,
+            text: `${result.summary}\n\n${result.explanation}\n\nO rodape do site foi atualizado.`,
           },
         ])
-        setFeedback("Rodapé do site atualizado.")
+        setFeedback("Rodape do site atualizado.")
         resetConversation({ keepFeedback: true })
         return
       }
@@ -953,7 +1126,7 @@ export function SiteAiPageEditorLauncher() {
       if (!canPersistDraft) {
         const blockedMessage =
           routeCapability.reason ??
-          "Nesta fase, o editor com IA aplica patches persistíveis apenas em páginas públicas com slug conhecido."
+          "Nesta fase, o editor com IA aplica patches persistiveis apenas em paginas publicas com slug conhecido."
 
         setProposal(null)
         setAwaitingImplementation(false)
@@ -964,7 +1137,7 @@ export function SiteAiPageEditorLauncher() {
             role: "assistant",
             text:
               `${blockedMessage}\n\n` +
-              "Se quiseres editar uma seção com preview e publicação segura, abre uma página pública gerida por `site_page_versions` como Home, Sobre, Privacidade, Cookies ou Termos.",
+              "Se quiseres editar uma secao com preview e publicacao segura, abre uma pagina publica gerida por site_page_versions como Home, Sobre, Privacidade, Cookies ou Termos.",
           },
         ])
         setFeedback(blockedMessage)
@@ -978,7 +1151,7 @@ export function SiteAiPageEditorLauncher() {
         path: pathname,
         message:
           trimmedMessage ||
-          "Analisar os anexos e propor a melhor alteração pontual, preservando a página como está e mudando apenas o ponto solicitado.",
+          "Analisar os anexos e propor a melhor alteracao pontual, preservando a pagina como esta e mudando apenas o ponto solicitado.",
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
@@ -992,43 +1165,67 @@ export function SiteAiPageEditorLauncher() {
         warnings: result.warnings,
         edit_plan: result.edit_plan,
         proposal: result.proposal,
+        final_status: result.final_status,
+        change_detected: result.change_detected,
+        draft_saved: result.draft_saved,
+        preview_available: result.preview_available,
+        change_summary: result.change_summary,
       }
       const nextAssessment = assessAiPageEditorProposal(nextProposal, { canPersistDraft })
       const planLabel = `${formatAiPageEditorModeLabel(result.edit_plan.mode)} · ${formatAiPageEditorScopeLabel(result.edit_plan.scope)} · risco ${formatAiPageEditorRiskLabel(result.edit_plan.risk_level).toLowerCase()}`
       const nextMinConfidence = nextAssessment?.minConfidence ?? null
       const confidenceSummary =
         nextMinConfidence !== null
-          ? `Confidence mínima: ${formatAiPageEditorConfidence(nextMinConfidence)}.`
-          : "Confidence não informada pelo resolvedor de alvo."
+          ? `Confidence minima: ${formatAiPageEditorConfidence(nextMinConfidence)}.`
+          : "Confidence nao informada pelo resolvedor de alvo."
       const reviewMessage =
         nextAssessment && nextAssessment.status === "blocked"
-          ? `Preciso que refines o pedido antes de aplicar.\n\nMotivo principal: ${nextAssessment.reasons[0] ?? "o alvo ainda está ambíguo."}`
+          ? `Preciso que refines o pedido antes de aplicar.\n\nMotivo principal: ${nextAssessment.reasons[0] ?? "o alvo ainda esta ambiguo."}`
           : nextAssessment?.status === "review"
-            ? "Encontrei um alvo com confidence intermediária. A proposta continua disponível, mas exige revisão cuidadosa antes de aplicar."
-            : "A proposta ficou pronta para o fluxo de draft, preview e confirmação."
+            ? "Encontrei um alvo com confidence intermediaria. A proposta continua disponivel, mas exige revisao cuidadosa antes de aplicar."
+            : "A proposta ficou pronta para o fluxo de draft, preview e confirmacao."
 
-      setProposal(nextProposal)
-      setAwaitingImplementation(Boolean(nextAssessment?.canApply))
+      let assistantText =
+        `Analisei o pedido e gerei um plano derivado do patch engine.\n\n${result.summary}\n\n${result.explanation}\n\nPlano: ${planLabel}\n${confidenceSummary}\n\n${reviewMessage}`
+      let feedbackMessage =
+        nextAssessment?.status === "blocked"
+          ? nextAssessment.reasons[0] ?? "A proposta precisa de refinamento antes da aplicacao."
+          : nextAssessment?.status === "review"
+            ? "A proposta ficou em revisao: confirme o alvo antes de aplicar."
+            : null
+      let shouldKeepProposal = true
+      let shouldAwaitImplementation = Boolean(nextAssessment?.canApply)
+
+      if (result.final_status === "no_visible_change" || !result.change_detected) {
+        assistantText =
+          `Analisei o pedido e gerei um plano derivado do patch engine.\n\n${result.summary}\n\n${result.explanation}\n\n${AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE}`
+        feedbackMessage = AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE
+        shouldKeepProposal = false
+        shouldAwaitImplementation = false
+      } else if (result.final_status === "needs_clarification") {
+        assistantText =
+          `Analisei o pedido e gerei um plano derivado do patch engine.\n\n${result.summary}\n\n${result.explanation}\n\nPlano: ${planLabel}\n${confidenceSummary}\n\nAinda preciso refinar melhor o alvo antes de abrir o fluxo seguro de draft e previa.`
+        feedbackMessage = nextAssessment?.reasons[0] ?? "Preciso refinar melhor o alvo antes de aplicar esta tentativa."
+        shouldAwaitImplementation = false
+      } else if (result.final_status === "blocked" || result.final_status === "error") {
+        assistantText =
+          `Analisei o pedido e gerei um plano derivado do patch engine.\n\n${result.summary}\n\n${result.explanation}\n\nPlano: ${planLabel}\n${confidenceSummary}\n\nEsta tentativa nao ficou pronta para aplicacao segura.`
+        feedbackMessage = nextAssessment?.reasons[0] ?? "Esta tentativa nao ficou pronta para aplicacao segura."
+        shouldAwaitImplementation = false
+      }
+
+      setProposal(shouldKeepProposal ? nextProposal : null)
+      setAwaitingImplementation(shouldAwaitImplementation)
       setMessages((current) => [
         ...current,
         {
           id: uid("msg"),
           role: "assistant",
-          text:
-            `Analisei o pedido e gerei um plano derivado do patch engine.\n\n` +
-            `${result.summary}\n\n` +
-            `${result.explanation}\n\n` +
-            `Plano: ${planLabel}\n${confidenceSummary}\n\n${reviewMessage}`,
+          text: assistantText,
         },
       ])
       setMessage("")
-      setFeedback(
-        nextAssessment?.status === "blocked"
-          ? nextAssessment.reasons[0] ?? "A proposta precisa de refinamento antes da aplicação."
-          : nextAssessment?.status === "review"
-            ? "A proposta ficou em revisão: confirme o alvo antes de aplicar."
-            : null,
-      )
+      setFeedback(feedbackMessage)
     } catch (error) {
       const errorMessage = normalizeAdminAiPageEditorError(error).message
       setFeedback(errorMessage)

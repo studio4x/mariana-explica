@@ -14,8 +14,8 @@ function createProposal(
 ): AdminAiPageEditorProposal {
   return {
     provider_used: "openai",
-    summary: "Ajustar espaçamento do hero",
-    explanation: "O patch reduz o espaço superior apenas na primeira seção.",
+    summary: "Ajustar espaco do topo",
+    explanation: "O patch reduz o espaco superior apenas na primeira secao.",
     warnings: [],
     edit_plan: {
       scope: "section",
@@ -88,6 +88,15 @@ function createProposal(
         },
       },
     },
+    final_status: "proposal_ready",
+    change_detected: true,
+    draft_saved: false,
+    preview_available: true,
+    change_summary: {
+      layout_changed: true,
+      style_changed: false,
+      html_changed: false,
+    },
     ...overrides,
   }
 }
@@ -121,7 +130,7 @@ describe("ai-page-editor helpers", () => {
           layout_json: {
             projectData: {
               blocks: [
-                { id: "hero", type: "rich_text", content: "<p>Texto publicado suficiente para manter o contexto estável.</p>" },
+                { id: "hero", type: "rich_text", content: "<p>Texto publicado suficiente para manter o contexto estavel.</p>" },
               ],
             },
           },
@@ -142,19 +151,16 @@ describe("ai-page-editor helpers", () => {
   })
 
   it("blocks low-confidence proposals", () => {
+    const base = createProposal()
+    const target = base.proposal.metadata.ai_invariants!.target_resolutions![0]
     const proposal = createProposal({
       proposal: {
-        ...createProposal().proposal,
+        ...base.proposal,
         metadata: {
-          ...createProposal().proposal.metadata,
+          ...base.proposal.metadata,
           ai_invariants: {
-            ...createProposal().proposal.metadata.ai_invariants,
-            target_resolutions: [
-              {
-                ...createProposal().proposal.metadata.ai_invariants!.target_resolutions![0],
-                confidence: 0.42,
-              },
-            ],
+            ...base.proposal.metadata.ai_invariants,
+            target_resolutions: [{ ...target, confidence: 0.42 }],
           },
         },
       },
@@ -167,19 +173,17 @@ describe("ai-page-editor helpers", () => {
   })
 
   it("keeps medium-confidence proposals in review with strict confirmation", () => {
+    const base = createProposal()
+    const target = base.proposal.metadata.ai_invariants!.target_resolutions![0]
     const proposal = createProposal({
+      final_status: "awaiting_intent_confirmation",
       proposal: {
-        ...createProposal().proposal,
+        ...base.proposal,
         metadata: {
-          ...createProposal().proposal.metadata,
+          ...base.proposal.metadata,
           ai_invariants: {
-            ...createProposal().proposal.metadata.ai_invariants,
-            target_resolutions: [
-              {
-                ...createProposal().proposal.metadata.ai_invariants!.target_resolutions![0],
-                confidence: 0.74,
-              },
-            ],
+            ...base.proposal.metadata.ai_invariants,
+            target_resolutions: [{ ...target, confidence: 0.74 }],
           },
         },
       },
@@ -189,6 +193,40 @@ describe("ai-page-editor helpers", () => {
     expect(assessment?.status).toBe("review")
     expect(assessment?.canApply).toBe(true)
     expect(assessment?.requiresStrictConfirmation).toBe(true)
+  })
+
+  it("blocks proposals classified as no visible change", () => {
+    const assessment = assessAiPageEditorProposal(
+      createProposal({
+        final_status: "no_visible_change",
+        change_detected: false,
+        preview_available: false,
+        change_summary: {
+          layout_changed: false,
+          style_changed: false,
+          html_changed: false,
+        },
+      }),
+      { canPersistDraft: true },
+    )
+
+    expect(assessment?.status).toBe("blocked")
+    expect(assessment?.canApply).toBe(false)
+    expect(assessment?.reasons.join(" ")).toContain("sem alteração visível")
+  })
+
+  it("blocks proposals when preview is not available", () => {
+    const assessment = assessAiPageEditorProposal(
+      createProposal({
+        preview_available: false,
+        final_status: "blocked",
+      }),
+      { canPersistDraft: true },
+    )
+
+    expect(assessment?.status).toBe("blocked")
+    expect(assessment?.canApply).toBe(false)
+    expect(assessment?.reasons.join(" ")).toContain("pré-visualização")
   })
 
   it("blocks semi-assisted operation types from the main flow", () => {

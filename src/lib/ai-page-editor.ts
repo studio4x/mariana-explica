@@ -403,9 +403,30 @@ export function assessAiPageEditorProposal(
 
   const reasons: string[] = []
   const warnings = [...proposal.warnings]
+  const backendStatus = proposal.final_status
 
   if (!options.canPersistDraft) {
     reasons.push("A rota atual não participa do fluxo persistível desta fase.")
+  }
+
+  if (!proposal.change_detected) {
+    reasons.push("O backend não detectou diff real entre a base e o resultado final desta tentativa.")
+  }
+
+  if (options.canPersistDraft && !proposal.preview_available) {
+    reasons.push("O backend não conseguiu garantir uma pré-visualização válida para esta tentativa.")
+  }
+
+  if (backendStatus === "no_visible_change") {
+    reasons.push("A tentativa foi classificada pelo backend como sem alteração visível.")
+  }
+
+  if (backendStatus === "needs_clarification") {
+    reasons.push("O backend pediu refinamento adicional do alvo antes de seguir com a aplicação.")
+  }
+
+  if (backendStatus === "blocked" || backendStatus === "error") {
+    reasons.push("O backend não marcou a proposta como pronta para o fluxo seguro atual.")
   }
 
   if (!baseVersion) {
@@ -450,14 +471,20 @@ export function assessAiPageEditorProposal(
 
   const canApply =
     routeSupportsPersistibleFlow &&
+    proposal.change_detected &&
+    proposal.preview_available &&
     reasons.length === 0 &&
     previewRenderable &&
     desktopRenderable &&
     mobileRenderable
 
-  const status = canApply ? (reviewTargets.length > 0 ? "review" : "ready") : "blocked"
+  const status =
+    canApply
+      ? (backendStatus === "awaiting_intent_confirmation" || reviewTargets.length > 0 ? "review" : "ready")
+      : "blocked"
   const requiresStrictConfirmation =
     proposal.edit_plan.requires_strict_confirmation ||
+    backendStatus === "awaiting_intent_confirmation" ||
     proposal.edit_plan.risk_level === "high" ||
     status !== "ready"
 

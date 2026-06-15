@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase"
 import {
+  ensureAdminAiFooterCopyProposalResponse,
+  ensureAdminAiHeaderCopyProposalResponse,
   ensureAdminAiPageEditorProposalResponse,
   normalizeAdminAiPageEditorError,
 } from "@/lib/ai-page-editor-response"
@@ -10,8 +12,6 @@ import type {
   AdminAiPageEditorConfig,
   AdminAiPageEditorProviderTestResult,
   AdminAiPageEditorProposal,
-  AdminAiFooterCopyProposal,
-  AdminAiHeaderCopyProposal,
   AdminAiPageEditorSecretStatus,
   AdminAiPageEditorUsageMetrics,
   AdminAffiliateReferralSummary,
@@ -1856,6 +1856,11 @@ export async function generateAdminAiPageEditorProposal(input: {
       warnings: string[]
       edit_plan: AdminAiPageEditorProposal["edit_plan"]
       proposal: AdminAiPageEditorProposal["proposal"]
+      final_status: AdminAiPageEditorProposal["final_status"]
+      change_detected: boolean
+      draft_saved: boolean
+      preview_available: boolean
+      change_summary: AdminAiPageEditorProposal["change_summary"]
     }>("admin-ai-page-editor", {
       action: "generate_proposal",
       slug: input.slug,
@@ -1880,22 +1885,26 @@ export async function generateAdminAiFooterCopyProposal(input: {
   message: string
   currentFooterText: string
 }) {
-  const response = await invokeAdminFunction<{
-    success: true
-    provider_used: "gemini" | "openai"
-    summary: string
-    explanation: string
-    warnings: string[]
-    footer_description: string
-  }>("admin-ai-page-editor", {
-    action: "generate_footer_copy",
-    title: input.title,
-    path: input.path,
-    message: input.message,
-    currentFooterText: input.currentFooterText,
-  })
+  try {
+    const response = await invokeAdminFunction<{
+      success: true
+      provider_used: "gemini" | "openai"
+      summary: string
+      explanation: string
+      warnings: string[]
+      footer_description: string
+    }>("admin-ai-page-editor", {
+      action: "generate_footer_copy",
+      title: input.title,
+      path: input.path,
+      message: input.message,
+      currentFooterText: input.currentFooterText,
+    })
 
-  return response as AdminAiFooterCopyProposal
+    return ensureAdminAiFooterCopyProposalResponse(response)
+  } catch (error) {
+    throw normalizeAdminAiPageEditorError(error)
+  }
 }
 
 export async function generateAdminAiHeaderCopyProposal(input: {
@@ -1904,22 +1913,26 @@ export async function generateAdminAiHeaderCopyProposal(input: {
   message: string
   currentHeaderText: string
 }) {
-  const response = await invokeAdminFunction<{
-    success: true
-    provider_used: "gemini" | "openai"
-    summary: string
-    explanation: string
-    warnings: string[]
-    header_announcement: string
-  }>("admin-ai-page-editor", {
-    action: "generate_header_copy",
-    title: input.title,
-    path: input.path,
-    message: input.message,
-    currentHeaderText: input.currentHeaderText,
-  })
+  try {
+    const response = await invokeAdminFunction<{
+      success: true
+      provider_used: "gemini" | "openai"
+      summary: string
+      explanation: string
+      warnings: string[]
+      header_announcement: string
+    }>("admin-ai-page-editor", {
+      action: "generate_header_copy",
+      title: input.title,
+      path: input.path,
+      message: input.message,
+      currentHeaderText: input.currentHeaderText,
+    })
 
-  return response as AdminAiHeaderCopyProposal
+    return ensureAdminAiHeaderCopyProposalResponse(response)
+  } catch (error) {
+    throw normalizeAdminAiPageEditorError(error)
+  }
 }
 
 export async function fetchAdminSitePages() {

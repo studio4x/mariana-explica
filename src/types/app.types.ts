@@ -281,6 +281,14 @@ export type AdminAiPageEditorOperationType =
   | "unwrap_children"
   | "change_columns"
 export type AdminAiPageEditorBreakpoint = "mobile" | "tablet" | "desktop" | "all"
+export type AdminAiPageEditorFinalStatus =
+  | "needs_clarification"
+  | "awaiting_intent_confirmation"
+  | "proposal_ready"
+  | "draft_saved"
+  | "no_visible_change"
+  | "blocked"
+  | "error"
 
 export interface AdminAiPageEditorOperation {
   type: AdminAiPageEditorOperationType
@@ -335,6 +343,21 @@ export interface AdminAiPageEditorEditPlan {
   operations: AdminAiPageEditorOperation[]
 }
 
+export interface AdminAiPageEditorChangeSummary {
+  layout_changed: boolean
+  style_changed: boolean
+  html_changed: boolean
+  text_changed?: boolean
+}
+
+export interface AdminAiPageEditorOperationalState {
+  final_status: AdminAiPageEditorFinalStatus
+  change_detected: boolean
+  draft_saved: boolean
+  preview_available: boolean
+  change_summary: AdminAiPageEditorChangeSummary
+}
+
 export type AdminAiPageEditorProposalMetadata = Record<string, unknown> & {
   ai_contract_version?: string
   ai_edit_plan?: AdminAiPageEditorEditPlan
@@ -365,7 +388,7 @@ export interface AdminAiPageEditorDraftProposal {
   metadata: AdminAiPageEditorProposalMetadata
 }
 
-export interface AdminAiPageEditorProposal {
+export interface AdminAiPageEditorProposal extends AdminAiPageEditorOperationalState {
   provider_used: AiPageEditorProvider
   summary: string
   explanation: string
@@ -374,7 +397,7 @@ export interface AdminAiPageEditorProposal {
   proposal: AdminAiPageEditorDraftProposal
 }
 
-export interface AdminAiFooterCopyProposal {
+export interface AdminAiFooterCopyProposal extends AdminAiPageEditorOperationalState {
   provider_used: AiPageEditorProvider
   summary: string
   explanation: string
@@ -382,7 +405,7 @@ export interface AdminAiFooterCopyProposal {
   footer_description: string
 }
 
-export interface AdminAiHeaderCopyProposal {
+export interface AdminAiHeaderCopyProposal extends AdminAiPageEditorOperationalState {
   provider_used: AiPageEditorProvider
   summary: string
   explanation: string

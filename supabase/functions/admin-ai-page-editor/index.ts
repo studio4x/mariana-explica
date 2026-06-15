@@ -19,6 +19,12 @@ import {
   extractPersistibleProposalInvariants,
   requirePersistiblePageEditorProposal,
 } from "./proposal-guards.ts"
+import {
+  resolvePersistibleProposalOperationalState,
+  resolveTextProposalOperationalState,
+  type AiPageEditorChangeSummary,
+  type AiPageEditorFinalStatus,
+} from "./operational-state.ts"
 import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 
 type Action =
@@ -3208,6 +3214,10 @@ Deno.serve(async (req) => {
 
       const parsed = parseJsonFromString(rawText)
       const headerProposal = validateHeaderCopyProposal(parsed)
+      const headerOperationalState = resolveTextProposalOperationalState({
+        currentText: currentHeaderText,
+        nextText: headerProposal.header_announcement,
+      })
 
       const usage =
         providerUsed === "gemini"
@@ -3272,6 +3282,11 @@ Deno.serve(async (req) => {
         explanation: headerProposal.explanation,
         warnings: headerProposal.warnings,
         header_announcement: headerProposal.header_announcement,
+        final_status: headerOperationalState.final_status,
+        change_detected: headerOperationalState.change_detected,
+        draft_saved: headerOperationalState.draft_saved,
+        preview_available: headerOperationalState.preview_available,
+        change_summary: headerOperationalState.change_summary,
       })
     }
 
@@ -3373,6 +3388,10 @@ Deno.serve(async (req) => {
 
       const parsed = parseJsonFromString(rawText)
       const footerProposal = validateFooterCopyProposal(parsed)
+      const footerOperationalState = resolveTextProposalOperationalState({
+        currentText: currentFooterText,
+        nextText: footerProposal.footer_description,
+      })
 
       const usage =
         providerUsed === "gemini"
@@ -3437,6 +3456,11 @@ Deno.serve(async (req) => {
         explanation: footerProposal.explanation,
         warnings: footerProposal.warnings,
         footer_description: footerProposal.footer_description,
+        final_status: footerOperationalState.final_status,
+        change_detected: footerOperationalState.change_detected,
+        draft_saved: footerOperationalState.draft_saved,
+        preview_available: footerOperationalState.preview_available,
+        change_summary: footerOperationalState.change_summary,
       })
     }
 
@@ -3595,6 +3619,22 @@ Deno.serve(async (req) => {
       }), "generate_proposal_response")
       const editPlan = proposal.edit_plan
       const proposalInvariants = extractPersistibleProposalInvariants(proposal)
+      const previewRenderable = proposalInvariants.preview_renderable !== false
+      const desktopRenderable = proposalInvariants.desktop_renderable !== false
+      const mobileRenderable = proposalInvariants.mobile_renderable !== false
+      const operationalState = resolvePersistibleProposalOperationalState({
+        editPlan,
+        baseLayoutJson: managedPageContext.baseVersion.layout_json,
+        baseStyleJson: managedPageContext.baseVersion.style_json,
+        proposalLayoutJson: proposal.proposal.layout_json,
+        proposalStyleJson: proposal.proposal.style_json,
+        targetResolutions: Array.isArray(proposalInvariants.target_resolutions)
+          ? proposalInvariants.target_resolutions
+          : [],
+        previewRenderable,
+        desktopRenderable,
+        mobileRenderable,
+      })
 
       const usage =
         providerUsed === "gemini"
@@ -3658,6 +3698,11 @@ Deno.serve(async (req) => {
             requires_strict_confirmation: editPlan?.requires_strict_confirmation ?? false,
             contract_version: normalizeString(proposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
             invariants: proposalInvariants,
+            final_status: operationalState.final_status,
+            change_detected: operationalState.change_detected,
+            draft_saved: operationalState.draft_saved,
+            preview_available: operationalState.preview_available,
+            change_summary: operationalState.change_summary,
           },
         })
       }
@@ -3694,6 +3739,11 @@ Deno.serve(async (req) => {
           requires_strict_confirmation: editPlan?.requires_strict_confirmation ?? false,
           contract_version: normalizeString(proposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
           invariants: proposalInvariants,
+          final_status: operationalState.final_status,
+          change_detected: operationalState.change_detected,
+          draft_saved: operationalState.draft_saved,
+          preview_available: operationalState.preview_available,
+          change_summary: operationalState.change_summary,
         },
         ...auditMeta,
       })
@@ -3718,6 +3768,11 @@ Deno.serve(async (req) => {
         warnings: proposal.warnings,
         edit_plan: proposal.edit_plan,
         proposal: proposal.proposal,
+        final_status: operationalState.final_status,
+        change_detected: operationalState.change_detected,
+        draft_saved: operationalState.draft_saved,
+        preview_available: operationalState.preview_available,
+        change_summary: operationalState.change_summary,
       })
     }
 
