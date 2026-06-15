@@ -11,6 +11,7 @@ import {
   type AiRiskLevel,
 } from "./contract.ts"
 import { applyPatchPlan, type PatchEngineBaseVersion } from "./patch-engine.ts"
+import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 
 type Action =
   | "get_config"
@@ -407,59 +408,6 @@ function cloneJsonValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-function normalizeLayoutSearchText(value: unknown): string {
-  if (typeof value === "string") {
-    return value
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase()
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeLayoutSearchText(item)).join(" ")
-  }
-
-  if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>)
-      .map((item) => normalizeLayoutSearchText(item))
-      .join(" ")
-  }
-
-  return ""
-}
-
-function countManagedBlocks(layoutJson: Record<string, unknown>) {
-  const projectData =
-    layoutJson.projectData && typeof layoutJson.projectData === "object"
-      ? (layoutJson.projectData as Record<string, unknown>)
-      : null
-
-  if (Array.isArray(projectData?.blocks)) return projectData.blocks.length
-  if (Array.isArray(layoutJson.blocks)) return layoutJson.blocks.length
-  return 0
-}
-
-function shouldUsePublishedVersionForAiContext(
-  draft: { version_number: number; layout_json: Record<string, unknown> } | null | undefined,
-  published: { version_number: number; layout_json: Record<string, unknown> } | null | undefined,
-) {
-  if (!draft || !published) return false
-
-  if (draft.version_number < published.version_number) return true
-
-  const draftBlocks = countManagedBlocks(draft.layout_json)
-  const publishedBlocks = countManagedBlocks(published.layout_json)
-  if (publishedBlocks > 0 && draftBlocks > 0 && draftBlocks < publishedBlocks) return true
-
-  const draftText = normalizeLayoutSearchText(draft.layout_json)
-  const publishedText = normalizeLayoutSearchText(published.layout_json)
-  if (publishedText.length > 500 && draftText.length > 0 && draftText.length < publishedText.length * 0.6) return true
-
-  return false
-}
-
 async function fetchManagedBaseVersion(
   serviceClient: ReturnType<typeof createServiceClient>,
   slug: string,
@@ -489,10 +437,11 @@ async function fetchManagedBaseVersion(
       ? (versions ?? []).find((item) => item.id === page.published_version_id) ?? null
       : null
   const latestDraft = (versions ?? []).find((item) => item.status === "draft") ?? null
-  const baseVersion =
-    latestDraft && !shouldUsePublishedVersionForAiContext(latestDraft, publishedVersion)
-      ? latestDraft
-      : publishedVersion ?? latestDraft ?? null
+  const selectedBaseVersion = selectAiBaseVersion({
+    latestDraft,
+    publishedVersion,
+  })
+  const baseVersion = selectedBaseVersion.baseVersion
 
   if (!baseVersion) {
     throw unprocessable("Nao encontrei uma base_version segura para esta pagina.")
@@ -500,26 +449,12 @@ async function fetchManagedBaseVersion(
 
   return {
     page,
-    baseVersion: {
-      id: String(baseVersion.id),
-      page_id: String(baseVersion.page_id),
-      version_number: Number(baseVersion.version_number ?? 0),
-      status: normalizeString(baseVersion.status),
-      layout_json:
-        baseVersion.layout_json && typeof baseVersion.layout_json === "object" && !Array.isArray(baseVersion.layout_json)
-          ? cloneJsonValue(baseVersion.layout_json as Record<string, unknown>)
-          : {},
-      style_json:
-        baseVersion.style_json && typeof baseVersion.style_json === "object" && !Array.isArray(baseVersion.style_json)
-          ? cloneJsonValue(baseVersion.style_json as Record<string, unknown>)
-          : {},
-      metadata:
-        baseVersion.metadata && typeof baseVersion.metadata === "object" && !Array.isArray(baseVersion.metadata)
-          ? cloneJsonValue(baseVersion.metadata as Record<string, unknown>)
-          : {},
-    } satisfies PatchEngineBaseVersion,
+    baseVersion: toPatchEngineBaseVersion(baseVersion),
     publishedVersion,
     latestDraft,
+    baseVersionSource: selectedBaseVersion.source,
+    degradedDraftBypassed: selectedBaseVersion.degradedDraftBypassed,
+    baseVersionSelectionReason: selectedBaseVersion.reason,
   }
 }
 
@@ -2808,6 +2743,11 @@ function stabilizeProposalForSafeApplication(input: {
   title: string
   path: string
   baseVersion: PatchEngineBaseVersion
+  baseVersionSource: "latest_draft" | "published_version" | "none"
+  degradedDraftBypassed: boolean
+  baseVersionSelectionReason: string
+  publishedVersionId?: string | null
+  latestDraftId?: string | null
   attachments: AttachmentInput[]
 }) {
   const normalizedPlan = normalizeAiEditPlan({
@@ -2866,6 +2806,11 @@ function stabilizeProposalForSafeApplication(input: {
           ...normalizedPlan.invariants,
           ...patched.invariants,
           target_resolutions: patched.resolutions,
+          context_source: input.baseVersionSource,
+          degraded_draft_bypassed: input.degradedDraftBypassed,
+          context_selection_reason: input.baseVersionSelectionReason,
+          published_version_id: input.publishedVersionId ?? null,
+          latest_draft_id: input.latestDraftId ?? null,
         },
         base_version: {
           id: input.baseVersion.id,
@@ -3504,7 +3449,7 @@ Deno.serve(async (req) => {
         throw forbidden("Editor via IA desativado")
       }
 
-      if (config.config_value.allowed_paths.length > 0 && !config.config_value.allowed_paths.includes(path)) {
+      if (config.config_value.allowed_paths.length > 0 && !isPathAllowedByPatterns(path, config.config_value.allowed_paths)) {
         throw forbidden("Rota nao habilitada para o editor via IA")
       }
 
@@ -3629,6 +3574,11 @@ Deno.serve(async (req) => {
         title,
         path,
         baseVersion: managedPageContext.baseVersion,
+        baseVersionSource: managedPageContext.baseVersionSource,
+        degradedDraftBypassed: managedPageContext.degradedDraftBypassed,
+        baseVersionSelectionReason: managedPageContext.baseVersionSelectionReason,
+        publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
+        latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
         attachments: validAttachments,
       })
       const editPlan = proposal.edit_plan
@@ -3677,11 +3627,23 @@ Deno.serve(async (req) => {
           invariants: proposalInvariants,
           metadata: {
             attachment_count: validAttachments.length,
+            proposal_summary: proposal.summary,
+            edit_plan_operation_count: editPlan?.operations.length ?? 0,
+            warning_count: proposal.warnings.length,
+            target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+              ? proposalInvariants.target_resolutions.length
+              : 0,
             require_confirmation: config.config_value.require_confirmation,
             pricing_source: pricing?.pricing_source ?? null,
             base_version_id: managedPageContext.baseVersion.id,
             base_version_number: managedPageContext.baseVersion.version_number,
             base_version_status: managedPageContext.baseVersion.status,
+            context_source: managedPageContext.baseVersionSource,
+            degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+            context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            published_version_id: managedPageContext.publishedVersion?.id ?? null,
+            latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+            provider_failures: providerFailures,
             mode: editPlan?.mode ?? null,
             scope: editPlan?.scope ?? null,
             risk_level: editPlan?.risk_level ?? null,
@@ -3703,9 +3665,21 @@ Deno.serve(async (req) => {
           path,
           provider_used: providerUsed,
           attachment_count: validAttachments.length,
+          proposal_summary: proposal.summary,
+          edit_plan_operation_count: editPlan?.operations.length ?? 0,
+          warning_count: proposal.warnings.length,
+          target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+            ? proposalInvariants.target_resolutions.length
+            : 0,
           base_version_id: managedPageContext.baseVersion.id,
           base_version_number: managedPageContext.baseVersion.version_number,
           base_version_status: managedPageContext.baseVersion.status,
+          context_source: managedPageContext.baseVersionSource,
+          degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+          context_selection_reason: managedPageContext.baseVersionSelectionReason,
+          published_version_id: managedPageContext.publishedVersion?.id ?? null,
+          latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+          provider_failures: providerFailures,
           mode: editPlan?.mode ?? null,
           scope: editPlan?.scope ?? null,
           risk_level: editPlan?.risk_level ?? null,

@@ -43,6 +43,7 @@ import {
   getAiPageEditorRouteCapability,
   getAiPageEditorRouteOption,
   isAiPageEditorAllowedPath,
+  shouldUsePublishedVersionForAiContext,
 } from "@/lib/ai-page-editor"
 import type {
   AdminAiPageEditorProposal,
@@ -160,59 +161,6 @@ function messageTargetsGlobalHeader(message: string) {
 
 function messageTargetsGlobalFooter(message: string) {
   return /\b(rodape|rodapé|footer)\b/i.test(message)
-}
-
-function countManagedBlocks(layoutJson: Record<string, unknown>) {
-  const projectData =
-    layoutJson.projectData && typeof layoutJson.projectData === "object"
-      ? (layoutJson.projectData as Record<string, unknown>)
-      : null
-
-  if (Array.isArray(projectData?.blocks)) return projectData.blocks.length
-  if (Array.isArray(layoutJson.blocks)) return layoutJson.blocks.length
-  return 0
-}
-
-function normalizeLayoutSearchText(value: unknown): string {
-  if (typeof value === "string") {
-    return value
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase()
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeLayoutSearchText(item)).join(" ")
-  }
-
-  if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>)
-      .map((item) => normalizeLayoutSearchText(item))
-      .join(" ")
-  }
-
-  return ""
-}
-
-function shouldUsePublishedVersionForAiContext(
-  draft: AdminSitePageVersion | null | undefined,
-  published: AdminSitePageVersion | null | undefined,
-) {
-  if (!draft || !published) return false
-
-  if (draft.version_number < published.version_number) return true
-
-  const draftBlocks = countManagedBlocks(draft.layout_json)
-  const publishedBlocks = countManagedBlocks(published.layout_json)
-  if (publishedBlocks > 0 && draftBlocks > 0 && draftBlocks < publishedBlocks) return true
-
-  const draftText = normalizeLayoutSearchText(draft.layout_json)
-  const publishedText = normalizeLayoutSearchText(published.layout_json)
-  if (publishedText.length > 500 && draftText.length > 0 && draftText.length < publishedText.length * 0.6) return true
-
-  return false
 }
 
 function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRect {

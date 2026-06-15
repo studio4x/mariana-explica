@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "97"
-export const BUILD_COMMIT = "ai-editor-phase4-ui"
+export const BUILD_DEPLOY_NUMBER = "98"
+export const BUILD_COMMIT = "ai-editor-prod-hardening"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

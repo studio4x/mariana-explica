@@ -337,6 +337,11 @@ export type AdminAiPageEditorProposalMetadata = Record<string, unknown> & {
     preview_renderable?: boolean
     desktop_renderable?: boolean
     mobile_renderable?: boolean
+    context_source?: "latest_draft" | "published_version" | "none"
+    degraded_draft_bypassed?: boolean
+    context_selection_reason?: string
+    published_version_id?: string | null
+    latest_draft_id?: string | null
     plan_source?: string
     patch_engine_version?: string
   }

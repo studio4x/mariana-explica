@@ -1510,12 +1510,13 @@ function validateFinalInvariants(input: {
     }
   }
 
-  if (typeof input.styleJson.css === "string" && BLOCKED_STYLE_PATTERNS.some((pattern) => pattern.test(input.styleJson.css))) {
+  const finalCss = typeof input.styleJson.css === "string" ? input.styleJson.css : ""
+  if (finalCss && BLOCKED_STYLE_PATTERNS.some((pattern) => pattern.test(finalCss))) {
     throw new Error("O CSS final ficou fora da allowlist segura.")
   }
 
   if (input.plan.mode === "text_patch") {
-    const afterStyleCss = normalizeString(input.styleJson.css)
+    const afterStyleCss = normalizeString(finalCss)
     if (afterStyleCss) {
       throw new Error("text_patch não pode introduzir CSS adicional nesta fase.")
     }

@@ -3,7 +3,9 @@ import {
   assessAiPageEditorProposal,
   formatAiPageEditorModeLabel,
   getAiPageEditorRouteCapability,
+  isAiPageEditorAllowedPath,
   isAiPageEditorManagedPersistibleRoute,
+  shouldUsePublishedVersionForAiContext,
 } from "./ai-page-editor"
 import type { AdminAiPageEditorProposal } from "@/types/app.types"
 
@@ -97,6 +99,37 @@ describe("ai-page-editor helpers", () => {
     expect(getAiPageEditorRouteCapability("/aluno/dashboard").supportsPersistibleFlow).toBe(false)
   })
 
+  it("supports allowed path patterns with params and wildcards", () => {
+    expect(isAiPageEditorAllowedPath("/aluno/cursos/abc", ["/aluno/cursos/:courseId"])).toBe(true)
+    expect(isAiPageEditorAllowedPath("/aluno/cursos/abc/player/modulo-1", ["/aluno/cursos/:courseId/player/*"])).toBe(true)
+    expect(isAiPageEditorAllowedPath("/admin", ["/", "/sobre", "/cookies"])).toBe(false)
+  })
+
+  it("falls back to the published version when the latest draft is degraded", () => {
+    expect(
+      shouldUsePublishedVersionForAiContext(
+        {
+          version_number: 9,
+          layout_json: {
+            projectData: {
+              blocks: [],
+            },
+          },
+        },
+        {
+          version_number: 8,
+          layout_json: {
+            projectData: {
+              blocks: [
+                { id: "hero", type: "rich_text", content: "<p>Texto publicado suficiente para manter o contexto estável.</p>" },
+              ],
+            },
+          },
+        },
+      ),
+    ).toBe(true)
+  })
+
   it("assesses a high-confidence proposal as ready", () => {
     const proposal = createProposal()
     const assessment = assessAiPageEditorProposal(proposal, { canPersistDraft: true })
@@ -176,6 +209,40 @@ describe("ai-page-editor helpers", () => {
     const assessment = assessAiPageEditorProposal(proposal, { canPersistDraft: true })
     expect(assessment?.status).toBe("blocked")
     expect(assessment?.unsupportedOperationTypes).toEqual(["wrap_children"])
+  })
+
+  it("flags ambiguous target resolutions when multiple requested targets converge to the same node", () => {
+    const base = createProposal()
+    const proposal = createProposal({
+      edit_plan: {
+        ...base.edit_plan,
+        target_ids: ["hero-a", "hero-b"],
+      },
+      proposal: {
+        ...base.proposal,
+        metadata: {
+          ...base.proposal.metadata,
+          ai_invariants: {
+            ...base.proposal.metadata.ai_invariants,
+            target_resolutions: [
+              {
+                ...base.proposal.metadata.ai_invariants!.target_resolutions![0],
+                requested_target_id: "hero-a",
+                resolved_target_id: "hero-section",
+              },
+              {
+                ...base.proposal.metadata.ai_invariants!.target_resolutions![0],
+                requested_target_id: "hero-b",
+                resolved_target_id: "hero-section",
+              },
+            ],
+          },
+        },
+      },
+    })
+
+    const assessment = assessAiPageEditorProposal(proposal, { canPersistDraft: true })
+    expect(assessment?.warnings.join(" ")).toContain("convergiu para o mesmo alvo resolvido")
   })
 
   it("formats mode labels for launcher cards", () => {

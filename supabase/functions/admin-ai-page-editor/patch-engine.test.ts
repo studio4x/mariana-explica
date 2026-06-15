@@ -520,4 +520,28 @@ describe("applyPatchPlan", () => {
     expect(heroCta?.href).toBe("/checkout")
     expect((blocks[2].content as string)).toContain("/suporte")
   })
+
+  it("rejects ambiguous or low-confidence targets with a clear reason", () => {
+    expect(() =>
+      applyPatchPlan({
+        slug: "home",
+        title: "Home",
+        path: "/",
+        message: "ajustar a seção certa, mas sem indicar qual",
+        editPlan: createPlan({
+          target_ids: ["secao-indefinida"],
+          operations: [
+            {
+              type: "set_style",
+              target_id: "secao-indefinida",
+              path: "layout.paddingTop",
+              value: 4,
+              breakpoint: "all",
+            },
+          ],
+        }),
+        baseVersion: createBaseVersion(),
+      }),
+    ).toThrow(/não encontrei um alvo seguro/i)
+  })
 })

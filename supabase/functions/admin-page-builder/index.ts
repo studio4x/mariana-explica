@@ -49,6 +49,52 @@ function normalizeObject(value: unknown, label: string) {
   return value as Record<string, unknown>
 }
 
+function extractAiAuditMetadata(metadata: Record<string, unknown>) {
+  const aiInvariants =
+    metadata.ai_invariants && typeof metadata.ai_invariants === "object" && !Array.isArray(metadata.ai_invariants)
+      ? (metadata.ai_invariants as Record<string, unknown>)
+      : null
+  const aiEditPlan =
+    metadata.ai_edit_plan && typeof metadata.ai_edit_plan === "object" && !Array.isArray(metadata.ai_edit_plan)
+      ? (metadata.ai_edit_plan as Record<string, unknown>)
+      : null
+  const targetIds = Array.isArray(aiEditPlan?.target_ids)
+    ? aiEditPlan.target_ids.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : []
+
+  return {
+    editor: typeof metadata.editor === "string" ? metadata.editor : null,
+    source: typeof metadata.source === "string" ? metadata.source : null,
+    ai_revision_kind: typeof metadata.ai_revision_kind === "string" ? metadata.ai_revision_kind : null,
+    ai_contract_version: typeof metadata.ai_contract_version === "string" ? metadata.ai_contract_version : null,
+    ai_mode: typeof aiEditPlan?.mode === "string" ? aiEditPlan.mode : null,
+    ai_scope: typeof aiEditPlan?.scope === "string" ? aiEditPlan.scope : null,
+    ai_risk_level: typeof aiEditPlan?.risk_level === "string" ? aiEditPlan.risk_level : null,
+    ai_target_ids: targetIds,
+    ai_requires_strict_confirmation:
+      typeof aiEditPlan?.requires_strict_confirmation === "boolean"
+        ? aiEditPlan.requires_strict_confirmation
+        : null,
+    base_version_id:
+      metadata.base_version && typeof metadata.base_version === "object" && !Array.isArray(metadata.base_version)
+        ? String((metadata.base_version as Record<string, unknown>).id ?? "")
+        : null,
+    base_version_number:
+      metadata.base_version && typeof metadata.base_version === "object" && !Array.isArray(metadata.base_version)
+        ? Number((metadata.base_version as Record<string, unknown>).version_number ?? 0) || null
+        : null,
+    base_version_status:
+      metadata.base_version && typeof metadata.base_version === "object" && !Array.isArray(metadata.base_version)
+        ? String((metadata.base_version as Record<string, unknown>).status ?? "")
+        : null,
+    context_source: typeof aiInvariants?.context_source === "string" ? aiInvariants.context_source : null,
+    degraded_draft_bypassed:
+      typeof aiInvariants?.degraded_draft_bypassed === "boolean" ? aiInvariants.degraded_draft_bypassed : null,
+    context_selection_reason:
+      typeof aiInvariants?.context_selection_reason === "string" ? aiInvariants.context_selection_reason : null,
+  }
+}
+
 async function fetchPageBySlug(serviceClient: ReturnType<typeof createServiceClient>, slug: string) {
   const { data, error } = await serviceClient
     .from("site_pages")
@@ -181,6 +227,7 @@ Deno.serve(async (req) => {
           slug,
           page_id: page.id,
           version_number: versionNumber,
+          ...extractAiAuditMetadata(metadata),
         },
         ...auditMeta,
       })
@@ -199,6 +246,7 @@ Deno.serve(async (req) => {
       if (!versionId) throw badRequest("versionId e obrigatorio")
 
       const page = await fetchPageBySlug(serviceClient, slug)
+      const previousPublishedVersionId = page.published_version_id ? String(page.published_version_id) : null
       const { data: targetVersion, error: targetVersionError } = await serviceClient
         .from("site_page_versions")
         .select(versionSelect)
@@ -244,6 +292,12 @@ Deno.serve(async (req) => {
           page_id: page.id,
           version_id: targetVersion.id,
           version_number: targetVersion.version_number,
+          previous_published_version_id: previousPublishedVersionId,
+          ...extractAiAuditMetadata(
+            targetVersion.metadata && typeof targetVersion.metadata === "object" && !Array.isArray(targetVersion.metadata)
+              ? (targetVersion.metadata as Record<string, unknown>)
+              : {},
+          ),
         },
         ...auditMeta,
       })

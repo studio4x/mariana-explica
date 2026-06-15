@@ -437,11 +437,15 @@ export function normalizeAiEditPlan(input: NormalizeAiEditPlanInput): Normalized
   const preliminaryTargetIds = uniqueStrings(rawTargetIds.length > 0 ? rawTargetIds : fallbackTargetIds)
   const fallbackTargetId = preliminaryTargetIds[0] ?? fallbackTargetIds[0] ?? "target"
 
-  const operations = Array.isArray(record?.operations)
-    ? record?.operations
-        .map((operation) => normalizeOperation(operation, { mode, message: input.message, fallbackTargetId }))
-        .filter((operation): operation is AiEditOperation => Boolean(operation))
-    : []
+  const operations: AiEditOperation[] = []
+  if (Array.isArray(record?.operations)) {
+    for (const operation of record.operations) {
+      const normalizedOperation = normalizeOperation(operation, { mode, message: input.message, fallbackTargetId })
+      if (normalizedOperation) {
+        operations.push(normalizedOperation)
+      }
+    }
+  }
 
   const targetIds = uniqueStrings([
     ...preliminaryTargetIds,
