@@ -5,10 +5,12 @@ import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import {
   normalizeAiEditPlan,
+  isKnownManagedSitePageSlug,
   type AiEditMode,
   type AiEditScope,
   type AiRiskLevel,
 } from "./contract.ts"
+import { applyPatchPlan, type PatchEngineBaseVersion } from "./patch-engine.ts"
 
 type Action =
   | "get_config"
@@ -54,6 +56,8 @@ const DEFAULT_AI_PAGE_EDITOR_BASE_PROMPT =
 const MAX_PROMPT_LENGTH = 24_000
 const DEFAULT_USAGE_PERIOD_DAYS = 30
 const MAX_USAGE_PERIOD_DAYS = 365
+const sitePageSelect = "id,slug,title,status,published_version_id,created_by,created_at,updated_at"
+const sitePageVersionSelect = "id,page_id,version_number,status,layout_json,style_json,metadata,created_by,created_at"
 
 type AiProvider = "gemini" | "openai"
 type UsageAction = "generate_proposal" | "test_providers"
@@ -401,6 +405,122 @@ function parseJsonFromString(value: string) {
 
 function cloneJsonValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
+}
+
+function normalizeLayoutSearchText(value: unknown): string {
+  if (typeof value === "string") {
+    return value
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeLayoutSearchText(item)).join(" ")
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>)
+      .map((item) => normalizeLayoutSearchText(item))
+      .join(" ")
+  }
+
+  return ""
+}
+
+function countManagedBlocks(layoutJson: Record<string, unknown>) {
+  const projectData =
+    layoutJson.projectData && typeof layoutJson.projectData === "object"
+      ? (layoutJson.projectData as Record<string, unknown>)
+      : null
+
+  if (Array.isArray(projectData?.blocks)) return projectData.blocks.length
+  if (Array.isArray(layoutJson.blocks)) return layoutJson.blocks.length
+  return 0
+}
+
+function shouldUsePublishedVersionForAiContext(
+  draft: { version_number: number; layout_json: Record<string, unknown> } | null | undefined,
+  published: { version_number: number; layout_json: Record<string, unknown> } | null | undefined,
+) {
+  if (!draft || !published) return false
+
+  if (draft.version_number < published.version_number) return true
+
+  const draftBlocks = countManagedBlocks(draft.layout_json)
+  const publishedBlocks = countManagedBlocks(published.layout_json)
+  if (publishedBlocks > 0 && draftBlocks > 0 && draftBlocks < publishedBlocks) return true
+
+  const draftText = normalizeLayoutSearchText(draft.layout_json)
+  const publishedText = normalizeLayoutSearchText(published.layout_json)
+  if (publishedText.length > 500 && draftText.length > 0 && draftText.length < publishedText.length * 0.6) return true
+
+  return false
+}
+
+async function fetchManagedBaseVersion(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  slug: string,
+) {
+  const { data: page, error: pageError } = await serviceClient
+    .from("site_pages")
+    .select(sitePageSelect)
+    .eq("slug", slug)
+    .maybeSingle()
+
+  if (pageError) throw pageError
+  if (!page) {
+    throw badRequest("Pagina nao encontrada")
+  }
+
+  const { data: versions, error: versionsError } = await serviceClient
+    .from("site_page_versions")
+    .select(sitePageVersionSelect)
+    .eq("page_id", page.id)
+    .order("version_number", { ascending: false })
+    .limit(60)
+
+  if (versionsError) throw versionsError
+
+  const publishedVersion =
+    page.published_version_id
+      ? (versions ?? []).find((item) => item.id === page.published_version_id) ?? null
+      : null
+  const latestDraft = (versions ?? []).find((item) => item.status === "draft") ?? null
+  const baseVersion =
+    latestDraft && !shouldUsePublishedVersionForAiContext(latestDraft, publishedVersion)
+      ? latestDraft
+      : publishedVersion ?? latestDraft ?? null
+
+  if (!baseVersion) {
+    throw unprocessable("Nao encontrei uma base_version segura para esta pagina.")
+  }
+
+  return {
+    page,
+    baseVersion: {
+      id: String(baseVersion.id),
+      page_id: String(baseVersion.page_id),
+      version_number: Number(baseVersion.version_number ?? 0),
+      status: normalizeString(baseVersion.status),
+      layout_json:
+        baseVersion.layout_json && typeof baseVersion.layout_json === "object" && !Array.isArray(baseVersion.layout_json)
+          ? cloneJsonValue(baseVersion.layout_json as Record<string, unknown>)
+          : {},
+      style_json:
+        baseVersion.style_json && typeof baseVersion.style_json === "object" && !Array.isArray(baseVersion.style_json)
+          ? cloneJsonValue(baseVersion.style_json as Record<string, unknown>)
+          : {},
+      metadata:
+        baseVersion.metadata && typeof baseVersion.metadata === "object" && !Array.isArray(baseVersion.metadata)
+          ? cloneJsonValue(baseVersion.metadata as Record<string, unknown>)
+          : {},
+    } satisfies PatchEngineBaseVersion,
+    publishedVersion,
+    latestDraft,
+  }
 }
 
 function normalizeJsonObjectField(value: unknown, fieldName: string, fallbackToEmptyObject = false) {
@@ -2203,6 +2323,9 @@ function buildSystemPrompt(config: ReturnType<typeof normalizeConfigValue>, curr
     "Em edit_plan, usa obrigatoriamente um mode entre text_patch, style_patch, spacing_patch, section_layout_patch e section_replace.",
     "Em edit_plan, usa obrigatoriamente um scope entre text, block, section, page, header e footer.",
     "Em edit_plan.operations, usa apenas operações compatíveis com o contrato: set_style, remove_style, update_text, move_node, replace_section, set_responsive_rule, wrap_children, unwrap_children, change_columns.",
+    "Em update_text, preenche value preferencialmente com {\"from\":\"...\",\"to\":\"...\"}.",
+    "Em set_style e set_responsive_rule, preenche path com a propriedade canónica e value com o valor final concreto, por exemplo layout.paddingTop=0, gap=16, columns=2 ou text-align=center.",
+    "Se precisares reorganizar ou substituir só uma seção, o proposal pode servir como template apenas dessa seção, mas o edit_plan deve continuar específico ao alvo.",
     "Se houver risco estrutural, marca risk_level como high e requires_strict_confirmation como true.",
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas, não como objetos literais.",
     `Página atual: ${currentTitle} (${currentPath})`,
@@ -2281,6 +2404,9 @@ function buildUserPrompt(input: {
     "Quando o pedido for tipográfico, usa preferencialmente classes e seletores .me- já existentes no HTML atual para aplicar o CSS mínimo necessário, sem mexer no layout_json.",
     "Se o pedido mencionar HTML bruto, por exemplo um <hr> ou um fragmento de marcação, não devolvas só o fragmento: atualiza a estrutura completa e mantém projectData.blocks ou html como JSON válido.",
     "Preenche edit_plan com scope, mode, target_ids, risk_level, requires_strict_confirmation e operations antes de devolver proposal.",
+    "Em operations, evita instruções vagas. Sempre que souberes o alvo, devolve target_id estável, path canónico e value final concreto.",
+    "Para text_patch, usa update_text com value {\"from\":\"texto atual\",\"to\":\"texto novo\"}.",
+    "Para spacing_patch ou style_patch, usa set_style ou set_responsive_rule com path específico, por exemplo layout.paddingTop, gap, background, color, border-radius ou columns.",
     "Usa exatamente o nome section_layout_patch para pedidos de layout interno por seção.",
     "Dentro de proposal, devolve layout_json, style_json e metadata como strings JSON válidas. Exemplo: \"{\\\"projectData\\\":{\\\"blocks\\\":[...]}}\".",
     "",
@@ -2679,9 +2805,10 @@ function stabilizeProposalForSafeApplication(input: {
   proposal: ReturnType<typeof validateProposal>
   message: string
   slug: string
+  title: string
   path: string
-  currentLayoutJson: Record<string, unknown>
-  currentStyleJson: Record<string, unknown>
+  baseVersion: PatchEngineBaseVersion
+  attachments: AttachmentInput[]
 }) {
   const normalizedPlan = normalizeAiEditPlan({
     rawEditPlan: input.proposal.edit_plan,
@@ -2690,100 +2817,62 @@ function stabilizeProposalForSafeApplication(input: {
     path: input.path,
     legacyContractFallback: !input.proposal.edit_plan,
   })
-  const textReplacement = extractTextEditReplacement(input.message)
-  const typographyRequest = hasTypographyEditRequest(input.message)
-  const textContentRequest = hasTextContentEditRequest(input.message) && !(typographyRequest && !textReplacement)
-  const typographyTargetPhrase = typographyRequest ? extractQuotedTypographyTarget(input.message) : null
-  const typographyDeclarations = typographyRequest ? extractTypographyDeclarations(input.message) : []
-  const allowMediaChanges = requestExplicitlyMentionsMediaOrLayout(input.message)
-  const structuralLayoutRequest =
-    requestExplicitlyMentionsStructuralLayout(input.message) ||
-    normalizedPlan.editPlan.mode === "spacing_patch" ||
-    normalizedPlan.editPlan.mode === "section_layout_patch" ||
-    normalizedPlan.editPlan.mode === "section_replace"
-  const normalizedProposal = {
-    ...input.proposal,
-    warnings:
-      normalizedPlan.planSource === "legacy_compat"
-        ? [
-            ...input.proposal.warnings,
-            "Compatibilidade protegida: o plano de edição foi inferido no backend a partir do pedido atual para manter o contrato novo sem quebrar o launcher atual.",
-          ]
-        : input.proposal.warnings,
-    edit_plan: normalizedPlan.editPlan,
-    proposal: {
-      ...input.proposal.proposal,
-      metadata: {
-        ...input.proposal.proposal.metadata,
-        ai_contract_version: "hybrid_v1",
-        ai_edit_plan: normalizedPlan.editPlan,
-        ai_invariants: normalizedPlan.invariants,
-      },
-    },
+  if (!isKnownManagedSitePageSlug(input.slug)) {
+    throw unprocessable("Esta fase do editor seguro está restrita a páginas com slug conhecido e site_page_versions.")
   }
 
-  if ((!textContentRequest && !typographyRequest) || structuralLayoutRequest) {
-    if (!proposalPreservesLayoutEnvelope(input.currentLayoutJson, normalizedProposal.proposal.layout_json)) {
-      throw unprocessable(
-        "A proposta da IA não preservou a estrutura completa da página atual. Nenhum rascunho foi aplicado.",
-      )
-    }
-
-    return normalizedProposal
-  }
-
-  return finalizeSafeTextAndTypographyProposal({
-    proposal: normalizedProposal,
-    currentLayoutJson: input.currentLayoutJson,
-    currentStyleJson: input.currentStyleJson,
-    textReplacement,
-    textContentRequest,
-    typographyRequest,
-    typographyTargetPhrase,
-    typographyDeclarations,
-    allowMediaChanges,
-  })
-
-  if (textReplacement) {
-    const replacedLayout = applyQuotedTextReplacementToLayout(input.currentLayoutJson, textReplacement)
-    if (replacedLayout) {
-      return {
-        ...input.proposal,
-        warnings: [
-          ...input.proposal.warnings,
-          "Aplicação protegida: a estrutura original da página foi preservada e apenas o texto solicitado foi alterado.",
-        ],
-        proposal: {
-          ...input.proposal.proposal,
-          layout_json: replacedLayout,
-          style_json: cloneJsonValue(input.currentStyleJson),
-        },
-      }
-    }
-  }
-
-  const mergedLayout = mergeTextOnlyProposalWithCurrentLayout(
-    input.currentLayoutJson,
-    input.proposal.proposal.layout_json,
-    allowMediaChanges,
-  )
-
-  if (!mergedLayout) {
-    throw unprocessable(
-      "A proposta da IA alterou a estrutura da página num pedido textual. Nenhum rascunho foi aplicado para proteger o layout.",
-    )
+  let patched
+  try {
+    patched = applyPatchPlan({
+      slug: input.slug,
+      title: input.title,
+      path: input.path,
+      message: input.message,
+      editPlan: normalizedPlan.editPlan,
+      baseVersion: input.baseVersion,
+      proposalLayoutJson: input.proposal.proposal.layout_json,
+      proposalStyleJson: input.proposal.proposal.style_json,
+      attachments: input.attachments.map((attachment) => ({
+        name: attachment.name,
+        mime_type: attachment.mime_type,
+      })),
+    })
+  } catch (error) {
+    throw unprocessable(error instanceof Error ? error.message : String(error))
   }
 
   return {
     ...input.proposal,
     warnings: [
       ...input.proposal.warnings,
-      "Aplicação protegida: o layout atual foi preservado e apenas os conteúdos textuais foram atualizados.",
+      ...(normalizedPlan.planSource === "legacy_compat"
+        ? [
+            "Compatibilidade protegida: o plano de edição foi inferido no backend a partir do pedido atual para manter o contrato novo sem quebrar o launcher atual.",
+          ]
+        : []),
+      ...patched.warnings,
     ],
+    edit_plan: normalizedPlan.editPlan,
     proposal: {
-      ...input.proposal.proposal,
-      layout_json: mergedLayout,
-      style_json: cloneJsonValue(input.currentStyleJson),
+      slug: input.slug,
+      title: input.title,
+      layout_json: patched.layoutJson,
+      style_json: patched.styleJson,
+      metadata: {
+        ...input.proposal.proposal.metadata,
+        ai_contract_version: "hybrid_v1",
+        ai_edit_plan: normalizedPlan.editPlan,
+        ai_invariants: {
+          ...normalizedPlan.invariants,
+          ...patched.invariants,
+          target_resolutions: patched.resolutions,
+        },
+        base_version: {
+          id: input.baseVersion.id,
+          version_number: input.baseVersion.version_number,
+          status: input.baseVersion.status,
+        },
+      },
     },
   }
 }
@@ -3400,8 +3489,6 @@ Deno.serve(async (req) => {
       const path = normalizeString(body.path)
       const message = normalizeString(body.message)
       const currentHtml = normalizeString(body.currentHtml)
-      const currentLayoutJson = body.currentLayoutJson && typeof body.currentLayoutJson === "object" ? body.currentLayoutJson : {}
-      const currentStyleJson = body.currentStyleJson && typeof body.currentStyleJson === "object" ? body.currentStyleJson : {}
       const attachments = Array.isArray(body.attachments) ? body.attachments : []
 
       if (!slug) throw badRequest("slug e obrigatorio")
@@ -3420,6 +3507,14 @@ Deno.serve(async (req) => {
       if (config.config_value.allowed_paths.length > 0 && !config.config_value.allowed_paths.includes(path)) {
         throw forbidden("Rota nao habilitada para o editor via IA")
       }
+
+      if (!isKnownManagedSitePageSlug(slug)) {
+        throw unprocessable("Esta fase do editor seguro está restrita a páginas públicas com slug conhecido.")
+      }
+
+      const managedPageContext = await fetchManagedBaseVersion(serviceClient, slug)
+      const authoritativeLayoutJson = managedPageContext.baseVersion.layout_json
+      const authoritativeStyleJson = managedPageContext.baseVersion.style_json
 
       const validAttachments = attachments.map((item, index) => {
         const attachment = item as AttachmentInput
@@ -3450,8 +3545,8 @@ Deno.serve(async (req) => {
       const userPrompt = buildUserPrompt({
         message,
         currentHtml,
-        currentLayoutJson,
-        currentStyleJson,
+        currentLayoutJson: authoritativeLayoutJson,
+        currentStyleJson: authoritativeStyleJson,
         attachments: validAttachments,
       })
 
@@ -3531,10 +3626,18 @@ Deno.serve(async (req) => {
         proposal: validateProposal(parsed),
         message,
         slug,
+        title,
         path,
-        currentLayoutJson,
-        currentStyleJson,
+        baseVersion: managedPageContext.baseVersion,
+        attachments: validAttachments,
       })
+      const editPlan = proposal.edit_plan
+      const proposalInvariants =
+        proposal.proposal.metadata.ai_invariants &&
+        typeof proposal.proposal.metadata.ai_invariants === "object" &&
+        !Array.isArray(proposal.proposal.metadata.ai_invariants)
+          ? (proposal.proposal.metadata.ai_invariants as Record<string, unknown>)
+          : {}
 
       const usage =
         providerUsed === "gemini"
@@ -3576,6 +3679,9 @@ Deno.serve(async (req) => {
             attachment_count: validAttachments.length,
             require_confirmation: config.config_value.require_confirmation,
             pricing_source: pricing?.pricing_source ?? null,
+            base_version_id: managedPageContext.baseVersion.id,
+            base_version_number: managedPageContext.baseVersion.version_number,
+            base_version_status: managedPageContext.baseVersion.status,
             mode: editPlan?.mode ?? null,
             scope: editPlan?.scope ?? null,
             risk_level: editPlan?.risk_level ?? null,
@@ -3597,6 +3703,9 @@ Deno.serve(async (req) => {
           path,
           provider_used: providerUsed,
           attachment_count: validAttachments.length,
+          base_version_id: managedPageContext.baseVersion.id,
+          base_version_number: managedPageContext.baseVersion.version_number,
+          base_version_status: managedPageContext.baseVersion.status,
           mode: editPlan?.mode ?? null,
           scope: editPlan?.scope ?? null,
           risk_level: editPlan?.risk_level ?? null,
