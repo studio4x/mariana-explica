@@ -1,91 +1,157 @@
-# Especificação do Editor com IA
+# Especificacao do Editor com IA
 
-Documento gerado em 2026-06-15 com base no estado do código da build `1.0.0-94-ai-editor-safe-draft-context`.
+Documento reescrito em 2026-06-16 a partir do estado real do codigo da build `1.0.0-106-header-spacing-routing`, commit `d09a69a700d3168b670d9be9452f91909f1d2e8e`.
 
-## 1. Objetivo
+## 1. Visao Geral
 
-O Editor com IA permite que administradores façam ajustes pontuais em páginas do site através de um chat embutido no frontend.
+O Editor com IA e um sistema administrativo de edicao assistida que permite:
 
-O objetivo operacional é:
+- conversar com um launcher flutuante no frontend;
+- entender o pedido do admin em linguagem natural;
+- decidir se o pedido precisa de esclarecimento, confirmacao ou proposta pronta;
+- gerar um patch seguro para paginas publicas geridas por `site_page_versions`;
+- aplicar o resultado em modo rascunho, abrir previa, publicar, desfazer ou restaurar revisoes;
+- editar separadamente o texto global do header e do footer;
+- registrar uso, custo estimado, auditoria e metadados tecnicos no backend.
 
-- propor alterações em páginas geridas pelo builder;
-- aplicar apenas mudanças locais, principalmente texto e tipografia;
-- preservar estrutura, layout, CTAs, rotas, responsividade e lógica funcional;
-- exigir confirmação antes de persistir e publicar;
-- manter auditoria, telemetria de uso e segredos no backend/Supabase.
+Ele nao e um gerador livre de paginas. O sistema foi desenhado para alteracoes localizadas, com prioridade para:
 
-O editor não é um gerador livre de páginas. Ele é um assistente restrito para alterações cirúrgicas em conteúdo existente.
+- texto;
+- tipografia;
+- spacing pontual;
+- pequenos ajustes de estilo;
+- ajustes de alvo com confirmacao;
+- preservacao de estrutura, CTAs, rotas, responsividade e comportamento funcional.
 
-## 2. Componentes Principais
+## 2. Snapshot Atual
 
-### Frontend
+### 2.1 Build documentada
 
-Arquivos principais:
+- Build label: `1.0.0-106-header-spacing-routing`
+- Commit: `d09a69a700d3168b670d9be9452f91909f1d2e8e`
+- Data da documentacao: `2026-06-16`
+
+### 2.2 Arquivos principais
+
+Frontend:
 
 - `src/components/common/SiteAiPageEditorLauncher.tsx`
+- `src/components/common/SiteAiPageEditorLauncher.test.tsx`
 - `src/pages/admin/AdminAiPageEditor.tsx`
 - `src/lib/ai-page-editor.ts`
+- `src/lib/ai-page-editor-response.ts`
+- `src/lib/site-page-preview.ts`
 - `src/services/admin.service.ts`
 - `src/hooks/useAdmin.ts`
 - `src/types/app.types.ts`
-- `src/lib/site-page-builder.ts`
-- `src/lib/site-page-preview.ts`
 
-Funções principais:
+Backend:
 
-- `SiteAiPageEditorLauncher`: chat flutuante disponível nas rotas habilitadas.
-- `AdminAiPageEditor`: tela administrativa de configuração, provedores, segredos, rotas e métricas.
-- `getAiPageEditorRouteOption`: resolve se a rota atual é suportada pelo editor.
-- `isAiPageEditorAllowedPath`: valida rotas liberadas por configuração.
-- `generateAdminAiPageEditorProposal`: chama a Edge Function para gerar proposta.
-- `saveAdminSitePageDraft`: persiste a proposta como rascunho.
-- `publishAdminSitePageVersion`: publica a versão confirmada.
-- `rollbackAdminSitePageVersion`: define outra versão como publicada.
+- `supabase/functions/admin-ai-page-editor/index.ts`
+- `supabase/functions/admin-ai-page-editor/conversation.ts`
+- `supabase/functions/admin-ai-page-editor/spacing-intent.ts`
+- `supabase/functions/admin-ai-page-editor/contract.ts`
+- `supabase/functions/admin-ai-page-editor/safety.ts`
+- `supabase/functions/admin-ai-page-editor/patch-engine.ts`
+- `supabase/functions/admin-ai-page-editor/confirmed-intent.ts`
+- `supabase/functions/admin-ai-page-editor/operational-state.ts`
+- `supabase/functions/admin-ai-page-editor/proposal-guards.ts`
 
-### Supabase Edge Functions
-
-Funções principais:
-
-- `admin-ai-page-editor`
-- `admin-page-builder`
-- `admin-page-assets`
-
-`admin-ai-page-editor` gera propostas, testa provedores, lê/grava configuração e registra métricas.
-
-`admin-page-builder` salva rascunhos, publica versões, faz rollback e lista versões.
-
-`admin-page-assets` trata upload de assets do builder visual.
-
-### Banco de Dados
-
-Tabelas envolvidas:
+Banco e suporte:
 
 - `public.site_config`
 - `public.site_pages`
 - `public.site_page_versions`
-- `public.site_page_assets`
 - `public.ai_page_editor_usage_events`
 - `public.audit_logs`
 - `vault.decrypted_secrets`
 
-Funções SQL relevantes:
+## 3. Objetivo de Produto
 
-- `public.get_platform_vault_secret(p_name text)`
-- `public.upsert_platform_vault_secret(p_name text, p_secret text, p_description text)`
-- `public.is_admin()`
-- `public.set_updated_at()`
+O objetivo operacional do editor hoje e:
 
-## 3. Rotas e Visibilidade
+- permitir ajustes pontuais por chat sem abrir o builder completo;
+- manter uma conversa curta e nao tecnica com o admin;
+- validar se o pedido e claro antes de gerar proposta;
+- favorecer um fluxo deterministico quando o pedido confirmado bater com padroes conhecidos de spacing;
+- bloquear sucesso falso quando nao houver diff real, previa valida ou base segura;
+- separar claramente:
+  - conversa de entendimento;
+  - proposta pronta;
+  - copia global de header/footer;
+  - fluxo persistivel de draft/preview/publish;
+  - telemetria e auditoria.
 
-As rotas padrão estão em `src/lib/ai-page-editor.ts`.
+## 4. Arquitetura Atual
 
-Rotas configuradas por padrão:
+### 4.1 Visao em camadas
 
-- `/`
-- `/sobre`
-- `/privacidade`
-- `/cookies`
-- `/termos-de-uso`
+1. Frontend administrativo e layouts publicos/aluno montam o launcher.
+2. O launcher recolhe contexto da rota atual, HTML atual, `layout_json`, `style_json`, anexos e estado conversacional.
+3. O frontend envia pedidos para a Edge Function `admin-ai-page-editor`.
+4. A Edge Function:
+   - valida admin e rota;
+   - seleciona a base segura da pagina;
+   - processa entendimento conversacional;
+   - gera proposta deterministica ou via provedor;
+   - devolve estado operacional completo.
+5. O frontend avalia se a proposta e aplicavel.
+6. Quando aplicavel, o frontend salva draft via `admin-page-builder`, grava previa local e oferece:
+   - confirmar publicacao;
+   - desfazer;
+   - restaurar revisao.
+
+### 4.2 Onde o launcher aparece
+
+O componente `SiteAiPageEditorLauncher` e montado em:
+
+- `src/layouts/PublicLayout.tsx`
+- `src/layouts/DashboardLayout.tsx`
+- `src/pages/student/StudentCoursePlayerLayout.tsx`
+
+Isso significa que o launcher pode aparecer em areas publicas e privadas, mas a renderizacao continua condicionada por:
+
+- usuario autenticado;
+- `isAdmin === true`;
+- rota suportada;
+- rota permitida em configuracao;
+- editor habilitado.
+
+### 4.3 Tela administrativa dedicada
+
+A tela `src/pages/admin/AdminAiPageEditor.tsx` existe para:
+
+- ativar/desativar o editor;
+- definir `launcher_label`;
+- selecionar rotas permitidas;
+- escolher provedor principal e fallback;
+- configurar modelos Gemini/OpenAI;
+- configurar quantidade e tamanho maximo de anexos;
+- editar o `base_prompt`;
+- controlar `require_confirmation`;
+- escolher `panel_width`;
+- guardar chaves Gemini/OpenAI;
+- testar provedores;
+- visualizar metricas e eventos recentes.
+
+## 5. Rotas Suportadas
+
+As rotas padrao vivem em `AI_PAGE_EDITOR_ROUTE_OPTIONS` em `src/lib/ai-page-editor.ts`.
+
+### 5.1 Rotas com fluxo persistivel
+
+Estas rotas possuem `slug` conhecido e participam do fluxo de draft/preview/publish:
+
+- `/` -> `home`
+- `/sobre` -> `sobre`
+- `/privacidade` -> `privacidade`
+- `/cookies` -> `cookies`
+- `/termos-de-uso` -> `termos`
+
+### 5.2 Rotas somente de contexto
+
+Estas rotas podem aparecer na configuracao e no launcher, mas hoje nao entram no fluxo persistivel de patch publicado:
+
 - `/aluno/dashboard`
 - `/aluno/cursos`
 - `/aluno/cursos/:courseId`
@@ -96,41 +162,33 @@ Rotas configuradas por padrão:
 - `/aluno/chamados`
 - `/aluno/perfil`
 
-O launcher só renderiza quando:
+### 5.3 Modos internos de capacidade
 
-- o usuário está autenticado;
-- o usuário é admin;
-- a rota atual corresponde a uma rota configurada;
-- o editor está habilitado na configuração;
-- a rota está presente em `allowed_paths`.
+`getAiPageEditorRouteCapability(pathname)` classifica a rota em:
 
-Páginas com `slug` conhecido podem persistir rascunhos no builder. Rotas sem `slug` podem gerar análise/proposta, mas não seguem o mesmo fluxo de rascunho de página pública.
+- `managed_site_page`
+- `context_only`
 
-## 4. Configuração Administrativa
+E devolve:
 
-A tela `AdminAiPageEditor` permite configurar:
+- `routeOption`
+- `supportsPersistibleFlow`
+- `mode`
+- `reason`
 
-- ativação do editor;
-- texto do botão/launcher;
-- rotas permitidas;
-- provedor principal;
-- provedor fallback;
-- modelo Gemini;
-- modelo OpenAI;
-- limite de anexos;
-- tamanho máximo por anexo;
-- prompt base;
-- exigência de confirmação;
-- largura do painel;
-- chaves Gemini/OpenAI.
+Quando `supportsPersistibleFlow === false`, o launcher informa que o fluxo seguro com draft/preview/publish esta restrito a paginas publicas com slug conhecido.
 
-A configuração fica em:
+## 6. Configuracao e Segredos
+
+### 6.1 Chave de configuracao
+
+O editor usa:
 
 ```sql
 public.site_config.config_key = 'ai_page_editor_config'
 ```
 
-Estrutura de `config_value`:
+### 6.2 Estrutura atual de `config_value`
 
 ```json
 {
@@ -143,126 +201,519 @@ Estrutura de `config_value`:
   "openai_model": "gpt-4.1-mini",
   "max_attachments": 2,
   "max_attachment_size_mb": 8,
-  "base_prompt": "...",
+  "base_prompt": "",
   "require_confirmation": true,
   "panel_width": "wide"
 }
 ```
 
-Normalizações aplicadas no backend:
+### 6.3 Normalizacao aplicada no backend
 
-- `primary_provider`: somente `gemini` ou `openai`, com fallback para `gemini`.
-- `fallback_provider`: somente `gemini` ou `openai`, com fallback para `openai`.
-- `max_attachments`: limitado entre 0 e 6.
-- `max_attachment_size_mb`: limitado entre 1 e 20.
-- `require_confirmation`: verdadeiro por padrão.
-- `panel_width`: `wide` ou `compact`.
+`normalizeConfigValue(raw)` em `index.ts` aplica:
 
-## 5. Segredos e Provedores IA
+- `enabled`: so fica `true` quando o valor recebido e explicitamente `true`;
+- `launcher_label`: fallback para `Editar com IA`;
+- `allowed_paths`: array de strings normalizadas;
+- `primary_provider`: `gemini` ou `openai`;
+- `fallback_provider`: `gemini` ou `openai`, com fallback pratico para `openai` quando o valor nao e `gemini`;
+- `gemini_model`: fallback `gemini-2.0-flash`;
+- `openai_model`: fallback `gpt-4.1-mini`;
+- `max_attachments`: clamp entre `0` e `6`;
+- `max_attachment_size_mb`: clamp entre `1` e `20`;
+- `base_prompt`: string;
+- `require_confirmation`: `true` por padrao;
+- `panel_width`: `compact` ou `wide`.
 
-Os segredos não ficam no frontend.
+### 6.4 Segredos
 
-Nomes dos segredos:
+Segredos usados:
 
 - `mariana_explica_ai_gemini_api_key`
 - `mariana_explica_ai_openai_api_key`
 
-Leitura:
+Regras:
 
-```sql
-public.get_platform_vault_secret(p_name text)
-```
+- os valores reais nao voltam para o frontend;
+- o frontend recebe apenas `gemini_api_key_present` e `openai_api_key_present`;
+- escrita e leitura sao feitas pelo backend com Vault.
 
-Gravação:
+## 7. Provedores e Modelos
 
-```sql
-public.upsert_platform_vault_secret(p_name text, p_secret text, p_description text)
-```
+### 7.1 Provedores suportados
 
-Permissões:
+- Gemini
+- OpenAI
 
-- execução concedida para `service_role`;
-- não expõe o valor real ao frontend;
-- o frontend recebe apenas status booleano:
-  - `gemini_api_key_present`
-  - `openai_api_key_present`
-
-Provedores suportados:
-
-- Gemini via `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
-- OpenAI via `https://api.openai.com/v1/responses`
-
-Modelos padrão:
+### 7.2 Modelos padrao
 
 - Gemini: `gemini-2.0-flash`
 - OpenAI: `gpt-4.1-mini`
 
-Ordem de execução:
+### 7.3 Ordem de execucao
 
-- tenta o provedor principal;
-- se falhar ou estiver sem chave, tenta o fallback;
-- registra falhas por provedor;
-- retorna erro consolidado se nenhum provedor responder.
+Sempre que ha geracao por LLM:
 
-## 6. Ações da Edge Function `admin-ai-page-editor`
+1. tenta o provedor principal configurado;
+2. se faltar chave ou houver erro, tenta o fallback;
+3. acumula falhas por provedor;
+4. retorna erro consolidado se nenhum responder.
 
-Todas as ações exigem admin via `requireAdmin(req)`.
+### 7.4 Teste de provedores
 
-`verify_jwt = false` no `supabase/config.toml`, portanto a validação JWT é manual dentro da função.
+A action `test_providers`:
 
-### `get_config`
+- testa os provedores na ordem configurada;
+- devolve `provider_results`;
+- classifica cada provedor como:
+  - `ok`
+  - `missing_key`
+  - `quota_exceeded`
+  - `error`
+- grava evento de uso quando houver resposta com tokens;
+- grava auditoria `admin.ai_page_editor_provider_tested`.
+
+## 8. Tipos e Contratos Principais
+
+### 8.1 Escopos
+
+`AdminAiPageEditorScope`:
+
+- `text`
+- `block`
+- `section`
+- `page`
+- `header`
+- `footer`
+
+### 8.2 Modos
+
+`AdminAiPageEditorMode`:
+
+- `text_patch`
+- `style_patch`
+- `spacing_patch`
+- `section_layout_patch`
+- `section_replace`
+
+### 8.3 Tipos de operacao
+
+`AdminAiPageEditorOperationType`:
+
+- `set_style`
+- `remove_style`
+- `update_text`
+- `move_node`
+- `replace_section`
+- `set_responsive_rule`
+- `wrap_children`
+- `unwrap_children`
+- `change_columns`
+
+### 8.4 Breakpoints
+
+- `mobile`
+- `tablet`
+- `desktop`
+- `all`
+
+### 8.5 Status finais
+
+`AdminAiPageEditorFinalStatus`:
+
+- `needs_clarification`
+- `awaiting_intent_confirmation`
+- `proposal_ready`
+- `draft_saved`
+- `no_visible_change`
+- `blocked`
+- `error`
+
+### 8.6 Fases conversacionais
+
+`AdminAiPageEditorConversationPhase`:
+
+- `understanding`
+- `needs_clarification`
+- `awaiting_intent_confirmation`
+- `ready_for_proposal`
+
+### 8.7 Estrutura de `edit_plan`
+
+```json
+{
+  "scope": "section",
+  "mode": "spacing_patch",
+  "target_ids": ["page_wrapper_spacing"],
+  "risk_level": "low",
+  "requires_strict_confirmation": true,
+  "operations": [
+    {
+      "type": "set_style",
+      "target_id": "page_wrapper_spacing",
+      "path": "padding-top",
+      "value": 0,
+      "breakpoint": "all"
+    }
+  ]
+}
+```
+
+### 8.8 Estrutura de resposta conversacional
+
+`generate_proposal` devolve sempre estado operacional, mesmo quando ainda nao existe proposta final:
+
+```json
+{
+  "success": true,
+  "request_id": "string",
+  "client_request_id": "string | null",
+  "provider_used": "openai | gemini",
+  "conversation_phase": "needs_clarification | awaiting_intent_confirmation | ready_for_proposal",
+  "assistant_message": "string",
+  "quick_replies": ["string"],
+  "understanding_summary": "string | null",
+  "confirmation_token": "string | null",
+  "confirmation_consumed": true,
+  "requires_user_confirmation": false,
+  "can_generate_proposal": true,
+  "warnings": ["string"],
+  "summary": "string",
+  "explanation": "string",
+  "edit_plan": {},
+  "proposal": {},
+  "final_status": "proposal_ready",
+  "change_detected": true,
+  "draft_saved": false,
+  "preview_available": true,
+  "change_summary": {
+    "layout_changed": true,
+    "style_changed": true,
+    "html_changed": false
+  }
+}
+```
+
+### 8.9 Metadados da proposta
+
+`proposal.metadata` pode conter:
+
+- `ai_contract_version`
+- `ai_edit_plan`
+- `base_version`
+- `ai_invariants`
+
+Campos relevantes dentro de `ai_invariants`:
+
+- `target_resolutions`
+- `spacing_diagnosis`
+- `supports_persistible_flow`
+- `scoped_patch`
+- `preview_renderable`
+- `desktop_renderable`
+- `mobile_renderable`
+- `context_source`
+- `degraded_draft_bypassed`
+- `context_selection_reason`
+- `published_version_id`
+- `latest_draft_id`
+- `plan_source`
+- `patch_engine_version`
+
+## 9. Frontend: Launcher
+
+### 9.1 Componente principal
+
+`SiteAiPageEditorLauncher` e o centro do fluxo interativo.
+
+Responsabilidades:
+
+- descobrir a rota atual;
+- decidir se o launcher pode renderizar;
+- ler a pagina atual publica e o detalhe admin da pagina;
+- compor o contexto atual do chat;
+- gerir anexos, captura de area e token de previa;
+- rotear pedidos de header/footer;
+- chamar o backend para entendimento/proposta;
+- avaliar se a proposta e aplicavel;
+- salvar draft, publicar, desfazer e restaurar revisoes.
+
+### 9.2 Renderizacao
+
+O launcher so aparece quando:
+
+- `isAdmin === true`;
+- `authLoading === false`;
+- `allowedPath === true`;
+- a configuracao nao esta desativada.
+
+### 9.3 Mensagem inicial do chat
+
+O texto inicial informa que o sistema:
+
+- ajusta texto, partes da pagina e areas globais;
+- precisa que header/footer sejam mencionados explicitamente;
+- aceita imagem colada ou captura de area;
+- nao altera permissoes, pagamentos, RLS, integracoes ou segredos;
+- tende a ser conservador em pedidos vagos;
+- reinicia a conversa depois de uma alteracao concluida.
+
+### 9.4 Estado interno relevante
+
+O launcher mantem, entre outros:
+
+- `message`
+- `attachments`
+- `proposal`
+- `messages`
+- `feedback`
+- `sendStatus`
+- `conversationPhase`
+- `understandingSummary`
+- `clarificationQuestionsCount`
+- `lastQuickReplySelected`
+- `confirmationToken`
+- `awaitingImplementation`
+- `pendingPublication`
+- `postApplyDecision`
+- `selectedRevisionId`
+- estado de captura de area
+- `activeClientRequestIdRef`
+
+### 9.5 Captura de pagina e anexos
+
+Suporta:
+
+- `paste` de imagens;
+- upload de imagem por input;
+- recorte de area com `html2canvas`;
+- armazenamento local dos anexos como `data_url`.
+
+Limites:
+
+- quantidade maxima vem de `config.config_value.max_attachments`;
+- tamanho maximo por ficheiro vem de `max_attachment_size_mb`.
+
+### 9.6 Preview local temporario
+
+`src/lib/site-page-preview.ts` grava uma previa em `localStorage` com:
+
+- prefixo `me:site-page-preview:`
+- query param `builder-preview`
+- TTL de 6 horas
+
+O payload guarda:
+
+- `slug`
+- `html`
+- `css`
+- `summary`
+- `explanation`
+- `warnings`
+- `editPlan`
+- `baseVersion`
+- `targetResolutions`
+- `aiInvariants`
+- `highlightSelectors`
+
+## 10. Frontend: Ordem de Roteamento em `handleSend`
+
+Quando o admin envia uma mensagem, o launcher segue esta ordem:
+
+1. monta `conversationContext`;
+2. cria `clientRequestId`;
+3. detecta se a mensagem consome uma confirmacao simples pendente;
+4. adiciona a mensagem ao chat;
+5. aguarda um frame para estabilizar a UI;
+6. tenta um dos branches abaixo.
+
+### 10.1 Branch de header global
+
+Executa somente se `messageStrictlyTargetsGlobalHeader(message)` devolver `true`.
+
+Regra atual:
+
+- nao basta mencionar `cabecalho/header`;
+- o pedido precisa parecer explicitamente textual;
+- pedidos visuais de spacing perto do header sao bloqueados desse branch.
+
+O launcher usa `messageLooksLikeVisualSpacingRequest()` para evitar falsos positivos como:
+
+- `entre o cabecalho e a primeira secao`
+- `faixa branca entre o menu e a primeira secao`
+- `espaco acima da primeira secao`
+
+Se o branch de header roda:
+
+- chama `generateAdminAiHeaderCopyProposal`;
+- so considera sucesso quando o texto persistido muda de facto;
+- atualiza `site_branding`;
+- faz broadcast de branding;
+- reinicia a conversa apos sucesso.
+
+### 10.2 Branch de footer global
+
+Fluxo analogo ao do header, usando:
+
+- `generateAdminAiFooterCopyProposal`
+- `footer_description`
+
+### 10.3 Branch bloqueado por rota nao persistivel
+
+Se a rota atual for `context_only`, o launcher devolve uma mensagem amigavel dizendo que o fluxo seguro de draft/preview/publicacao esta restrito a paginas publicas geridas por `site_page_versions`.
+
+### 10.4 Branch principal de proposta de pagina
+
+Quando a rota suporta persistencia:
+
+- chama `generateAdminAiPageEditorProposal`;
+- passa `clientRequestId`;
+- envia `slug`, `title`, `path`, `message`;
+- envia `currentLayoutJson`, `currentStyleJson`, `currentHtml`;
+- envia anexos;
+- envia `conversationContext`.
+
+Protecoes relevantes:
+
+- respostas stale sao ignoradas quando `client_request_id` nao bate;
+- respostas stale tambem sao ignoradas quando `activeClientRequestIdRef` mudou;
+- `blocked` e `error` limpam a fase conversacional local;
+- `no_visible_change` remove a proposta da UI e mostra a mensagem padrao de no-op.
+
+## 11. Frontend: Aplicacao da Proposta
+
+### 11.1 Avaliacao local
+
+O launcher usa `assessAiPageEditorProposal()` para decidir se a proposta:
+
+- esta `ready`;
+- precisa de `review`;
+- ou esta `blocked`.
+
+Essa avaliacao verifica:
+
+- se a rota suporta persistencia;
+- se `change_detected === true`;
+- se `preview_available === true`;
+- se existe `base_version`;
+- se todos os targets foram resolvidos;
+- se nao ha confidence baixa;
+- se o resultado e renderizavel em preview, desktop e mobile;
+- se ha operacoes semiassistidas (`move_node`, `wrap_children`, `unwrap_children`).
+
+### 11.2 Guardar rascunho
+
+`applyDraftFromProposal()`:
+
+1. reavalia a proposta;
+2. monta snapshot da versao atual;
+3. salva draft via `saveAdminSitePageDraft`;
+4. sincroniza cache local;
+5. compara diff persistido real com `detectManagedPageOperationDiff()`;
+6. grava previa local;
+7. abre o token `builder-preview` na mesma rota.
+
+O draft recebe metadata adicional:
+
+- `editor: "ai-page-editor"`
+- `source: provider_used`
+- `updated_at`
+- `ai_revision_kind: "proposal_apply"`
+
+### 11.3 Confirmar alteracoes
+
+`handleConfirmAppliedChanges()`:
+
+- publica o draft via `publishMutation`;
+- limpa preview local;
+- refaz queries e conteudo atual;
+- guarda `postApplyDecision`;
+- mostra mensagem de sucesso.
+
+### 11.4 Desfazer alteracao pendente
+
+`handleUndoAppliedChanges()`:
+
+- pega no snapshot anterior;
+- salva um novo draft com esse estado;
+- reabre a previa;
+- atualiza cache;
+- marca que a pagina voltou ao estado anterior.
+
+### 11.5 Revisoes
+
+O launcher permite:
+
+- pre-visualizar qualquer revisao;
+- cancelar a pre-visualizacao;
+- definir a revisao escolhida como atual via `rollbackMutation`;
+- restaurar uma revisao como novo draft.
+
+## 12. Backend: Edge Function `admin-ai-page-editor`
+
+### 12.1 Regras gerais
+
+- action unica com `POST`;
+- `requireAdmin(req)` em todas as actions;
+- leitura do body via `readJsonBody<Body>()`;
+- resposta sempre com `request_id`;
+- auditoria via `writeAuditLog`;
+- uso/custo via `recordUsageEvent`.
+
+### 12.2 Actions suportadas
+
+- `get_config`
+- `update_config`
+- `test_providers`
+- `generate_proposal`
+- `generate_header_copy`
+- `generate_footer_copy`
+- `get_usage_metrics`
+
+### 12.3 `get_config`
 
 Retorna:
 
-- configuração normalizada;
-- status dos segredos.
+- `config`
+- `secret_status`
 
-### `update_config`
+### 12.4 `update_config`
 
-Entrada:
+Recebe:
 
 - `configValue`
 - `geminiApiKey`
 - `openaiApiKey`
 
-Comportamento:
+E faz:
 
-- normaliza configuração;
-- grava `site_config`;
-- grava segredos no Vault quando enviados;
-- registra auditoria `admin.ai_page_editor_config_updated`.
+- normalizacao de `configValue`;
+- escrita em `site_config`;
+- escrita opcional das chaves no Vault;
+- retorno da configuracao salva;
+- retorno de `secret_status`;
+- auditoria `admin.ai_page_editor_config_updated`.
 
-### `test_providers`
-
-Comportamento:
-
-- testa provedores na ordem configurada;
-- usa prompt mínimo para obter `{"ok": true}`;
-- classifica falhas como:
-  - `ok`
-  - `missing_key`
-  - `quota_exceeded`
-  - `error`
-- registra uso em `ai_page_editor_usage_events` quando há resposta com tokens;
-- registra auditoria `admin.ai_page_editor_provider_tested`.
-
-### `get_usage_metrics`
-
-Entrada:
-
-- `periodDays`, normalizado entre 1 e 365.
+### 12.5 `test_providers`
 
 Retorna:
 
-- resumo de pedidos;
-- tokens de entrada/saída;
-- custo estimado;
-- breakdown por provedor/modelo/ação;
-- últimos 20 eventos.
+- `summary`
+- `details`
+- `provider_results`
+- `secret_status`
 
-### `generate_proposal`
+### 12.6 `get_usage_metrics`
 
-Entrada obrigatória:
+Normaliza `periodDays` entre `1` e `365` e devolve:
+
+- `summary`
+- `breakdown`
+- `recent_events`
+- `pricing_reference`
+
+## 13. Backend: Pipeline de `generate_proposal`
+
+### 13.1 Entradas obrigatorias
 
 - `slug`
 - `title`
@@ -271,879 +722,613 @@ Entrada obrigatória:
 - `currentLayoutJson`
 - `currentStyleJson`
 - `currentHtml`
+
+Entradas adicionais:
+
 - `attachments`
+- `conversationContext`
+- `client_request_id`
 
-Comportamento:
+### 13.2 Validacoes iniciais
 
-- valida configuração ativa;
-- valida rota em `allowed_paths`;
-- bloqueia CSS estrutural em páginas geridas por blocos quando não é tipografia;
-- valida anexos;
-- monta prompt de sistema;
-- monta prompt de usuário com HTML, layout JSON e style JSON atuais;
-- chama provedor principal/fallback;
-- valida JSON de resposta;
-- estabiliza a proposta para proteger layout;
-- registra uso;
-- registra auditoria `admin.ai_page_editor_proposal_generated`.
+O backend:
 
-### `generate_header_copy`
+- confirma que o editor esta ativo;
+- confirma que a rota esta em `allowed_paths`;
+- valida anexos:
+  - `data_url` obrigatoria;
+  - tamanho por anexo;
+  - quantidade maxima;
+- normaliza `conversationContext`.
 
-Atualiza apenas texto global de header.
+### 13.3 Selecao da base segura
 
-Entrada:
+Para rotas publicas com slug conhecido, a function obtem:
 
-- `title`
-- `path`
-- `message`
-- `currentHeaderText`
+- `publishedVersion`
+- `latestDraft`
 
-Retorno:
+Depois chama `selectAiBaseVersion()` de `safety.ts`.
 
-- `header_announcement`
+Essa escolha pode:
 
-Auditoria:
+- usar `latest_draft`;
+- usar `published_version`;
+- ou retornar `none`.
 
-- `admin.ai_page_editor_header_copy_generated`
+`published_version` ganha prioridade quando o draft parecer degradado, por exemplo:
 
-### `generate_footer_copy`
+- versao mais antiga que a publicada;
+- sem blocos geridos;
+- com menos blocos que a publicada;
+- com texto muito mais curto;
+- sem texto suficiente para contexto.
 
-Atualiza apenas texto global de footer.
+O resultado segue com:
 
-Entrada:
+- `baseVersion`
+- `baseVersionSource`
+- `degradedDraftBypassed`
+- `baseVersionSelectionReason`
 
-- `title`
-- `path`
-- `message`
-- `currentFooterText`
+### 13.4 Roteamento conversacional
 
-Retorno:
+O backend decide entre tres branches internos:
 
-- `footer_description`
+1. `understanding_turn`
+2. `confirmed_intent_patch`
+3. `provider_full_proposal`
 
-Auditoria:
+O log dessa decisao fica em:
 
-- `admin.ai_page_editor_footer_copy_generated`
+- `branch_selected`
+- `confirmed_intent_scope`
+- `fallback_reason`
 
-## 7. Contrato da Proposta IA
+## 14. Branch `understanding_turn`
 
-Resposta esperada para edição de página:
+Este branch roda quando o entendimento ainda nao foi confirmado.
 
-```json
-{
-  "summary": "string",
-  "explanation": "string",
-  "warnings": ["string"],
-  "proposal": {
-    "slug": "string",
-    "title": "string",
-    "layout_json": "{\"projectData\":{\"blocks\":[]}}",
-    "style_json": "{}",
-    "metadata": "{}"
-  }
-}
-```
+### 14.1 Como a confirmacao e detectada
 
-Observações:
+Usa:
 
-- `layout_json`, `style_json` e `metadata` devem vir como strings JSON.
-- O backend também aceita objetos em alguns casos, mas o prompt exige string JSON.
-- `layout_json` deve conter `projectData.blocks`, `blocks` no root ou HTML convertível.
-- HTML bruto solto é convertido em bloco `rich_text` fallback somente quando necessário.
-- JSON serializado dentro de `html` é desembrulhado recursivamente antes de salvar.
+- `isExplicitUnderstandingConfirmation()`
+- `isExplicitUnderstandingRejection()`
+- `buildUnderstandingConfirmationToken()`
+- `matchesUnderstandingConfirmationToken()`
 
-## 8. Fluxo de Edição no Frontend
+Uma confirmacao simples so vale quando:
 
-### 1. Abertura
+- a fase recebida era `awaiting_intent_confirmation`;
+- a mensagem e curta e afirmativa;
+- o token bate, quando existe token.
 
-O botão flutuante aparece nas rotas permitidas para admin.
+### 14.2 O que o modelo de entendimento devolve
 
-O chat inicial informa:
+O entendimento trabalha com:
 
-- que pode ajustar texto e áreas globais;
-- que header/footer precisam ser citados explicitamente;
-- que pode receber anexos ou captura de área;
-- que não altera permissões, pagamentos, RLS, integrações ou segredos.
+- `phase`
+- `assistant_message`
+- `understanding_summary`
+- `quick_replies`
+- `ambiguity_detected`
 
-### 2. Envio da mensagem
+O sistema prompt obriga:
 
-Ao enviar:
+- linguagem nao tecnica;
+- uma pergunta curta por vez quando faltar contexto;
+- distincao entre:
+  - espaco externo antes da primeira secao;
+  - topo da primeira secao;
+  - espaco interno da primeira secao;
+  - header textual vs spacing visual.
 
-- adiciona mensagem do usuário ao chat;
-- bloqueia textarea/botão;
-- mostra status de processamento;
-- identifica se o pedido mira header/footer global;
-- bloqueia CSS estrutural em página de blocos;
-- envia contexto atual para `admin-ai-page-editor`.
+### 14.3 Estados resultantes
 
-### 3. Geração da proposta
+Se a fase for:
 
-O backend retorna:
+- `needs_clarification`: o frontend recebe quick replies e volta a perguntar;
+- `awaiting_intent_confirmation`: o frontend recebe `confirmation_token`;
+- `ready_for_proposal`: nao deveria ser o estado principal desta etapa, mas e suportado pelo contrato conversacional.
 
-- resumo;
-- explicação;
-- warnings;
-- proposta.
+## 15. Branch `confirmed_intent_patch`
 
-O frontend mostra botões de confirmação quando a página pode persistir rascunho.
+Este branch e a maior diferenca do editor atual em relacao ao estado antigo.
 
-### 4. Implementar
+### 15.1 Objetivo
 
-Ao clicar em `Implementar`:
+Quando o pedido foi confirmado e bate com um conjunto conhecido de intents de spacing, o backend evita nova rodada cara de LLM e materializa uma proposta deterministica.
 
-- salva draft com `admin-page-builder.save_draft`;
-- gera prévia local com `storeSitePagePreview`;
-- navega para a mesma página com token de preview;
-- mostra botões:
-  - `Confirmar alterações`
-  - `Desfazer e voltar`
+### 15.2 Modulo usado
 
-### 5. Confirmar alterações
+`materializeConfirmedIntentProposal()` em `confirmed-intent.ts`.
 
-Ao confirmar:
+### 15.3 Casos cobertos
 
-- publica o draft via `admin-page-builder.publish`;
-- invalida queries de página pública/admin;
-- mantém a versão publicada como estado real.
+O fluxo hoje esta centrado em spacing no topo da pagina e da primeira secao, incluindo os alvos:
 
-### 6. Desfazer
+- `page_wrapper_spacing`
+- `first_section_spacing`
+- `section_internal_spacing`
 
-Ao desfazer:
+### 15.4 Distincao semantica atual
 
-- se houver snapshot anterior, salva um novo draft com o estado anterior;
-- publica esse draft para restaurar;
-- invalida queries;
-- limpa preview.
+1. `page_wrapper_spacing`
+   - espaco branco antes da primeira secao;
+   - fora da primeira secao;
+   - entre o header/menu e a primeira secao;
+   - inicio da pagina;
+   - antes do conteudo comecar.
 
-### 7. Revisões
+2. `first_section_spacing`
+   - topo da primeira secao;
+   - topo da area da secao;
+   - subir a faixa azul da primeira secao.
 
-O painel permite:
+3. `section_internal_spacing`
+   - dentro da primeira secao;
+   - espaco interno;
+   - padding interno da secao.
 
-- visualizar revisões;
-- carregar prévia de revisão;
-- definir revisão como atual via rollback.
+### 15.5 Regras fortes adicionadas
 
-## 9. Seleção Segura de Contexto
+O sistema atual prioriza fluxo visual quando o pedido menciona:
 
-O editor pode receber:
+- `espaco`
+- `faixa branca`
+- `distancia`
+- `respiro`
+- `intervalo visual`
+- `entre`
+- `acima`
+- `inicio da pagina`
 
-- latest draft;
-- versão publicada;
-- versão pública carregada.
+E nao permite que a palavra `cabecalho` sozinha puxe para header textual quando o pedido e claramente visual.
 
-Regra atual:
+### 15.6 Resultado do branch
 
-- usa `latest_draft` somente se ele não estiver degradado e não for mais antigo que a publicada;
-- usa publicada quando o draft tem `version_number` menor que a publicada;
-- usa publicada quando o draft tem menos blocos geridos que a publicada;
-- usa publicada quando o texto do draft está muito menor que o texto publicado.
+Quando o branch deterministico consegue gerar a proposta:
 
-Função:
+- `provider_used` fica no provedor principal configurado, mas sem consumo de tokens;
+- `input_tokens`, `output_tokens` e `total_tokens` ficam `0`;
+- `pricing_source` fica `deterministic_confirmed_intent`;
+- `confirmation_consumed` fica `true`;
+- `can_generate_proposal` fica `true`;
+- `quick_replies` ficam vazias;
+- o backend devolve proposta final com estado operacional completo.
 
-- `shouldUsePublishedVersionForAiContext`
+Se a materializacao falhar:
 
-Motivo:
+- nao ha fallback textual antigo;
+- o backend devolve erro amigavel de alvo;
+- o frontend nao mistura recusa textual com `no_visible_change`.
 
-- evitar que drafts antigos ou quebrados contaminem o contexto enviado à IA;
-- impedir falhas como “não encontrei alvo” quando o draft não contém o texto da página publicada.
+## 16. Branch `provider_full_proposal`
 
-## 10. Regras de Segurança de Layout
+Quando a intent confirmada nao e coberta pelo branch deterministico, o backend:
 
-O backend não confia cegamente na resposta da IA.
+1. monta prompt com HTML atual, `layout_json`, `style_json`, anexos e contexto;
+2. chama provedor principal/fallback;
+3. faz parse do JSON retornado;
+4. valida a proposta;
+5. estabiliza o resultado para aplicacao segura;
+6. calcula estado operacional;
+7. devolve a proposta final.
 
-Principais proteções:
+## 17. Modulos Internos do Backend
 
-- valida JSON de resposta;
-- normaliza `layout_json`;
-- recusa proposta sem blocos ou HTML convertível;
-- detecta pedido de texto;
-- detecta pedido de tipografia;
-- detecta pedido estrutural;
-- bloqueia CSS/classe estrutural em páginas geridas por blocos;
-- impede fragmentos parciais de `rich_text`;
-- impede troca de estrutura de blocos;
-- impede remoção de seções;
-- impede introdução inesperada de imagem placeholder;
-- exige preservação de footprint HTML em rich text;
-- exige que alterações textuais localizadas afetem no máximo um ponto;
-- exige envelope completo para propostas estruturais.
+### 17.1 `conversation.ts`
 
-### Envelope de layout
+Responsabilidades:
 
-A proposta precisa preservar:
+- normalizar `conversationContext`;
+- sanitizar texto e quick replies para remover termos tecnicos;
+- gerar e validar token de confirmacao;
+- detetar confirmacao e rejeicao explicitas.
 
-- quantidade de blocos;
-- tipos de blocos;
-- número de colunas/children em containers;
-- número de items em columns;
-- footprint HTML de blocos `rich_text`.
+Substituicoes de linguagem feitas por `sanitizeConversationText()` incluem:
 
-Funções relacionadas:
+- `padding` -> `espaco`
+- `margin` -> `espaco`
+- `wrapper` -> `bloco`
+- `layout` -> `estrutura`
+- `patch` -> `ajuste`
+- `proposal` -> `ajuste`
+- `css` -> `estilo`
+- `dom` -> `pagina`
 
-- `proposalPreservesLayoutEnvelope`
-- `blockPreservesLayoutEnvelope`
-- `richTextPreservesStructuralFootprint`
+### 17.2 `spacing-intent.ts`
 
-### Texto
+Centraliza a leitura semantica de spacing.
 
-Para substituições textuais com frase citada:
+Helpers atuais:
 
-- tenta aplicar diretamente no bloco correspondente;
-- mantém o layout atual;
-- altera apenas conteúdo textual;
-- se a IA sugerir alteração ampla, rejeita.
+- `isVisualSpacingIntent`
+- `isHeaderAdjacentSpacingRequest`
+- `isHeaderVisualSpacingRequest`
+- `isExplicitHeaderTextEditRequest`
+- `isPageStartSpacingRequest`
+- `protectsSectionInternalSpacing`
+- `wantsOnlyPageWrapperSpacing`
+- `wantsOnlyFirstSectionSpacing`
+- `wantsOnlySectionInternalSpacing`
 
-Funções relacionadas:
+Esse modulo e hoje a base comum para:
 
-- `extractTextEditReplacement`
-- `applyQuotedTextReplacementToLayout`
-- `proposalRepresentsLocalizedTextPatch`
-- `mergeTextOnlyProposalWithCurrentLayout`
+- classificacao heuristica;
+- confirmed intent;
+- distincao entre header textual e spacing visual.
 
-### Tipografia
+### 17.3 `contract.ts`
 
-Para pedidos tipográficos:
+Responsabilidades:
 
-- extrai frase-alvo;
-- extrai declarações seguras;
-- cria classe `me-ai-typography-target-{uuid}`;
-- injeta a classe no elemento HTML mais próximo do alvo;
-- adiciona CSS em `style_json.css`;
-- preserva estrutura.
+- normalizar o `edit_plan` vindo do modelo;
+- preencher fallback heuristico quando nao houver plano explicito;
+- classificar `scope`, `mode`, `risk_level` e operacoes;
+- garantir `target_ids` e `breakpoint`.
 
-Propriedades permitidas:
+O estado atual usa as versoes internas:
 
-- `color`
-- `font-family`
-- `font-size`
-- `font-style`
-- `font-weight`
-- `letter-spacing`
-- `line-height`
-- `text-align`
-- `text-decoration`
-- `text-transform`
+- `classifyScopeFromMessageV2`
+- `classifyModeFromMessageV2`
+- `buildFallbackTargetIdsV2`
 
-Valores proibidos:
+Detalhes importantes:
 
-- `url(`
-- `expression(`
-- `@import`
-- `javascript:`
-- `</style`
+- `quero mudar o texto do cabecalho` continua em `header` + `text_patch`;
+- `faixa branca entre o menu e a primeira secao` vai para `page` + `spacing_patch`;
+- o fallback target de spacing pode ser:
+  - `page_wrapper_spacing`
+  - `first_section_spacing`
+  - `section_internal_spacing`
+  - `global-header` quando o pedido e realmente spacing visual do header global.
 
-Formatos de `font-size` suportados:
+### 17.4 `safety.ts`
 
-- `font-size:22px`
-- `font-size 22px`
-- `fonte em 22px`
-- `fonte para 22px`
-- `tamanho da fonte 22px`
-- `aumente ... para 22px`
-- `22px de fonte`
+Responsabilidades:
 
-Funções relacionadas:
+- decidir se o draft atual e seguro para ser base de contexto;
+- comparar draft vs publicado;
+- validar padroes de rotas permitidas;
+- transformar a versao escolhida em `PatchEngineBaseVersion`.
 
-- `extractQuotedTypographyTarget`
-- `extractTypographyDeclarations`
-- `applyTypographyTargetToLayout`
-- `buildTypographyCssRule`
-- `appendCssPatchToStyleJson`
+### 17.5 `patch-engine.ts`
 
-Mensagem de erro quando não há alvo:
+E o motor de patch seguro para paginas persistiveis.
 
-```text
-Não encontrei um alvo tipográfico local e seguro na página atual para aplicar esse ajuste sem mexer no resto da página.
-```
+Responsabilidades:
 
-## 11. Anexos e Captura de Área
+- extrair blocos do builder;
+- gerar candidatos de alvo;
+- pontuar candidatos;
+- aplicar operacoes seguras em JSON e/ou CSS;
+- resolver targets com confidence;
+- gerar warnings e invariantes.
 
-O frontend suporta:
+Tipos relevantes:
 
-- upload de imagens;
-- colagem de imagens;
-- captura de área via `html2canvas`.
+- `PatchEngineBaseVersion`
+- `PatchEngineTargetResolution`
+- `SpacingSourceDiagnosis`
+- `RefinedSpacingPlanResult`
 
-Limites vêm de configuração:
+Restricoes de estilo importantes:
 
-- `max_attachments`
-- `max_attachment_size_mb`
+- bloqueia `script`, `url(`, `javascript:`, `expression(`, `@import`;
+- bloqueia `position: fixed|absolute`;
+- bloqueia `z-index`;
+- bloqueia `transform`;
+- restringe conjuntos seguros para:
+  - `display`
+  - `flex-direction`
+  - `text-align`
+  - alinhamentos
+  - backgrounds
+  - colors
+  - borders
+  - box-shadow
+  - grid template
 
-O backend valida:
+Alvos virtuais de spacing suportados pelo patch engine:
 
-- `data_url` iniciado por `data:`;
-- tamanho máximo;
-- número máximo de anexos.
+- `page_wrapper_spacing`
+- `first_section_spacing`
+- `section_internal_spacing`
 
-As imagens são enviadas ao provedor:
+Classes conhecidas para detectar spacing da primeira secao:
 
-- Gemini: partes com `inline_data`;
-- OpenAI: `input_image` com `image_url`.
+- `me-about-page`
+- `me-home-section`
+- `me-legal-page`
 
-## 12. Supabase: Tabelas
+### 17.6 `refineSpacingEditPlanForKnownWrappers()`
 
-### `site_config`
+Esse passo:
 
-Criada em `0002_domain_security.sql`.
+- detecta fontes reais de spacing no topo;
+- produz `diagnosis`;
+- escolhe os `target_ids` corretos;
+- transforma o plano em `spacing_patch` seguro com `padding-top = 0`.
 
-Campos relevantes:
+### 17.7 `confirmed-intent.ts`
 
-- `config_key`
-- `config_value`
-- `description`
-- `is_public`
-- `updated_by`
-- `updated_at`
+Responsabilidades:
 
-Uso no editor:
+- reconstruir o texto-fonte confirmado;
+- decidir o `ConfirmedSpacingScope`;
+- gerar um `edit_plan` seed;
+- refina-lo com o patch engine;
+- aplicar o patch deterministico;
+- produzir copia amigavel para o chat;
+- gerar metadata completa com `ai_invariants`.
 
-- armazena `ai_page_editor_config`;
-- `is_public=false`;
-- acesso admin via RLS;
-- escrita pelo backend com service role.
+Scopes internos:
 
-RLS:
+- `wrapper_only`
+- `first_section_only`
+- `section_internal_only`
+- `wrapper_and_first_section`
 
-- público lê apenas `is_public=true`;
-- admin lê todos;
-- admin gerencia todos.
+### 17.8 `operational-state.ts`
 
-### `site_pages`
+Centraliza o calculo de estado operacional.
 
-Criada em `0031_site_page_builder_foundation.sql`.
+Para propostas persistiveis:
 
-Campos:
+- `no_visible_change` quando nao ha diff;
+- `blocked` quando nao ha previa renderizavel;
+- `needs_clarification` quando faltam resolucoes ou ha confidence baixa;
+- `awaiting_intent_confirmation` quando ha confidence intermediaria ou `requires_strict_confirmation`;
+- `proposal_ready` quando tudo esta seguro.
 
-- `id`
+Para header/footer textual:
+
+- `proposal_ready` quando o texto mudou;
+- `no_visible_change` quando nao mudou.
+
+### 17.9 `proposal-guards.ts`
+
+Ultima barreira antes de aceitar uma proposta como persistivel.
+
+Garante existencia de:
+
+- `summary`
+- `explanation`
+- `proposal`
 - `slug`
 - `title`
-- `status`
-- `published_version_id`
-- `created_by`
-- `created_at`
-- `updated_at`
-
-Uso:
-
-- define a página lógica;
-- aponta para a versão publicada.
-
-Status:
-
-- `draft`
-- `published`
-- `archived`
-
-RLS:
-
-- público lê páginas publicadas;
-- admin lê e gerencia.
-
-### `site_page_versions`
-
-Criada em `0031_site_page_builder_foundation.sql`.
-
-Campos:
-
-- `id`
-- `page_id`
-- `version_number`
-- `status`
 - `layout_json`
 - `style_json`
 - `metadata`
-- `created_by`
-- `created_at`
+- `edit_plan` ou fallback permitido
 
-Uso:
+## 18. Semantica Atual de Intencao
 
-- cada alteração gera nova versão;
-- IA salva primeiro como draft;
-- confirmação publica a versão;
-- rollback publica versão anterior.
+### 18.1 Header textual
 
-RLS:
+Exemplos:
 
-- público lê somente versão publicada referenciada por `site_pages.published_version_id`;
-- admin lê e gerencia.
+- `quero mudar o texto do cabecalho`
+- `troca a mensagem do topo`
+- `atualiza a chamada do header`
 
-### `site_page_assets`
+Resultado esperado:
 
-Criada em `0031_site_page_builder_foundation.sql`.
+- branch de `generate_header_copy`
+- escopo `header`
+- modo `text_patch`
 
-Uso:
+### 18.2 Header visual spacing
 
-- assets do builder visual;
-- não é o mecanismo principal do chat IA;
-- relevante para páginas geridas pelo builder.
+A palavra `cabecalho` por si so nao significa texto.
 
-RLS:
+Se vier junto com sinais visuais como:
 
-- admin lê e gerencia.
+- `espaco`
+- `faixa branca`
+- `distancia`
+- `respiro`
+- `entre`
+- `acima`
 
-### `ai_page_editor_usage_events`
+o sistema tenta fluxo visual, nao textual.
 
-Criada em `0034_ai_page_editor_usage_metrics.sql`.
+### 18.3 `page_wrapper_spacing`
 
-Campos:
+Exemplos:
 
-- `id`
+- `antes da primeira secao`
+- `acima da primeira secao`
+- `espaco branco antes da area`
+- `antes do conteudo comecar`
+- `entre o cabecalho e a primeira secao`
+- `faixa branca entre o menu e a primeira secao`
+
+### 18.4 `first_section_spacing`
+
+Exemplos:
+
+- `topo da primeira secao`
+- `no topo da primeira secao`
+- `subir a faixa azul`
+
+### 18.5 `section_internal_spacing`
+
+Exemplos:
+
+- `dentro da primeira secao`
+- `espaco interno`
+- `padding interno da secao`
+
+### 18.6 Protecao explicita
+
+Se o pedido disser:
+
+- `manter o padding interno da secao`
+- `sem mexer no espaco interno`
+
+o backend respeita isso como sinal forte para nao tocar `section_internal_spacing`.
+
+## 19. Estado Operacional e Mensagens
+
+### 19.1 Mensagem padrao de no-op no frontend
+
+Constante:
+
+`AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE`
+
+Texto atual:
+
+`Analisei a pagina, mas esta tentativa nao gerou nenhuma alteracao visivel. Vou precisar ajustar melhor o alvo.`
+
+### 19.2 Regras atuais de coerencia
+
+O sistema atual nao deve:
+
+- devolver recusa textual antiga para casos visuais suportados;
+- misturar `no_visible_change` com sucesso;
+- misturar recusa textual de header com tentativa de patch visual;
+- expor erros crus como `proposal is not defined`.
+
+`normalizeAdminAiPageEditorError()` converte erros desse tipo numa mensagem amigavel de resposta incompleta do servidor.
+
+## 20. Auditoria e Uso
+
+### 20.1 Eventos de uso
+
+Os eventos gravados em `ai_page_editor_usage_events` podem incluir:
+
 - `action`
 - `provider`
 - `model`
-- `user_id`
 - `slug`
 - `path`
+- `mode`
+- `scope`
+- `risk_level`
+- `target_ids`
+- `requires_strict_confirmation`
+- `contract_version`
+- `invariants`
 - `input_tokens`
 - `output_tokens`
 - `total_tokens`
 - `estimated_cost_usd`
-- `currency`
 - `request_id`
 - `metadata`
-- `created_at`
 
-Constraints:
-
-- `action in ('generate_proposal', 'test_providers')`
-- `provider in ('gemini', 'openai')`
-- tokens não negativos;
-- custo nulo ou não negativo.
-
-Índices:
-
-- `created_at desc`
-- `(action, created_at desc)`
-- `(provider, model)`
-- `slug`
-- `user_id`
-
-RLS:
-
-- select permitido para admin.
-
-Observação:
-
-- inserts são feitos pela Edge Function com service role.
-
-### `audit_logs`
-
-Criada em `0002_domain_security.sql`.
-
-Uso:
-
-- audita atualização de configuração;
-- teste de provedores;
-- geração de proposta;
-- geração de header/footer;
-- draft salvo;
-- publicação;
-- rollback.
-
-RLS:
-
-- select permitido para admin.
-
-## 13. Supabase: Migrations Relevantes
-
-### `0002_domain_security.sql`
-
-Define:
-
-- `site_config`;
-- `audit_logs`;
-- RLS de `site_config`;
-- RLS de `audit_logs`;
-- trigger `site_config_updated_at`.
-
-### `0013_platform_cron_scheduler.sql`
-
-Define:
-
-- `public.upsert_platform_vault_secret`.
-
-Embora criada para cron, é reutilizada pelo editor IA para gravar segredos.
-
-### `0031_site_page_builder_foundation.sql`
-
-Define:
-
-- `site_pages`;
-- `site_page_versions`;
-- `site_page_assets`;
-- índices;
-- trigger;
-- FK de versão publicada;
-- RLS do builder;
-- seeds de páginas institucionais.
-
-### `0032_ai_page_editor.sql`
-
-Define:
-
-- extensão `supabase_vault`;
-- `public.get_platform_vault_secret`;
-- seed de `ai_page_editor_config`.
-
-### `0034_ai_page_editor_usage_metrics.sql`
-
-Define:
-
-- tabela `ai_page_editor_usage_events`;
-- constraints;
-- índices;
-- RLS admin.
-
-### `0035_ai_page_editor_provider_order.sql`
-
-Atualiza:
-
-- `primary_provider = openai`;
-- `fallback_provider = gemini`.
-
-### `0036_ai_page_editor_base_prompt_refresh.sql`
-
-Atualiza prompt base antigo para o prompt seguro atual quando o valor está vazio ou igual ao prompt legado.
-
-## 14. Supabase: Edge Function `admin-page-builder`
-
-Ações:
-
-- `list_pages`
-- `get_page`
-- `save_draft`
-- `publish`
-- `rollback`
-- `unpublish`
-
-Todas exigem admin.
-
-### `get_page`
-
-Retorna:
-
-- página;
-- até 60 versões;
-- versão publicada;
-- latest draft;
-- assets.
-
-`latest_draft` é a primeira versão com status `draft` ao ordenar por `version_number desc`.
-
-### `save_draft`
-
-Comportamento:
-
-- calcula próximo `version_number`;
-- insere nova versão com status `draft`;
-- mantém página `published` quando já estava publicada;
-- registra auditoria `admin.page_builder_draft_saved`.
-
-### `publish` e `rollback`
-
-Comportamento:
-
-- valida versão da página;
-- arquiva versão publicada anterior;
-- marca versão alvo como `published`;
-- atualiza `site_pages.published_version_id`;
-- registra auditoria.
-
-### `unpublish`
-
-Comportamento:
-
-- arquiva versões publicadas;
-- define página como `draft`;
-- limpa `published_version_id`.
-
-## 15. Métricas e Custos
-
-O backend extrai tokens de:
-
-- Gemini response usage metadata;
-- OpenAI response usage.
-
-O custo é estimado com tabela interna:
-
-Gemini:
-
-- `gemini-3.5-flash`
-- `gemini-3.1-flash-lite`
-- `gemini-2.0-flash`
-- `gemini-2.5-flash-lite`
-- `gemini-2.5-flash`
-- `gemini-2.5-pro`
-
-OpenAI:
-
-- `gpt-4.1-mini`
-- `gpt-4.1`
-- `gpt-4o-mini`
-
-Se o modelo não estiver mapeado:
-
-- evento fica sem custo estimado;
-- aparece como `unpriced_requests`.
-
-## 16. Header e Footer Globais
-
-O launcher intercepta pedidos que mencionam:
-
-- `header`
-- `cabeçalho`
-- `topo`
-- `navbar`
-- `rodapé`
-- `footer`
-
-Header:
-
-- chama `generate_header_copy`;
-- atualiza `branding.config_value.header_announcement`;
-- faz broadcast de branding.
-
-Footer:
-
-- chama `generate_footer_copy`;
-- atualiza `branding.config_value.footer_description`;
-- faz broadcast de branding.
-
-Esses fluxos não salvam `site_page_versions`.
-
-## 17. Estados de Interface
-
-Estados principais no launcher:
-
-- `open`
-- `message`
-- `attachments`
-- `proposal`
-- `messages`
-- `feedback`
-- `sendStatus`
-- `awaitingImplementation`
-- `pendingPublication`
-- `postApplyDecision`
-- `selectedRevisionId`
-- `isCapturingPage`
-- `isSelectingCaptureArea`
-- `captureRect`
-
-Estados de confirmação:
-
-- proposta aguardando implementação;
-- draft aplicado aguardando publicação/desfazer;
-- alteração guardada aguardando continuar/terminar.
-
-## 18. Erros Esperados
-
-Mensagens importantes:
-
-- `Editor via IA desativado`
-- `Rota nao habilitada para o editor via IA`
-- `Pedido de CSS/classe estrutural detectado...`
-- `A proposta da IA está incompleta`
-- `A proposta da IA precisa incluir projectData.blocks ou um HTML convertível`
-- `A proposta da IA não preservou a estrutura completa da página atual. Nenhum rascunho foi aplicado.`
-- `A proposta da IA alterou mais do que o trecho pedido. Apenas ajustes locais num único ponto da página podem ser aplicados.`
-- `A proposta da IA alterou a estrutura da página num pedido textual. Nenhum rascunho foi aplicado para proteger o layout.`
-- `Não encontrei um alvo tipográfico local e seguro na página atual para aplicar esse ajuste sem mexer no resto da página.`
-- `Nenhum provedor disponível para gerar a proposta.`
-
-## 19. Limitações Atuais
-
-- A validação de `allowed_paths` no backend compara path literal, enquanto o frontend suporta padrões com `:param` e `*`.
-- `require_confirmation` é registrado em métricas, mas o fluxo atual do launcher sempre usa confirmação para páginas persistíveis.
-- O editor é mais confiável em páginas públicas com `slug` e builder document estruturado.
-- Em páginas privadas sem `slug`, não há fluxo completo de rascunho/publicação via `site_page_versions`.
-- O match tipográfico depende de a frase existir no `layout_json` usado como contexto.
-- Drafts antigos podem interferir se não forem filtrados; o frontend atual evita drafts mais antigos/degradados, mas o backend `admin-page-builder.get_page` ainda retorna `latest_draft` sem aplicar esse filtro.
-- O custo é estimado e depende da tabela interna de preços estar atualizada.
-
-## 20. Checklist de Validação Funcional
-
-### Configuração
-
-- Entrar no admin como usuário admin.
-- Abrir tela `Editor via IA`.
-- Ativar editor.
-- Confirmar rotas permitidas.
-- Salvar prompt base.
-- Configurar OpenAI/Gemini.
-- Testar provedores.
-- Confirmar que status dos segredos aparece sem exibir chave.
-
-### Launcher
-
-- Abrir rota permitida como admin.
-- Confirmar botão flutuante.
-- Abrir chat.
-- Ver mensagem inicial.
-- Enviar mensagem simples.
-- Confirmar bloqueio temporário do textarea/botão.
-- Confirmar status “A processar”.
-
-### Texto
-
-- Pedir substituição de frase exata.
-- Confirmar que surge proposta.
-- Clicar `Implementar`.
-- Confirmar preview.
-- Clicar `Confirmar alterações`.
-- Recarregar página.
-- Confirmar que só a frase mudou.
-
-### Tipografia
-
-Testar formatos:
-
-- `altere a fonte do texto "..." para font-size:22px`
-- `ajuste o texto "..." para ficar onde ele está, mas com fonte em 22px`
-- `aumente a fonte do texto "..." para 22px`
-
-Validar:
-
-- proposta gerada;
-- botão `Implementar` aparece;
-- draft preserva página inteira;
-- após refresh, todas as seções continuam visíveis;
-- `style_json.css` contém classe `me-ai-typography-target-*`;
-- `layout_json` contém a classe aplicada no alvo.
-
-### Segurança de Layout
-
-- Pedir alteração estrutural vaga.
-- Confirmar que a IA rejeita ou avisa.
-- Pedir CSS estrutural em página de blocos.
-- Confirmar bloqueio.
-- Tentar gerar fragmento HTML isolado.
-- Confirmar que backend não salva página truncada.
-
-### Header/Footer
-
-- Pedir alteração explícita no header.
-- Confirmar atualização global do header.
-- Pedir alteração explícita no footer.
-- Confirmar atualização global do footer.
-
-### Supabase
-
-- Conferir `site_config` para `ai_page_editor_config`.
-- Conferir `ai_page_editor_usage_events` após teste/geração.
-- Conferir `audit_logs` após ações.
-- Conferir `site_page_versions` após `Implementar`.
-- Conferir `site_pages.published_version_id` após publicação.
-- Conferir que chaves não aparecem no frontend.
-
-## 21. SQL Útil de Diagnóstico
-
-### Ver configuração
-
-```sql
-select config_key, config_value, is_public, updated_at
-from public.site_config
-where config_key = 'ai_page_editor_config';
-```
-
-### Ver versões de uma página
-
-```sql
-select
-  p.slug,
-  v.id,
-  v.version_number,
-  v.status,
-  jsonb_array_length(coalesce(v.layout_json->'projectData'->'blocks','[]'::jsonb)) as project_blocks,
-  v.layout_json ? 'html' as has_html_key,
-  length(v.layout_json::text) as layout_len,
-  v.created_at
-from public.site_pages p
-join public.site_page_versions v on v.page_id = p.id
-where p.slug = 'sobre'
-order by v.version_number desc;
-```
-
-### Ver versão publicada
-
-```sql
-select
-  p.slug,
-  v.version_number,
-  v.status,
-  jsonb_array_length(coalesce(v.layout_json->'projectData'->'blocks','[]'::jsonb)) as project_blocks,
-  v.layout_json ? 'html' as has_html_key,
-  v.layout_json::text like '%Sou a cara por detrás deste projeto%' as has_intro
-from public.site_pages p
-join public.site_page_versions v on v.id = p.published_version_id
-where p.slug = 'sobre';
-```
-
-### Ver uso da IA
-
-```sql
-select
-  created_at,
-  action,
-  provider,
-  model,
-  slug,
-  path,
-  input_tokens,
-  output_tokens,
-  total_tokens,
-  estimated_cost_usd,
-  request_id
-from public.ai_page_editor_usage_events
-order by created_at desc
-limit 50;
-```
-
-### Ver auditoria
-
-```sql
-select
-  created_at,
-  action,
-  entity_type,
-  entity_id,
-  actor_user_id,
-  metadata
-from public.audit_logs
-where action like 'admin.ai_page_editor%'
-   or action like 'admin.page_builder%'
-order by created_at desc
-limit 50;
-```
-
-## 22. Critérios de Aceitação
-
-O Editor com IA está funcional quando:
-
-- aparece apenas para admin nas rotas habilitadas;
-- configuração é salva em `site_config`;
-- segredos são gravados no Vault e não retornam ao frontend;
-- provedores podem ser testados;
-- propostas retornam JSON válido;
-- texto e tipografia local são aplicados sem remover seções;
-- toda edição persistível passa por draft;
-- publicação só ocorre após confirmação;
-- desfazer restaura estado anterior;
-- métricas são registradas;
-- auditoria é registrada;
-- reload da página mantém todo o conteúdo;
-- `site_pages.published_version_id` aponta para versão íntegra.
-
-## 23. Pontos de Melhoria Recomendados
-
-- Aplicar a mesma regra de draft seguro no backend `admin-page-builder.get_page`, não apenas no frontend.
-- Fazer a validação backend de `allowed_paths` suportar padrões `:param` e `*`.
-- Criar testes automatizados para:
-  - extração de `font-size`;
-  - match de frase em HTML com tags;
-  - rejeição de fragmentos parciais;
-  - preservação de envelope de layout;
-  - seleção segura de draft/publicada.
-- Adicionar rotina administrativa para arquivar drafts degradados.
-- Versionar internamente a estrutura `layout_json` para facilitar migrações.
-- Exibir no chat qual versão foi usada como contexto: draft ou publicada.
+### 20.2 Metadados frequentes
+
+Os metadados de uso/auditoria costumam guardar:
+
+- `attachment_count`
+- `conversation_phase`
+- `clarification_questions_count`
+- `user_confirmed_understanding`
+- `understanding_summary`
+- `ambiguity_detected`
+- `quick_reply_selected`
+- `proposal_summary`
+- `edit_plan_operation_count`
+- `warning_count`
+- `target_resolution_count`
+- `require_confirmation`
+- `pricing_source`
+- `base_version_id`
+- `base_version_number`
+- `base_version_status`
+- `context_source`
+- `degraded_draft_bypassed`
+- `context_selection_reason`
+- `published_version_id`
+- `latest_draft_id`
+- `provider_failures`
+- `final_status`
+- `change_detected`
+- `draft_saved`
+- `preview_available`
+- `change_summary`
+- `branch_selected`
+- `confirmed_intent_source_text`
+
+### 20.3 Auditoria
+
+Actions de auditoria relevantes:
+
+- `admin.ai_page_editor_config_updated`
+- `admin.ai_page_editor_provider_tested`
+- `admin.ai_page_editor_proposal_generated`
+- `admin.ai_page_editor_header_copy_generated`
+- `admin.ai_page_editor_footer_copy_generated`
+
+## 21. Testes Atuais
+
+Arquivos de teste atuais do backend:
+
+- `conversation.test.ts`
+- `spacing-intent.test.ts`
+- `contract.test.ts`
+- `confirmed-intent.test.ts`
+- `operational-state.test.ts`
+- `proposal-guards.test.ts`
+- `patch-engine.test.ts`
+- `safety.test.ts`
+
+Frontend:
+
+- `SiteAiPageEditorLauncher.test.tsx`
+- `ai-page-editor-response.test.ts`
+- `ai-page-editor.test.ts`
+
+Cobertura funcional relevante ja presente:
+
+- fluxo de clarificacao;
+- fluxo de confirmacao de entendimento;
+- token de confirmacao;
+- proposta pronta para previa;
+- bloqueio de no-op;
+- erros amigaveis;
+- roteamento de header/footer;
+- roteamento visual de spacing;
+- distincao entre:
+  - `page_wrapper_spacing`
+  - `first_section_spacing`
+  - `section_internal_spacing`
+- protecao de spacing interno quando o pedido diz para manter;
+- nao mistura entre recusa textual e `no_visible_change`;
+- ignorar respostas stale por `client_request_id`.
+
+## 22. Limites e Decisoes de Produto no Estado Atual
+
+1. O fluxo persistivel completo continua restrito a paginas publicas com slug conhecido.
+2. Rotas do aluno podem ser analisadas, mas nao entram no pipeline seguro de publicacao.
+3. Header e footer globais sao tratados fora do fluxo de draft de pagina.
+4. O branch deterministico de confirmed intent esta especializado em spacing conhecido, nao em toda a superficie do editor.
+5. Operacoes semiassistidas ainda forcam avaliacao mais conservadora.
+6. O frontend so oferece botao de previa quando o backend e a avaliacao local confirmam que ha diff real e previa segura.
+7. O launcher foi explicitamente ajustado para nao confundir:
+   - pedido de texto do cabecalho;
+   - pedido de spacing entre header/menu e primeira secao.
+
+## 23. Resumo Executivo da Estrutura Atual
+
+Em termos praticos, o editor atual funciona assim:
+
+1. O admin abre o launcher numa rota permitida.
+2. O sistema tenta primeiro entender o pedido em linguagem natural.
+3. Se o pedido ainda estiver ambiguo, faz pergunta curta.
+4. Se o pedido estiver claro, pede confirmacao curta.
+5. Depois da confirmacao:
+   - se for um caso conhecido de spacing, gera patch deterministico;
+   - caso contrario, chama o provedor IA para proposta completa.
+6. O backend devolve proposta + estado operacional + metadados de alvo.
+7. O frontend so habilita previa segura quando o resultado passa por todas as guardas.
+8. O admin pode:
+   - preparar previa;
+   - confirmar;
+   - desfazer;
+   - restaurar revisao.
+9. Header e footer globais continuam em fluxos dedicados.
+10. Todo o caminho deixa rasto em uso, custo estimado e auditoria.
