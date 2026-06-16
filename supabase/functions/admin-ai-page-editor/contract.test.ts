@@ -90,6 +90,36 @@ describe("normalizeAiEditPlan", () => {
     expect(result.editPlan.requires_strict_confirmation).toBe(true)
   })
 
+  it("routes spacing between the header and the first section to page wrapper spacing", () => {
+    const result = normalizeAiEditPlan({
+      rawEditPlan: null,
+      message: "remover a faixa branca entre o menu e a primeira secao",
+      slug: "sobre",
+      path: "/sobre",
+      legacyContractFallback: true,
+    })
+
+    expect(result.editPlan.scope).toBe("page")
+    expect(result.editPlan.mode).toBe("spacing_patch")
+    expect(result.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(result.editPlan.operations[0]?.target_id).toBe("page_wrapper_spacing")
+  })
+
+  it("keeps explicit header copy edits on the textual header path", () => {
+    const result = normalizeAiEditPlan({
+      rawEditPlan: null,
+      message: "quero mudar o texto do cabecalho",
+      slug: "home",
+      path: "/",
+      legacyContractFallback: true,
+    })
+
+    expect(result.editPlan.scope).toBe("header")
+    expect(result.editPlan.mode).toBe("text_patch")
+    expect(result.editPlan.target_ids).toEqual(["global-header"])
+    expect(result.editPlan.operations[0]?.type).toBe("update_text")
+  })
+
   it("fills missing operation target ids and breakpoint defaults", () => {
     const result = normalizeAiEditPlan({
       rawEditPlan: {
@@ -122,4 +152,3 @@ describe("normalizeAiEditPlan", () => {
     ])
   })
 })
-

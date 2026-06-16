@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 import {
+  isExplicitHeaderTextEditRequest,
+  isHeaderAdjacentSpacingRequest,
   isPageStartSpacingRequest,
+  isVisualSpacingIntent,
   protectsSectionInternalSpacing,
   wantsOnlyFirstSectionSpacing,
   wantsOnlyPageWrapperSpacing,
@@ -15,6 +18,15 @@ describe("spacing intent helpers", () => {
     expect(wantsOnlyPageWrapperSpacing(message)).toBe(true)
     expect(wantsOnlyFirstSectionSpacing(message)).toBe(false)
     expect(wantsOnlySectionInternalSpacing(message)).toBe(false)
+  })
+
+  it("treats header-to-first-section spacing as wrapper spacing instead of header text", () => {
+    const message = "remover a faixa branca entre o menu e a primeira secao"
+
+    expect(isVisualSpacingIntent(message)).toBe(true)
+    expect(isHeaderAdjacentSpacingRequest(message)).toBe(true)
+    expect(wantsOnlyPageWrapperSpacing(message)).toBe(true)
+    expect(isExplicitHeaderTextEditRequest(message)).toBe(false)
   })
 
   it("treats inside the first section as internal spacing", () => {
@@ -32,5 +44,13 @@ describe("spacing intent helpers", () => {
     expect(protectsSectionInternalSpacing(message)).toBe(true)
     expect(wantsOnlyPageWrapperSpacing(message)).toBe(true)
     expect(wantsOnlySectionInternalSpacing(message)).toBe(false)
+  })
+
+  it("keeps explicit header copy changes in the textual path", () => {
+    const message = "quero mudar o texto do cabecalho"
+
+    expect(isExplicitHeaderTextEditRequest(message)).toBe(true)
+    expect(isHeaderAdjacentSpacingRequest(message)).toBe(false)
+    expect(wantsOnlyPageWrapperSpacing(message)).toBe(false)
   })
 })

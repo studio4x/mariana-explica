@@ -9,6 +9,7 @@ import {
   type SpacingSourceDiagnosis,
 } from "./patch-engine.ts"
 import {
+  isVisualSpacingIntent,
   isPageStartSpacingRequest,
   protectsSectionInternalSpacing,
   wantsOnlyFirstSectionSpacing,
@@ -135,19 +136,7 @@ function resolveConfirmedSpacingScope(input: {
   ])
   if (mentionsBroadRewrite) return null
 
-  const mentionsSpacing = includesAny(normalized, [
-    /\bespaco\b/,
-    /\bespaco em branco\b/,
-    /\bespaco vazio\b/,
-    /\bespacamento\b/,
-    /\bpadding\b/,
-    /\bmargin\b/,
-    /\bgap\b/,
-    /\btopo\b/,
-    /\binicio\b/,
-    /\bantes do conteudo\b/,
-  ])
-  if (!mentionsSpacing) return null
+  if (!isVisualSpacingIntent(normalized)) return null
 
   if (quickReply && /\b(nos dois|ambos)\b/.test(quickReply)) {
     return "wrapper_and_first_section" satisfies ConfirmedSpacingScope

@@ -193,13 +193,42 @@ function isPlainUnderstandingConfirmationReply(
   return trailing.length <= 18
 }
 
+function messageLooksLikeVisualSpacingRequest(message: string) {
+  const normalizedMessage = normalizeLauncherComparableText(message)
+  const hasSpacingSignal =
+    /\b(espaco|espaco em branco|espaco vazio|espacamento|faixa branca|distancia|respiro|intervalo visual|padding|margin|margem|gap)\b/.test(
+      normalizedMessage,
+    ) ||
+    /\b(antes da primeira secao|acima da primeira secao|fora da primeira secao|topo da primeira secao|dentro da primeira secao|inicio da pagina|topo da pagina|antes do conteudo)\b/.test(
+      normalizedMessage,
+    )
+
+  const mentionsVisualBoundary =
+    /\bentre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
+    /\bfaixa branca entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
+    /\bespaco (em branco )?entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
+    /\bdistancia entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
+    /\brespiro entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
+    /\bfaixa branca entre o (cabecalho|header|menu|navbar) e o conteudo\b/.test(normalizedMessage)
+
+  return hasSpacingSignal || mentionsVisualBoundary
+}
+
 function messageStrictlyTargetsGlobalHeader(message: string) {
   const normalizedMessage = normalizeLauncherComparableText(message)
-  return (
+  const mentionsHeader =
     /\b(header|navbar)\b/.test(normalizedMessage) ||
     /\bcabecalho(?:\s+(?:global|do site))?\b/.test(normalizedMessage) ||
     /\btopo do site\b/.test(normalizedMessage) ||
     /\banuncio do topo\b/.test(normalizedMessage)
+
+  if (!mentionsHeader || messageLooksLikeVisualSpacingRequest(normalizedMessage)) {
+    return false
+  }
+
+  return (
+    /\b(texto|copy|mensagem|anuncio|headline|titulo|subtitulo|cta|chamada)\b/.test(normalizedMessage) ||
+    /\b(mudar|alterar|atualizar|trocar|substituir|reescrever|encurtar|ajustar)\b/.test(normalizedMessage)
   )
 }
 

@@ -1,3 +1,13 @@
+import {
+  isExplicitHeaderTextEditRequest,
+  isHeaderAdjacentSpacingRequest,
+  isHeaderVisualSpacingRequest,
+  isVisualSpacingIntent,
+  wantsOnlyFirstSectionSpacing,
+  wantsOnlyPageWrapperSpacing,
+  wantsOnlySectionInternalSpacing,
+} from "./spacing-intent.ts"
+
 export const EDIT_SCOPES = ["text", "block", "section", "page", "header", "footer"] as const
 export const EDIT_MODES = [
   "text_patch",
@@ -281,6 +291,105 @@ function classifyModeFromMessage(message: string): AiEditMode {
   return "text_patch"
 }
 
+function classifyScopeFromMessageV2(message: string): AiEditScope {
+  const normalized = normalizeString(message).toLowerCase()
+
+  if (isExplicitHeaderTextEditRequest(message)) return "header"
+  if (/\b(rodape|rodapé|footer)\b/i.test(message)) return "footer"
+  if (isHeaderAdjacentSpacingRequest(message) || wantsOnlyPageWrapperSpacing(message)) return "page"
+  if (wantsOnlyFirstSectionSpacing(message) || wantsOnlySectionInternalSpacing(message)) return "section"
+  if (isHeaderVisualSpacingRequest(message)) return "header"
+  if (isVisualSpacingIntent(message)) {
+    return hasKeyword(normalized, ["seção", "secao", "secção", "hero", "sessão"]) ? "section" : "page"
+  }
+  if (hasKeyword(normalized, ["página inteira", "pagina inteira", "toda a página", "toda a pagina", "site inteiro"])) return "page"
+  if (hasKeyword(normalized, ["seção", "secao", "secção", "hero", "sessão"])) return "section"
+  if (hasKeyword(normalized, ["bloco", "card", "cartão", "cartao", "wrapper", "container", "coluna"])) return "block"
+  if (/\b(header|cabe[cç]alho|navbar)\b/i.test(message)) return "header"
+  return "text"
+}
+
+function classifyModeFromMessageV2(message: string): AiEditMode {
+  const normalized = normalizeString(message).toLowerCase()
+
+  if (
+    hasKeyword(normalized, [
+      "substituir a seção",
+      "substituir a secao",
+      "trocar a seção inteira",
+      "trocar a secao inteira",
+      "recriar a seção",
+      "recriar a secao",
+    ])
+  ) {
+    return "section_replace"
+  }
+
+  if (
+    isVisualSpacingIntent(message) ||
+    hasKeyword(normalized, [
+      "padding",
+      "margin",
+      "gap",
+      "spacing",
+      "espaçamento",
+      "espacamento",
+      "espaço acima",
+      "espaco acima",
+      "min-height",
+      "max-width",
+      "width",
+      "altura",
+      "largura",
+    ])
+  ) {
+    return "spacing_patch"
+  }
+
+  if (
+    hasKeyword(normalized, [
+      "layout",
+      "estrutura",
+      "grid",
+      "coluna",
+      "reorganizar",
+      "reposicionar",
+      "mover bloco",
+      "mudar layout interno",
+      "mudar a estrutura",
+      "wrap",
+      "wrapper",
+      "alinhar cards",
+    ])
+  ) {
+    return "section_layout_patch"
+  }
+
+  if (
+    hasKeyword(normalized, [
+      "tipografia",
+      "fonte",
+      "font",
+      "cor",
+      "color",
+      "fundo",
+      "background",
+      "border",
+      "borda",
+      "radius",
+      "alinhamento",
+      "uppercase",
+      "lowercase",
+      "letter-spacing",
+      "line-height",
+    ])
+  ) {
+    return "style_patch"
+  }
+
+  return "text_patch"
+}
+
 function inferOperationTypeFromMode(mode: AiEditMode, message: string): AiEditOperationType {
   const normalized = normalizeString(message).toLowerCase()
 
@@ -310,6 +419,25 @@ function buildFallbackTargetIds(scope: AiEditScope, slug?: string | null, path?:
   if (scope === "section") return [normalizedSlug ? `${normalizedSlug}-section` : "section-target"]
   if (scope === "block") return [normalizedSlug ? `${normalizedSlug}-block` : "block-target"]
   return [normalizedSlug ? `${normalizedSlug}-text` : "text-target"]
+}
+
+function buildFallbackTargetIdsV2(
+  scope: AiEditScope,
+  slug?: string | null,
+  path?: string | null,
+  message?: string,
+  mode?: AiEditMode,
+) {
+  if (mode === "spacing_patch") {
+    if (wantsOnlyPageWrapperSpacing(message ?? "") || isHeaderAdjacentSpacingRequest(message ?? "")) {
+      return ["page_wrapper_spacing"]
+    }
+    if (wantsOnlyFirstSectionSpacing(message ?? "")) return ["first_section_spacing"]
+    if (wantsOnlySectionInternalSpacing(message ?? "")) return ["section_internal_spacing"]
+    if (isHeaderVisualSpacingRequest(message ?? "")) return ["global-header"]
+  }
+
+  return buildFallbackTargetIds(scope, slug, path)
 }
 
 function normalizeOperation(
@@ -427,13 +555,13 @@ export function normalizeAiEditPlan(input: NormalizeAiEditPlanInput): Normalized
       ? (input.rawEditPlan as Record<string, unknown>)
       : null
 
-  const classifiedScope = classifyScopeFromMessage(input.message)
-  const classifiedMode = classifyModeFromMessage(input.message)
+  const classifiedScope = classifyScopeFromMessageV2(input.message)
+  const classifiedMode = classifyModeFromMessageV2(input.message)
   const scope = normalizeScope(record?.scope) ?? classifiedScope
   const mode = normalizeMode(record?.mode) ?? classifiedMode
 
   const rawTargetIds = normalizeStringArray(record?.target_ids).map(normalizeIdentifier).filter(Boolean)
-  const fallbackTargetIds = buildFallbackTargetIds(scope, input.slug, input.path)
+  const fallbackTargetIds = buildFallbackTargetIdsV2(scope, input.slug, input.path, input.message, mode)
   const preliminaryTargetIds = uniqueStrings(rawTargetIds.length > 0 ? rawTargetIds : fallbackTargetIds)
   const fallbackTargetId = preliminaryTargetIds[0] ?? fallbackTargetIds[0] ?? "target"
 

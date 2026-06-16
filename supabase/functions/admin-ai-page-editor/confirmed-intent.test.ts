@@ -139,6 +139,16 @@ describe("materializeConfirmedIntentProposal", () => {
     expect(String(result.proposal.style_json.css ?? "")).not.toContain("section.me-about-page")
   })
 
+  it("treats spacing between the header and the first section as wrapper-only", () => {
+    const result = materialize("remover o espaco em branco entre o cabecalho e a primeira secao da pagina Sobre")
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(String(result.proposal.style_json.css ?? "")).toContain(".me-managed-page-root")
+    expect(String(result.proposal.style_json.css ?? "")).not.toContain("section.me-about-page")
+  })
+
   it("targets only the first section when the confirmed intent points there", () => {
     const result = materialize("remover só o espaço no topo da primeira seção da página Sobre")
 

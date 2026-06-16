@@ -16,11 +16,14 @@ const SPACING_PATTERNS = [
   /\bespaco em branco\b/,
   /\bespaco vazio\b/,
   /\bespacamento\b/,
+  /\bfaixa branca\b/,
+  /\bdistancia\b/,
+  /\brespiro\b/,
+  /\bintervalo visual\b/,
   /\bpadding\b/,
   /\bmargin\b/,
+  /\bmargem\b/,
   /\bgap\b/,
-  /\btopo\b/,
-  /\binicio\b/,
 ]
 
 const PAGE_START_PATTERNS = [
@@ -41,6 +44,12 @@ const WRAPPER_ONLY_PATTERNS = [
   /\bpage root\b/,
   /\bpage wrapper\b/,
   /\bme-managed-page-root\b/,
+  /\bentre o (?:cabecalho|header|menu|navbar) e a primeira secao\b/,
+  /\bentre o (?:cabecalho|header|menu|navbar) e o conteudo\b/,
+  /\bfaixa branca entre o (?:cabecalho|header|menu|navbar) e a primeira secao\b/,
+  /\bespaco (?:em branco )?entre o (?:cabecalho|header|menu|navbar) e a primeira secao\b/,
+  /\bdistancia entre o (?:cabecalho|header|menu|navbar) e a primeira secao\b/,
+  /\brespiro entre o (?:cabecalho|header|menu|navbar) e a primeira secao\b/,
   /\bantes de iniciar a primeira secao\b/,
   /\bantes da primeira secao\b/,
   /\bacima da primeira secao\b/,
@@ -82,10 +91,85 @@ const PROTECT_SECTION_INTERNAL_PATTERNS = [
   /\bpreservar o (?:padding|espaco|espacamento) interno(?: da (?:primeira )?secao)?\b/,
 ]
 
+const HEADER_REFERENCE_PATTERNS = [
+  /\bcabecalho\b/,
+  /\bheader\b/,
+  /\bmenu\b/,
+  /\bnavbar\b/,
+  /\btopo do site\b/,
+  /\banuncio do topo\b/,
+]
+
+const HEADER_TEXT_PATTERNS = [
+  /\btexto do (?:cabecalho|header|menu|navbar)\b/,
+  /\bcopy do (?:cabecalho|header|menu|navbar)\b/,
+  /\bmensagem do topo\b/,
+  /\banuncio do topo\b/,
+  /\bheadline do (?:cabecalho|header)\b/,
+  /\btitulo do (?:cabecalho|header)\b/,
+  /\bsubtitulo do (?:cabecalho|header)\b/,
+  /\bcta do (?:cabecalho|header)\b/,
+  /\bchamada do (?:cabecalho|header)\b/,
+]
+
+const TEXT_EDIT_ACTION_PATTERNS = [
+  /\bmudar\b/,
+  /\balterar\b/,
+  /\batualizar\b/,
+  /\btrocar\b/,
+  /\bsubstituir\b/,
+  /\breescrever\b/,
+  /\bajustar\b/,
+  /\bencurtar\b/,
+]
+
+const IMPLICIT_VISUAL_SPACING_PATTERNS = [
+  ...PAGE_START_PATTERNS,
+  ...WRAPPER_ONLY_PATTERNS,
+  ...FIRST_SECTION_ONLY_PATTERNS,
+  ...SECTION_INTERNAL_PATTERNS,
+]
+
+function hasHeaderReference(value: string) {
+  return includesAny(value, HEADER_REFERENCE_PATTERNS)
+}
+
+function hasSpacingSignal(value: string) {
+  return includesAny(value, SPACING_PATTERNS) || includesAny(value, IMPLICIT_VISUAL_SPACING_PATTERNS)
+}
+
+export function isVisualSpacingIntent(message: string) {
+  return hasSpacingSignal(normalizeText(message))
+}
+
+export function isHeaderAdjacentSpacingRequest(message: string) {
+  const normalized = normalizeText(message)
+  return includesAny(normalized, WRAPPER_ONLY_PATTERNS) && hasHeaderReference(normalized)
+}
+
+export function isHeaderVisualSpacingRequest(message: string) {
+  const normalized = normalizeText(message)
+  return hasHeaderReference(normalized) && hasSpacingSignal(normalized)
+}
+
+export function isExplicitHeaderTextEditRequest(message: string) {
+  const normalized = normalizeText(message)
+  if (!hasHeaderReference(normalized) || isHeaderVisualSpacingRequest(normalized)) {
+    return false
+  }
+
+  return (
+    includesAny(normalized, HEADER_TEXT_PATTERNS) ||
+    (includesAny(normalized, TEXT_EDIT_ACTION_PATTERNS) &&
+      (/\b(?:texto|copy|frase|headline|titulo|subtitulo|mensagem|anuncio|cta|chamada)\b/.test(normalized) ||
+        /["']/.test(normalized)))
+  )
+}
+
 export function isPageStartSpacingRequest(message: string) {
   const normalized = normalizeText(message)
   return (
-    includesAny(normalized, SPACING_PATTERNS) &&
+    hasSpacingSignal(normalized) &&
     (includesAny(normalized, PAGE_START_PATTERNS) ||
       includesAny(normalized, WRAPPER_ONLY_PATTERNS) ||
       includesAny(normalized, FIRST_SECTION_ONLY_PATTERNS) ||

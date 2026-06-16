@@ -347,6 +347,49 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
   })
 
+  it("routes spacing between the header and the first section to the visual proposal flow", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(createProposalResponse())
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "remova o espaco em branco entre o cabecalho e a primeira secao")
+
+    await waitFor(() => {
+      expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(mockGenerateHeaderCopyProposal).not.toHaveBeenCalled()
+    expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+    expect(screen.queryByText(/conteudo textual|folha de estilos|texto do cabecalho/i)).not.toBeInTheDocument()
+  })
+
+  it("keeps explicit header copy changes on the textual header branch", async () => {
+    mockGenerateHeaderCopyProposal.mockResolvedValueOnce({
+      provider_used: "openai",
+      summary: "Atualizar texto do cabecalho",
+      explanation: "Preparei uma versao curta para o anuncio do topo.",
+      warnings: [],
+      header_announcement: "Novo anuncio",
+      final_status: "proposal_ready",
+      change_detected: true,
+      draft_saved: false,
+      preview_available: false,
+      change_summary: {
+        layout_changed: false,
+        style_changed: false,
+        html_changed: false,
+        text_changed: true,
+      },
+    })
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "quero mudar o texto do cabecalho")
+
+    await waitFor(() => {
+      expect(mockGenerateHeaderCopyProposal).toHaveBeenCalledTimes(1)
+    })
+    expect(mockGenerateProposalMutateAsync).not.toHaveBeenCalled()
+    expect(screen.getByText(/topo do site atualizado/i)).toBeInTheDocument()
+  })
+
   it("shows no_visible_change instead of success when the backend reports a no-op", async () => {
     mockGenerateProposalMutateAsync.mockResolvedValueOnce(
       createProposalResponse({
@@ -369,6 +412,31 @@ describe("SiteAiPageEditorLauncher", () => {
     })
     expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/atualizado/i)).not.toBeInTheDocument()
+  })
+
+  it("does not mix a legacy textual refusal with no-op feedback for visual spacing requests", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(
+      createProposalResponse({
+        assistant_message: "Entendi. Vou ajustar melhor o alvo visual antes da primeira secao.",
+        final_status: "no_visible_change",
+        change_detected: false,
+        preview_available: false,
+        change_summary: {
+          layout_changed: false,
+          style_changed: false,
+          html_changed: false,
+        },
+      }),
+    )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "ha uma faixa branca entre o menu e a primeira secao")
+
+    await waitFor(() => {
+      expect(screen.getAllByText(new RegExp(AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE, "i")).length).toBeGreaterThan(0)
+    })
+    expect(mockGenerateHeaderCopyProposal).not.toHaveBeenCalled()
+    expect(screen.queryByText(/conteudo textual|folha de estilos|texto do cabecalho/i)).not.toBeInTheDocument()
   })
 
   it("renders quick replies and waits for confirmation before showing the preview action", async () => {
