@@ -2513,6 +2513,15 @@ function buildUnderstandingSystemPrompt(config: ReturnType<typeof normalizeConfi
     "Quando estiver claro, devolve phase=awaiting_intent_confirmation.",
     "Quando ainda faltar contexto, devolve phase=needs_clarification.",
     "understanding_summary deve descrever em uma frase simples o que sera mudado, sem linguagem tecnica.",
+    "Distingue com muito cuidado espaco fora da primeira secao e espaco dentro da primeira secao.",
+    "\"antes da primeira secao\", \"acima da primeira secao\", \"fora da primeira secao\", \"espaco branco antes da area\" e \"antes do conteudo comecar\" significam o espaco externo antes da primeira secao.",
+    "\"topo da primeira secao\" significa o topo da area da primeira secao.",
+    "\"dentro da primeira secao\", \"dentro da area azul\" e \"espaco interno\" significam o espaco interno da primeira secao.",
+    "Se o pedido disser para manter o espaco interno da secao, nao resumas isso como algo que sera alterado.",
+    "Exemplo 1: pedido='remover o espaco em branco antes da primeira secao' -> understanding_summary='tirar o espaco branco antes da primeira secao'.",
+    "Exemplo 2: pedido='remover o espaco no topo da primeira secao' -> understanding_summary='tirar o espaco no topo da primeira secao'.",
+    "Exemplo 3: pedido='remover o espaco dentro da primeira secao' -> understanding_summary='tirar o espaco dentro da primeira secao'.",
+    "Exemplo 4: pedido='remover o espaco antes da primeira secao e manter o espaco interno da secao' -> understanding_summary='tirar o espaco branco antes da primeira secao sem mexer no espaco interno da secao'.",
     "assistant_message deve ser amigavel e pronta para aparecer no chat.",
     "quick_replies deve trazer de 0 a 4 respostas curtas e clicaveis.",
     `Pagina atual: ${currentTitle} (${currentPath})`,
@@ -2546,6 +2555,7 @@ function buildUnderstandingUserPrompt(input: {
     mustStopAsking
       ? "Agora evita fazer mais perguntas. Faz o melhor resumo simples do que entendeste e pede confirmacao."
       : "Se ainda houver ambiguidade, podes fazer uma pergunta curta para fechar o alvo.",
+    "Distincao importante: antes/acima/fora da primeira secao = espaco externo. Topo da primeira secao = topo da area da secao. Dentro da primeira secao = espaco interno.",
     "",
     `Pagina atual: ${input.currentTitle} (${input.currentPath})`,
     "",

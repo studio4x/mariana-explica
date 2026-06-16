@@ -8,6 +8,13 @@ import {
   type PatchEngineBaseVersion,
   type SpacingSourceDiagnosis,
 } from "./patch-engine.ts"
+import {
+  isPageStartSpacingRequest,
+  protectsSectionInternalSpacing,
+  wantsOnlyFirstSectionSpacing,
+  wantsOnlyPageWrapperSpacing,
+  wantsOnlySectionInternalSpacing,
+} from "./spacing-intent.ts"
 
 type ConfirmedSpacingScope =
   | "wrapper_only"
@@ -142,53 +149,27 @@ function resolveConfirmedSpacingScope(input: {
   ])
   if (!mentionsSpacing) return null
 
-  const mentionsInternal = includesAny(normalized, [
-    /\bdentro da primeira secao\b/,
-    /\binterno da primeira secao\b/,
-    /\bpadding interno\b/,
-    /\bdentro da secao\b/,
-  ])
-  if (mentionsInternal) return "section_internal_only" satisfies ConfirmedSpacingScope
-
-  const mentionsWrapper = includesAny(normalized, [
-    /\bwrapper global\b/,
-    /\bwrapper da pagina\b/,
-    /\bpage root\b/,
-    /\bpage wrapper\b/,
-    /\bme-managed-page-root\b/,
-  ])
-  const mentionsFirstSection = includesAny(normalized, [
-    /\bprimeira secao\b/,
-    /\btopo da primeira secao\b/,
-    /\bantes de iniciar a primeira secao\b/,
-    /\bantes da primeira secao\b/,
-    /\bprimeiro bloco\b/,
-  ])
-  const mentionsPageStart = includesAny(normalized, [
-    /\btopo da pagina\b/,
-    /\binicio da pagina\b/,
-    /\bcomeco da pagina\b/,
-    /\bantes do conteudo principal\b/,
-    /\bantes do conteudo\b/,
-  ])
-
   if (quickReply && /\b(nos dois|ambos)\b/.test(quickReply)) {
     return "wrapper_and_first_section" satisfies ConfirmedSpacingScope
   }
 
-  if (mentionsWrapper && mentionsFirstSection) {
-    return "wrapper_and_first_section" satisfies ConfirmedSpacingScope
-  }
-
-  if (mentionsWrapper) {
+  if (wantsOnlyPageWrapperSpacing(normalized)) {
     return "wrapper_only" satisfies ConfirmedSpacingScope
   }
 
-  if (mentionsFirstSection && !mentionsPageStart) {
+  if (wantsOnlySectionInternalSpacing(normalized)) {
+    return "section_internal_only" satisfies ConfirmedSpacingScope
+  }
+
+  if (wantsOnlyFirstSectionSpacing(normalized)) {
     return "first_section_only" satisfies ConfirmedSpacingScope
   }
 
-  if (mentionsPageStart || mentionsFirstSection) {
+  if (protectsSectionInternalSpacing(normalized) && isPageStartSpacingRequest(normalized)) {
+    return "wrapper_only" satisfies ConfirmedSpacingScope
+  }
+
+  if (isPageStartSpacingRequest(normalized)) {
     return "wrapper_and_first_section" satisfies ConfirmedSpacingScope
   }
 
@@ -223,34 +204,34 @@ function buildSeedSpacingPlan(scope: ConfirmedSpacingScope): AiEditPlan {
 
 function buildCanonicalSpacingMessage(scope: ConfirmedSpacingScope) {
   if (scope === "wrapper_only") {
-    return "remover o espaço no wrapper global da página"
+    return "remover o espaço em branco antes da primeira seção, fora da área da primeira seção"
   }
 
   if (scope === "first_section_only") {
-    return "remover o espaço acima da primeira seção"
+    return "remover o espaço no topo da primeira seção, dentro da área da seção"
   }
 
   if (scope === "section_internal_only") {
-    return "remover o espaço dentro da primeira seção"
+    return "remover o espaço interno dentro da primeira seção"
   }
 
-  return "remover o espaço no início da página"
+  return "remover o espaço em branco antes da primeira seção e também o espaço no topo da primeira seção"
 }
 
 function buildUserFacingCopy(targetIds: string[], title: string) {
   if (targetIds.length === 1 && targetIds[0] === "page_wrapper_spacing") {
     return {
-      summary: `Remover o espaço antes do conteúdo da página ${title}.`,
-      explanation: "Preparei um ajuste localizado só no topo da página, sem reescrever as seções.",
-      assistantMessage: "Entendi. Preparei uma prévia só para tirar esse espaço do topo, sem mexer no resto da página.",
+      summary: `Remover o espaço branco antes de iniciar a primeira seção da página ${title}.`,
+      explanation: "Preparei um ajuste localizado só no espaço externo antes da primeira seção, sem reescrever as seções.",
+      assistantMessage: "Entendi. Preparei uma prévia só para tirar esse espaço branco antes da primeira seção, sem mexer no resto da página.",
     }
   }
 
   if (targetIds.length === 1 && targetIds[0] === "first_section_spacing") {
     return {
-      summary: `Remover o espaço no topo da primeira seção da página ${title}.`,
-      explanation: "Preparei um ajuste localizado só na primeira seção, sem alterar o restante da página.",
-      assistantMessage: "Entendi. Preparei uma prévia só para ajustar o início da primeira seção, sem mexer no resto.",
+      summary: `Remover o espaço no topo da área da primeira seção da página ${title}.`,
+      explanation: "Preparei um ajuste localizado só no topo da primeira seção, dentro da área da seção, sem alterar o restante da página.",
+      assistantMessage: "Entendi. Preparei uma prévia só para ajustar o topo da primeira seção, sem mexer no resto.",
     }
   }
 

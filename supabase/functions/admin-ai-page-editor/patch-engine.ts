@@ -1,4 +1,10 @@
 import type { AiEditMode, AiEditOperation, AiEditPlan } from "./contract.ts"
+import {
+  isPageStartSpacingRequest as isSharedPageStartSpacingRequest,
+  wantsOnlyFirstSectionSpacing as wantsSharedFirstSectionSpacing,
+  wantsOnlyPageWrapperSpacing as wantsSharedPageWrapperSpacing,
+  wantsOnlySectionInternalSpacing as wantsSharedSectionInternalSpacing,
+} from "./spacing-intent.ts"
 
 export interface PatchEngineAttachmentContext {
   name: string
@@ -668,7 +674,7 @@ export function refineSpacingEditPlanForKnownWrappers(input: {
   editPlan: AiEditPlan
   baseVersion: PatchEngineBaseVersion
 }): RefinedSpacingPlanResult {
-  if (input.editPlan.mode !== "spacing_patch" && !isPageStartSpacingRequest(input.message)) {
+  if (input.editPlan.mode !== "spacing_patch" && !isSharedPageStartSpacingRequest(input.message)) {
     return {
       editPlan: input.editPlan,
       warnings: [],
@@ -725,7 +731,7 @@ export function refineSpacingEditPlanForKnownWrappers(input: {
     })
   }
 
-  if (!isPageStartSpacingRequest(input.message)) {
+  if (!isSharedPageStartSpacingRequest(input.message)) {
     return {
       editPlan: input.editPlan,
       warnings: [],
@@ -735,15 +741,22 @@ export function refineSpacingEditPlanForKnownWrappers(input: {
 
   const sourceById = new Map(diagnosis.map((item) => [item.target_id, item]))
   const explicitTargetIds = input.editPlan.target_ids.filter((targetId) => sourceById.has(targetId))
+  const normalizedMessage = normalizeText(input.message)
+  const explicitlyTargetsWrapperAndFirstSection =
+    explicitTargetIds.includes("page_wrapper_spacing") &&
+    explicitTargetIds.includes("first_section_spacing") &&
+    /\b(tambem|ambos|nos dois)\b/.test(normalizedMessage)
 
   let selectedTargetIds: string[]
-  if (wantsOnlyPageWrapperSpacing(input.message)) {
+  if (explicitlyTargetsWrapperAndFirstSection) {
+    selectedTargetIds = ["page_wrapper_spacing", "first_section_spacing"]
+  } else if (wantsSharedPageWrapperSpacing(input.message)) {
     selectedTargetIds = ["page_wrapper_spacing"]
-  } else if (wantsOnlySectionInternalSpacing(input.message)) {
+  } else if (wantsSharedSectionInternalSpacing(input.message)) {
     selectedTargetIds = diagnosis.some((item) => item.target_id === "section_internal_spacing")
       ? ["section_internal_spacing"]
       : []
-  } else if (wantsOnlyFirstSectionSpacing(input.message)) {
+  } else if (wantsSharedFirstSectionSpacing(input.message)) {
     selectedTargetIds = diagnosis.some((item) => item.target_id === "first_section_spacing")
       ? ["first_section_spacing"]
       : []
@@ -842,7 +855,7 @@ function scoreCandidate(input: {
     signals.data_attributes = Math.min(0.16, attributeOverlap * 0.2)
   }
 
-  if (isPageStartSpacingRequest(input.message)) {
+  if (isSharedPageStartSpacingRequest(input.message)) {
     if (input.candidate.block_type === "page_wrapper_spacing") {
       signals.id_structural = Math.max(signals.id_structural, 0.34)
       signals.visual_order = Math.max(signals.visual_order, 0.14)
@@ -859,11 +872,11 @@ function scoreCandidate(input: {
     }
   }
 
-  if (wantsOnlyPageWrapperSpacing(input.message) && input.candidate.block_type === "page_wrapper_spacing") {
+  if (wantsSharedPageWrapperSpacing(input.message) && input.candidate.block_type === "page_wrapper_spacing") {
     signals.id_structural = Math.max(signals.id_structural, 0.52)
   }
 
-  if (wantsOnlyFirstSectionSpacing(input.message)) {
+  if (wantsSharedFirstSectionSpacing(input.message)) {
     if (input.candidate.block_type === "first_section_spacing") {
       signals.id_structural = Math.max(signals.id_structural, 0.5)
     }
@@ -886,7 +899,7 @@ function scoreCandidate(input: {
     }
   }
 
-  if (wantsOnlySectionInternalSpacing(input.message) && input.candidate.block_type === "section_internal_spacing") {
+  if (wantsSharedSectionInternalSpacing(input.message) && input.candidate.block_type === "section_internal_spacing") {
     signals.id_structural = Math.max(signals.id_structural, 0.48)
   }
 

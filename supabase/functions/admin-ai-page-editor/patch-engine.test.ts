@@ -616,8 +616,8 @@ describe("applyPatchPlan", () => {
     })
 
     expect(refined.editPlan.mode).toBe("spacing_patch")
-    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing", "first_section_spacing"])
-    expect(refined.warnings.join(" ")).toContain("wrapper da página e dentro da primeira seção")
+    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(refined.warnings).toEqual([])
 
     const result = applyPatchPlan({
       slug: "sobre",
@@ -630,7 +630,7 @@ describe("applyPatchPlan", () => {
 
     expect((result.styleJson.css as string)).toContain(".me-managed-page-root")
     expect((result.styleJson.css as string)).toContain("padding-top: 0px !important;")
-    expect((result.styleJson.css as string)).toContain("section.me-about-page")
+    expect((result.styleJson.css as string)).not.toContain("section.me-about-page")
     const blocks = (((result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks))
     expect(((blocks[0].layout as Record<string, unknown>).paddingTop)).toBe(0)
     expect(blocks[1].id).toBe("about-followup")
@@ -693,9 +693,38 @@ describe("applyPatchPlan", () => {
     expect(refined.diagnosis.map((entry) => entry.source)).toContain("page_wrapper_spacing")
   })
 
+  it("prioritizes page_wrapper_spacing for requests before the first section", () => {
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message: "remover o espaço em branco no topo da página, antes da primeira seção",
+      editPlan: createPlan({
+        target_ids: ["page_wrapper_spacing", "first_section_spacing"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "page_wrapper_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+          {
+            type: "set_style",
+            target_id: "first_section_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createAboutSpacingBaseVersion(),
+    })
+
+    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(refined.editPlan.target_ids).not.toContain("first_section_spacing")
+  })
+
   it("patches the first section .me-about-page when the user points to the first section", () => {
     const refined = refineSpacingEditPlanForKnownWrappers({
-      message: "remover o espaçamento acima da primeira seção .me-about-page",
+      message: "remover o espaçamento no topo da primeira seção .me-about-page",
       editPlan: createPlan({
         target_ids: ["first_section_spacing"],
         operations: [
@@ -715,13 +744,63 @@ describe("applyPatchPlan", () => {
       slug: "sobre",
       title: "Sobre",
       path: "/sobre",
-      message: "remover o espaçamento acima da primeira seção .me-about-page",
+      message: "remover o espaçamento no topo da primeira seção .me-about-page",
       editPlan: refined.editPlan,
       baseVersion: createAboutSpacingBaseVersion(),
     })
 
     expect((result.styleJson.css as string)).toContain("section.me-about-page")
     expect((result.styleJson.css as string)).not.toContain(".me-managed-page-root {\n  padding-top: 0 !important;")
+  })
+
+  it("keeps the section internal spacing untouched when the request says to keep it", () => {
+    const baseVersion = createAboutSpacingBaseVersion()
+    const blocks = ((baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks)
+    blocks[0] = {
+      ...blocks[0],
+      layout: {
+        paddingTop: 24,
+        marginTop: 0,
+      },
+    }
+
+    const refined = refineSpacingEditPlanForKnownWrappers({
+      message: "remover o espaço antes da primeira seção e manter o padding interno da seção",
+      editPlan: createPlan({
+        target_ids: ["page_wrapper_spacing", "section_internal_spacing"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "page_wrapper_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+          {
+            type: "set_style",
+            target_id: "section_internal_spacing",
+            path: "padding-top",
+            value: 0,
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion,
+    })
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remover o espaço antes da primeira seção e manter o padding interno da seção",
+      editPlan: refined.editPlan,
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(refined.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(refined.editPlan.target_ids).not.toContain("section_internal_spacing")
+    expect((nextBlocks[0].layout as { paddingTop?: number }).paddingTop).toBe(24)
   })
 
   it("detects a wrapper-only diagnosis when the prompt limits the change to the global wrapper", () => {

@@ -101,15 +101,15 @@ function materialize(understandingSummary: string, options?: {
 }
 
 describe("materializeConfirmedIntentProposal", () => {
-  it("turns a confirmed top-spacing request into a direct spacing patch with preview-ready proposal", () => {
+  it("prioritizes the page wrapper when the confirmed intent says before the first section", () => {
     const result = materialize(
-      "remover o espaço em branco no topo da página Sobre, antes do conteúdo principal começar",
+      "remover o espaço em branco no topo da página Sobre, antes da primeira seção",
     )
 
     expect(result.status).toBe("success")
     if (result.status !== "success") throw new Error("expected success")
     expect(result.editPlan.mode).toBe("spacing_patch")
-    expect(result.editPlan.target_ids).toEqual(["page_wrapper_spacing", "first_section_spacing"])
+    expect(result.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
     expect(result.canGenerateProposal).toBe(true)
     expect(result.operationalState.preview_available).toBe(true)
     expect(result.operationalState.final_status).toBe("proposal_ready")
@@ -126,7 +126,7 @@ describe("materializeConfirmedIntentProposal", () => {
     ).not.toThrow()
 
     expect(String(result.proposal.style_json.css ?? "")).toContain(".me-managed-page-root")
-    expect(String(result.proposal.style_json.css ?? "")).toContain("section.me-about-page")
+    expect(String(result.proposal.style_json.css ?? "")).not.toContain("section.me-about-page")
   })
 
   it("targets only the global wrapper when the confirmed intent is explicit", () => {
@@ -161,7 +161,7 @@ describe("materializeConfirmedIntentProposal", () => {
     expect(result.warnings.join(" ")).toContain("wrapper da página e dentro da primeira seção")
   })
 
-  it("handles spacing inside the first section without reopening a broad proposal path", () => {
+  it("maps 'dentro da primeira seção' to section internal spacing", () => {
     const result = materialize(
       "remover o espaço dentro da primeira seção da página Sobre",
       {
@@ -176,6 +176,21 @@ describe("materializeConfirmedIntentProposal", () => {
     expect(result.proposal.metadata.ai_invariants?.confirmed_intent_materialized).toBe(true)
   })
 
+  it("does not touch section internal spacing when the request says to keep it", () => {
+    const result = materialize(
+      "remover o espaço em branco antes da primeira seção da página Sobre e manter o padding interno da seção",
+      {
+        baseVersion: createAboutInternalSpacingBaseVersion(),
+      },
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.editPlan.target_ids).toEqual(["page_wrapper_spacing"])
+    expect(result.editPlan.target_ids).not.toContain("section_internal_spacing")
+    expect(String(result.proposal.style_json.css ?? "")).toContain(".me-managed-page-root")
+  })
+
   it("returns a friendly failure instead of falling back to a broad proposal when the safe patch cannot be built", () => {
     const result = materialize("remover o espaço no topo da página Sobre", {
       baseVersion: {
@@ -186,7 +201,7 @@ describe("materializeConfirmedIntentProposal", () => {
 
     expect(result.status).toBe("failed")
     if (result.status !== "failed") throw new Error("expected failure")
-    expect(result.scope).toBe("wrapper_and_first_section")
+    expect(result.scope).toBe("wrapper_only")
     expect(result.assistantMessage).toMatch(/tentativa segura/i)
   })
 })
