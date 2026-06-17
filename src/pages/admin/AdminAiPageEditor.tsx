@@ -36,6 +36,22 @@ function mergeAllowedPaths(current: AllowedPathState[], nextPath: string) {
   return [...current, { path: normalized, label: normalized, preset: false }]
 }
 
+function resolveLegacyModel(
+  provider: AdminAiPageEditorConfig["config_value"]["primary_provider"],
+  candidates: Array<{
+    provider: AdminAiPageEditorConfig["config_value"]["primary_provider"]
+    model: string
+  }>,
+  fallback: string,
+) {
+  const match = candidates.find((candidate) => candidate.provider === provider && candidate.model.trim())
+  return match?.model.trim() || fallback
+}
+
+function getDefaultModelForProvider(provider: AdminAiPageEditorConfig["config_value"]["primary_provider"]) {
+  return provider === "gemini" ? "gemini-2.0-flash" : "gpt-4.1-mini"
+}
+
 const numberFormatter = new Intl.NumberFormat("pt-PT")
 const currencyFormatter = new Intl.NumberFormat("pt-PT", {
   style: "currency",
@@ -69,8 +85,14 @@ export function AdminAiPageEditor() {
   const [allowedPaths, setAllowedPaths] = useState<AllowedPathState[]>([])
   const [launcherLabel, setLauncherLabel] = useState("Editar com IA")
   const [enabled, setEnabled] = useState(false)
-  const [primaryProvider, setPrimaryProvider] = useState<AdminAiPageEditorConfig["config_value"]["primary_provider"]>("openai")
   const [fallbackProvider, setFallbackProvider] = useState<AdminAiPageEditorConfig["config_value"]["fallback_provider"]>("gemini")
+  const [conversationProvider, setConversationProvider] = useState<AdminAiPageEditorConfig["config_value"]["primary_provider"]>("openai")
+  const [conversationModel, setConversationModel] = useState("gpt-4.1-mini")
+  const [plannerProvider, setPlannerProvider] = useState<AdminAiPageEditorConfig["config_value"]["primary_provider"]>("openai")
+  const [plannerModel, setPlannerModel] = useState("gpt-4.1-mini")
+  const [complexProvider, setComplexProvider] = useState<AdminAiPageEditorConfig["config_value"]["primary_provider"]>("openai")
+  const [complexModel, setComplexModel] = useState("gpt-4.1-mini")
+  const [fallbackModel, setFallbackModel] = useState("gemini-2.0-flash")
   const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash")
   const [openaiModel, setOpenaiModel] = useState("gpt-4.1-mini")
   const [maxAttachments, setMaxAttachments] = useState(2)
@@ -106,8 +128,14 @@ export function AdminAiPageEditor() {
         preset: AI_PAGE_EDITOR_ROUTE_OPTIONS.some((item) => item.path === path),
       })),
     )
-    setPrimaryProvider(value.primary_provider)
     setFallbackProvider(value.fallback_provider)
+    setConversationProvider(value.conversation_provider ?? value.primary_provider)
+    setConversationModel(value.conversation_model ?? (value.primary_provider === "gemini" ? value.gemini_model : value.openai_model))
+    setPlannerProvider(value.planner_provider ?? value.primary_provider)
+    setPlannerModel(value.planner_model ?? (value.primary_provider === "gemini" ? value.gemini_model : value.openai_model))
+    setComplexProvider(value.complex_provider ?? value.primary_provider)
+    setComplexModel(value.complex_model ?? (value.primary_provider === "gemini" ? value.gemini_model : value.openai_model))
+    setFallbackModel(value.fallback_model ?? (value.fallback_provider === "gemini" ? value.gemini_model : value.openai_model))
     setGeminiModel(value.gemini_model)
     setOpenaiModel(value.openai_model)
     setMaxAttachments(value.max_attachments)
@@ -149,15 +177,43 @@ export function AdminAiPageEditor() {
   async function handleSave() {
     setFeedback(null)
     try {
+      const nextGeminiModel = resolveLegacyModel(
+        "gemini",
+        [
+          { provider: conversationProvider, model: conversationModel },
+          { provider: plannerProvider, model: plannerModel },
+          { provider: complexProvider, model: complexModel },
+          { provider: fallbackProvider, model: fallbackModel },
+        ],
+        geminiModel.trim() || "gemini-2.0-flash",
+      )
+      const nextOpenAiModel = resolveLegacyModel(
+        "openai",
+        [
+          { provider: conversationProvider, model: conversationModel },
+          { provider: plannerProvider, model: plannerModel },
+          { provider: complexProvider, model: complexModel },
+          { provider: fallbackProvider, model: fallbackModel },
+        ],
+        openaiModel.trim() || "gpt-4.1-mini",
+      )
+
       const response = await updateMutation.mutateAsync({
         configValue: {
           enabled,
           launcher_label: launcherLabel.trim() || "Editar com IA",
           allowed_paths: allowedPathsValue,
-          primary_provider: primaryProvider,
+          primary_provider: conversationProvider,
           fallback_provider: fallbackProvider,
-          gemini_model: geminiModel.trim() || "gemini-2.0-flash",
-          openai_model: openaiModel.trim() || "gpt-4.1-mini",
+          gemini_model: nextGeminiModel,
+          openai_model: nextOpenAiModel,
+          conversation_provider: conversationProvider,
+          conversation_model: conversationModel.trim() || getDefaultModelForProvider(conversationProvider),
+          planner_provider: plannerProvider,
+          planner_model: plannerModel.trim() || getDefaultModelForProvider(plannerProvider),
+          complex_provider: complexProvider,
+          complex_model: complexModel.trim() || getDefaultModelForProvider(complexProvider),
+          fallback_model: fallbackModel.trim() || getDefaultModelForProvider(fallbackProvider),
           max_attachments: maxAttachments,
           max_attachment_size_mb: maxAttachmentSizeMb,
           base_prompt: basePrompt.trim(),
@@ -170,6 +226,8 @@ export function AdminAiPageEditor() {
 
       setGeminiApiKey("")
       setOpenaiApiKey("")
+      setGeminiModel(response.config_value.gemini_model)
+      setOpenaiModel(response.config_value.openai_model)
       setFeedback({ tone: "success", message: "Configuração do editor via IA atualizada com sucesso." })
       setProviderTestOutput(
         [
@@ -194,10 +252,10 @@ export function AdminAiPageEditor() {
     try {
       const result = await testMutation.mutateAsync()
       setProviderTestOutput(result.summary ?? result.details)
-      setProviderTestResults(result.provider_results ?? [])
+      setProviderTestResults(result.stage_results ?? result.provider_results ?? [])
       void usageQuery.refetch()
 
-      const hasWarnings = (result.provider_results ?? []).some(
+      const hasWarnings = (result.stage_results ?? result.provider_results ?? []).some(
         (item) => item.status === "quota_exceeded" || item.status === "missing_key",
       )
 
@@ -292,7 +350,7 @@ export function AdminAiPageEditor() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-950">Configuração principal</h2>
-              <p className="mt-1 text-sm text-slate-600">Define o comportamento do launcher e a ordem de fallback dos provedores.</p>
+              <p className="mt-1 text-sm text-slate-600">Define o comportamento do launcher e como o editor distribui conversa, planeamento, proposta complexa e fallback.</p>
             </div>
             <StatusBadge label={enabled ? "Ativo" : "Desativado"} tone={enabled ? "success" : "neutral"} />
           </div>
@@ -319,46 +377,6 @@ export function AdminAiPageEditor() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Provedor principal</span>
-              <select
-                value={primaryProvider}
-                onChange={(event) => setPrimaryProvider(event.target.value as AdminAiPageEditorConfig["config_value"]["primary_provider"])}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
-              >
-                <option value="gemini">Gemini</option>
-                <option value="openai">OpenAI</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Fallback</span>
-              <select
-                value={fallbackProvider}
-                onChange={(event) => setFallbackProvider(event.target.value as AdminAiPageEditorConfig["config_value"]["fallback_provider"])}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
-              >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Gemini</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Modelo Gemini</span>
-              <input
-                value={geminiModel}
-                onChange={(event) => setGeminiModel(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
-                placeholder="gemini-2.0-flash"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Modelo OpenAI</span>
-              <input
-                value={openaiModel}
-                onChange={(event) => setOpenaiModel(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
-                placeholder="gpt-4.1-mini"
-              />
-            </label>
-            <label className="block">
               <span className="text-sm font-medium text-slate-700">Limite de anexos</span>
               <input
                 type="number"
@@ -380,6 +398,133 @@ export function AdminAiPageEditor() {
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
               />
             </label>
+          </div>
+
+          <div className="space-y-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-950">Modelos do editor com IA</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Cada etapa usa o seu próprio modelo. O roteamento legado continua compatível no backend.
+              </p>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">Modelo de conversa</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Usado para entender pedidos, fazer perguntas e confirmar intenção. Pode ser um modelo leve.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Provider</span>
+                    <select
+                      value={conversationProvider}
+                      onChange={(event) => setConversationProvider(event.target.value as AdminAiPageEditorConfig["config_value"]["primary_provider"])}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                    >
+                      <option value="gemini">Gemini</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Model</span>
+                    <input
+                      value={conversationModel}
+                      onChange={(event) => setConversationModel(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                      placeholder="gemini-2.0-flash-lite ou gpt-4.1-mini"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">Modelo de planeamento visual/técnico</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Usado para analisar HTML, estilos, capturas e identificar o alvo visual com mais precisão.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Provider</span>
+                    <select
+                      value={plannerProvider}
+                      onChange={(event) => setPlannerProvider(event.target.value as AdminAiPageEditorConfig["config_value"]["primary_provider"])}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                    >
+                      <option value="gemini">Gemini</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Model</span>
+                    <input
+                      value={plannerModel}
+                      onChange={(event) => setPlannerModel(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                      placeholder="gemini-2.0-flash ou gpt-4.1"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">Modelo de proposta complexa</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Usado apenas quando o ajuste exige proposta mais ampla e ainda passa pelos guardrails do editor.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Provider</span>
+                    <select
+                      value={complexProvider}
+                      onChange={(event) => setComplexProvider(event.target.value as AdminAiPageEditorConfig["config_value"]["primary_provider"])}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                    >
+                      <option value="gemini">Gemini</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Model</span>
+                    <input
+                      value={complexModel}
+                      onChange={(event) => setComplexModel(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                      placeholder="gemini-2.5-pro ou gpt-4.1"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">Modelo de fallback</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Usado se o modelo principal da etapa falhar ou não tiver chave disponível no backend.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Provider</span>
+                    <select
+                      value={fallbackProvider}
+                      onChange={(event) => setFallbackProvider(event.target.value as AdminAiPageEditorConfig["config_value"]["fallback_provider"])}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                    >
+                      <option value="gemini">Gemini</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Model</span>
+                    <input
+                      value={fallbackModel}
+                      onChange={(event) => setFallbackModel(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                      placeholder="gpt-4.1-mini ou gemini-2.0-flash"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
           <label className="block">
@@ -486,7 +631,7 @@ export function AdminAiPageEditor() {
                 <div className="mt-4 space-y-2">
                   {providerTestResults.map((result) => (
                     <div
-                      key={result.provider}
+                      key={`${result.stage ?? "provider"}-${result.provider}-${result.model ?? "default"}`}
                       className={[
                         "rounded-2xl border px-3 py-2 text-sm",
                         result.ok
@@ -496,7 +641,12 @@ export function AdminAiPageEditor() {
                             : "border-rose-200 bg-rose-50 text-rose-900",
                       ].join(" ")}
                     >
-                      <p className="font-semibold capitalize">{result.provider}</p>
+                      <p className="font-semibold capitalize">
+                        {result.stage ? result.stage.replace(/_/g, " ") : result.provider}
+                      </p>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-current/75">
+                        {result.provider} {result.model ? `· ${result.model}` : ""}
+                      </p>
                       <p className="mt-1 text-xs leading-5">{result.message}</p>
                     </div>
                   ))}

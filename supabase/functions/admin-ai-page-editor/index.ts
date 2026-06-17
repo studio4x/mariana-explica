@@ -17,6 +17,14 @@ import {
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
 import { materializeConfirmedIntentProposal } from "./confirmed-intent.ts"
+import {
+  materializeExplicitCssPatchProposal,
+} from "./explicit-css-patch.ts"
+import {
+  buildExplicitCssSourceText,
+  buildExplicitCssUnderstandingSummary,
+  extractExplicitCssIntent,
+} from "./explicit-css-intent.ts"
 import { materializeLocalizedVisualPatchProposal } from "./localized-patch.ts"
 import {
   extractPersistibleProposalInvariants,
@@ -40,6 +48,7 @@ import {
   type AiConversationContext,
   type AiConversationPhase,
 } from "./conversation.ts"
+import { selectAiModelForStage, type AiEditorModelStage } from "./model-routing.ts"
 import { isFooterAdjacentSpacingRequest } from "./spacing-intent.ts"
 
 type Action =
@@ -484,6 +493,15 @@ function buildFooterDiagnosticAssistantMessage(input: {
   return `Analisei o HTML e a estrutura atual da pagina ${input.pageTitle}, mas nao encontrei um elemento unico com confianca suficiente. Avaliei a ultima secao, o wrapper da pagina e os blocos proximos ao rodape. Para avancar com seguranca, seleciona uma area maior pegando o final da ultima secao e o comeco do rodape.`
 }
 
+function buildExplicitCssConfirmationAssistantMessage(input: {
+  intent: NonNullable<ReturnType<typeof extractExplicitCssIntent>>
+}) {
+  const declarationSummary = input.intent.declarations
+    .map((declaration) => `${declaration.property} = ${declaration.value}`)
+    .join(", ")
+  return `Entendido. Vou ajustar a classe ${input.intent.selector}, aplicando ${declarationSummary}, mantendo o restante da pagina igual. Posso preparar a previa?`
+}
+
 function normalizeConversationReplies(value: unknown) {
   if (!Array.isArray(value)) return [] as string[]
   return sanitizeConversationReplies(
@@ -496,8 +514,11 @@ function normalizeStringArray(value: unknown) {
   return value.map((item) => String(item ?? "").trim()).filter(Boolean)
 }
 
-function normalizeProvider(value: unknown) {
-  return String(value ?? "").trim().toLowerCase() === "openai" ? "openai" : "gemini"
+function normalizeProvider(value: unknown, fallback: "gemini" | "openai" = "gemini") {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (normalized === "openai") return "openai"
+  if (normalized === "gemini") return "gemini"
+  return fallback
 }
 
 function normalizePeriodDays(value: unknown) {
@@ -515,6 +536,37 @@ function roundUsd(value: number) {
 function getModelPricing(provider: AiProvider, model: string) {
   const normalizedModel = normalizeString(model).toLowerCase()
   return MODEL_PRICING_CATALOG[provider].find((entry) => entry.match.test(normalizedModel))?.pricing ?? null
+}
+
+function getApiKeyForProvider(
+  provider: AiProvider,
+  secrets: Awaited<ReturnType<typeof getProviderSecrets>>,
+) {
+  return provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey
+}
+
+function buildProviderCandidatesForStage(input: {
+  stage: AiEditorModelStage
+  config: ReturnType<typeof normalizeConfigValue>
+  secrets: Awaited<ReturnType<typeof getProviderSecrets>>
+}) {
+  const selection = selectAiModelForStage(input.stage, input.config)
+  return [
+    {
+      provider: selection.primary.provider,
+      model: selection.primary.model,
+      apiKey: getApiKeyForProvider(selection.primary.provider, input.secrets),
+      fallbackUsed: false,
+      modelStage: input.stage,
+    },
+    {
+      provider: selection.fallback.provider,
+      model: selection.fallback.model,
+      apiKey: getApiKeyForProvider(selection.fallback.provider, input.secrets),
+      fallbackUsed: true,
+      modelStage: input.stage,
+    },
+  ] as const
 }
 
 function estimateUsageCostUsd(
@@ -557,15 +609,41 @@ function resolveUsageEventCostUsd(
 function normalizeConfigValue(raw: unknown) {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}
   const allowedPaths = normalizeStringArray(value.allowed_paths)
+  const primaryProvider = normalizeProvider(value.primary_provider)
+  const fallbackProvider = normalizeProvider(value.fallback_provider === "gemini" ? "gemini" : "openai")
+  const geminiModel = normalizeString(value.gemini_model, DEFAULT_GEMINI_MODEL)
+  const openaiModel = normalizeString(value.openai_model, DEFAULT_OPENAI_MODEL)
+
+  const resolveLegacyModel = (provider: "gemini" | "openai") =>
+    provider === "gemini" ? geminiModel : openaiModel
 
   return {
     enabled: value.enabled === true,
     launcher_label: normalizeString(value.launcher_label, "Editar com IA"),
     allowed_paths: allowedPaths,
-    primary_provider: normalizeProvider(value.primary_provider),
-    fallback_provider: normalizeProvider(value.fallback_provider === "gemini" ? "gemini" : "openai"),
-    gemini_model: normalizeString(value.gemini_model, DEFAULT_GEMINI_MODEL),
-    openai_model: normalizeString(value.openai_model, DEFAULT_OPENAI_MODEL),
+    primary_provider: primaryProvider,
+    fallback_provider: fallbackProvider,
+    gemini_model: geminiModel,
+    openai_model: openaiModel,
+    conversation_provider: normalizeProvider(value.conversation_provider, primaryProvider),
+    conversation_model: normalizeString(
+      value.conversation_model,
+      resolveLegacyModel(normalizeProvider(value.conversation_provider, primaryProvider)),
+    ),
+    planner_provider: normalizeProvider(value.planner_provider, primaryProvider),
+    planner_model: normalizeString(
+      value.planner_model,
+      resolveLegacyModel(normalizeProvider(value.planner_provider, primaryProvider)),
+    ),
+    complex_provider: normalizeProvider(value.complex_provider, primaryProvider),
+    complex_model: normalizeString(
+      value.complex_model,
+      resolveLegacyModel(normalizeProvider(value.complex_provider, primaryProvider)),
+    ),
+    fallback_model: normalizeString(
+      value.fallback_model,
+      resolveLegacyModel(fallbackProvider),
+    ),
     max_attachments: Math.max(0, Math.min(6, Number(value.max_attachments ?? 2))),
     max_attachment_size_mb: Math.max(1, Math.min(20, Number(value.max_attachment_size_mb ?? 8))),
     base_prompt: normalizeString(value.base_prompt, ""),
@@ -2710,18 +2788,11 @@ async function generateUnderstandingTurn(input: {
     conversationContext: input.conversationContext,
   })
 
-  const providerCandidates = [
-    {
-      provider: input.config.primary_provider,
-      model: input.config.primary_provider === "gemini" ? input.config.gemini_model : input.config.openai_model,
-      apiKey: input.config.primary_provider === "gemini" ? input.secrets.geminiApiKey : input.secrets.openaiApiKey,
-    },
-    {
-      provider: input.config.fallback_provider,
-      model: input.config.fallback_provider === "gemini" ? input.config.gemini_model : input.config.openai_model,
-      apiKey: input.config.fallback_provider === "gemini" ? input.secrets.geminiApiKey : input.secrets.openaiApiKey,
-    },
-  ] as const
+  const providerCandidates = buildProviderCandidatesForStage({
+    stage: "conversation",
+    config: input.config,
+    secrets: input.secrets,
+  })
 
   let lastError: unknown = null
   const providerFailures: Array<{ provider: AiProvider; message: string }> = []
@@ -2729,6 +2800,7 @@ async function generateUnderstandingTurn(input: {
   let providerUsed: AiProvider | null = null
   let modelUsed = ""
   let rawPayload: unknown = null
+  let fallbackUsed = false
 
   for (const candidate of providerCandidates) {
     if (!candidate.apiKey) {
@@ -2762,6 +2834,7 @@ async function generateUnderstandingTurn(input: {
       providerUsed = candidate.provider
       modelUsed = candidate.model
       rawPayload = result.raw
+      fallbackUsed = candidate.fallbackUsed
       lastError = null
       break
     } catch (error) {
@@ -2798,6 +2871,8 @@ async function generateUnderstandingTurn(input: {
     modelUsed: modelUsed || (providerUsed === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL),
     rawPayload,
     providerFailures,
+    fallbackUsed,
+    modelStage: "conversation" as const,
     usage,
     pricing,
     turn,
@@ -3429,6 +3504,9 @@ Deno.serve(async (req) => {
           enabled: configValue.enabled,
           allowed_paths: configValue.allowed_paths,
           primary_provider: configValue.primary_provider,
+          conversation_provider: configValue.conversation_provider,
+          planner_provider: configValue.planner_provider,
+          complex_provider: configValue.complex_provider,
           fallback_provider: configValue.fallback_provider,
           gemini_secret_present: secrets.secret_status.gemini_api_key_present,
           openai_secret_present: secrets.secret_status.openai_api_key_present,
@@ -3448,37 +3526,58 @@ Deno.serve(async (req) => {
       const config = await readConfig(serviceClient)
       const secrets = await getProviderSecrets(serviceClient)
 
-      const providerOrder = [
+      const stageDefinitions = [
         {
-          provider: config.config_value.primary_provider,
-          model: config.config_value.primary_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.primary_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
+          stage: "conversation",
+          ...selectAiModelForStage("conversation", config.config_value).primary,
         },
         {
-          provider: config.config_value.fallback_provider,
-          model: config.config_value.fallback_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.fallback_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
+          stage: "planner",
+          ...selectAiModelForStage("planner", config.config_value).primary,
+        },
+        {
+          stage: "complex_proposal",
+          ...selectAiModelForStage("complex_proposal", config.config_value).primary,
+        },
+        {
+          stage: "fallback",
+          ...selectAiModelForStage("conversation", config.config_value).fallback,
         },
       ] as const
 
       const outcomes = []
       const providerResults = []
-      for (const provider of providerOrder) {
-        const result = await testProviderByName(provider)
+      const stageResults = []
+      for (const stageDefinition of stageDefinitions) {
+        const result = await testProviderByName({
+          provider: stageDefinition.provider,
+          model: stageDefinition.model,
+          apiKey: getApiKeyForProvider(stageDefinition.provider, secrets),
+        })
         providerResults.push({
-          provider: provider.provider,
+          provider: stageDefinition.provider,
+          model: stageDefinition.model,
+          stage: stageDefinition.stage,
           ok: result.ok,
           status: result.status,
           message: result.message,
         })
-        outcomes.push(`${provider.provider}: ${result.message}`)
+        stageResults.push({
+          stage: stageDefinition.stage,
+          provider: stageDefinition.provider,
+          model: stageDefinition.model,
+          status: result.status,
+          ok: result.ok,
+          message: result.message,
+        })
+        outcomes.push(`${stageDefinition.stage}: ${stageDefinition.provider} / ${stageDefinition.model} -> ${result.message}`)
 
         if (result.ok && result.usage) {
-          const pricing = estimateUsageCostUsd(provider.provider, provider.model, result.usage)
+          const pricing = estimateUsageCostUsd(stageDefinition.provider, stageDefinition.model, result.usage)
           await recordUsageEvent(serviceClient, {
             action: "test_providers",
-            provider: provider.provider,
-            model: provider.model,
+            provider: stageDefinition.provider,
+            model: stageDefinition.model,
             user_id: context.user.id,
             slug: null,
             path: null,
@@ -3491,6 +3590,8 @@ Deno.serve(async (req) => {
             metadata: {
               pricing_source: pricing.pricing_source,
               result_status: result.status,
+              model_stage: stageDefinition.stage,
+              fallback_used: stageDefinition.stage === "fallback",
             },
           })
         }
@@ -3522,6 +3623,7 @@ Deno.serve(async (req) => {
         details: outcomes.join(" | "),
         summary,
         provider_results: providerResults,
+        stage_results: stageResults,
         secret_status: secrets.secret_status,
       })
     }
@@ -3562,18 +3664,11 @@ Deno.serve(async (req) => {
         currentPath: path,
       })
 
-      const providerCandidates = [
-        {
-          provider: config.config_value.primary_provider,
-          model: config.config_value.primary_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.primary_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
-        },
-        {
-          provider: config.config_value.fallback_provider,
-          model: config.config_value.fallback_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.fallback_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
-        },
-      ] as const
+      const providerCandidates = buildProviderCandidatesForStage({
+        stage: "complex_proposal",
+        config: config.config_value,
+        secrets,
+      })
 
       let lastError: unknown = null
       const providerFailures: Array<{ provider: AiProvider; message: string }> = []
@@ -3581,6 +3676,7 @@ Deno.serve(async (req) => {
       let providerUsed: AiProvider | null = null
       let modelUsed = ""
       let rawPayload: unknown = null
+      let fallbackUsed = false
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
@@ -3614,6 +3710,7 @@ Deno.serve(async (req) => {
           providerUsed = candidate.provider
           modelUsed = candidate.model
           rawPayload = result.raw
+          fallbackUsed = candidate.fallbackUsed
           lastError = null
           break
         } catch (error) {
@@ -3673,6 +3770,8 @@ Deno.serve(async (req) => {
           metadata: {
             target_scope: "global_header",
             pricing_source: pricing?.pricing_source ?? null,
+            model_stage: "complex_proposal",
+            fallback_used: fallbackUsed,
           },
         })
       }
@@ -3737,18 +3836,11 @@ Deno.serve(async (req) => {
         currentPath: path,
       })
 
-      const providerCandidates = [
-        {
-          provider: config.config_value.primary_provider,
-          model: config.config_value.primary_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.primary_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
-        },
-        {
-          provider: config.config_value.fallback_provider,
-          model: config.config_value.fallback_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.fallback_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
-        },
-      ] as const
+      const providerCandidates = buildProviderCandidatesForStage({
+        stage: "complex_proposal",
+        config: config.config_value,
+        secrets,
+      })
 
       let lastError: unknown = null
       const providerFailures: Array<{ provider: AiProvider; message: string }> = []
@@ -3756,6 +3848,7 @@ Deno.serve(async (req) => {
       let providerUsed: AiProvider | null = null
       let modelUsed = ""
       let rawPayload: unknown = null
+      let fallbackUsed = false
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
@@ -3789,6 +3882,7 @@ Deno.serve(async (req) => {
           providerUsed = candidate.provider
           modelUsed = candidate.model
           rawPayload = result.raw
+          fallbackUsed = candidate.fallbackUsed
           lastError = null
           break
         } catch (error) {
@@ -3847,6 +3941,8 @@ Deno.serve(async (req) => {
           metadata: {
             target_scope: "global_footer",
             pricing_source: pricing?.pricing_source ?? null,
+            model_stage: "complex_proposal",
+            fallback_used: fallbackUsed,
           },
         })
       }
@@ -3974,6 +4070,55 @@ Deno.serve(async (req) => {
       })
 
       if (!understandingConfirmed) {
+        const explicitCssSourceText = buildExplicitCssSourceText({
+          message,
+          conversationContext,
+        })
+        const explicitCssIntent = extractExplicitCssIntent(explicitCssSourceText)
+        if (explicitCssIntent && !understandingRejected) {
+          const understandingSummary = buildExplicitCssUnderstandingSummary(explicitCssIntent)
+          const operationalState = createConversationOperationalState("awaiting_intent_confirmation")
+          const conversationSelection = selectAiModelForStage("conversation", config.config_value)
+
+          await writeAuditLog(serviceClient, context, {
+            action: "admin.ai_page_editor_proposal_generated",
+            entityType: "site_config",
+            entityId: null,
+            metadata: {
+              config_key: CONFIG_KEY,
+              slug,
+              path,
+              conversation_phase: "awaiting_intent_confirmation",
+              branch_selected: "explicit_css_patch",
+              user_confirmed_understanding: false,
+              understanding_summary: understandingSummary,
+              explicit_css_selector: explicitCssIntent.selector,
+              explicit_css_properties: explicitCssIntent.declarations.map((item) => item.property),
+              explicit_css_values: explicitCssIntent.declarations.map((item) => item.value),
+            },
+            ...auditMeta,
+          })
+
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: conversationSelection.primary.provider,
+            conversation_phase: "awaiting_intent_confirmation",
+            assistant_message: buildExplicitCssConfirmationAssistantMessage({
+              intent: explicitCssIntent,
+            }),
+            quick_replies: ["Sim, prepara a previa", "Nao, explico melhor"],
+            understanding_summary: understandingSummary,
+            confirmation_token: buildUnderstandingConfirmationToken(understandingSummary),
+            confirmation_consumed: false,
+            requires_user_confirmation: true,
+            can_generate_proposal: false,
+            warnings: [],
+            ...operationalState,
+          })
+        }
+
         if (
           isReadOnlySpacingDiagnosticRequest(message) &&
           conversationSuggestsFooterAdjacentSpacing(conversationContext, message)
@@ -3994,6 +4139,7 @@ Deno.serve(async (req) => {
             diagnosis,
           })
           const operationalState = createConversationOperationalState("awaiting_intent_confirmation")
+          const conversationSelection = selectAiModelForStage("conversation", config.config_value)
 
           await writeAuditLog(serviceClient, context, {
             action: "admin.ai_page_editor_proposal_generated",
@@ -4016,7 +4162,7 @@ Deno.serve(async (req) => {
             success: true,
             request_id: requestId,
             client_request_id: clientRequestId,
-            provider_used: config.config_value.primary_provider,
+            provider_used: conversationSelection.primary.provider,
             conversation_phase: "awaiting_intent_confirmation",
             assistant_message: assistantMessage,
             quick_replies: ["Sim, prepara a previa", "Vou enviar captura maior"],
@@ -4036,11 +4182,12 @@ Deno.serve(async (req) => {
             ? `remover o espaco em branco entre a secao "${anchorText}" e o rodape, mantendo o rodape igual`
             : "remover o espaco em branco entre a ultima secao da pagina e o rodape, mantendo o rodape igual"
           const operationalState = createConversationOperationalState("awaiting_intent_confirmation")
+          const conversationSelection = selectAiModelForStage("conversation", config.config_value)
           return jsonResponse({
             success: true,
             request_id: requestId,
             client_request_id: clientRequestId,
-            provider_used: config.config_value.primary_provider,
+            provider_used: conversationSelection.primary.provider,
             conversation_phase: "awaiting_intent_confirmation",
             assistant_message: `Entendido. Queres remover o espaco em branco entre a ultima secao${anchorText ? ` "${anchorText}"` : ""} e o rodape, mantendo o rodape igual. Esta correto?`,
             quick_replies: ["Sim, prepara a previa", "Nao, explico melhor"],
@@ -4098,6 +4245,9 @@ Deno.serve(async (req) => {
             quick_replies: understanding.turn.quick_replies,
             provider_failures: understanding.providerFailures,
             pricing_source: understanding.pricing.pricing_source ?? null,
+            model_stage: understanding.modelStage,
+            fallback_used: understanding.fallbackUsed,
+            branch_selected: "understanding_turn",
           },
         })
 
@@ -4132,12 +4282,189 @@ Deno.serve(async (req) => {
         })
       }
 
+      const conversationSelection = selectAiModelForStage("conversation", config.config_value)
+      const explicitCssProposal = materializeExplicitCssPatchProposal({
+        providerUsed: conversationSelection.primary.provider,
+        modelUsed: conversationSelection.primary.model,
+        confirmationMessage: message,
+        slug,
+        title,
+        path,
+        conversationContext,
+        baseVersion: managedPageContext.baseVersion,
+        baseVersionSource: managedPageContext.baseVersionSource,
+        degradedDraftBypassed: managedPageContext.degradedDraftBypassed,
+        baseVersionSelectionReason: managedPageContext.baseVersionSelectionReason,
+        publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
+        latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
+        currentHtml,
+      })
+
+      logInfo("AI page editor explicit CSS branch decided", {
+        ...routingContext,
+        branch_selected:
+          explicitCssProposal.status === "success"
+            ? "explicit_css_patch"
+            : explicitCssProposal.status === "failed"
+              ? "explicit_css_patch_failed"
+              : "explicit_css_not_applicable",
+        explicit_css_selector: explicitCssProposal.intent?.selector ?? null,
+      })
+
+      if (explicitCssProposal.status === "success") {
+        const proposalInvariants = extractPersistibleProposalInvariants({
+          proposal: explicitCssProposal.proposal,
+        })
+
+        await recordUsageEvent(serviceClient, {
+          action: "generate_proposal",
+          provider: explicitCssProposal.providerUsed,
+          model: explicitCssProposal.modelUsed,
+          user_id: context.user.id,
+          slug,
+          path,
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          estimated_cost_usd: 0,
+          currency: "USD",
+          request_id: requestId,
+          mode: explicitCssProposal.editPlan.mode,
+          scope: explicitCssProposal.editPlan.scope,
+          risk_level: explicitCssProposal.editPlan.risk_level,
+          target_ids: explicitCssProposal.editPlan.target_ids,
+          requires_strict_confirmation: explicitCssProposal.editPlan.requires_strict_confirmation,
+          contract_version: normalizeString(explicitCssProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+          invariants: proposalInvariants,
+          metadata: {
+            attachment_count: validAttachments.length,
+            conversation_phase: explicitCssProposal.conversationPhase,
+            clarification_questions_count: conversationContext.clarification_questions_count,
+            user_confirmed_understanding: true,
+            understanding_summary: explicitCssProposal.understandingSummary,
+            ambiguity_detected: false,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            proposal_summary: explicitCssProposal.summary,
+            edit_plan_operation_count: explicitCssProposal.editPlan.operations.length,
+            warning_count: explicitCssProposal.warnings.length,
+            target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+              ? proposalInvariants.target_resolutions.length
+              : 0,
+            require_confirmation: config.config_value.require_confirmation,
+            pricing_source: "deterministic_explicit_css",
+            model_stage: "deterministic_explicit_css",
+            fallback_used: false,
+            branch_selected: "explicit_css_patch",
+            base_version_id: managedPageContext.baseVersion.id,
+            base_version_number: managedPageContext.baseVersion.version_number,
+            base_version_status: managedPageContext.baseVersion.status,
+            context_source: managedPageContext.baseVersionSource,
+            degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+            context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            published_version_id: managedPageContext.publishedVersion?.id ?? null,
+            latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+            provider_failures: [],
+            mode: explicitCssProposal.editPlan.mode,
+            scope: explicitCssProposal.editPlan.scope,
+            risk_level: explicitCssProposal.editPlan.risk_level,
+            target_ids: explicitCssProposal.editPlan.target_ids,
+            requires_strict_confirmation: explicitCssProposal.editPlan.requires_strict_confirmation,
+            contract_version: normalizeString(explicitCssProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+            invariants: proposalInvariants,
+            final_status: explicitCssProposal.operationalState.final_status,
+            change_detected: explicitCssProposal.operationalState.change_detected,
+            draft_saved: explicitCssProposal.operationalState.draft_saved,
+            preview_available: explicitCssProposal.operationalState.preview_available,
+            change_summary: explicitCssProposal.operationalState.change_summary,
+            explicit_css_selector: explicitCssProposal.intent.selector,
+            explicit_css_properties: explicitCssProposal.intent.declarations.map((item) => item.property),
+          },
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: explicitCssProposal.providerUsed,
+            conversation_phase: explicitCssProposal.conversationPhase,
+            user_confirmed_understanding: true,
+            understanding_summary: explicitCssProposal.understandingSummary,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            branch_selected: "explicit_css_patch",
+            explicit_css_selector: explicitCssProposal.intent.selector,
+            explicit_css_properties: explicitCssProposal.intent.declarations.map((item) => item.property),
+            explicit_css_values: explicitCssProposal.intent.declarations.map((item) => item.value),
+            final_status: explicitCssProposal.operationalState.final_status,
+            change_detected: explicitCssProposal.operationalState.change_detected,
+            preview_available: explicitCssProposal.operationalState.preview_available,
+          },
+          ...auditMeta,
+        })
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          client_request_id: clientRequestId,
+          provider_used: explicitCssProposal.providerUsed,
+          conversation_phase: explicitCssProposal.conversationPhase,
+          assistant_message: explicitCssProposal.assistantMessage,
+          quick_replies: [],
+          understanding_summary: explicitCssProposal.understandingSummary,
+          confirmation_token: null,
+          confirmation_consumed: true,
+          requires_user_confirmation: false,
+          can_generate_proposal: true,
+          warnings: explicitCssProposal.warnings,
+          summary: explicitCssProposal.summary,
+          explanation: explicitCssProposal.explanation,
+          edit_plan: explicitCssProposal.editPlan,
+          proposal: explicitCssProposal.proposal,
+          ...explicitCssProposal.operationalState,
+        })
+      }
+
+      if (explicitCssProposal.status === "failed") {
+        const friendlyFailure = createFriendlyConfirmedIntentFailureResponse({
+          requestId,
+          clientRequestId,
+          providerUsed: conversationSelection.primary.provider,
+          understandingSummary: explicitCssProposal.understandingSummary,
+          assistantMessage: explicitCssProposal.assistantMessage,
+          warnings: explicitCssProposal.warnings,
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: conversationSelection.primary.provider,
+            conversation_phase: friendlyFailure.conversation_phase,
+            user_confirmed_understanding: true,
+            understanding_summary: explicitCssProposal.understandingSummary,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            final_status: friendlyFailure.final_status,
+            branch_selected: "explicit_css_patch",
+            fallback_allowed: false,
+            fallback_reason: explicitCssProposal.reason,
+            explicit_css_selector: explicitCssProposal.intent?.selector ?? null,
+          },
+          ...auditMeta,
+        })
+
+        return jsonResponse(friendlyFailure)
+      }
+
       const deterministicProposal = materializeConfirmedIntentProposal({
-        providerUsed: config.config_value.primary_provider,
-        modelUsed:
-          config.config_value.primary_provider === "gemini"
-            ? config.config_value.gemini_model || DEFAULT_GEMINI_MODEL
-            : config.config_value.openai_model || DEFAULT_OPENAI_MODEL,
+        providerUsed: conversationSelection.primary.provider,
+        modelUsed: conversationSelection.primary.model,
         confirmationMessage: message,
         slug,
         title,
@@ -4205,6 +4532,9 @@ Deno.serve(async (req) => {
               : 0,
             require_confirmation: config.config_value.require_confirmation,
             pricing_source: "deterministic_confirmed_intent",
+            model_stage: "deterministic_confirmed_intent",
+            fallback_used: false,
+            branch_selected: "confirmed_intent_patch",
             base_version_id: managedPageContext.baseVersion.id,
             base_version_number: managedPageContext.baseVersion.version_number,
             base_version_status: managedPageContext.baseVersion.status,
@@ -4317,7 +4647,7 @@ Deno.serve(async (req) => {
         const friendlyFailure = createFriendlyConfirmedIntentFailureResponse({
           requestId,
           clientRequestId,
-          providerUsed: config.config_value.primary_provider,
+          providerUsed: conversationSelection.primary.provider,
           understandingSummary: deterministicProposal.understandingSummary,
           assistantMessage: deterministicProposal.assistantMessage,
           warnings: deterministicProposal.warnings,
@@ -4331,7 +4661,7 @@ Deno.serve(async (req) => {
             config_key: CONFIG_KEY,
             slug,
             path,
-            provider_used: config.config_value.primary_provider,
+            provider_used: conversationSelection.primary.provider,
             conversation_phase: friendlyFailure.conversation_phase,
             user_confirmed_understanding: true,
             understanding_summary: deterministicProposal.understandingSummary,
@@ -4359,11 +4689,8 @@ Deno.serve(async (req) => {
       }
 
       const localizedProposal = materializeLocalizedVisualPatchProposal({
-        providerUsed: config.config_value.primary_provider,
-        modelUsed:
-          config.config_value.primary_provider === "gemini"
-            ? config.config_value.gemini_model || DEFAULT_GEMINI_MODEL
-            : config.config_value.openai_model || DEFAULT_OPENAI_MODEL,
+        providerUsed: conversationSelection.primary.provider,
+        modelUsed: conversationSelection.primary.model,
         confirmationMessage: message,
         slug,
         title,
@@ -4434,6 +4761,8 @@ Deno.serve(async (req) => {
               : 0,
             require_confirmation: config.config_value.require_confirmation,
             pricing_source: "deterministic_localized_visual_patch",
+            model_stage: "deterministic_localized_patch",
+            fallback_used: false,
             base_version_id: managedPageContext.baseVersion.id,
             base_version_number: managedPageContext.baseVersion.version_number,
             base_version_status: managedPageContext.baseVersion.status,
@@ -4555,7 +4884,7 @@ Deno.serve(async (req) => {
         const friendlyFailure = createFriendlyConfirmedIntentFailureResponse({
           requestId,
           clientRequestId,
-          providerUsed: config.config_value.primary_provider,
+          providerUsed: conversationSelection.primary.provider,
           understandingSummary: localizedProposal.understandingSummary,
           assistantMessage: localizedProposal.assistantMessage,
           warnings: localizedProposal.warnings,
@@ -4570,7 +4899,7 @@ Deno.serve(async (req) => {
             config_key: CONFIG_KEY,
             slug,
             path,
-            provider_used: config.config_value.primary_provider,
+            provider_used: conversationSelection.primary.provider,
             conversation_phase: friendlyFailure.conversation_phase,
             user_confirmed_understanding: true,
             understanding_summary: localizedProposal.understandingSummary,
@@ -4609,18 +4938,11 @@ Deno.serve(async (req) => {
         understandingSummary: conversationContext.understanding_summary,
       })
 
-      const providerCandidates = [
-        {
-          provider: config.config_value.primary_provider,
-          model: config.config_value.primary_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.primary_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
-        },
-        {
-          provider: config.config_value.fallback_provider,
-          model: config.config_value.fallback_provider === "gemini" ? config.config_value.gemini_model : config.config_value.openai_model,
-          apiKey: config.config_value.fallback_provider === "gemini" ? secrets.geminiApiKey : secrets.openaiApiKey,
-        },
-      ] as const
+      const providerCandidates = buildProviderCandidatesForStage({
+        stage: "complex_proposal",
+        config: config.config_value,
+        secrets,
+      })
 
       let lastError: unknown = null
       const providerFailures: Array<{ provider: AiProvider; message: string }> = []
@@ -4628,6 +4950,7 @@ Deno.serve(async (req) => {
       let providerUsed: AiProvider | null = null
       let modelUsed = ""
       let rawPayload: unknown = null
+      let fallbackUsed = false
 
       for (const candidate of providerCandidates) {
         if (!candidate.apiKey) {
@@ -4661,6 +4984,7 @@ Deno.serve(async (req) => {
           providerUsed = candidate.provider
           modelUsed = candidate.model
           rawPayload = result.raw
+          fallbackUsed = candidate.fallbackUsed
           lastError = null
           break
         } catch (error) {
@@ -4775,6 +5099,8 @@ Deno.serve(async (req) => {
               : 0,
             require_confirmation: config.config_value.require_confirmation,
             pricing_source: pricing?.pricing_source ?? null,
+            model_stage: "complex_proposal",
+            fallback_used: fallbackUsed,
             base_version_id: managedPageContext.baseVersion.id,
             base_version_number: managedPageContext.baseVersion.version_number,
             base_version_status: managedPageContext.baseVersion.status,
@@ -4824,6 +5150,8 @@ Deno.serve(async (req) => {
           target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
             ? proposalInvariants.target_resolutions.length
             : 0,
+          model_stage: "complex_proposal",
+          fallback_used: fallbackUsed,
           base_version_id: managedPageContext.baseVersion.id,
           base_version_number: managedPageContext.baseVersion.version_number,
           base_version_status: managedPageContext.baseVersion.status,

@@ -228,6 +228,11 @@ export interface AdminLegacyPageEditorConfig {
 }
 
 export type AiPageEditorProvider = "gemini" | "openai"
+export type AdminAiPageEditorModelStage =
+  | "conversation"
+  | "planner"
+  | "complex_proposal"
+  | "fallback"
 
 export interface AdminAiPageEditorConfig {
   config_key: string
@@ -239,6 +244,13 @@ export interface AdminAiPageEditorConfig {
     fallback_provider: AiPageEditorProvider
     gemini_model: string
     openai_model: string
+    conversation_provider?: AiPageEditorProvider
+    conversation_model?: string
+    planner_provider?: AiPageEditorProvider
+    planner_model?: string
+    complex_provider?: AiPageEditorProvider
+    complex_model?: string
+    fallback_model?: string
     max_attachments: number
     max_attachment_size_mb: number
     base_prompt: string
@@ -257,6 +269,8 @@ export interface AdminAiPageEditorSecretStatus {
 
 export interface AdminAiPageEditorProviderTestResult {
   provider: AiPageEditorProvider
+  model?: string
+  stage?: AdminAiPageEditorModelStage
   ok: boolean
   status: "ok" | "missing_key" | "quota_exceeded" | "error"
   message: string

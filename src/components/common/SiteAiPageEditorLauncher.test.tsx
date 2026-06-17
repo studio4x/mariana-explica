@@ -666,6 +666,88 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(screen.queryByText(/truncada|provider|proposal/i)).not.toBeInTheDocument()
   })
 
+  it("shows explicit CSS previews with the real selector and never reintroduces the first-section target", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(
+      createProposalResponse({
+        assistant_message:
+          "Preparei uma previa ajustando o padding-bottom da classe .me-managed-page-root para remover o espaco antes do rodape, mantendo o restante da pagina igual.",
+        summary: "Ajustar padding-bottom da classe .me-managed-page-root.",
+        explanation: "Patch CSS explicito e localizado no wrapper da pagina.",
+        edit_plan: {
+          scope: "page",
+          mode: "style_patch",
+          target_ids: [".me-managed-page-root"],
+          risk_level: "low",
+          requires_strict_confirmation: false,
+          operations: [
+            {
+              type: "set_style",
+              target_id: "explicit_css_selector",
+              path: "padding-bottom",
+              value: "0px",
+              breakpoint: "all",
+            },
+          ],
+        },
+        proposal: {
+          slug: "sobre",
+          title: "Sobre",
+          layout_json: { projectData: { blocks: [{ id: "wrapper" }, { id: "section-1" }] } },
+          style_json: {
+            css: ".me-managed-page-root {\n  padding-bottom: 0px !important;\n}",
+          },
+          metadata: {
+            ai_contract_version: "hybrid_v1",
+            ai_invariants: {
+              branch_selected: "explicit_css_patch",
+              explicit_css_selector: ".me-managed-page-root",
+              explicit_css_properties: ["padding-bottom"],
+              supports_persistible_flow: true,
+              preview_renderable: true,
+              desktop_renderable: true,
+              mobile_renderable: true,
+              target_resolutions: [
+                {
+                  requested_target_id: ".me-managed-page-root",
+                  resolved_target_id: ".me-managed-page-root",
+                  candidate_path: ".me-managed-page-root",
+                  confidence: 1,
+                  section_index: -1,
+                  block_type: "explicit_css_selector",
+                  selector: ".me-managed-page-root",
+                  signals: {
+                    id_structural: 1,
+                    internal_path: 1,
+                    data_attributes: 1,
+                    nearest_heading: 0,
+                    anchor_text: 0,
+                    visual_order: 0,
+                    textual_similarity: 1,
+                    capture_attachment: 0,
+                  },
+                },
+              ],
+            },
+            base_version: {
+              id: "version-1",
+              version_number: 12,
+              status: "published",
+            },
+          },
+        },
+      }),
+    )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Sim, e isso mesmo.")
+
+    await waitFor(() => {
+      expect(screen.getByText(/\.me-managed-page-root/i)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/ja preparei o proximo passo para veres antes de publicar/i)).toBeInTheDocument()
+    expect(screen.queryByText(/primeira secao/i)).not.toBeInTheDocument()
+  })
+
   it("shows a friendly error without reopening confirmation when the confirmed safe patch fails", async () => {
     mockGenerateProposalMutateAsync
       .mockResolvedValueOnce(

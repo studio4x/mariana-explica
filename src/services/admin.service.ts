@@ -672,6 +672,20 @@ function normalizeAdminAiPageEditorConfig(
   const allowedPaths = Array.isArray(value.allowed_paths)
     ? value.allowed_paths.map((item) => String(item ?? "").trim()).filter(Boolean)
     : []
+  const primaryProvider = String(value.primary_provider ?? "").trim().toLowerCase() === "gemini" ? "gemini" : "openai"
+  const fallbackProvider = String(value.fallback_provider ?? "").trim().toLowerCase() === "openai" ? "openai" : "gemini"
+  const geminiModel = String(value.gemini_model ?? "gemini-2.0-flash").trim() || "gemini-2.0-flash"
+  const openaiModel = String(value.openai_model ?? "gpt-4.1-mini").trim() || "gpt-4.1-mini"
+  const normalizeStageProvider = (raw: unknown, fallback: "gemini" | "openai") =>
+    String(raw ?? "").trim().toLowerCase() === "openai"
+      ? "openai"
+      : String(raw ?? "").trim().toLowerCase() === "gemini"
+        ? "gemini"
+        : fallback
+  const resolveLegacyModel = (provider: "gemini" | "openai") => (provider === "gemini" ? geminiModel : openaiModel)
+  const conversationProvider = normalizeStageProvider(value.conversation_provider, primaryProvider)
+  const plannerProvider = normalizeStageProvider(value.planner_provider, primaryProvider)
+  const complexProvider = normalizeStageProvider(value.complex_provider, primaryProvider)
 
   return {
     config_key: row?.config_key ?? AI_PAGE_EDITOR_KEY,
@@ -679,10 +693,17 @@ function normalizeAdminAiPageEditorConfig(
       enabled: value.enabled === true,
       launcher_label: String(value.launcher_label ?? "Editar com IA").trim() || "Editar com IA",
       allowed_paths: allowedPaths,
-      primary_provider: String(value.primary_provider ?? "").trim().toLowerCase() === "gemini" ? "gemini" : "openai",
-      fallback_provider: String(value.fallback_provider ?? "").trim().toLowerCase() === "openai" ? "openai" : "gemini",
-      gemini_model: String(value.gemini_model ?? "gemini-2.0-flash").trim() || "gemini-2.0-flash",
-      openai_model: String(value.openai_model ?? "gpt-4.1-mini").trim() || "gpt-4.1-mini",
+      primary_provider: primaryProvider,
+      fallback_provider: fallbackProvider,
+      gemini_model: geminiModel,
+      openai_model: openaiModel,
+      conversation_provider: conversationProvider,
+      conversation_model: String(value.conversation_model ?? resolveLegacyModel(conversationProvider)).trim() || resolveLegacyModel(conversationProvider),
+      planner_provider: plannerProvider,
+      planner_model: String(value.planner_model ?? resolveLegacyModel(plannerProvider)).trim() || resolveLegacyModel(plannerProvider),
+      complex_provider: complexProvider,
+      complex_model: String(value.complex_model ?? resolveLegacyModel(complexProvider)).trim() || resolveLegacyModel(complexProvider),
+      fallback_model: String(value.fallback_model ?? resolveLegacyModel(fallbackProvider)).trim() || resolveLegacyModel(fallbackProvider),
       max_attachments: Math.max(0, Math.min(6, Number(value.max_attachments ?? 2))),
       max_attachment_size_mb: Math.max(1, Math.min(20, Number(value.max_attachment_size_mb ?? 8))),
       base_prompt: String(value.base_prompt ?? "").trim(),
@@ -1814,6 +1835,7 @@ export async function testAdminAiPageEditorProviders() {
     details: string
     summary: string
     provider_results: AdminAiPageEditorProviderTestResult[]
+    stage_results?: AdminAiPageEditorProviderTestResult[]
     secret_status: AdminAiPageEditorSecretStatus
   }>("admin-ai-page-editor", {
     action: "test_providers",
