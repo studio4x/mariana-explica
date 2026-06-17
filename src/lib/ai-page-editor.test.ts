@@ -283,6 +283,103 @@ describe("ai-page-editor helpers", () => {
     expect(assessment?.warnings.join(" ")).toContain("convergiu para o mesmo alvo resolvido")
   })
 
+  it("accepts explicit_css_patch proposals that use an internal operation target id", () => {
+    const proposal = createProposal({
+      summary: "Atualizar a regra CSS .me-managed-page-root na pagina Sobre.",
+      explanation: "Preparei um ajuste localizado na regra .me-managed-page-root.",
+      edit_plan: {
+        scope: "page",
+        mode: "style_patch",
+        target_ids: [".me-managed-page-root"],
+        risk_level: "low",
+        requires_strict_confirmation: false,
+        operations: [
+          {
+            type: "set_style",
+            target_id: "explicit_css_selector",
+            path: "padding",
+            value: "56px 20px 0px",
+            breakpoint: "all",
+          },
+        ],
+      },
+      proposal: {
+        slug: "sobre",
+        title: "Sobre",
+        layout_json: { blocks: [] },
+        style_json: {
+          css: ".me-managed-page-root {\n  padding: 56px 20px 0px !important;\n}",
+        },
+        metadata: {
+          ai_contract_version: "hybrid_v1",
+          ai_edit_plan: {
+            scope: "page",
+            mode: "style_patch",
+            target_ids: [".me-managed-page-root"],
+            risk_level: "low",
+            requires_strict_confirmation: false,
+            operations: [
+              {
+                type: "set_style",
+                target_id: "explicit_css_selector",
+                path: "padding",
+                value: "56px 20px 0px",
+                breakpoint: "all",
+              },
+            ],
+          },
+          ai_invariants: {
+            branch_selected: "explicit_css_patch",
+            explicit_css_patch_applied: true,
+            explicit_css_selector: ".me-managed-page-root",
+            explicit_css_properties: ["padding"],
+            explicit_css_values: ["56px 20px 0px"],
+            supports_persistible_flow: true,
+            preview_renderable: true,
+            desktop_renderable: true,
+            mobile_renderable: true,
+            target_resolutions: [
+              {
+                requested_target_id: ".me-managed-page-root",
+                resolved_target_id: ".me-managed-page-root",
+                candidate_path: ".me-managed-page-root",
+                confidence: 1,
+                section_index: -1,
+                block_type: "explicit_css_selector",
+                selector: ".me-managed-page-root",
+                signals: {
+                  id_structural: 1,
+                  internal_path: 1,
+                  data_attributes: 1,
+                  nearest_heading: 0,
+                  anchor_text: 0,
+                  visual_order: 0,
+                  textual_similarity: 1,
+                  capture_attachment: 0,
+                },
+              },
+            ],
+          },
+          base_version: {
+            id: "base-version-id",
+            version_number: 7,
+            status: "draft",
+          },
+        },
+      },
+      change_summary: {
+        layout_changed: false,
+        style_changed: true,
+        html_changed: false,
+      },
+    })
+
+    const assessment = assessAiPageEditorProposal(proposal, { canPersistDraft: true })
+    expect(assessment?.status).toBe("ready")
+    expect(assessment?.canApply).toBe(true)
+    expect(assessment?.targetIds).toEqual([".me-managed-page-root"])
+  })
+
   it("formats mode labels for launcher cards", () => {
     expect(formatAiPageEditorModeLabel("section_layout_patch")).toBe("Patch de layout da seção")
   })

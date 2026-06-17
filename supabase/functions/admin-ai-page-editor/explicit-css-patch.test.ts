@@ -117,6 +117,9 @@ describe("materializeExplicitCssPatchProposal", () => {
     expect(css).toContain("max-width: 1120px !important;")
     expect(css).toContain("margin: 0px auto !important;")
     expect(css).toContain("padding: 56px 20px 0px !important;")
+    expect(result.operationalState.final_status).toBe("proposal_ready")
+    expect(result.operationalState.change_detected).toBe(true)
+    expect(result.operationalState.preview_available).toBe(true)
     expect(result.proposal.metadata.ai_invariants?.explicit_css_values).toEqual([
       "1120px",
       "0px auto",

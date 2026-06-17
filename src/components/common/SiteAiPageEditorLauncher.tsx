@@ -281,6 +281,68 @@ function buildPreviewProposalPayload(proposal: AdminAiPageEditorProposal) {
   }
 }
 
+function getProposalBranchSelected(proposal: AdminAiPageEditorProposal | null | undefined) {
+  const metadata = proposal?.proposal?.metadata
+  if (!metadata || typeof metadata !== "object") return ""
+  const aiInvariants =
+    "ai_invariants" in metadata && metadata.ai_invariants && typeof metadata.ai_invariants === "object"
+      ? (metadata.ai_invariants as Record<string, unknown>)
+      : null
+  return typeof aiInvariants?.branch_selected === "string" ? aiInvariants.branch_selected.trim() : ""
+}
+
+function getExplicitCssSelector(proposal: AdminAiPageEditorProposal | null | undefined) {
+  const metadata = proposal?.proposal?.metadata
+  if (!metadata || typeof metadata !== "object") return null
+  const aiInvariants =
+    "ai_invariants" in metadata && metadata.ai_invariants && typeof metadata.ai_invariants === "object"
+      ? (metadata.ai_invariants as Record<string, unknown>)
+      : null
+  const selector = typeof aiInvariants?.explicit_css_selector === "string" ? aiInvariants.explicit_css_selector.trim() : ""
+  return selector || null
+}
+
+function buildPreparedPreviewMessage(proposal: AdminAiPageEditorProposal) {
+  const explicitCssSelector = getExplicitCssSelector(proposal)
+  if (getProposalBranchSelected(proposal) === "explicit_css_patch" && explicitCssSelector) {
+    return `Previa preparada ajustando a regra \`${explicitCssSelector}\`. Verifica a pagina antes de publicar.`
+  }
+  return "Previa preparada com o ajuste pedido. Verifica a pagina antes de publicar."
+}
+
+function messageRequestsPreviewPreparation(message: string) {
+  const normalizedMessage = normalizeLauncherComparableText(message)
+  return (
+    /\b(prepara(?:r)? a previa|abr(?:e|ir) a previa|gera(?:r)? a previa|mostra(?:r)? a previa|ver a previa)\b/.test(normalizedMessage) ||
+    /\b(faca|faz|fa[cç]a|pode|sim)\s+(?:o\s+)?ajuste\b/.test(normalizedMessage)
+  )
+}
+
+function messageRequestsProposalApply(message: string) {
+  const normalizedMessage = normalizeLauncherComparableText(message)
+  return (
+    messageRequestsPreviewPreparation(message) ||
+    /\b(pode aplicar|aplique|implemente|implementar|pode implementar|sim aplica)\b/.test(normalizedMessage)
+  )
+}
+
+function messageRequestsPublish(message: string) {
+  const normalizedMessage = normalizeLauncherComparableText(message)
+  return /\b(publica|publique|publicar|pode publicar|confirma|confirmar|confirme|pode confirmar)\b/.test(normalizedMessage)
+}
+
+function shouldAutoApplyProposalFromConversation(
+  proposal: AdminAiPageEditorProposal,
+  currentPhase: AdminAiPageEditorConversationPhase | null,
+  message: string,
+) {
+  if (getProposalBranchSelected(proposal) !== "explicit_css_patch") return false
+  if (messageRequestsProposalApply(message) || messageRequestsPublish(message)) {
+    return true
+  }
+  return currentPhase === "awaiting_intent_confirmation"
+}
+
 function proposalRequiresPersistedPreview(proposal: AdminAiPageEditorProposal) {
   return proposal.final_status === "proposal_ready" || proposal.final_status === "awaiting_intent_confirmation"
 }
@@ -733,7 +795,7 @@ export function SiteAiPageEditorLauncher() {
     version: Pick<AdminSitePageVersion, "layout_json" | "style_json">,
     previewContext?: ReturnType<typeof buildPreviewProposalPayload> | null,
   ) {
-    if (!pageSlug) return false
+    if (!pageSlug) return null
     const html = renderManagedVersionHtml(version)
     const css = composeManagedPageCss(
       typeof version.style_json.css === "string" && String(version.style_json.css).trim()
@@ -753,12 +815,12 @@ export function SiteAiPageEditorLauncher() {
       aiInvariants: previewContext?.aiInvariants,
       highlightSelectors: previewContext?.highlightSelectors,
     })
-    if (!token) return false
+    if (!token) return null
 
     const nextParams = new URLSearchParams(search)
     nextParams.set("builder-preview", token)
     navigate({ pathname, search: `?${nextParams.toString()}` }, { replace: true })
-    return true
+    return token
   }
 
   function syncPageDetailCache(nextVersion: AdminSitePageVersion, nextPage = pageDetailQuery.data?.page) {
@@ -778,7 +840,42 @@ export function SiteAiPageEditorLauncher() {
     })
   }
 
-  async function applyDraftFromProposal(nextProposal: AdminAiPageEditorProposal) {
+  function validateExplicitCssDraftPersistence(
+    nextProposal: AdminAiPageEditorProposal,
+    persistedVersion: Pick<AdminSitePageVersion, "style_json">,
+  ) {
+    if (getProposalBranchSelected(nextProposal) !== "explicit_css_patch") return
+
+    const metadata = normalizeProposalMetadata(nextProposal.proposal.metadata)
+    const aiInvariants = metadata.ai_invariants ?? {}
+    const selector = typeof aiInvariants.explicit_css_selector === "string" ? aiInvariants.explicit_css_selector.trim() : ""
+    const properties = Array.isArray(aiInvariants.explicit_css_properties)
+      ? aiInvariants.explicit_css_properties.map((item) => String(item ?? "").trim()).filter(Boolean)
+      : []
+    const values = Array.isArray(aiInvariants.explicit_css_values)
+      ? aiInvariants.explicit_css_values.map((item) => String(item ?? "").trim()).filter(Boolean)
+      : []
+    const persistedCss =
+      typeof persistedVersion.style_json.css === "string" ? String(persistedVersion.style_json.css) : ""
+
+    if (!selector || !persistedCss.includes(selector)) {
+      throw new Error("O draft salvo nao manteve o seletor CSS explicito pedido.")
+    }
+
+    properties.forEach((property, index) => {
+      const value = values[index] ?? ""
+      if (!persistedCss.includes(`${property}: ${value} !important;`)) {
+        throw new Error(`O draft salvo nao persistiu ${property} com o valor pedido.`)
+      }
+    })
+  }
+
+  async function applyDraftFromProposal(
+    nextProposal: AdminAiPageEditorProposal,
+    options?: {
+      successMessage?: string
+    },
+  ) {
     const nextAssessment = assessAiPageEditorProposal(nextProposal, { canPersistDraft })
     if (!nextProposal || !pageSlug || !canPersistDraft) {
       setFeedback("Esta area ainda nao guarda alteracoes automaticas.")
@@ -812,6 +909,13 @@ export function SiteAiPageEditorLauncher() {
         styleJson: nextProposal.proposal.style_json,
         metadata: {
           ...nextProposal.proposal.metadata,
+          ai_frontend: {
+            branch_selected: getProposalBranchSelected(nextProposal) || null,
+            frontend_assessment_status: nextAssessment.status,
+            frontend_assessment_reason: nextAssessment.reasons[0] ?? null,
+            draft_apply_attempted: true,
+            explicit_css_validation: nextAssessment.metadata.ai_invariants?.explicit_css_validation ?? null,
+          },
           editor: "ai-page-editor",
           source: nextProposal.provider_used,
           updated_at: new Date().toISOString(),
@@ -820,6 +924,7 @@ export function SiteAiPageEditorLauncher() {
       })
 
       syncPageDetailCache(result.version, result.page)
+      validateExplicitCssDraftPersistence(nextProposal, result.version)
 
       const persistedDiff = detectManagedPageOperationDiff(
         {
@@ -851,8 +956,24 @@ export function SiteAiPageEditorLauncher() {
         return
       }
 
-      const previewStored = pushPreviewToCurrentPage(result.version, buildPreviewProposalPayload(nextProposal))
-      if (proposalRequiresPersistedPreview(nextProposal) && !previewStored) {
+      const previewToken = pushPreviewToCurrentPage(result.version, {
+        ...buildPreviewProposalPayload(nextProposal),
+        aiInvariants: {
+          ...(normalizeProposalMetadata(nextProposal.proposal.metadata).ai_invariants ?? {}),
+          frontend_flow: {
+            branch_selected: getProposalBranchSelected(nextProposal) || null,
+            frontend_assessment_status: nextAssessment.status,
+            frontend_assessment_reason: nextAssessment.reasons[0] ?? null,
+            draft_apply_attempted: true,
+            draft_saved: true,
+            preview_token_created: true,
+            preview_url_opened: true,
+            pending_publication_set: true,
+            explicit_css_validation: nextAssessment.metadata.ai_invariants?.explicit_css_validation ?? null,
+          },
+        },
+      })
+      if (proposalRequiresPersistedPreview(nextProposal) && !previewToken) {
         setPendingPublication(null)
         setAwaitingImplementation(false)
         setFeedback("O rascunho foi salvo, mas a pre-visualizacao segura nao ficou disponivel. Nenhum sucesso foi confirmado.")
@@ -875,7 +996,9 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
-      setFeedback("Rascunho derivado do patch seguro aplicado. Reve a previa antes de publicar.")
+      const preparedMessage = options?.successMessage ?? buildPreparedPreviewMessage(nextProposal)
+      setMessages((current) => [...current, { id: uid("msg"), role: "assistant", text: preparedMessage }])
+      setFeedback(preparedMessage)
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Nao foi possivel guardar a alteracao.")
     }
@@ -1090,6 +1213,57 @@ export function SiteAiPageEditorLauncher() {
     }
     const trimmedMessage = (messageOverride ?? message).trim()
     if (!trimmedMessage && attachments.length === 0) return
+
+    const publishRequested = messageRequestsPublish(trimmedMessage)
+    const applyRequested = messageRequestsProposalApply(trimmedMessage)
+
+    if (!messageOverride && attachments.length === 0 && proposal && awaitingImplementation && (applyRequested || publishRequested)) {
+      flushSync(() => {
+        setFeedback(null)
+        setSendStatus("Estou a guardar a previa segura desta alteracao.")
+        setMessages((current) => [
+          ...stripQuickReplies(current),
+          { id: uid("msg"), role: "user", text: trimmedMessage },
+        ])
+      })
+      await waitForNextPaint()
+
+      try {
+        await applyDraftFromProposal(proposal)
+        setMessage("")
+      } finally {
+        setSendStatus(null)
+      }
+      return
+    }
+
+    if (!messageOverride && attachments.length === 0 && pendingPublication && (publishRequested || applyRequested)) {
+      flushSync(() => {
+        setFeedback(null)
+        setMessages((current) => [
+          ...stripQuickReplies(current),
+          { id: uid("msg"), role: "user", text: trimmedMessage },
+        ])
+      })
+      await waitForNextPaint()
+
+      if (publishRequested) {
+        try {
+          setSendStatus("Estou a publicar a alteracao que ja esta em previa.")
+          await handleConfirmAppliedChanges()
+          setMessage("")
+        } finally {
+          setSendStatus(null)
+        }
+      } else {
+        const confirmationMessage = "A previa ja esta pronta. Confirma que queres publicar esta alteracao?"
+        setMessages((current) => [...current, { id: uid("msg"), role: "assistant", text: confirmationMessage }])
+        setFeedback(confirmationMessage)
+        setMessage("")
+      }
+      return
+    }
+
     const conversationContext = buildConversationContext()
     const clientRequestId = `ai-editor-${Date.now()}-${requestSequenceRef.current + 1}`
     const consumesPendingConfirmation = isPlainUnderstandingConfirmationReply(
@@ -1348,6 +1522,7 @@ export function SiteAiPageEditorLauncher() {
       let nextProposal: AdminAiPageEditorProposal | null = null
       let feedbackMessage: string | null = null
       let shouldAwaitImplementation = false
+      let shouldAutoApplyProposal = false
 
       if (hasConversationProposal(result)) {
         nextProposal = {
@@ -1366,30 +1541,46 @@ export function SiteAiPageEditorLauncher() {
 
         const nextAssessment = assessAiPageEditorProposal(nextProposal, { canPersistDraft })
         shouldAwaitImplementation = Boolean(nextAssessment?.canApply)
+        shouldAutoApplyProposal = Boolean(
+          nextProposal &&
+            nextAssessment?.canApply &&
+            shouldAutoApplyProposalFromConversation(nextProposal, conversationContext.phase ?? null, trimmedMessage),
+        )
 
         if (result.final_status === "no_visible_change" || !result.change_detected) {
           nextProposal = null
           shouldAwaitImplementation = false
+          shouldAutoApplyProposal = false
           feedbackMessage = AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE
         } else if (result.final_status === "blocked" || result.final_status === "error") {
           shouldAwaitImplementation = false
+          shouldAutoApplyProposal = false
           feedbackMessage = nextAssessment?.reasons[0] ?? "Ainda nao consegui preparar esta mudanca com seguranca."
         }
       }
 
       setProposal(nextProposal)
       setAwaitingImplementation(shouldAwaitImplementation)
-      setMessages((current) => [
-        ...current,
-        {
-          id: uid("msg"),
-          role: "assistant",
-          text: result.assistant_message,
-          quickReplies: result.quick_replies,
-        },
-      ])
       setMessage("")
-      setFeedback(feedbackMessage)
+      if (shouldAutoApplyProposal && nextProposal) {
+        try {
+          setSendStatus("Estou a guardar a previa segura desta alteracao.")
+          await applyDraftFromProposal(nextProposal)
+        } finally {
+          setSendStatus(null)
+        }
+      } else {
+        setMessages((current) => [
+          ...current,
+          {
+            id: uid("msg"),
+            role: "assistant",
+            text: result.assistant_message,
+            quickReplies: result.quick_replies,
+          },
+        ])
+        setFeedback(feedbackMessage)
+      }
     } catch (error) {
       if (activeClientRequestIdRef.current !== clientRequestId) {
         return

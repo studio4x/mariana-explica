@@ -10,6 +10,8 @@ const {
   mockUseAuth,
   mockGenerateProposalMutateAsync,
   mockSaveDraftMutateAsync,
+  mockPublishPageVersionMutateAsync,
+  mockRollbackPageVersionMutateAsync,
   mockGenerateHeaderCopyProposal,
   mockGenerateFooterCopyProposal,
   mockUpdateBrandingConfig,
@@ -19,6 +21,8 @@ const {
   mockUseAuth: vi.fn(),
   mockGenerateProposalMutateAsync: vi.fn(),
   mockSaveDraftMutateAsync: vi.fn(),
+  mockPublishPageVersionMutateAsync: vi.fn(),
+  mockRollbackPageVersionMutateAsync: vi.fn(),
   mockGenerateHeaderCopyProposal: vi.fn(),
   mockGenerateFooterCopyProposal: vi.fn(),
   mockUpdateBrandingConfig: vi.fn(),
@@ -47,11 +51,11 @@ vi.mock("@/hooks/useAdmin", () => ({
     isLoading: false,
   }),
   usePublishAdminSitePageVersion: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: mockPublishPageVersionMutateAsync,
     isPending: false,
   }),
   useRollbackAdminSitePageVersion: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: mockRollbackPageVersionMutateAsync,
     isPending: false,
   }),
   useAdminSitePageDetail: () => ({
@@ -310,6 +314,8 @@ describe("SiteAiPageEditorLauncher", () => {
     vi.clearAllMocks()
     mockGenerateProposalMutateAsync.mockReset()
     mockSaveDraftMutateAsync.mockReset()
+    mockPublishPageVersionMutateAsync.mockReset()
+    mockRollbackPageVersionMutateAsync.mockReset()
     mockGenerateHeaderCopyProposal.mockReset()
     mockGenerateFooterCopyProposal.mockReset()
     mockUpdateBrandingConfig.mockReset()
@@ -331,6 +337,25 @@ describe("SiteAiPageEditorLauncher", () => {
       updated_at: "2026-06-15T12:05:00.000Z",
     }))
     mockStoreSitePagePreview.mockReturnValue("preview-token")
+    mockPublishPageVersionMutateAsync.mockResolvedValue({
+      page: {
+        id: "page-1",
+        slug: "sobre",
+        title: "Sobre",
+      },
+      version: {
+        id: "version-2",
+        version_number: 13,
+        status: "published",
+        layout_json: { projectData: { blocks: [{ id: "wrapper" }, { id: "section-1" }] } },
+        style_json: {
+          wrapper: { paddingTop: 0 },
+          "section-1": { paddingTop: 0 },
+        },
+        metadata: {},
+        created_at: "2026-06-15T12:15:00.000Z",
+      },
+    })
   })
 
   it("does not route a page-top spacing request to the global header branch", async () => {
@@ -746,6 +771,160 @@ describe("SiteAiPageEditorLauncher", () => {
     })
     expect(screen.getByText(/ja preparei o proximo passo para veres antes de publicar/i)).toBeInTheDocument()
     expect(screen.queryByText(/primeira secao/i)).not.toBeInTheDocument()
+  })
+
+  it("auto-applies explicit CSS preview confirmations into draft plus pending publication", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(
+      createProposalResponse({
+        assistant_message:
+          "Preparei uma previa atualizando a regra .me-managed-page-root com os valores pedidos, mantendo o restante da pagina igual.",
+        summary: "Atualizar a regra CSS .me-managed-page-root na pagina Sobre.",
+        explanation: "Preparei um ajuste localizado na regra .me-managed-page-root, aplicando apenas max-width, margin, padding.",
+        edit_plan: {
+          scope: "page",
+          mode: "style_patch",
+          target_ids: [".me-managed-page-root"],
+          risk_level: "low",
+          requires_strict_confirmation: false,
+          operations: [
+            {
+              type: "set_style",
+              target_id: "explicit_css_selector",
+              path: "padding",
+              value: "56px 20px 0px",
+              breakpoint: "all",
+            },
+          ],
+        },
+        proposal: {
+          slug: "sobre",
+          title: "Sobre",
+          layout_json: { projectData: { blocks: [{ id: "wrapper" }, { id: "section-1" }] } },
+          style_json: {
+            css: ".me-managed-page-root {\n  max-width: 1120px !important;\n  margin: 0px auto !important;\n  padding: 56px 20px 0px !important;\n}",
+          },
+          metadata: {
+            ai_contract_version: "hybrid_v1",
+            ai_invariants: {
+              branch_selected: "explicit_css_patch",
+              explicit_css_patch_applied: true,
+              explicit_css_selector: ".me-managed-page-root",
+              explicit_css_properties: ["max-width", "margin", "padding"],
+              explicit_css_values: ["1120px", "0px auto", "56px 20px 0px"],
+              explicit_css_validation: {
+                selector_found: true,
+                rule_found: true,
+                rule_created: false,
+                style_changed: true,
+                change_detected: true,
+              },
+              supports_persistible_flow: true,
+              preview_renderable: true,
+              desktop_renderable: true,
+              mobile_renderable: true,
+              target_resolutions: [
+                {
+                  requested_target_id: ".me-managed-page-root",
+                  resolved_target_id: ".me-managed-page-root",
+                  candidate_path: ".me-managed-page-root",
+                  confidence: 1,
+                  section_index: -1,
+                  block_type: "explicit_css_selector",
+                  selector: ".me-managed-page-root",
+                  signals: {
+                    id_structural: 1,
+                    internal_path: 1,
+                    data_attributes: 1,
+                    nearest_heading: 0,
+                    anchor_text: 0,
+                    visual_order: 0,
+                    textual_similarity: 1,
+                    capture_attachment: 0,
+                  },
+                },
+              ],
+            },
+            base_version: {
+              id: "version-1",
+              version_number: 12,
+              status: "published",
+            },
+          },
+        },
+      }),
+    )
+    mockSaveDraftMutateAsync.mockResolvedValueOnce(
+      createSavedDraftResult({
+        version: {
+          id: "version-2",
+          version_number: 13,
+          status: "draft",
+          layout_json: { projectData: { blocks: [{ id: "wrapper" }, { id: "section-1" }] } },
+          style_json: {
+            css: ".me-managed-page-root {\n  max-width: 1120px !important;\n  margin: 0px auto !important;\n  padding: 56px 20px 0px !important;\n}",
+          },
+          metadata: {},
+          created_at: "2026-06-15T12:10:00.000Z",
+        },
+      }),
+    )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Sim, prepara a previa")
+
+    await waitFor(() => {
+      expect(mockSaveDraftMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(mockStoreSitePagePreview).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole("button", { name: /confirmar altera/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/previa preparada ajustando a regra/i).length).toBeGreaterThan(0)
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
+  })
+
+  it("applies a pending proposal when the admin says faca o ajuste", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(createProposalResponse())
+    mockSaveDraftMutateAsync.mockResolvedValueOnce(createSavedDraftResult())
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Remove o espaco do topo da pagina Sobre com patch localizado.")
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+    })
+
+    await sendMessage(user, "faca o ajuste")
+
+    await waitFor(() => {
+      expect(mockSaveDraftMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole("button", { name: /confirmar altera/i })).toBeInTheDocument()
+    expect(screen.queryByText(/falta so a tua confirmacao/i)).not.toBeInTheDocument()
+  })
+
+  it("publishes the pending preview when the admin says pode publicar", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(createProposalResponse())
+    mockSaveDraftMutateAsync.mockResolvedValueOnce(createSavedDraftResult())
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Remove o espaco do topo da pagina Sobre com patch localizado.")
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole("button", { name: /preparar previa/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /confirmar altera/i })).toBeInTheDocument()
+    })
+
+    await sendMessage(user, "pode publicar")
+
+    await waitFor(() => {
+      expect(mockPublishPageVersionMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(screen.getByText(/a alteracao foi confirmada e ja esta visivel no site/i)).toBeInTheDocument()
   })
 
   it("shows a friendly error without reopening confirmation when the confirmed safe patch fails", async () => {

@@ -322,11 +322,33 @@ export function formatAiPageEditorConfidence(confidence: number | null) {
   return `${Math.round(confidence * 100)}%`
 }
 
-function normalizeEditPlanTargetIds(plan: AdminAiPageEditorEditPlan | null | undefined) {
+function normalizeEditPlanTargetIds(
+  plan: AdminAiPageEditorEditPlan | null | undefined,
+  metadata?: AdminAiPageEditorProposalMetadata | null,
+) {
+  const branchSelected = metadata?.ai_invariants?.branch_selected
+  const explicitCssSelector =
+    typeof metadata?.ai_invariants?.explicit_css_selector === "string"
+      ? metadata.ai_invariants.explicit_css_selector.trim()
+      : ""
   const operationTargetIds = Array.isArray(plan?.operations)
-    ? plan!.operations.map((operation) => operation.target_id)
+    ? plan!.operations
+        .map((operation) => String(operation.target_id ?? "").trim())
+        .filter((targetId) => !(branchSelected === "explicit_css_patch" && targetId === "explicit_css_selector"))
     : []
-  return uniqueStrings([...(plan?.target_ids ?? []), ...operationTargetIds])
+  const targetIds = uniqueStrings(
+    [...(plan?.target_ids ?? []), ...operationTargetIds].map((targetId) =>
+      branchSelected === "explicit_css_patch" && targetId === "explicit_css_selector" && explicitCssSelector
+        ? explicitCssSelector
+        : String(targetId ?? "").trim(),
+    ),
+  )
+
+  if (branchSelected === "explicit_css_patch" && explicitCssSelector) {
+    return uniqueStrings([...targetIds, explicitCssSelector])
+  }
+
+  return targetIds
 }
 
 function normalizeTargetResolutions(metadata: AdminAiPageEditorProposalMetadata) {
@@ -377,7 +399,17 @@ export function assessAiPageEditorProposal(
   const aiInvariants = metadata.ai_invariants ?? {}
   const baseVersion = metadata.base_version ?? null
   const targetResolutions = normalizeTargetResolutions(metadata)
-  const targetIds = normalizeEditPlanTargetIds(proposal.edit_plan)
+  const branchSelected = String(aiInvariants.branch_selected ?? "").trim()
+  const isExplicitCssPatch = branchSelected === "explicit_css_patch"
+  const explicitCssSelector =
+    typeof aiInvariants.explicit_css_selector === "string" ? aiInvariants.explicit_css_selector.trim() : ""
+  const explicitCssProperties = Array.isArray(aiInvariants.explicit_css_properties)
+    ? aiInvariants.explicit_css_properties.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : []
+  const explicitCssValues = Array.isArray(aiInvariants.explicit_css_values)
+    ? aiInvariants.explicit_css_values.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : []
+  const targetIds = normalizeEditPlanTargetIds(proposal.edit_plan, metadata)
   const highlightSelectors = uniqueStrings(targetResolutions.map((item) => item.selector))
   const { minConfidence, averageConfidence } = collectConfidenceStats(targetResolutions)
   const lowConfidenceTargets = targetResolutions.filter((item) => (toFiniteNumber(item.confidence) ?? 0) < LOW_CONFIDENCE_THRESHOLD)
@@ -433,6 +465,22 @@ export function assessAiPageEditorProposal(
     reasons.push("O backend não devolveu uma base_version válida para esta proposta.")
   }
 
+  if (isExplicitCssPatch && !proposal.change_summary.style_changed) {
+    reasons.push("O patch CSS explicito nao alterou o style_json persistivel desta pagina.")
+  }
+
+  if (isExplicitCssPatch && !explicitCssSelector) {
+    reasons.push("A proposta CSS explicita nao devolveu o seletor validado para abrir a previa segura.")
+  }
+
+  if (isExplicitCssPatch && (explicitCssProperties.length === 0 || explicitCssValues.length === 0)) {
+    reasons.push("A proposta CSS explicita nao devolveu propriedades e valores suficientes para auditoria local.")
+  }
+
+  if (isExplicitCssPatch && aiInvariants.explicit_css_patch_applied !== true) {
+    reasons.push("O backend nao confirmou que o explicit_css_patch foi materializado com seguranca.")
+  }
+
   if (metadata.ai_invariants?.supports_persistible_flow === false) {
     reasons.push("O backend marcou a proposta como fora do fluxo persistível suportado.")
   }
@@ -451,7 +499,7 @@ export function assessAiPageEditorProposal(
     reasons.push("A proposta não trouxe resoluções de alvo suficientes para aplicar o patch com segurança.")
   }
 
-  if (targetIds.length > targetResolutions.length) {
+  if (!isExplicitCssPatch && targetIds.length > targetResolutions.length) {
     reasons.push("Nem todos os targets pedidos foram resolvidos pelo backend com confiança suficiente.")
   }
 
