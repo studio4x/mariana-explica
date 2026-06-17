@@ -610,6 +610,30 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
     }
   })
 
+  const lastBlock = blocks[blocks.length - 1] ?? null
+  if (lastBlock) {
+    const lastIndex = blocks.length - 1
+    candidates.push({
+      target_id: "footer_adjacent_spacing",
+      path: [lastIndex],
+      path_key: "footer-adjacent-spacing",
+      selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${lastIndex + 1})`,
+      wrapper_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${lastIndex + 1})`,
+      content_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${lastIndex + 1})`,
+      scope: "section",
+      block_type: "footer_adjacent_spacing",
+      section_index: lastIndex,
+      visual_order: lastIndex + 1,
+      text: `ultima secao fim da pagina espaco antes do rodape footer ${collectBlockText(lastBlock)}`,
+      heading: findFirstHeadingText(lastBlock),
+      data_attributes: collectBlockDataAttributes(lastBlock),
+      links: collectBlockLinks(lastBlock),
+      button_links: collectButtonLinksFromBlock(lastBlock),
+      raw_block: lastBlock,
+      patch_strategy: "json_or_css",
+    })
+  }
+
   return candidates
 }
 
@@ -830,6 +854,7 @@ function scoreCandidate(input: {
   const requestedLocalizedTarget =
     normalizedRequestedTarget.startsWith("localized_") ||
     normalizedRequestedTarget.startsWith("localized-")
+  const requestedFooterAdjacentSpacingTarget = normalizedRequestedTarget === "footer_adjacent_spacing"
   const requestedLocalizedDivider = requestedLocalizedTarget && normalizedRequestedTarget.includes("divider")
   const requestedLocalizedButton = requestedLocalizedTarget && normalizedRequestedTarget.includes("button")
   const requestedLocalizedCard = requestedLocalizedTarget && normalizedRequestedTarget.includes("card")
@@ -940,6 +965,14 @@ function scoreCandidate(input: {
 
   if (wantsSharedSectionInternalSpacing(input.message) && input.candidate.block_type === "section_internal_spacing") {
     signals.id_structural = Math.max(signals.id_structural, 0.48)
+  }
+
+  if (requestedFooterAdjacentSpacingTarget && input.candidate.block_type === "footer_adjacent_spacing") {
+    signals.id_structural = Math.max(signals.id_structural, 0.64)
+    signals.visual_order = Math.max(signals.visual_order, 0.24)
+    if (/\b(rodape|footer|ultima secao|secao final|fim da pagina)\b/i.test(input.message)) {
+      signals.textual_similarity = Math.max(signals.textual_similarity, 0.18)
+    }
   }
 
   if (candidateHeading) {

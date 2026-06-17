@@ -112,6 +112,42 @@ const HEADER_TEXT_PATTERNS = [
   /\bchamada do (?:cabecalho|header)\b/,
 ]
 
+const FOOTER_REFERENCE_PATTERNS = [
+  /\brodape\b/,
+  /\bfooter\b/,
+  /\bfim do site\b/,
+]
+
+const FOOTER_TEXT_PATTERNS = [
+  /\btexto do (?:rodape|footer)\b/,
+  /\bcopy do (?:rodape|footer)\b/,
+  /\bfrase do (?:rodape|footer)\b/,
+  /\bconteudo do (?:rodape|footer)\b/,
+  /\btexto institucional do (?:rodape|footer)\b/,
+  /\bpontuacao do (?:rodape|footer)\b/,
+  /\bcopyright do (?:rodape|footer)\b/,
+  /\bdescricao do (?:rodape|footer)\b/,
+]
+
+const FOOTER_ADJACENT_SPACING_PATTERNS = [
+  /\bentre a ultima secao e o rodape\b/,
+  /\bentre a ultima secao da pagina e o rodape\b/,
+  /\bentre a secao final e o rodape\b/,
+  /\bentre o conteudo e o rodape\b/,
+  /\bentre o fim da pagina e o rodape\b/,
+  /\bfaixa branca antes do rodape\b/,
+  /\bfaixa branca acima do rodape\b/,
+  /\bespaco (?:em branco )?antes do rodape\b/,
+  /\bespaco (?:em branco )?acima do rodape\b/,
+  /\bespaco (?:em branco )?perto do footer\b/,
+  /\bespaco (?:em branco )?perto do rodape\b/,
+  /\bdistancia (?:entre|acima|antes).*rodape\b/,
+  /\brespiro (?:entre|acima|antes).*rodape\b/,
+  /\bmargem (?:entre|acima|antes).*rodape\b/,
+  /\baproximar? a ultima secao do rodape\b/,
+  /\breduz(?:ir)? o espaco acima do rodape\b/,
+]
+
 const TEXT_EDIT_ACTION_PATTERNS = [
   /\bmudar\b/,
   /\balterar\b/,
@@ -134,6 +170,10 @@ function hasHeaderReference(value: string) {
   return includesAny(value, HEADER_REFERENCE_PATTERNS)
 }
 
+function hasFooterReference(value: string) {
+  return includesAny(value, FOOTER_REFERENCE_PATTERNS)
+}
+
 function hasSpacingSignal(value: string) {
   return includesAny(value, SPACING_PATTERNS) || includesAny(value, IMPLICIT_VISUAL_SPACING_PATTERNS)
 }
@@ -152,6 +192,16 @@ export function isHeaderVisualSpacingRequest(message: string) {
   return hasHeaderReference(normalized) && hasSpacingSignal(normalized)
 }
 
+export function isFooterAdjacentSpacingRequest(message: string) {
+  const normalized = normalizeText(message)
+  return includesAny(normalized, FOOTER_ADJACENT_SPACING_PATTERNS) || (hasFooterReference(normalized) && hasSpacingSignal(normalized))
+}
+
+export function isFooterVisualSpacingRequest(message: string) {
+  const normalized = normalizeText(message)
+  return hasFooterReference(normalized) && hasSpacingSignal(normalized)
+}
+
 export function isExplicitHeaderTextEditRequest(message: string) {
   const normalized = normalizeText(message)
   if (!hasHeaderReference(normalized) || isHeaderVisualSpacingRequest(normalized)) {
@@ -162,6 +212,20 @@ export function isExplicitHeaderTextEditRequest(message: string) {
     includesAny(normalized, HEADER_TEXT_PATTERNS) ||
     (includesAny(normalized, TEXT_EDIT_ACTION_PATTERNS) &&
       (/\b(?:texto|copy|frase|headline|titulo|subtitulo|mensagem|anuncio|cta|chamada)\b/.test(normalized) ||
+        /["']/.test(normalized)))
+  )
+}
+
+export function isExplicitFooterTextEditRequest(message: string) {
+  const normalized = normalizeText(message)
+  if (!hasFooterReference(normalized) || isFooterVisualSpacingRequest(normalized)) {
+    return false
+  }
+
+  return (
+    includesAny(normalized, FOOTER_TEXT_PATTERNS) ||
+    (includesAny(normalized, TEXT_EDIT_ACTION_PATTERNS) &&
+      (/\b(?:texto|copy|frase|conteudo|descricao|copyright|pontuacao|mensagem)\b/.test(normalized) ||
         /["']/.test(normalized)))
   )
 }

@@ -2,6 +2,8 @@ import type { AiEditPlan } from "./contract.ts"
 import type { AiConversationContext } from "./conversation.ts"
 import {
   isExplicitHeaderTextEditRequest,
+  isExplicitFooterTextEditRequest,
+  isFooterAdjacentSpacingRequest,
   isHeaderAdjacentSpacingRequest,
   isVisualSpacingIntent,
   wantsOnlyFirstSectionSpacing,
@@ -104,6 +106,7 @@ function confidenceFromSignals(score: number): LocalizedIntentConfidence {
 }
 
 function resolveSpacingTarget(sourceText: string) {
+  if (isFooterAdjacentSpacingRequest(sourceText)) return "footer_adjacent_spacing"
   if (wantsOnlyPageWrapperSpacing(sourceText) || isHeaderAdjacentSpacingRequest(sourceText)) return "page_wrapper_spacing"
   if (wantsOnlySectionInternalSpacing(sourceText)) return "section_internal_spacing"
   if (wantsOnlyFirstSectionSpacing(sourceText)) return "first_section_spacing"
@@ -118,6 +121,8 @@ export function classifyLocalizedIntent(input: {
   const normalized = normalizeLocalizedIntentText(sourceText)
   const targetText = extractQuotedTargetText(sourceText)
   const hasAttachment = (input.attachments ?? []).length > 0
+  const attachmentTerms = (input.attachments ?? []).map((attachment) => String(attachment.name ?? "")).join(" ")
+  const sourceWithAttachmentHints = [sourceText, attachmentTerms].filter(Boolean).join(" ")
   const action = resolveAction(normalized)
 
   if (!normalized) {
@@ -143,6 +148,18 @@ export function classifyLocalizedIntent(input: {
     }
   }
 
+  if (isExplicitFooterTextEditRequest(sourceText)) {
+    return {
+      isLocalized: false,
+      kind: "unknown",
+      action,
+      targetHint: "global_footer_text",
+      negativeConstraints: [],
+      confidence: "low",
+      reason: "explicit_footer_text_edit",
+    }
+  }
+
   if (/^(tir|remove|remova|apaga|apague)\w*\s+(isso|isto|aquilo)(\s+daqui)?[.!? ]*$/.test(normalized)) {
     return {
       isLocalized: true,
@@ -156,16 +173,16 @@ export function classifyLocalizedIntent(input: {
     }
   }
 
-  if (isVisualSpacingIntent(sourceText)) {
+  if (isVisualSpacingIntent(sourceText) || isFooterAdjacentSpacingRequest(sourceWithAttachmentHints)) {
     return {
       isLocalized: true,
       kind: "spacing",
       action,
-      targetHint: resolveSpacingTarget(sourceText),
+      targetHint: resolveSpacingTarget(sourceWithAttachmentHints),
       sectionHint: wantsOnlyFirstSectionSpacing(sourceText) || wantsOnlySectionInternalSpacing(sourceText)
         ? "first_section"
         : undefined,
-      visualReference: "message",
+      visualReference: hasAttachment ? "attachment" : "message",
       negativeConstraints: ["preserve_sections", "preserve_links", "preserve_section_internal_spacing_when_requested"],
       confidence: "high",
       reason: "visual_spacing_signal",
@@ -333,10 +350,21 @@ export function buildLocalizedEditPlan(input: {
         {
           type: "set_style",
           target_id: targetId,
-          path: "padding-top",
+          path: targetId === "footer_adjacent_spacing" ? "padding-bottom" : "padding-top",
           value: 0,
           breakpoint: "all",
         },
+        ...(targetId === "footer_adjacent_spacing"
+          ? [
+              {
+                type: "set_style" as const,
+                target_id: targetId,
+                path: "margin-bottom",
+                value: 0,
+                breakpoint: "all" as const,
+              },
+            ]
+          : []),
       ],
     }
   }

@@ -120,6 +120,35 @@ describe("normalizeAiEditPlan", () => {
     expect(result.editPlan.operations[0]?.type).toBe("update_text")
   })
 
+  it("routes footer-adjacent spacing to page visual flow instead of footer text", () => {
+    const result = normalizeAiEditPlan({
+      rawEditPlan: null,
+      message: "remova o espaco entre a ultima secao e o rodape",
+      slug: "sobre",
+      path: "/sobre",
+      legacyContractFallback: true,
+    })
+
+    expect(result.editPlan.scope).toBe("section")
+    expect(result.editPlan.mode).toBe("spacing_patch")
+    expect(result.editPlan.target_ids).toEqual(["footer_adjacent_spacing"])
+    expect(result.editPlan.operations[0]?.target_id).toBe("footer_adjacent_spacing")
+  })
+
+  it("keeps explicit footer copy edits on the textual footer path", () => {
+    const result = normalizeAiEditPlan({
+      rawEditPlan: null,
+      message: "quero mudar o texto do rodape",
+      slug: "sobre",
+      path: "/sobre",
+      legacyContractFallback: true,
+    })
+
+    expect(result.editPlan.scope).toBe("footer")
+    expect(result.editPlan.mode).toBe("text_patch")
+    expect(result.editPlan.target_ids).toEqual(["global-footer"])
+  })
+
   it("routes localized visual line removal as style patch instead of text patch", () => {
     const result = normalizeAiEditPlan({
       rawEditPlan: null,

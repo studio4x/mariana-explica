@@ -201,6 +201,9 @@ function messageLooksLikeVisualSpacingRequest(message: string) {
     ) ||
     /\b(antes da primeira secao|acima da primeira secao|fora da primeira secao|topo da primeira secao|dentro da primeira secao|inicio da pagina|topo da pagina|antes do conteudo)\b/.test(
       normalizedMessage,
+    ) ||
+    /\b(acima do rodape|antes do rodape|perto do rodape|perto do footer|ultima secao|secao final|fim da pagina)\b/.test(
+      normalizedMessage,
     )
 
   const mentionsVisualBoundary =
@@ -209,7 +212,11 @@ function messageLooksLikeVisualSpacingRequest(message: string) {
     /\bespaco (em branco )?entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
     /\bdistancia entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
     /\brespiro entre o (cabecalho|header|menu|navbar) e a primeira secao\b/.test(normalizedMessage) ||
-    /\bfaixa branca entre o (cabecalho|header|menu|navbar) e o conteudo\b/.test(normalizedMessage)
+    /\bfaixa branca entre o (cabecalho|header|menu|navbar) e o conteudo\b/.test(normalizedMessage) ||
+    /\bentre a ultima secao(?: da pagina)? e o (rodape|footer)\b/.test(normalizedMessage) ||
+    /\bentre a secao final e o (rodape|footer)\b/.test(normalizedMessage) ||
+    /\bfaixa branca (acima|antes) do (rodape|footer)\b/.test(normalizedMessage) ||
+    /\bespaco (em branco )?(acima|antes|perto) do (rodape|footer)\b/.test(normalizedMessage)
 
   return hasSpacingSignal || mentionsVisualBoundary
 }
@@ -234,7 +241,15 @@ function messageStrictlyTargetsGlobalHeader(message: string) {
 
 function messageStrictlyTargetsGlobalFooter(message: string) {
   const normalizedMessage = normalizeLauncherComparableText(message)
-  return /\bfooter\b/.test(normalizedMessage) || /\brodape(?:\s+(?:global|do site))?\b/.test(normalizedMessage)
+  const mentionsFooter = /\bfooter\b/.test(normalizedMessage) || /\brodape(?:\s+(?:global|do site))?\b/.test(normalizedMessage)
+  if (!mentionsFooter || messageLooksLikeVisualSpacingRequest(normalizedMessage)) {
+    return false
+  }
+
+  return (
+    /\b(texto|copy|frase|conteudo|descricao|copyright|pontuacao|mensagem|institucional)\b/.test(normalizedMessage) ||
+    /\b(mudar|alterar|atualizar|trocar|substituir|reescrever|corrigir|encurtar|ajustar)\b/.test(normalizedMessage)
+  )
 }
 
 function waitForNextPaint() {

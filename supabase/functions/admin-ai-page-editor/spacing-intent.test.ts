@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
+  isExplicitFooterTextEditRequest,
   isExplicitHeaderTextEditRequest,
+  isFooterAdjacentSpacingRequest,
   isHeaderAdjacentSpacingRequest,
   isPageStartSpacingRequest,
   isVisualSpacingIntent,
@@ -52,5 +54,15 @@ describe("spacing intent helpers", () => {
     expect(isExplicitHeaderTextEditRequest(message)).toBe(true)
     expect(isHeaderAdjacentSpacingRequest(message)).toBe(false)
     expect(wantsOnlyPageWrapperSpacing(message)).toBe(false)
+  })
+
+  it("separates footer-adjacent visual spacing from footer text edits", () => {
+    const visualMessage = "remova o espaco entre a ultima secao e o rodape"
+    const textMessage = "quero mudar o texto do rodape"
+
+    expect(isFooterAdjacentSpacingRequest(visualMessage)).toBe(true)
+    expect(isExplicitFooterTextEditRequest(visualMessage)).toBe(false)
+    expect(isExplicitFooterTextEditRequest(textMessage)).toBe(true)
+    expect(isFooterAdjacentSpacingRequest(textMessage)).toBe(false)
   })
 })

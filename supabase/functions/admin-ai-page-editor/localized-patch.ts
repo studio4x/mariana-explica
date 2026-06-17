@@ -122,6 +122,14 @@ function buildLocalizedCopy(input: {
   intent: LocalizedIntent
   title: string
 }) {
+  if (input.intent.kind === "spacing" && input.intent.targetHint === "footer_adjacent_spacing") {
+    return {
+      summary: `Remover o espaco em branco antes do rodape na pagina ${input.title}.`,
+      explanation: "Preparei um ajuste localizado no fim da pagina, aproximando a ultima secao do rodape sem alterar o texto, links ou estrutura do rodape.",
+      assistantMessage: "Preparei a remocao do espaco em branco entre a ultima secao e o rodape, mantendo o rodape igual.",
+    }
+  }
+
   if (input.intent.kind === "divider") {
     return {
       summary: `Remover a linha decorativa indicada na pagina ${input.title}.`,

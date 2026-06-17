@@ -1,5 +1,7 @@
 import {
+  isExplicitFooterTextEditRequest,
   isExplicitHeaderTextEditRequest,
+  isFooterAdjacentSpacingRequest,
   isHeaderAdjacentSpacingRequest,
   isHeaderVisualSpacingRequest,
   isVisualSpacingIntent,
@@ -300,7 +302,8 @@ function classifyScopeFromMessageV2(message: string): AiEditScope {
   const normalized = normalizeString(message).toLowerCase()
 
   if (isExplicitHeaderTextEditRequest(message)) return "header"
-  if (/\b(rodape|rodapé|footer)\b/i.test(message)) return "footer"
+  if (isExplicitFooterTextEditRequest(message)) return "footer"
+  if (isFooterAdjacentSpacingRequest(message)) return "section"
   if (isHeaderAdjacentSpacingRequest(message) || wantsOnlyPageWrapperSpacing(message)) return "page"
   if (wantsOnlyFirstSectionSpacing(message) || wantsOnlySectionInternalSpacing(message)) return "section"
   if (isHeaderVisualSpacingRequest(message)) return "header"
@@ -331,6 +334,7 @@ function classifyModeFromMessageV2(message: string): AiEditMode {
   }
 
   if (
+    isFooterAdjacentSpacingRequest(message) ||
     isVisualSpacingIntent(message) ||
     hasKeyword(normalized, [
       "padding",
@@ -439,6 +443,9 @@ function buildFallbackTargetIdsV2(
   mode?: AiEditMode,
 ) {
   if (mode === "spacing_patch") {
+    if (isFooterAdjacentSpacingRequest(message ?? "")) {
+      return ["footer_adjacent_spacing"]
+    }
     if (wantsOnlyPageWrapperSpacing(message ?? "") || isHeaderAdjacentSpacingRequest(message ?? "")) {
       return ["page_wrapper_spacing"]
     }

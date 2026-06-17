@@ -1033,4 +1033,58 @@ describe("applyPatchPlan", () => {
     expect(heading?.content).toBe("Transforme o seu estudo")
     expect(heading?.align).toBe("center")
   })
+
+  it("removes footer-adjacent spacing from the last managed section without touching links", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[2] = {
+      ...blocks[2],
+      layout: {
+        paddingTop: 16,
+        paddingRight: 16,
+        paddingBottom: 56,
+        paddingLeft: 16,
+        marginTop: 0,
+        marginBottom: 32,
+      },
+    }
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remova o espaco entre a ultima secao e o rodape",
+      editPlan: createPlan({
+        scope: "section",
+        mode: "spacing_patch",
+        target_ids: ["footer_adjacent_spacing"],
+        risk_level: "low",
+        operations: [
+          {
+            type: "set_style",
+            target_id: "footer_adjacent_spacing",
+            path: "padding-bottom",
+            value: 0,
+            breakpoint: "all",
+          },
+          {
+            type: "set_style",
+            target_id: "footer_adjacent_spacing",
+            path: "margin-bottom",
+            value: 0,
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(nextBlocks).toHaveLength(3)
+    expect(String(nextBlocks[2].content)).toContain("/suporte")
+    expect((nextBlocks[2].layout as { paddingBottom?: number; marginBottom?: number }).paddingBottom).toBe(0)
+    expect((nextBlocks[2].layout as { paddingBottom?: number; marginBottom?: number }).marginBottom).toBe(0)
+    expect(result.resolutions.every((resolution) => resolution.resolved_target_id === "footer_adjacent_spacing")).toBe(true)
+    expect(result.resolutions.every((resolution) => resolution.confidence >= 0.8)).toBe(true)
+  })
 })

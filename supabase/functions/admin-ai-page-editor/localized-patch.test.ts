@@ -113,4 +113,22 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(result.intent.confidence).toBe("low")
     expect(result.assistantMessage).toMatch(/localizar com seguranca/i)
   })
+
+  it("materializes clarified spacing between the last section and footer without touching footer text", () => {
+    const result = materialize(
+      "remover o espaco em branco entre a ultima secao da pagina e o rodape, mantendo o rodape igual",
+      "remova esse espaco em branco | Esta entre a ultima secao da pagina e o rodape",
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.intent.targetHint).toBe("footer_adjacent_spacing")
+    expect(result.editPlan.target_ids).toEqual(["footer_adjacent_spacing"])
+    expect(result.assistantMessage).toMatch(/ultima secao e o rodape/i)
+
+    const blocks = (result.proposal.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(blocks).toHaveLength(2)
+    expect(String(blocks[1].content)).toContain("/suporte")
+    expect((blocks[1].layout as { paddingBottom?: number }).paddingBottom).toBe(0)
+  })
 })

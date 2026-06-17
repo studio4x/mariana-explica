@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "107"
-export const BUILD_COMMIT = "localized-visual-patch"
+export const BUILD_DEPLOY_NUMBER = "108"
+export const BUILD_COMMIT = "footer-adjacent-spacing"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

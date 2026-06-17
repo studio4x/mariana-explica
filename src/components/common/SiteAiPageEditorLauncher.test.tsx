@@ -390,6 +390,70 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(screen.getByText(/topo do site atualizado/i)).toBeInTheDocument()
   })
 
+  it("routes footer-adjacent spacing to the visual page flow instead of footer copy", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(
+      createProposalResponse({
+        assistant_message: "Entendido. Preparei a remocao do espaco entre a ultima secao e o rodape.",
+        summary: "Remover espaco antes do rodape",
+        explanation: "Ajuste visual localizado no fim da pagina.",
+        edit_plan: {
+          scope: "section",
+          mode: "spacing_patch",
+          target_ids: ["footer_adjacent_spacing"],
+          risk_level: "low",
+          requires_strict_confirmation: false,
+          operations: [
+            {
+              type: "set_style",
+              target_id: "footer_adjacent_spacing",
+              path: "padding-bottom",
+              value: 0,
+              breakpoint: "all",
+            },
+          ],
+        },
+      }),
+    )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "remova o espaco entre a ultima secao e o rodape")
+
+    await waitFor(() => {
+      expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(mockGenerateFooterCopyProposal).not.toHaveBeenCalled()
+    expect(screen.queryByText(/texto do rodape|rodape do site foi atualizado/i)).not.toBeInTheDocument()
+  })
+
+  it("keeps explicit footer copy changes on the textual footer branch", async () => {
+    mockGenerateFooterCopyProposal.mockResolvedValueOnce({
+      provider_used: "openai",
+      summary: "Atualizar texto do rodape",
+      explanation: "Preparei uma versao mais clara para o rodape.",
+      warnings: [],
+      footer_description: "Novo rodape",
+      final_status: "proposal_ready",
+      change_detected: true,
+      draft_saved: false,
+      preview_available: false,
+      change_summary: {
+        layout_changed: false,
+        style_changed: false,
+        html_changed: false,
+        text_changed: true,
+      },
+    })
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "quero mudar o texto do rodape")
+
+    await waitFor(() => {
+      expect(mockGenerateFooterCopyProposal).toHaveBeenCalledTimes(1)
+    })
+    expect(mockGenerateProposalMutateAsync).not.toHaveBeenCalled()
+    expect(screen.getByText(/rodape do site atualizado/i)).toBeInTheDocument()
+  })
+
   it("shows no_visible_change instead of success when the backend reports a no-op", async () => {
     mockGenerateProposalMutateAsync.mockResolvedValueOnce(
       createProposalResponse({
