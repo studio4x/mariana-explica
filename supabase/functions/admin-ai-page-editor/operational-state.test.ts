@@ -114,6 +114,37 @@ describe("operational-state", () => {
     expect(state.preview_available).toBe(false)
   })
 
+  it("requires clarification for localized visual patches below the safe confidence threshold", () => {
+    const state = resolvePersistibleProposalOperationalState({
+      editPlan: {
+        scope: "section",
+        mode: "style_patch",
+        target_ids: ["localized_divider_below_heading"],
+        risk_level: "low",
+        requires_strict_confirmation: false,
+        operations: [
+          {
+            type: "remove_style",
+            target_id: "localized_divider_below_heading",
+            path: "localized-divider",
+            breakpoint: "all",
+          },
+        ],
+      },
+      baseLayoutJson: { projectData: { blocks: [{ id: "section-1" }] } },
+      baseStyleJson: {},
+      proposalLayoutJson: { projectData: { blocks: [{ id: "section-1" }] } },
+      proposalStyleJson: { css: ".section hr { display: none !important; }" },
+      targetResolutions: [{ confidence: 0.54 }],
+      previewRenderable: true,
+      desktopRenderable: true,
+      mobileRenderable: true,
+    })
+
+    expect(state.final_status).toBe("needs_clarification")
+    expect(state.preview_available).toBe(false)
+  })
+
   it("returns structured no-op state for header/footer copy when text does not change", () => {
     const state = resolveTextProposalOperationalState({
       currentText: "Anuncio atual",

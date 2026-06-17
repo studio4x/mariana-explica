@@ -142,6 +142,66 @@ describe("ai-page-editor-response", () => {
     expect(response.client_request_id).toBe("client-2")
   })
 
+  it("accepts a localized visual patch response as a normal preview-ready proposal", () => {
+    const response = ensureAdminAiPageEditorConversationResponse({
+      success: true,
+      request_id: "req-localized",
+      client_request_id: "client-localized",
+      provider_used: "openai",
+      conversation_phase: "ready_for_proposal",
+      assistant_message: "Preparei a remocao da linha decorativa abaixo do titulo indicado.",
+      quick_replies: [],
+      understanding_summary: "remover a linha decorativa abaixo desse titulo",
+      confirmation_token: null,
+      confirmation_consumed: true,
+      requires_user_confirmation: false,
+      can_generate_proposal: true,
+      summary: "Remover linha decorativa",
+      explanation: "Ajuste localizado no divisor.",
+      warnings: [],
+      edit_plan: {
+        scope: "section",
+        mode: "style_patch",
+        target_ids: ["localized_divider_below_heading"],
+        risk_level: "low",
+        requires_strict_confirmation: true,
+        operations: [
+          {
+            type: "remove_style",
+            target_id: "localized_divider_below_heading",
+            path: "localized-divider",
+            breakpoint: "all",
+          },
+        ],
+      },
+      proposal: {
+        slug: "sobre",
+        title: "Sobre",
+        layout_json: { projectData: { blocks: [{ id: "story" }] } },
+        style_json: { css: ".story hr { display: none !important; }" },
+        metadata: {
+          ai_invariants: {
+            plan_source: "localized_visual_patch",
+            localized_visual_patch: true,
+            target_resolutions: [{ confidence: 0.91 }],
+          },
+        },
+      },
+      final_status: "proposal_ready",
+      change_detected: true,
+      draft_saved: false,
+      preview_available: true,
+      change_summary: {
+        layout_changed: false,
+        style_changed: true,
+        html_changed: false,
+      },
+    })
+
+    expect(response.proposal?.metadata.ai_invariants?.plan_source).toBe("localized_visual_patch")
+    expect(response.preview_available).toBe(true)
+  })
+
   it("detects a no-op diff when layout, style and html stay equal", () => {
     const diff = detectManagedPageOperationDiff(
       {

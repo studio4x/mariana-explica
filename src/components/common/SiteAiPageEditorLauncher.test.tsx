@@ -525,6 +525,83 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(screen.queryByText(/\bpadding\b|\bwrapper\b|\bproposal\b/i)).not.toBeInTheDocument()
   })
 
+  it("keeps localized visual patch copy simple and avoids truncation errors", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(
+      createProposalResponse({
+        assistant_message: "Preparei a remocao da linha decorativa abaixo do titulo indicado.",
+        summary: "Remover linha decorativa",
+        explanation: "Ajuste visual localizado.",
+        edit_plan: {
+          scope: "section",
+          mode: "style_patch",
+          target_ids: ["localized_divider_below_heading"],
+          risk_level: "low",
+          requires_strict_confirmation: false,
+          operations: [
+            {
+              type: "remove_style",
+              target_id: "localized_divider_below_heading",
+              path: "localized-divider",
+              breakpoint: "all",
+            },
+          ],
+        },
+        proposal: {
+          slug: "sobre",
+          title: "Sobre",
+          layout_json: { projectData: { blocks: [{ id: "story" }, { id: "support" }] } },
+          style_json: { css: ".story hr { display: none !important; }" },
+          metadata: {
+            ai_contract_version: "hybrid_v1",
+            ai_invariants: {
+              plan_source: "localized_visual_patch",
+              localized_visual_patch: true,
+              supports_persistible_flow: true,
+              preview_renderable: true,
+              desktop_renderable: true,
+              mobile_renderable: true,
+              target_resolutions: [
+                {
+                  requested_target_id: "localized_divider_below_heading",
+                  resolved_target_id: "story",
+                  candidate_path: "projectData.blocks.0",
+                  confidence: 0.91,
+                  section_index: 0,
+                  block_type: "rich_text",
+                  selector: ".me-managed-page-root > .me-managed-block:nth-of-type(1)",
+                  signals: {
+                    id_structural: 0.18,
+                    internal_path: 0,
+                    data_attributes: 0,
+                    nearest_heading: 0.18,
+                    anchor_text: 0.54,
+                    visual_order: 0.1,
+                    textual_similarity: 0,
+                    capture_attachment: 0,
+                  },
+                },
+              ],
+            },
+            base_version: {
+              id: "version-1",
+              version_number: 12,
+              status: "published",
+            },
+          },
+        },
+      }),
+    )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "Sim, e isso mesmo.")
+
+    await waitFor(() => {
+      expect(screen.getByText(/linha decorativa abaixo do titulo/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+    expect(screen.queryByText(/truncada|provider|proposal/i)).not.toBeInTheDocument()
+  })
+
   it("shows a friendly error without reopening confirmation when the confirmed safe patch fails", async () => {
     mockGenerateProposalMutateAsync
       .mockResolvedValueOnce(

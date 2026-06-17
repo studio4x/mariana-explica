@@ -277,6 +277,11 @@ function classifyModeFromMessage(message: string): AiEditMode {
       "background",
       "border",
       "borda",
+      "linha",
+      "divisor",
+      "separador",
+      "sombra",
+      "shadow",
       "radius",
       "alinhamento",
       "uppercase",
@@ -376,6 +381,11 @@ function classifyModeFromMessageV2(message: string): AiEditMode {
       "background",
       "border",
       "borda",
+      "linha",
+      "divisor",
+      "separador",
+      "sombra",
+      "shadow",
       "radius",
       "alinhamento",
       "uppercase",
@@ -398,7 +408,7 @@ function inferOperationTypeFromMode(mode: AiEditMode, message: string): AiEditOp
     if (hasKeyword(normalized, ["mobile", "tablet", "desktop", "responsivo", "responsiva", "breakpoint"])) {
       return "set_responsive_rule"
     }
-    if (hasKeyword(normalized, ["remover", "tirar", "limpar"]) && hasKeyword(normalized, ["cor", "fundo", "borda", "classe", "style"])) {
+    if (hasKeyword(normalized, ["remov", "tirar", "limpar"]) && hasKeyword(normalized, ["cor", "fundo", "borda", "border", "linha", "divisor", "separador", "sombra", "shadow", "classe", "style"])) {
       return "remove_style"
     }
     return "set_style"

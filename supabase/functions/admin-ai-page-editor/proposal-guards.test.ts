@@ -82,4 +82,45 @@ describe("proposal guards", () => {
       })
     }
   })
+
+  it("accepts localized visual patch metadata without requiring a provider full proposal flag", () => {
+    const proposal = requirePersistiblePageEditorProposal({
+      summary: "Remover linha decorativa",
+      explanation: "Ajuste localizado no divisor abaixo do titulo.",
+      warnings: [],
+      edit_plan: {
+        scope: "section",
+        mode: "style_patch",
+        target_ids: ["localized_divider_below_heading"],
+        risk_level: "low",
+        requires_strict_confirmation: true,
+        operations: [
+          {
+            type: "remove_style",
+            target_id: "localized_divider_below_heading",
+            path: "localized-divider",
+            breakpoint: "all",
+          },
+        ],
+      },
+      proposal: {
+        slug: "sobre",
+        title: "Sobre",
+        layout_json: { projectData: { blocks: [{ id: "story" }] } },
+        style_json: { css: ".story hr { display: none !important; }" },
+        metadata: {
+          ai_invariants: {
+            plan_source: "localized_visual_patch",
+            localized_visual_patch: true,
+            target_resolutions: [{ confidence: 0.91 }],
+          },
+        },
+      },
+    }, "localized_visual_patch")
+
+    expect(extractPersistibleProposalInvariants(proposal)).toMatchObject({
+      plan_source: "localized_visual_patch",
+      localized_visual_patch: true,
+    })
+  })
 })

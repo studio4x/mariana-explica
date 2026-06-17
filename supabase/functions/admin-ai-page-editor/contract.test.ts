@@ -120,6 +120,21 @@ describe("normalizeAiEditPlan", () => {
     expect(result.editPlan.operations[0]?.type).toBe("update_text")
   })
 
+  it("routes localized visual line removal as style patch instead of text patch", () => {
+    const result = normalizeAiEditPlan({
+      rawEditPlan: null,
+      message:
+        'remova essa linha que esta inserido abaixo do titulo "De estudante para estudante: porque este projeto?"',
+      slug: "sobre",
+      path: "/sobre",
+      legacyContractFallback: true,
+    })
+
+    expect(result.editPlan.scope).not.toBe("header")
+    expect(result.editPlan.mode).toBe("style_patch")
+    expect(result.editPlan.operations[0]?.type).toBe("remove_style")
+  })
+
   it("fills missing operation target ids and breakpoint defaults", () => {
     const result = normalizeAiEditPlan({
       rawEditPlan: {

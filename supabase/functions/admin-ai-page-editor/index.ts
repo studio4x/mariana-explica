@@ -16,6 +16,7 @@ import {
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
 import { materializeConfirmedIntentProposal } from "./confirmed-intent.ts"
+import { materializeLocalizedVisualPatchProposal } from "./localized-patch.ts"
 import {
   extractPersistibleProposalInvariants,
   requirePersistiblePageEditorProposal,
@@ -401,7 +402,9 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
   understandingSummary: string | null
   assistantMessage: string
   warnings?: string[]
+  finalStatus?: "error" | "needs_clarification"
 }) {
+  const finalStatus = input.finalStatus ?? "error"
   return {
     success: true as const,
     request_id: input.requestId,
@@ -416,7 +419,7 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
     requires_user_confirmation: false,
     can_generate_proposal: false,
     warnings: input.warnings ?? [],
-    final_status: "error" as const,
+    final_status: finalStatus,
     change_detected: false,
     draft_saved: false as const,
     preview_available: false as const,
@@ -2525,6 +2528,10 @@ function buildUnderstandingSystemPrompt(config: ReturnType<typeof normalizeConfi
     "Exemplo 4: pedido='remover o espaco antes da primeira secao e manter o espaco interno da secao' -> understanding_summary='tirar o espaco branco antes da primeira secao sem mexer no espaco interno da secao'.",
     "Exemplo 5: pedido='remover a faixa branca entre o menu e a primeira secao' -> understanding_summary='tirar a faixa branca antes da primeira secao'.",
     "Exemplo 6: pedido='quero mudar o texto do cabecalho' -> understanding_summary='mudar o texto do cabecalho'.",
+    "Exemplo 7: pedido='remova essa linha abaixo do titulo \"De estudante para estudante: porque este projeto?\"' -> understanding_summary='remover a linha decorativa abaixo desse titulo sem mudar o texto nem a secao'.",
+    "Exemplo 8: pedido='remova a borda do botao principal' -> understanding_summary='remover apenas a borda visual do botao principal sem mudar o texto nem o link'.",
+    "Exemplo 9: pedido='centralize esse titulo' -> understanding_summary='centralizar esse titulo sem alterar o texto'.",
+    "Exemplo 10: pedido='tira isso daqui' sem anexo ou alvo claro -> phase=needs_clarification e pergunta='Consegues indicar qual elemento queres remover?'",
     "assistant_message deve ser amigavel e pronta para aparecer no chat.",
     "quick_replies deve trazer de 0 a 4 respostas curtas e clicaveis.",
     `Pagina atual: ${currentTitle} (${currentPath})`,
@@ -4205,6 +4212,244 @@ Deno.serve(async (req) => {
           confirmed_intent_scope: deterministicProposal.scope,
           fallback_allowed: false,
           fallback_reason: deterministicProposal.reason,
+        })
+
+        return jsonResponse(friendlyFailure)
+      }
+
+      const localizedProposal = materializeLocalizedVisualPatchProposal({
+        providerUsed: config.config_value.primary_provider,
+        modelUsed:
+          config.config_value.primary_provider === "gemini"
+            ? config.config_value.gemini_model || DEFAULT_GEMINI_MODEL
+            : config.config_value.openai_model || DEFAULT_OPENAI_MODEL,
+        confirmationMessage: message,
+        slug,
+        title,
+        path,
+        conversationContext,
+        baseVersion: managedPageContext.baseVersion,
+        baseVersionSource: managedPageContext.baseVersionSource,
+        degradedDraftBypassed: managedPageContext.degradedDraftBypassed,
+        baseVersionSelectionReason: managedPageContext.baseVersionSelectionReason,
+        publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
+        latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
+        attachments: validAttachments,
+      })
+
+      logInfo("AI page editor localized visual branch decided", {
+        ...routingContext,
+        branch_selected:
+          localizedProposal.status === "success"
+            ? "localized_visual_patch"
+            : localizedProposal.status === "failed"
+              ? "localized_visual_patch_failed"
+              : "provider_full_proposal",
+        localized_intent_kind: localizedProposal.intent.kind,
+        localized_intent_confidence: localizedProposal.intent.confidence,
+        fallback_reason: localizedProposal.status === "not_applicable" ? localizedProposal.reason : null,
+        patch_failure_reason: localizedProposal.status === "failed" ? localizedProposal.reason : null,
+      })
+
+      if (localizedProposal.status === "success") {
+        const proposalInvariants = extractPersistibleProposalInvariants({
+          proposal: localizedProposal.proposal,
+        })
+
+        await recordUsageEvent(serviceClient, {
+          action: "generate_proposal",
+          provider: localizedProposal.providerUsed,
+          model: localizedProposal.modelUsed,
+          user_id: context.user.id,
+          slug,
+          path,
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          estimated_cost_usd: 0,
+          currency: "USD",
+          request_id: requestId,
+          mode: localizedProposal.editPlan.mode,
+          scope: localizedProposal.editPlan.scope,
+          risk_level: localizedProposal.editPlan.risk_level,
+          target_ids: localizedProposal.editPlan.target_ids,
+          requires_strict_confirmation: localizedProposal.editPlan.requires_strict_confirmation,
+          contract_version: normalizeString(localizedProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+          invariants: proposalInvariants,
+          metadata: {
+            attachment_count: validAttachments.length,
+            conversation_phase: localizedProposal.conversationPhase,
+            clarification_questions_count: conversationContext.clarification_questions_count,
+            user_confirmed_understanding: true,
+            understanding_summary: localizedProposal.understandingSummary,
+            ambiguity_detected: false,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            proposal_summary: localizedProposal.summary,
+            edit_plan_operation_count: localizedProposal.editPlan.operations.length,
+            warning_count: localizedProposal.warnings.length,
+            target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+              ? proposalInvariants.target_resolutions.length
+              : 0,
+            require_confirmation: config.config_value.require_confirmation,
+            pricing_source: "deterministic_localized_visual_patch",
+            base_version_id: managedPageContext.baseVersion.id,
+            base_version_number: managedPageContext.baseVersion.version_number,
+            base_version_status: managedPageContext.baseVersion.status,
+            context_source: managedPageContext.baseVersionSource,
+            degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+            context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            published_version_id: managedPageContext.publishedVersion?.id ?? null,
+            latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+            provider_failures: [],
+            mode: localizedProposal.editPlan.mode,
+            scope: localizedProposal.editPlan.scope,
+            risk_level: localizedProposal.editPlan.risk_level,
+            target_ids: localizedProposal.editPlan.target_ids,
+            requires_strict_confirmation: localizedProposal.editPlan.requires_strict_confirmation,
+            contract_version: normalizeString(localizedProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+            invariants: proposalInvariants,
+            final_status: localizedProposal.operationalState.final_status,
+            change_detected: localizedProposal.operationalState.change_detected,
+            draft_saved: localizedProposal.operationalState.draft_saved,
+            preview_available: localizedProposal.operationalState.preview_available,
+            change_summary: localizedProposal.operationalState.change_summary,
+            materialized_deterministically: true,
+            branch_selected: "localized_visual_patch",
+            localized_intent: localizedProposal.intent,
+            localized_intent_source_text: localizedProposal.sourceText,
+          },
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: localizedProposal.providerUsed,
+            attachment_count: validAttachments.length,
+            conversation_phase: localizedProposal.conversationPhase,
+            clarification_questions_count: conversationContext.clarification_questions_count,
+            user_confirmed_understanding: true,
+            understanding_summary: localizedProposal.understandingSummary,
+            ambiguity_detected: false,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            proposal_summary: localizedProposal.summary,
+            edit_plan_operation_count: localizedProposal.editPlan.operations.length,
+            warning_count: localizedProposal.warnings.length,
+            target_resolution_count: Array.isArray(proposalInvariants.target_resolutions)
+              ? proposalInvariants.target_resolutions.length
+              : 0,
+            base_version_id: managedPageContext.baseVersion.id,
+            base_version_number: managedPageContext.baseVersion.version_number,
+            base_version_status: managedPageContext.baseVersion.status,
+            context_source: managedPageContext.baseVersionSource,
+            degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
+            context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            published_version_id: managedPageContext.publishedVersion?.id ?? null,
+            latest_draft_id: managedPageContext.latestDraft?.id ?? null,
+            provider_failures: [],
+            mode: localizedProposal.editPlan.mode,
+            scope: localizedProposal.editPlan.scope,
+            risk_level: localizedProposal.editPlan.risk_level,
+            target_ids: localizedProposal.editPlan.target_ids,
+            requires_strict_confirmation: localizedProposal.editPlan.requires_strict_confirmation,
+            contract_version: normalizeString(localizedProposal.proposal.metadata.ai_contract_version, "hybrid_v1"),
+            invariants: proposalInvariants,
+            final_status: localizedProposal.operationalState.final_status,
+            change_detected: localizedProposal.operationalState.change_detected,
+            draft_saved: localizedProposal.operationalState.draft_saved,
+            preview_available: localizedProposal.operationalState.preview_available,
+            change_summary: localizedProposal.operationalState.change_summary,
+            materialized_deterministically: true,
+            branch_selected: "localized_visual_patch",
+            localized_intent: localizedProposal.intent,
+            localized_intent_source_text: localizedProposal.sourceText,
+          },
+          ...auditMeta,
+        })
+
+        logInfo("AI page editor proposal materialized from localized visual patch", {
+          request_id: requestId,
+          client_request_id: clientRequestId,
+          user_id: context.user.id,
+          slug,
+          path,
+          conversation_phase: localizedProposal.conversationPhase,
+          target_ids: localizedProposal.editPlan.target_ids,
+          branch_selected: "localized_visual_patch",
+          localized_intent_kind: localizedProposal.intent.kind,
+        })
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          client_request_id: clientRequestId,
+          provider_used: localizedProposal.providerUsed,
+          conversation_phase: localizedProposal.conversationPhase,
+          assistant_message: localizedProposal.assistantMessage,
+          quick_replies: [],
+          understanding_summary: localizedProposal.understandingSummary,
+          confirmation_token: null,
+          confirmation_consumed: true,
+          requires_user_confirmation: localizedProposal.requiresUserConfirmation,
+          can_generate_proposal: localizedProposal.canGenerateProposal,
+          warnings: localizedProposal.warnings,
+          summary: localizedProposal.summary,
+          explanation: localizedProposal.explanation,
+          edit_plan: localizedProposal.editPlan,
+          proposal: localizedProposal.proposal,
+          ...localizedProposal.operationalState,
+        })
+      }
+
+      if (localizedProposal.status === "failed") {
+        const finalStatus: "needs_clarification" | "error" =
+          localizedProposal.intent.confidence === "low" || /confidence|clarification|alvo/i.test(localizedProposal.reason)
+            ? "needs_clarification"
+            : "error"
+        const friendlyFailure = createFriendlyConfirmedIntentFailureResponse({
+          requestId,
+          clientRequestId,
+          providerUsed: config.config_value.primary_provider,
+          understandingSummary: localizedProposal.understandingSummary,
+          assistantMessage: localizedProposal.assistantMessage,
+          warnings: localizedProposal.warnings,
+          finalStatus,
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: config.config_value.primary_provider,
+            conversation_phase: friendlyFailure.conversation_phase,
+            user_confirmed_understanding: true,
+            understanding_summary: localizedProposal.understandingSummary,
+            quick_reply_selected: conversationContext.quick_reply_selected,
+            final_status: friendlyFailure.final_status,
+            branch_selected: "localized_visual_patch",
+            fallback_allowed: false,
+            fallback_reason: localizedProposal.reason,
+            localized_intent: localizedProposal.intent,
+            localized_intent_source_text: localizedProposal.sourceText,
+          },
+          ...auditMeta,
+        })
+
+        logWarn("AI page editor localized visual patch failed without provider fallback", {
+          ...routingContext,
+          branch_selected: "localized_visual_patch",
+          final_status: friendlyFailure.final_status,
+          localized_intent_kind: localizedProposal.intent.kind,
+          fallback_allowed: false,
+          fallback_reason: localizedProposal.reason,
         })
 
         return jsonResponse(friendlyFailure)

@@ -849,4 +849,188 @@ describe("applyPatchPlan", () => {
       }),
     ).toThrow(/não encontrei um alvo seguro/i)
   })
+
+  it("removes a localized divider below a referenced heading without changing sections or links", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[1] = {
+      id: "about-story",
+      type: "rich_text",
+      content:
+        '<section><h2>De estudante para estudante: porque este projeto?</h2><hr class="story-divider" /><p>Texto preservado.</p><a href="/suporte">Suporte</a></section>',
+      layout: {
+        paddingTop: 16,
+        paddingRight: 16,
+        paddingBottom: 16,
+        paddingLeft: 16,
+      },
+    }
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message:
+        'remova essa linha que esta inserido abaixo do titulo "De estudante para estudante: porque este projeto?"',
+      editPlan: createPlan({
+        mode: "style_patch",
+        target_ids: ["localized_divider_below_heading"],
+        risk_level: "low",
+        operations: [
+          {
+            type: "remove_style",
+            target_id: "localized_divider_below_heading",
+            path: "localized-divider",
+            value: {
+              target_text: "De estudante para estudante: porque este projeto?",
+              relation: "below",
+            },
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(nextBlocks).toHaveLength(3)
+    expect(String(nextBlocks[1].content)).toContain("De estudante para estudante: porque este projeto?")
+    expect(String(nextBlocks[1].content)).toContain("/suporte")
+    expect(String(result.styleJson.css ?? "")).toContain('[class*="divider"]')
+    expect(String(result.styleJson.css ?? "")).toContain("display: none !important;")
+    expect(result.resolutions[0]?.confidence).toBeGreaterThanOrEqual(0.8)
+  })
+
+  it("removes only the button border while preserving the CTA text and link", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    const heroChildren = (blocks[0].children as Array<Array<Record<string, unknown>>>)[0]
+    const button = heroChildren.find((block) => block.id === "hero-cta")
+    if (button) {
+      button.borderWidth = 2
+      button.borderColor = "#112233"
+    }
+
+    const result = applyPatchPlan({
+      slug: "home",
+      title: "Home",
+      path: "/",
+      message: "remova a borda do botao principal da secao inicial",
+      editPlan: createPlan({
+        scope: "block",
+        mode: "style_patch",
+        target_ids: ["localized_button_primary"],
+        risk_level: "low",
+        operations: [
+          {
+            type: "remove_style",
+            target_id: "localized_button_primary",
+            path: "border",
+            value: "0px solid transparent",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    const nextHeroChildren = (nextBlocks[0].children as Array<Array<Record<string, unknown>>>)[0]
+    const nextButton = nextHeroChildren.find((block) => block.id === "hero-cta")
+    expect(nextButton?.label).toBe("Quero começar")
+    expect(nextButton?.href).toBe("/checkout")
+    expect(nextButton?.borderWidth).toBe(0)
+    expect(nextButton?.borderColor).toBe("transparent")
+  })
+
+  it("changes only the main button color and preserves its action", () => {
+    const result = applyPatchPlan({
+      slug: "home",
+      title: "Home",
+      path: "/",
+      message: "troque a cor do botao principal para azul",
+      editPlan: createPlan({
+        scope: "block",
+        mode: "style_patch",
+        target_ids: ["localized_button_primary"],
+        risk_level: "low",
+        operations: [
+          {
+            type: "set_style",
+            target_id: "localized_button_primary",
+            path: "background",
+            value: "#2563eb",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createBaseVersion(),
+    })
+
+    const blocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    const heroChildren = (blocks[0].children as Array<Array<Record<string, unknown>>>)[0]
+    const button = heroChildren.find((block) => block.id === "hero-cta")
+    expect(button?.backgroundColor).toBe("#2563eb")
+    expect(button?.href).toBe("/checkout")
+  })
+
+  it("removes a card shadow via localized CSS when a selected area points to the card", () => {
+    const result = applyPatchPlan({
+      slug: "home",
+      title: "Home",
+      path: "/",
+      message: "remova a sombra desse card na area selecionada",
+      editPlan: createPlan({
+        scope: "block",
+        mode: "style_patch",
+        target_ids: ["localized_card"],
+        risk_level: "low",
+        operations: [
+          {
+            type: "remove_style",
+            target_id: "localized_card",
+            path: "box-shadow",
+            value: "none",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createBaseVersion(),
+      attachments: [{ name: "card-selecionado.png", mime_type: "image/png" }],
+    })
+
+    expect(String(result.styleJson.css ?? "")).toContain("box-shadow: none !important;")
+    expect(result.resolutions[0]?.confidence).toBeGreaterThanOrEqual(0.8)
+  })
+
+  it("centers a localized title without changing its text", () => {
+    const result = applyPatchPlan({
+      slug: "home",
+      title: "Home",
+      path: "/",
+      message: "centralize esse titulo",
+      editPlan: createPlan({
+        scope: "text",
+        mode: "style_patch",
+        target_ids: ["localized_heading"],
+        risk_level: "low",
+        operations: [
+          {
+            type: "set_style",
+            target_id: "localized_heading",
+            path: "text-align",
+            value: "center",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createBaseVersion(),
+    })
+
+    const blocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    const heroChildren = (blocks[0].children as Array<Array<Record<string, unknown>>>)[0]
+    const heading = heroChildren.find((block) => block.id === "hero-heading")
+    expect(heading?.content).toBe("Transforme o seu estudo")
+    expect(heading?.align).toBe("center")
+  })
 })

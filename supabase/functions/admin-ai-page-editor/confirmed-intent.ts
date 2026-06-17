@@ -323,15 +323,15 @@ export function materializeConfirmedIntentProposal(
     }
   }
 
-  const scope =
-    resolveConfirmedSpacingScope({
-      sourceText: sourceTexts.understandingSummary,
-      quickReplySelected: input.conversationContext.quick_reply_selected,
-    }) ??
-    resolveConfirmedSpacingScope({
-      sourceText: sourceTexts.aggregate,
-      quickReplySelected: input.conversationContext.quick_reply_selected,
-    })
+  const scope = understandingSummary
+    ? resolveConfirmedSpacingScope({
+        sourceText: sourceTexts.understandingSummary,
+        quickReplySelected: input.conversationContext.quick_reply_selected,
+      })
+    : resolveConfirmedSpacingScope({
+        sourceText: sourceTexts.aggregate,
+        quickReplySelected: input.conversationContext.quick_reply_selected,
+      })
 
   if (!scope) {
     return {

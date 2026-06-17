@@ -214,4 +214,14 @@ describe("materializeConfirmedIntentProposal", () => {
     expect(result.scope).toBe("wrapper_only")
     expect(result.assistantMessage).toMatch(/tentativa segura/i)
   })
+
+  it("leaves non-spacing localized visual requests for the localized visual patch branch", () => {
+    const result = materialize(
+      'remover a linha decorativa abaixo do titulo "De estudante para estudante: porque este projeto?"',
+    )
+
+    expect(result.status).toBe("not_applicable")
+    if (result.status !== "not_applicable") throw new Error("expected not_applicable")
+    expect(result.reason).toBe("not_known_spacing_intent")
+  })
 })

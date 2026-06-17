@@ -131,7 +131,7 @@ const SAFE_ALIGN_VALUES = new Set(["start", "center", "end", "stretch", "left", 
 const SAFE_BACKGROUND_VALUES = /^(transparent|#[0-9a-f]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|linear-gradient\([^)]+\))$/i
 const SAFE_COLOR_VALUES = /^(transparent|currentcolor|#[0-9a-f]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i
 const SAFE_BORDER_VALUES = /^[0-9.]+px\s+(solid|dashed|dotted)\s+(transparent|#[0-9a-f]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i
-const SAFE_BOX_SHADOW_VALUES = /^[0-9.\spxrgba(),#-]+$/i
+const SAFE_BOX_SHADOW_VALUES = /^(none|[0-9.\spxrgba(),#-]+)$/i
 const SAFE_GRID_TEMPLATE_VALUES = /^repeat\((1|2|3|4),\s*minmax\(0,\s*1fr\)\)$|^(1fr)(\s+1fr){0,3}$/i
 
 const ORDINAL_HINTS: Array<{ pattern: RegExp; index: number }> = [
@@ -628,11 +628,12 @@ function extractQuotedTexts(message: string) {
 
 function extractAnchorTexts(operation: AiEditOperation, message: string) {
   const anchors = [...extractQuotedTexts(message)]
-  if (operation.type === "update_text" && operation.value && typeof operation.value === "object" && !Array.isArray(operation.value)) {
+  if (operation.value && typeof operation.value === "object" && !Array.isArray(operation.value)) {
     const record = operation.value as Record<string, unknown>
     anchors.push(normalizeString(record.from))
     anchors.push(normalizeString(record.anchor_text))
     anchors.push(normalizeString(record.text))
+    anchors.push(normalizeString(record.target_text))
   }
   return uniqueStrings(anchors.filter(Boolean))
 }
@@ -826,6 +827,17 @@ function scoreCandidate(input: {
     "first_section_spacing",
     "section_internal_spacing",
   ].includes(normalizedRequestedTarget)
+  const requestedLocalizedTarget =
+    normalizedRequestedTarget.startsWith("localized_") ||
+    normalizedRequestedTarget.startsWith("localized-")
+  const requestedLocalizedDivider = requestedLocalizedTarget && normalizedRequestedTarget.includes("divider")
+  const requestedLocalizedButton = requestedLocalizedTarget && normalizedRequestedTarget.includes("button")
+  const requestedLocalizedCard = requestedLocalizedTarget && normalizedRequestedTarget.includes("card")
+  const requestedLocalizedHeading =
+    requestedLocalizedTarget &&
+    (normalizedRequestedTarget.includes("heading") ||
+      normalizedRequestedTarget.includes("title") ||
+      normalizedRequestedTarget.includes("titulo"))
   const candidateId = input.candidate.target_id.toLowerCase()
   const candidatePath = input.candidate.path_key.toLowerCase()
   const candidateHeading = input.candidate.heading
@@ -837,6 +849,33 @@ function scoreCandidate(input: {
     signals.id_structural = 0.46
   } else if (normalizedRequestedTarget && candidateId.includes(normalizedRequestedTarget)) {
     signals.id_structural = 0.3
+  }
+
+  if (requestedLocalizedDivider && ["heading", "rich_text", "container"].includes(input.candidate.block_type)) {
+    signals.id_structural = Math.max(signals.id_structural, 0.18)
+  }
+
+  if (requestedLocalizedButton && input.candidate.block_type === "button") {
+    signals.id_structural = Math.max(signals.id_structural, 0.58)
+    if (input.candidate.section_index === 0 || /\b(principal|primary|inicial|primeir[ao]|hero)\b/i.test(input.message)) {
+      signals.visual_order = Math.max(signals.visual_order, 0.24)
+    }
+  }
+
+  if (requestedLocalizedCard && ["container", "columns", "rich_text"].includes(input.candidate.block_type)) {
+    const candidateLooksLikeCard = /\b(card|cards|cart[aã]o)\b/i.test(`${candidateId} ${candidateText} ${candidateData}`)
+    signals.id_structural = Math.max(signals.id_structural, candidateLooksLikeCard ? 0.8 : 0.12)
+    if (/\b(card|cart[aã]o)\b/i.test(input.message) && candidateLooksLikeCard) {
+      signals.textual_similarity = Math.max(signals.textual_similarity, 0.22)
+      signals.capture_attachment = Math.max(signals.capture_attachment, 0.1)
+    }
+  }
+
+  if (requestedLocalizedHeading && input.candidate.block_type === "heading") {
+    signals.id_structural = Math.max(signals.id_structural, 0.58)
+    if (input.candidate.section_index === 0) {
+      signals.visual_order = Math.max(signals.visual_order, 0.24)
+    }
   }
 
   const rawTargetPath =
@@ -912,7 +951,11 @@ function scoreCandidate(input: {
   if (anchorTexts.length > 0) {
     const anchorHit = anchorTexts.some((anchor) => normalizeText(candidateText).includes(normalizeText(anchor)))
     if (anchorHit) {
-      signals.anchor_text = 0.28
+      signals.anchor_text = requestedLocalizedTarget ? 0.54 : 0.28
+      if (requestedLocalizedTarget) {
+        signals.nearest_heading = Math.max(signals.nearest_heading, 0.18)
+        signals.visual_order = Math.max(signals.visual_order, 0.1)
+      }
     }
   }
 
@@ -1606,6 +1649,83 @@ function buildCssRule(selector: string, property: string, value: unknown, breakp
   return rule
 }
 
+function wrapCssForBreakpoint(rule: string, breakpoint: AiEditOperation["breakpoint"]) {
+  if (breakpoint === "mobile") {
+    return `@media (max-width: 767px) {\n${indentCss(rule)}\n}`
+  }
+
+  if (breakpoint === "tablet") {
+    return `@media (min-width: 768px) and (max-width: 1023px) {\n${indentCss(rule)}\n}`
+  }
+
+  if (breakpoint === "desktop") {
+    return `@media (min-width: 1024px) {\n${indentCss(rule)}\n}`
+  }
+
+  return rule
+}
+
+function buildLocalizedDividerRemovalCssPatch(
+  resolution: ResolvedTargetCandidate,
+  breakpoint: AiEditOperation["breakpoint"],
+) {
+  const scopeSelector = resolution.candidate.content_selector || resolution.candidate.wrapper_selector
+  const dividerSelectors = [
+    `${scopeSelector} h1 + hr`,
+    `${scopeSelector} h2 + hr`,
+    `${scopeSelector} h3 + hr`,
+    `${scopeSelector} h4 + hr`,
+    `${scopeSelector} .divider`,
+    `${scopeSelector} .separator`,
+    `${scopeSelector} .line`,
+    `${scopeSelector} [class*="divider"]`,
+    `${scopeSelector} [class*="separator"]`,
+    `${scopeSelector} [class*="line"]`,
+    `${scopeSelector} [data-me-divider]`,
+    `${scopeSelector} hr`,
+  ].join(",\n")
+  const headingSelectors = [
+    `${scopeSelector} h1`,
+    `${scopeSelector} h2`,
+    `${scopeSelector} h3`,
+    `${scopeSelector} h4`,
+    `${scopeSelector} h5`,
+    `${scopeSelector} h6`,
+  ].join(",\n")
+  const rule = [
+    `${dividerSelectors} {`,
+    "  display: none !important;",
+    "  border: 0px solid transparent !important;",
+    "  box-shadow: none !important;",
+    "  background: transparent !important;",
+    "  height: 0px !important;",
+    "}",
+    "",
+    `${headingSelectors} {`,
+    "  border-bottom: 0px solid transparent !important;",
+    "  box-shadow: none !important;",
+    "}",
+  ].join("\n")
+
+  return wrapCssForBreakpoint(rule, breakpoint)
+}
+
+function buildLocalizedCssPatch(input: {
+  operation: AiEditOperation
+  resolution: ResolvedTargetCandidate
+}) {
+  const requestedTarget = normalizeIdentifier(input.operation.target_id).toLowerCase()
+  const path = normalizeString(input.operation.path).toLowerCase()
+  if (
+    input.operation.type === "remove_style" &&
+    (path === "localized-divider" || requestedTarget.includes("localized_divider"))
+  ) {
+    return buildLocalizedDividerRemovalCssPatch(input.resolution, input.operation.breakpoint)
+  }
+
+  return null
+}
+
 function indentCss(rule: string) {
   return rule
     .split("\n")
@@ -1983,6 +2103,13 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       }
       nextBlocks = updateBlockAtPath(nextBlocks, resolution.candidate.path, () => cloneJsonValue(templateBlock))
       warnings.push("A seção alvo foi reorganizada usando apenas o template da seção correspondente, sem tocar nas demais.")
+      continue
+    }
+
+    const localizedCssPatch = buildLocalizedCssPatch({ operation, resolution })
+    if (localizedCssPatch) {
+      nextStyleJson = appendCssPatchToStyleJson(nextStyleJson, localizedCssPatch)
+      warnings.push("Ajuste visual localizado aplicado sem alterar a estrutura da pagina.")
       continue
     }
 
