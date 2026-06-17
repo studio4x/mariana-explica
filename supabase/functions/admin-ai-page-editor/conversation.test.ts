@@ -17,6 +17,15 @@ describe("conversation helpers", () => {
       clarification_questions_count: 2,
       quick_reply_selected: "Nos dois",
       confirmation_token: "intent_123",
+      pending_image_insert: {
+        target_source: "capture",
+        target_page: "/sobre",
+        target_slug: "sobre",
+        target_hint: "selected_area",
+        capture_attachment_id: "capture-1",
+        capture_attachment_name: "recorte-sobre.jpg",
+        status: "waiting_for_image_asset",
+      },
       recent_messages: [
         { role: "assistant", text: "Percebi assim..." },
         { role: "user", text: "Sim, e isso" },
@@ -26,6 +35,7 @@ describe("conversation helpers", () => {
     expect(context.phase).toBe("awaiting_intent_confirmation")
     expect(context.clarification_questions_count).toBe(2)
     expect(context.confirmation_token).toBe("intent_123")
+    expect(context.pending_image_insert?.capture_attachment_id).toBe("capture-1")
     expect(context.recent_messages).toHaveLength(2)
   })
 

@@ -282,12 +282,14 @@ export type AdminAiPageEditorMode =
   | "style_patch"
   | "spacing_patch"
   | "section_layout_patch"
+  | "image_patch"
   | "section_replace"
 export type AdminAiPageEditorRiskLevel = "low" | "medium" | "high"
 export type AdminAiPageEditorOperationType =
   | "set_style"
   | "remove_style"
   | "update_text"
+  | "set_asset"
   | "move_node"
   | "replace_section"
   | "set_responsive_rule"
@@ -309,6 +311,50 @@ export type AdminAiPageEditorConversationPhase =
   | "needs_clarification"
   | "awaiting_intent_confirmation"
   | "ready_for_proposal"
+
+export type AiPageEditorAttachmentRole =
+  | "target_capture"
+  | "insert_image_asset"
+  | "reference_image"
+  | "unknown"
+
+export interface AdminAiPageEditorAttachmentMetadata {
+  source?: "capture" | "upload" | "paste" | "link" | "unknown"
+  target_path?: string | null
+  target_slug?: string | null
+  capture_rect?: {
+    left: number
+    top: number
+    width: number
+    height: number
+  } | null
+  viewport?: {
+    width: number
+    height: number
+  } | null
+}
+
+export interface AdminAiPageEditorAttachmentInput {
+  id: string
+  name: string
+  mime_type: string
+  data_url: string
+  size_bytes: number
+  role?: AiPageEditorAttachmentRole
+  metadata?: AdminAiPageEditorAttachmentMetadata | null
+}
+
+export interface AdminAiPageEditorPendingImageInsert {
+  target_source: "capture"
+  target_page: string
+  target_slug: string | null
+  target_hint: "selected_area"
+  capture_attachment_id: string
+  capture_attachment_name?: string | null
+  image_asset_attachment_id?: string | null
+  image_asset_url?: string | null
+  status: "waiting_for_image_asset" | "awaiting_confirmation"
+}
 
 export interface AdminAiPageEditorOperation {
   type: AdminAiPageEditorOperationType
@@ -429,6 +475,7 @@ export interface AdminAiPageEditorConversationContext {
   quick_reply_selected?: string | null
   confirmation_token?: string | null
   recent_messages?: AdminAiPageEditorConversationContextMessage[]
+  pending_image_insert?: AdminAiPageEditorPendingImageInsert | null
 }
 
 export interface AdminAiPageEditorConversationResponse extends AdminAiPageEditorOperationalState {
@@ -448,6 +495,7 @@ export interface AdminAiPageEditorConversationResponse extends AdminAiPageEditor
   proposal?: AdminAiPageEditorDraftProposal
   summary?: string
   explanation?: string
+  pending_image_insert?: AdminAiPageEditorPendingImageInsert | null
 }
 
 export interface AdminAiFooterCopyProposal extends AdminAiPageEditorOperationalState {

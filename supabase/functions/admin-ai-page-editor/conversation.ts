@@ -9,6 +9,18 @@ export interface AiConversationContextMessage {
   text: string
 }
 
+export interface AiConversationPendingImageInsert {
+  target_source: "capture"
+  target_page: string
+  target_slug: string | null
+  target_hint: "selected_area"
+  capture_attachment_id: string
+  capture_attachment_name?: string | null
+  image_asset_attachment_id?: string | null
+  image_asset_url?: string | null
+  status: "waiting_for_image_asset" | "awaiting_confirmation"
+}
+
 export interface AiConversationContextInput {
   phase?: string | null
   understanding_summary?: string | null
@@ -16,6 +28,7 @@ export interface AiConversationContextInput {
   quick_reply_selected?: string | null
   confirmation_token?: string | null
   recent_messages?: AiConversationContextMessage[] | null
+  pending_image_insert?: AiConversationPendingImageInsert | null
 }
 
 export interface AiConversationContext {
@@ -25,6 +38,7 @@ export interface AiConversationContext {
   quick_reply_selected: string | null
   confirmation_token: string | null
   recent_messages: AiConversationContextMessage[]
+  pending_image_insert: AiConversationPendingImageInsert | null
 }
 
 const FORBIDDEN_TERMS: Array<[RegExp, string]> = [
@@ -90,6 +104,38 @@ function normalizeRecentMessages(value: unknown): AiConversationContextMessage[]
     .slice(-6)
 }
 
+function normalizePendingImageInsert(value: unknown): AiConversationPendingImageInsert | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  const targetSource = normalizeText(record.target_source)
+  const targetHint = normalizeText(record.target_hint)
+  const status = normalizeText(record.status)
+  const targetPage = normalizeText(record.target_page)
+  const captureAttachmentId = normalizeText(record.capture_attachment_id)
+
+  if (
+    targetSource !== "capture" ||
+    targetHint !== "selected_area" ||
+    (status !== "waiting_for_image_asset" && status !== "awaiting_confirmation") ||
+    !targetPage ||
+    !captureAttachmentId
+  ) {
+    return null
+  }
+
+  return {
+    target_source: "capture",
+    target_page: targetPage,
+    target_slug: normalizeText(record.target_slug) || null,
+    target_hint: "selected_area",
+    capture_attachment_id: captureAttachmentId,
+    capture_attachment_name: normalizeText(record.capture_attachment_name) || null,
+    image_asset_attachment_id: normalizeText(record.image_asset_attachment_id) || null,
+    image_asset_url: normalizeText(record.image_asset_url) || null,
+    status,
+  }
+}
+
 export function normalizeConversationContext(value: unknown): AiConversationContext {
   const record =
     value && typeof value === "object" && !Array.isArray(value)
@@ -108,6 +154,7 @@ export function normalizeConversationContext(value: unknown): AiConversationCont
     quick_reply_selected: normalizeText(record.quick_reply_selected) || null,
     confirmation_token: normalizeText(record.confirmation_token) || null,
     recent_messages: normalizeRecentMessages(record.recent_messages),
+    pending_image_insert: normalizePendingImageInsert(record.pending_image_insert),
   }
 }
 

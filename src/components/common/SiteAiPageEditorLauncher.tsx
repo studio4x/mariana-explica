@@ -45,9 +45,12 @@ import {
   shouldUsePublishedVersionForAiContext,
 } from "@/lib/ai-page-editor"
 import type {
+  AdminAiPageEditorAttachmentInput,
+  AdminAiPageEditorAttachmentMetadata,
   AdminAiPageEditorConversationContext,
   AdminAiPageEditorConversationPhase,
   AdminAiPageEditorConversationResponse,
+  AdminAiPageEditorPendingImageInsert,
   AdminAiPageEditorProposal,
   AdminAiPageEditorProposalMetadata,
   AdminSitePageDetail,
@@ -62,13 +65,7 @@ type ChatMessage = {
   quickReplies?: string[]
 }
 
-type AttachmentItem = {
-  id: string
-  name: string
-  mime_type: string
-  data_url: string
-  size_bytes: number
-}
+type AttachmentItem = AdminAiPageEditorAttachmentInput
 
 type PendingPublicationState = {
   draftVersion: AdminSitePageVersion
@@ -258,6 +255,29 @@ function waitForNextPaint() {
   })
 }
 
+function messageLooksLikeReferenceImage(value: string) {
+  const normalized = normalizeLauncherComparableText(value)
+  return /\b(referencia|inspiracao|inspiracao visual|estilo de referencia|exemplo visual)\b/.test(normalized)
+}
+
+function handleNextPendingImageInsertAfterAttachmentRemoval(
+  pendingImageInsert: AdminAiPageEditorPendingImageInsert | null,
+  attachmentId: string,
+) {
+  if (!pendingImageInsert) return null
+  if (pendingImageInsert.capture_attachment_id === attachmentId) {
+    return null
+  }
+  if (pendingImageInsert.image_asset_attachment_id === attachmentId) {
+    return {
+      ...pendingImageInsert,
+      image_asset_attachment_id: null,
+      status: "waiting_for_image_asset" as const,
+    }
+  }
+  return pendingImageInsert
+}
+
 function normalizeProposalMetadata(
   metadata: AdminAiPageEditorProposalMetadata | Record<string, unknown> | null | undefined,
 ) {
@@ -307,6 +327,9 @@ function buildPreparedPreviewMessage(proposal: AdminAiPageEditorProposal) {
   if (getProposalBranchSelected(proposal) === "explicit_css_patch" && explicitCssSelector) {
     return `Previa preparada ajustando a regra \`${explicitCssSelector}\`. Verifica a pagina antes de publicar.`
   }
+  if (getProposalBranchSelected(proposal) === "image_insert_patch") {
+    return "Previa preparada com a imagem inserida na area selecionada. Verifica a pagina antes de publicar."
+  }
   return "Previa preparada com o ajuste pedido. Verifica a pagina antes de publicar."
 }
 
@@ -336,7 +359,8 @@ function shouldAutoApplyProposalFromConversation(
   currentPhase: AdminAiPageEditorConversationPhase | null,
   message: string,
 ) {
-  if (getProposalBranchSelected(proposal) !== "explicit_css_patch") return false
+  const branchSelected = getProposalBranchSelected(proposal)
+  if (branchSelected !== "explicit_css_patch" && branchSelected !== "image_insert_patch") return false
   if (messageRequestsProposalApply(message) || messageRequestsPublish(message)) {
     return true
   }
@@ -410,6 +434,7 @@ export function SiteAiPageEditorLauncher() {
   const [clarificationQuestionsCount, setClarificationQuestionsCount] = useState(0)
   const [lastQuickReplySelected, setLastQuickReplySelected] = useState<string | null>(null)
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
+  const [pendingImageInsert, setPendingImageInsert] = useState<AdminAiPageEditorPendingImageInsert | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
   const [postApplyDecision, setPostApplyDecision] = useState<AdminSitePageVersion | null>(null)
@@ -509,6 +534,7 @@ export function SiteAiPageEditorLauncher() {
       clarification_questions_count: clarificationQuestionsCount,
       quick_reply_selected: lastQuickReplySelected,
       confirmation_token: confirmationToken,
+      pending_image_insert: pendingImageInsert,
       recent_messages: messages
         .flatMap((entry) =>
           entry.role === "user" || entry.role === "assistant"
@@ -536,6 +562,7 @@ export function SiteAiPageEditorLauncher() {
     setClarificationQuestionsCount(0)
     setLastQuickReplySelected(null)
     setConfirmationToken(null)
+    setPendingImageInsert(null)
     setPostApplyDecision(null)
     setSelectedRevisionId(null)
     setIsSelectingCaptureArea(false)
@@ -606,9 +633,22 @@ export function SiteAiPageEditorLauncher() {
     }
   }, [isCaptureModeActive])
 
-  function addAttachmentsFromFiles(files: FileList | File[]) {
+  function addAttachmentsFromFiles(
+    files: FileList | File[],
+    options?: {
+      role?: AttachmentItem["role"]
+      metadata?: AdminAiPageEditorAttachmentMetadata | null
+    },
+  ) {
     const limit = config?.config_value.max_attachments ?? 2
     const nextFiles = Array.from(files).slice(0, Math.max(0, limit - attachments.length))
+    const inferredRole =
+      options?.role ??
+      (pendingImageInsert?.status === "waiting_for_image_asset"
+        ? "insert_image_asset"
+        : messageLooksLikeReferenceImage(message)
+          ? "reference_image"
+          : "unknown")
     void Promise.all(
       nextFiles.map(async (file) => {
         const dataUrl = await readFileAsDataUrl(file)
@@ -618,6 +658,12 @@ export function SiteAiPageEditorLauncher() {
           mime_type: file.type || "application/octet-stream",
           data_url: dataUrl,
           size_bytes: file.size,
+          role: inferredRole,
+          metadata: options?.metadata ?? {
+            source: "upload",
+            target_path: pathname,
+            target_slug: pageSlug,
+          },
         } satisfies AttachmentItem
       }),
     ).then((items) => {
@@ -629,7 +675,13 @@ export function SiteAiPageEditorLauncher() {
     const files = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"))
     if (files.length === 0) return
     event.preventDefault()
-    addAttachmentsFromFiles(files)
+    addAttachmentsFromFiles(files, {
+      metadata: {
+        source: "paste",
+        target_path: pathname,
+        target_slug: pageSlug,
+      },
+    })
   }
 
   async function captureSelectedArea(rect: CaptureRect) {
@@ -676,6 +728,17 @@ export function SiteAiPageEditorLauncher() {
           mime_type: "image/jpeg",
           data_url: dataUrl,
           size_bytes: Math.round((dataUrl.length * 3) / 4),
+          role: "target_capture",
+          metadata: {
+            source: "capture",
+            target_path: pathname,
+            target_slug: pageSlug,
+            capture_rect: rect,
+            viewport: {
+              width: window.innerWidth,
+              height: window.innerHeight,
+            },
+          },
         },
       ])
       setMessages((current) => [
@@ -996,6 +1059,7 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
+      setPendingImageInsert(null)
       const preparedMessage = options?.successMessage ?? buildPreparedPreviewMessage(nextProposal)
       setMessages((current) => [...current, { id: uid("msg"), role: "assistant", text: preparedMessage }])
       setFeedback(preparedMessage)
@@ -1024,6 +1088,7 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
+      setPendingImageInsert(null)
       setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
@@ -1068,6 +1133,7 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
+      setPendingImageInsert(null)
       setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
@@ -1120,6 +1186,7 @@ export function SiteAiPageEditorLauncher() {
       setPendingPublication(null)
       setAwaitingImplementation(false)
       setAttachments([])
+      setPendingImageInsert(null)
       setFeedback("A pagina foi atualizada.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
@@ -1165,6 +1232,7 @@ export function SiteAiPageEditorLauncher() {
       setProposal(null)
       setAwaitingImplementation(false)
       setAttachments([])
+      setPendingImageInsert(null)
       setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
@@ -1501,6 +1569,9 @@ export function SiteAiPageEditorLauncher() {
 
       setConversationPhase(nextConversationPhase)
       setUnderstandingSummary(result.understanding_summary)
+      if (Object.prototype.hasOwnProperty.call(result, "pending_image_insert")) {
+        setPendingImageInsert(result.pending_image_insert ?? null)
+      }
       setClarificationQuestionsCount((current) => {
         if (nextConversationPhase === "needs_clarification") {
           return Math.min(3, current + 1)
@@ -1900,7 +1971,14 @@ export function SiteAiPageEditorLauncher() {
                       <span className="truncate">{attachment.name}</span>
                       <button
                         type="button"
-                        onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}
+                        onClick={() =>
+                          setAttachments((current) => {
+                            setPendingImageInsert((pending) =>
+                              handleNextPendingImageInsertAfterAttachmentRemoval(pending, attachment.id),
+                            )
+                            return current.filter((item) => item.id !== attachment.id)
+                          })
+                        }
                         className="text-slate-500 transition hover:text-rose-700"
                         aria-label={`Remover ${attachment.name}`}
                       >

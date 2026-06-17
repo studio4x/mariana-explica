@@ -16,6 +16,7 @@ export const EDIT_MODES = [
   "style_patch",
   "spacing_patch",
   "section_layout_patch",
+  "image_patch",
   "section_replace",
 ] as const
 export const RISK_LEVELS = ["low", "medium", "high"] as const
@@ -23,6 +24,7 @@ export const EDIT_OPERATION_TYPES = [
   "set_style",
   "remove_style",
   "update_text",
+  "set_asset",
   "move_node",
   "replace_section",
   "set_responsive_rule",
@@ -85,6 +87,8 @@ const MODE_ALIASES: Record<string, AiEditMode> = {
   section_layout_patch: "section_layout_patch",
   "section-layout-patch": "section_layout_patch",
   sectionlayoutpatch: "section_layout_patch",
+  image_patch: "image_patch",
+  imagepatch: "image_patch",
   section_replace: "section_replace",
   "section-replace": "section_replace",
   replace_section: "section_replace",
@@ -110,6 +114,7 @@ const OPERATION_ALIASES: Record<string, AiEditOperationType> = {
   set_style: "set_style",
   remove_style: "remove_style",
   update_text: "update_text",
+  set_asset: "set_asset",
   move_node: "move_node",
   replace_section: "replace_section",
   set_responsive_rule: "set_responsive_rule",

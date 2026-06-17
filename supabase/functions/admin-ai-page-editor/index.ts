@@ -48,6 +48,12 @@ import {
   type AiConversationContext,
   type AiConversationPhase,
 } from "./conversation.ts"
+import { resolveImageConversationTurn } from "./image-intent.ts"
+import { materializeImageInsertProposal } from "./image-patch.ts"
+import {
+  persistAiEditorImageAssetFromDataUrl,
+  persistAiEditorImageAssetFromUrl,
+} from "./image-upload.ts"
 import { selectAiModelForStage, type AiEditorModelStage } from "./model-routing.ts"
 import { isFooterAdjacentSpacingRequest } from "./spacing-intent.ts"
 
@@ -61,10 +67,13 @@ type Action =
   | "get_usage_metrics"
 
 interface AttachmentInput {
+  id?: string
   name: string
   mime_type: string
   data_url: string
   size_bytes: number
+  role?: "target_capture" | "insert_image_asset" | "reference_image" | "unknown"
+  metadata?: Record<string, unknown> | null
 }
 
 interface Body {
@@ -237,7 +246,7 @@ const proposalSchema = {
         },
         mode: {
           type: "string",
-          enum: ["text_patch", "style_patch", "spacing_patch", "section_layout_patch", "section_replace"],
+          enum: ["text_patch", "style_patch", "spacing_patch", "section_layout_patch", "image_patch", "section_replace"],
         },
         target_ids: {
           type: "array",
@@ -262,6 +271,7 @@ const proposalSchema = {
                   "set_style",
                   "remove_style",
                   "update_text",
+                  "set_asset",
                   "move_node",
                   "replace_section",
                   "set_responsive_rule",
@@ -4017,10 +4027,20 @@ Deno.serve(async (req) => {
 
       const validAttachments = attachments.map((item, index) => {
         const attachment = item as AttachmentInput
+        const id = normalizeString(attachment.id, `attachment-${index + 1}`)
         const name = normalizeString(attachment.name, `anexo-${index + 1}`)
         const mime_type = normalizeString(attachment.mime_type)
         const data_url = normalizeString(attachment.data_url)
         const size_bytes = Math.max(0, Number(attachment.size_bytes ?? 0))
+        const role = ["target_capture", "insert_image_asset", "reference_image", "unknown"].includes(
+          normalizeString(attachment.role).toLowerCase(),
+        )
+          ? (normalizeString(attachment.role).toLowerCase() as "target_capture" | "insert_image_asset" | "reference_image" | "unknown")
+          : ("unknown" as const)
+        const metadata =
+          attachment.metadata && typeof attachment.metadata === "object" && !Array.isArray(attachment.metadata)
+            ? (attachment.metadata as Record<string, unknown>)
+            : null
         if (!data_url.startsWith("data:")) {
           throw badRequest(`Anexo ${index + 1} sem data URL valida`)
         }
@@ -4028,10 +4048,13 @@ Deno.serve(async (req) => {
           throw badRequest(`Anexo ${index + 1} excede o limite configurado`)
         }
         return {
+          id,
           name,
           mime_type,
           data_url,
           size_bytes,
+          role,
+          metadata,
         }
       })
 
@@ -4070,6 +4093,76 @@ Deno.serve(async (req) => {
       })
 
       if (!understandingConfirmed) {
+        const imageTurn = resolveImageConversationTurn({
+          slug,
+          path,
+          message,
+          attachments: validAttachments,
+          conversationContext,
+        })
+        if (imageTurn.status === "waiting_for_image_asset") {
+          const operationalState = createConversationOperationalState("needs_clarification")
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: selectAiModelForStage("conversation", config.config_value).primary.provider,
+            conversation_phase: "needs_clarification",
+            assistant_message: imageTurn.assistantMessage,
+            quick_replies: imageTurn.quickReplies,
+            understanding_summary: imageTurn.understandingSummary,
+            pending_image_insert: imageTurn.pendingImageInsert,
+            confirmation_token: null,
+            confirmation_consumed: false,
+            requires_user_confirmation: false,
+            can_generate_proposal: false,
+            warnings: imageTurn.warnings,
+            ...operationalState,
+          })
+        }
+        if (imageTurn.status === "awaiting_confirmation") {
+          const operationalState = createConversationOperationalState("awaiting_intent_confirmation")
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: selectAiModelForStage("conversation", config.config_value).primary.provider,
+            conversation_phase: "awaiting_intent_confirmation",
+            assistant_message: imageTurn.assistantMessage,
+            quick_replies: imageTurn.quickReplies,
+            understanding_summary: imageTurn.understandingSummary,
+            pending_image_insert: imageTurn.pendingImageInsert,
+            confirmation_token: buildUnderstandingConfirmationToken(imageTurn.understandingSummary),
+            confirmation_consumed: false,
+            requires_user_confirmation: true,
+            can_generate_proposal: false,
+            warnings: imageTurn.warnings,
+            ...operationalState,
+          })
+        }
+        if (imageTurn.status === "needs_target_capture" || imageTurn.status === "invalid_image_asset") {
+          const operationalState = createConversationOperationalState("needs_clarification")
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: selectAiModelForStage("conversation", config.config_value).primary.provider,
+            conversation_phase: "needs_clarification",
+            assistant_message: imageTurn.assistantMessage,
+            quick_replies: imageTurn.quickReplies,
+            understanding_summary: imageTurn.understandingSummary,
+            ...(imageTurn.status === "invalid_image_asset"
+              ? { pending_image_insert: imageTurn.pendingImageInsert }
+              : {}),
+            confirmation_token: null,
+            confirmation_consumed: false,
+            requires_user_confirmation: false,
+            can_generate_proposal: false,
+            warnings: imageTurn.warnings,
+            ...operationalState,
+          })
+        }
+
         const explicitCssSourceText = buildExplicitCssSourceText({
           message,
           conversationContext,
@@ -4283,6 +4376,116 @@ Deno.serve(async (req) => {
       }
 
       const conversationSelection = selectAiModelForStage("conversation", config.config_value)
+      const imageInsertProposal = await materializeImageInsertProposal({
+        providerUsed: conversationSelection.primary.provider,
+        modelUsed: conversationSelection.primary.model,
+        slug,
+        title,
+        path,
+        confirmationMessage: message,
+        conversationContext,
+        baseVersion: managedPageContext.baseVersion,
+        baseVersionSource: managedPageContext.baseVersionSource,
+        degradedDraftBypassed: managedPageContext.degradedDraftBypassed,
+        baseVersionSelectionReason: managedPageContext.baseVersionSelectionReason,
+        publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
+        latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
+        currentHtml,
+        attachments: validAttachments,
+        persistImageAsset: (source) =>
+          source.kind === "attachment"
+            ? persistAiEditorImageAssetFromDataUrl({
+                serviceClient,
+                slug,
+                pageId: managedPageContext.baseVersion.page_id,
+                userId: context.user.id,
+                fileName: source.attachment.name,
+                dataUrl: source.attachment.data_url,
+              })
+            : persistAiEditorImageAssetFromUrl({
+                serviceClient,
+                slug,
+                pageId: managedPageContext.baseVersion.page_id,
+                userId: context.user.id,
+                imageUrl: source.imageUrl,
+              }),
+      })
+
+      if (imageInsertProposal.status === "success") {
+        const proposalInvariants = extractPersistibleProposalInvariants({
+          proposal: imageInsertProposal.proposal,
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: imageInsertProposal.providerUsed,
+            conversation_phase: imageInsertProposal.conversationPhase,
+            user_confirmed_understanding: true,
+            understanding_summary: imageInsertProposal.understandingSummary,
+            branch_selected: "image_insert_patch",
+            image_asset_public_url: imageInsertProposal.asset.publicUrl,
+            image_target_id: imageInsertProposal.resolution.resolved_target_id,
+            final_status: imageInsertProposal.operationalState.final_status,
+            change_detected: imageInsertProposal.operationalState.change_detected,
+            preview_available: imageInsertProposal.operationalState.preview_available,
+            invariants: proposalInvariants,
+          },
+          ...auditMeta,
+        })
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          client_request_id: clientRequestId,
+          provider_used: imageInsertProposal.providerUsed,
+          conversation_phase: imageInsertProposal.conversationPhase,
+          assistant_message: imageInsertProposal.assistantMessage,
+          quick_replies: [],
+          understanding_summary: imageInsertProposal.understandingSummary,
+          pending_image_insert: null,
+          confirmation_token: null,
+          confirmation_consumed: true,
+          requires_user_confirmation: false,
+          can_generate_proposal: true,
+          warnings: imageInsertProposal.warnings,
+          summary: imageInsertProposal.summary,
+          explanation: imageInsertProposal.explanation,
+          edit_plan: imageInsertProposal.editPlan,
+          proposal: imageInsertProposal.proposal,
+          ...imageInsertProposal.operationalState,
+        })
+      }
+
+      if (imageInsertProposal.status === "failed") {
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          client_request_id: clientRequestId,
+          provider_used: conversationSelection.primary.provider,
+          conversation_phase: "ready_for_proposal",
+          assistant_message: imageInsertProposal.assistantMessage,
+          quick_replies: [],
+          understanding_summary: imageInsertProposal.understandingSummary,
+          pending_image_insert: null,
+          confirmation_token: null,
+          confirmation_consumed: true,
+          requires_user_confirmation: false,
+          can_generate_proposal: false,
+          warnings: imageInsertProposal.warnings,
+          final_status: "error",
+          change_detected: false,
+          draft_saved: false,
+          preview_available: false,
+          change_summary: createEmptyChangeSummary(),
+        })
+      }
+
       const explicitCssProposal = materializeExplicitCssPatchProposal({
         providerUsed: conversationSelection.primary.provider,
         modelUsed: conversationSelection.primary.model,

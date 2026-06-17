@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -306,7 +306,9 @@ async function renderLauncher() {
 async function sendMessage(user: ReturnType<typeof userEvent.setup>, value: string) {
   await user.clear(screen.getByLabelText(/mensagem/i))
   await user.type(screen.getByLabelText(/mensagem/i), value)
-  await user.click(screen.getByRole("button", { name: /enviar/i }))
+  const submitButton = screen.getAllByRole("button", { name: /enviar/i }).at(-1)
+  if (!submitButton) throw new Error("submit button not found")
+  await user.click(submitButton)
 }
 
 describe("SiteAiPageEditorLauncher", () => {
@@ -569,6 +571,82 @@ describe("SiteAiPageEditorLauncher", () => {
       expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
     })
     expect(screen.queryByText(/falta so a tua confirmacao/i)).not.toBeInTheDocument()
+  })
+
+  it("marks the follow-up uploaded file as insert_image_asset when the target capture is already pending", async () => {
+    mockGenerateProposalMutateAsync
+      .mockResolvedValueOnce({
+        ...createClarificationResponse({
+          assistant_message:
+            "Entendido. Queres inserir uma imagem na area selecionada. Envia agora a imagem ou um link da imagem que queres usar.",
+          quick_replies: ["Vou enviar a imagem agora"],
+          understanding_summary: "inserir uma imagem na area selecionada, mantendo o restante da secao igual",
+          pending_image_insert: {
+            target_source: "capture",
+            target_page: "/sobre",
+            target_slug: "sobre",
+            target_hint: "selected_area",
+            capture_attachment_id: "capture-1",
+            capture_attachment_name: "recorte-sobre.jpg",
+            status: "waiting_for_image_asset",
+          },
+        }),
+      })
+      .mockResolvedValueOnce(
+        createClarificationResponse({
+          conversation_phase: "awaiting_intent_confirmation",
+          assistant_message:
+            "Perfeito. Vou inserir esta imagem na area selecionada, mantendo o restante da secao igual. Posso preparar a previa?",
+          quick_replies: ["Sim, prepara a previa"],
+          understanding_summary: "inserir esta imagem na area selecionada, mantendo o restante da secao igual",
+          pending_image_insert: {
+            target_source: "capture",
+            target_page: "/sobre",
+            target_slug: "sobre",
+            target_hint: "selected_area",
+            capture_attachment_id: "capture-1",
+            capture_attachment_name: "recorte-sobre.jpg",
+            image_asset_attachment_id: "attachment-1",
+            status: "awaiting_confirmation",
+          },
+          requires_user_confirmation: true,
+          final_status: "awaiting_intent_confirmation",
+        }),
+      )
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, "quero inserir uma imagem nesse local")
+
+    await waitFor(() => {
+      expect(screen.getByText(/envia agora a imagem/i)).toBeInTheDocument()
+    })
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(["fake-image"], "hero.webp", { type: "image/webp" })
+    fireEvent.change(fileInput, {
+      target: {
+        files: [file],
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/hero\.webp/i)).toBeInTheDocument()
+    })
+
+    await sendMessage(user, "segue a imagem")
+
+    await waitFor(() => {
+      expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(2)
+    })
+    const secondCall = mockGenerateProposalMutateAsync.mock.calls[1]?.[0]
+    expect(secondCall.conversationContext.pending_image_insert).toMatchObject({
+      capture_attachment_id: "capture-1",
+      status: "waiting_for_image_asset",
+    })
+    expect(secondCall.attachments[0]).toMatchObject({
+      name: "hero.webp",
+      role: "insert_image_asset",
+    })
   })
 
   it("allows the success path only after diff real, draft saved and preview available", async () => {

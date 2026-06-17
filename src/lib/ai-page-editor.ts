@@ -257,6 +257,8 @@ export function formatAiPageEditorModeLabel(mode: AdminAiPageEditorMode) {
       return "Patch de spacing"
     case "section_layout_patch":
       return "Patch de layout da seção"
+    case "image_patch":
+      return "Patch de imagem"
     case "section_replace":
       return "Substituição de seção"
     default:
@@ -285,6 +287,8 @@ export function formatAiPageEditorOperationTypeLabel(type: AdminAiPageEditorOper
       return "Remover estilo"
     case "update_text":
       return "Atualizar texto"
+    case "set_asset":
+      return "Atualizar asset"
     case "move_node":
       return "Mover nó"
     case "replace_section":

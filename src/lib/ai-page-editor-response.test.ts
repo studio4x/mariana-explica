@@ -110,6 +110,41 @@ describe("ai-page-editor-response", () => {
     expect(response.quick_replies).toHaveLength(2)
   })
 
+  it("keeps pending image insert state when the server is waiting for the final image asset", () => {
+    const response = ensureAdminAiPageEditorConversationResponse({
+      success: true,
+      provider_used: "openai",
+      conversation_phase: "needs_clarification",
+      assistant_message: "Entendido. Envia agora a imagem.",
+      quick_replies: ["Vou enviar a imagem agora"],
+      understanding_summary: "inserir uma imagem na area selecionada, mantendo o restante da secao igual",
+      pending_image_insert: {
+        target_source: "capture",
+        target_page: "/sobre",
+        target_slug: "sobre",
+        target_hint: "selected_area",
+        capture_attachment_id: "capture-1",
+        capture_attachment_name: "recorte-sobre.jpg",
+        status: "waiting_for_image_asset",
+      },
+      requires_user_confirmation: false,
+      can_generate_proposal: false,
+      warnings: [],
+      final_status: "needs_clarification",
+      change_detected: false,
+      draft_saved: false,
+      preview_available: false,
+      change_summary: {
+        layout_changed: false,
+        style_changed: false,
+        html_changed: false,
+      },
+    })
+
+    expect(response.pending_image_insert?.capture_attachment_id).toBe("capture-1")
+    expect(response.pending_image_insert?.status).toBe("waiting_for_image_asset")
+  })
+
   it("accepts a friendly confirmed-intent failure without proposal or repeated confirmation", () => {
     const response = ensureAdminAiPageEditorConversationResponse({
       success: true,

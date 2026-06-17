@@ -18,6 +18,7 @@ type GenerateProposalResponse = {
   understanding_summary: string | null
   confirmation_token?: string | null
   confirmation_consumed?: boolean
+  pending_image_insert?: AdminAiPageEditorConversationResponse["pending_image_insert"]
   requires_user_confirmation: boolean
   can_generate_proposal: boolean
   warnings: string[]
@@ -262,6 +263,14 @@ export function ensureAdminAiPageEditorConversationResponse(value: unknown): Gen
       : {}),
     ...(typeof value.confirmation_consumed === "boolean"
       ? { confirmation_consumed: value.confirmation_consumed }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, "pending_image_insert")
+      ? {
+          pending_image_insert:
+            value.pending_image_insert && typeof value.pending_image_insert === "object"
+              ? (value.pending_image_insert as AdminAiPageEditorConversationResponse["pending_image_insert"])
+              : null,
+        }
       : {}),
     requires_user_confirmation: value.requires_user_confirmation,
     can_generate_proposal: value.can_generate_proposal,

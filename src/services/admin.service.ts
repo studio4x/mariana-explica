@@ -12,6 +12,7 @@ import type {
   AdminAiPageEditorConfig,
   AdminAiPageEditorConversationContext,
   AdminAiPageEditorConversationResponse,
+  AdminAiPageEditorAttachmentInput,
   AdminAiPageEditorProviderTestResult,
   AdminAiPageEditorSecretStatus,
   AdminAiPageEditorUsageMetrics,
@@ -1864,12 +1865,7 @@ export async function generateAdminAiPageEditorProposal(input: {
   currentLayoutJson: Record<string, unknown>
   currentStyleJson: Record<string, unknown>
   currentHtml: string
-  attachments: Array<{
-    name: string
-    mime_type: string
-    data_url: string
-    size_bytes: number
-  }>
+  attachments: AdminAiPageEditorAttachmentInput[]
   conversationContext?: AdminAiPageEditorConversationContext
 }) {
   try {
@@ -1884,6 +1880,7 @@ export async function generateAdminAiPageEditorProposal(input: {
       understanding_summary: string | null
       confirmation_token?: string | null
       confirmation_consumed?: boolean
+      pending_image_insert?: AdminAiPageEditorConversationResponse["pending_image_insert"]
       requires_user_confirmation: boolean
       can_generate_proposal: boolean
       warnings: string[]
