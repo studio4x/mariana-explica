@@ -12,6 +12,7 @@ import {
 } from "./contract.ts"
 import {
   applyPatchPlan,
+  diagnoseFooterAdjacentSpacing,
   refineSpacingEditPlanForKnownWrappers,
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
@@ -39,6 +40,7 @@ import {
   type AiConversationContext,
   type AiConversationPhase,
 } from "./conversation.ts"
+import { isFooterAdjacentSpacingRequest } from "./spacing-intent.ts"
 
 type Action =
   | "get_config"
@@ -425,6 +427,61 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
     preview_available: false as const,
     change_summary: createEmptyChangeSummary(),
   }
+}
+
+function isReadOnlySpacingDiagnosticRequest(message: string) {
+  const normalized = normalizeMessageForParsing(message)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+  return (
+    /\b(analise|analisar|identifique|identificar|verifique|ver|descubra|descobrir)\b/.test(normalized) &&
+    /\b(html|layout|style_json|codigo|estrutura|elemento|origem|causando|criando|espaco|espacamento)\b/.test(normalized)
+  )
+}
+
+function buildConversationSourceText(context: AiConversationContext, message: string) {
+  return [
+    context.understanding_summary ?? "",
+    ...context.recent_messages.map((entry) => entry.text),
+    message,
+  ].filter(Boolean).join(" | ")
+}
+
+function conversationSuggestsFooterAdjacentSpacing(context: AiConversationContext, message: string) {
+  return isFooterAdjacentSpacingRequest(buildConversationSourceText(context, message))
+}
+
+function extractQuotedAnchorText(message: string) {
+  const normalized = normalizeMessageForParsing(message)
+  const match = normalized.match(/"([^"]{3,240})"/) ?? normalized.match(/'([^']{3,240})'/)
+  return match?.[1]?.trim() ?? null
+}
+
+function isFooterAnchorClarificationMessage(message: string, context: AiConversationContext) {
+  const normalized = normalizeMessageForParsing(message)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+  return (
+    conversationSuggestsFooterAdjacentSpacing(context, message) &&
+    Boolean(extractQuotedAnchorText(message)) &&
+    /\b(ultima secao|secao final|pagina|sobre|e)\b/.test(normalized)
+  )
+}
+
+function buildFooterDiagnosticAssistantMessage(input: {
+  pageTitle: string
+  diagnosis: ReturnType<typeof diagnoseFooterAdjacentSpacing>
+}) {
+  const best = input.diagnosis.candidates[0] ?? null
+  if (best) {
+    const heading = best.heading ? ` "${best.heading}"` : ""
+    const reason = best.reasons[0] ? ` O sinal mais forte foi: ${best.reasons[0]}.` : ""
+    return `Analisei a estrutura atual da pagina ${input.pageTitle}. O espaco parece estar relacionado a ultima secao${heading} ou ao bloco imediatamente antes do rodape.${reason} Posso preparar uma previa reduzindo apenas esse espacamento, mantendo o rodape intacto.`
+  }
+
+  return `Analisei o HTML e a estrutura atual da pagina ${input.pageTitle}, mas nao encontrei um elemento unico com confianca suficiente. Avaliei a ultima secao, o wrapper da pagina e os blocos proximos ao rodape. Para avancar com seguranca, seleciona uma area maior pegando o final da ultima secao e o comeco do rodape.`
 }
 
 function normalizeConversationReplies(value: unknown) {
@@ -3917,6 +3974,86 @@ Deno.serve(async (req) => {
       })
 
       if (!understandingConfirmed) {
+        if (
+          isReadOnlySpacingDiagnosticRequest(message) &&
+          conversationSuggestsFooterAdjacentSpacing(conversationContext, message)
+        ) {
+          const diagnosticMessage = buildConversationSourceText(conversationContext, message)
+          const diagnosis = diagnoseFooterAdjacentSpacing({
+            slug,
+            path,
+            message: diagnosticMessage,
+            baseVersion: managedPageContext.baseVersion,
+            currentHtml,
+            attachments: validAttachments,
+          })
+          const understandingSummary =
+            "remover o espaco em branco entre a ultima secao da pagina e o rodape, mantendo o rodape igual"
+          const assistantMessage = buildFooterDiagnosticAssistantMessage({
+            pageTitle: title,
+            diagnosis,
+          })
+          const operationalState = createConversationOperationalState("awaiting_intent_confirmation")
+
+          await writeAuditLog(serviceClient, context, {
+            action: "admin.ai_page_editor_proposal_generated",
+            entityType: "site_config",
+            entityId: null,
+            metadata: {
+              config_key: CONFIG_KEY,
+              slug,
+              path,
+              conversation_phase: "awaiting_intent_confirmation",
+              branch_selected: "localized_visual_diagnostic",
+              user_confirmed_understanding: false,
+              understanding_summary: understandingSummary,
+              footer_adjacent_spacing_diagnosis: diagnosis,
+            },
+            ...auditMeta,
+          })
+
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: config.config_value.primary_provider,
+            conversation_phase: "awaiting_intent_confirmation",
+            assistant_message: assistantMessage,
+            quick_replies: ["Sim, prepara a previa", "Vou enviar captura maior"],
+            understanding_summary: understandingSummary,
+            confirmation_token: buildUnderstandingConfirmationToken(understandingSummary),
+            confirmation_consumed: false,
+            requires_user_confirmation: true,
+            can_generate_proposal: false,
+            warnings: [],
+            ...operationalState,
+          })
+        }
+
+        if (isFooterAnchorClarificationMessage(message, conversationContext)) {
+          const anchorText = extractQuotedAnchorText(message)
+          const understandingSummary = anchorText
+            ? `remover o espaco em branco entre a secao "${anchorText}" e o rodape, mantendo o rodape igual`
+            : "remover o espaco em branco entre a ultima secao da pagina e o rodape, mantendo o rodape igual"
+          const operationalState = createConversationOperationalState("awaiting_intent_confirmation")
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: config.config_value.primary_provider,
+            conversation_phase: "awaiting_intent_confirmation",
+            assistant_message: `Entendido. Queres remover o espaco em branco entre a ultima secao${anchorText ? ` "${anchorText}"` : ""} e o rodape, mantendo o rodape igual. Esta correto?`,
+            quick_replies: ["Sim, prepara a previa", "Nao, explico melhor"],
+            understanding_summary: understandingSummary,
+            confirmation_token: buildUnderstandingConfirmationToken(understandingSummary),
+            confirmation_consumed: false,
+            requires_user_confirmation: true,
+            can_generate_proposal: false,
+            warnings: [],
+            ...operationalState,
+          })
+        }
+
         const secrets = await getProviderSecrets(serviceClient)
         const understanding = await generateUnderstandingTurn({
           config: config.config_value,
@@ -4238,6 +4375,7 @@ Deno.serve(async (req) => {
         baseVersionSelectionReason: managedPageContext.baseVersionSelectionReason,
         publishedVersionId: managedPageContext.publishedVersion?.id ? String(managedPageContext.publishedVersion.id) : null,
         latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
+        currentHtml,
         attachments: validAttachments,
       })
 
@@ -4443,6 +4581,7 @@ Deno.serve(async (req) => {
             fallback_reason: localizedProposal.reason,
             localized_intent: localizedProposal.intent,
             localized_intent_source_text: localizedProposal.sourceText,
+            footer_adjacent_spacing_diagnosis: localizedProposal.diagnosis ?? null,
           },
           ...auditMeta,
         })

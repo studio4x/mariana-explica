@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { AiEditPlan } from "./contract.ts"
-import { applyPatchPlan, refineSpacingEditPlanForKnownWrappers } from "./patch-engine.ts"
+import { applyPatchPlan, diagnoseFooterAdjacentSpacing, refineSpacingEditPlanForKnownWrappers } from "./patch-engine.ts"
 
 function createBaseVersion() {
   return {
@@ -1086,5 +1086,210 @@ describe("applyPatchPlan", () => {
     expect((nextBlocks[2].layout as { paddingBottom?: number; marginBottom?: number }).marginBottom).toBe(0)
     expect(result.resolutions.every((resolution) => resolution.resolved_target_id === "footer_adjacent_spacing")).toBe(true)
     expect(result.resolutions.every((resolution) => resolution.confidence >= 0.8)).toBe(true)
+  })
+
+  it("uses a quoted last-section heading from the current HTML as a high-confidence anchor", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[2] = {
+      ...blocks[2],
+      content: '<section><h2>Como e estudar comigo?</h2><p>Fale com a nossa equipa.</p><p><a href="/suporte">Abrir suporte</a></p></section>',
+      layout: {
+        paddingTop: 16,
+        paddingRight: 16,
+        paddingBottom: 72,
+        paddingLeft: 16,
+        marginTop: 0,
+        marginBottom: 0,
+      },
+    }
+
+    const diagnosis = diagnoseFooterAdjacentSpacing({
+      slug: "sobre",
+      path: "/sobre",
+      message: 'a ultima secao da pagina sobre e "Como e estudar comigo?"',
+      baseVersion,
+      currentHtml: '<main><section><h2>Como e estudar comigo?</h2></section></main>',
+    })
+
+    expect(diagnosis.html_anchor_text).toBe("Como e estudar comigo?")
+    expect(diagnosis.html_contains_anchor).toBe(true)
+    expect(diagnosis.candidates[0]?.heading).toContain("Como e estudar comigo?")
+    expect(diagnosis.candidates[0]?.confidence).toBeGreaterThanOrEqual(0.8)
+    expect(diagnosis.recommended_operations[0]?.path).toBe("padding-bottom")
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: 'remover o espaco entre a secao "Como e estudar comigo?" e o rodape',
+      editPlan: createPlan({
+        scope: "section",
+        mode: "spacing_patch",
+        target_ids: ["footer_adjacent_spacing"],
+        risk_level: "low",
+        operations: diagnosis.recommended_operations,
+      }),
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect((nextBlocks[2].layout as { paddingBottom?: number }).paddingBottom).toBe(0)
+    expect(String(nextBlocks[2].content)).toContain("Como e estudar comigo?")
+    expect(String(nextBlocks[2].content)).toContain("/suporte")
+  })
+
+  it("patches safe footer margin-top CSS as footer-adjacent spacing without entering footer text scope", () => {
+    const baseVersion = createBaseVersion()
+    baseVersion.style_json = {
+      css: ".me-site-footer {\n  margin-top: 48px;\n}",
+    }
+
+    const diagnosis = diagnoseFooterAdjacentSpacing({
+      slug: "sobre",
+      path: "/sobre",
+      message: "remova o espaco entre a ultima secao e o rodape",
+      baseVersion,
+    })
+
+    expect(diagnosis.recommended_operations[0]?.path).toBe("footer-margin-top")
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remova o espaco entre a ultima secao e o rodape",
+      editPlan: createPlan({
+        scope: "section",
+        mode: "spacing_patch",
+        target_ids: ["footer_adjacent_spacing"],
+        risk_level: "low",
+        operations: diagnosis.recommended_operations,
+      }),
+      baseVersion,
+    })
+
+    expect(String(result.styleJson.css)).toContain("margin-top: 0px !important;")
+    expect(result.resolutions[0]?.resolved_target_id).toBe("footer_adjacent_spacing")
+    expect(result.resolutions[0]?.block_type).not.toBe("footer")
+  })
+
+  it("reduces wrapper gap near the footer without changing other sections", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[2] = {
+      ...blocks[2],
+      gap: 44,
+      rowGap: 44,
+      layout: {
+        ...(blocks[2].layout as Record<string, unknown>),
+        paddingBottom: 0,
+        marginBottom: 0,
+      },
+    }
+
+    const diagnosis = diagnoseFooterAdjacentSpacing({
+      slug: "sobre",
+      path: "/sobre",
+      message: "remova a faixa branca entre a ultima secao e o rodape",
+      baseVersion,
+    })
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remova a faixa branca entre a ultima secao e o rodape",
+      editPlan: createPlan({
+        scope: "section",
+        mode: "spacing_patch",
+        target_ids: ["footer_adjacent_spacing"],
+        risk_level: "low",
+        operations: diagnosis.recommended_operations,
+      }),
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(nextBlocks[0].id).toBe("hero-section")
+    expect(nextBlocks[1].id).toBe("cards-grid")
+    expect(nextBlocks[2].gap).toBe(0)
+    expect(nextBlocks[2].rowGap).toBe(0)
+  })
+
+  it("collapses an isolated empty spacer block before the footer", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks.push({
+      id: "footer-space-spacer",
+      type: "spacer",
+      content: "",
+      layout: {
+        paddingTop: 0,
+        paddingRight: 0,
+        paddingBottom: 0,
+        paddingLeft: 0,
+        marginTop: 0,
+        marginBottom: 0,
+        minHeight: 64,
+      },
+      height: 64,
+    })
+
+    const diagnosis = diagnoseFooterAdjacentSpacing({
+      slug: "sobre",
+      path: "/sobre",
+      message: "remova o espaco vazio entre a ultima secao e o rodape",
+      baseVersion,
+    })
+
+    expect(diagnosis.candidates[0]?.reasons).toContain("spacer vazio detectado antes do rodape")
+
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/sobre",
+      message: "remova o espaco vazio entre a ultima secao e o rodape",
+      editPlan: createPlan({
+        scope: "section",
+        mode: "spacing_patch",
+        target_ids: ["footer_adjacent_spacing"],
+        risk_level: "low",
+        operations: diagnosis.recommended_operations,
+      }),
+      baseVersion,
+    })
+
+    const nextBlocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(nextBlocks).toHaveLength(4)
+    expect(nextBlocks[2].id).toBe("support-section")
+    expect((nextBlocks[3].layout as { minHeight?: number }).minHeight).toBe(0)
+    expect(String(nextBlocks[2].content)).toContain("/suporte")
+  })
+
+  it("returns a useful low-confidence diagnosis instead of patching an unclear footer-adjacent request", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    for (const block of blocks) {
+      block.layout = {
+        ...(block.layout as Record<string, unknown>),
+        paddingBottom: 0,
+        marginBottom: 0,
+      }
+      block.gap = 0
+      block.rowGap = 0
+    }
+
+    const diagnosis = diagnoseFooterAdjacentSpacing({
+      slug: "sobre",
+      path: "/sobre",
+      message: "analise o html e veja se existe algum elemento criando esse espaco",
+      baseVersion,
+    })
+
+    expect(diagnosis.candidate_count).toBeGreaterThan(0)
+    expect(diagnosis.candidate_rejections).toContain("confidence abaixo do limiar seguro")
+    expect(diagnosis.candidate_rejections).toContain("sem espacamento explicito detectado neste candidato")
+    expect(diagnosis.confidence_scores[0]).toBeLessThan(0.8)
   })
 })

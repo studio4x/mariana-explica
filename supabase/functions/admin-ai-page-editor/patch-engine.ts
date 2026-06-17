@@ -77,6 +77,41 @@ export interface RefinedSpacingPlanResult {
   diagnosis: SpacingSourceDiagnosis[]
 }
 
+export interface FooterAdjacentSpacingCandidateDiagnosis {
+  target_id: string
+  candidate_path: string
+  selector: string
+  section_index: number
+  block_type: string
+  heading: string
+  text_excerpt: string
+  confidence: number
+  reasons: string[]
+  rejections: string[]
+  spacing_values: Record<string, number | null>
+}
+
+export interface FooterAdjacentSpacingDiagnosis {
+  branch_selected: "localized_visual_patch"
+  target_id: "footer_adjacent_spacing"
+  slug: string
+  path: string
+  html_anchor_text: string | null
+  html_contains_anchor: boolean | null
+  candidate_count: number
+  candidates: FooterAdjacentSpacingCandidateDiagnosis[]
+  candidate_reasons: string[]
+  candidate_rejections: string[]
+  confidence_scores: number[]
+  recommended_operations: Array<Pick<AiEditOperation, "type" | "target_id" | "path" | "value" | "breakpoint">>
+}
+
+interface FooterCssSpacingDiagnosis {
+  property: "margin-top" | "padding-top"
+  value: number
+  selector: string
+}
+
 interface TargetCandidate {
   target_id: string
   path: Array<string | number>
@@ -610,29 +645,29 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
     }
   })
 
-  const lastBlock = blocks[blocks.length - 1] ?? null
-  if (lastBlock) {
-    const lastIndex = blocks.length - 1
+  blocks.forEach((block, index) => {
+    const distanceFromEnd = blocks.length - 1 - index
+    if (distanceFromEnd > 3) return
     candidates.push({
       target_id: "footer_adjacent_spacing",
-      path: [lastIndex],
-      path_key: "footer-adjacent-spacing",
-      selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${lastIndex + 1})`,
-      wrapper_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${lastIndex + 1})`,
-      content_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${lastIndex + 1})`,
+      path: [index],
+      path_key: `footer-adjacent-spacing-${index + 1}`,
+      selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
+      wrapper_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
+      content_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
       scope: "section",
       block_type: "footer_adjacent_spacing",
-      section_index: lastIndex,
-      visual_order: lastIndex + 1,
-      text: `ultima secao fim da pagina espaco antes do rodape footer ${collectBlockText(lastBlock)}`,
-      heading: findFirstHeadingText(lastBlock),
-      data_attributes: collectBlockDataAttributes(lastBlock),
-      links: collectBlockLinks(lastBlock),
-      button_links: collectButtonLinksFromBlock(lastBlock),
-      raw_block: lastBlock,
+      section_index: index,
+      visual_order: index + 1,
+      text: `ultima secao fim da pagina espaco antes do rodape footer ${distanceFromEnd === 0 ? "ultimo bloco" : "bloco proximo ao fim"} ${collectBlockText(block)}`,
+      heading: findFirstHeadingText(block),
+      data_attributes: collectBlockDataAttributes(block),
+      links: collectBlockLinks(block),
+      button_links: collectButtonLinksFromBlock(block),
+      raw_block: block,
       patch_strategy: "json_or_css",
     })
-  }
+  })
 
   return candidates
 }
@@ -969,7 +1004,12 @@ function scoreCandidate(input: {
 
   if (requestedFooterAdjacentSpacingTarget && input.candidate.block_type === "footer_adjacent_spacing") {
     signals.id_structural = Math.max(signals.id_structural, 0.64)
-    signals.visual_order = Math.max(signals.visual_order, 0.24)
+    signals.visual_order = Math.max(signals.visual_order, clamp(input.candidate.visual_order / 10, 0.08, 0.24))
+    if (input.candidate.text.includes("ultimo bloco")) {
+      signals.visual_order = Math.max(signals.visual_order, 0.34)
+    } else if (input.candidate.text.includes("bloco proximo ao fim")) {
+      signals.visual_order = Math.max(signals.visual_order, 0.12)
+    }
     if (/\b(rodape|footer|ultima secao|secao final|fim da pagina)\b/i.test(input.message)) {
       signals.textual_similarity = Math.max(signals.textual_similarity, 0.18)
     }
@@ -984,8 +1024,8 @@ function scoreCandidate(input: {
   if (anchorTexts.length > 0) {
     const anchorHit = anchorTexts.some((anchor) => normalizeText(candidateText).includes(normalizeText(anchor)))
     if (anchorHit) {
-      signals.anchor_text = requestedLocalizedTarget ? 0.54 : 0.28
-      if (requestedLocalizedTarget) {
+      signals.anchor_text = requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget ? 0.54 : 0.28
+      if (requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget) {
         signals.nearest_heading = Math.max(signals.nearest_heading, 0.18)
         signals.visual_order = Math.max(signals.visual_order, 0.1)
       }
@@ -997,10 +1037,10 @@ function scoreCandidate(input: {
     if (orderHint === -1) {
       const maxSectionIndex = Math.max(0, ...input.plan.target_ids.map(() => input.candidate.section_index))
       if (input.candidate.section_index === maxSectionIndex) {
-        signals.visual_order = 0.18
+        signals.visual_order = Math.max(signals.visual_order, 0.18)
       }
     } else if (input.candidate.section_index === orderHint) {
-      signals.visual_order = 0.22
+      signals.visual_order = Math.max(signals.visual_order, 0.22)
     }
   }
 
@@ -1036,7 +1076,9 @@ function resolveTargetCandidate(input: {
   message: string
   attachments: PatchEngineAttachmentContext[]
 }) {
-  const candidates = buildTargetCandidates(input.blocks).filter((candidate) => {
+  const requestedTarget = normalizeIdentifier(input.operation.target_id) || input.plan.target_ids[0] || "target"
+  const normalizedRequestedTarget = requestedTarget.toLowerCase()
+  let candidates = buildTargetCandidates(input.blocks).filter((candidate) => {
     if (input.plan.scope === "page") return candidate.scope === "page"
     if (input.plan.scope === "section") return candidate.scope === "section"
     if (input.plan.scope === "block") return candidate.scope === "section" || candidate.scope === "block"
@@ -1050,7 +1092,10 @@ function resolveTargetCandidate(input: {
     throw new Error("Este patch engine persistível está restrito a seções de páginas com site_page_versions e não aceita header/footer globais.")
   }
 
-  const requestedTarget = normalizeIdentifier(input.operation.target_id) || input.plan.target_ids[0] || "target"
+  if (normalizedRequestedTarget === "footer_adjacent_spacing") {
+    candidates = candidates.filter((candidate) => candidate.block_type === "footer_adjacent_spacing")
+  }
+
   const ranked = candidates
     .map((candidate) => ({
       candidate,
@@ -1079,6 +1124,250 @@ function resolveTargetCandidate(input: {
     confidence: best.confidence,
     signals: best.signals,
   } satisfies ResolvedTargetCandidate
+}
+
+function extractLayoutSpacingValues(block: Record<string, unknown> | null) {
+  const layout =
+    block?.layout && typeof block.layout === "object" && !Array.isArray(block.layout)
+      ? (block.layout as Record<string, unknown>)
+      : {}
+  return {
+    paddingBottom: toNumber(layout.paddingBottom ?? block?.paddingBottom),
+    marginBottom: toNumber(layout.marginBottom ?? block?.marginBottom),
+    gap: toNumber(block?.gap ?? layout.gap ?? layout.contentGap),
+    rowGap: toNumber(block?.rowGap ?? layout.rowGap),
+    minHeight: toNumber(layout.minHeight ?? block?.height),
+    height: toNumber(block?.height),
+  }
+}
+
+function isLikelyEmptySpacerBlock(block: Record<string, unknown> | null) {
+  if (!block) return false
+  const type = normalizeString(block.type).toLowerCase()
+  const id = normalizeIdentifier(block.id).toLowerCase()
+  const className = normalizeString(block.className ?? block.class_name).toLowerCase()
+  const marker = `${type} ${id} ${className}`
+  const text = normalizeText(collectBlockText(block))
+  const spacerMarker = /\b(spacer|divider|gap|space|section-space|footer-space|separador|divisor)\b/i.test(marker)
+  const emptyRichText = type === "rich_text" && text.length === 0
+  return spacerMarker || emptyRichText
+}
+
+function extractFooterCssSpacing(styleJson: Record<string, unknown>): FooterCssSpacingDiagnosis[] {
+  const css = typeof styleJson.css === "string" ? styleJson.css : ""
+  if (!css.trim()) return []
+
+  const results: FooterCssSpacingDiagnosis[] = []
+  const rulePattern = /([^{}]*(?:footer|rodape|rodap[eé])[^{}]*)\{([^{}]+)\}/gi
+  let match: RegExpExecArray | null
+  while ((match = rulePattern.exec(css))) {
+    const selector = normalizeString(match[1]).trim()
+    const body = normalizeString(match[2])
+    if (!selector || /header|menu|nav/i.test(selector)) continue
+    for (const property of ["margin-top", "padding-top"] as const) {
+      const propertyMatch = body.match(new RegExp(`${property}\\s*:\\s*([0-9.]+)px`, "i"))
+      const value = propertyMatch ? Number(propertyMatch[1]) : NaN
+      if (Number.isFinite(value) && value > 0) {
+        results.push({ property, value, selector })
+      }
+    }
+  }
+  return results
+}
+
+function buildFooterAdjacentDiagnosticOperations(
+  values: Record<string, number | null>,
+  footerCssSpacing: FooterCssSpacingDiagnosis[] = [],
+) {
+  const operations: Array<Pick<AiEditOperation, "type" | "target_id" | "path" | "value" | "breakpoint">> = []
+  for (const footerSpacing of footerCssSpacing) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: footerSpacing.property === "margin-top" ? "footer-margin-top" : "footer-padding-top",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if ((values.paddingBottom ?? 0) > 0) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: "padding-bottom",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if ((values.marginBottom ?? 0) > 0) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: "margin-bottom",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if ((values.gap ?? 0) > 0) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: "gap",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if ((values.rowGap ?? 0) > 0) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: "row-gap",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if ((values.height ?? 0) > 0) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: "height",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if ((values.minHeight ?? 0) > 0) {
+    operations.push({
+      type: "set_style",
+      target_id: "footer_adjacent_spacing",
+      path: "min-height",
+      value: 0,
+      breakpoint: "all",
+    })
+  }
+  if (operations.length === 0) {
+    operations.push(
+      {
+        type: "set_style",
+        target_id: "footer_adjacent_spacing",
+        path: "padding-bottom",
+        value: 0,
+        breakpoint: "all",
+      },
+      {
+        type: "set_style",
+        target_id: "footer_adjacent_spacing",
+        path: "margin-bottom",
+        value: 0,
+        breakpoint: "all",
+      },
+    )
+  }
+  return operations
+}
+
+export function diagnoseFooterAdjacentSpacing(input: {
+  slug: string
+  path: string
+  message: string
+  baseVersion: PatchEngineBaseVersion
+  currentHtml?: string | null
+  attachments?: PatchEngineAttachmentContext[]
+}): FooterAdjacentSpacingDiagnosis {
+  const blocks = extractBlocksFromLayoutJson(input.baseVersion.layout_json)
+  const footerCssSpacing = extractFooterCssSpacing(input.baseVersion.style_json ?? {})
+  const plan: AiEditPlan = {
+    scope: "section",
+    mode: "spacing_patch",
+    target_ids: ["footer_adjacent_spacing"],
+    risk_level: "low",
+    requires_strict_confirmation: false,
+    operations: [
+      {
+        type: "set_style",
+        target_id: "footer_adjacent_spacing",
+        path: "padding-bottom",
+        value: 0,
+        breakpoint: "all",
+      },
+    ],
+  }
+  const operation = plan.operations[0]
+  const anchorTexts = extractAnchorTexts(operation, input.message)
+  const firstAnchorText = anchorTexts[0] ?? null
+  const htmlContainsAnchor = firstAnchorText
+    ? normalizeText(String(input.currentHtml ?? "")).includes(normalizeText(firstAnchorText))
+    : null
+  const candidates = buildTargetCandidates(blocks)
+    .filter((candidate) => candidate.block_type === "footer_adjacent_spacing")
+    .map((candidate) => {
+      const scored = scoreCandidate({
+        candidate,
+        requestedTarget: "footer_adjacent_spacing",
+        plan,
+        operation,
+        message: input.message,
+        attachments: input.attachments ?? [],
+      })
+      const values = extractLayoutSpacingValues(candidate.raw_block)
+      const reasons: string[] = []
+      const rejections: string[] = []
+      const hasAnchorHit = anchorTexts.some((anchor) => normalizeText(candidate.text).includes(normalizeText(anchor)))
+      const hasExplicitSpacingSource =
+        (values.paddingBottom ?? 0) > 0 ||
+        (values.marginBottom ?? 0) > 0 ||
+        (values.gap ?? 0) > 0 ||
+        (values.rowGap ?? 0) > 0 ||
+        (values.height ?? 0) > 0 ||
+        (values.minHeight ?? 0) > 0 ||
+        footerCssSpacing.length > 0
+      if (hasAnchorHit) reasons.push("texto informado pelo usuario encontrado neste bloco")
+      if (hasAnchorHit && htmlContainsAnchor) reasons.push("texto informado tambem aparece no HTML atual")
+      if (candidate.section_index === blocks.length - 1) reasons.push("ultimo bloco gerido antes do rodape")
+      if ((values.paddingBottom ?? 0) > 0) reasons.push("padding-bottom detectado no bloco")
+      if ((values.marginBottom ?? 0) > 0) reasons.push("margin-bottom detectado no bloco")
+      if ((values.gap ?? 0) > 0 || (values.rowGap ?? 0) > 0) reasons.push("gap/row-gap detectado no bloco")
+      if (isLikelyEmptySpacerBlock(candidate.raw_block) && ((values.height ?? 0) > 0 || (values.minHeight ?? 0) > 0)) {
+        reasons.push("spacer vazio detectado antes do rodape")
+      }
+      for (const footerSpacing of footerCssSpacing) {
+        reasons.push(`${footerSpacing.property} detectado em CSS do rodape (${footerSpacing.selector})`)
+      }
+      const confidence = hasExplicitSpacingSource || hasAnchorHit ? scored.confidence : Math.min(scored.confidence, 0.62)
+      if (confidence < 0.8) rejections.push("confidence abaixo do limiar seguro")
+      if (!hasExplicitSpacingSource) rejections.push("sem espacamento explicito detectado neste candidato")
+
+      return {
+        target_id: candidate.target_id,
+        candidate_path: candidate.path_key,
+        selector: candidate.selector,
+        section_index: candidate.section_index,
+        block_type: candidate.block_type,
+        heading: candidate.heading,
+        text_excerpt: candidate.text.slice(0, 180),
+        confidence: Math.round(confidence * 1000) / 1000,
+        reasons,
+        rejections,
+        spacing_values: values,
+      } satisfies FooterAdjacentSpacingCandidateDiagnosis
+    })
+    .sort((left, right) => right.confidence - left.confidence)
+
+  const best = candidates[0] ?? null
+  const recommendedOperations = buildFooterAdjacentDiagnosticOperations(best?.spacing_values ?? {}, footerCssSpacing)
+
+  return {
+    branch_selected: "localized_visual_patch",
+    target_id: "footer_adjacent_spacing",
+    slug: input.slug,
+    path: input.path,
+    html_anchor_text: firstAnchorText,
+    html_contains_anchor: htmlContainsAnchor,
+    candidate_count: candidates.length,
+    candidates,
+    candidate_reasons: candidates.flatMap((candidate) => candidate.reasons),
+    candidate_rejections: candidates.flatMap((candidate) => candidate.rejections),
+    confidence_scores: candidates.map((candidate) => candidate.confidence),
+    recommended_operations: recommendedOperations,
+  }
 }
 
 function getBlockAtPath(blocks: Record<string, unknown>[], path: Array<string | number>) {
@@ -1749,6 +2038,20 @@ function buildLocalizedCssPatch(input: {
 }) {
   const requestedTarget = normalizeIdentifier(input.operation.target_id).toLowerCase()
   const path = normalizeString(input.operation.path).toLowerCase()
+  if (
+    requestedTarget === "footer_adjacent_spacing" &&
+    (path === "footer-margin-top" || path === "footer-padding-top")
+  ) {
+    const property = path === "footer-margin-top" ? "margin-top" : "padding-top"
+    const rule = [
+      ".me-site-footer,",
+      "footer {",
+      `  ${property}: 0px !important;`,
+      "}",
+    ].join("\n")
+    return wrapCssForBreakpoint(rule, input.operation.breakpoint)
+  }
+
   if (
     input.operation.type === "remove_style" &&
     (path === "localized-divider" || requestedTarget.includes("localized_divider"))

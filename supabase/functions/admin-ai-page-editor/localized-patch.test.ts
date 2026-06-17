@@ -65,7 +65,14 @@ function createConversationContext(understandingSummary: string, originalMessage
   }
 }
 
-function materialize(understandingSummary: string, originalMessage = understandingSummary) {
+function materialize(
+  understandingSummary: string,
+  originalMessage = understandingSummary,
+  options: {
+    baseVersion?: ReturnType<typeof createVisualBaseVersion>
+    currentHtml?: string
+  } = {},
+) {
   return materializeLocalizedVisualPatchProposal({
     providerUsed: "openai",
     modelUsed: "gpt-4.1-mini",
@@ -74,12 +81,13 @@ function materialize(understandingSummary: string, originalMessage = understandi
     title: "Sobre",
     path: "/sobre",
     conversationContext: createConversationContext(understandingSummary, originalMessage),
-    baseVersion: createVisualBaseVersion(),
+    baseVersion: options.baseVersion ?? createVisualBaseVersion(),
     baseVersionSource: "published_version",
     degradedDraftBypassed: false,
     baseVersionSelectionReason: "published_version_safe_context",
     publishedVersionId: "version-visual-1",
     latestDraftId: null,
+    currentHtml: options.currentHtml,
   })
 }
 
@@ -130,5 +138,45 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(blocks).toHaveLength(2)
     expect(String(blocks[1].content)).toContain("/suporte")
     expect((blocks[1].layout as { paddingBottom?: number }).paddingBottom).toBe(0)
+  })
+
+  it("materializes footer-adjacent spacing when the user clarifies the last-section heading", () => {
+    const baseVersion = createVisualBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[1] = {
+      ...blocks[1],
+      content:
+        '<section><h2>Como e estudar comigo?</h2><p>Segunda secao preservada.</p><a href="/suporte">Suporte</a></section>',
+      layout: {
+        paddingTop: 16,
+        paddingRight: 16,
+        paddingBottom: 64,
+        paddingLeft: 16,
+        marginTop: 0,
+        marginBottom: 0,
+      },
+    }
+
+    const result = materialize(
+      'remover o espaco em branco entre a secao "Como e estudar comigo?" e o rodape, mantendo o rodape igual',
+      'a ultima secao da pagina sobre e "Como e estudar comigo?"',
+      {
+        baseVersion,
+        currentHtml: '<main><section><h2>Como e estudar comigo?</h2></section></main>',
+      },
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.intent.targetHint).toBe("footer_adjacent_spacing")
+    expect(result.proposal.metadata.ai_invariants?.footer_adjacent_spacing_diagnosis).toMatchObject({
+      html_anchor_text: "Como e estudar comigo?",
+      html_contains_anchor: true,
+    })
+
+    const nextBlocks = (result.proposal.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect((nextBlocks[1].layout as { paddingBottom?: number }).paddingBottom).toBe(0)
+    expect(String(nextBlocks[1].content)).toContain("Como e estudar comigo?")
+    expect(String(nextBlocks[1].content)).toContain("/suporte")
   })
 })
