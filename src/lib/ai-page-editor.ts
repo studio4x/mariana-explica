@@ -9,17 +9,24 @@ import type {
   AdminAiPageEditorRiskLevel,
   AdminAiPageEditorScope,
   AdminAiPageEditorTargetResolution,
-  SitePageSlug,
 } from "@/types/app.types"
 
+export type AiPageEditorRouteKind = "public_content" | "sensitive" | "private"
+
 export interface AiPageEditorRouteOption {
-  slug: SitePageSlug | null
+  slug: string | null
   label: string
   path: string
+  kind?: AiPageEditorRouteKind
 }
 
 export interface AiPageEditorRouteCapability {
   routeOption: AiPageEditorRouteOption | null
+  normalizedPath: string
+  managedSlug: string | null
+  routeIsAllowed: boolean
+  routeIsPublic: boolean
+  routeIsSensitive: boolean
   supportsPersistibleFlow: boolean
   mode: "managed_site_page" | "context_only"
   reason: string | null
@@ -49,11 +56,19 @@ export interface AiPageEditorProposalAssessment {
 }
 
 export const AI_PAGE_EDITOR_ROUTE_OPTIONS: AiPageEditorRouteOption[] = [
-  { slug: "home", label: "Home", path: "/" },
-  { slug: "sobre", label: "Sobre", path: "/sobre" },
-  { slug: "privacidade", label: "Privacidade", path: "/privacidade" },
-  { slug: "cookies", label: "Cookies", path: "/cookies" },
-  { slug: "termos", label: "Termos de uso", path: "/termos-de-uso" },
+  { slug: "home", label: "Home", path: "/", kind: "public_content" },
+  { slug: "sobre", label: "Sobre", path: "/sobre", kind: "public_content" },
+  { slug: "explicacoes", label: "Explicacoes", path: "/explicacoes", kind: "public_content" },
+  { slug: "materiais", label: "Materiais", path: "/materiais", kind: "public_content" },
+  { slug: "suporte", label: "Suporte", path: "/suporte", kind: "public_content" },
+  { slug: "privacidade", label: "Privacidade", path: "/privacidade", kind: "public_content" },
+  { slug: "cookies", label: "Cookies", path: "/cookies", kind: "public_content" },
+  { slug: "termos", label: "Termos de uso", path: "/termos-de-uso", kind: "public_content" },
+  { slug: null, label: "Autenticacao · Login", path: "/login", kind: "sensitive" },
+  { slug: null, label: "Autenticacao · Criar conta", path: "/criar-conta", kind: "sensitive" },
+  { slug: null, label: "Checkout", path: "/checkout", kind: "sensitive" },
+  { slug: null, label: "Checkout · Confirmacao", path: "/checkout/confirmacao", kind: "sensitive" },
+  { slug: null, label: "Pagina do material", path: "/materiais/:slug", kind: "sensitive" },
   { slug: null, label: "Área do aluno · Dashboard", path: "/aluno/dashboard" },
   { slug: null, label: "Área do aluno · Materiais", path: "/aluno/cursos" },
   { slug: null, label: "Área do aluno · Detalhe do material", path: "/aluno/cursos/:courseId" },
@@ -65,9 +80,19 @@ export const AI_PAGE_EDITOR_ROUTE_OPTIONS: AiPageEditorRouteOption[] = [
   { slug: null, label: "Área do aluno · Perfil", path: "/aluno/perfil" },
 ]
 
-export const AI_PAGE_EDITOR_DEFAULT_ALLOWED_PATHS = AI_PAGE_EDITOR_ROUTE_OPTIONS.map((item) => item.path)
+const AI_PAGE_EDITOR_SPECIAL_SLUGS: Record<string, string> = {
+  "/": "home",
+  "/termos-de-uso": "termos",
+}
+
+const PRIVATE_ROUTE_PREFIXES = ["/admin", "/aluno"]
+const SENSITIVE_ROUTE_PREFIXES = ["/checkout", "/login", "/criar-conta", "/cadastro"]
+
+export const AI_PAGE_EDITOR_DEFAULT_ALLOWED_PATHS = AI_PAGE_EDITOR_ROUTE_OPTIONS.filter(
+  (item) => item.slug && !item.path.includes(":") && !item.path.includes("*"),
+).map((item) => item.path)
 export const AI_PAGE_EDITOR_PERSISTIBLE_ROUTE_OPTIONS = AI_PAGE_EDITOR_ROUTE_OPTIONS.filter(
-  (item): item is AiPageEditorRouteOption & { slug: SitePageSlug } => Boolean(item.slug),
+  (item): item is AiPageEditorRouteOption & { slug: string } => Boolean(item.slug),
 )
 
 const SEMI_ASSISTED_OPERATION_TYPES = new Set<AdminAiPageEditorOperationType>([
@@ -80,10 +105,42 @@ const LOW_CONFIDENCE_THRESHOLD = 0.65
 const REVIEW_CONFIDENCE_THRESHOLD = 0.8
 
 function normalizePathname(pathname: string) {
-  const trimmed = String(pathname ?? "").trim()
+  const trimmed = String(pathname ?? "")
+    .trim()
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .split(/[?#]/, 1)[0]
   if (!trimmed) return "/"
   if (trimmed === "/") return "/"
   return trimmed.replace(/\/+$/, "") || "/"
+}
+
+function normalizeTextToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+}
+
+function slugifyRouteSegment(value: string) {
+  return normalizeTextToken(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+}
+
+function formatDynamicRouteLabel(pathname: string) {
+  if (pathname === "/") return "Home"
+  return pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) =>
+      segment
+        .split("-")
+        .filter(Boolean)
+        .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+        .join(" "),
+    )
+    .join(" / ")
 }
 
 function uniqueStrings(values: string[]) {
@@ -171,8 +228,52 @@ function matchPathPattern(pathname: string, pattern: string) {
   return hasWildcard || comparablePatternSegments.length === pathSegments.length
 }
 
+export function isAiPageEditorSensitivePath(pathname: string) {
+  const normalizedPath = normalizePathname(pathname)
+  if (!normalizedPath.startsWith("/")) return true
+  if (PRIVATE_ROUTE_PREFIXES.some((prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`))) {
+    return true
+  }
+  return SENSITIVE_ROUTE_PREFIXES.some((prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`))
+}
+
+export function isAiPageEditorPublicContentPath(pathname: string) {
+  const normalizedPath = normalizePathname(pathname)
+  return normalizedPath.startsWith("/") && !isAiPageEditorSensitivePath(normalizedPath)
+}
+
+export function resolveAiPageEditorManagedSlug(pathname: string) {
+  const normalizedPath = normalizePathname(pathname)
+  if (!isAiPageEditorPublicContentPath(normalizedPath)) return null
+  if (AI_PAGE_EDITOR_SPECIAL_SLUGS[normalizedPath]) {
+    return AI_PAGE_EDITOR_SPECIAL_SLUGS[normalizedPath]
+  }
+
+  const slug = normalizedPath
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => slugifyRouteSegment(segment))
+    .filter(Boolean)
+    .join("--")
+
+  return slug || "home"
+}
+
 export function getAiPageEditorRouteOption(pathname: string) {
-  return AI_PAGE_EDITOR_ROUTE_OPTIONS.find((item) => matchPathPattern(pathname, item.path)) ?? null
+  const normalizedPath = normalizePathname(pathname)
+  const matchedRoute = AI_PAGE_EDITOR_ROUTE_OPTIONS.find((item) => matchPathPattern(normalizedPath, item.path)) ?? null
+  if (matchedRoute) return matchedRoute
+
+  if (!isAiPageEditorPublicContentPath(normalizedPath)) {
+    return null
+  }
+
+  return {
+    slug: resolveAiPageEditorManagedSlug(normalizedPath),
+    label: formatDynamicRouteLabel(normalizedPath),
+    path: normalizedPath,
+    kind: "public_content" as const,
+  }
 }
 
 export function isAiPageEditorAllowedPath(pathname: string, allowedPaths: string[]) {
@@ -201,24 +302,45 @@ export function shouldUsePublishedVersionForAiContext(
   return false
 }
 
-export function isAiPageEditorManagedPersistibleRoute(pathname: string) {
-  return Boolean(getAiPageEditorRouteOption(pathname)?.slug)
+export function isAiPageEditorManagedPersistibleRoute(pathname: string, allowedPaths?: string[]) {
+  return getAiPageEditorRouteCapability(pathname, { allowedPaths }).supportsPersistibleFlow
 }
 
-export function getAiPageEditorRouteCapability(pathname: string): AiPageEditorRouteCapability {
-  const routeOption = getAiPageEditorRouteOption(pathname)
-  const supportsPersistibleFlow = Boolean(routeOption?.slug)
+export function getAiPageEditorRouteCapability(
+  pathname: string,
+  options?: { allowedPaths?: string[] },
+): AiPageEditorRouteCapability {
+  const normalizedPath = normalizePathname(pathname)
+  const routeOption = getAiPageEditorRouteOption(normalizedPath)
+  const routeIsPublic = isAiPageEditorPublicContentPath(normalizedPath)
+  const routeIsSensitive = !routeIsPublic
+  const routeIsAllowed = options?.allowedPaths ? isAiPageEditorAllowedPath(normalizedPath, options.allowedPaths) : true
+  const managedSlug = routeIsPublic ? resolveAiPageEditorManagedSlug(normalizedPath) : null
+  const supportsPersistibleFlow = Boolean(routeIsPublic && routeIsAllowed && managedSlug)
+  let reason: string | null = null
+
+  if (!supportsPersistibleFlow) {
+    if (routeIsSensitive) {
+      reason = 'Esta area continua bloqueada para edicao segura com draft, preview e publicacao porque e privada, administrativa, de autenticacao ou sensivel.'
+    } else if (!routeIsAllowed) {
+      reason = 'A rota atual ainda nao esta nas Rotas permitidas do editor com IA.'
+    } else {
+      reason = 'Ainda nao consegui preparar uma rota publica segura e estavel para este caminho.'
+    }
+  }
 
   return {
     routeOption,
+    normalizedPath,
+    managedSlug,
+    routeIsAllowed,
+    routeIsPublic,
+    routeIsSensitive,
     supportsPersistibleFlow,
-    mode: supportsPersistibleFlow ? "managed_site_page" : "context_only",
-    reason: supportsPersistibleFlow
-      ? null
-      : "Nesta fase, o fluxo com draft, preview, publish e rollback fica restrito a páginas públicas geridas por slug conhecido em site_page_versions.",
+    mode: supportsPersistibleFlow ? 'managed_site_page' : 'context_only',
+    reason,
   }
 }
-
 export function getAiPageEditorProposalMetadata(
   proposal: AdminAiPageEditorProposal | null | undefined,
 ): AdminAiPageEditorProposalMetadata {

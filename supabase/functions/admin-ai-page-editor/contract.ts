@@ -644,7 +644,7 @@ export function normalizeAiEditPlan(input: NormalizeAiEditPlanInput): Normalized
       contract_version: "hybrid_v1",
       plan_source: planSource,
       known_managed_slug: isKnownManagedSitePageSlug(input.slug),
-      supports_persistible_flow: isKnownManagedSitePageSlug(input.slug),
+      supports_persistible_flow: Boolean(normalizeString(input.slug)),
       operation_count: normalizedOperations.length,
       operation_types: uniqueStrings(normalizedOperations.map((operation) => operation.type)),
       target_count: targetIds.length > 0 ? targetIds.length : fallbackTargetIds.length,

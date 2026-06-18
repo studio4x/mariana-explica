@@ -257,7 +257,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "materiais",
-          element: withSuspense(<Products />),
+          element: withSuspense(<PublicManagedPage slug="materiais" fallback={<Products />} />),
         },
         {
           path: "materiais/:slug",
@@ -281,11 +281,11 @@ export const router = createBrowserRouter(
         },
         {
           path: "suporte",
-          element: withSuspense(<Support />),
+          element: withSuspense(<PublicManagedPage slug="suporte" fallback={<Support />} />),
         },
         {
           path: "explicacoes",
-          element: withSuspense(<Explicacoes />),
+          element: withSuspense(<PublicManagedPage slug="explicacoes" fallback={<Explicacoes />} />),
         },
         {
           path: "sobre",

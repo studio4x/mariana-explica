@@ -5,7 +5,6 @@ import { logError, logInfo, logWarn } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import {
   normalizeAiEditPlan,
-  isKnownManagedSitePageSlug,
   type AiEditMode,
   type AiEditScope,
   type AiRiskLevel,
@@ -36,7 +35,9 @@ import {
   type AiPageEditorChangeSummary,
   type AiPageEditorFinalStatus,
 } from "./operational-state.ts"
-import { isPathAllowedByPatterns, selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
+import { selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
+import { resolveManagedRouteCapability } from "./route-capability.ts"
+import { ensureManagedPageContext } from "./page-bootstrap.ts"
 import {
   isExplicitUnderstandingConfirmation,
   isExplicitUnderstandingRejection,
@@ -3287,9 +3288,6 @@ function stabilizeProposalForSafeApplication(input: {
     editPlan: normalizedPlan.editPlan,
     baseVersion: input.baseVersion,
   })
-  if (!isKnownManagedSitePageSlug(input.slug)) {
-    throw unprocessable("Esta fase do editor seguro está restrita a páginas com slug conhecido e site_page_versions.")
-  }
 
   let patched
   try {
@@ -3993,14 +3991,21 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "generate_proposal") {
-      const slug = normalizeString(body.slug)
+      const requestedSlug = normalizeString(body.slug)
       const title = normalizeString(body.title)
       const path = normalizeString(body.path)
       const message = normalizeString(body.message)
       const currentHtml = normalizeString(body.currentHtml)
+      const currentLayoutJson =
+        body.currentLayoutJson && typeof body.currentLayoutJson === "object" && !Array.isArray(body.currentLayoutJson)
+          ? (body.currentLayoutJson as Record<string, unknown>)
+          : {}
+      const currentStyleJson =
+        body.currentStyleJson && typeof body.currentStyleJson === "object" && !Array.isArray(body.currentStyleJson)
+          ? (body.currentStyleJson as Record<string, unknown>)
+          : {}
       const attachments = Array.isArray(body.attachments) ? body.attachments : []
 
-      if (!slug) throw badRequest("slug e obrigatorio")
       if (!title) throw badRequest("title e obrigatorio")
       if (!path) throw badRequest("path e obrigatorio")
       if (!message) throw badRequest("message e obrigatorio")
@@ -4013,18 +4018,48 @@ Deno.serve(async (req) => {
         throw forbidden("Editor via IA desativado")
       }
 
-      if (config.config_value.allowed_paths.length > 0 && !isPathAllowedByPatterns(path, config.config_value.allowed_paths)) {
-        throw forbidden("Rota nao habilitada para o editor via IA")
+      const routeCapability = resolveManagedRouteCapability(path, config.config_value.allowed_paths)
+      if (!routeCapability.persistible_flow_enabled || !routeCapability.dynamic_slug) {
+        throw forbidden(routeCapability.reason ?? "Rota nao habilitada para o editor via IA")
       }
 
-      if (!isKnownManagedSitePageSlug(slug)) {
-        throw unprocessable("Esta fase do editor seguro está restrita a páginas públicas com slug conhecido.")
-      }
-
-      const managedPageContext = await fetchManagedBaseVersion(serviceClient, slug)
+      const slug = routeCapability.dynamic_slug
+      const managedPageContext = await ensureManagedPageContext({
+        serviceClient,
+        slug,
+        pathname: routeCapability.normalizedPath,
+        title,
+        currentLayoutJson,
+        currentStyleJson,
+        currentHtml,
+        userId: context.user.id,
+      })
       const authoritativeLayoutJson = managedPageContext.baseVersion.layout_json
       const authoritativeStyleJson = managedPageContext.baseVersion.style_json
 
+      if (managedPageContext.pageCreated || managedPageContext.baselineCreated) {
+        await writeAuditLog(serviceClient, context, {
+          action: managedPageContext.baselineCreated ? "admin.ai_page_editor_page_bootstrapped" : "admin.ai_page_editor_dynamic_route_enabled",
+          entityType: managedPageContext.baselineCreated ? "site_page_version" : "site_page",
+          entityId: managedPageContext.baselineCreated
+            ? managedPageContext.baselineVersionId ?? String(managedPageContext.page.id)
+            : String(managedPageContext.page.id),
+          metadata: {
+            pathname: routeCapability.normalizedPath,
+            requested_slug: requestedSlug || null,
+            dynamic_slug: slug,
+            route_capability: routeCapability,
+            route_is_public: routeCapability.route_is_public,
+            route_is_allowed: routeCapability.route_is_allowed,
+            bootstrap_attempted: true,
+            bootstrap_created: managedPageContext.baselineCreated,
+            baseline_version_id: managedPageContext.baselineVersionId,
+            baseline_source: managedPageContext.baselineCreated ? "allowed_path_bootstrap" : null,
+            persistible_flow_enabled: routeCapability.persistible_flow_enabled,
+          },
+          ...auditMeta,
+        })
+      }
       const validAttachments = attachments.map((item, index) => {
         const attachment = item as AttachmentInput
         const id = normalizeString(attachment.id, `attachment-${index + 1}`)

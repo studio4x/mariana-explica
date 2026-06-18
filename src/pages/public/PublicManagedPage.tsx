@@ -12,7 +12,7 @@ import {
 } from "@/lib/site-page-builder"
 import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
-import type { PublicSitePagePayload, SitePageSlug } from "@/types/app.types"
+import type { PublicSitePagePayload } from "@/types/app.types"
 
 function normalizeHtml(layoutJson?: Record<string, unknown>) {
   if (!layoutJson || typeof layoutJson !== "object") return ""
@@ -28,7 +28,7 @@ function normalizeCss(styleJson?: Record<string, unknown>) {
   return ""
 }
 
-function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSitePagePayload["version"] | null | undefined) {
+function rebuildManagedPayloadFromVersion(slug: string, version: PublicSitePagePayload["version"] | null | undefined) {
   if (!version?.layout_json || typeof version.layout_json !== "object") return null
 
   const layoutJson = version.layout_json as Record<string, unknown>
@@ -56,7 +56,7 @@ function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSit
 }
 
 interface PublicManagedPageProps {
-  slug: SitePageSlug
+  slug: string
   fallback: ReactNode
 }
 

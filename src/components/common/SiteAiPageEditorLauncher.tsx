@@ -9,7 +9,7 @@ import {
   useAdminAiPageEditorConfig,
   usePublishAdminSitePageVersion,
   useRollbackAdminSitePageVersion,
-  useAdminSitePageDetail,
+  useAdminOptionalSitePageDetail,
   useGenerateAdminAiPageEditorProposal,
   useSaveAdminSitePageDraft,
 } from "@/hooks/useAdmin"
@@ -28,6 +28,7 @@ import {
 } from "@/lib/site-page-preview"
 import {
   composeManagedPageCss,
+  convertLegacyHtmlToBuilderDocument,
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
@@ -40,7 +41,6 @@ import {
 import {
   assessAiPageEditorProposal,
   getAiPageEditorRouteCapability,
-  getAiPageEditorRouteOption,
   isAiPageEditorAllowedPath,
   shouldUsePublishedVersionForAiContext,
 } from "@/lib/ai-page-editor"
@@ -55,7 +55,6 @@ import type {
   AdminAiPageEditorProposalMetadata,
   AdminSitePageDetail,
   AdminSitePageVersion,
-  SitePageSlug,
 } from "@/types/app.types"
 
 type ChatMessage = {
@@ -107,16 +106,17 @@ function getSanitizedDomSnapshot() {
     return ""
   }
 
-  const bodyClone = document.body.cloneNode(true) as HTMLElement
-  bodyClone.querySelectorAll("[data-ai-page-editor-root]").forEach((node) => node.remove())
-  return bodyClone.innerHTML
+  const mainContent = document.querySelector("main")
+  const root = (mainContent?.cloneNode(true) as HTMLElement | null) ?? (document.body.cloneNode(true) as HTMLElement)
+  root.querySelectorAll("[data-ai-page-editor-root]").forEach((node) => node.remove())
+  return root.innerHTML
 }
 
 function useSupportedCurrentPage() {
   const location = useLocation()
-  const routeOption = getAiPageEditorRouteOption(location.pathname)
-  const publicPageQuery = usePublicSitePage(routeOption?.slug ?? undefined)
-  return { routeOption, publicPageQuery, pathname: location.pathname, search: location.search }
+  const routeCapability = getAiPageEditorRouteCapability(location.pathname)
+  const publicPageQuery = usePublicSitePage(routeCapability.managedSlug ?? undefined)
+  return { routeCapability, publicPageQuery, pathname: location.pathname, search: location.search }
 }
 
 function formatDateTime(value: string) {
@@ -410,9 +410,7 @@ export function SiteAiPageEditorLauncher() {
   const saveDraftMutation = useSaveAdminSitePageDraft()
   const publishMutation = usePublishAdminSitePageVersion()
   const rollbackMutation = useRollbackAdminSitePageVersion()
-  const { routeOption, publicPageQuery, pathname, search } = useSupportedCurrentPage()
-  const routeCapability = useMemo(() => getAiPageEditorRouteCapability(pathname), [pathname])
-  const pageDetailQuery = useAdminSitePageDetail(isAdmin && !authLoading && Boolean(routeOption?.slug) ? String(routeOption?.slug) : undefined)
+  const { routeCapability: discoveredRouteCapability, publicPageQuery, pathname, search } = useSupportedCurrentPage()
   const navigate = useNavigate()
   const brandingQuery = useQuery({
     queryKey: ["admin", "branding"],
@@ -449,8 +447,16 @@ export function SiteAiPageEditorLauncher() {
 
   const config = configQuery.data
   const allowedPath = !config || isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths)
+  const routeCapability = useMemo(
+    () => getAiPageEditorRouteCapability(pathname, { allowedPaths: config?.config_value.allowed_paths }),
+    [config?.config_value.allowed_paths, pathname],
+  )
   const canRenderLauncher = Boolean(isAdmin && !authLoading && allowedPath)
-  const pageSlug = routeCapability.routeOption?.slug ?? null
+  const routeOption = routeCapability.routeOption ?? discoveredRouteCapability.routeOption
+  const pageSlug = routeCapability.managedSlug
+  const pageDetailQuery = useAdminOptionalSitePageDetail(
+    isAdmin && !authLoading && routeCapability.routeIsPublic && pageSlug ? String(pageSlug) : undefined,
+  )
   const previewPayload = useMemo(() => {
     if (!pageSlug) return null
     return readSitePagePreviewFromSearch(pageSlug, search)
@@ -473,15 +479,43 @@ export function SiteAiPageEditorLauncher() {
 
   const canPersistDraft = routeCapability.supportsPersistibleFlow && Boolean(pageSlug)
 
+  const importedPageBaseline = useMemo(() => {
+    if (pageContextVersion || !pageSlug || typeof document === "undefined") {
+      return null
+    }
+
+    const html = getSanitizedDomSnapshot()
+    if (!html.trim()) {
+      return null
+    }
+
+    const builderDocument = convertLegacyHtmlToBuilderDocument(html, pageSlug)
+    return {
+      html,
+      layoutJson: {
+        html,
+        projectData: structuredClone(builderDocument),
+      } as Record<string, unknown>,
+      styleJson: {
+        css: [
+          ".me-managed-page-root{max-width:none;margin:0;padding:0;}",
+          ".me-managed-block{width:100%;margin:0;}",
+          ".me-managed-block + .me-managed-block{margin-top:0;}",
+          ".me-managed-richtext{color:inherit;font:inherit;line-height:inherit;}",
+        ].join(""),
+      } as Record<string, unknown>,
+    }
+  }, [pageContextVersion, pageSlug, pathname])
+
   const currentLayoutJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.layout_json
-    return {}
-  }, [pageContextVersion])
+    return importedPageBaseline?.layoutJson ?? {}
+  }, [importedPageBaseline?.layoutJson, pageContextVersion])
 
   const currentStyleJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.style_json
-    return {}
-  }, [pageContextVersion])
+    return importedPageBaseline?.styleJson ?? {}
+  }, [importedPageBaseline?.styleJson, pageContextVersion])
 
   const currentHtml = useMemo(() => {
     if (previewPayload?.html) {
@@ -489,16 +523,16 @@ export function SiteAiPageEditorLauncher() {
     }
 
     if (pageSlug && pageContextVersion) {
-      const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, pageContextVersion.layout_json)
+      const document = resolveBuilderDocumentFromLayoutJson(pageSlug, pageContextVersion.layout_json)
       return renderDocumentToHtml(document)
     }
 
-    if (typeof document !== "undefined") {
-      return getSanitizedDomSnapshot()
+    if (importedPageBaseline?.html) {
+      return importedPageBaseline.html
     }
 
     return ""
-  }, [pageContextVersion, pageSlug, previewPayload?.html])
+  }, [importedPageBaseline?.html, pageContextVersion, pageSlug, previewPayload?.html])
 
   const revisions = useMemo(() => {
     return pageDetailQuery.data?.versions ?? []
@@ -517,7 +551,20 @@ export function SiteAiPageEditorLauncher() {
   )
 
   function buildCurrentVersionSnapshot() {
-    if (!pageContextVersion) return null
+    if (!pageContextVersion) {
+      if (!importedPageBaseline) return null
+
+      return {
+        title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
+        layout_json: structuredClone(importedPageBaseline.layoutJson),
+        style_json: structuredClone(importedPageBaseline.styleJson),
+        metadata: {
+          editor: "ai-page-editor",
+          source: "allowed_path_bootstrap",
+          pathname,
+        },
+      }
+    }
 
     return {
       title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
@@ -850,7 +897,7 @@ export function SiteAiPageEditorLauncher() {
 
   function renderManagedVersionHtml(version: Pick<AdminSitePageVersion, "layout_json">) {
     if (!pageSlug) return ""
-    const document = resolveBuilderDocumentFromLayoutJson(pageSlug as SitePageSlug, version.layout_json)
+    const document = resolveBuilderDocumentFromLayoutJson(pageSlug, version.layout_json)
     return renderDocumentToHtml(document)
   }
 
@@ -1517,7 +1564,7 @@ export function SiteAiPageEditorLauncher() {
       if (!canPersistDraft) {
         const blockedMessage =
           routeCapability.reason ??
-          "Nesta fase, o editor com IA aplica patches persistiveis apenas em paginas publicas com slug conhecido."
+          "Esta rota ainda nao entrou no fluxo seguro do editor com IA."
 
         setProposal(null)
         setAwaitingImplementation(false)
@@ -1528,7 +1575,7 @@ export function SiteAiPageEditorLauncher() {
             role: "assistant",
             text:
               `${blockedMessage}\n\n` +
-              "Se quiseres editar uma secao com preview e publicacao segura, abre uma pagina publica gerida por site_page_versions como Home, Sobre, Privacidade, Cookies ou Termos.",
+              "Para seguir com preview, draft, publicacao e rollback, usa apenas uma rota publica adicionada em Rotas permitidas.",
           },
         ])
         setFeedback(blockedMessage)
@@ -1690,14 +1737,17 @@ export function SiteAiPageEditorLauncher() {
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
   const isEditorDisabled = config?.config_value.enabled === false
   const showPersistibleRestriction = !canPersistDraft
+  const showBootstrapStatus = canPersistDraft && !pageContextVersion && Boolean(importedPageBaseline)
   const shouldDisableApply = saveDraftMutation.isPending || !proposalAssessment?.canApply
   const composerPlaceholder = isEditorDisabled
     ? "Editor desativado nas configuracoes."
     : isChatBusy
       ? "Envio em processamento. Aguarda a resposta..."
       : showPersistibleRestriction
-        ? "Header/footer global ainda podem ser editados; o fluxo persistivel por secao fica nas paginas publicas geridas."
-        : "Ex.: esta parte esta muito afastada la em cima e quero mexer so aqui..."
+        ? "Header/footer global ainda podem ser editados; o fluxo persistivel por secao fica apenas nas rotas publicas permitidas."
+        : showBootstrapStatus
+          ? "Estou a preparar esta pagina para edicao segura pela primeira vez. Ja a seguir podes criar uma previa antes de publicar."
+          : "Ex.: esta parte esta muito afastada la em cima e quero mexer so aqui..."
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
@@ -1781,7 +1831,16 @@ export function SiteAiPageEditorLauncher() {
                     {routeCapability.reason}
                   </p>
                   <p className="mt-2">
-                    Header e footer globais continuam suportados. Para preview persistivel por secao, usa uma pagina publica com slug conhecido.
+                    Header e footer globais continuam suportados. Para preview persistivel por secao, usa apenas uma rota publica adicionada em Rotas permitidas.
+                  </p>
+                </div>
+              ) : null}
+
+              {showBootstrapStatus ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-950">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-700">Primeira edicao segura</p>
+                  <p className="mt-2">
+                    Estou a preparar esta pagina para edicao segura pela primeira vez. Ja a seguir podes criar uma previa antes de publicar.
                   </p>
                 </div>
               ) : null}

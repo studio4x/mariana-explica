@@ -3,8 +3,10 @@ import {
   assessAiPageEditorProposal,
   formatAiPageEditorModeLabel,
   getAiPageEditorRouteCapability,
+  isAiPageEditorPublicContentPath,
   isAiPageEditorAllowedPath,
   isAiPageEditorManagedPersistibleRoute,
+  resolveAiPageEditorManagedSlug,
   shouldUsePublishedVersionForAiContext,
 } from "./ai-page-editor"
 import type { AdminAiPageEditorProposal } from "@/types/app.types"
@@ -103,15 +105,38 @@ function createProposal(
 
 describe("ai-page-editor helpers", () => {
   it("marks known public routes as persistible", () => {
-    expect(isAiPageEditorManagedPersistibleRoute("/sobre")).toBe(true)
-    expect(getAiPageEditorRouteCapability("/sobre").supportsPersistibleFlow).toBe(true)
-    expect(getAiPageEditorRouteCapability("/aluno/dashboard").supportsPersistibleFlow).toBe(false)
+    expect(isAiPageEditorManagedPersistibleRoute("/sobre", ["/sobre"])).toBe(true)
+    expect(getAiPageEditorRouteCapability("/sobre", { allowedPaths: ["/sobre"] }).supportsPersistibleFlow).toBe(true)
+    expect(getAiPageEditorRouteCapability("/aluno/dashboard", { allowedPaths: ["/aluno/dashboard"] }).supportsPersistibleFlow).toBe(false)
   })
 
   it("supports allowed path patterns with params and wildcards", () => {
     expect(isAiPageEditorAllowedPath("/aluno/cursos/abc", ["/aluno/cursos/:courseId"])).toBe(true)
     expect(isAiPageEditorAllowedPath("/aluno/cursos/abc/player/modulo-1", ["/aluno/cursos/:courseId/player/*"])).toBe(true)
     expect(isAiPageEditorAllowedPath("/admin", ["/", "/sobre", "/cookies"])).toBe(false)
+  })
+
+  it("resolves stable dynamic slugs for public routes", () => {
+    expect(resolveAiPageEditorManagedSlug("/explicacoes")).toBe("explicacoes")
+    expect(resolveAiPageEditorManagedSlug("/explicacoes/?origem=teste")).toBe("explicacoes")
+    expect(resolveAiPageEditorManagedSlug("/termos-de-uso")).toBe("termos")
+  })
+
+  it("treats allowed public routes as persistible even when they are not hardcoded legacy slugs", () => {
+    const capability = getAiPageEditorRouteCapability("/explicacoes?origem=x", {
+      allowedPaths: ["/", "/sobre", "/explicacoes"],
+    })
+
+    expect(capability.routeIsPublic).toBe(true)
+    expect(capability.managedSlug).toBe("explicacoes")
+    expect(capability.supportsPersistibleFlow).toBe(true)
+    expect(capability.reason).toBeNull()
+  })
+
+  it("keeps auth and student routes blocked even if they appear in allowed paths", () => {
+    expect(isAiPageEditorPublicContentPath("/login")).toBe(false)
+    expect(getAiPageEditorRouteCapability("/login", { allowedPaths: ["/login"] }).supportsPersistibleFlow).toBe(false)
+    expect(getAiPageEditorRouteCapability("/aluno/dashboard", { allowedPaths: ["/aluno/dashboard"] }).reason).toContain("privada")
   })
 
   it("falls back to the published version when the latest draft is degraded", () => {

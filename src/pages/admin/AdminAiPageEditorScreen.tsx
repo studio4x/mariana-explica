@@ -6,10 +6,11 @@ import { Button } from "@/components/ui"
 import {
   useAdminAiPageEditorConfig,
   useAdminAiPageEditorUsageMetrics,
+  useAdminSitePages,
   useTestAdminAiPageEditorProviders,
   useUpdateAdminAiPageEditorConfig,
 } from "@/hooks/useAdmin"
-import { AI_PAGE_EDITOR_ROUTE_OPTIONS } from "@/lib/ai-page-editor"
+import { AI_PAGE_EDITOR_ROUTE_OPTIONS, isAiPageEditorPublicContentPath, resolveAiPageEditorManagedSlug } from "@/lib/ai-page-editor"
 import { ROUTES } from "@/lib/constants"
 import type {
   AdminAiPageEditorConfig,
@@ -143,6 +144,7 @@ function ProviderModelCard({
 export function AdminAiPageEditor() {
   const query = useAdminAiPageEditorConfig()
   const usageQuery = useAdminAiPageEditorUsageMetrics(30)
+  const sitePagesQuery = useAdminSitePages()
   const updateMutation = useUpdateAdminAiPageEditorConfig()
   const testMutation = useTestAdminAiPageEditorProviders()
   const [allowedPaths, setAllowedPaths] = useState<AllowedPathState[]>([])
@@ -220,12 +222,18 @@ export function AdminAiPageEditor() {
     () =>
       AI_PAGE_EDITOR_ROUTE_OPTIONS.map((route) => {
         const active = allowedPaths.some((item) => item.path === route.path)
+        const managedSlug = isAiPageEditorPublicContentPath(route.path) ? resolveAiPageEditorManagedSlug(route.path) : null
+        const pageRecord = managedSlug
+          ? (sitePagesQuery.data ?? []).find((page) => String(page.slug) === String(managedSlug))
+          : null
         return {
           ...route,
           active,
+          managedSlug,
+          pageRecord,
         }
       }),
-    [allowedPaths],
+    [allowedPaths, sitePagesQuery.data],
   )
 
   const allowedPathsValue = allowedPaths.map((item) => item.path)
@@ -878,7 +886,7 @@ export function AdminAiPageEditor() {
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-950">Rotas permitidas</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Marca as rotas que podem carregar o launcher no frontend. Nesta fase, o fluxo persistível completo com draft, preview, publish e rollback fica restrito às páginas públicas com slug conhecido em site_page_versions.
+                Marca as rotas que podem carregar o launcher no frontend. Sempre que uma rota pública estiver aqui, o editor prepara slug estável, baseline segura, draft, preview, publicação e rollback no mesmo fluxo.
               </p>
             </div>
             <StatusBadge label={`${configuredCount} rota(s)`} tone={configuredCount > 0 ? "success" : "warning"} />
@@ -910,7 +918,22 @@ export function AdminAiPageEditor() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">{route.path}</p>
-                  <p className="mt-2 text-[11px] font-semibold text-slate-500">{route.slug ? "Fluxo persistível suportado" : "Apenas contexto/launcher nesta fase"}</p>
+                  <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                    {route.managedSlug
+                      ? route.pageRecord
+                        ? `Pronta para edicao segura · slug ${route.managedSlug}`
+                        : `Sera preparada automaticamente na primeira edicao · slug ${route.managedSlug}`
+                      : "Rota privada ou sensivel"}
+                  </p>
+                  {route.pageRecord ? (
+                    <p className="text-[11px] text-slate-500">
+                      Status: {route.pageRecord.status} · Atualizada em {formatDateTime(route.pageRecord.updated_at)}
+                    </p>
+                  ) : route.managedSlug ? (
+                    <p className="text-[11px] text-slate-500">Ainda sem baseline criada em site_pages.</p>
+                  ) : (
+                    <p className="text-[11px] text-slate-500">Continua bloqueada mesmo que seja adicionada por engano.</p>
+                  )}
                 </div>
                 {route.active ? <Check className="h-5 w-5 text-emerald-600" /> : <Plus className="h-5 w-5 text-slate-400" />}
               </button>

@@ -2007,6 +2007,18 @@ export async function fetchAdminSitePageDetail(slug: SitePageSlug | string) {
   } satisfies AdminSitePageDetail
 }
 
+export async function fetchAdminOptionalSitePageDetail(slug: SitePageSlug | string) {
+  try {
+    return await fetchAdminSitePageDetail(slug)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.toLowerCase().includes("pagina nao encontrada")) {
+      return null
+    }
+    throw error
+  }
+}
+
 export async function saveAdminSitePageDraft(input: {
   slug: SitePageSlug | string
   title?: string

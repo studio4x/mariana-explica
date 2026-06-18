@@ -58,7 +58,7 @@ vi.mock("@/hooks/useAdmin", () => ({
     mutateAsync: mockRollbackPageVersionMutateAsync,
     isPending: false,
   }),
-  useAdminSitePageDetail: () => ({
+  useAdminOptionalSitePageDetail: () => ({
     data: {
       page: {
         id: "page-1",

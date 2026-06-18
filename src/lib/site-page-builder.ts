@@ -1,5 +1,6 @@
 ﻿import type { SitePageSlug } from "@/types/app.types"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
+export type ManagedSitePageSlug = SitePageSlug | string
 
 export type PageBlockType = "heading" | "rich_text" | "image" | "button" | "divider" | "spacer" | "columns" | "container"
 
@@ -386,7 +387,7 @@ export function createDefaultBlock(type: PageBlockType): PageBlock {
   }
 }
 
-export function getDefaultDocumentForSlug(slug: SitePageSlug): SitePageBuilderDocument {
+export function getDefaultDocumentForSlug(slug: ManagedSitePageSlug): SitePageBuilderDocument {
   if (slug === "home") {
     return createCanonicalHomeDocument()
   }
@@ -907,7 +908,7 @@ function createCanonicalHomeDocument(): SitePageBuilderDocument {
     blocks: [hero, objective, steps, trust, reviews],
   }
 }
-function hasCanonicalMarkerForSlug(document: SitePageBuilderDocument, slug: SitePageSlug) {
+function hasCanonicalMarkerForSlug(document: SitePageBuilderDocument, slug: ManagedSitePageSlug) {
   return document.blocks.some((block) => {
     if (block.type !== "rich_text" || typeof block.content !== "string") return false
     return block.content.includes(`${PAGE_CANONICAL_MARKER}="${slug}"`) || (slug === "home" && block.content.includes(HOME_CANONICAL_MARKER))
@@ -924,7 +925,7 @@ function isHomeLegacyLikeDocument(document: SitePageBuilderDocument) {
   })
 }
 
-export function maybeCanonicalizeHomeDocument(document: SitePageBuilderDocument, slug: SitePageSlug): SitePageBuilderDocument {
+export function maybeCanonicalizeHomeDocument(document: SitePageBuilderDocument, slug: ManagedSitePageSlug): SitePageBuilderDocument {
   if (hasCanonicalMarkerForSlug(document, slug)) return document
 
   if (slug === "home") {
@@ -952,7 +953,7 @@ export function maybeCanonicalizeHomeDocument(document: SitePageBuilderDocument,
 }
 
 export function resolveBuilderDocumentFromLayoutJson(
-  slug: SitePageSlug,
+  slug: ManagedSitePageSlug,
   layoutJson: Record<string, unknown> | null | undefined,
 ): SitePageBuilderDocument {
   if (!layoutJson || typeof layoutJson !== "object") {
@@ -1248,7 +1249,7 @@ function normalizeBlockList(items: unknown[]): PageBlock[] {
   return blocks
 }
 
-export function normalizeBuilderDocument(raw: unknown, slug: SitePageSlug): SitePageBuilderDocument {
+export function normalizeBuilderDocument(raw: unknown, slug: ManagedSitePageSlug): SitePageBuilderDocument {
   if (!raw || typeof raw !== "object") return getDefaultDocumentForSlug(slug)
   const record = raw as Record<string, unknown>
   const blocksRaw = Array.isArray(record.blocks) ? record.blocks : []
@@ -1432,7 +1433,7 @@ function extractLegacyElements(node: Element, blocks: PageBlock[]) {
 
 export function convertLegacyHtmlToBuilderDocument(
   html: string | null | undefined,
-  slug: SitePageSlug,
+  slug: ManagedSitePageSlug,
 ): SitePageBuilderDocument {
   const source = typeof html === "string" ? html.trim() : ""
   if (!source) return getDefaultDocumentForSlug(slug)

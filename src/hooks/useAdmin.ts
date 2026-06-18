@@ -35,6 +35,7 @@ import {
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
   fetchAdminPublicFormNotificationsConfig,
+  fetchAdminOptionalSitePageDetail,
   fetchAdminSiteMaintenanceConfig,
   fetchAdminSitePageDetail,
   fetchAdminSitePages,
@@ -293,6 +294,15 @@ export function useAdminSitePageDetail(slug: string | undefined) {
   return useQuery<AdminSitePageDetail>({
     queryKey: ["admin", "site-pages", slug],
     queryFn: () => fetchAdminSitePageDetail(slug ?? ""),
+    enabled: Boolean(slug),
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminOptionalSitePageDetail(slug: string | undefined) {
+  return useQuery<AdminSitePageDetail | null>({
+    queryKey: ["admin", "site-pages", slug, "optional"],
+    queryFn: () => fetchAdminOptionalSitePageDetail(slug ?? ""),
     enabled: Boolean(slug),
     ...getAdminQueryOptions(),
   })
