@@ -82,6 +82,25 @@ describe("localized visual intent classification", () => {
     expect(buildLocalizedEditPlan({ intent: colorIntent, sourceText: "azul" })?.operations[0]?.value).toBe("#2563eb")
   })
 
+  it("classifies title color changes with target capture as localized heading color patch", () => {
+    const intent = classifyLocalizedIntent({
+      sourceText: "mude a cor do titulo dessa secao para branco. atualmente ele esta azul e nao esta dando contraste com o fundo",
+      attachments: [{ name: "recorte-explicacoes.jpg", mime_type: "image/jpeg", role: "target_capture" }],
+    })
+    const plan = buildLocalizedEditPlan({
+      intent,
+      sourceText: "mude a cor do titulo dessa secao para branco",
+    })
+
+    expect(intent.isLocalized).toBe(true)
+    expect(intent.kind).toBe("color")
+    expect(intent.targetHint).toBe("localized_heading")
+    expect(intent.visualReference).toBe("selected_area")
+    expect(plan?.mode).toBe("style_patch")
+    expect(plan?.operations[0]?.path).toBe("color")
+    expect(plan?.operations[0]?.value).toBe("#ffffff")
+  })
+
   it("asks for more context on ambiguous visual references and low confidence line removal", () => {
     const ambiguous = classifyLocalizedIntent({ sourceText: "tira isso daqui" })
     const lowConfidenceLine = classifyLocalizedIntent({ sourceText: "remove a linha" })

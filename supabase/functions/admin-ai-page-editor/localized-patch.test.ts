@@ -41,7 +41,15 @@ function createVisualBaseVersion() {
       },
     },
     style_json: {},
-    metadata: {},
+    metadata: {
+      dynamic_slug: "sobre",
+      route_is_public: true,
+      route_is_allowed: true,
+      bootstrap_attempted: true,
+      bootstrap_created: false,
+      baseline_complete: true,
+      source: "published_version",
+    },
   }
 }
 
@@ -71,6 +79,7 @@ function materialize(
   options: {
     baseVersion?: ReturnType<typeof createVisualBaseVersion>
     currentHtml?: string
+    attachments?: Array<{ name: string; mime_type?: string; role?: string; id?: string }>
   } = {},
 ) {
   return materializeLocalizedVisualPatchProposal({
@@ -88,6 +97,7 @@ function materialize(
     publishedVersionId: "version-visual-1",
     latestDraftId: null,
     currentHtml: options.currentHtml,
+    attachments: options.attachments,
   })
 }
 
@@ -178,5 +188,75 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect((nextBlocks[1].layout as { paddingBottom?: number }).paddingBottom).toBe(0)
     expect(String(nextBlocks[1].content)).toContain("Como e estudar comigo?")
     expect(String(nextBlocks[1].content)).toContain("/suporte")
+  })
+
+  it("materializes title color changes from a captured area without broad rewrites", () => {
+    const result = materialize(
+      "mude a cor do titulo dessa secao para branco. atualmente ele esta azul e nao esta dando contraste com o fundo",
+      "mude a cor do titulo dessa secao para branco",
+      {
+        attachments: [
+          {
+            id: "capture-1",
+            name: "recorte-explicacoes.jpg",
+            mime_type: "image/jpeg",
+            role: "target_capture",
+          },
+        ],
+      },
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.intent.kind).toBe("color")
+    expect(result.proposal.metadata.ai_invariants?.branch_selected).toBe("localized_visual_patch")
+    expect(result.proposal.metadata.ai_invariants?.target_capture_used).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.provider_full_proposal_bypassed_for_localized_patch).toBe(true)
+    expect(String(result.proposal.style_json.css ?? "")).toContain("color: #ffffff !important;")
+    expect(String(result.proposal.style_json.css ?? "")).toContain(".me-managed-richtext")
+
+    const blocks = (result.proposal.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(blocks).toHaveLength(2)
+    expect(String(blocks[0].content)).toContain("De estudante para estudante: porque este projeto?")
+    expect(String(blocks[1].content)).toContain("/suporte")
+  })
+
+  it("returns a friendly low-confidence message for title color changes when the target is still ambiguous", () => {
+    const result = materialize(
+      "mude a cor do titulo dessa secao para branco",
+      "mude a cor do titulo dessa secao para branco",
+      {
+        attachments: [
+          {
+            id: "capture-2",
+            name: "recorte-minimo.jpg",
+            mime_type: "image/jpeg",
+            role: "target_capture",
+          },
+        ],
+        baseVersion: {
+          ...createVisualBaseVersion(),
+          layout_json: {
+            projectData: {
+              blocks: [
+                {
+                  id: "multi-cards",
+                  type: "columns",
+                  items: [
+                    "<article><h3>Card A</h3><p>Texto A</p></article>",
+                    "<article><h3>Card B</h3><p>Texto B</p></article>",
+                    "<article><h3>Card C</h3><p>Texto C</p></article>",
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    )
+
+    expect(result.status).toBe("failed")
+    if (result.status !== "failed") throw new Error("expected failed")
+    expect(result.assistantMessage).toMatch(/incluindo o card completo ou indica o texto do titulo/i)
   })
 })

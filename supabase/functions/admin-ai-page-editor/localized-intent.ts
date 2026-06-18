@@ -46,6 +46,18 @@ export interface LocalizedIntentSourceTexts {
   aggregate: string
 }
 
+function hasTargetCaptureAttachment(
+  attachments?: Array<{ role?: string | null }> | null,
+) {
+  return (attachments ?? []).some((attachment) => normalizeLocalizedIntentText(attachment.role) === "target_capture")
+}
+
+function resolveVisualReference(hasAttachment: boolean, hasTargetCapture: boolean) {
+  if (hasTargetCapture) return "selected_area" as const
+  if (hasAttachment) return "attachment" as const
+  return "message" as const
+}
+
 export function normalizeLocalizedIntentText(value: unknown) {
   return String(value ?? "")
     .normalize("NFD")
@@ -115,12 +127,13 @@ function resolveSpacingTarget(sourceText: string) {
 
 export function classifyLocalizedIntent(input: {
   sourceText: string
-  attachments?: Array<{ name?: string | null; mime_type?: string | null }> | null
+  attachments?: Array<{ name?: string | null; mime_type?: string | null; role?: string | null }> | null
 }): LocalizedIntent {
   const sourceText = String(input.sourceText ?? "").trim()
   const normalized = normalizeLocalizedIntentText(sourceText)
   const targetText = extractQuotedTargetText(sourceText)
   const hasAttachment = (input.attachments ?? []).length > 0
+  const hasTargetCapture = hasTargetCaptureAttachment(input.attachments)
   const attachmentTerms = (input.attachments ?? []).map((attachment) => String(attachment.name ?? "")).join(" ")
   const sourceWithAttachmentHints = [sourceText, attachmentTerms].filter(Boolean).join(" ")
   const action = resolveAction(normalized)
@@ -166,7 +179,7 @@ export function classifyLocalizedIntent(input: {
       kind: "unknown",
       action: "remove",
       targetHint: "ambiguous_visual_reference",
-      visualReference: hasAttachment ? "attachment" : "message",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["do_not_patch_without_clear_target"],
       confidence: "low",
       reason: "ambiguous_deictic_request",
@@ -182,7 +195,7 @@ export function classifyLocalizedIntent(input: {
       sectionHint: wantsOnlyFirstSectionSpacing(sourceText) || wantsOnlySectionInternalSpacing(sourceText)
         ? "first_section"
         : undefined,
-      visualReference: hasAttachment ? "attachment" : "message",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["preserve_sections", "preserve_links", "preserve_section_internal_spacing_when_requested"],
       confidence: "high",
       reason: "visual_spacing_signal",
@@ -212,7 +225,7 @@ export function classifyLocalizedIntent(input: {
       targetText,
       targetHint: mentionsHeading ? "localized_divider_below_heading" : "localized_divider",
       sectionHint: mentionsBelowAbove ? "near_referenced_text" : undefined,
-      visualReference: hasAttachment ? "attachment" : "message",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["preserve_heading_text", "preserve_sections", "preserve_links"],
       confidence: confidenceFromSignals(confidenceScore),
       reason: "localized_divider_or_border_signal",
@@ -225,7 +238,7 @@ export function classifyLocalizedIntent(input: {
       kind: mentionsDivider ? "divider" : "border",
       action: "remove",
       targetHint: "localized_divider",
-      visualReference: hasAttachment ? "attachment" : "message",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["do_not_mass_apply", "preserve_sections"],
       confidence: hasAttachment ? "medium" : "low",
       reason: "localized_divider_low_confidence",
@@ -268,10 +281,33 @@ export function classifyLocalizedIntent(input: {
       kind: "shadow",
       action: "remove",
       targetHint: /\b(card|cartao)\b/.test(normalized) ? "localized_card" : "localized_visual_element",
-      visualReference: hasAttachment ? "attachment" : "message",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["preserve_structure", "preserve_links", "preserve_sections"],
       confidence: hasAttachment || /\b(card|cartao)\b/.test(normalized) ? "high" : "medium",
       reason: "shadow_remove",
+    }
+  }
+
+  const mentionsTitleLike = /\b(titulo|subtitulo|heading|headline|h1|h2|h3|h4|h5|h6|card-title|section-title|card-heading|section-heading|label)\b/.test(normalized)
+  const mentionsTextLike = mentionsTitleLike || /\b(texto|frase|copy)\b/.test(normalized)
+  const mentionsColorChange = /\b(cor|contraste|branco|white|preto|black|azul|blue|verde|green|cinza|gray|claro|clarear|mais claro|escuro)\b/.test(normalized)
+
+  if (mentionsColorChange && (mentionsTextLike || targetText || hasAttachment)) {
+    const targetHint = mentionsTitleLike || /\b(card|cartao|secao|seccao)\b/.test(normalized)
+      ? "localized_heading"
+      : "localized_text"
+    const confidenceScore = (mentionsTitleLike ? 2 : 0) + (targetText ? 1 : 0) + (hasTargetCapture ? 1 : hasAttachment ? 1 : 0)
+
+    return {
+      isLocalized: true,
+      kind: "color",
+      action: "set",
+      targetText,
+      targetHint,
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
+      negativeConstraints: ["preserve_text", "preserve_sections", "preserve_links", "do_not_mass_apply"],
+      confidence: confidenceFromSignals(confidenceScore),
+      reason: "text_color_set",
     }
   }
 
@@ -283,7 +319,7 @@ export function classifyLocalizedIntent(input: {
       action: "set",
       targetText,
       targetHint: isTitle ? "localized_heading" : "localized_visual_element",
-      visualReference: hasAttachment ? "attachment" : "message",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["preserve_text", "preserve_sections"],
       confidence: isTitle || targetText || hasAttachment ? "high" : "medium",
       reason: "alignment_set",
@@ -296,8 +332,10 @@ export function classifyLocalizedIntent(input: {
       kind: "typography",
       action,
       targetText,
-      targetHint: /\b(titulo|heading|headline)\b/.test(normalized) ? "localized_heading" : "localized_text",
-      visualReference: hasAttachment ? "attachment" : "message",
+      targetHint: /\b(titulo|subtitulo|heading|headline|card-title|section-title)\b/.test(normalized)
+        ? "localized_heading"
+        : "localized_text",
+      visualReference: resolveVisualReference(hasAttachment, hasTargetCapture),
       negativeConstraints: ["preserve_text", "preserve_sections", "preserve_links"],
       confidence: targetText || hasAttachment ? "high" : "medium",
       reason: "typography_visual_set",
@@ -329,6 +367,19 @@ function resolveAlignmentValue(sourceText: string) {
   if (/\bdireita|right\b/.test(normalized)) return "right"
   if (/\besquerda|left\b/.test(normalized)) return "left"
   return "center"
+}
+
+function resolveColorValue(sourceText: string) {
+  const normalized = normalizeLocalizedIntentText(sourceText)
+  const hex = String(sourceText ?? "").match(/#[0-9a-fA-F]{3,8}\b/)
+  if (hex?.[0]) return hex[0]
+  if (/\bbranco|white\b/.test(normalized)) return "#ffffff"
+  if (/\bpreto|black\b/.test(normalized)) return "#111827"
+  if (/\bazul|blue\b/.test(normalized)) return "#2563eb"
+  if (/\bverde|green\b/.test(normalized)) return "#16a34a"
+  if (/\bcinza|gray|grey\b/.test(normalized)) return "#e5e7eb"
+  if (/\b(claro|clarear|mais claro|contraste)\b/.test(normalized)) return "#ffffff"
+  return "#ffffff"
 }
 
 export function buildLocalizedEditPlan(input: {
@@ -442,6 +493,25 @@ export function buildLocalizedEditPlan(input: {
           target_id: intent.targetHint ?? "localized_visual_element",
           path: "box-shadow",
           value: "none",
+          breakpoint: "all",
+        },
+      ],
+    }
+  }
+
+  if (intent.kind === "color") {
+    return {
+      scope: "text",
+      mode: "style_patch",
+      target_ids: [intent.targetHint ?? "localized_text"],
+      risk_level: "low",
+      requires_strict_confirmation: true,
+      operations: [
+        {
+          type: "set_style",
+          target_id: intent.targetHint ?? "localized_text",
+          path: "color",
+          value: resolveColorValue(sourceText),
           breakpoint: "all",
         },
       ],

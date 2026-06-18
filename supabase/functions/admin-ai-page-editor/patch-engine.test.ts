@@ -327,6 +327,52 @@ function createPlan(plan: Partial<AiEditPlan>): AiEditPlan {
 }
 
 describe("applyPatchPlan", () => {
+  it("applies localized heading color changes through a scoped CSS patch instead of rewriting the section", () => {
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/explicacoes",
+      message: "mude a cor do titulo dessa secao para branco. atualmente ele esta azul e nao esta dando contraste com o fundo",
+      editPlan: createPlan({
+        scope: "text",
+        mode: "style_patch",
+        risk_level: "low",
+        target_ids: ["localized_heading"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "localized_heading",
+            path: "color",
+            value: "#ffffff",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createBaseVersion(),
+      attachments: [
+        {
+          id: "capture-1",
+          name: "recorte-explicacoes.jpg",
+          mime_type: "image/jpeg",
+          role: "target_capture",
+          metadata: {
+            capture_rect: { left: 32, top: 120, width: 420, height: 180 },
+          },
+        },
+      ],
+    })
+
+    expect(String(result.styleJson.css ?? "")).toContain("color: #ffffff !important;")
+    expect(String(result.styleJson.css ?? "")).toContain("h1")
+    expect(result.invariants.target_resolution_source).toBe("target_capture")
+    expect(Number(result.invariants.target_resolution_confidence ?? 0)).toBeGreaterThanOrEqual(0.8)
+
+    const blocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(blocks).toHaveLength(3)
+    expect((blocks[0].children as Array<Array<Record<string, unknown>>>)[0][0].content).toBe("Transforme o seu estudo")
+    expect((blocks[2].content as string)).toContain("/suporte")
+  })
+
   it("removes padding-top from the first section using scoped target resolution", () => {
     const result = applyPatchPlan({
       slug: "home",
@@ -1031,7 +1077,8 @@ describe("applyPatchPlan", () => {
     const heroChildren = (blocks[0].children as Array<Array<Record<string, unknown>>>)[0]
     const heading = heroChildren.find((block) => block.id === "hero-heading")
     expect(heading?.content).toBe("Transforme o seu estudo")
-    expect(heading?.align).toBe("center")
+    expect(heading?.align).toBe("left")
+    expect(String(result.styleJson.css ?? "")).toContain("text-align: center !important;")
   })
 
   it("removes footer-adjacent spacing from the last managed section without touching links", () => {

@@ -4,6 +4,8 @@ import { selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 
 const sitePageSelect = "id,slug,title,status,published_version_id,created_by,created_at,updated_at"
 const sitePageVersionSelect = "id,page_id,version_number,status,layout_json,style_json,metadata,created_by,created_at"
+export const BASELINE_INCOMPLETE_MESSAGE =
+  "Preparei esta pagina para edicao, mas ainda nao consegui criar uma base segura com todos os elementos necessarios. Atualiza a pagina e tenta novamente para eu preservar a estrutura completa antes de alterar."
 
 function normalizeJsonObject(value: unknown) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -21,6 +23,42 @@ function hasManagedBlocks(layoutJson: Record<string, unknown>) {
   if (Array.isArray(projectData?.blocks) && projectData.blocks.length > 0) return true
   if (Array.isArray(layoutJson.blocks) && layoutJson.blocks.length > 0) return true
   return false
+}
+
+function countManagedBlocks(layoutJson: Record<string, unknown>) {
+  const projectData =
+    layoutJson.projectData && typeof layoutJson.projectData === "object"
+      ? (layoutJson.projectData as Record<string, unknown>)
+      : null
+  if (Array.isArray(projectData?.blocks)) return projectData.blocks.length
+  if (Array.isArray(layoutJson.blocks)) return layoutJson.blocks.length
+  return 0
+}
+
+export function assessBootstrapBaseline(input: {
+  layoutJson: Record<string, unknown>
+  styleJson?: Record<string, unknown>
+  currentHtml?: string
+}) {
+  const layoutJson = normalizeJsonObject(input.layoutJson)
+  const styleJson = normalizeJsonObject(input.styleJson)
+  const html =
+    typeof layoutJson.html === "string" && layoutJson.html.trim()
+      ? layoutJson.html.trim()
+      : layoutJson.projectData && typeof layoutJson.projectData === "object" && typeof (layoutJson.projectData as Record<string, unknown>).html === "string"
+        ? String((layoutJson.projectData as Record<string, unknown>).html ?? "").trim()
+        : String(input.currentHtml ?? "").trim()
+  const blockCount = countManagedBlocks(layoutJson)
+  const cssLength = typeof styleJson.css === "string" ? styleJson.css.trim().length : 0
+  const complete = blockCount > 0 && html.length > 0
+
+  return {
+    complete,
+    block_count: blockCount,
+    html_length: html.length,
+    css_length: cssLength,
+    reason: complete ? null : "missing_blocks_or_html_context",
+  }
 }
 
 export function hasBootstrapContext(layoutJson: Record<string, unknown>, currentHtml: string) {
@@ -137,9 +175,18 @@ export async function ensureManagedPageContext(input: {
   if (versions.length === 0) {
     const layoutJson = normalizeBootstrapLayout(input.currentLayoutJson, input.currentHtml)
     const styleJson = normalizeBootstrapStyle(input.currentStyleJson)
+    const baselineAssessment = assessBootstrapBaseline({
+      layoutJson,
+      styleJson,
+      currentHtml: input.currentHtml,
+    })
 
     if (!hasBootstrapContext(layoutJson, input.currentHtml)) {
       throw unprocessable("Nao encontrei contexto suficiente para criar a baseline segura desta pagina.")
+    }
+
+    if (!baselineAssessment.complete) {
+      throw unprocessable(BASELINE_INCOMPLETE_MESSAGE)
     }
 
     const { data: baselineVersion, error: baselineError } = await input.serviceClient
@@ -160,6 +207,10 @@ export async function ensureManagedPageContext(input: {
           bootstrap_attempted: true,
           bootstrap_created: true,
           persistible_flow_enabled: true,
+          baseline_complete: baselineAssessment.complete,
+          baseline_block_count: baselineAssessment.block_count,
+          baseline_html_length: baselineAssessment.html_length,
+          baseline_css_length: baselineAssessment.css_length,
           created_at: new Date().toISOString(),
         },
         created_by: input.userId,
@@ -188,6 +239,14 @@ export async function ensureManagedPageContext(input: {
     throw unprocessable("Nao encontrei uma base_version segura para esta pagina.")
   }
 
+  const selectedBaselineAssessment = assessBootstrapBaseline({
+    layoutJson: normalizeJsonObject(selectedBaseVersion.baseVersion.layout_json),
+    styleJson: normalizeJsonObject(selectedBaseVersion.baseVersion.style_json),
+  })
+  if (!selectedBaselineAssessment.complete) {
+    throw unprocessable(BASELINE_INCOMPLETE_MESSAGE)
+  }
+
   return {
     page,
     versions,
@@ -200,5 +259,7 @@ export async function ensureManagedPageContext(input: {
     pageCreated,
     baselineCreated,
     baselineVersionId,
+    baselineComplete: selectedBaselineAssessment.complete,
+    baselineAssessment: selectedBaselineAssessment,
   }
 }

@@ -61,6 +61,14 @@ interface LocalizedVisualPatchProposalInput {
   attachments?: PatchEngineAttachmentContext[]
 }
 
+function normalizeString(value: unknown, fallback = "") {
+  return String(value ?? "").trim() || fallback
+}
+
+function getTargetCaptureAttachment(attachments: PatchEngineAttachmentContext[] = []) {
+  return attachments.find((attachment) => String(attachment.role ?? "").trim().toLowerCase() === "target_capture") ?? null
+}
+
 export type LocalizedVisualPatchMaterializationResult =
   | {
       status: "not_applicable"
@@ -96,18 +104,36 @@ function buildProposalMetadata(input: {
   sourceText: string
   patchedInvariants: Record<string, unknown>
   targetResolutions: Array<Record<string, unknown>>
+  attachments?: PatchEngineAttachmentContext[]
 }) {
+  const targetCapture = getTargetCaptureAttachment(input.attachments)
   return {
     ai_contract_version: "hybrid_v1",
     ai_edit_plan: input.editPlan,
     ai_invariants: {
       plan_source: "localized_visual_patch",
+      branch_selected: "localized_visual_patch",
       localized_visual_patch: true,
       localized_intent: input.intent,
+      localized_intent_kind: input.intent.kind,
+      localized_intent_action: input.intent.action,
       localized_intent_source_text: input.sourceText,
       footer_adjacent_spacing_diagnosis: input.diagnosis ?? null,
       scoped_patch: true,
       supports_persistible_flow: true,
+      dynamic_slug: normalizeString(input.baseVersion.metadata?.dynamic_slug, input.baseVersion.metadata?.slug ?? ""),
+      route_is_public: input.baseVersion.metadata?.route_is_public !== false,
+      route_is_allowed: input.baseVersion.metadata?.route_is_allowed !== false,
+      bootstrap_attempted: input.baseVersion.metadata?.bootstrap_attempted === true,
+      bootstrap_created: input.baseVersion.metadata?.bootstrap_created === true,
+      baseline_version_id: input.baseVersion.id,
+      baseline_source: normalizeString(input.baseVersion.metadata?.source, input.baseVersionSource),
+      baseline_complete: input.baseVersion.metadata?.baseline_complete !== false,
+      target_capture_used: Boolean(targetCapture),
+      target_capture_id: targetCapture?.id ?? null,
+      requested_style_property: input.intent.kind === "color" ? "color" : null,
+      requested_style_value: input.intent.kind === "color" ? (input.editPlan.operations[0]?.value ?? null) : null,
+      provider_full_proposal_bypassed_for_localized_patch: true,
       ...input.patchedInvariants,
       target_resolutions: input.targetResolutions,
       context_source: input.baseVersionSource,
@@ -168,6 +194,14 @@ function buildLocalizedCopy(input: {
     }
   }
 
+  if (input.intent.kind === "color") {
+    return {
+      summary: `Alterar a cor do titulo/texto indicado na pagina ${input.title}.`,
+      explanation: "Preparei um ajuste localizado apenas na cor do elemento textual mais provavel dentro da area selecionada, preservando a estrutura da pagina.",
+      assistantMessage: "Preparei a alteracao da cor desse titulo/texto, mantendo o restante da pagina igual.",
+    }
+  }
+
   if (input.intent.kind === "alignment") {
     return {
       summary: `Ajustar o alinhamento indicado na pagina ${input.title}.`,
@@ -190,11 +224,13 @@ function createFriendlyLocalizedFailure(input: {
   reason: string
   warnings?: string[]
   diagnosis?: FooterAdjacentSpacingDiagnosis | null
+  attachments?: PatchEngineAttachmentContext[]
 }): LocalizedVisualPatchMaterializationResult {
   const lowConfidence =
     input.intent.confidence === "low" ||
     input.reason === "low_confidence_intent" ||
     input.reason === "low_confidence_target"
+  const hasTargetCapture = Boolean(getTargetCaptureAttachment(input.attachments))
 
   const footerDiagnosis = input.intent.targetHint === "footer_adjacent_spacing"
   const bestCandidate = input.diagnosis?.candidates?.[0] ?? null
@@ -212,9 +248,11 @@ function createFriendlyLocalizedFailure(input: {
     reason: input.reason,
     assistantMessage: footerDiagnosis
       ? footerMessage
+      : input.intent.kind === "color" && input.intent.targetHint === "localized_heading" && hasTargetCapture
+        ? "Entendi o ajuste, mas nao consegui identificar com seguranca qual titulo da area selecionada deve receber essa cor. Seleciona uma area um pouco maior incluindo o card completo ou indica o texto do titulo."
       : lowConfidence
-      ? "Entendi o tipo de ajuste, mas nao consegui localizar com seguranca qual elemento devo alterar. Indica se fica acima ou abaixo do titulo, ou seleciona uma area um pouco maior."
-      : "Entendi o ajuste, mas nao consegui localizar esse alvo com seguranca para preparar a previa sem risco.",
+        ? "Entendi o tipo de ajuste, mas nao consegui localizar com seguranca qual elemento devo alterar. Indica se fica acima ou abaixo do titulo, ou seleciona uma area um pouco maior."
+        : "Entendi o ajuste, mas nao consegui localizar esse alvo com seguranca para preparar a previa sem risco.",
     warnings: input.warnings ?? [],
     diagnosis: input.diagnosis ?? null,
   }
@@ -287,6 +325,7 @@ export function materializeLocalizedVisualPatchProposal(
       intent,
       reason: "low_confidence_intent",
       diagnosis,
+      attachments: input.attachments ?? [],
     })
   }
 
@@ -343,6 +382,7 @@ export function materializeLocalizedVisualPatchProposal(
         reason: "low_confidence_target",
         warnings: [...refined.warnings, ...patched.warnings],
         diagnosis: footerDiagnosis,
+        attachments: input.attachments ?? [],
       })
     }
 
@@ -366,6 +406,7 @@ export function materializeLocalizedVisualPatchProposal(
         reason: "no_visible_change",
         warnings: [...refined.warnings, ...patched.warnings],
         diagnosis: footerDiagnosis,
+        attachments: input.attachments ?? [],
       })
     }
 
@@ -377,6 +418,7 @@ export function materializeLocalizedVisualPatchProposal(
         reason: "needs_clarification_after_patch",
         warnings: [...refined.warnings, ...patched.warnings],
         diagnosis: footerDiagnosis,
+        attachments: input.attachments ?? [],
       })
     }
 
@@ -407,6 +449,7 @@ export function materializeLocalizedVisualPatchProposal(
         sourceText,
         patchedInvariants: patched.invariants,
         targetResolutions: patched.resolutions,
+        attachments: input.attachments,
       }),
     }
 
@@ -446,6 +489,7 @@ export function materializeLocalizedVisualPatchProposal(
       intent,
       reason: error instanceof Error ? error.message : String(error),
       diagnosis,
+      attachments: input.attachments ?? [],
     })
   }
 }

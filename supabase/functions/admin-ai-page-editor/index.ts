@@ -37,7 +37,7 @@ import {
 } from "./operational-state.ts"
 import { selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 import { resolveManagedRouteCapability } from "./route-capability.ts"
-import { ensureManagedPageContext } from "./page-bootstrap.ts"
+import { BASELINE_INCOMPLETE_MESSAGE, ensureManagedPageContext } from "./page-bootstrap.ts"
 import {
   isExplicitUnderstandingConfirmation,
   isExplicitUnderstandingRejection,
@@ -446,6 +446,29 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
     draft_saved: false as const,
     preview_available: false as const,
     change_summary: createEmptyChangeSummary(),
+  }
+}
+
+function createFriendlyBaselineIncompleteResponse(input: {
+  requestId: string
+  clientRequestId: string | null
+  providerUsed: AiProvider
+}) {
+  return {
+    success: true as const,
+    request_id: input.requestId,
+    client_request_id: input.clientRequestId,
+    provider_used: input.providerUsed,
+    conversation_phase: "needs_clarification" as const,
+    assistant_message: BASELINE_INCOMPLETE_MESSAGE,
+    quick_replies: ["Atualizar a pagina e tentar novamente"],
+    understanding_summary: null,
+    confirmation_token: null,
+    confirmation_consumed: false,
+    requires_user_confirmation: false,
+    can_generate_proposal: false,
+    warnings: ["baseline_incomplete"],
+    ...createConversationOperationalState("needs_clarification"),
   }
 }
 
@@ -4024,16 +4047,51 @@ Deno.serve(async (req) => {
       }
 
       const slug = routeCapability.dynamic_slug
-      const managedPageContext = await ensureManagedPageContext({
-        serviceClient,
-        slug,
-        pathname: routeCapability.normalizedPath,
-        title,
-        currentLayoutJson,
-        currentStyleJson,
-        currentHtml,
-        userId: context.user.id,
-      })
+      let managedPageContext: Awaited<ReturnType<typeof ensureManagedPageContext>>
+      try {
+        managedPageContext = await ensureManagedPageContext({
+          serviceClient,
+          slug,
+          pathname: routeCapability.normalizedPath,
+          title,
+          currentLayoutJson,
+          currentStyleJson,
+          currentHtml,
+          userId: context.user.id,
+        })
+      } catch (error) {
+        const messageText = error instanceof Error ? error.message : String(error)
+        if (messageText.includes(BASELINE_INCOMPLETE_MESSAGE)) {
+          await writeAuditLog(serviceClient, context, {
+            action: "admin.ai_page_editor_proposal_generated",
+            entityType: "site_config",
+            entityId: null,
+            metadata: {
+              config_key: CONFIG_KEY,
+              slug,
+              path,
+              branch_selected: "baseline_incomplete",
+              route_capability: routeCapability,
+              route_is_public: routeCapability.route_is_public,
+              route_is_allowed: routeCapability.route_is_allowed,
+              dynamic_slug: slug,
+              bootstrap_attempted: true,
+              baseline_complete: false,
+              final_status: "needs_clarification",
+            },
+            ...auditMeta,
+          })
+
+          return jsonResponse(
+            createFriendlyBaselineIncompleteResponse({
+              requestId,
+              clientRequestId: normalizeString(body.client_request_id) || null,
+              providerUsed: selectAiModelForStage("conversation", config.config_value).primary.provider,
+            }),
+          )
+        }
+        throw error
+      }
       const authoritativeLayoutJson = managedPageContext.baseVersion.layout_json
       const authoritativeStyleJson = managedPageContext.baseVersion.style_json
 
@@ -4055,6 +4113,7 @@ Deno.serve(async (req) => {
             bootstrap_created: managedPageContext.baselineCreated,
             baseline_version_id: managedPageContext.baselineVersionId,
             baseline_source: managedPageContext.baselineCreated ? "allowed_path_bootstrap" : null,
+            baseline_complete: managedPageContext.baselineComplete,
             persistible_flow_enabled: routeCapability.persistible_flow_enabled,
           },
           ...auditMeta,
@@ -4599,6 +4658,13 @@ Deno.serve(async (req) => {
             context_source: managedPageContext.baseVersionSource,
             degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
             context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            route_capability: routeCapability,
+            route_is_public: routeCapability.route_is_public,
+            route_is_allowed: routeCapability.route_is_allowed,
+            dynamic_slug: slug,
+            bootstrap_attempted: true,
+            bootstrap_created: managedPageContext.baselineCreated,
+            baseline_complete: managedPageContext.baselineComplete,
             published_version_id: managedPageContext.publishedVersion?.id ?? null,
             latest_draft_id: managedPageContext.latestDraft?.id ?? null,
             provider_failures: [],
@@ -5026,6 +5092,7 @@ Deno.serve(async (req) => {
             branch_selected: "localized_visual_patch",
             localized_intent: localizedProposal.intent,
             localized_intent_source_text: localizedProposal.sourceText,
+            provider_full_proposal_bypassed_for_localized_patch: true,
           },
         })
 
@@ -5057,6 +5124,13 @@ Deno.serve(async (req) => {
             context_source: managedPageContext.baseVersionSource,
             degraded_draft_bypassed: managedPageContext.degradedDraftBypassed,
             context_selection_reason: managedPageContext.baseVersionSelectionReason,
+            route_capability: routeCapability,
+            route_is_public: routeCapability.route_is_public,
+            route_is_allowed: routeCapability.route_is_allowed,
+            dynamic_slug: slug,
+            bootstrap_attempted: true,
+            bootstrap_created: managedPageContext.baselineCreated,
+            baseline_complete: managedPageContext.baselineComplete,
             published_version_id: managedPageContext.publishedVersion?.id ?? null,
             latest_draft_id: managedPageContext.latestDraft?.id ?? null,
             provider_failures: [],
@@ -5076,6 +5150,7 @@ Deno.serve(async (req) => {
             branch_selected: "localized_visual_patch",
             localized_intent: localizedProposal.intent,
             localized_intent_source_text: localizedProposal.sourceText,
+            provider_full_proposal_bypassed_for_localized_patch: true,
           },
           ...auditMeta,
         })
@@ -5146,6 +5221,13 @@ Deno.serve(async (req) => {
             branch_selected: "localized_visual_patch",
             fallback_allowed: false,
             fallback_reason: localizedProposal.reason,
+            route_capability: routeCapability,
+            route_is_public: routeCapability.route_is_public,
+            route_is_allowed: routeCapability.route_is_allowed,
+            dynamic_slug: slug,
+            bootstrap_attempted: true,
+            bootstrap_created: managedPageContext.baselineCreated,
+            baseline_complete: managedPageContext.baselineComplete,
             localized_intent: localizedProposal.intent,
             localized_intent_source_text: localizedProposal.sourceText,
             footer_adjacent_spacing_diagnosis: localizedProposal.diagnosis ?? null,
@@ -5160,6 +5242,45 @@ Deno.serve(async (req) => {
           localized_intent_kind: localizedProposal.intent.kind,
           fallback_allowed: false,
           fallback_reason: localizedProposal.reason,
+        })
+
+        return jsonResponse(friendlyFailure)
+      }
+
+      if (localizedProposal.status === "not_applicable" && localizedProposal.intent.isLocalized) {
+        const friendlyFailure = createFriendlyConfirmedIntentFailureResponse({
+          requestId,
+          clientRequestId,
+          providerUsed: conversationSelection.primary.provider,
+          understandingSummary: localizedProposal.understandingSummary,
+          assistantMessage:
+            "Entendi o ajuste localizado, mas ainda nao reuni contexto suficiente para aplicar esse patch com seguranca. Seleciona melhor a area ou indica o texto/alvo exato.",
+          warnings: ["localized_patch_requires_precise_target"],
+          finalStatus: "needs_clarification",
+        })
+
+        await writeAuditLog(serviceClient, context, {
+          action: "admin.ai_page_editor_proposal_generated",
+          entityType: "site_config",
+          entityId: null,
+          metadata: {
+            config_key: CONFIG_KEY,
+            slug,
+            path,
+            provider_used: conversationSelection.primary.provider,
+            conversation_phase: friendlyFailure.conversation_phase,
+            final_status: friendlyFailure.final_status,
+            branch_selected: "localized_visual_patch",
+            fallback_allowed: false,
+            fallback_reason: localizedProposal.reason,
+            route_capability: routeCapability,
+            route_is_public: routeCapability.route_is_public,
+            route_is_allowed: routeCapability.route_is_allowed,
+            dynamic_slug: slug,
+            provider_full_proposal_bypassed_for_localized_patch: true,
+            localized_intent: localizedProposal.intent,
+          },
+          ...auditMeta,
         })
 
         return jsonResponse(friendlyFailure)

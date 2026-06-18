@@ -7,8 +7,11 @@ import {
 } from "./spacing-intent.ts"
 
 export interface PatchEngineAttachmentContext {
+  id?: string
   name: string
   mime_type?: string
+  role?: "target_capture" | "insert_image_asset" | "reference_image" | "unknown" | null
+  metadata?: Record<string, unknown> | null
 }
 
 export interface PatchEngineBaseVersion {
@@ -136,6 +139,10 @@ interface ResolvedTargetCandidate {
   candidate: TargetCandidate
   confidence: number
   signals: PatchEngineTargetSignalMap
+  candidate_count?: number
+  candidate_reasons?: string[]
+  candidate_rejections?: string[]
+  resolution_source?: "target_capture" | "anchor_text" | "message"
 }
 
 interface SafeStyleInstruction {
@@ -232,6 +239,33 @@ function normalizeIdentifier(value: unknown) {
     .replace(/[^a-zA-Z0-9:_./-]+/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "")
+}
+
+function isTargetCaptureAttachment(attachment: PatchEngineAttachmentContext) {
+  return normalizeString(attachment.role).toLowerCase() === "target_capture"
+}
+
+function hasTargetCaptureAttachment(attachments: PatchEngineAttachmentContext[]) {
+  return attachments.some((attachment) => isTargetCaptureAttachment(attachment))
+}
+
+function describeSignalReasons(signals: PatchEngineTargetSignalMap) {
+  const reasons: string[] = []
+  if (signals.id_structural > 0) reasons.push("id ou tipo estrutural compatível com o alvo pedido")
+  if (signals.internal_path > 0) reasons.push("caminho interno compatível com o alvo")
+  if (signals.data_attributes > 0) reasons.push("data attributes próximos ao alvo")
+  if (signals.nearest_heading > 0) reasons.push("heading mais próximo compatível")
+  if (signals.anchor_text > 0) reasons.push("texto âncora encontrado no candidato")
+  if (signals.visual_order > 0) reasons.push("ordem visual compatível com o pedido")
+  if (signals.textual_similarity > 0) reasons.push("similaridade textual com a instrução")
+  if (signals.capture_attachment > 0) reasons.push("captura de área usada como pista prioritária")
+  return reasons
+}
+
+function buildResolutionSource(signals: PatchEngineTargetSignalMap): "target_capture" | "anchor_text" | "message" {
+  if (signals.capture_attachment > 0) return "target_capture"
+  if (signals.anchor_text > 0) return "anchor_text"
+  return "message"
 }
 
 function parseSizeToPixels(value: unknown) {
@@ -898,6 +932,7 @@ function scoreCandidate(input: {
     (normalizedRequestedTarget.includes("heading") ||
       normalizedRequestedTarget.includes("title") ||
       normalizedRequestedTarget.includes("titulo"))
+  const targetCaptureSelected = hasTargetCaptureAttachment(input.attachments)
   const candidateId = input.candidate.target_id.toLowerCase()
   const candidatePath = input.candidate.path_key.toLowerCase()
   const candidateHeading = input.candidate.heading
@@ -935,6 +970,27 @@ function scoreCandidate(input: {
     signals.id_structural = Math.max(signals.id_structural, 0.58)
     if (input.candidate.section_index === 0) {
       signals.visual_order = Math.max(signals.visual_order, 0.24)
+    }
+  }
+
+  if (
+    requestedLocalizedHeading &&
+    input.candidate.block_type !== "heading" &&
+    candidateHeading &&
+    ["rich_text", "container", "columns"].includes(input.candidate.block_type)
+  ) {
+    signals.id_structural = Math.max(signals.id_structural, 0.44)
+    signals.nearest_heading = Math.max(signals.nearest_heading, 0.18)
+  }
+
+  if (requestedLocalizedHeading && targetCaptureSelected) {
+    if (input.candidate.block_type === "heading") {
+      signals.capture_attachment = Math.max(signals.capture_attachment, 0.24)
+    } else if (candidateHeading && ["rich_text", "container", "columns"].includes(input.candidate.block_type)) {
+      signals.capture_attachment = Math.max(signals.capture_attachment, 0.24)
+      signals.visual_order = Math.max(signals.visual_order, 0.08)
+    } else if (input.candidate.block_type === "button") {
+      signals.capture_attachment = Math.max(signals.capture_attachment, 0.04)
     }
   }
 
@@ -1123,6 +1179,16 @@ function resolveTargetCandidate(input: {
     candidate: best.candidate,
     confidence: best.confidence,
     signals: best.signals,
+    candidate_count: ranked.length,
+    candidate_reasons: describeSignalReasons(best.signals),
+    candidate_rejections: ranked
+      .slice(1, 4)
+      .map((entry) =>
+        describeSignalReasons(entry.signals).length > 0
+          ? `candidato ${entry.candidate.target_id} ficou abaixo do melhor alvo`
+          : `candidato ${entry.candidate.target_id} sem sinais suficientes`,
+      ),
+    resolution_source: buildResolutionSource(best.signals),
   } satisfies ResolvedTargetCandidate
 }
 
@@ -2032,6 +2098,40 @@ function buildLocalizedDividerRemovalCssPatch(
   return wrapCssForBreakpoint(rule, breakpoint)
 }
 
+function buildLocalizedHeadingCssPatch(input: {
+  resolution: ResolvedTargetCandidate
+  property: "color" | "text-align"
+  value: unknown
+  breakpoint: AiEditOperation["breakpoint"]
+}) {
+  const normalizedValue =
+    input.property === "color"
+      ? validateCssValue("color", input.value)
+      : validateCssValue("text-align", input.value)
+  const scopeSelector = input.resolution.candidate.content_selector || input.resolution.candidate.wrapper_selector
+  const headingSelectors =
+    input.resolution.candidate.block_type === "heading"
+      ? scopeSelector
+      : [
+          `${scopeSelector} h1`,
+          `${scopeSelector} h2`,
+          `${scopeSelector} h3`,
+          `${scopeSelector} h4`,
+          `${scopeSelector} h5`,
+          `${scopeSelector} h6`,
+          `${scopeSelector} .title`,
+          `${scopeSelector} .heading`,
+          `${scopeSelector} .card-title`,
+          `${scopeSelector} .section-title`,
+          `${scopeSelector} .card-heading`,
+          `${scopeSelector} .section-heading`,
+          `${scopeSelector} [class*="title"]`,
+          `${scopeSelector} [class*="heading"]`,
+        ].join(",\n")
+  const rule = `${headingSelectors} {\n  ${input.property}: ${normalizedValue} !important;\n}`
+  return wrapCssForBreakpoint(rule, input.breakpoint)
+}
+
 function buildLocalizedCssPatch(input: {
   operation: AiEditOperation
   resolution: ResolvedTargetCandidate
@@ -2057,6 +2157,19 @@ function buildLocalizedCssPatch(input: {
     (path === "localized-divider" || requestedTarget.includes("localized_divider"))
   ) {
     return buildLocalizedDividerRemovalCssPatch(input.resolution, input.operation.breakpoint)
+  }
+
+  if (
+    input.operation.type === "set_style" &&
+    requestedTarget.includes("localized_heading") &&
+    (path === "color" || path === "text-align")
+  ) {
+    return buildLocalizedHeadingCssPatch({
+      resolution: input.resolution,
+      property: path === "color" ? "color" : "text-align",
+      value: input.operation.value,
+      breakpoint: input.operation.breakpoint,
+    })
   }
 
   return null
@@ -2511,6 +2624,11 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
     })
   })
 
+  const candidateCount = resolvedCandidates[0]?.candidate_count ?? 0
+  const candidateReasons = resolvedCandidates.flatMap((resolution) => resolution.candidate_reasons ?? [])
+  const candidateRejections = resolvedCandidates.flatMap((resolution) => resolution.candidate_rejections ?? [])
+  const targetResolutionSource = resolvedCandidates[0]?.resolution_source ?? "message"
+
   return {
     layoutJson: finalLayoutJson,
     styleJson: nextStyleJson,
@@ -2524,6 +2642,11 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       scoped_patch: true,
       touched_section_indexes: uniqueStrings(touchedSectionIndexes.map((item) => String(item))),
       resolution_count: resolutions.length,
+      candidate_count: candidateCount,
+      candidate_reasons: uniqueStrings(candidateReasons),
+      candidate_rejections: uniqueStrings(candidateRejections),
+      target_resolution_confidence: resolutions[0]?.confidence ?? 0,
+      target_resolution_source: targetResolutionSource,
       preview_renderable: true,
       desktop_renderable: true,
       mobile_renderable: true,
