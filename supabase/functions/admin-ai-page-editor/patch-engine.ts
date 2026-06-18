@@ -5,6 +5,10 @@ import {
   wantsOnlyPageWrapperSpacing as wantsSharedPageWrapperSpacing,
   wantsOnlySectionInternalSpacing as wantsSharedSectionInternalSpacing,
 } from "./spacing-intent.ts"
+import {
+  resolveTextAnchor,
+  type TextAnchorResolution,
+} from "./text-anchor-resolution.ts"
 
 export interface PatchEngineAttachmentContext {
   id?: string
@@ -143,6 +147,7 @@ interface ResolvedTargetCandidate {
   candidate_reasons?: string[]
   candidate_rejections?: string[]
   resolution_source?: "target_capture" | "anchor_text" | "message"
+  text_anchor_resolution?: TextAnchorResolution | null
 }
 
 interface SafeStyleInstruction {
@@ -260,6 +265,30 @@ function describeSignalReasons(signals: PatchEngineTargetSignalMap) {
   if (signals.textual_similarity > 0) reasons.push("similaridade textual com a instrução")
   if (signals.capture_attachment > 0) reasons.push("captura de área usada como pista prioritária")
   return reasons
+}
+
+function describeTextAnchorReasons(resolution: TextAnchorResolution | null | undefined) {
+  if (!resolution) return []
+  if (resolution.found) {
+    if (resolution.exactMatch) return ["texto citado corresponde exatamente ao alvo selecionado"]
+    if (resolution.normalizedMatch) return ["texto citado corresponde ao alvo apos normalizacao"]
+    if (resolution.partialMatch) return ["texto citado ajudou a localizar um unico alvo plausivel"]
+    return ["texto citado usado como ancora de alta prioridade"]
+  }
+
+  return resolution.rejectionReasons.map((reason) => {
+    switch (reason) {
+      case "text_anchor_multiple_exact_matches":
+      case "text_anchor_multiple_similar_matches":
+        return "texto citado aparece em mais de um candidato plausivel"
+      case "text_anchor_match_not_distinctive":
+        return "texto citado foi encontrado, mas sem distinguir um alvo unico"
+      case "text_anchor_not_found":
+        return "texto citado nao foi encontrado com seguranca na base atual"
+      default:
+        return "texto citado nao gerou um alvo seguro"
+    }
+  })
 }
 
 function buildResolutionSource(signals: PatchEngineTargetSignalMap): "target_capture" | "anchor_text" | "message" {
@@ -731,6 +760,13 @@ function extractAnchorTexts(operation: AiEditOperation, message: string) {
   return uniqueStrings(anchors.filter(Boolean))
 }
 
+function selectPrimaryAnchorText(anchorTexts: string[]) {
+  return [...anchorTexts]
+    .map((anchor) => normalizeString(anchor))
+    .filter((anchor) => anchor.length >= 3)
+    .sort((left, right) => right.length - left.length)[0] ?? null
+}
+
 function extractVisualOrderHint(message: string) {
   for (const hint of ORDINAL_HINTS) {
     if (hint.pattern.test(message)) return hint.index
@@ -913,6 +949,7 @@ function scoreCandidate(input: {
   operation: AiEditOperation
   message: string
   attachments: PatchEngineAttachmentContext[]
+  textAnchorResolution?: TextAnchorResolution | null
 }) {
   const normalizedRequestedTarget = normalizeIdentifier(input.requestedTarget).toLowerCase()
   const requestedVirtualSpacingTarget = [
@@ -1076,14 +1113,33 @@ function scoreCandidate(input: {
     signals.nearest_heading = Math.min(0.18, headingOverlap * 0.22)
   }
 
-  const anchorTexts = extractAnchorTexts(input.operation, input.message)
-  if (anchorTexts.length > 0) {
-    const anchorHit = anchorTexts.some((anchor) => normalizeText(candidateText).includes(normalizeText(anchor)))
-    if (anchorHit) {
-      signals.anchor_text = requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget ? 0.54 : 0.28
-      if (requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget) {
-        signals.nearest_heading = Math.max(signals.nearest_heading, 0.18)
-        signals.visual_order = Math.max(signals.visual_order, 0.1)
+  const selectedTextAnchorCandidate = input.textAnchorResolution?.selectedCandidate
+  if (
+    input.textAnchorResolution?.found &&
+    selectedTextAnchorCandidate &&
+    selectedTextAnchorCandidate.targetId === input.candidate.target_id &&
+    selectedTextAnchorCandidate.selector === input.candidate.selector
+  ) {
+    const anchorScore = input.textAnchorResolution.exactMatch
+      ? 0.82
+      : input.textAnchorResolution.normalizedMatch
+        ? 0.76
+        : 0.58
+    signals.anchor_text = Math.max(signals.anchor_text, anchorScore)
+    if (requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget) {
+      signals.nearest_heading = Math.max(signals.nearest_heading, 0.18)
+      signals.visual_order = Math.max(signals.visual_order, 0.12)
+    }
+  } else if (!input.textAnchorResolution) {
+    const anchorTexts = extractAnchorTexts(input.operation, input.message)
+    if (anchorTexts.length > 0) {
+      const anchorHit = anchorTexts.some((anchor) => normalizeText(candidateText).includes(normalizeText(anchor)))
+      if (anchorHit) {
+        signals.anchor_text = requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget ? 0.54 : 0.28
+        if (requestedLocalizedTarget || requestedFooterAdjacentSpacingTarget) {
+          signals.nearest_heading = Math.max(signals.nearest_heading, 0.18)
+          signals.visual_order = Math.max(signals.visual_order, 0.1)
+        }
       }
     }
   }
@@ -1110,7 +1166,7 @@ function scoreCandidate(input: {
     signals.capture_attachment = Math.min(0.1, attachmentOverlap * 0.14)
   }
 
-  const confidence = Math.min(
+  let confidence = Math.min(
     1,
     signals.id_structural +
       signals.internal_path +
@@ -1121,6 +1177,10 @@ function scoreCandidate(input: {
       signals.textual_similarity +
       signals.capture_attachment,
   )
+
+  if (input.textAnchorResolution && !input.textAnchorResolution.found) {
+    confidence = Math.min(confidence, input.textAnchorResolution.partialMatch ? 0.72 : 0.58)
+  }
 
   return { confidence, signals }
 }
@@ -1134,6 +1194,8 @@ function resolveTargetCandidate(input: {
 }) {
   const requestedTarget = normalizeIdentifier(input.operation.target_id) || input.plan.target_ids[0] || "target"
   const normalizedRequestedTarget = requestedTarget.toLowerCase()
+  const anchorTexts = extractAnchorTexts(input.operation, input.message)
+  const primaryAnchorText = selectPrimaryAnchorText(anchorTexts)
   let candidates = buildTargetCandidates(input.blocks).filter((candidate) => {
     if (input.plan.scope === "page") return candidate.scope === "page"
     if (input.plan.scope === "section") return candidate.scope === "section"
@@ -1152,6 +1214,25 @@ function resolveTargetCandidate(input: {
     candidates = candidates.filter((candidate) => candidate.block_type === "footer_adjacent_spacing")
   }
 
+  const textAnchorResolution = primaryAnchorText
+    ? resolveTextAnchor({
+        anchorText: primaryAnchorText,
+        candidates: candidates.map((candidate) => ({
+          targetId: candidate.target_id,
+          tagName: candidate.block_type,
+          selector: candidate.selector,
+          blockId: candidate.target_id,
+          text: candidate.text,
+          contextBefore:
+            ["heading", "rich_text", "columns", "container"].includes(candidate.block_type) ||
+            (normalizedRequestedTarget === "footer_adjacent_spacing" && candidate.block_type === "footer_adjacent_spacing")
+              ? candidate.heading
+              : "",
+          source: "layout_json",
+        })),
+      })
+    : null
+
   const ranked = candidates
     .map((candidate) => ({
       candidate,
@@ -1162,12 +1243,13 @@ function resolveTargetCandidate(input: {
         operation: input.operation,
         message: input.message,
         attachments: input.attachments,
+        textAnchorResolution,
       }),
     }))
     .sort((left, right) => right.confidence - left.confidence)
 
   const best = ranked[0] ?? null
-  if (!best || best.confidence < 0.2) {
+  if (!best || (best.confidence < 0.2 && !textAnchorResolution)) {
     throw new Error(`Não encontrei um alvo seguro para "${requestedTarget}" na base atual da página.`)
   }
 
@@ -1179,16 +1261,23 @@ function resolveTargetCandidate(input: {
     candidate: best.candidate,
     confidence: best.confidence,
     signals: best.signals,
-    candidate_count: ranked.length,
-    candidate_reasons: describeSignalReasons(best.signals),
-    candidate_rejections: ranked
-      .slice(1, 4)
-      .map((entry) =>
-        describeSignalReasons(entry.signals).length > 0
-          ? `candidato ${entry.candidate.target_id} ficou abaixo do melhor alvo`
-          : `candidato ${entry.candidate.target_id} sem sinais suficientes`,
-      ),
+    candidate_count: textAnchorResolution?.candidateCount ?? ranked.length,
+    candidate_reasons: uniqueStrings([
+      ...describeSignalReasons(best.signals),
+      ...describeTextAnchorReasons(textAnchorResolution),
+    ]),
+    candidate_rejections: uniqueStrings([
+      ...describeTextAnchorReasons(textAnchorResolution).filter((reason) => !textAnchorResolution?.found),
+      ...ranked
+        .slice(1, 4)
+        .map((entry) =>
+          describeSignalReasons(entry.signals).length > 0
+            ? `candidato ${entry.candidate.target_id} ficou abaixo do melhor alvo`
+            : `candidato ${entry.candidate.target_id} sem sinais suficientes`,
+        ),
+    ]),
     resolution_source: buildResolutionSource(best.signals),
+    text_anchor_resolution: textAnchorResolution,
   } satisfies ResolvedTargetCandidate
 }
 
@@ -2628,6 +2717,7 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
   const candidateReasons = resolvedCandidates.flatMap((resolution) => resolution.candidate_reasons ?? [])
   const candidateRejections = resolvedCandidates.flatMap((resolution) => resolution.candidate_rejections ?? [])
   const targetResolutionSource = resolvedCandidates[0]?.resolution_source ?? "message"
+  const textAnchorResolution = resolvedCandidates[0]?.text_anchor_resolution ?? null
 
   return {
     layoutJson: finalLayoutJson,
@@ -2647,6 +2737,17 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       candidate_rejections: uniqueStrings(candidateRejections),
       target_resolution_confidence: resolutions[0]?.confidence ?? 0,
       target_resolution_source: targetResolutionSource,
+      text_anchor_provided: Boolean(textAnchorResolution?.anchorText),
+      text_anchor_raw: textAnchorResolution?.anchorText ?? null,
+      text_anchor_normalized: textAnchorResolution?.normalizedAnchorText ?? null,
+      text_anchor_found: textAnchorResolution?.found ?? false,
+      text_anchor_exact_match: textAnchorResolution?.exactMatch ?? false,
+      text_anchor_normalized_match: textAnchorResolution?.normalizedMatch ?? false,
+      text_anchor_partial_match: textAnchorResolution?.partialMatch ?? false,
+      text_anchor_candidate_count: textAnchorResolution?.candidateCount ?? 0,
+      text_anchor_selected_target: textAnchorResolution?.selectedCandidate?.targetId ?? null,
+      text_anchor_confidence: textAnchorResolution?.confidence ?? 0,
+      text_anchor_rejection_reasons: textAnchorResolution?.rejectionReasons ?? [],
       preview_renderable: true,
       desktop_renderable: true,
       mobile_renderable: true,

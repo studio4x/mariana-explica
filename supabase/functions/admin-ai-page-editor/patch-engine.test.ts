@@ -373,6 +373,144 @@ describe("applyPatchPlan", () => {
     expect((blocks[2].content as string)).toContain("/suporte")
   })
 
+  it("prioritizes a quoted text anchor as the target source when the text is unique", () => {
+    const result = applyPatchPlan({
+      slug: "home",
+      title: "Home",
+      path: "/explicacoes",
+      message: 'mude a cor do texto "Transforme o seu estudo" para branco',
+      editPlan: createPlan({
+        scope: "text",
+        mode: "style_patch",
+        risk_level: "low",
+        target_ids: ["localized_text"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "localized_text",
+            path: "color",
+            value: "#ffffff",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createBaseVersion(),
+    })
+
+    expect(result.invariants.target_resolution_source).toBe("anchor_text")
+    expect(result.invariants.text_anchor_found).toBe(true)
+    expect(result.invariants.text_anchor_selected_target).toBe("hero-heading")
+    expect(Number(result.invariants.target_resolution_confidence ?? 0)).toBeGreaterThanOrEqual(0.8)
+  })
+
+  it("caps confidence when a quoted text anchor matches multiple candidates", () => {
+    const baseVersion = createBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[2] = {
+      id: "duplicate-heading-wrapper",
+      type: "container",
+      children: [
+        [
+          {
+            id: "duplicate-heading",
+            type: "heading",
+            level: 2,
+            content: "Transforme o seu estudo",
+            layout: {
+              gridColumns: 12,
+              align: "left",
+              paddingTop: 0,
+              paddingRight: 0,
+              paddingBottom: 0,
+              paddingLeft: 0,
+              marginTop: 0,
+              marginBottom: 0,
+              marginLeft: 0,
+              marginRight: 0,
+              backgroundColor: "transparent",
+              backgroundImageUrl: "",
+              backgroundImageSize: "cover",
+              borderRadius: 0,
+              contentAlignX: "left",
+              contentAlignY: "top",
+              contentGap: 0,
+              minHeight: 0,
+            },
+          },
+        ],
+      ],
+      columnLayouts: [
+        {
+          gridColumns: 12,
+          align: "left",
+          paddingTop: 0,
+          paddingRight: 0,
+          paddingBottom: 0,
+          paddingLeft: 0,
+          marginTop: 0,
+          marginBottom: 0,
+          marginLeft: 0,
+          marginRight: 0,
+          backgroundColor: "transparent",
+          backgroundImageUrl: "",
+          backgroundImageSize: "cover",
+          borderRadius: 0,
+          contentAlignX: "left",
+          contentAlignY: "top",
+          contentGap: 0,
+          minHeight: 0,
+        },
+      ],
+      layout: {
+        gridColumns: 12,
+        align: "center",
+        paddingTop: 16,
+        paddingRight: 16,
+        paddingBottom: 16,
+        paddingLeft: 16,
+        marginTop: 0,
+        marginBottom: 8,
+        marginLeft: 0,
+        marginRight: 0,
+        backgroundColor: "transparent",
+        backgroundImageUrl: "",
+        backgroundImageSize: "cover",
+        borderRadius: 0,
+        contentAlignX: "stretch",
+        contentAlignY: "top",
+        contentGap: 0,
+        minHeight: 0,
+      },
+    }
+
+    const result = applyPatchPlan({
+      slug: "home",
+      title: "Home",
+      path: "/explicacoes",
+      message: 'mude a cor do texto "Transforme o seu estudo" para branco',
+      editPlan: createPlan({
+        scope: "text",
+        mode: "style_patch",
+        risk_level: "low",
+        target_ids: ["localized_text"],
+        operations: [
+          {
+            type: "set_style",
+            target_id: "localized_text",
+            path: "color",
+            value: "#ffffff",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion,
+    })
+
+    expect(result.invariants.text_anchor_found).toBe(false)
+    expect(result.invariants.text_anchor_candidate_count).toBe(2)
+    expect(Number(result.invariants.target_resolution_confidence ?? 0)).toBeLessThan(0.8)
+  })
+
   it("removes padding-top from the first section using scoped target resolution", () => {
     const result = applyPatchPlan({
       slug: "home",

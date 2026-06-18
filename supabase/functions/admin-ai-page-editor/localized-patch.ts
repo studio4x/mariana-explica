@@ -114,6 +114,7 @@ function buildProposalMetadata(input: {
       plan_source: "localized_visual_patch",
       branch_selected: "localized_visual_patch",
       localized_visual_patch: true,
+      localized_visual_patch_selected: true,
       localized_intent: input.intent,
       localized_intent_kind: input.intent.kind,
       localized_intent_action: input.intent.action,
@@ -133,7 +134,11 @@ function buildProposalMetadata(input: {
       target_capture_id: targetCapture?.id ?? null,
       requested_style_property: input.intent.kind === "color" ? "color" : null,
       requested_style_value: input.intent.kind === "color" ? (input.editPlan.operations[0]?.value ?? null) : null,
+      provider_full_proposal_bypassed: true,
       provider_full_proposal_bypassed_for_localized_patch: true,
+      draft_saved: false,
+      preview_created: false,
+      pending_publication_set: false,
       ...input.patchedInvariants,
       target_resolutions: input.targetResolutions,
       context_source: input.baseVersionSource,
@@ -225,12 +230,28 @@ function createFriendlyLocalizedFailure(input: {
   warnings?: string[]
   diagnosis?: FooterAdjacentSpacingDiagnosis | null
   attachments?: PatchEngineAttachmentContext[]
+  patchedInvariants?: Record<string, unknown> | null
 }): LocalizedVisualPatchMaterializationResult {
   const lowConfidence =
     input.intent.confidence === "low" ||
     input.reason === "low_confidence_intent" ||
     input.reason === "low_confidence_target"
   const hasTargetCapture = Boolean(getTargetCaptureAttachment(input.attachments))
+  const patchedInvariants =
+    input.patchedInvariants && typeof input.patchedInvariants === "object" ? input.patchedInvariants : {}
+  const textAnchorRaw =
+    typeof patchedInvariants.text_anchor_raw === "string"
+      ? patchedInvariants.text_anchor_raw.trim()
+      : (input.intent.targetText ?? "").trim()
+  const textAnchorProvided = Boolean(textAnchorRaw)
+  const textAnchorFound = patchedInvariants.text_anchor_found === true
+  const textAnchorCandidateCount = Number(patchedInvariants.text_anchor_candidate_count ?? 0)
+  const textAnchorRejectionReasons = Array.isArray(patchedInvariants.text_anchor_rejection_reasons)
+    ? patchedInvariants.text_anchor_rejection_reasons.map((item) => String(item ?? ""))
+    : []
+  const textAnchorAmbiguous =
+    textAnchorCandidateCount > 1 ||
+    textAnchorRejectionReasons.some((reason) => /multiple/i.test(reason))
 
   const footerDiagnosis = input.intent.targetHint === "footer_adjacent_spacing"
   const bestCandidate = input.diagnosis?.candidates?.[0] ?? null
@@ -248,6 +269,10 @@ function createFriendlyLocalizedFailure(input: {
     reason: input.reason,
     assistantMessage: footerDiagnosis
       ? footerMessage
+      : textAnchorProvided && !textAnchorFound && textAnchorAmbiguous
+        ? "Encontrei mais de um texto semelhante. Seleciona a area correta ou indica uma frase antes ou depois dele para eu alterar apenas o elemento certo."
+      : textAnchorProvided && !textAnchorFound
+        ? "Procurei o texto indicado, mas nao o encontrei com seguranca nesta versao da pagina. Seleciona a area onde ele aparece ou copia exatamente o texto visivel, incluindo uma frase proxima."
       : input.intent.kind === "color" && input.intent.targetHint === "localized_heading" && hasTargetCapture
         ? "Entendi o ajuste, mas nao consegui identificar com seguranca qual titulo da area selecionada deve receber essa cor. Seleciona uma area um pouco maior incluindo o card completo ou indica o texto do titulo."
       : lowConfidence
@@ -383,6 +408,7 @@ export function materializeLocalizedVisualPatchProposal(
         warnings: [...refined.warnings, ...patched.warnings],
         diagnosis: footerDiagnosis,
         attachments: input.attachments ?? [],
+        patchedInvariants: patched.invariants,
       })
     }
 
@@ -407,6 +433,7 @@ export function materializeLocalizedVisualPatchProposal(
         warnings: [...refined.warnings, ...patched.warnings],
         diagnosis: footerDiagnosis,
         attachments: input.attachments ?? [],
+        patchedInvariants: patched.invariants,
       })
     }
 
@@ -419,6 +446,7 @@ export function materializeLocalizedVisualPatchProposal(
         warnings: [...refined.warnings, ...patched.warnings],
         diagnosis: footerDiagnosis,
         attachments: input.attachments ?? [],
+        patchedInvariants: patched.invariants,
       })
     }
 

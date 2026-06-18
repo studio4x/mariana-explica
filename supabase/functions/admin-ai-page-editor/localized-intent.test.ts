@@ -101,6 +101,17 @@ describe("localized visual intent classification", () => {
     expect(plan?.operations[0]?.value).toBe("#ffffff")
   })
 
+  it("captures quoted text anchors for localized text color requests", () => {
+    const intent = classifyLocalizedIntent({
+      sourceText: 'mude a cor do texto "Notas importantes antes de enviares o teu formulario:" para branco',
+    })
+
+    expect(intent.isLocalized).toBe(true)
+    expect(intent.kind).toBe("color")
+    expect(intent.targetText).toBe("Notas importantes antes de enviares o teu formulario:")
+    expect(intent.confidence).toBe("high")
+  })
+
   it("asks for more context on ambiguous visual references and low confidence line removal", () => {
     const ambiguous = classifyLocalizedIntent({ sourceText: "tira isso daqui" })
     const lowConfidenceLine = classifyLocalizedIntent({ sourceText: "remove a linha" })

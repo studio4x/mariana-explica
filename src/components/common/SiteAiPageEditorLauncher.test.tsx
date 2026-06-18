@@ -505,6 +505,26 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(screen.queryByText(/atualizado/i)).not.toBeInTheDocument()
   })
 
+  it('does not show "Ja preparei" when the backend did not return a real draft or preview flow', async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce({
+      ...createClarificationResponse({
+        conversation_phase: "ready_for_proposal",
+        assistant_message: 'Procurei o texto "Notas importantes antes de enviares o teu formulario:", mas preciso de mais contexto visual.',
+        understanding_summary: 'mudar a cor do texto "Notas importantes antes de enviares o teu formulario:" para branco',
+        final_status: "needs_clarification",
+      }),
+    })
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, 'mude a cor do texto "Notas importantes antes de enviares o teu formulario:" para branco')
+
+    await waitFor(() => {
+      expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(screen.queryByText(/ja preparei o proximo passo para veres antes de publicar/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
+  })
+
   it("does not mix a legacy textual refusal with no-op feedback for visual spacing requests", async () => {
     mockGenerateProposalMutateAsync.mockResolvedValueOnce(
       createProposalResponse({
@@ -847,7 +867,7 @@ describe("SiteAiPageEditorLauncher", () => {
     await waitFor(() => {
       expect(screen.getByText(/\.me-managed-page-root/i)).toBeInTheDocument()
     })
-    expect(screen.getByText(/ja preparei o proximo passo para veres antes de publicar/i)).toBeInTheDocument()
+    expect(screen.queryByText(/ja preparei o proximo passo para veres antes de publicar/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/primeira secao/i)).not.toBeInTheDocument()
   })
 

@@ -388,16 +388,24 @@ function hasConversationProposal(
   )
 }
 
-function resolveConversationStatusCopy(phase: AdminAiPageEditorConversationPhase | null, sendStatus: string | null) {
-  if (sendStatus) return null
-  if (phase === "needs_clarification") {
+function resolveConversationStatusCopy(input: {
+  phase: AdminAiPageEditorConversationPhase | null
+  sendStatus: string | null
+  proposal: AdminAiPageEditorProposal | null
+  pendingPublication: PendingPublicationState | null
+}) {
+  if (input.sendStatus) return null
+  if (input.pendingPublication) {
+    return input.proposal ? buildPreparedPreviewMessage(input.proposal) : "Previa preparada. Verifica a pagina antes de publicar."
+  }
+  if (input.proposal?.draft_saved) {
+    return buildPreparedPreviewMessage(input.proposal)
+  }
+  if (input.phase === "needs_clarification") {
     return "Ainda estou a perceber melhor o que queres mudar."
   }
-  if (phase === "awaiting_intent_confirmation") {
+  if (input.phase === "awaiting_intent_confirmation") {
     return "Percebi o pedido e falta so a tua confirmacao."
-  }
-  if (phase === "ready_for_proposal") {
-    return "Ja preparei o proximo passo para veres antes de publicar."
   }
   return null
 }
@@ -546,8 +554,14 @@ export function SiteAiPageEditorLauncher() {
   const isCaptureModeActive = isSelectingCaptureArea || Boolean(captureRect) || isCapturingPage
   const proposalAssessment = useMemo(() => assessAiPageEditorProposal(proposal, { canPersistDraft }), [proposal, canPersistDraft])
   const conversationStatusCopy = useMemo(
-    () => resolveConversationStatusCopy(conversationPhase, sendStatus),
-    [conversationPhase, sendStatus],
+    () =>
+      resolveConversationStatusCopy({
+        phase: conversationPhase,
+        sendStatus,
+        proposal,
+        pendingPublication,
+      }),
+    [conversationPhase, pendingPublication, proposal, sendStatus],
   )
 
   function buildCurrentVersionSnapshot() {

@@ -259,4 +259,50 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     if (result.status !== "failed") throw new Error("expected failed")
     expect(result.assistantMessage).toMatch(/incluindo o card completo ou indica o texto do titulo/i)
   })
+
+  it("materializes a quoted text color change using the quoted text as the anchor", () => {
+    const result = materialize(
+      'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+      'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.proposal.metadata.ai_invariants?.text_anchor_found).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.text_anchor_raw).toBe("De estudante para estudante: porque este projeto?")
+    expect(result.proposal.metadata.ai_invariants?.target_resolution_source).toBe("anchor_text")
+    expect(result.proposal.metadata.ai_invariants?.localized_visual_patch_selected).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.provider_full_proposal_bypassed).toBe(true)
+  })
+
+  it("returns a specific not-found message when the quoted text anchor is absent", () => {
+    const result = materialize(
+      'mude a cor do texto "Texto inexistente desta pagina" para branco',
+      'mude a cor do texto "Texto inexistente desta pagina" para branco',
+    )
+
+    expect(result.status).toBe("failed")
+    if (result.status !== "failed") throw new Error("expected failed")
+    expect(result.assistantMessage).toMatch(/procurei o texto indicado, mas nao o encontrei com seguranca/i)
+  })
+
+  it("returns a specific ambiguity message when the quoted text anchor appears more than once", () => {
+    const baseVersion = createVisualBaseVersion()
+    const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    blocks[1] = {
+      ...blocks[1],
+      content:
+        '<section><h2>De estudante para estudante: porque este projeto?</h2><p>Segunda secao preservada.</p><a href="/suporte">Suporte</a></section>',
+    }
+
+    const result = materialize(
+      'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+      'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+      { baseVersion },
+    )
+
+    expect(result.status).toBe("failed")
+    if (result.status !== "failed") throw new Error("expected failed")
+    expect(result.assistantMessage).toMatch(/encontrei mais de um texto semelhante/i)
+  })
 })

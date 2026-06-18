@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "115"
-export const BUILD_COMMIT = "localized-target-patch-hardening"
+export const BUILD_DEPLOY_NUMBER = "116"
+export const BUILD_COMMIT = "text-anchor-resolution-hardening"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

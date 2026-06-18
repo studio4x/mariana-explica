@@ -296,7 +296,8 @@ export function classifyLocalizedIntent(input: {
     const targetHint = mentionsTitleLike || /\b(card|cartao|secao|seccao)\b/.test(normalized)
       ? "localized_heading"
       : "localized_text"
-    const confidenceScore = (mentionsTitleLike ? 2 : 0) + (targetText ? 1 : 0) + (hasTargetCapture ? 1 : hasAttachment ? 1 : 0)
+    const confidenceScore =
+      (mentionsTitleLike ? 2 : mentionsTextLike ? 1 : 0) + (targetText ? 2 : 0) + (hasTargetCapture ? 1 : hasAttachment ? 1 : 0)
 
     return {
       isLocalized: true,
