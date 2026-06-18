@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import html2canvas from "html2canvas"
 import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { SiteAiPageEditorLauncher } from "./SiteAiPageEditorLauncher"
@@ -339,6 +340,12 @@ describe("SiteAiPageEditorLauncher", () => {
       updated_at: "2026-06-15T12:05:00.000Z",
     }))
     mockStoreSitePagePreview.mockReturnValue("preview-token")
+    vi.mocked(html2canvas).mockResolvedValue({
+      width: 640,
+      height: 320,
+      toDataURL: () => "data:image/jpeg;base64,ZmFrZS1jYXB0dXJl",
+    } as unknown as HTMLCanvasElement)
+    document.elementsFromPoint = vi.fn(() => [])
     mockPublishPageVersionMutateAsync.mockResolvedValue({
       page: {
         id: "page-1",
@@ -667,6 +674,119 @@ describe("SiteAiPageEditorLauncher", () => {
       name: "hero.webp",
       role: "insert_image_asset",
     })
+  })
+
+  it("stores pending target clarification from the backend and sends it back on the next turn", async () => {
+    mockGenerateProposalMutateAsync
+      .mockResolvedValueOnce(
+        createClarificationResponse({
+          assistant_message: "Entendi o ajuste, mas preciso que seleciones melhor o titulo certo.",
+          understanding_summary: 'mudar a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+          pending_target_clarification: {
+            requestedAt: "2026-06-18T18:00:00.000Z",
+            intent: "set_text_color",
+            textAnchor: "De estudante para estudante: porque este projeto?",
+            requestedProperty: "color",
+            requestedValue: "#ffffff",
+            awaiting: "capture",
+            capturedTarget: null,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(createProposalResponse())
+
+    const { user } = await renderLauncher()
+    await sendMessage(user, 'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco')
+
+    await waitFor(() => {
+      expect(screen.getByText(/preciso que seleciones melhor o titulo certo/i)).toBeInTheDocument()
+    })
+
+    await sendMessage(user, "agora esta certo")
+
+    await waitFor(() => {
+      expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(2)
+    })
+    const secondCall = mockGenerateProposalMutateAsync.mock.calls[1]?.[0]
+    expect(secondCall.conversationContext.pending_target_clarification).toMatchObject({
+      intent: "set_text_color",
+      requestedProperty: "color",
+      requestedValue: "#ffffff",
+      awaiting: "capture",
+    })
+  })
+
+  it("captures DOM metadata together with the selected screenshot area", async () => {
+    mockGenerateProposalMutateAsync.mockResolvedValueOnce(createClarificationResponse())
+
+    const managedRoot = document.createElement("main")
+    managedRoot.innerHTML = `
+      <div class="me-managed-page-root">
+        <section class="me-managed-block" data-block-id="hero-heading" data-managed-node-id="block:hero-heading">
+          <h1 data-parent-block-id="hero-heading" data-managed-node-id="content:hero-heading">Transforme o seu estudo</h1>
+        </section>
+      </div>
+    `
+    document.body.appendChild(managedRoot)
+
+    const wrapper = managedRoot.querySelector("[data-block-id='hero-heading']") as HTMLElement
+    const heading = managedRoot.querySelector("[data-managed-node-id='content:hero-heading']") as HTMLElement
+    wrapper.getBoundingClientRect = () =>
+      ({
+        x: 24,
+        y: 48,
+        width: 420,
+        height: 160,
+        top: 48,
+        left: 24,
+        right: 444,
+        bottom: 208,
+      } as DOMRect)
+    heading.getBoundingClientRect = () =>
+      ({
+        x: 40,
+        y: 72,
+        width: 280,
+        height: 48,
+        top: 72,
+        left: 40,
+        right: 320,
+        bottom: 120,
+      } as DOMRect)
+    document.elementsFromPoint = vi.fn(() => [heading, wrapper])
+
+    const { user } = await renderLauncher()
+    await user.click(screen.getByRole("button", { name: /capturar area/i }))
+
+    const overlay = document.querySelector("[data-ai-page-editor-root] .fixed.inset-0") as HTMLElement
+    fireEvent.mouseDown(overlay, { button: 0, clientX: 20, clientY: 40 })
+    fireEvent.mouseMove(overlay, { clientX: 260, clientY: 180 })
+    fireEvent.mouseUp(overlay, { clientX: 260, clientY: 180 })
+
+    await user.click(screen.getByRole("button", { name: /confirmar/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/recorte-.*\.jpg/i)).toBeInTheDocument()
+    })
+
+    await sendMessage(user, "mude a cor deste titulo para branco")
+
+    await waitFor(() => {
+      expect(mockGenerateProposalMutateAsync).toHaveBeenCalledTimes(1)
+    })
+    const firstCall = mockGenerateProposalMutateAsync.mock.calls[0]?.[0]
+    expect(firstCall.attachments[0].metadata.target_capture).toMatchObject({
+      role: "target_capture",
+      pathname: "/sobre",
+      primaryCandidate: {
+        blockId: "hero-heading",
+        managedNodeId: "content:hero-heading",
+      },
+    })
+    expect(firstCall.attachments[0].metadata.target_capture.domCandidates.length).toBeGreaterThan(0)
+    expect(firstCall.attachments[0].metadata.target_capture.textFragments[0]).toContain("Transforme o seu estudo")
+
+    managedRoot.remove()
   })
 
   it("allows the success path only after diff real, draft saved and preview available", async () => {

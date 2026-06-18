@@ -201,6 +201,96 @@ describe("materializeLocalizedVisualPatchProposal", () => {
             name: "recorte-explicacoes.jpg",
             mime_type: "image/jpeg",
             role: "target_capture",
+            metadata: {
+              target_capture: {
+                id: "capture-1",
+                role: "target_capture",
+                pathname: "/sobre",
+                capturedAt: "2026-06-18T18:00:00.000Z",
+                viewport: {
+                  width: 1280,
+                  height: 720,
+                  scrollX: 0,
+                  scrollY: 0,
+                  devicePixelRatio: 1,
+                },
+                selectionRect: {
+                  x: 24,
+                  y: 96,
+                  width: 420,
+                  height: 200,
+                  pageX: 24,
+                  pageY: 96,
+                },
+                domCandidates: [
+                  {
+                    candidateId: "about-story-capture",
+                    tagName: "section",
+                    safeSelector: "[data-managed-node-id='content:about-story']",
+                    managedNodeId: "content:about-story",
+                    blockId: "about-story",
+                    classNames: ["me-managed-richtext"],
+                    textContent: "De estudante para estudante: porque este projeto? Texto preservado.",
+                    normalizedText: "de estudante para estudante: porque este projeto? texto preservado.",
+                    rect: {
+                      x: 24,
+                      y: 96,
+                      width: 420,
+                      height: 200,
+                      top: 96,
+                      left: 24,
+                      right: 444,
+                      bottom: 296,
+                    },
+                    intersectsSelection: true,
+                    intersectionRatio: 1,
+                    isTextBearing: true,
+                    isHeading: false,
+                    isButton: false,
+                    isImage: false,
+                    isEditableManagedContent: true,
+                    confidence: 0.94,
+                    source: "rect_intersection",
+                  },
+                ],
+                primaryCandidate: {
+                  candidateId: "about-story-capture",
+                  tagName: "section",
+                  safeSelector: "[data-managed-node-id='content:about-story']",
+                  managedNodeId: "content:about-story",
+                  blockId: "about-story",
+                  classNames: ["me-managed-richtext"],
+                  textContent: "De estudante para estudante: porque este projeto? Texto preservado.",
+                  normalizedText: "de estudante para estudante: porque este projeto? texto preservado.",
+                  rect: {
+                    x: 24,
+                    y: 96,
+                    width: 420,
+                    height: 200,
+                    top: 96,
+                    left: 24,
+                    right: 444,
+                    bottom: 296,
+                  },
+                  intersectsSelection: true,
+                  intersectionRatio: 1,
+                  isTextBearing: true,
+                  isHeading: false,
+                  isButton: false,
+                  isImage: false,
+                  isEditableManagedContent: true,
+                  confidence: 0.94,
+                  source: "rect_intersection",
+                },
+                textFragments: ["De estudante para estudante: porque este projeto?"],
+                captureDiagnostics: {
+                  elementCount: 1,
+                  textCandidateCount: 1,
+                  primaryCandidateConfidence: 0.94,
+                  source: "live_dom_selection",
+                },
+              },
+            },
           },
         ],
       },
@@ -213,7 +303,7 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(result.proposal.metadata.ai_invariants?.target_capture_used).toBe(true)
     expect(result.proposal.metadata.ai_invariants?.provider_full_proposal_bypassed_for_localized_patch).toBe(true)
     expect(String(result.proposal.style_json.css ?? "")).toContain("color: #ffffff !important;")
-    expect(String(result.proposal.style_json.css ?? "")).toContain(".me-managed-richtext")
+    expect(String(result.proposal.style_json.css ?? "")).toContain("[data-managed-node-id='content:about-story']")
 
     const blocks = (result.proposal.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
     expect(blocks).toHaveLength(2)
@@ -258,6 +348,12 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(result.status).toBe("failed")
     if (result.status !== "failed") throw new Error("expected failed")
     expect(result.assistantMessage).toMatch(/incluindo o card completo ou indica o texto do titulo/i)
+    expect(result.pendingTargetClarification).toMatchObject({
+      intent: "set_text_color",
+      requestedProperty: "color",
+      requestedValue: "#ffffff",
+      awaiting: "capture",
+    })
   })
 
   it("materializes a quoted text color change using the quoted text as the anchor", () => {

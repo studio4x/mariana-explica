@@ -168,6 +168,31 @@ function buildClassAttribute(...values: Array<string | null | undefined>) {
   return className ? ` class="${escapeHtml(className)}"` : ""
 }
 
+function buildDataAttribute(name: string, value: string | number | null | undefined) {
+  if (value === null || value === undefined) return ""
+  const normalized = String(value).trim()
+  return normalized ? ` ${name}="${escapeHtml(normalized)}"` : ""
+}
+
+function buildBlockWrapperIdentityAttributes(block: PageBlock, sectionIndex?: number) {
+  return [
+    buildDataAttribute("data-block-id", block.id),
+    buildDataAttribute("data-block-type", block.type),
+    buildDataAttribute("data-managed-node-id", `block:${block.id}`),
+    buildDataAttribute("data-ai-editor-id", `managed:${block.id}`),
+    sectionIndex === undefined ? "" : buildDataAttribute("data-section-index", sectionIndex),
+  ].join("")
+}
+
+function buildBlockContentIdentityAttributes(block: PageBlock) {
+  return [
+    buildDataAttribute("data-parent-block-id", block.id),
+    buildDataAttribute("data-managed-node-id", `content:${block.id}`),
+    buildDataAttribute("data-ai-editor-id", `managed:${block.id}:content`),
+    buildDataAttribute("data-block-type", block.type),
+  ].join("")
+}
+
 function sanitizeRichText(html: string) {
   return html
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
@@ -1543,22 +1568,23 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
 }
 
 function renderSingleBlockToHtml(block: PageBlock): string {
+      const contentIdentityAttributes = buildBlockContentIdentityAttributes(block)
       if (block.type === "heading") {
         const tag = `h${block.level}`
         const classAttribute = buildClassAttribute(block.customClassName)
-        return `<${tag}${classAttribute} style="margin:0;color:${escapeHtml(block.color)};text-align:${block.align};font-weight:800;line-height:1.12;">${escapeHtml(block.content)}</${tag}>`
+        return `<${tag}${classAttribute}${contentIdentityAttributes} style="margin:0;color:${escapeHtml(block.color)};text-align:${block.align};font-weight:800;line-height:1.12;">${escapeHtml(block.content)}</${tag}>`
       }
 
       if (block.type === "rich_text") {
         const classAttribute = buildClassAttribute("me-managed-richtext", block.customClassName)
-        return `<div${classAttribute}>${sanitizeRichText(block.content)}</div>`
+        return `<div${classAttribute}${contentIdentityAttributes}>${sanitizeRichText(block.content)}</div>`
       }
 
       if (block.type === "image") {
         if (!block.src.trim()) {
-          return `<div style="border:1px dashed rgba(36,39,66,0.28);border-radius:${block.radius}px;padding:28px;text-align:center;color:#475569;background:#f8fafc;">Imagem sem URL</div>`
+          return `<div${contentIdentityAttributes} style="border:1px dashed rgba(36,39,66,0.28);border-radius:${block.radius}px;padding:28px;text-align:center;color:#475569;background:#f8fafc;">Imagem sem URL</div>`
         }
-        return `<img src="${escapeHtml(block.src)}" alt="${escapeHtml(block.alt)}" style="display:block;width:100%;max-width:100%;border-radius:${block.radius}px;" />`
+        return `<img${contentIdentityAttributes} src="${escapeHtml(block.src)}" alt="${escapeHtml(block.alt)}" style="display:block;width:100%;max-width:100%;border-radius:${block.radius}px;" />`
       }
 
       if (block.type === "button") {
@@ -1569,15 +1595,15 @@ function renderSingleBlockToHtml(block: PageBlock): string {
         const textTransform = block.fontSize <= 13 ? "uppercase" : "none"
         const letterSpacing = block.fontSize <= 13 ? ".08em" : ".02em"
         const classAttribute = buildClassAttribute(block.customClassName)
-        return `<div style="text-align:${block.align};"><a${classAttribute} href="${escapeHtml(block.href)}"${targetAttrs} style="${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
+        return `<div style="text-align:${block.align};"><a${classAttribute}${contentIdentityAttributes} href="${escapeHtml(block.href)}"${targetAttrs} style="${display}text-align:${block.textAlign};border-style:solid;border-width:${block.borderWidth}px;border-color:${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;background:${escapeHtml(block.backgroundColor)};padding:${block.paddingY}px ${block.paddingX}px;color:${escapeHtml(block.textColor)};text-decoration:none;font-weight:800;letter-spacing:${letterSpacing};text-transform:${textTransform};font-size:${block.fontSize}px;">${escapeHtml(block.label)}</a></div>`
       }
 
       if (block.type === "divider") {
-        return `<div role="separator" aria-hidden="true" style="width:100%;height:1px;background:${escapeHtml(block.color)};"></div>`
+        return `<div${contentIdentityAttributes} role="separator" aria-hidden="true" style="width:100%;height:1px;background:${escapeHtml(block.color)};"></div>`
       }
 
       if (block.type === "spacer") {
-        return `<div style="height:${block.height}px;"></div>`
+        return `<div${contentIdentityAttributes} style="height:${block.height}px;"></div>`
       }
 
       if (block.type === "container") {
@@ -1605,7 +1631,7 @@ function renderSingleBlockToHtml(block: PageBlock): string {
             return `<article class="me-managed-container-column" style="display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justifyContent};gap:${block.columnContentGap}px;margin:${columnLayout.marginTop}px ${columnLayout.marginRight}px ${columnLayout.marginBottom}px ${columnLayout.marginLeft}px;padding:${columnLayout.paddingTop}px ${columnLayout.paddingRight}px ${columnLayout.paddingBottom}px ${columnLayout.paddingLeft}px;background-color:${escapeHtml(columnLayout.backgroundColor)};border-radius:${columnLayout.borderRadius}px;min-height:${columnLayout.minHeight}px;">${renderBlocksToHtml(columnBlocks)}</article>`
           })
           .join("")
-        return `<section class="me-managed-container" style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background-color:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
+        return `<section class="me-managed-container"${contentIdentityAttributes} style="display:grid;grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};background-color:${escapeHtml(block.backgroundColor)};border:${block.borderWidth}px solid ${escapeHtml(block.borderColor)};border-radius:${block.borderRadius}px;padding:${block.paddingY}px ${block.paddingX}px;">${items}</section>`
       }
 
       const items = block.items
@@ -1629,15 +1655,15 @@ function renderSingleBlockToHtml(block: PageBlock): string {
         })
         .join("")
 
-      return `<section class="me-managed-columns" style="grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};">${items}</section>`
+      return `<section class="me-managed-columns"${contentIdentityAttributes} style="grid-template-columns:repeat(${block.columns},minmax(0,1fr));column-gap:${block.gap}px;row-gap:${block.rowGap}px;align-items:${block.alignItems};justify-items:${block.justifyItems};">${items}</section>`
 }
 
-function renderBlocksToHtml(blocks: PageBlock[]) {
+function renderBlocksToHtml(blocks: PageBlock[], sectionOffset = 0) {
   return blocks
     .map((block) => renderSingleBlockToHtml(block))
     .map((html, index) => {
       const block = blocks[index]
-      return `<section class="me-managed-block" style="${getWrapperStyle(block.layout)}">${html}</section>`
+      return `<section class="me-managed-block"${buildBlockWrapperIdentityAttributes(block, sectionOffset + index)} style="${getWrapperStyle(block.layout)}">${html}</section>`
     })
     .join("")
 }

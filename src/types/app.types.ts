@@ -318,6 +318,113 @@ export type AiPageEditorAttachmentRole =
   | "reference_image"
   | "unknown"
 
+export interface AdminAiPageEditorCaptureViewport {
+  width: number
+  height: number
+  scrollX: number
+  scrollY: number
+  devicePixelRatio: number
+}
+
+export interface AdminAiPageEditorCaptureSelectionRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  pageX: number
+  pageY: number
+}
+
+export interface AdminAiPageEditorDomCandidateRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  top: number
+  left: number
+  right: number
+  bottom: number
+}
+
+export interface AdminAiPageEditorDomCandidateParentContext {
+  tagName?: string
+  classNames?: string[]
+  textSnippet?: string
+  managedNodeId?: string
+  blockId?: string
+}
+
+export interface AdminAiPageEditorDomCandidateStyleSnapshot {
+  color?: string
+  backgroundColor?: string
+  fontSize?: string
+  fontWeight?: string
+  textAlign?: string
+  display?: string
+}
+
+export interface AdminAiPageEditorDomCandidate {
+  candidateId: string
+  tagName: string
+  safeSelector?: string
+  domPath?: string
+  managedNodeId?: string
+  blockId?: string
+  componentId?: string
+  role?: string
+  classNames: string[]
+  idAttribute?: string
+  textContent?: string
+  normalizedText?: string
+  textFingerprint?: string
+  rect: AdminAiPageEditorDomCandidateRect
+  intersectsSelection: boolean
+  intersectionRatio: number
+  isTextBearing: boolean
+  isHeading: boolean
+  isButton: boolean
+  isImage: boolean
+  isEditableManagedContent: boolean
+  computedStyle?: AdminAiPageEditorDomCandidateStyleSnapshot
+  parentContext?: AdminAiPageEditorDomCandidateParentContext
+  confidence: number
+  source: "elementsFromPoint" | "rect_intersection" | "text_node"
+}
+
+export interface AdminAiPageEditorTargetCapture {
+  id: string
+  role: "target_capture"
+  pathname: string
+  capturedAt: string
+  viewport: AdminAiPageEditorCaptureViewport
+  selectionRect: AdminAiPageEditorCaptureSelectionRect
+  screenshot?: {
+    attachmentId?: string
+    mimeType?: string
+    width?: number
+    height?: number
+  }
+  domCandidates: AdminAiPageEditorDomCandidate[]
+  primaryCandidate?: AdminAiPageEditorDomCandidate
+  textFragments: string[]
+  captureDiagnostics: {
+    elementCount: number
+    textCandidateCount: number
+    primaryCandidateConfidence: number
+    source: "live_dom_selection"
+  }
+}
+
+export interface AdminAiPageEditorPendingTargetClarification {
+  requestedAt: string
+  intent: "set_text_color" | "set_style" | "replace_image" | "other"
+  textAnchor?: string | null
+  requestedProperty?: string | null
+  requestedValue?: string | null
+  awaiting: "capture" | "context_text" | "selection_confirmation"
+  capturedTarget?: AdminAiPageEditorTargetCapture | null
+}
+
 export interface AdminAiPageEditorAttachmentMetadata {
   source?: "capture" | "upload" | "paste" | "link" | "unknown"
   target_path?: string | null
@@ -332,6 +439,7 @@ export interface AdminAiPageEditorAttachmentMetadata {
     width: number
     height: number
   } | null
+  target_capture?: AdminAiPageEditorTargetCapture | null
 }
 
 export interface AdminAiPageEditorAttachmentInput {
@@ -476,6 +584,7 @@ export interface AdminAiPageEditorConversationContext {
   confirmation_token?: string | null
   recent_messages?: AdminAiPageEditorConversationContextMessage[]
   pending_image_insert?: AdminAiPageEditorPendingImageInsert | null
+  pending_target_clarification?: AdminAiPageEditorPendingTargetClarification | null
 }
 
 export interface AdminAiPageEditorConversationResponse extends AdminAiPageEditorOperationalState {
@@ -496,6 +605,7 @@ export interface AdminAiPageEditorConversationResponse extends AdminAiPageEditor
   summary?: string
   explanation?: string
   pending_image_insert?: AdminAiPageEditorPendingImageInsert | null
+  pending_target_clarification?: AdminAiPageEditorPendingTargetClarification | null
 }
 
 export interface AdminAiFooterCopyProposal extends AdminAiPageEditorOperationalState {

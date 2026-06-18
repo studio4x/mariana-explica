@@ -10,6 +10,7 @@ import {
   type PatchEngineAttachmentContext,
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
+import { getLatestTargetCapture } from "./capture-target-resolution.ts"
 import {
   buildLocalizedEditPlan,
   buildLocalizedIntentSourceTexts,
@@ -41,6 +42,16 @@ export interface LocalizedVisualPatchProposalResult {
   operationalState: PersistibleProposalOperationalState
   sourceText: string
   intent: LocalizedIntent
+}
+
+interface LocalizedPendingTargetClarification {
+  requestedAt: string
+  intent: "set_text_color" | "set_style" | "replace_image" | "other"
+  textAnchor?: string | null
+  requestedProperty?: string | null
+  requestedValue?: string | null
+  awaiting: "capture" | "context_text" | "selection_confirmation"
+  capturedTarget?: Record<string, unknown> | null
 }
 
 interface LocalizedVisualPatchProposalInput {
@@ -86,6 +97,7 @@ export type LocalizedVisualPatchMaterializationResult =
       assistantMessage: string
       warnings: string[]
       diagnosis?: FooterAdjacentSpacingDiagnosis | null
+      pendingTargetClarification?: LocalizedPendingTargetClarification | null
     }
   | ({
       status: "success"
@@ -222,6 +234,57 @@ function buildLocalizedCopy(input: {
   }
 }
 
+function mapIntentToPendingIntent(intent: LocalizedIntent): LocalizedPendingTargetClarification["intent"] {
+  if (intent.kind === "color" || intent.kind === "typography" || intent.kind === "alignment") {
+    return "set_text_color"
+  }
+  if (intent.kind === "button_style" || intent.kind === "shadow" || intent.kind === "divider" || intent.kind === "border") {
+    return "set_style"
+  }
+  return "other"
+}
+
+function toPendingRequestedValue(value: unknown) {
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  return null
+}
+
+function buildPendingTargetClarification(input: {
+  intent: LocalizedIntent
+  attachments?: PatchEngineAttachmentContext[]
+  understandingSummary: string | null
+  patchedInvariants?: Record<string, unknown> | null
+  requestedProperty?: string | null
+  requestedValue?: string | null
+}) {
+  const patchedInvariants =
+    input.patchedInvariants && typeof input.patchedInvariants === "object" ? input.patchedInvariants : {}
+  const textAnchorRaw =
+    typeof patchedInvariants.text_anchor_raw === "string"
+      ? patchedInvariants.text_anchor_raw.trim()
+      : (input.intent.targetText ?? "").trim()
+  const textAnchorFound = patchedInvariants.text_anchor_found === true
+  const rejectionReasons = Array.isArray(patchedInvariants.capture_target_rejection_reasons)
+    ? patchedInvariants.capture_target_rejection_reasons.map((item) => String(item ?? ""))
+    : []
+  const capture = getLatestTargetCapture(input.attachments ?? [])
+  const awaiting: LocalizedPendingTargetClarification["awaiting"] =
+    rejectionReasons.some((reason) => /external|dynamic/.test(reason)) || (textAnchorRaw && !textAnchorFound)
+      ? "context_text"
+      : "capture"
+
+  return {
+    requestedAt: new Date().toISOString(),
+    intent: mapIntentToPendingIntent(input.intent),
+    textAnchor: textAnchorRaw || input.understandingSummary || null,
+    requestedProperty: input.requestedProperty ?? null,
+    requestedValue: input.requestedValue ?? null,
+    awaiting,
+    capturedTarget: capture ? (JSON.parse(JSON.stringify(capture)) as Record<string, unknown>) : null,
+  } satisfies LocalizedPendingTargetClarification
+}
+
 function createFriendlyLocalizedFailure(input: {
   sourceText: string
   understandingSummary: string | null
@@ -231,6 +294,8 @@ function createFriendlyLocalizedFailure(input: {
   diagnosis?: FooterAdjacentSpacingDiagnosis | null
   attachments?: PatchEngineAttachmentContext[]
   patchedInvariants?: Record<string, unknown> | null
+  requestedProperty?: string | null
+  requestedValue?: string | null
 }): LocalizedVisualPatchMaterializationResult {
   const lowConfidence =
     input.intent.confidence === "low" ||
@@ -255,6 +320,11 @@ function createFriendlyLocalizedFailure(input: {
 
   const footerDiagnosis = input.intent.targetHint === "footer_adjacent_spacing"
   const bestCandidate = input.diagnosis?.candidates?.[0] ?? null
+  const captureRejectionReasons = Array.isArray(patchedInvariants.capture_target_rejection_reasons)
+    ? patchedInvariants.capture_target_rejection_reasons.map((item) => String(item ?? ""))
+    : []
+  const captureSelectedExternal = captureRejectionReasons.some((reason) => reason === "capture_target_external_or_dynamic")
+  const captureSelectedExternalImage = captureRejectionReasons.some((reason) => reason === "capture_target_external_image")
   const footerMessage =
     "Entendi o ajuste, mas nao encontrei com seguranca qual propriedade cria o espaco entre a ultima secao e o rodape. Analisei a ultima secao, o wrapper da pagina e os blocos proximos ao rodape. " +
     (bestCandidate?.heading
@@ -269,6 +339,10 @@ function createFriendlyLocalizedFailure(input: {
     reason: input.reason,
     assistantMessage: footerDiagnosis
       ? footerMessage
+      : captureSelectedExternalImage
+        ? "A area selecionada parece apontar para uma imagem ou camada visual fora do conteudo gerido da pagina. Seleciona tambem o texto ou bloco do site que deve mudar, ou indica uma frase visivel para eu aplicar o ajuste localmente."
+      : captureSelectedExternal
+        ? "A area selecionada parece pertencer a um elemento visual externo ou dinamico que nao e a fonte real do conteudo gerido. Seleciona o bloco da pagina onde esse ajuste deve ser aplicado ou indica o texto visivel do elemento."
       : textAnchorProvided && !textAnchorFound && textAnchorAmbiguous
         ? "Encontrei mais de um texto semelhante. Seleciona a area correta ou indica uma frase antes ou depois dele para eu alterar apenas o elemento certo."
       : textAnchorProvided && !textAnchorFound
@@ -280,6 +354,14 @@ function createFriendlyLocalizedFailure(input: {
         : "Entendi o ajuste, mas nao consegui localizar esse alvo com seguranca para preparar a previa sem risco.",
     warnings: input.warnings ?? [],
     diagnosis: input.diagnosis ?? null,
+    pendingTargetClarification: buildPendingTargetClarification({
+      intent: input.intent,
+      attachments: input.attachments,
+      understandingSummary: input.understandingSummary,
+      patchedInvariants,
+      requestedProperty: input.requestedProperty ?? null,
+      requestedValue: input.requestedValue ?? null,
+    }),
   }
 }
 
@@ -351,6 +433,8 @@ export function materializeLocalizedVisualPatchProposal(
       reason: "low_confidence_intent",
       diagnosis,
       attachments: input.attachments ?? [],
+      requestedProperty: seedPlan?.operations[0]?.path ?? null,
+      requestedValue: toPendingRequestedValue(seedPlan?.operations[0]?.value),
     })
   }
 
@@ -409,6 +493,8 @@ export function materializeLocalizedVisualPatchProposal(
         diagnosis: footerDiagnosis,
         attachments: input.attachments ?? [],
         patchedInvariants: patched.invariants,
+        requestedProperty: editPlan.operations[0]?.path ?? null,
+        requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
       })
     }
 
@@ -434,6 +520,8 @@ export function materializeLocalizedVisualPatchProposal(
         diagnosis: footerDiagnosis,
         attachments: input.attachments ?? [],
         patchedInvariants: patched.invariants,
+        requestedProperty: editPlan.operations[0]?.path ?? null,
+        requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
       })
     }
 
@@ -447,6 +535,8 @@ export function materializeLocalizedVisualPatchProposal(
         diagnosis: footerDiagnosis,
         attachments: input.attachments ?? [],
         patchedInvariants: patched.invariants,
+        requestedProperty: editPlan.operations[0]?.path ?? null,
+        requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
       })
     }
 
@@ -518,6 +608,8 @@ export function materializeLocalizedVisualPatchProposal(
       reason: error instanceof Error ? error.message : String(error),
       diagnosis,
       attachments: input.attachments ?? [],
+      requestedProperty: seedPlan.operations[0]?.path ?? null,
+      requestedValue: toPendingRequestedValue(seedPlan.operations[0]?.value),
     })
   }
 }

@@ -19,6 +19,7 @@ type GenerateProposalResponse = {
   confirmation_token?: string | null
   confirmation_consumed?: boolean
   pending_image_insert?: AdminAiPageEditorConversationResponse["pending_image_insert"]
+  pending_target_clarification?: AdminAiPageEditorConversationResponse["pending_target_clarification"]
   requires_user_confirmation: boolean
   can_generate_proposal: boolean
   warnings: string[]
@@ -269,6 +270,14 @@ export function ensureAdminAiPageEditorConversationResponse(value: unknown): Gen
           pending_image_insert:
             value.pending_image_insert && typeof value.pending_image_insert === "object"
               ? (value.pending_image_insert as AdminAiPageEditorConversationResponse["pending_image_insert"])
+              : null,
+        }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, "pending_target_clarification")
+      ? {
+          pending_target_clarification:
+            value.pending_target_clarification && typeof value.pending_target_clarification === "object"
+              ? (value.pending_target_clarification as AdminAiPageEditorConversationResponse["pending_target_clarification"])
               : null,
         }
       : {}),

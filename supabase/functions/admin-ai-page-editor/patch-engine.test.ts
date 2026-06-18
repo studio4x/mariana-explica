@@ -357,20 +357,225 @@ describe("applyPatchPlan", () => {
           role: "target_capture",
           metadata: {
             capture_rect: { left: 32, top: 120, width: 420, height: 180 },
+            target_capture: {
+              id: "capture-1",
+              role: "target_capture",
+              pathname: "/explicacoes",
+              capturedAt: "2026-06-18T18:00:00.000Z",
+              viewport: {
+                width: 1280,
+                height: 720,
+                scrollX: 0,
+                scrollY: 0,
+                devicePixelRatio: 1,
+              },
+              selectionRect: {
+                x: 32,
+                y: 120,
+                width: 420,
+                height: 180,
+                pageX: 32,
+                pageY: 120,
+              },
+              domCandidates: [
+                {
+                  candidateId: "hero-heading-capture",
+                  tagName: "h1",
+                  safeSelector: "[data-managed-node-id='content:hero-heading']",
+                  managedNodeId: "content:hero-heading",
+                  blockId: "hero-heading",
+                  classNames: [],
+                  textContent: "Transforme o seu estudo",
+                  normalizedText: "transforme o seu estudo",
+                  rect: {
+                    x: 48,
+                    y: 140,
+                    width: 320,
+                    height: 56,
+                    top: 140,
+                    left: 48,
+                    right: 368,
+                    bottom: 196,
+                  },
+                  intersectsSelection: true,
+                  intersectionRatio: 1,
+                  isTextBearing: true,
+                  isHeading: true,
+                  isButton: false,
+                  isImage: false,
+                  isEditableManagedContent: true,
+                  confidence: 0.96,
+                  source: "rect_intersection",
+                },
+              ],
+              primaryCandidate: {
+                candidateId: "hero-heading-capture",
+                tagName: "h1",
+                safeSelector: "[data-managed-node-id='content:hero-heading']",
+                managedNodeId: "content:hero-heading",
+                blockId: "hero-heading",
+                classNames: [],
+                textContent: "Transforme o seu estudo",
+                normalizedText: "transforme o seu estudo",
+                rect: {
+                  x: 48,
+                  y: 140,
+                  width: 320,
+                  height: 56,
+                  top: 140,
+                  left: 48,
+                  right: 368,
+                  bottom: 196,
+                },
+                intersectsSelection: true,
+                intersectionRatio: 1,
+                isTextBearing: true,
+                isHeading: true,
+                isButton: false,
+                isImage: false,
+                isEditableManagedContent: true,
+                confidence: 0.96,
+                source: "rect_intersection",
+              },
+              textFragments: ["Transforme o seu estudo"],
+              captureDiagnostics: {
+                elementCount: 1,
+                textCandidateCount: 1,
+                primaryCandidateConfidence: 0.96,
+                source: "live_dom_selection",
+              },
+            },
           },
         },
       ],
     })
 
     expect(String(result.styleJson.css ?? "")).toContain("color: #ffffff !important;")
-    expect(String(result.styleJson.css ?? "")).toContain("h1")
+    expect(String(result.styleJson.css ?? "")).toContain("[data-managed-node-id='content:hero-heading']")
     expect(result.invariants.target_resolution_source).toBe("target_capture")
     expect(Number(result.invariants.target_resolution_confidence ?? 0)).toBeGreaterThanOrEqual(0.8)
+    expect(result.invariants.capture_target_found).toBe(true)
+    expect(result.invariants.capture_target_selected_block).toBe("hero-heading")
 
     const blocks = (result.layoutJson.projectData as { blocks: Array<Record<string, unknown>> }).blocks
     expect(blocks).toHaveLength(3)
     expect((blocks[0].children as Array<Array<Record<string, unknown>>>)[0][0].content).toBe("Transforme o seu estudo")
     expect((blocks[2].content as string)).toContain("/suporte")
+  })
+
+  it("fails fast when the selected capture points to external or unmanaged content", () => {
+    expect(() =>
+      applyPatchPlan({
+        slug: "sobre",
+        title: "Sobre",
+        path: "/explicacoes",
+        message: "mude a cor do titulo dessa secao para branco",
+        editPlan: createPlan({
+          scope: "text",
+          mode: "style_patch",
+          risk_level: "low",
+          target_ids: ["localized_heading"],
+          operations: [
+            {
+              type: "set_style",
+              target_id: "localized_heading",
+              path: "color",
+              value: "#ffffff",
+              breakpoint: "all",
+            },
+          ],
+        }),
+        baseVersion: createBaseVersion(),
+        attachments: [
+          {
+            id: "capture-external",
+            name: "overlay.jpg",
+            mime_type: "image/jpeg",
+            role: "target_capture",
+            metadata: {
+              target_capture: {
+                id: "capture-external",
+                role: "target_capture",
+                pathname: "/explicacoes",
+                capturedAt: "2026-06-18T18:00:00.000Z",
+                viewport: {
+                  width: 1280,
+                  height: 720,
+                  scrollX: 0,
+                  scrollY: 0,
+                  devicePixelRatio: 1,
+                },
+                selectionRect: {
+                  x: 16,
+                  y: 16,
+                  width: 160,
+                  height: 120,
+                  pageX: 16,
+                  pageY: 16,
+                },
+                domCandidates: [
+                  {
+                    candidateId: "floating-widget",
+                    tagName: "div",
+                    classNames: ["floating-widget"],
+                    rect: {
+                      x: 16,
+                      y: 16,
+                      width: 160,
+                      height: 120,
+                      top: 16,
+                      left: 16,
+                      right: 176,
+                      bottom: 136,
+                    },
+                    intersectsSelection: true,
+                    intersectionRatio: 1,
+                    isTextBearing: false,
+                    isHeading: false,
+                    isButton: false,
+                    isImage: false,
+                    isEditableManagedContent: false,
+                    confidence: 0.8,
+                    source: "elementsFromPoint",
+                  },
+                ],
+                primaryCandidate: {
+                  candidateId: "floating-widget",
+                  tagName: "div",
+                  classNames: ["floating-widget"],
+                  rect: {
+                    x: 16,
+                    y: 16,
+                    width: 160,
+                    height: 120,
+                    top: 16,
+                    left: 16,
+                    right: 176,
+                    bottom: 136,
+                  },
+                  intersectsSelection: true,
+                  intersectionRatio: 1,
+                  isTextBearing: false,
+                  isHeading: false,
+                  isButton: false,
+                  isImage: false,
+                  isEditableManagedContent: false,
+                  confidence: 0.8,
+                  source: "elementsFromPoint",
+                },
+                textFragments: [],
+                captureDiagnostics: {
+                  elementCount: 1,
+                  textCandidateCount: 0,
+                  primaryCandidateConfidence: 0.8,
+                  source: "live_dom_selection",
+                },
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrow(/capture_target_external_or_dynamic/i)
   })
 
   it("prioritizes a quoted text anchor as the target source when the text is unique", () => {

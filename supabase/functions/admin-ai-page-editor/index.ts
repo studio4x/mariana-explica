@@ -57,6 +57,7 @@ import {
 } from "./image-upload.ts"
 import { selectAiModelForStage, type AiEditorModelStage } from "./model-routing.ts"
 import { isFooterAdjacentSpacingRequest } from "./spacing-intent.ts"
+import { getLatestTargetCapture } from "./capture-target-resolution.ts"
 
 type Action =
   | "get_config"
@@ -425,6 +426,7 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
   assistantMessage: string
   warnings?: string[]
   finalStatus?: "error" | "needs_clarification"
+  pendingTargetClarification?: AiConversationContext["pending_target_clarification"]
 }) {
   const finalStatus = input.finalStatus ?? "error"
   return {
@@ -432,7 +434,7 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
     request_id: input.requestId,
     client_request_id: input.clientRequestId,
     provider_used: input.providerUsed,
-    conversation_phase: "ready_for_proposal" as const,
+    conversation_phase: (finalStatus === "needs_clarification" ? "needs_clarification" : "ready_for_proposal") as const,
     assistant_message: input.assistantMessage,
     quick_replies: [] as string[],
     understanding_summary: input.understandingSummary,
@@ -441,6 +443,9 @@ function createFriendlyConfirmedIntentFailureResponse(input: {
     requires_user_confirmation: false,
     can_generate_proposal: false,
     warnings: input.warnings ?? [],
+    ...(Object.prototype.hasOwnProperty.call(input, "pendingTargetClarification")
+      ? { pending_target_clarification: input.pendingTargetClarification ?? null }
+      : {}),
     final_status: finalStatus,
     change_detected: false,
     draft_saved: false as const,
@@ -4166,6 +4171,17 @@ Deno.serve(async (req) => {
         isExplicitUnderstandingConfirmation(message, conversationContext.phase) &&
         Boolean(conversationContext.understanding_summary) &&
         (!conversationContext.confirmation_token || confirmationTokenMatches)
+      const latestTargetCapture = getLatestTargetCapture(
+        validAttachments,
+        conversationContext.pending_target_clarification?.capturedTarget ?? null,
+      )
+      const resumingPendingTargetClarification =
+        Boolean(conversationContext.pending_target_clarification) &&
+        Boolean(conversationContext.understanding_summary) &&
+        Boolean(latestTargetCapture) &&
+        ["capture", "selection_confirmation"].includes(
+          conversationContext.pending_target_clarification?.awaiting ?? "",
+        )
       const understandingRejected = isExplicitUnderstandingRejection(message, conversationContext.phase)
       const routingContext = {
         request_id: requestId,
@@ -4184,9 +4200,10 @@ Deno.serve(async (req) => {
         explicit_confirmation_detected: isExplicitUnderstandingConfirmation(message, conversationContext.phase),
         explicit_rejection_detected: understandingRejected,
         understanding_confirmed: understandingConfirmed,
+        pending_target_clarification_resumed: resumingPendingTargetClarification,
       })
 
-      if (!understandingConfirmed) {
+      if (!understandingConfirmed && !resumingPendingTargetClarification) {
         const imageTurn = resolveImageConversationTurn({
           slug,
           path,
@@ -5202,6 +5219,7 @@ Deno.serve(async (req) => {
           assistantMessage: localizedProposal.assistantMessage,
           warnings: localizedProposal.warnings,
           finalStatus,
+          pendingTargetClarification: localizedProposal.pendingTargetClarification ?? null,
         })
 
         await writeAuditLog(serviceClient, context, {
@@ -5257,6 +5275,19 @@ Deno.serve(async (req) => {
             "Entendi o ajuste localizado, mas ainda nao reuni contexto suficiente para aplicar esse patch com seguranca. Seleciona melhor a area ou indica o texto/alvo exato.",
           warnings: ["localized_patch_requires_precise_target"],
           finalStatus: "needs_clarification",
+          pendingTargetClarification:
+            conversationContext.pending_target_clarification ??
+            (latestTargetCapture
+              ? {
+                  requestedAt: new Date().toISOString(),
+                  intent: "other" as const,
+                  textAnchor: conversationContext.understanding_summary,
+                  requestedProperty: null,
+                  requestedValue: null,
+                  awaiting: "capture" as const,
+                  capturedTarget: latestTargetCapture,
+                }
+              : null),
         })
 
         await writeAuditLog(serviceClient, context, {

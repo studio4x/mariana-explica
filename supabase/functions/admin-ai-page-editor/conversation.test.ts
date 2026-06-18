@@ -26,6 +26,70 @@ describe("conversation helpers", () => {
         capture_attachment_name: "recorte-sobre.jpg",
         status: "waiting_for_image_asset",
       },
+      pending_target_clarification: {
+        requestedAt: "2026-06-18T18:00:00.000Z",
+        intent: "set_text_color",
+        textAnchor: "De estudante para estudante: porque este projeto?",
+        requestedProperty: "color",
+        requestedValue: "#ffffff",
+        awaiting: "capture",
+        capturedTarget: {
+          id: "capture-1",
+          role: "target_capture",
+          pathname: "/sobre",
+          capturedAt: "2026-06-18T18:00:00.000Z",
+          viewport: {
+            width: 1280,
+            height: 720,
+            scrollX: 0,
+            scrollY: 0,
+            devicePixelRatio: 1,
+          },
+          selectionRect: {
+            x: 24,
+            y: 96,
+            width: 360,
+            height: 180,
+            pageX: 24,
+            pageY: 96,
+          },
+          domCandidates: [
+            {
+              candidateId: "about-story-capture",
+              tagName: "section",
+              managedNodeId: "content:about-story",
+              blockId: "about-story",
+              classNames: ["me-managed-richtext"],
+              rect: {
+                x: 24,
+                y: 96,
+                width: 360,
+                height: 180,
+                top: 96,
+                left: 24,
+                right: 384,
+                bottom: 276,
+              },
+              intersectsSelection: true,
+              intersectionRatio: 1,
+              isTextBearing: true,
+              isHeading: false,
+              isButton: false,
+              isImage: false,
+              isEditableManagedContent: true,
+              confidence: 0.95,
+              source: "rect_intersection",
+            },
+          ],
+          textFragments: ["De estudante para estudante: porque este projeto?"],
+          captureDiagnostics: {
+            elementCount: 1,
+            textCandidateCount: 1,
+            primaryCandidateConfidence: 0.95,
+            source: "live_dom_selection",
+          },
+        },
+      },
       recent_messages: [
         { role: "assistant", text: "Percebi assim..." },
         { role: "user", text: "Sim, e isso" },
@@ -36,6 +100,9 @@ describe("conversation helpers", () => {
     expect(context.clarification_questions_count).toBe(2)
     expect(context.confirmation_token).toBe("intent_123")
     expect(context.pending_image_insert?.capture_attachment_id).toBe("capture-1")
+    expect(context.pending_target_clarification?.requestedProperty).toBe("color")
+    expect(context.pending_target_clarification?.capturedTarget?.primaryCandidate).toBeUndefined()
+    expect(context.pending_target_clarification?.capturedTarget?.domCandidates[0]?.blockId).toBe("about-story")
     expect(context.recent_messages).toHaveLength(2)
   })
 

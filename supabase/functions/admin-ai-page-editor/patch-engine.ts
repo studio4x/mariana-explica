@@ -9,6 +9,10 @@ import {
   resolveTextAnchor,
   type TextAnchorResolution,
 } from "./text-anchor-resolution.ts"
+import {
+  resolveCaptureTarget,
+  type CaptureTargetResolution,
+} from "./capture-target-resolution.ts"
 
 export interface PatchEngineAttachmentContext {
   id?: string
@@ -121,6 +125,7 @@ interface FooterCssSpacingDiagnosis {
 
 interface TargetCandidate {
   target_id: string
+  block_id: string | null
   path: Array<string | number>
   path_key: string
   selector: string
@@ -148,6 +153,7 @@ interface ResolvedTargetCandidate {
   candidate_rejections?: string[]
   resolution_source?: "target_capture" | "anchor_text" | "message"
   text_anchor_resolution?: TextAnchorResolution | null
+  capture_target_resolution?: CaptureTargetResolution | null
 }
 
 interface SafeStyleInstruction {
@@ -244,6 +250,16 @@ function normalizeIdentifier(value: unknown) {
     .replace(/[^a-zA-Z0-9:_./-]+/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "")
+}
+
+function buildManagedWrapperSelector(blockId: unknown) {
+  const normalizedBlockId = normalizeIdentifier(blockId)
+  return normalizedBlockId ? `[data-block-id='${normalizedBlockId}']` : ""
+}
+
+function buildManagedContentSelector(blockId: unknown) {
+  const normalizedBlockId = normalizeIdentifier(blockId)
+  return normalizedBlockId ? `[data-managed-node-id='content:${normalizedBlockId}']` : ""
 }
 
 function isTargetCaptureAttachment(attachment: PatchEngineAttachmentContext) {
@@ -544,6 +560,8 @@ function collectBlockLinks(block: Record<string, unknown>) {
 }
 
 function candidateContentSelector(block: Record<string, unknown>, wrapperSelector: string) {
+  const stableSelector = buildManagedContentSelector(block.id)
+  if (stableSelector) return stableSelector
   const type = normalizeString(block.type).toLowerCase()
   if (type === "columns") return `${wrapperSelector} > .me-managed-columns`
   if (type === "container") return `${wrapperSelector} > .me-managed-container`
@@ -562,6 +580,7 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
   const candidates: TargetCandidate[] = [
     {
       target_id: "page-root",
+      block_id: null,
       path: [],
       path_key: "page-root",
       selector: ".me-managed-page-root",
@@ -580,6 +599,7 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
     },
     {
       target_id: "page_wrapper_spacing",
+      block_id: null,
       path: [0],
       path_key: "page-wrapper-spacing",
       selector: ".me-managed-page-root",
@@ -608,6 +628,7 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
     scope: "section" | "block" | "text",
     wrapperSelector: string,
   ) => {
+    const stableWrapperSelector = buildManagedWrapperSelector(block.id) || wrapperSelector
     const blockType = normalizeString(block.type).toLowerCase()
     const heading = blockType === "heading" ? normalizeString(block.content) : findFirstHeadingText(block) || lastHeading
     if (blockType === "heading" && heading) {
@@ -616,11 +637,12 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
 
     const candidate: TargetCandidate = {
       target_id: normalizeIdentifier(block.id) || `candidate-${sectionIndex + 1}-${path.join("-")}`,
+      block_id: normalizeIdentifier(block.id) || null,
       path,
       path_key: pathToKey(path),
-      selector: wrapperSelector,
-      wrapper_selector: wrapperSelector,
-      content_selector: candidateContentSelector(block, wrapperSelector),
+      selector: stableWrapperSelector,
+      wrapper_selector: stableWrapperSelector,
+      content_selector: candidateContentSelector(block, stableWrapperSelector),
       scope,
       block_type: blockType,
       section_index: sectionIndex,
@@ -652,22 +674,26 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
   }
 
   blocks.forEach((block, index) => {
+    const stableWrapperSelector =
+      buildManagedWrapperSelector(block.id) || `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`
     visitBlock(
       block,
       [index],
       index,
       "section",
-      `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
+      stableWrapperSelector,
     )
 
     if (index === 0) {
+      const firstBlockId = normalizeIdentifier(block.id) || null
       const knownSectionClass = getKnownSectionSpacingClass(block)
       const firstSectionSelector = knownSectionClass
-        ? `.me-managed-page-root > .me-managed-block:nth-of-type(1) section.${knownSectionClass}`
-        : `.me-managed-page-root > .me-managed-block:nth-of-type(1) section:first-of-type`
+        ? `${stableWrapperSelector} section.${knownSectionClass}`
+        : `${stableWrapperSelector} section:first-of-type`
 
       candidates.push({
         target_id: "first_section_spacing",
+        block_id: firstBlockId,
         path: [index],
         path_key: "first-section-spacing",
         selector: firstSectionSelector,
@@ -688,11 +714,12 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
 
       candidates.push({
         target_id: "section_internal_spacing",
+        block_id: firstBlockId,
         path: [index],
         path_key: "section-internal-spacing",
-        selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1)`,
-        wrapper_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1)`,
-        content_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(1)`,
+        selector: stableWrapperSelector,
+        wrapper_selector: stableWrapperSelector,
+        content_selector: stableWrapperSelector,
         scope: "section",
         block_type: "section_internal_spacing",
         section_index: 0,
@@ -711,13 +738,16 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
   blocks.forEach((block, index) => {
     const distanceFromEnd = blocks.length - 1 - index
     if (distanceFromEnd > 3) return
+    const stableWrapperSelector =
+      buildManagedWrapperSelector(block.id) || `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`
     candidates.push({
       target_id: "footer_adjacent_spacing",
+      block_id: normalizeIdentifier(block.id) || null,
       path: [index],
       path_key: `footer-adjacent-spacing-${index + 1}`,
-      selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
-      wrapper_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
-      content_selector: `.me-managed-page-root > .me-managed-block:nth-of-type(${index + 1})`,
+      selector: stableWrapperSelector,
+      wrapper_selector: stableWrapperSelector,
+      content_selector: stableWrapperSelector,
       scope: "section",
       block_type: "footer_adjacent_spacing",
       section_index: index,
@@ -950,6 +980,7 @@ function scoreCandidate(input: {
   message: string
   attachments: PatchEngineAttachmentContext[]
   textAnchorResolution?: TextAnchorResolution | null
+  captureTargetResolution?: CaptureTargetResolution | null
 }) {
   const normalizedRequestedTarget = normalizeIdentifier(input.requestedTarget).toLowerCase()
   const requestedVirtualSpacingTarget = [
@@ -976,6 +1007,25 @@ function scoreCandidate(input: {
   const candidateText = input.candidate.text
   const candidateData = input.candidate.data_attributes.join(" ")
   const signals = buildSignalMap()
+  const captureSelectedTarget = input.captureTargetResolution?.selectedTarget
+  const candidateMatchesCaptureTarget = Boolean(
+    input.captureTargetResolution?.found &&
+      captureSelectedTarget &&
+      (captureSelectedTarget.targetId === input.candidate.target_id ||
+        (input.candidate.block_id &&
+          (captureSelectedTarget.blockId === input.candidate.block_id ||
+            captureSelectedTarget.managedNodeId === `block:${input.candidate.block_id}` ||
+            captureSelectedTarget.managedNodeId === `content:${input.candidate.block_id}`))),
+  )
+
+  if (candidateMatchesCaptureTarget) {
+    signals.capture_attachment = Math.max(
+      signals.capture_attachment,
+      Math.max(0.84, Math.min(0.98, Number(input.captureTargetResolution?.confidence ?? 0))),
+    )
+    signals.id_structural = Math.max(signals.id_structural, 0.18)
+    signals.visual_order = Math.max(signals.visual_order, 0.08)
+  }
 
   if (normalizedRequestedTarget && candidateId === normalizedRequestedTarget) {
     signals.id_structural = 0.46
@@ -1214,6 +1264,37 @@ function resolveTargetCandidate(input: {
     candidates = candidates.filter((candidate) => candidate.block_type === "footer_adjacent_spacing")
   }
 
+  const captureTargetResolution = resolveCaptureTarget({
+    attachments: input.attachments,
+    textAnchor: primaryAnchorText,
+    candidates: candidates.map((candidate) => ({
+      targetId: candidate.target_id,
+      selector: candidate.selector,
+      managedNodeId: candidate.block_id ? `block:${candidate.block_id}` : undefined,
+      blockId: candidate.block_id ?? undefined,
+      tagName: candidate.block_type,
+      text: candidate.text,
+      normalizedText: normalizeText(candidate.text),
+    })),
+  })
+
+  if (captureTargetResolution.found && captureTargetResolution.selectedTarget) {
+    candidates = candidates.filter((candidate) => {
+      const selected = captureTargetResolution.selectedTarget
+      return (
+        selected.targetId === candidate.target_id ||
+        (candidate.block_id &&
+          (selected.blockId === candidate.block_id ||
+            selected.managedNodeId === `block:${candidate.block_id}` ||
+            selected.managedNodeId === `content:${candidate.block_id}`))
+      )
+    })
+  } else if (captureTargetResolution.rejectionReasons.includes("capture_target_external_image")) {
+    throw new Error("capture_target_external_image")
+  } else if (captureTargetResolution.rejectionReasons.includes("capture_target_external_or_dynamic")) {
+    throw new Error("capture_target_external_or_dynamic")
+  }
+
   const textAnchorResolution = primaryAnchorText
     ? resolveTextAnchor({
         anchorText: primaryAnchorText,
@@ -1244,6 +1325,7 @@ function resolveTargetCandidate(input: {
         message: input.message,
         attachments: input.attachments,
         textAnchorResolution,
+        captureTargetResolution,
       }),
     }))
     .sort((left, right) => right.confidence - left.confidence)
@@ -1267,6 +1349,7 @@ function resolveTargetCandidate(input: {
       ...describeTextAnchorReasons(textAnchorResolution),
     ]),
     candidate_rejections: uniqueStrings([
+      ...(captureTargetResolution.rejectionReasons ?? []),
       ...describeTextAnchorReasons(textAnchorResolution).filter((reason) => !textAnchorResolution?.found),
       ...ranked
         .slice(1, 4)
@@ -1278,6 +1361,7 @@ function resolveTargetCandidate(input: {
     ]),
     resolution_source: buildResolutionSource(best.signals),
     text_anchor_resolution: textAnchorResolution,
+    capture_target_resolution: captureTargetResolution,
   } satisfies ResolvedTargetCandidate
 }
 
@@ -2718,6 +2802,7 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
   const candidateRejections = resolvedCandidates.flatMap((resolution) => resolution.candidate_rejections ?? [])
   const targetResolutionSource = resolvedCandidates[0]?.resolution_source ?? "message"
   const textAnchorResolution = resolvedCandidates[0]?.text_anchor_resolution ?? null
+  const captureTargetResolution = resolvedCandidates[0]?.capture_target_resolution ?? null
 
   return {
     layoutJson: finalLayoutJson,
@@ -2737,6 +2822,14 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       candidate_rejections: uniqueStrings(candidateRejections),
       target_resolution_confidence: resolutions[0]?.confidence ?? 0,
       target_resolution_source: targetResolutionSource,
+      capture_target_provided: captureTargetResolution?.evidence.captureProvided ?? false,
+      capture_target_found: captureTargetResolution?.found ?? false,
+      capture_target_resolution_source: captureTargetResolution?.resolutionSource ?? null,
+      capture_target_confidence: captureTargetResolution?.confidence ?? 0,
+      capture_target_candidate_count: captureTargetResolution?.candidateCount ?? 0,
+      capture_target_selected_target: captureTargetResolution?.selectedTarget?.targetId ?? null,
+      capture_target_selected_block: captureTargetResolution?.selectedTarget?.blockId ?? null,
+      capture_target_rejection_reasons: captureTargetResolution?.rejectionReasons ?? [],
       text_anchor_provided: Boolean(textAnchorResolution?.anchorText),
       text_anchor_raw: textAnchorResolution?.anchorText ?? null,
       text_anchor_normalized: textAnchorResolution?.normalizedAnchorText ?? null,

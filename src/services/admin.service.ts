@@ -1881,6 +1881,7 @@ export async function generateAdminAiPageEditorProposal(input: {
       confirmation_token?: string | null
       confirmation_consumed?: boolean
       pending_image_insert?: AdminAiPageEditorConversationResponse["pending_image_insert"]
+      pending_target_clarification?: AdminAiPageEditorConversationResponse["pending_target_clarification"]
       requires_user_confirmation: boolean
       can_generate_proposal: boolean
       warnings: string[]

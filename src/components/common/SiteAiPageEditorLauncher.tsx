@@ -47,12 +47,15 @@ import {
 import type {
   AdminAiPageEditorAttachmentInput,
   AdminAiPageEditorAttachmentMetadata,
+  AdminAiPageEditorDomCandidate,
   AdminAiPageEditorConversationContext,
   AdminAiPageEditorConversationPhase,
   AdminAiPageEditorConversationResponse,
   AdminAiPageEditorPendingImageInsert,
+  AdminAiPageEditorPendingTargetClarification,
   AdminAiPageEditorProposal,
   AdminAiPageEditorProposalMetadata,
+  AdminAiPageEditorTargetCapture,
   AdminSitePageDetail,
   AdminSitePageVersion,
 } from "@/types/app.types"
@@ -161,6 +164,292 @@ function normalizeCaptureRect(start: CapturePoint, end: CapturePoint): CaptureRe
   const width = Math.abs(end.x - start.x)
   const height = Math.abs(end.y - start.y)
   return { left, top, width, height }
+}
+
+function normalizeCaptureComparableText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
+function clampCaptureRatio(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(1, value))
+}
+
+function computeRectIntersectionRatio(targetRect: DOMRect, selectionRect: CaptureRect) {
+  const horizontal = Math.max(0, Math.min(targetRect.right, selectionRect.left + selectionRect.width) - Math.max(targetRect.left, selectionRect.left))
+  const vertical = Math.max(0, Math.min(targetRect.bottom, selectionRect.top + selectionRect.height) - Math.max(targetRect.top, selectionRect.top))
+  const intersectionArea = horizontal * vertical
+  const targetArea = Math.max(1, targetRect.width * targetRect.height)
+  return clampCaptureRatio(intersectionArea / targetArea)
+}
+
+function buildManagedSelectorValue(value: string) {
+  const escapeFn = typeof window !== "undefined" && window.CSS && typeof window.CSS.escape === "function"
+    ? window.CSS.escape.bind(window.CSS)
+    : (raw: string) => raw.replace(/["\\]/g, "\\$&")
+  return escapeFn(value)
+}
+
+function buildSafeManagedSelector(element: HTMLElement) {
+  const managedNodeId = element.getAttribute("data-managed-node-id")?.trim()
+  if (managedNodeId) {
+    return `[data-managed-node-id="${buildManagedSelectorValue(managedNodeId)}"]`
+  }
+
+  const blockId =
+    element.getAttribute("data-block-id")?.trim() ??
+    element.getAttribute("data-parent-block-id")?.trim() ??
+    element.closest("[data-block-id]")?.getAttribute("data-block-id")?.trim()
+  if (blockId) {
+    return `[data-block-id="${buildManagedSelectorValue(blockId)}"]`
+  }
+
+  const editorId = element.getAttribute("data-ai-editor-id")?.trim()
+  if (editorId) {
+    return `[data-ai-editor-id="${buildManagedSelectorValue(editorId)}"]`
+  }
+
+  return undefined
+}
+
+function buildDomPath(element: HTMLElement) {
+  const segments: string[] = []
+  let current: HTMLElement | null = element
+
+  while (current && segments.length < 6 && current.tagName.toLowerCase() !== "body") {
+    const tagName = current.tagName.toLowerCase()
+    const blockId = current.getAttribute("data-block-id")?.trim()
+    const managedNodeId = current.getAttribute("data-managed-node-id")?.trim()
+    if (managedNodeId) {
+      segments.unshift(`${tagName}[data-managed-node-id="${managedNodeId}"]`)
+      break
+    }
+    if (blockId) {
+      segments.unshift(`${tagName}[data-block-id="${blockId}"]`)
+      break
+    }
+
+    let siblingIndex = 1
+    let sibling = current.previousElementSibling
+    while (sibling) {
+      if (sibling.tagName === current.tagName) siblingIndex += 1
+      sibling = sibling.previousElementSibling
+    }
+    segments.unshift(`${tagName}:nth-of-type(${siblingIndex})`)
+    current = current.parentElement
+  }
+
+  return segments.join(" > ")
+}
+
+function buildDomCandidate(element: HTMLElement, selectionRect: CaptureRect, source: AdminAiPageEditorDomCandidate["source"]): AdminAiPageEditorDomCandidate | null {
+  const rect = element.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return null
+
+  const intersectionRatio = computeRectIntersectionRatio(rect, selectionRect)
+  const intersectsSelection = intersectionRatio > 0
+  if (!intersectsSelection && source !== "elementsFromPoint") return null
+
+  const closestManagedBlock = element.closest("[data-block-id]") as HTMLElement | null
+  const managedContentNode = element.closest("[data-managed-node-id]") as HTMLElement | null
+  const textContent = element.textContent?.replace(/\s+/g, " ").trim() ?? ""
+  const computedStyle = window.getComputedStyle(element)
+  const tagName = element.tagName.toLowerCase()
+  const classNames = Array.from(element.classList).slice(0, 8)
+  const managedNodeId =
+    element.getAttribute("data-managed-node-id")?.trim() ??
+    managedContentNode?.getAttribute("data-managed-node-id")?.trim() ??
+    undefined
+  const blockId =
+    element.getAttribute("data-block-id")?.trim() ??
+    element.getAttribute("data-parent-block-id")?.trim() ??
+    closestManagedBlock?.getAttribute("data-block-id")?.trim() ??
+    undefined
+  const isEditableManagedContent = Boolean(blockId || managedNodeId)
+  const normalizedText = normalizeCaptureComparableText(textContent)
+  const parentElement = element.parentElement
+
+  if (!isEditableManagedContent && !textContent && tagName !== "img") {
+    return null
+  }
+
+  return {
+    candidateId: `${source}:${blockId ?? managedNodeId ?? tagName}:${Math.round(rect.top)}:${Math.round(rect.left)}`,
+    tagName,
+    safeSelector: buildSafeManagedSelector(element),
+    domPath: buildDomPath(element),
+    managedNodeId,
+    blockId,
+    componentId: element.getAttribute("data-ai-editor-id")?.trim() ?? undefined,
+    role: element.getAttribute("role")?.trim() ?? undefined,
+    classNames,
+    idAttribute: element.id?.trim() || undefined,
+    textContent: textContent || undefined,
+    normalizedText: normalizedText || undefined,
+    textFingerprint: normalizedText ? normalizedText.slice(0, 96) : undefined,
+    rect: {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      top: rect.top,
+      left: rect.left,
+      right: rect.right,
+      bottom: rect.bottom,
+    },
+    intersectsSelection,
+    intersectionRatio,
+    isTextBearing: normalizedText.length > 0,
+    isHeading: /^h[1-6]$/.test(tagName),
+    isButton: tagName === "button" || tagName === "a" || element.getAttribute("role") === "button",
+    isImage: tagName === "img",
+    isEditableManagedContent,
+    computedStyle: {
+      color: computedStyle.color,
+      backgroundColor: computedStyle.backgroundColor,
+      fontSize: computedStyle.fontSize,
+      fontWeight: computedStyle.fontWeight,
+      textAlign: computedStyle.textAlign,
+      display: computedStyle.display,
+    },
+    parentContext: parentElement
+      ? {
+          tagName: parentElement.tagName.toLowerCase(),
+          classNames: Array.from(parentElement.classList).slice(0, 6),
+          textSnippet: parentElement.textContent?.replace(/\s+/g, " ").trim().slice(0, 160) || undefined,
+          managedNodeId: parentElement.getAttribute("data-managed-node-id")?.trim() ?? undefined,
+          blockId:
+            parentElement.getAttribute("data-block-id")?.trim() ??
+            parentElement.closest("[data-block-id]")?.getAttribute("data-block-id")?.trim() ??
+            undefined,
+        }
+      : undefined,
+    confidence: clampCaptureRatio(
+      intersectionRatio +
+        (isEditableManagedContent ? 0.35 : 0) +
+        (normalizedText.length > 0 ? 0.15 : 0) +
+        (/^h[1-6]$/.test(tagName) ? 0.08 : 0),
+    ),
+    source,
+  }
+}
+
+function collectTargetCapture(rect: CaptureRect, attachmentId: string, pathname: string): AdminAiPageEditorTargetCapture | null {
+  if (typeof document === "undefined" || typeof window === "undefined") return null
+
+  const root = (document.querySelector(".me-managed-page-root") as HTMLElement | null) ?? document.querySelector("main") ?? document.body
+  const candidateElements = new Set<HTMLElement>()
+  const textFragments: string[] = []
+  const samplePoints = [
+    [rect.left + rect.width / 2, rect.top + rect.height / 2],
+    [rect.left + 8, rect.top + 8],
+    [rect.left + rect.width - 8, rect.top + 8],
+    [rect.left + 8, rect.top + rect.height - 8],
+    [rect.left + rect.width - 8, rect.top + rect.height - 8],
+  ]
+
+  if (typeof document.elementsFromPoint === "function") {
+    samplePoints.forEach(([x, y]) => {
+      const pointX = Math.max(0, Math.min(window.innerWidth - 1, Math.round(x)))
+      const pointY = Math.max(0, Math.min(window.innerHeight - 1, Math.round(y)))
+      document.elementsFromPoint(pointX, pointY).forEach((node) => {
+        if (node instanceof HTMLElement && !node.closest("[data-ai-page-editor-root]")) {
+          candidateElements.add(node)
+        }
+      })
+    })
+  }
+
+  root.querySelectorAll("*").forEach((node) => {
+    if (!(node instanceof HTMLElement) || node.closest("[data-ai-page-editor-root]")) return
+    const rectInfo = node.getBoundingClientRect()
+    if (rectInfo.width <= 0 || rectInfo.height <= 0) return
+    if (computeRectIntersectionRatio(rectInfo, rect) <= 0) return
+    if (
+      node.hasAttribute("data-managed-node-id") ||
+      node.hasAttribute("data-block-id") ||
+      /^(h[1-6]|p|span|strong|em|a|button|img|section|div)$/i.test(node.tagName)
+    ) {
+      candidateElements.add(node)
+    }
+  })
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
+    },
+  })
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode
+    const parent = textNode.parentElement
+    if (!parent || parent.closest("[data-ai-page-editor-root]")) continue
+    const parentRect = parent.getBoundingClientRect()
+    if (computeRectIntersectionRatio(parentRect, rect) <= 0) continue
+    candidateElements.add(parent)
+    const snippet = textNode.textContent?.replace(/\s+/g, " ").trim()
+    if (snippet) {
+      textFragments.push(snippet.slice(0, 160))
+    }
+  }
+
+  const domCandidates = Array.from(candidateElements)
+    .map((element) => {
+      const inferredSource: AdminAiPageEditorDomCandidate["source"] =
+        element.hasAttribute("data-managed-node-id") || element.hasAttribute("data-block-id")
+          ? "rect_intersection"
+          : "elementsFromPoint"
+      return buildDomCandidate(element, rect, inferredSource)
+    })
+    .filter((candidate): candidate is AdminAiPageEditorDomCandidate => Boolean(candidate))
+    .sort((left, right) => right.confidence - left.confidence)
+    .filter((candidate, index, list) => list.findIndex((item) => item.candidateId === candidate.candidateId) === index)
+    .slice(0, 48)
+
+  const primaryCandidate =
+    domCandidates.find((candidate) => candidate.isEditableManagedContent && candidate.intersectsSelection) ??
+    domCandidates.find((candidate) => candidate.intersectsSelection) ??
+    domCandidates[0]
+
+  return {
+    id: attachmentId,
+    role: "target_capture",
+    pathname,
+    capturedAt: new Date().toISOString(),
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      devicePixelRatio: window.devicePixelRatio || 1,
+    },
+    selectionRect: {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+      pageX: rect.left + window.scrollX,
+      pageY: rect.top + window.scrollY,
+    },
+    screenshot: {
+      attachmentId,
+      mimeType: "image/jpeg",
+    },
+    domCandidates,
+    primaryCandidate,
+    textFragments: Array.from(new Set(textFragments.filter(Boolean))).slice(0, 12),
+    captureDiagnostics: {
+      elementCount: domCandidates.length,
+      textCandidateCount: domCandidates.filter((candidate) => candidate.isTextBearing).length,
+      primaryCandidateConfidence: primaryCandidate?.confidence ?? 0,
+      source: "live_dom_selection",
+    },
+  }
 }
 
 function normalizeLauncherComparableText(value: unknown) {
@@ -276,6 +565,26 @@ function handleNextPendingImageInsertAfterAttachmentRemoval(
     }
   }
   return pendingImageInsert
+}
+
+function handleNextPendingTargetClarificationAfterAttachmentRemoval(
+  pendingTargetClarification: AdminAiPageEditorPendingTargetClarification | null,
+  attachmentId: string,
+) {
+  if (!pendingTargetClarification?.capturedTarget) return pendingTargetClarification
+  const screenshotAttachmentId = pendingTargetClarification.capturedTarget.screenshot?.attachmentId ?? null
+  if (
+    pendingTargetClarification.capturedTarget.id !== attachmentId &&
+    screenshotAttachmentId !== attachmentId
+  ) {
+    return pendingTargetClarification
+  }
+
+  return {
+    ...pendingTargetClarification,
+    capturedTarget: null,
+    awaiting: "capture" as const,
+  }
 }
 
 function normalizeProposalMetadata(
@@ -441,6 +750,7 @@ export function SiteAiPageEditorLauncher() {
   const [lastQuickReplySelected, setLastQuickReplySelected] = useState<string | null>(null)
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
   const [pendingImageInsert, setPendingImageInsert] = useState<AdminAiPageEditorPendingImageInsert | null>(null)
+  const [pendingTargetClarification, setPendingTargetClarification] = useState<AdminAiPageEditorPendingTargetClarification | null>(null)
   const [awaitingImplementation, setAwaitingImplementation] = useState(false)
   const [pendingPublication, setPendingPublication] = useState<PendingPublicationState | null>(null)
   const [postApplyDecision, setPostApplyDecision] = useState<AdminSitePageVersion | null>(null)
@@ -596,6 +906,7 @@ export function SiteAiPageEditorLauncher() {
       quick_reply_selected: lastQuickReplySelected,
       confirmation_token: confirmationToken,
       pending_image_insert: pendingImageInsert,
+      pending_target_clarification: pendingTargetClarification,
       recent_messages: messages
         .flatMap((entry) =>
           entry.role === "user" || entry.role === "assistant"
@@ -624,6 +935,7 @@ export function SiteAiPageEditorLauncher() {
     setLastQuickReplySelected(null)
     setConfirmationToken(null)
     setPendingImageInsert(null)
+    setPendingTargetClarification(null)
     setPostApplyDecision(null)
     setSelectedRevisionId(null)
     setIsSelectingCaptureArea(false)
@@ -763,6 +1075,8 @@ export function SiteAiPageEditorLauncher() {
     setIsCapturingPage(true)
 
     try {
+      const attachmentId = uid("attachment")
+      const targetCapture = collectTargetCapture(rect, attachmentId, pathname)
       const canvas = await html2canvas(document.body, {
         backgroundColor: "#ffffff",
         useCORS: true,
@@ -781,10 +1095,22 @@ export function SiteAiPageEditorLauncher() {
       })
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.88)
+      const finalizedTargetCapture = targetCapture
+        ? {
+            ...targetCapture,
+            screenshot: {
+              ...targetCapture.screenshot,
+              attachmentId,
+              mimeType: "image/jpeg",
+              width: canvas.width,
+              height: canvas.height,
+            },
+          }
+        : null
       setAttachments((current) => [
         ...current,
         {
-          id: uid("attachment"),
+          id: attachmentId,
           name: `recorte-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
           mime_type: "image/jpeg",
           data_url: dataUrl,
@@ -799,6 +1125,7 @@ export function SiteAiPageEditorLauncher() {
               width: window.innerWidth,
               height: window.innerHeight,
             },
+            target_capture: finalizedTargetCapture,
           },
         },
       ])
@@ -1121,6 +1448,7 @@ export function SiteAiPageEditorLauncher() {
       setAwaitingImplementation(false)
       setAttachments([])
       setPendingImageInsert(null)
+      setPendingTargetClarification(null)
       const preparedMessage = options?.successMessage ?? buildPreparedPreviewMessage(nextProposal)
       setMessages((current) => [...current, { id: uid("msg"), role: "assistant", text: preparedMessage }])
       setFeedback(preparedMessage)
@@ -1150,6 +1478,7 @@ export function SiteAiPageEditorLauncher() {
       setAwaitingImplementation(false)
       setAttachments([])
       setPendingImageInsert(null)
+      setPendingTargetClarification(null)
       setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
@@ -1195,6 +1524,7 @@ export function SiteAiPageEditorLauncher() {
       setAwaitingImplementation(false)
       setAttachments([])
       setPendingImageInsert(null)
+      setPendingTargetClarification(null)
       setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
@@ -1248,6 +1578,7 @@ export function SiteAiPageEditorLauncher() {
       setAwaitingImplementation(false)
       setAttachments([])
       setPendingImageInsert(null)
+      setPendingTargetClarification(null)
       setFeedback("A pagina foi atualizada.")
       resetConversation({ keepFeedback: true })
     } catch (error) {
@@ -1294,6 +1625,7 @@ export function SiteAiPageEditorLauncher() {
       setAwaitingImplementation(false)
       setAttachments([])
       setPendingImageInsert(null)
+      setPendingTargetClarification(null)
       setPostApplyDecision(result.version)
       setMessages((current) => [
         ...current,
@@ -1632,6 +1964,11 @@ export function SiteAiPageEditorLauncher() {
       setUnderstandingSummary(result.understanding_summary)
       if (Object.prototype.hasOwnProperty.call(result, "pending_image_insert")) {
         setPendingImageInsert(result.pending_image_insert ?? null)
+      }
+      if (Object.prototype.hasOwnProperty.call(result, "pending_target_clarification")) {
+        setPendingTargetClarification(result.pending_target_clarification ?? null)
+      } else if (result.can_generate_proposal || result.final_status === "blocked" || result.final_status === "error") {
+        setPendingTargetClarification(null)
       }
       setClarificationQuestionsCount((current) => {
         if (nextConversationPhase === "needs_clarification") {
@@ -2048,6 +2385,9 @@ export function SiteAiPageEditorLauncher() {
                           setAttachments((current) => {
                             setPendingImageInsert((pending) =>
                               handleNextPendingImageInsertAfterAttachmentRemoval(pending, attachment.id),
+                            )
+                            setPendingTargetClarification((pending) =>
+                              handleNextPendingTargetClarificationAfterAttachmentRemoval(pending, attachment.id),
                             )
                             return current.filter((item) => item.id !== attachment.id)
                           })
