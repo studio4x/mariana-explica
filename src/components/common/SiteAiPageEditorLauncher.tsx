@@ -651,7 +651,7 @@ function buildPreparedPreviewMessage(proposal: AdminAiPageEditorProposal) {
   return "Previa preparada com o ajuste pedido. Verifica a pagina antes de publicar."
 }
 
-function buildLiveDomBaseline(pathname: string, pageSlug: string | null) {
+function buildLiveDomBaseline(pageSlug: string | null) {
   if (typeof document === "undefined" || !pageSlug) return null
 
   const html = getSanitizedDomSnapshot()
@@ -839,7 +839,7 @@ export function SiteAiPageEditorLauncher() {
   const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
   const canPersistDraft = routeCapability.supportsPersistibleFlow && Boolean(pageSlug)
-  const liveDomBaseline = useMemo(() => buildLiveDomBaseline(pathname, pageSlug), [pageSlug, pathname])
+  const liveDomBaseline = useMemo(() => buildLiveDomBaseline(pageSlug), [pageSlug])
 
   const importedPageBaseline = useMemo(() => {
     if (pageContextVersion) return null
