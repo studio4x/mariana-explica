@@ -64,6 +64,7 @@ import {
 import { selectAiModelForStage, type AiEditorModelStage } from "./model-routing.ts"
 import { isFooterAdjacentSpacingRequest } from "./spacing-intent.ts"
 import { getLatestTargetCapture } from "./capture-target-resolution.ts"
+import { resolvePendingTargetClarificationFromCapture } from "./pre-resolved-target.ts"
 
 type Action =
   | "get_config"
@@ -4281,6 +4282,121 @@ Deno.serve(async (req) => {
         understanding_confirmed: understandingConfirmed,
         pending_target_clarification_resumed: resumingPendingTargetClarification,
       })
+      if (resumingPendingTargetClarification && !understandingConfirmed && !understandingRejected) {
+        const captureClarificationConversationSelection = selectAiModelForStage("conversation", config.config_value)
+        const captureClarification = resolvePendingTargetClarificationFromCapture({
+          pendingTargetClarification: conversationContext.pending_target_clarification,
+          attachments: validAttachments,
+          latestTargetCapture,
+          baseVersion: managedPageContext.baseVersion,
+          requestSnapshotBaseVersion,
+        })
+
+        if (captureClarification.status !== "not_applicable") {
+          const updatedPendingTargetClarification = {
+            ...(conversationContext.pending_target_clarification ?? {
+              requestedAt: new Date().toISOString(),
+              intent: "other" as const,
+              textAnchor: conversationContext.understanding_summary,
+              requestedProperty: null,
+              requestedValue: null,
+              awaiting: "capture" as const,
+            }),
+            capturedTarget: latestTargetCapture,
+            resolvedTarget: captureClarification.resolvedTarget,
+            awaiting:
+              captureClarification.status === "resolved"
+                ? ("selection_confirmation" as const)
+                : ("context_text" as const),
+          }
+          const primaryCandidate = latestTargetCapture?.primaryCandidate
+          const captureResolutionMeta = {
+            path,
+            managedSlug: slug,
+            baseVersionSource: managedPageContext.baseVersionSource,
+            baseVersionNumber: captureClarification.sourceBaseVersion.version_number,
+            branch_selected: "captured_target_clarification",
+            textAnchor: updatedPendingTargetClarification.textAnchor ?? null,
+            requestedProperty: updatedPendingTargetClarification.requestedProperty ?? null,
+            requestedValue: updatedPendingTargetClarification.requestedValue ?? null,
+            hasLiveDomSnapshot: Boolean(requestSnapshotBaseVersion),
+            hasTargetCaptureAttachment: Boolean(latestTargetCapture),
+            domCandidatesCount: latestTargetCapture?.domCandidates.length ?? 0,
+            primaryCandidateManagedNodeId: primaryCandidate?.managedNodeId ?? null,
+            primaryCandidateBlockId: primaryCandidate?.blockId ?? null,
+            primaryCandidateSafeSelector: primaryCandidate?.safeSelector ?? null,
+            capturedTargetFound: captureClarification.resolvedTarget.found,
+            capturedTargetConfidence: captureClarification.resolvedTarget.confidence,
+            capturedTargetResolutionSource: captureClarification.resolvedTarget.resolutionSource,
+            usedPreResolvedTarget: captureClarification.resolvedTarget.found,
+            materializationResult:
+              captureClarification.status === "resolved" ? "awaiting_confirmation" : "needs_clarification",
+            failureReasons: captureClarification.resolvedTarget.rejectionReasons,
+          }
+
+          logInfo("AI page editor pending target clarification evaluated from capture", {
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            user_id: context.user.id,
+            ...captureResolutionMeta,
+          })
+
+          await writeAuditLog(serviceClient, context, {
+            action: "admin.ai_page_editor_proposal_generated",
+            entityType: "site_config",
+            entityId: null,
+            metadata: {
+              config_key: CONFIG_KEY,
+              slug,
+              path,
+              conversation_phase:
+                captureClarification.status === "resolved"
+                  ? "awaiting_intent_confirmation"
+                  : "needs_clarification",
+              final_status:
+                captureClarification.status === "resolved"
+                  ? "awaiting_intent_confirmation"
+                  : "needs_clarification",
+              understanding_summary: conversationContext.understanding_summary,
+              quick_reply_selected: conversationContext.quick_reply_selected,
+              ...captureResolutionMeta,
+            },
+            ...auditMeta,
+          })
+
+          const nextPhase =
+            captureClarification.status === "resolved"
+              ? ("awaiting_intent_confirmation" as const)
+              : ("needs_clarification" as const)
+          const operationalState = createConversationOperationalState(nextPhase)
+          return jsonResponse({
+            success: true,
+            request_id: requestId,
+            client_request_id: clientRequestId,
+            provider_used: captureClarificationConversationSelection.primary.provider,
+            conversation_phase: nextPhase,
+            assistant_message: captureClarification.assistantMessage,
+            quick_replies:
+              captureClarification.status === "resolved"
+                ? ["Sim, pode avancar", "Nao, explico melhor"]
+                : [],
+            understanding_summary: conversationContext.understanding_summary,
+            confirmation_token:
+              captureClarification.status === "resolved"
+                ? buildUnderstandingConfirmationToken(conversationContext.understanding_summary)
+                : null,
+            confirmation_consumed: false,
+            requires_user_confirmation: captureClarification.status === "resolved",
+            can_generate_proposal: false,
+            warnings:
+              captureClarification.status === "resolved"
+                ? []
+                : ["captured_target_resolution_failed"],
+            pending_target_clarification: updatedPendingTargetClarification,
+            ...operationalState,
+          })
+        }
+      }
 
       if (!understandingConfirmed && !resumingPendingTargetClarification) {
         const imageTurn = resolveImageConversationTurn({

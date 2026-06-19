@@ -415,6 +415,51 @@ export interface AdminAiPageEditorTargetCapture {
   }
 }
 
+export interface AdminAiPageEditorResolvedTargetEvidence {
+  captureProvided: boolean
+  primaryCandidateProvided: boolean
+  textAnchorProvided: boolean
+  exactTextMatch: boolean
+  normalizedTextMatch: boolean
+  candidateIntersectsCapture: boolean
+  candidateMatchesManagedContent: boolean
+}
+
+export interface AdminAiPageEditorResolvedTarget {
+  found: boolean
+  confidence: number
+  resolutionSource:
+    | "managed_node_id"
+    | "block_id"
+    | "dom_primary_candidate"
+    | "capture_text_exact"
+    | "capture_text_normalized"
+    | "baseline_text_exact"
+    | "baseline_text_normalized"
+    | "combined_evidence"
+    | "not_found"
+  selectedTarget?: {
+    targetId: string
+    selector?: string
+    managedNodeId?: string
+    blockId?: string
+    tagName?: string
+    text?: string
+    normalizedText?: string
+    source?: string
+  }
+  candidateCount: number
+  evidence: AdminAiPageEditorResolvedTargetEvidence
+  rejectionReasons: string[]
+  sourceBaseVersion?: {
+    id?: string | null
+    version_number?: number | null
+    status?: string | null
+    source?: string | null
+  } | null
+  capture?: AdminAiPageEditorTargetCapture | null
+}
+
 export interface AdminAiPageEditorPendingTargetClarification {
   requestedAt: string
   intent: "set_text_color" | "set_style" | "replace_image" | "other"
@@ -423,6 +468,7 @@ export interface AdminAiPageEditorPendingTargetClarification {
   requestedValue?: string | null
   awaiting: "capture" | "context_text" | "selection_confirmation"
   capturedTarget?: AdminAiPageEditorTargetCapture | null
+  resolvedTarget?: AdminAiPageEditorResolvedTarget | null
 }
 
 export interface AdminAiPageEditorAttachmentMetadata {

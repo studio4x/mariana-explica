@@ -105,7 +105,11 @@ function createExplicacoesBaseVersion() {
   }
 }
 
-function createConversationContext(understandingSummary: string, originalMessage = understandingSummary) {
+function createConversationContext(
+  understandingSummary: string,
+  originalMessage = understandingSummary,
+  pendingTargetClarification: Record<string, unknown> | null = null,
+) {
   return {
     phase: "awaiting_intent_confirmation" as const,
     understanding_summary: understandingSummary,
@@ -122,6 +126,7 @@ function createConversationContext(understandingSummary: string, originalMessage
         text: "Entendi. E isso mesmo?",
       },
     ],
+    pending_target_clarification: pendingTargetClarification,
   }
 }
 
@@ -133,6 +138,7 @@ function materialize(
     currentHtml?: string
     attachments?: Array<{ name: string; mime_type?: string; role?: string; id?: string }>
     requestSnapshotBaseVersion?: ReturnType<typeof createVisualBaseVersion>
+    pendingTargetClarification?: Record<string, unknown> | null
   } = {},
 ) {
   return materializeLocalizedVisualPatchProposal({
@@ -142,7 +148,11 @@ function materialize(
     slug: "sobre",
     title: "Sobre",
     path: "/sobre",
-    conversationContext: createConversationContext(understandingSummary, originalMessage),
+    conversationContext: createConversationContext(
+      understandingSummary,
+      originalMessage,
+      options.pendingTargetClarification ?? null,
+    ),
     baseVersion: options.baseVersion ?? createVisualBaseVersion(),
     baseVersionSource: "published_version",
     degradedDraftBypassed: false,
@@ -448,6 +458,51 @@ describe("materializeLocalizedVisualPatchProposal", () => {
       color: "#fff",
       textColor: "#fff",
     })
+  })
+
+  it("reuses a pre-resolved captured target on the final confirmation turn", () => {
+    const result = materialize(
+      'altere a cor do texto "Notas importantes antes de enviares o teu formulário:" para branco (#fff)',
+      "Sim, pode avançar",
+      {
+        baseVersion: createExplicacoesBaseVersion(),
+        pendingTargetClarification: {
+          requestedAt: "2026-06-19T16:00:00.000Z",
+          intent: "set_text_color",
+          textAnchor: "Notas importantes antes de enviares o teu formulário:",
+          requestedProperty: "color",
+          requestedValue: "#fff",
+          awaiting: "selection_confirmation",
+          resolvedTarget: {
+            found: true,
+            confidence: 0.97,
+            resolutionSource: "block_id",
+            selectedTarget: {
+              targetId: "important-notes",
+              blockId: "important-notes",
+              managedNodeId: "block:important-notes",
+            },
+            candidateCount: 1,
+            evidence: {
+              captureProvided: true,
+              primaryCandidateProvided: true,
+              textAnchorProvided: true,
+              exactTextMatch: false,
+              normalizedTextMatch: true,
+              candidateIntersectsCapture: true,
+              candidateMatchesManagedContent: true,
+            },
+            rejectionReasons: [],
+          },
+        },
+      },
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.proposal.metadata.ai_invariants?.used_pre_resolved_target).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.capture_target_pre_resolved).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.capture_target_found).toBe(true)
   })
 
   it("returns a specific not-found message when the quoted text anchor is absent", () => {

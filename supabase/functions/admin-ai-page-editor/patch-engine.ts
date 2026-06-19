@@ -42,6 +42,7 @@ export interface PatchEngineInput {
   proposalLayoutJson?: Record<string, unknown> | null
   proposalStyleJson?: Record<string, unknown> | null
   attachments?: PatchEngineAttachmentContext[]
+  preResolvedCaptureTarget?: CaptureTargetResolution | null
 }
 
 export interface PatchEngineTargetSignalMap {
@@ -765,6 +766,18 @@ function buildTargetCandidates(blocks: Record<string, unknown>[]) {
   return candidates
 }
 
+export function buildCaptureResolutionCandidatesFromLayoutJson(layoutJson: Record<string, unknown>) {
+  return buildTargetCandidates(extractBlocksFromLayoutJson(layoutJson)).map((candidate) => ({
+    targetId: candidate.target_id,
+    selector: candidate.selector,
+    managedNodeId: candidate.block_id ? `block:${candidate.block_id}` : undefined,
+    blockId: candidate.block_id ?? undefined,
+    tagName: candidate.block_type,
+    text: candidate.text,
+    normalizedText: normalizeText(candidate.text),
+  }))
+}
+
 function pathToKey(path: Array<string | number>) {
   if (path.length === 0) return "page-root"
   let key = "blocks"
@@ -1241,6 +1254,7 @@ function resolveTargetCandidate(input: {
   operation: AiEditOperation
   message: string
   attachments: PatchEngineAttachmentContext[]
+  preResolvedCaptureTarget?: CaptureTargetResolution | null
 }) {
   const requestedTarget = normalizeIdentifier(input.operation.target_id) || input.plan.target_ids[0] || "target"
   const normalizedRequestedTarget = requestedTarget.toLowerCase()
@@ -1276,6 +1290,7 @@ function resolveTargetCandidate(input: {
       text: candidate.text,
       normalizedText: normalizeText(candidate.text),
     })),
+    preResolvedTarget: input.preResolvedCaptureTarget,
   })
 
   if (captureTargetResolution.found && captureTargetResolution.selectedTarget) {
@@ -2646,6 +2661,7 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       operation,
       message: input.message,
       attachments: input.attachments ?? [],
+      preResolvedCaptureTarget: input.preResolvedCaptureTarget,
     })
     resolvedCandidates.push(resolution)
     touchedSectionIndexes.push(resolution.candidate.section_index)
@@ -2803,6 +2819,12 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
   const targetResolutionSource = resolvedCandidates[0]?.resolution_source ?? "message"
   const textAnchorResolution = resolvedCandidates[0]?.text_anchor_resolution ?? null
   const captureTargetResolution = resolvedCandidates[0]?.capture_target_resolution ?? null
+  const usedPreResolvedTarget = Boolean(
+    input.preResolvedCaptureTarget?.found &&
+      captureTargetResolution?.found &&
+      captureTargetResolution.selectedTarget?.targetId &&
+      input.preResolvedCaptureTarget.selectedTarget?.targetId === captureTargetResolution.selectedTarget.targetId,
+  )
 
   return {
     layoutJson: finalLayoutJson,
@@ -2824,6 +2846,8 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       target_resolution_source: targetResolutionSource,
       capture_target_provided: captureTargetResolution?.evidence.captureProvided ?? false,
       capture_target_found: captureTargetResolution?.found ?? false,
+      capture_target_pre_resolved: input.preResolvedCaptureTarget?.found ?? false,
+      used_pre_resolved_target: usedPreResolvedTarget,
       capture_target_resolution_source: captureTargetResolution?.resolutionSource ?? null,
       capture_target_confidence: captureTargetResolution?.confidence ?? 0,
       capture_target_candidate_count: captureTargetResolution?.candidateCount ?? 0,

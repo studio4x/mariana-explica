@@ -690,6 +690,27 @@ describe("SiteAiPageEditorLauncher", () => {
             requestedProperty: "color",
             requestedValue: "#ffffff",
             awaiting: "capture",
+            resolvedTarget: {
+              found: true,
+              confidence: 0.97,
+              resolutionSource: "block_id",
+              selectedTarget: {
+                targetId: "about-story",
+                blockId: "about-story",
+                managedNodeId: "block:about-story",
+              },
+              candidateCount: 1,
+              evidence: {
+                captureProvided: true,
+                primaryCandidateProvided: true,
+                textAnchorProvided: true,
+                exactTextMatch: false,
+                normalizedTextMatch: true,
+                candidateIntersectsCapture: true,
+                candidateMatchesManagedContent: true,
+              },
+              rejectionReasons: [],
+            },
             capturedTarget: null,
           },
         }),
@@ -715,6 +736,13 @@ describe("SiteAiPageEditorLauncher", () => {
       requestedProperty: "color",
       requestedValue: "#ffffff",
       awaiting: "capture",
+      resolvedTarget: {
+        found: true,
+        resolutionSource: "block_id",
+        selectedTarget: {
+          blockId: "about-story",
+        },
+      },
     })
   })
 

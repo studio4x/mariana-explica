@@ -57,6 +57,84 @@ export interface CaptureTargetResolution {
   capture?: AiEditorTargetCapture | null
 }
 
+function selectedTargetMatchesCandidate(
+  selectedTarget: NonNullable<CaptureTargetResolution["selectedTarget"]>,
+  appCandidate: CaptureResolutionCandidateInput,
+) {
+  const selectedTargetId = normalizeString(selectedTarget.targetId)
+  const selectedSelector = normalizeString(selectedTarget.selector)
+  const selectedManagedNodeId = normalizeString(selectedTarget.managedNodeId)
+  const selectedBlockId = normalizeString(selectedTarget.blockId)
+  const candidateTargetId = normalizeString(appCandidate.targetId)
+  const candidateSelector = normalizeString(appCandidate.selector)
+  const candidateManagedNodeId = normalizeString(appCandidate.managedNodeId)
+  const candidateBlockId = normalizeString(appCandidate.blockId)
+
+  return (
+    (selectedTargetId && selectedTargetId === candidateTargetId) ||
+    (selectedSelector && candidateSelector && selectedSelector === candidateSelector) ||
+    (selectedManagedNodeId &&
+      (selectedManagedNodeId === candidateManagedNodeId ||
+        selectedManagedNodeId === `block:${candidateTargetId}` ||
+        selectedManagedNodeId === `content:${candidateTargetId}`)) ||
+    (selectedBlockId && (selectedBlockId === candidateBlockId || selectedBlockId === candidateTargetId))
+  )
+}
+
+function normalizePreResolvedTarget(
+  value: CaptureTargetResolution | null | undefined,
+  candidates: CaptureResolutionCandidateInput[],
+  capture: AiEditorTargetCapture | null,
+) {
+  if (!value?.found || !value.selectedTarget) return null
+  const matchingCandidate = candidates.find((candidate) => selectedTargetMatchesCandidate(value.selectedTarget!, candidate))
+  if (!matchingCandidate) {
+    return {
+      found: false,
+      confidence: Math.round(Number(value.confidence ?? 0) * 1000) / 1000,
+      resolutionSource: "not_found",
+      candidateCount: candidates.length,
+      evidence: {
+        captureProvided: Boolean(capture),
+        primaryCandidateProvided: Boolean(capture?.primaryCandidate),
+        textAnchorProvided: value.evidence.textAnchorProvided === true,
+        exactTextMatch: value.evidence.exactTextMatch === true,
+        normalizedTextMatch: value.evidence.normalizedTextMatch === true,
+        candidateIntersectsCapture: value.evidence.candidateIntersectsCapture === true,
+        candidateMatchesManagedContent: false,
+      },
+      rejectionReasons: ["pre_resolved_target_not_found_in_current_base"],
+      capture,
+    } satisfies CaptureTargetResolution
+  }
+
+  return {
+    ...value,
+    candidateCount: candidates.length,
+    selectedTarget: {
+      targetId: matchingCandidate.targetId,
+      selector: normalizeString(matchingCandidate.selector) || undefined,
+      managedNodeId: normalizeString(matchingCandidate.managedNodeId) || undefined,
+      blockId: normalizeString(matchingCandidate.blockId) || undefined,
+      tagName: normalizeString(matchingCandidate.tagName) || undefined,
+      text: normalizeString(matchingCandidate.text) || undefined,
+      normalizedText: normalizeString(matchingCandidate.normalizedText) || undefined,
+      source: value.selectedTarget.source,
+    },
+    evidence: {
+      captureProvided: Boolean(capture) || value.evidence.captureProvided === true,
+      primaryCandidateProvided: Boolean(capture?.primaryCandidate) || value.evidence.primaryCandidateProvided === true,
+      textAnchorProvided: value.evidence.textAnchorProvided === true,
+      exactTextMatch: value.evidence.exactTextMatch === true,
+      normalizedTextMatch: value.evidence.normalizedTextMatch === true,
+      candidateIntersectsCapture: value.evidence.candidateIntersectsCapture === true,
+      candidateMatchesManagedContent: true,
+    },
+    rejectionReasons: [],
+    capture: capture ?? value.capture ?? null,
+  } satisfies CaptureTargetResolution
+}
+
 function normalizeString(value: unknown, fallback = "") {
   return String(value ?? "").trim() || fallback
 }
@@ -168,6 +246,7 @@ export function resolveCaptureTarget(input: {
   candidates: CaptureResolutionCandidateInput[]
   textAnchor?: string | null
   fallbackCapture?: AiEditorTargetCapture | null
+  preResolvedTarget?: CaptureTargetResolution | null
 }) {
   const capture = getLatestTargetCapture(input.attachments ?? [], input.fallbackCapture)
   const baseEvidence = {
@@ -180,6 +259,11 @@ export function resolveCaptureTarget(input: {
     candidateMatchesManagedContent: false,
   }
 
+  const preResolvedTarget = normalizePreResolvedTarget(input.preResolvedTarget, input.candidates, capture)
+  if (preResolvedTarget?.found) {
+    return preResolvedTarget
+  }
+
   if (!capture) {
     return {
       found: false,
@@ -187,7 +271,7 @@ export function resolveCaptureTarget(input: {
       resolutionSource: "not_found",
       candidateCount: input.candidates.length,
       evidence: baseEvidence,
-      rejectionReasons: ["capture_missing"],
+      rejectionReasons: preResolvedTarget?.rejectionReasons ?? ["capture_missing"],
       capture: null,
     } satisfies CaptureTargetResolution
   }
@@ -208,15 +292,15 @@ export function resolveCaptureTarget(input: {
 
     for (const appCandidate of input.candidates) {
       const resolutionSource = candidateMatchesStableIds(appCandidate, captureCandidate)
+      if (!resolutionSource) {
+        continue
+      }
+
       const textSignals = buildTextSignals({
         appCandidate,
         captureCandidate,
         textAnchor: comparableTextAnchor,
       })
-
-      if (!resolutionSource && !textSignals.exactTextMatch && !textSignals.normalizedTextMatch) {
-        continue
-      }
 
       return {
         found: true,
@@ -225,16 +309,57 @@ export function resolveCaptureTarget(input: {
             ? 0.99
             : resolutionSource === "block_id"
               ? 0.97
-              : resolutionSource === "dom_primary_candidate"
-                ? 0.93
-                : textSignals.exactTextMatch
-                  ? 0.9
-                  : textSignals.normalizedTextMatch
-                    ? 0.84
-                    : 0.8,
-        resolutionSource:
-          resolutionSource ??
-          (textSignals.exactTextMatch ? "capture_text_exact" : textSignals.normalizedTextMatch ? "capture_text_normalized" : "combined_evidence"),
+              : 0.93,
+        resolutionSource,
+        selectedTarget: {
+          targetId: appCandidate.targetId,
+          selector: normalizeString(appCandidate.selector) || undefined,
+          managedNodeId: normalizeString(appCandidate.managedNodeId) || undefined,
+          blockId: normalizeString(appCandidate.blockId) || undefined,
+          tagName: normalizeString(appCandidate.tagName) || undefined,
+          text: normalizeString(appCandidate.text) || undefined,
+          normalizedText: normalizeString(appCandidate.normalizedText) || undefined,
+          source: captureCandidate.source,
+        },
+        candidateCount: input.candidates.length,
+        evidence: {
+          captureProvided: true,
+          primaryCandidateProvided: Boolean(capture.primaryCandidate),
+          textAnchorProvided: Boolean(comparableTextAnchor),
+          exactTextMatch: textSignals.exactTextMatch,
+          normalizedTextMatch: textSignals.normalizedTextMatch,
+          candidateIntersectsCapture: intersectsCapture,
+          candidateMatchesManagedContent: true,
+        },
+        rejectionReasons: [],
+        capture,
+      } satisfies CaptureTargetResolution
+    }
+
+    for (const appCandidate of input.candidates) {
+      const textSignals = buildTextSignals({
+        appCandidate,
+        captureCandidate,
+        textAnchor: comparableTextAnchor,
+      })
+
+      if (!textSignals.exactTextMatch && !textSignals.normalizedTextMatch) {
+        continue
+      }
+
+      return {
+        found: true,
+        confidence:
+          textSignals.exactTextMatch
+            ? 0.9
+            : textSignals.normalizedTextMatch
+              ? 0.84
+              : 0.8,
+        resolutionSource: textSignals.exactTextMatch
+          ? "capture_text_exact"
+          : textSignals.normalizedTextMatch
+            ? "capture_text_normalized"
+            : "combined_evidence",
         selectedTarget: {
           targetId: appCandidate.targetId,
           selector: normalizeString(appCandidate.selector) || undefined,

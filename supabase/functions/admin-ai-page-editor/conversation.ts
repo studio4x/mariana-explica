@@ -112,6 +112,51 @@ export interface AiEditorTargetCapture {
   }
 }
 
+export interface AiConversationResolvedTargetEvidence {
+  captureProvided: boolean
+  primaryCandidateProvided: boolean
+  textAnchorProvided: boolean
+  exactTextMatch: boolean
+  normalizedTextMatch: boolean
+  candidateIntersectsCapture: boolean
+  candidateMatchesManagedContent: boolean
+}
+
+export interface AiConversationResolvedTarget {
+  found: boolean
+  confidence: number
+  resolutionSource:
+    | "managed_node_id"
+    | "block_id"
+    | "dom_primary_candidate"
+    | "capture_text_exact"
+    | "capture_text_normalized"
+    | "baseline_text_exact"
+    | "baseline_text_normalized"
+    | "combined_evidence"
+    | "not_found"
+  selectedTarget?: {
+    targetId: string
+    selector?: string
+    managedNodeId?: string
+    blockId?: string
+    tagName?: string
+    text?: string
+    normalizedText?: string
+    source?: string
+  }
+  candidateCount: number
+  evidence: AiConversationResolvedTargetEvidence
+  rejectionReasons: string[]
+  sourceBaseVersion?: {
+    id?: string | null
+    version_number?: number | null
+    status?: string | null
+    source?: string | null
+  } | null
+  capture?: AiEditorTargetCapture | null
+}
+
 export interface AiConversationPendingTargetClarification {
   requestedAt: string
   intent: "set_text_color" | "set_style" | "replace_image" | "other"
@@ -120,6 +165,7 @@ export interface AiConversationPendingTargetClarification {
   requestedValue?: string | null
   awaiting: "capture" | "context_text" | "selection_confirmation"
   capturedTarget?: AiEditorTargetCapture | null
+  resolvedTarget?: AiConversationResolvedTarget | null
 }
 
 export interface AiConversationContextInput {
@@ -247,6 +293,85 @@ function normalizeFiniteNumber(value: unknown) {
 function normalizeStringArray(value: unknown) {
   if (!Array.isArray(value)) return []
   return value.map((item) => normalizeText(item)).filter(Boolean)
+}
+
+function normalizeResolvedTarget(value: unknown): AiConversationResolvedTarget | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  const found = record.found === true
+  const confidence = normalizeFiniteNumber(record.confidence)
+  const resolutionSource = normalizeText(record.resolutionSource)
+  const candidateCount = normalizeFiniteNumber(record.candidateCount)
+  const evidence =
+    record.evidence && typeof record.evidence === "object" && !Array.isArray(record.evidence)
+      ? (record.evidence as Record<string, unknown>)
+      : null
+
+  if (
+    ![
+      "managed_node_id",
+      "block_id",
+      "dom_primary_candidate",
+      "capture_text_exact",
+      "capture_text_normalized",
+      "baseline_text_exact",
+      "baseline_text_normalized",
+      "combined_evidence",
+      "not_found",
+    ].includes(resolutionSource)
+  ) {
+    return null
+  }
+
+  const selectedTarget =
+    record.selectedTarget && typeof record.selectedTarget === "object" && !Array.isArray(record.selectedTarget)
+      ? (record.selectedTarget as Record<string, unknown>)
+      : null
+  const sourceBaseVersion =
+    record.sourceBaseVersion && typeof record.sourceBaseVersion === "object" && !Array.isArray(record.sourceBaseVersion)
+      ? (record.sourceBaseVersion as Record<string, unknown>)
+      : null
+
+  return {
+    found,
+    confidence,
+    resolutionSource: resolutionSource as AiConversationResolvedTarget["resolutionSource"],
+    selectedTarget:
+      selectedTarget && normalizeText(selectedTarget.targetId)
+        ? {
+            targetId: normalizeText(selectedTarget.targetId),
+            selector: normalizeText(selectedTarget.selector) || undefined,
+            managedNodeId: normalizeText(selectedTarget.managedNodeId) || undefined,
+            blockId: normalizeText(selectedTarget.blockId) || undefined,
+            tagName: normalizeText(selectedTarget.tagName) || undefined,
+            text: normalizeText(selectedTarget.text) || undefined,
+            normalizedText: normalizeText(selectedTarget.normalizedText) || undefined,
+            source: normalizeText(selectedTarget.source) || undefined,
+          }
+        : undefined,
+    candidateCount,
+    evidence: {
+      captureProvided: evidence?.captureProvided === true,
+      primaryCandidateProvided: evidence?.primaryCandidateProvided === true,
+      textAnchorProvided: evidence?.textAnchorProvided === true,
+      exactTextMatch: evidence?.exactTextMatch === true,
+      normalizedTextMatch: evidence?.normalizedTextMatch === true,
+      candidateIntersectsCapture: evidence?.candidateIntersectsCapture === true,
+      candidateMatchesManagedContent: evidence?.candidateMatchesManagedContent === true,
+    },
+    rejectionReasons: normalizeStringArray(record.rejectionReasons),
+    sourceBaseVersion: sourceBaseVersion
+      ? {
+          id: normalizeText(sourceBaseVersion.id) || null,
+          version_number: Number.isFinite(Number(sourceBaseVersion.version_number))
+            ? Number(sourceBaseVersion.version_number)
+            : null,
+          status: normalizeText(sourceBaseVersion.status) || null,
+          source: normalizeText(sourceBaseVersion.source) || null,
+        }
+      : null,
+    capture: normalizeTargetCapture(record.capture),
+  }
 }
 
 function normalizeTargetCaptureCandidate(value: unknown): AiEditorDomCandidate | null {
@@ -420,6 +545,7 @@ function normalizePendingTargetClarification(value: unknown): AiConversationPend
     requestedValue: normalizeText(record.requestedValue) || null,
     awaiting: awaiting as AiConversationPendingTargetClarification["awaiting"],
     capturedTarget: normalizeTargetCapture(record.capturedTarget),
+    resolvedTarget: normalizeResolvedTarget(record.resolvedTarget),
   }
 }
 

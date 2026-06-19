@@ -33,6 +33,33 @@ describe("conversation helpers", () => {
         requestedProperty: "color",
         requestedValue: "#ffffff",
         awaiting: "capture",
+        resolvedTarget: {
+          found: true,
+          confidence: 0.97,
+          resolutionSource: "block_id",
+          selectedTarget: {
+            targetId: "about-story",
+            blockId: "about-story",
+            managedNodeId: "block:about-story",
+          },
+          candidateCount: 1,
+          evidence: {
+            captureProvided: true,
+            primaryCandidateProvided: true,
+            textAnchorProvided: true,
+            exactTextMatch: false,
+            normalizedTextMatch: true,
+            candidateIntersectsCapture: true,
+            candidateMatchesManagedContent: true,
+          },
+          rejectionReasons: [],
+          sourceBaseVersion: {
+            id: "version-1",
+            version_number: 12,
+            status: "published",
+            source: "published_version",
+          },
+        },
         capturedTarget: {
           id: "capture-1",
           role: "target_capture",
@@ -101,6 +128,8 @@ describe("conversation helpers", () => {
     expect(context.confirmation_token).toBe("intent_123")
     expect(context.pending_image_insert?.capture_attachment_id).toBe("capture-1")
     expect(context.pending_target_clarification?.requestedProperty).toBe("color")
+    expect(context.pending_target_clarification?.resolvedTarget?.found).toBe(true)
+    expect(context.pending_target_clarification?.resolvedTarget?.selectedTarget?.blockId).toBe("about-story")
     expect(context.pending_target_clarification?.capturedTarget?.primaryCandidate).toBeUndefined()
     expect(context.pending_target_clarification?.capturedTarget?.domCandidates[0]?.blockId).toBe("about-story")
     expect(context.recent_messages).toHaveLength(2)

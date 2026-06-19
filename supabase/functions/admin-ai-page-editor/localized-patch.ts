@@ -6,8 +6,8 @@ import {
   applyPatchPlan,
   diagnoseFooterAdjacentSpacing,
   refineSpacingEditPlanForKnownWrappers,
-  type FooterAdjacentSpacingDiagnosis,
   type PatchEngineAttachmentContext,
+  type FooterAdjacentSpacingDiagnosis,
   type PatchEngineBaseVersion,
 } from "./patch-engine.ts"
 import { getLatestTargetCapture } from "./capture-target-resolution.ts"
@@ -307,6 +307,7 @@ function createFriendlyLocalizedFailure(input: {
   requestedProperty?: string | null
   requestedValue?: string | null
   baseVersion?: PatchEngineBaseVersion | null
+  preResolvedTargetFound?: boolean
 }): LocalizedVisualPatchMaterializationResult {
   const lowConfidence =
     input.intent.confidence === "low" ||
@@ -356,6 +357,10 @@ function createFriendlyLocalizedFailure(input: {
         ? "A area selecionada parece apontar para uma imagem ou camada visual fora do conteudo gerido da pagina. Seleciona tambem o texto ou bloco do site que deve mudar, ou indica uma frase visivel para eu aplicar o ajuste localmente."
       : captureSelectedExternal
         ? "A area selecionada parece pertencer a um elemento visual externo ou dinamico que nao e a fonte real do conteudo gerido. Seleciona o bloco da pagina onde esse ajuste deve ser aplicado ou indica o texto visivel do elemento."
+      : input.preResolvedTargetFound
+        ? "Recebi a captura e validei um alvo tecnico para este pedido, mas a materializacao ainda falhou nessa base da pagina. Vou precisar de mais contexto textual ou de uma confirmacao mais especifica do elemento."
+      : hasTargetCapture && textAnchorProvided && !textAnchorFound
+        ? `Recebi a captura, mas ainda nao consegui conciliar esse texto com seguranca na base ${baselineLabel}. Indica uma frase imediatamente antes ou depois dele para eu distinguir o alvo correto sem pedir a mesma captura outra vez.`
       : textAnchorProvided && !textAnchorFound && textAnchorAmbiguous
         ? "Encontrei mais de um texto semelhante. Seleciona a area correta ou indica uma frase antes ou depois dele para eu alterar apenas o elemento certo."
       : textAnchorProvided && !textAnchorFound
@@ -449,6 +454,20 @@ export function materializeLocalizedVisualPatchProposal(
       sourceText: sourceTexts.aggregate || sourceText,
     })
 
+    const preResolvedTarget =
+      input.conversationContext.pending_target_clarification?.resolvedTarget?.found
+        ? {
+            found: input.conversationContext.pending_target_clarification.resolvedTarget.found,
+            confidence: input.conversationContext.pending_target_clarification.resolvedTarget.confidence,
+            resolutionSource: input.conversationContext.pending_target_clarification.resolvedTarget.resolutionSource,
+            selectedTarget: input.conversationContext.pending_target_clarification.resolvedTarget.selectedTarget,
+            candidateCount: input.conversationContext.pending_target_clarification.resolvedTarget.candidateCount,
+            evidence: input.conversationContext.pending_target_clarification.resolvedTarget.evidence,
+            rejectionReasons: input.conversationContext.pending_target_clarification.resolvedTarget.rejectionReasons,
+            capture: input.conversationContext.pending_target_clarification.resolvedTarget.capture ?? null,
+          }
+        : null
+
     if (!seedPlan || intent.confidence === "low") {
       const diagnosis =
         intent.targetHint === "footer_adjacent_spacing"
@@ -471,6 +490,7 @@ export function materializeLocalizedVisualPatchProposal(
         requestedProperty: seedPlan?.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(seedPlan?.operations[0]?.value),
         baseVersion,
+        preResolvedTargetFound: Boolean(preResolvedTarget?.found),
       })
     }
 
@@ -517,6 +537,7 @@ export function materializeLocalizedVisualPatchProposal(
       editPlan,
       baseVersion,
       attachments: input.attachments ?? [],
+      preResolvedCaptureTarget: preResolvedTarget,
     })
 
     if (!ensureHighConfidenceResolutions(patched.resolutions)) {
@@ -532,6 +553,7 @@ export function materializeLocalizedVisualPatchProposal(
         requestedProperty: editPlan.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
         baseVersion,
+        preResolvedTargetFound: Boolean(preResolvedTarget?.found),
       })
     }
 
@@ -560,6 +582,7 @@ export function materializeLocalizedVisualPatchProposal(
         requestedProperty: editPlan.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
         baseVersion,
+        preResolvedTargetFound: Boolean(preResolvedTarget?.found),
       })
     }
 
@@ -576,6 +599,7 @@ export function materializeLocalizedVisualPatchProposal(
         requestedProperty: editPlan.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
         baseVersion,
+        preResolvedTargetFound: Boolean(preResolvedTarget?.found),
       })
     }
 
@@ -650,6 +674,7 @@ export function materializeLocalizedVisualPatchProposal(
       requestedProperty: seedPlan.operations[0]?.path ?? null,
       requestedValue: toPendingRequestedValue(seedPlan.operations[0]?.value),
       baseVersion,
+      preResolvedTargetFound: Boolean(preResolvedTarget?.found),
     })
     }
   }

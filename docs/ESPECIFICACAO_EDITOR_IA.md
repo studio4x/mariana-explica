@@ -24,8 +24,8 @@ Este arquivo existe para documentar com precisao:
 ## 2. Snapshot da implementacao
 
 - Data de levantamento: `2026-06-19`
-- Build de entrega auditada: `1.0.0-118-text-anchor-style-patch-hardening`
-- Esta versao inclui endurecimentos para `text anchor`, baseline viva do DOM e blindagem extra da captura
+- Build de entrega auditada: `1.0.0-119-captured-target-materialization-hardening`
+- Esta versao inclui endurecimentos para `text anchor`, baseline viva do DOM, blindagem extra da captura e persistencia forte de alvo resolvido por captura
 - Arquivo de build: `build-info.ts`
 - Escopo auditado:
   - `src/components/common/SiteAiPageEditorLauncher.tsx`
@@ -141,6 +141,7 @@ Na pratica, o editor trabalha em dois modos:
   - `localized-intent.ts`
   - `localized-patch.ts`
   - `patch-engine.ts`
+  - `pre-resolved-target.ts`
   - `model-routing.ts`
   - `proposal-guards.ts`
   - `safety.ts`
@@ -416,6 +417,8 @@ O launcher mantem, entre outros:
 
 O historico e intencionalmente curto. O launcher envia apenas a cauda recente da conversa.
 
+Nesta versao, `pending_target_clarification` ja pode voltar do backend com `resolvedTarget` preenchido. O frontend preserva esse objeto e o reenvia no turno seguinte, em vez de depender apenas de `recent_messages` para reconstruir a captura.
+
 ### 9.4 Reset de sessao
 
 `resetConversation()` limpa:
@@ -489,6 +492,12 @@ Defaults observados:
 
 - `max_attachments = 2`
 - `max_attachment_size_mb = 8`
+
+Para o papel `target_capture`, o launcher nao deve limpar o anexo imediatamente depois de uma resposta intermediaria. A captura e mantida ate:
+
+- o patch virar draft;
+- o fluxo ser cancelado;
+- ou a conversa ser reiniciada manualmente.
 
 ---
 
@@ -696,7 +705,20 @@ O resolvedor combina:
 - `combined_evidence`
 - `not_found`
 
-### 12.4 Sinais de saida
+### 12.4 Prioridade real da resolucao por captura
+
+Quando existe `target_capture`, o resolvedor backend nao aceita mais o primeiro match textual que aparecer.
+
+A ordem forte de decisao passou a ser:
+
+1. `managed_node_id`
+2. `block_id`
+3. `dom_primary_candidate`
+4. apenas depois disso, `capture_text_exact` ou `capture_text_normalized`
+
+Isto evita que um candidato estruturalmente amplo, como `page-root`, ganhe antes do bloco real apenas porque contem texto semelhante.
+
+### 12.5 Sinais de saida
 
 O resultado devolve:
 
@@ -709,7 +731,7 @@ O resultado devolve:
 - `rejectionReasons`
 - `capture`
 
-### 12.5 Motivos de rejeicao relevantes
+### 12.6 Motivos de rejeicao relevantes
 
 O sistema distingue casos como:
 
@@ -718,6 +740,7 @@ O sistema distingue casos como:
 - `capture_target_external_image`
 - `capture_without_dom_candidates`
 - `capture_target_not_found_in_managed_content`
+- `pre_resolved_target_not_found_in_current_base`
 
 Isto e importante porque o editor atual ja sabe diferenciar:
 
@@ -727,7 +750,7 @@ Isto e importante porque o editor atual ja sabe diferenciar:
 - area ambigua;
 - area sem mapeamento seguro.
 
-### 12.6 Ordem real de confianca para texto entre aspas
+### 12.7 Ordem real de confianca para texto entre aspas
 
 Para pedidos do tipo:
 
@@ -804,13 +827,23 @@ Os resultados do editor usam:
   - `context_text`
   - `selection_confirmation`
 - `capturedTarget`
+- `resolvedTarget`
 
 Este estado e uma das maiores adicoes da versao atual. Ele permite retomar uma conversa ja sabendo:
 
 - que tipo de ajuste o sistema tentou fazer;
 - qual propriedade queria alterar;
 - qual valor queria aplicar;
-- se falta nova captura, mais texto de contexto ou confirmacao da selecao.
+- se falta nova captura, mais texto de contexto ou confirmacao da selecao;
+- e, quando a captura ja foi validada tecnicamente, qual alvo gerido foi realmente resolvido.
+
+`resolvedTarget` existe para impedir falso positivo conversacional. A assistente so pode responder algo equivalente a "ja localizei" quando esse objeto existir com:
+
+- `found = true`
+- `resolutionSource` valido
+- `selectedTarget` tecnico
+- `evidence` preenchido
+- `sourceBaseVersion` quando disponivel
 
 ---
 
@@ -944,6 +977,8 @@ Tambem preserva:
 
 - `pending_image_insert`
 - `pending_target_clarification`
+
+`pending_target_clarification` e tratado como estado opaco controlado pelo backend. A camada `ai-page-editor-response.ts` nao tenta recomputar `capturedTarget` nem `resolvedTarget`; ela apenas valida a forma minima e repassa o contrato normalizado ao launcher.
 
 ---
 
@@ -1107,6 +1142,15 @@ O backend:
 7. detecta rejeicao explicita;
 8. detecta retomada de `pending_target_clarification`.
 
+Se a conversa estiver a retomar um pedido que ja tem captura anexada, `index.ts` pode entrar antes do turno normal de entendimento no branch `captured_target_clarification`.
+
+Esse branch:
+
+- reavalia a captura contra a base ativa ou `requestSnapshotBaseVersion`;
+- persiste `pending_target_clarification.resolvedTarget` quando houver alvo tecnico valido;
+- responde com `awaiting_intent_confirmation` apenas se `resolvedTarget.found = true`;
+- devolve `needs_clarification` diagnostico se a captura nao corresponder a nenhum bloco gerido persistivel.
+
 ### 19.2 Branch de imagem
 
 `image-intent.ts` tenta resolver cedo pedidos do tipo:
@@ -1267,6 +1311,38 @@ Esse mecanismo existe exatamente para casos em que o admin ve no navegador um te
   - quando ainda falta mapear visualmente o alvo real da pagina.
 
 O launcher usa isso para mudar a copy de status da conversa, em vez de responder sempre com uma mensagem generica de "ainda estou a perceber".
+
+### 20.3.3 Reuso de alvo pre-resolvido apos captura
+
+Quando a captura ja foi validada no branch `captured_target_clarification`, a materializacao final em `localized-patch.ts` passa a reutilizar esse alvo por `preResolvedCaptureTarget`.
+
+Na pratica:
+
+- `pending_target_clarification.resolvedTarget` deixa de ser apenas contexto conversacional;
+- ele vira contrato tecnico reaproveitavel pelo `patch-engine.ts`;
+- a confirmacao final nao volta a resolver do zero somente por `request_live_dom_snapshot`;
+- `applyPatchPlan()` emite invariants como:
+  - `capture_target_pre_resolved`
+  - `used_pre_resolved_target`
+
+Esse endurecimento existe especificamente para o caso:
+
+- texto entre aspas falha na baseline;
+- usuario captura a area;
+- backend acha o bloco gerido;
+- usuario confirma;
+- patch localizado reaproveita o alvo ja resolvido em vez de reabrir loop de captura.
+
+### 20.3.4 Falha apos captura sem repetir o mesmo pedido
+
+Se a captura ja foi usada e mesmo assim nao houver alvo persistivel seguro, a falha amigavel nao deve pedir automaticamente a mesma captura outra vez.
+
+As mensagens passam a privilegiar:
+
+- diagnostico de alvo externo ou dinamico;
+- falta de `data-managed-node-id` ou `data-block-id` compativel;
+- pedido de texto vizinho para desambiguar;
+- aviso de base atual desatualizada quando um alvo pre-resolvido deixa de existir.
 
 ### 20.4 `provider_full_proposal`
 
@@ -1554,11 +1630,29 @@ Metadados recorrentes incluem:
 - `latest_draft_id`
 - `context_source`
 - `degraded_draft_bypassed`
+- `baseVersionSource`
+- `baseVersionNumber`
+- `textAnchor`
+- `requestedProperty`
+- `requestedValue`
+- `hasLiveDomSnapshot`
+- `hasTargetCaptureAttachment`
+- `domCandidatesCount`
+- `primaryCandidateManagedNodeId`
+- `primaryCandidateBlockId`
+- `primaryCandidateSafeSelector`
+- `capturedTargetFound`
+- `capturedTargetConfidence`
+- `capturedTargetResolutionSource`
+- `usedPreResolvedTarget`
+- `materializationResult`
+- `failureReasons`
 
 Os branches auditados explicitamente incluem, entre outros:
 
 - `baseline_incomplete`
 - `understanding_turn`
+- `captured_target_clarification`
 - `image_insert_patch`
 - `explicit_css_patch`
 - `confirmed_intent_patch`
@@ -1598,10 +1692,12 @@ Os pontos de evolucao mais relevantes da estrutura atual sao:
 - suporte real a `image_patch`;
 - introducao de `target_capture` rico em DOM e contexto;
 - introducao de `pending_target_clarification`;
+- introducao de `resolvedTarget` como contrato tecnico persistido entre turnos;
 - prioridade pratica para `text anchor` em pedidos com texto entre aspas;
 - retry seguro sobre `request_live_dom_snapshot` quando a baseline persistida esta stale;
 - blindagem adicional da captura contra overlays e content scripts externos;
-- resolucao de alvo baseada em `data-managed-node-id`, `blockId`, seletor seguro e texto;
+- resolucao de alvo baseada em `data-managed-node-id`, `blockId`, seletor seguro e texto, com prioridade forte para IDs estaveis;
+- materializacao final capaz de reutilizar alvo capturado ja resolvido, sem perder o estado na confirmacao seguinte;
 - providers e modelos separados por etapa;
 - rotas publicas persistiveis ampliadas;
 - heuristica de fallback para `published_version` quando o draft degrada;
@@ -1671,3 +1767,4 @@ Ele ja nao deve ser entendido como um simples chat que devolve HTML. A estrutura
 - `supabase/functions/admin-ai-page-editor/explicit-css-patch.ts`
 - `supabase/functions/admin-ai-page-editor/localized-intent.ts`
 - `supabase/functions/admin-ai-page-editor/localized-patch.ts`
+- `supabase/functions/admin-ai-page-editor/pre-resolved-target.ts`
