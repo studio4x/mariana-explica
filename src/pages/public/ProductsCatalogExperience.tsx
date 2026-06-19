@@ -257,7 +257,7 @@ export function ProductsCatalogExperience() {
 
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <div className="rounded-[1.5rem] border border-[#e7eff5] bg-[#f8fbfe] p-6 text-center shadow-sm">
-              <p className="font-display text-xl font-bold text-[#1b2644]">Quando recebes resposta?</p>
+              <h3 className="font-display text-xl font-bold text-[#1b2644]">Quando recebes resposta?</h3>
               <p className="mt-5 text-base font-semibold leading-8 text-[#304a61]">
                 Pagamentos /Acesso: Até 5 horas úteis.
                 <br />
@@ -267,7 +267,7 @@ export function ProductsCatalogExperience() {
             </div>
 
             <div className="rounded-[1.5rem] border border-[#b7c9d8] bg-[#bacad8] p-6 text-center shadow-sm">
-              <p className="font-display text-xl font-bold text-[#1b2644]">S.O.S. Académico!</p>
+              <h3 className="font-display text-xl font-bold text-[#1b2644]">S.O.S. Académico!</h3>
               <p className="mt-5 text-base font-semibold leading-8 text-[#304a61]">
                 Pagamento duplicado ou bloqueio total de acesso? Abre um pedido prioritário para resolvermos isso
                 agora mesmo.
