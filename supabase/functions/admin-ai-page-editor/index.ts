@@ -41,6 +41,7 @@ import {
   assessBootstrapBaseline,
   BASELINE_INCOMPLETE_MESSAGE,
   ensureManagedPageContext,
+  MANAGED_BASELINE_REQUIRED_MESSAGE,
   normalizeBootstrapLayout,
   normalizeBootstrapStyle,
 } from "./page-bootstrap.ts"
@@ -468,6 +469,8 @@ function createFriendlyBaselineIncompleteResponse(input: {
   requestId: string
   clientRequestId: string | null
   providerUsed: AiProvider
+  assistantMessage?: string
+  warnings?: string[]
 }) {
   return {
     success: true as const,
@@ -475,14 +478,14 @@ function createFriendlyBaselineIncompleteResponse(input: {
     client_request_id: input.clientRequestId,
     provider_used: input.providerUsed,
     conversation_phase: "needs_clarification" as const,
-    assistant_message: BASELINE_INCOMPLETE_MESSAGE,
+    assistant_message: input.assistantMessage ?? BASELINE_INCOMPLETE_MESSAGE,
     quick_replies: ["Atualizar a pagina e tentar novamente"],
     understanding_summary: null,
     confirmation_token: null,
     confirmation_consumed: false,
     requires_user_confirmation: false,
     can_generate_proposal: false,
-    warnings: ["baseline_incomplete"],
+    warnings: input.warnings ?? ["baseline_incomplete"],
     ...createConversationOperationalState("needs_clarification"),
   }
 }
@@ -4139,7 +4142,10 @@ Deno.serve(async (req) => {
         })
       } catch (error) {
         const messageText = error instanceof Error ? error.message : String(error)
-        if (messageText.includes(BASELINE_INCOMPLETE_MESSAGE)) {
+        if (
+          messageText.includes(BASELINE_INCOMPLETE_MESSAGE) ||
+          messageText.includes(MANAGED_BASELINE_REQUIRED_MESSAGE)
+        ) {
           await writeAuditLog(serviceClient, context, {
             action: "admin.ai_page_editor_proposal_generated",
             entityType: "site_config",
@@ -4155,6 +4161,7 @@ Deno.serve(async (req) => {
               dynamic_slug: slug,
               bootstrap_attempted: true,
               baseline_complete: false,
+              managed_baseline_required: messageText.includes(MANAGED_BASELINE_REQUIRED_MESSAGE),
               final_status: "needs_clarification",
             },
             ...auditMeta,
@@ -4165,6 +4172,12 @@ Deno.serve(async (req) => {
               requestId,
               clientRequestId: normalizeString(body.client_request_id) || null,
               providerUsed: selectAiModelForStage("conversation", config.config_value).primary.provider,
+              assistantMessage: messageText.includes(MANAGED_BASELINE_REQUIRED_MESSAGE)
+                ? MANAGED_BASELINE_REQUIRED_MESSAGE
+                : BASELINE_INCOMPLETE_MESSAGE,
+              warnings: messageText.includes(MANAGED_BASELINE_REQUIRED_MESSAGE)
+                ? ["managed_baseline_required"]
+                : ["baseline_incomplete"],
             }),
           )
         }

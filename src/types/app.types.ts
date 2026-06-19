@@ -738,7 +738,15 @@ export interface AdminAiPageEditorUsageMetrics {
   }
 }
 
-export type SitePageSlug = "home" | "sobre" | "privacidade" | "cookies" | "termos"
+export type SitePageSlug =
+  | "home"
+  | "sobre"
+  | "explicacoes"
+  | "materiais"
+  | "suporte"
+  | "privacidade"
+  | "cookies"
+  | "termos"
 
 export interface AdminSitePageSummary {
   id: string

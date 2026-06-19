@@ -6,6 +6,8 @@ const sitePageSelect = "id,slug,title,status,published_version_id,created_by,cre
 const sitePageVersionSelect = "id,page_id,version_number,status,layout_json,style_json,metadata,created_by,created_at"
 export const BASELINE_INCOMPLETE_MESSAGE =
   "Preparei esta pagina para edicao, mas ainda nao consegui criar uma base segura com todos os elementos necessarios. Atualiza a pagina e tenta novamente para eu preservar a estrutura completa antes de alterar."
+export const MANAGED_BASELINE_REQUIRED_MESSAGE =
+  "Esta rota esta configurada no editor, mas ainda nao possui baseline gerida publicada. Para editar com IA, esta pagina precisa ser migrada para a estrutura gerida."
 
 function normalizeJsonObject(value: unknown) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -131,19 +133,6 @@ export function normalizeBootstrapStyle(styleJson: Record<string, unknown>) {
   return normalizeJsonObject(styleJson)
 }
 
-function normalizeTitle(value: string, slug: string) {
-  const normalized = String(value ?? "").trim()
-  if (normalized) return normalized.slice(0, 180)
-  if (slug === "home") return "Home"
-
-  return slug
-    .split("--")
-    .flatMap((segment) => segment.split("-"))
-    .filter(Boolean)
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(" ")
-}
-
 async function fetchPageBySlug(serviceClient: ReturnType<typeof createServiceClient>, slug: string) {
   const { data, error } = await serviceClient
     .from("site_pages")
@@ -180,91 +169,29 @@ export async function ensureManagedPageContext(input: {
   const slug = String(input.slug ?? "").trim().toLowerCase()
   if (!slug) throw badRequest("slug e obrigatorio")
 
-  let page = await fetchPageBySlug(input.serviceClient, slug)
-  let pageCreated = false
+  const page = await fetchPageBySlug(input.serviceClient, slug)
   let baselineCreated = false
   let baselineVersionId: string | null = null
 
   if (!page) {
-    const { data: insertedPage, error: pageInsertError } = await input.serviceClient
-      .from("site_pages")
-      .insert({
-        slug,
-        title: normalizeTitle(input.title, slug),
-        status: "draft",
-        created_by: input.userId,
-      })
-      .select(sitePageSelect)
-      .single()
-
-    if (pageInsertError) throw pageInsertError
-    page = insertedPage
-    pageCreated = true
+    throw unprocessable(MANAGED_BASELINE_REQUIRED_MESSAGE)
   }
 
   let versions = await fetchVersions(input.serviceClient, String(page.id))
 
   if (versions.length === 0) {
-    const layoutJson = normalizeBootstrapLayout(input.currentLayoutJson, input.currentHtml)
-    const styleJson = normalizeBootstrapStyle(input.currentStyleJson)
-    const baselineAssessment = assessBootstrapBaseline({
-      layoutJson,
-      styleJson,
-      currentHtml: input.currentHtml,
-    })
-
-    if (!hasBootstrapContext(layoutJson, input.currentHtml)) {
-      throw unprocessable("Nao encontrei contexto suficiente para criar a baseline segura desta pagina.")
-    }
-
-    if (!baselineAssessment.complete || !baselineAssessment.persistible_safe) {
-      throw unprocessable(BASELINE_INCOMPLETE_MESSAGE)
-    }
-
-    const { data: baselineVersion, error: baselineError } = await input.serviceClient
-      .from("site_page_versions")
-      .insert({
-        page_id: page.id,
-        version_number: 1,
-        status: "draft",
-        layout_json: layoutJson,
-        style_json: styleJson,
-        metadata: {
-          editor: "ai-page-editor",
-          source: "allowed_path_bootstrap",
-          pathname: input.pathname,
-          dynamic_slug: slug,
-          route_is_public: true,
-          route_is_allowed: true,
-          bootstrap_attempted: true,
-          bootstrap_created: true,
-          persistible_flow_enabled: true,
-          baseline_complete: baselineAssessment.complete,
-          baseline_persistible_safe: baselineAssessment.persistible_safe,
-          baseline_block_count: baselineAssessment.block_count,
-          baseline_html_length: baselineAssessment.html_length,
-          baseline_css_length: baselineAssessment.css_length,
-          baseline_has_managed_html_root: baselineAssessment.has_managed_html_root,
-          baseline_has_managed_html_data_markers: baselineAssessment.has_managed_html_data_markers,
-          baseline_integrity_reason: baselineAssessment.reason,
-          created_at: new Date().toISOString(),
-        },
-        created_by: input.userId,
-      })
-      .select(sitePageVersionSelect)
-      .single()
-
-    if (baselineError) throw baselineError
-
-    versions = [baselineVersion]
-    baselineCreated = true
-    baselineVersionId = String(baselineVersion.id)
+    throw unprocessable(MANAGED_BASELINE_REQUIRED_MESSAGE)
   }
 
   const publishedVersion =
     page.published_version_id
       ? versions.find((item) => String(item.id) === String(page.published_version_id)) ?? null
       : null
+
+  if (!page.published_version_id || !publishedVersion || publishedVersion.status !== "published") {
+    throw unprocessable(MANAGED_BASELINE_REQUIRED_MESSAGE)
+  }
+
   const latestDraft = versions.find((item) => String(item.status ?? "") === "draft") ?? null
   const selectedBaseVersion = selectAiBaseVersion({
     latestDraft,
@@ -317,7 +244,7 @@ export async function ensureManagedPageContext(input: {
     baseVersionSource: selectedBaseVersion.source,
     degradedDraftBypassed: selectedBaseVersion.degradedDraftBypassed,
     baseVersionSelectionReason: selectedBaseVersion.reason,
-    pageCreated,
+    pageCreated: false,
     baselineCreated,
     baselineVersionId,
     baselineComplete: selectedBaselineAssessment.complete,

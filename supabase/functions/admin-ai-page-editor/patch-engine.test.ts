@@ -463,83 +463,57 @@ describe("applyPatchPlan", () => {
     expect((blocks[2].content as string)).toContain("/suporte")
   })
 
-  it("fails fast when the selected capture points to external or unmanaged content", () => {
-    expect(() =>
-      applyPatchPlan({
-        slug: "sobre",
-        title: "Sobre",
-        path: "/explicacoes",
-        message: "mude a cor do titulo dessa secao para branco",
-        editPlan: createPlan({
-          scope: "text",
-          mode: "style_patch",
-          risk_level: "low",
-          target_ids: ["localized_heading"],
-          operations: [
-            {
-              type: "set_style",
-              target_id: "localized_heading",
-              path: "color",
-              value: "#ffffff",
-              breakpoint: "all",
-            },
-          ],
-        }),
-        baseVersion: createBaseVersion(),
-        attachments: [
+  it("records unmanaged capture rejection and refuses to use that capture as the resolved target", () => {
+    const result = applyPatchPlan({
+      slug: "sobre",
+      title: "Sobre",
+      path: "/explicacoes",
+      message: "mude a cor do titulo dessa secao para branco",
+      editPlan: createPlan({
+        scope: "text",
+        mode: "style_patch",
+        risk_level: "low",
+        target_ids: ["localized_heading"],
+        operations: [
           {
-            id: "capture-external",
-            name: "overlay.jpg",
-            mime_type: "image/jpeg",
-            role: "target_capture",
-            metadata: {
-              target_capture: {
-                id: "capture-external",
-                role: "target_capture",
-                pathname: "/explicacoes",
-                capturedAt: "2026-06-18T18:00:00.000Z",
-                viewport: {
-                  width: 1280,
-                  height: 720,
-                  scrollX: 0,
-                  scrollY: 0,
-                  devicePixelRatio: 1,
-                },
-                selectionRect: {
-                  x: 16,
-                  y: 16,
-                  width: 160,
-                  height: 120,
-                  pageX: 16,
-                  pageY: 16,
-                },
-                domCandidates: [
-                  {
-                    candidateId: "floating-widget",
-                    tagName: "div",
-                    classNames: ["floating-widget"],
-                    rect: {
-                      x: 16,
-                      y: 16,
-                      width: 160,
-                      height: 120,
-                      top: 16,
-                      left: 16,
-                      right: 176,
-                      bottom: 136,
-                    },
-                    intersectsSelection: true,
-                    intersectionRatio: 1,
-                    isTextBearing: false,
-                    isHeading: false,
-                    isButton: false,
-                    isImage: false,
-                    isEditableManagedContent: false,
-                    confidence: 0.8,
-                    source: "elementsFromPoint",
-                  },
-                ],
-                primaryCandidate: {
+            type: "set_style",
+            target_id: "localized_heading",
+            path: "color",
+            value: "#ffffff",
+            breakpoint: "all",
+          },
+        ],
+      }),
+      baseVersion: createBaseVersion(),
+      attachments: [
+        {
+          id: "capture-external",
+          name: "overlay.jpg",
+          mime_type: "image/jpeg",
+          role: "target_capture",
+          metadata: {
+            target_capture: {
+              id: "capture-external",
+              role: "target_capture",
+              pathname: "/explicacoes",
+              capturedAt: "2026-06-18T18:00:00.000Z",
+              viewport: {
+                width: 1280,
+                height: 720,
+                scrollX: 0,
+                scrollY: 0,
+                devicePixelRatio: 1,
+              },
+              selectionRect: {
+                x: 16,
+                y: 16,
+                width: 160,
+                height: 120,
+                pageX: 16,
+                pageY: 16,
+              },
+              domCandidates: [
+                {
                   candidateId: "floating-widget",
                   tagName: "div",
                   classNames: ["floating-widget"],
@@ -563,19 +537,46 @@ describe("applyPatchPlan", () => {
                   confidence: 0.8,
                   source: "elementsFromPoint",
                 },
-                textFragments: [],
-                captureDiagnostics: {
-                  elementCount: 1,
-                  textCandidateCount: 0,
-                  primaryCandidateConfidence: 0.8,
-                  source: "live_dom_selection",
+              ],
+              primaryCandidate: {
+                candidateId: "floating-widget",
+                tagName: "div",
+                classNames: ["floating-widget"],
+                rect: {
+                  x: 16,
+                  y: 16,
+                  width: 160,
+                  height: 120,
+                  top: 16,
+                  left: 16,
+                  right: 176,
+                  bottom: 136,
                 },
+                intersectsSelection: true,
+                intersectionRatio: 1,
+                isTextBearing: false,
+                isHeading: false,
+                isButton: false,
+                isImage: false,
+                isEditableManagedContent: false,
+                confidence: 0.8,
+                source: "elementsFromPoint",
+              },
+              textFragments: [],
+              captureDiagnostics: {
+                elementCount: 1,
+                textCandidateCount: 0,
+                primaryCandidateConfidence: 0.8,
+                source: "live_dom_selection",
               },
             },
           },
-        ],
-      }),
-    ).toThrow(/capture_target_external_or_dynamic/i)
+        },
+      ],
+    })
+
+    expect(result.invariants.capture_target_found).toBe(false)
+    expect(result.invariants.capture_target_rejection_reasons).toContain("unmanaged_dom_target")
   })
 
   it("prioritizes a quoted text anchor as the target source when the text is unique", () => {

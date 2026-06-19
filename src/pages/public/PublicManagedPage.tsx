@@ -13,6 +13,9 @@ import {
 import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
 import type { PublicSitePagePayload } from "@/types/app.types"
+import { ExplicacoesFormExperience } from "./ExplicacoesFormExperience"
+import { ProductsCatalogExperience } from "./ProductsCatalogExperience"
+import { SupportFaqExperience } from "./SupportFaqExperience"
 
 function normalizeHtml(layoutJson?: Record<string, unknown>) {
   if (!layoutJson || typeof layoutJson !== "object") return ""
@@ -65,6 +68,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   const pageQuery = usePublicSitePage(slug)
   const managedRootRef = useRef<HTMLDivElement | null>(null)
   const [homeReviewsMountNode, setHomeReviewsMountNode] = useState<HTMLElement | null>(null)
+  const [managedExperienceMountNode, setManagedExperienceMountNode] = useState<HTMLElement | null>(null)
   const [highlightedTargetsCount, setHighlightedTargetsCount] = useState(0)
 
   const previewPayload = useMemo(() => {
@@ -104,6 +108,37 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     placeholder.setAttribute("data-me-home-reviews-live", "1")
     placeholder.innerHTML = ""
     setHomeReviewsMountNode(placeholder)
+  }, [managedPayload?.html, slug])
+
+  useEffect(() => {
+    const root = managedRootRef.current
+    if (!root) {
+      setManagedExperienceMountNode(null)
+      return
+    }
+
+    const placeholderSelector =
+      slug === "explicacoes"
+        ? ".me-explicacoes-form-placeholder"
+        : slug === "materiais"
+          ? ".me-products-experience-placeholder"
+          : slug === "suporte"
+            ? ".me-support-experience-placeholder"
+            : null
+
+    if (!placeholderSelector) {
+      setManagedExperienceMountNode(null)
+      return
+    }
+
+    const placeholder = root.querySelector<HTMLElement>(placeholderSelector)
+    if (!placeholder) {
+      setManagedExperienceMountNode(null)
+      return
+    }
+
+    placeholder.innerHTML = ""
+    setManagedExperienceMountNode(placeholder)
   }, [managedPayload?.html, slug])
 
   useEffect(() => {
@@ -234,6 +269,15 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
       <div ref={managedRootRef} dangerouslySetInnerHTML={{ __html: managedPayload.html }} />
       {slug === "home" && homeReviewsMountNode
         ? createPortal(<HomeReviewsFeed className="!mt-0" />, homeReviewsMountNode)
+        : null}
+      {slug === "explicacoes" && managedExperienceMountNode
+        ? createPortal(<ExplicacoesFormExperience />, managedExperienceMountNode)
+        : null}
+      {slug === "materiais" && managedExperienceMountNode
+        ? createPortal(<ProductsCatalogExperience />, managedExperienceMountNode)
+        : null}
+      {slug === "suporte" && managedExperienceMountNode
+        ? createPortal(<SupportFaqExperience />, managedExperienceMountNode)
         : null}
     </div>
   )

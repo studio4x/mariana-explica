@@ -44,6 +44,10 @@ import {
   isAiPageEditorAllowedPath,
   shouldUsePublishedVersionForAiContext,
 } from "@/lib/ai-page-editor"
+import {
+  auditManagedPublicPageRoute,
+  PUBLIC_MANAGED_PAGE_ROUTE_SLUGS,
+} from "@/lib/managed-public-page-audit"
 import type {
   AdminAiPageEditorAttachmentInput,
   AdminAiPageEditorAttachmentMetadata,
@@ -843,14 +847,28 @@ export function SiteAiPageEditorLauncher() {
   const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
   const liveDomBaseline = useMemo(() => buildLiveDomBaseline(pageSlug), [pageSlug])
-  const publishedVersionId =
-    pageDetailQuery.data?.page?.published_version_id ?? publicPageQuery.data?.page?.published_version_id ?? null
-  const pageContextSource =
-    pageContextVersion?.metadata && typeof pageContextVersion.metadata === "object"
-      ? String(pageContextVersion.metadata.source ?? "").trim().toLowerCase()
-      : ""
-  const bootstrapOnlyWithoutManagedDom =
-    pageContextSource === "allowed_path_bootstrap" && !publishedVersionId && !liveDomBaseline
+  const pageAudit = useMemo(() => {
+    if (!pageSlug) return null
+
+    return auditManagedPublicPageRoute({
+      path: pathname,
+      managedSlug: String(pageSlug),
+      inAllowedPaths: routeCapability.routeIsAllowed,
+      inRouteOptions: Boolean(routeOption),
+      routeIsPublic: routeCapability.routeIsPublic,
+      routeIsSensitive: routeCapability.routeIsSensitive,
+      usesPublicManagedPage: PUBLIC_MANAGED_PAGE_ROUTE_SLUGS.has(String(pageSlug)),
+      detail: pageDetailQuery.data ?? null,
+    })
+  }, [
+    pageDetailQuery.data,
+    pageSlug,
+    pathname,
+    routeCapability.routeIsAllowed,
+    routeCapability.routeIsPublic,
+    routeCapability.routeIsSensitive,
+    routeOption,
+  ])
   const persistibleGuardPending =
     routeCapability.supportsPersistibleFlow && Boolean(pageSlug) && pageDetailQuery.isLoading
   const persistibleRestrictionReason = useMemo(() => {
@@ -858,19 +876,13 @@ export function SiteAiPageEditorLauncher() {
       return routeCapability.reason
     }
 
-    if (bootstrapOnlyWithoutManagedDom) {
-      return `Encontrei a rota ${pathname} nas Rotas permitidas, mas ela ainda so tem uma baseline allowed_path_bootstrap sem correspondencia com o DOM gerido visivel. Enquanto essa secao nao for migrada para a baseline persistivel, o editor nao pode abrir draft, previa e publicacao com seguranca.`
+    if (!pageAudit && !pageDetailQuery.isLoading) {
+      return `A rota ${pathname} ainda nao esta associada a uma baseline gerida persistivel.`
     }
 
-    if (!pageContextVersion && !liveDomBaseline && !pageDetailQuery.isLoading) {
-      return `A rota ${pathname} ainda nao esta associada a uma baseline gerida persistivel. O conteudo visivel desta pagina nao esta a ser renderizado por .me-managed-page-root neste momento.`
-    }
-
-    return null
+    return pageAudit?.reason ?? null
   }, [
-    bootstrapOnlyWithoutManagedDom,
-    liveDomBaseline,
-    pageContextVersion,
+    pageAudit,
     pageDetailQuery.isLoading,
     pageSlug,
     pathname,
@@ -878,22 +890,21 @@ export function SiteAiPageEditorLauncher() {
     routeCapability.supportsPersistibleFlow,
   ])
   const canPersistDraft =
-    routeCapability.supportsPersistibleFlow && Boolean(pageSlug) && !persistibleGuardPending && !persistibleRestrictionReason
-
-  const importedPageBaseline = useMemo(() => {
-    if (pageContextVersion) return null
-    return liveDomBaseline
-  }, [liveDomBaseline, pageContextVersion])
+    routeCapability.supportsPersistibleFlow &&
+    Boolean(pageSlug) &&
+    !persistibleGuardPending &&
+    !persistibleRestrictionReason &&
+    pageAudit?.supportsPersistibleFlow === true
 
   const currentLayoutJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.layout_json
-    return importedPageBaseline?.layoutJson ?? {}
-  }, [importedPageBaseline?.layoutJson, pageContextVersion])
+    return {}
+  }, [pageContextVersion])
 
   const currentStyleJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.style_json
-    return importedPageBaseline?.styleJson ?? {}
-  }, [importedPageBaseline?.styleJson, pageContextVersion])
+    return {}
+  }, [pageContextVersion])
 
   const currentHtml = useMemo(() => {
     if (previewPayload?.html) {
@@ -909,12 +920,8 @@ export function SiteAiPageEditorLauncher() {
       return renderDocumentToHtml(document)
     }
 
-    if (importedPageBaseline?.html) {
-      return importedPageBaseline.html
-    }
-
     return ""
-  }, [importedPageBaseline?.html, liveDomBaseline?.html, pageContextVersion, pageSlug, previewPayload?.html])
+  }, [liveDomBaseline?.html, pageContextVersion, pageSlug, previewPayload?.html])
 
   const revisions = useMemo(() => {
     return pageDetailQuery.data?.versions ?? []
@@ -940,20 +947,7 @@ export function SiteAiPageEditorLauncher() {
   )
 
   function buildCurrentVersionSnapshot() {
-    if (!pageContextVersion) {
-      if (!importedPageBaseline) return null
-
-      return {
-        title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
-        layout_json: structuredClone(importedPageBaseline.layoutJson),
-        style_json: structuredClone(importedPageBaseline.styleJson),
-        metadata: {
-          editor: "ai-page-editor",
-          source: "allowed_path_bootstrap",
-          pathname,
-        },
-      }
-    }
+    if (!pageContextVersion) return null
 
     return {
       title: pageDetailQuery.data?.page.title ?? routeOption?.label ?? document.title,
@@ -2160,7 +2154,6 @@ export function SiteAiPageEditorLauncher() {
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
   const isEditorDisabled = config?.config_value.enabled === false
   const showPersistibleRestriction = !canPersistDraft && !persistibleGuardPending
-  const showBootstrapStatus = canPersistDraft && !pageContextVersion && Boolean(importedPageBaseline)
   const shouldDisableApply = saveDraftMutation.isPending || !proposalAssessment?.canApply
   const composerPlaceholder = isEditorDisabled
     ? "Editor desativado nas configuracoes."
@@ -2170,9 +2163,7 @@ export function SiteAiPageEditorLauncher() {
         ? "Estou a confirmar se esta rota ja tem uma baseline gerida valida antes de abrir o fluxo persistivel."
       : showPersistibleRestriction
         ? "Header/footer global ainda podem ser editados; o fluxo persistivel por secao fica apenas nas rotas publicas permitidas."
-        : showBootstrapStatus
-          ? "Estou a preparar esta pagina para edicao segura pela primeira vez. Ja a seguir podes criar uma previa antes de publicar."
-          : "Ex.: esta parte esta muito afastada la em cima e quero mexer so aqui..."
+        : "Ex.: esta parte esta muito afastada la em cima e quero mexer so aqui..."
 
   return (
     <div data-ai-page-editor-root className="fixed bottom-5 right-5 z-[80] pointer-events-none">
@@ -2257,15 +2248,6 @@ export function SiteAiPageEditorLauncher() {
                   </p>
                   <p className="mt-2">
                     Header e footer globais continuam suportados. Para preview persistivel por secao, usa apenas uma rota publica adicionada em Rotas permitidas.
-                  </p>
-                </div>
-              ) : null}
-
-              {showBootstrapStatus ? (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-950">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-700">Primeira edicao segura</p>
-                  <p className="mt-2">
-                    Estou a preparar esta pagina para edicao segura pela primeira vez. Ja a seguir podes criar uma previa antes de publicar.
                   </p>
                 </div>
               ) : null}

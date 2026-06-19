@@ -12,6 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "audit:managed-public-pages": "node scripts/sync-managed-public-pages.mjs --audit-only",
+    "sync:managed-public-pages": "node scripts/sync-managed-public-pages.mjs",
     "deploy": "npm run build:github && gh-pages -d dist"
   },
   "dependencies": {

@@ -421,6 +421,18 @@ export function getDefaultDocumentForSlug(slug: ManagedSitePageSlug): SitePageBu
     return createCanonicalAboutDocument()
   }
 
+  if (slug === "explicacoes") {
+    return createCanonicalExplicacoesDocument()
+  }
+
+  if (slug === "materiais") {
+    return createCanonicalMateriaisDocument()
+  }
+
+  if (slug === "suporte") {
+    return createCanonicalSuporteDocument()
+  }
+
   if (slug === "privacidade") {
     return createCanonicalLegalDocument({
       slug,
@@ -693,6 +705,102 @@ function createCanonicalSection(content: string) {
   return createHomeRichSection(content)
 }
 
+function createCanonicalExplicacoesDocument(): SitePageBuilderDocument {
+  const hero = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="explicacoes" class="me-explicacoes-page">
+      <div class="me-explicacoes-shell">
+        <div class="me-explicacoes-hero-card">
+          <p class="me-explicacoes-pill">Explicações</p>
+          <h1>Vamos descomplicar o teu ano letivo juntos?</h1>
+          <p>Não tens Instagram ou preferes o contacto formal por e-mail? Sem problema, estás no sítio certo! Este espaço foi pensado tanto para estudantes como para encarregados de educação que queiram esclarecer dúvidas sobre os meus materiais ou solicitar apoio individual.</p>
+        </div>
+      </div>
+    </section>
+  `)
+
+  const notes = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="explicacoes" class="me-explicacoes-page">
+      <div class="me-explicacoes-shell">
+        <article class="me-explicacoes-notes-card">
+          <h2>Notas importantes antes de enviares o teu formulário:</h2>
+          <div class="me-explicacoes-note-list">
+            <p><strong>Planeamento Prévio:</strong> Devido à agenda preenchida, todos os pedidos para explicações devem ser efetuados com um mínimo de 3 semanas de antecedência.</p>
+            <p><strong>Não Garante Reserva:</strong> O envio e submissão deste formulário funciona estritamente como um pedido de informações e consulta de disponibilidade. Não constitui, de forma alguma, uma marcação automática ou garantia de vaga.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  `)
+
+  const form = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="explicacoes" class="me-explicacoes-page">
+      <div class="me-explicacoes-shell">
+        <div class="me-explicacoes-form-placeholder"></div>
+      </div>
+    </section>
+  `)
+
+  return { blocks: [hero, notes, form] }
+}
+
+function createCanonicalMateriaisDocument(): SitePageBuilderDocument {
+  const hero = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="materiais" class="me-materiais-page">
+      <div class="me-materiais-shell">
+        <div class="me-materiais-hero">
+          <p class="me-materiais-eyebrow">Materiais</p>
+          <h1>Tudo o que precisas para brilhares</h1>
+          <p>Encontra aqui os teus melhores amigos de estudo: resumos leves, esquemas práticos e o apoio certo para dominares o português e a filosofia sem stress.</p>
+        </div>
+      </div>
+    </section>
+  `)
+
+  const experience = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="materiais" class="me-materiais-page me-materiais-page-soft">
+      <div class="me-materiais-shell">
+        <div class="me-materiais-support-copy">
+          <p class="me-materiais-helper-label">Catálogo dinâmico</p>
+          <h2>Pesquisa, filtros e apoio continuam ativos nesta área.</h2>
+          <p>O catálogo publicado, as FAQs e o suporte de escolha permanecem ligados ao frontend dinâmico, enquanto a estrutura principal desta página passa a ser gerida com baseline persistida.</p>
+        </div>
+        <div class="me-products-experience-placeholder"></div>
+      </div>
+    </section>
+  `)
+
+  return { blocks: [hero, experience] }
+}
+
+function createCanonicalSuporteDocument(): SitePageBuilderDocument {
+  const hero = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="suporte" class="me-support-page">
+      <div class="me-support-shell">
+        <div class="me-support-hero">
+          <p class="me-support-icon-badge">Suporte</p>
+          <h1>Como podemos ajudar?</h1>
+          <p>Encontre respostas rápidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.</p>
+        </div>
+      </div>
+    </section>
+  `)
+
+  const experience = createCanonicalSection(`
+    <section ${PAGE_CANONICAL_MARKER}="suporte" class="me-support-page me-support-page-soft">
+      <div class="me-support-shell">
+        <div class="me-support-helper-copy">
+          <p class="me-support-helper-label">Ajuda contínua</p>
+          <h2>A pesquisa, os filtros da FAQ e os atalhos para chamado continuam ativos aqui.</h2>
+          <p>Esta secção usa renderização gerida como base e mantém o comportamento dinâmico do frontend público através de uma ilha React segura.</p>
+        </div>
+        <div class="me-support-experience-placeholder"></div>
+      </div>
+    </section>
+  `)
+
+  return { blocks: [hero, experience] }
+}
+
 function createCanonicalAboutDocument(): SitePageBuilderDocument {
   const hero = createCanonicalSection(`
     <section ${PAGE_CANONICAL_MARKER}="sobre" class="me-about-page">
@@ -960,6 +1068,18 @@ export function maybeCanonicalizeHomeDocument(document: SitePageBuilderDocument,
 
   if (slug === "sobre") {
     return createCanonicalAboutDocument()
+  }
+
+  if (slug === "explicacoes") {
+    return createCanonicalExplicacoesDocument()
+  }
+
+  if (slug === "materiais") {
+    return createCanonicalMateriaisDocument()
+  }
+
+  if (slug === "suporte") {
+    return createCanonicalSuporteDocument()
   }
 
   if (slug === "privacidade") {
@@ -2088,6 +2208,151 @@ export function getDefaultStyleCss() {
   line-height: 1.2;
   font-weight: 700;
 }
+.me-explicacoes-page {
+  background: #f6fafc;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 24px 0;
+}
+.me-explicacoes-shell,
+.me-materiais-shell,
+.me-support-shell {
+  width: min(1200px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+.me-explicacoes-hero-card,
+.me-explicacoes-notes-card,
+.me-support-hero,
+.me-support-helper-copy,
+.me-materiais-hero,
+.me-materiais-support-copy {
+  border-radius: 28px;
+  border: 1px solid #dbe8ef;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+.me-explicacoes-hero-card {
+  padding: 24px;
+}
+.me-explicacoes-pill,
+.me-materiais-eyebrow,
+.me-support-icon-badge,
+.me-materiais-helper-label,
+.me-support-helper-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.me-explicacoes-pill {
+  background: #e7f3fb;
+  color: #114866;
+  padding: 10px 16px;
+}
+.me-explicacoes-hero-card h1,
+.me-support-hero h1,
+.me-support-helper-copy h2,
+.me-materiais-hero h1,
+.me-materiais-support-copy h2 {
+  margin: 20px 0 0;
+  color: #102c40;
+}
+.me-explicacoes-hero-card h1 {
+  font-size: clamp(34px, 4.6vw, 58px);
+  line-height: 1.08;
+}
+.me-explicacoes-hero-card > p:last-child {
+  margin: 20px 0 0;
+  max-width: 860px;
+  color: #475569;
+  font-size: 18px;
+  line-height: 1.8;
+}
+.me-explicacoes-notes-card {
+  background: #0f2f45;
+  border-color: #0f2f45;
+  padding: 24px;
+}
+.me-explicacoes-notes-card h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(28px, 3.6vw, 40px);
+  line-height: 1.2;
+}
+.me-explicacoes-note-list {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+.me-explicacoes-note-list p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 16px;
+  line-height: 1.8;
+}
+.me-explicacoes-note-list strong {
+  color: #ffffff;
+}
+.me-materiais-page,
+.me-support-page {
+  background: #dff0f7;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 24px 0;
+}
+.me-materiais-page-soft,
+.me-support-page-soft {
+  padding-top: 0;
+}
+.me-materiais-hero,
+.me-support-hero,
+.me-support-helper-copy,
+.me-materiais-support-copy {
+  padding: 32px;
+}
+.me-materiais-eyebrow,
+.me-materiais-helper-label,
+.me-support-helper-label {
+  background: rgba(255, 255, 255, 0.82);
+  color: #4e6880;
+  padding: 10px 16px;
+}
+.me-support-icon-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 10px 16px;
+}
+.me-materiais-hero h1,
+.me-support-hero h1 {
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+.me-materiais-hero > p:last-child,
+.me-support-hero > p:last-child,
+.me-materiais-support-copy > p:last-child,
+.me-support-helper-copy > p:last-child {
+  margin: 18px 0 0;
+  max-width: 860px;
+  color: #41586c;
+  font-size: 18px;
+  line-height: 1.8;
+}
+.me-materiais-support-copy h2,
+.me-support-helper-copy h2 {
+  font-size: clamp(30px, 3.8vw, 46px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+.me-products-experience-placeholder,
+.me-support-experience-placeholder,
+.me-explicacoes-form-placeholder {
+  min-height: 120px;
+}
 .me-legal-page {
   background: #ffffff;
   margin-left: calc(50% - 50vw);
@@ -2241,7 +2506,10 @@ export function getDefaultStyleCss() {
     font-size: 28px;
   }
   .me-about-shell,
-  .me-legal-shell {
+  .me-legal-shell,
+  .me-explicacoes-shell,
+  .me-materiais-shell,
+  .me-support-shell {
     width: min(100vw - 28px, 1200px);
   }
   .me-about-grid,
@@ -2260,6 +2528,12 @@ export function getDefaultStyleCss() {
     text-align: center;
   }
   .me-about-card,
+  .me-explicacoes-hero-card,
+  .me-explicacoes-notes-card,
+  .me-materiais-hero,
+  .me-materiais-support-copy,
+  .me-support-hero,
+  .me-support-helper-copy,
   .me-legal-hero-card,
   .me-legal-article,
   .me-legal-support {
@@ -2277,6 +2551,46 @@ export function composeManagedPageCss(additionalCss?: string | null) {
   const baseCss = getDefaultStyleCss().trim()
   const extraCss = String(additionalCss ?? "").trim()
   return extraCss ? `${baseCss}\n\n${extraCss}` : baseCss
+}
+
+export function getManagedPageTitle(slug: ManagedSitePageSlug) {
+  switch (slug) {
+    case "home":
+      return "Home"
+    case "sobre":
+      return "Sobre"
+    case "explicacoes":
+      return "Explicações"
+    case "materiais":
+      return "Materiais"
+    case "suporte":
+      return "Suporte"
+    case "privacidade":
+      return "Privacidade"
+    case "cookies":
+      return "Cookies"
+    case "termos":
+      return "Termos de uso"
+    default:
+      return String(slug ?? "").trim() || "Página"
+  }
+}
+
+export function buildCanonicalManagedPagePayload(slug: ManagedSitePageSlug) {
+  const document = getDefaultDocumentForSlug(slug)
+  const html = renderDocumentToHtml(document)
+
+  return {
+    title: getManagedPageTitle(slug),
+    layoutJson: {
+      projectData: {
+        blocks: document.blocks,
+      },
+      html,
+    } satisfies Record<string, unknown>,
+    styleJson: {} satisfies Record<string, unknown>,
+    html,
+  }
 }
 
 

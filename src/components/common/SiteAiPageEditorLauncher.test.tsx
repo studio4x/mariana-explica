@@ -9,6 +9,7 @@ import { AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE } from "@/lib/ai-page-editor-r
 
 const {
   mockUseAuth,
+  mockUseAdminOptionalSitePageDetail,
   mockGenerateProposalMutateAsync,
   mockSaveDraftMutateAsync,
   mockPublishPageVersionMutateAsync,
@@ -20,6 +21,7 @@ const {
   mockStoreSitePagePreview,
 } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
+  mockUseAdminOptionalSitePageDetail: vi.fn(),
   mockGenerateProposalMutateAsync: vi.fn(),
   mockSaveDraftMutateAsync: vi.fn(),
   mockPublishPageVersionMutateAsync: vi.fn(),
@@ -59,27 +61,7 @@ vi.mock("@/hooks/useAdmin", () => ({
     mutateAsync: mockRollbackPageVersionMutateAsync,
     isPending: false,
   }),
-  useAdminOptionalSitePageDetail: () => ({
-    data: {
-      page: {
-        id: "page-1",
-        slug: "sobre",
-        title: "Sobre",
-      },
-      published_version: {
-        id: "version-1",
-        version_number: 12,
-        status: "published",
-        layout_json: { projectData: { blocks: [{ id: "wrapper" }] } },
-        style_json: { wrapper: { paddingTop: 32 } },
-        metadata: {},
-        created_at: "2026-06-15T12:00:00.000Z",
-      },
-      latest_draft: null,
-      versions: [],
-      assets: [],
-    },
-  }),
+  useAdminOptionalSitePageDetail: () => mockUseAdminOptionalSitePageDetail(),
   useGenerateAdminAiPageEditorProposal: () => ({
     mutateAsync: mockGenerateProposalMutateAsync,
     isPending: false,
@@ -282,6 +264,93 @@ function createSavedDraftResult(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function createManagedPageDetailMock(overrides: Record<string, unknown> = {}) {
+  const layoutJson = {
+    projectData: {
+      blocks: [
+        {
+          id: "wrapper",
+          type: "rich_text",
+          content: "<section><h1>Sobre</h1><p>Conteudo gerido.</p></section>",
+          layout: {
+            gridColumns: 12,
+            align: "center",
+            paddingTop: 0,
+            paddingRight: 0,
+            paddingBottom: 0,
+            paddingLeft: 0,
+            marginTop: 0,
+            marginBottom: 0,
+            marginLeft: 0,
+            marginRight: 0,
+            backgroundColor: "transparent",
+            backgroundImageUrl: "",
+            backgroundImageSize: "cover",
+            borderRadius: 0,
+            contentAlignX: "stretch",
+            contentAlignY: "top",
+            contentGap: 0,
+            minHeight: 0,
+          },
+        },
+      ],
+    },
+    html:
+      '<div class="me-managed-page-root">' +
+      '<section class="me-managed-block" data-block-id="wrapper" data-block-type="rich_text" data-managed-node-id="block:wrapper" data-ai-editor-id="managed:wrapper" data-section-index="0">' +
+      '<div class="me-managed-richtext" data-parent-block-id="wrapper" data-managed-node-id="content:wrapper" data-ai-editor-id="managed:wrapper:content" data-block-type="rich_text">' +
+      "<section><h1>Sobre</h1><p>Conteudo gerido.</p></section>" +
+      "</div></section></div>",
+  }
+
+  return {
+    data: {
+      page: {
+        id: "page-1",
+        slug: "sobre",
+        title: "Sobre",
+        status: "published",
+        published_version_id: "version-1",
+        created_by: null,
+        created_at: "2026-06-15T12:00:00.000Z",
+        updated_at: "2026-06-15T12:00:00.000Z",
+      },
+      published_version: {
+        id: "version-1",
+        page_id: "page-1",
+        version_number: 12,
+        status: "published",
+        layout_json: layoutJson,
+        style_json: {},
+        metadata: {
+          source: "managed_public_page_seed",
+        },
+        created_by: null,
+        created_at: "2026-06-15T12:00:00.000Z",
+      },
+      latest_draft: null,
+      versions: [
+        {
+          id: "version-1",
+          page_id: "page-1",
+          version_number: 12,
+          status: "published",
+          layout_json: layoutJson,
+          style_json: {},
+          metadata: {
+            source: "managed_public_page_seed",
+          },
+          created_by: null,
+          created_at: "2026-06-15T12:00:00.000Z",
+        },
+      ],
+      assets: [],
+    },
+    isLoading: false,
+    ...overrides,
+  }
+}
+
 async function renderLauncher() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -325,6 +394,7 @@ describe("SiteAiPageEditorLauncher", () => {
     mockUpdateBrandingConfig.mockReset()
     mockFetchAdminBrandingConfig.mockReset()
     mockStoreSitePagePreview.mockReset()
+    mockUseAdminOptionalSitePageDetail.mockReset()
     mockUseAuth.mockReturnValue({
       isAdmin: true,
       loading: false,
@@ -341,6 +411,7 @@ describe("SiteAiPageEditorLauncher", () => {
       updated_at: "2026-06-15T12:05:00.000Z",
     }))
     mockStoreSitePagePreview.mockReturnValue("preview-token")
+    mockUseAdminOptionalSitePageDetail.mockReturnValue(createManagedPageDetailMock())
     vi.mocked(html2canvas).mockResolvedValue({
       width: 640,
       height: 320,
@@ -380,6 +451,19 @@ describe("SiteAiPageEditorLauncher", () => {
     expect(mockGenerateHeaderCopyProposal).not.toHaveBeenCalled()
     expect(screen.queryByText(/topo do site foi atualizado/i)).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /preparar previa/i })).toBeInTheDocument()
+  })
+
+  it("shows a clear restriction when the route is allowed but still lacks a real managed baseline", async () => {
+    mockUseAdminOptionalSitePageDetail.mockReturnValue({
+      data: null,
+      isLoading: false,
+    })
+
+    await renderLauncher()
+
+    expect(screen.getByText(/ainda não existe site_pages\/published baseline para esta rota/i)).toBeInTheDocument()
+    expect(screen.getByText(/header e footer globais continuam suportados/i)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /preparar previa/i })).not.toBeInTheDocument()
   })
 
   it("routes spacing between the header and the first section to the visual proposal flow", async () => {
