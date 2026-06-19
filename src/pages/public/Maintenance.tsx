@@ -157,7 +157,7 @@ export function MaintenancePage({ message }: MaintenancePageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(16,44,64,0.16),transparent_34%),linear-gradient(180deg,#eef7fb_0%,#e3f0f6_52%,#f9fcfe_100%)] px-4 py-6 sm:px-6">
+    <div className="site-typography min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(16,44,64,0.16),transparent_34%),linear-gradient(180deg,#eef7fb_0%,#e3f0f6_52%,#f9fcfe_100%)] px-4 py-6 sm:px-6">
       <div className="flex min-h-[calc(100vh-3rem)] items-center justify-center">
         <section className="w-full max-w-5xl rounded-[2rem] border border-[#d7e6ee] bg-white p-7 shadow-[0_30px_80px_rgba(18,63,89,0.12)] sm:p-10">
           <SiteLogo variant="dark" imageClassName="h-12 max-w-[220px]" />

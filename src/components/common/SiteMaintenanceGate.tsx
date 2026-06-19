@@ -25,7 +25,7 @@ export function SiteMaintenanceGate({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#eef7fb] px-4 text-center text-sm font-semibold text-slate-600">
+      <div className="site-typography flex min-h-screen items-center justify-center bg-[#eef7fb] px-4 text-center text-sm font-semibold text-slate-600">
         A verificar o teu acesso...
       </div>
     )
