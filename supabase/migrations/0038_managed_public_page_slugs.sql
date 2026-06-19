@@ -1,4 +1,4 @@
--- 0032_managed_public_page_slugs.sql
+-- 0038_managed_public_page_slugs.sql
 -- Expande os slugs publicos geridos para cobrir todas as rotas publicas do editor IA.
 
 insert into public.site_pages (slug, title, status)
