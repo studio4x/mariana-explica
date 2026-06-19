@@ -94,7 +94,7 @@ export function StudentCoursePlayerLayout() {
   }
 
   return (
-    <div className="flex h-dvh w-screen overflow-hidden bg-slate-50 text-white">
+    <div className="site-typography flex h-dvh w-screen overflow-hidden bg-slate-50 text-white">
       <aside
         className={`${sidebarOpen ? "w-80" : "w-0 overflow-hidden"} hidden shrink-0 border-r border-slate-200 bg-white text-slate-950 transition-all duration-200 lg:block`}
       >

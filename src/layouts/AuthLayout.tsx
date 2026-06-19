@@ -4,7 +4,7 @@ import { CookieConsentBanner, Footer, Navbar, ScrollToTop, SiteBrandingManager, 
 
 export function AuthLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,rgba(36,39,66,0.18),transparent_28%),linear-gradient(180deg,#f6fbfd_0%,#edf7fb_55%,#ffffff_100%)]">
+    <div className="site-typography flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,rgba(36,39,66,0.18),transparent_28%),linear-gradient(180deg,#f6fbfd_0%,#edf7fb_55%,#ffffff_100%)]">
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteThemeManager />
