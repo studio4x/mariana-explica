@@ -344,6 +344,15 @@ function collectTargetCapture(rect: CaptureRect, attachmentId: string, pathname:
   if (typeof document === "undefined" || typeof window === "undefined") return null
 
   const root = (document.querySelector(".me-managed-page-root") as HTMLElement | null) ?? document.querySelector("main") ?? document.body
+  const rootIsBody = root === document.body
+  const shouldAcceptCaptureNode = (node: HTMLElement) => {
+    if (!node.isConnected) return false
+    if (node.closest("[data-ai-page-editor-root]")) return false
+    const tagName = node.tagName.toLowerCase()
+    if (["html", "head", "body", "script", "style", "link", "meta"].includes(tagName)) return false
+    if (!rootIsBody && !root.contains(node)) return false
+    return true
+  }
   const candidateElements = new Set<HTMLElement>()
   const textFragments: string[] = []
   const samplePoints = [
@@ -359,7 +368,7 @@ function collectTargetCapture(rect: CaptureRect, attachmentId: string, pathname:
       const pointX = Math.max(0, Math.min(window.innerWidth - 1, Math.round(x)))
       const pointY = Math.max(0, Math.min(window.innerHeight - 1, Math.round(y)))
       document.elementsFromPoint(pointX, pointY).forEach((node) => {
-        if (node instanceof HTMLElement && !node.closest("[data-ai-page-editor-root]")) {
+        if (node instanceof HTMLElement && shouldAcceptCaptureNode(node)) {
           candidateElements.add(node)
         }
       })
@@ -367,7 +376,7 @@ function collectTargetCapture(rect: CaptureRect, attachmentId: string, pathname:
   }
 
   root.querySelectorAll("*").forEach((node) => {
-    if (!(node instanceof HTMLElement) || node.closest("[data-ai-page-editor-root]")) return
+    if (!(node instanceof HTMLElement) || !shouldAcceptCaptureNode(node)) return
     const rectInfo = node.getBoundingClientRect()
     if (rectInfo.width <= 0 || rectInfo.height <= 0) return
     if (computeRectIntersectionRatio(rectInfo, rect) <= 0) return
@@ -388,7 +397,7 @@ function collectTargetCapture(rect: CaptureRect, attachmentId: string, pathname:
   while (walker.nextNode()) {
     const textNode = walker.currentNode
     const parent = textNode.parentElement
-    if (!parent || parent.closest("[data-ai-page-editor-root]")) continue
+    if (!parent || !shouldAcceptCaptureNode(parent)) continue
     const parentRect = parent.getBoundingClientRect()
     if (computeRectIntersectionRatio(parentRect, rect) <= 0) continue
     candidateElements.add(parent)
@@ -642,6 +651,30 @@ function buildPreparedPreviewMessage(proposal: AdminAiPageEditorProposal) {
   return "Previa preparada com o ajuste pedido. Verifica a pagina antes de publicar."
 }
 
+function buildLiveDomBaseline(pathname: string, pageSlug: string | null) {
+  if (typeof document === "undefined" || !pageSlug) return null
+
+  const html = getSanitizedDomSnapshot()
+  if (!html.trim()) return null
+
+  const builderDocument = convertLegacyHtmlToBuilderDocument(html, pageSlug)
+  return {
+    html,
+    layoutJson: {
+      html,
+      projectData: structuredClone(builderDocument),
+    } as Record<string, unknown>,
+    styleJson: {
+      css: [
+        ".me-managed-page-root{max-width:none;margin:0;padding:0;}",
+        ".me-managed-block{width:100%;margin:0;}",
+        ".me-managed-block + .me-managed-block{margin-top:0;}",
+        ".me-managed-richtext{color:inherit;font:inherit;line-height:inherit;}",
+      ].join(""),
+    } as Record<string, unknown>,
+  }
+}
+
 function messageRequestsPreviewPreparation(message: string) {
   const normalizedMessage = normalizeLauncherComparableText(message)
   return (
@@ -702,6 +735,7 @@ function resolveConversationStatusCopy(input: {
   sendStatus: string | null
   proposal: AdminAiPageEditorProposal | null
   pendingPublication: PendingPublicationState | null
+  pendingTargetClarification: AdminAiPageEditorPendingTargetClarification | null
 }) {
   if (input.sendStatus) return null
   if (input.pendingPublication) {
@@ -711,6 +745,15 @@ function resolveConversationStatusCopy(input: {
     return buildPreparedPreviewMessage(input.proposal)
   }
   if (input.phase === "needs_clarification") {
+    if (input.pendingTargetClarification?.awaiting === "selection_confirmation") {
+      return "Entendi o ajuste, mas preciso confirmar qual dos alvos semelhantes e o correto."
+    }
+    if (input.pendingTargetClarification?.awaiting === "context_text") {
+      return "Entendi o ajuste, mas ainda falta contexto textual para distinguir o alvo com seguranca."
+    }
+    if (input.pendingTargetClarification?.awaiting === "capture") {
+      return "Entendi o ajuste, mas ainda falta mapear o alvo real da pagina para preparar a previa."
+    }
     return "Ainda estou a perceber melhor o que queres mudar."
   }
   if (input.phase === "awaiting_intent_confirmation") {
@@ -796,34 +839,12 @@ export function SiteAiPageEditorLauncher() {
   const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
   const canPersistDraft = routeCapability.supportsPersistibleFlow && Boolean(pageSlug)
+  const liveDomBaseline = useMemo(() => buildLiveDomBaseline(pathname, pageSlug), [pageSlug, pathname])
 
   const importedPageBaseline = useMemo(() => {
-    if (pageContextVersion || !pageSlug || typeof document === "undefined") {
-      return null
-    }
-
-    const html = getSanitizedDomSnapshot()
-    if (!html.trim()) {
-      return null
-    }
-
-    const builderDocument = convertLegacyHtmlToBuilderDocument(html, pageSlug)
-    return {
-      html,
-      layoutJson: {
-        html,
-        projectData: structuredClone(builderDocument),
-      } as Record<string, unknown>,
-      styleJson: {
-        css: [
-          ".me-managed-page-root{max-width:none;margin:0;padding:0;}",
-          ".me-managed-block{width:100%;margin:0;}",
-          ".me-managed-block + .me-managed-block{margin-top:0;}",
-          ".me-managed-richtext{color:inherit;font:inherit;line-height:inherit;}",
-        ].join(""),
-      } as Record<string, unknown>,
-    }
-  }, [pageContextVersion, pageSlug, pathname])
+    if (pageContextVersion) return null
+    return liveDomBaseline
+  }, [liveDomBaseline, pageContextVersion])
 
   const currentLayoutJson = useMemo(() => {
     if (pageContextVersion) return pageContextVersion.layout_json
@@ -840,6 +861,10 @@ export function SiteAiPageEditorLauncher() {
       return previewPayload.html
     }
 
+    if (liveDomBaseline?.html) {
+      return liveDomBaseline.html
+    }
+
     if (pageSlug && pageContextVersion) {
       const document = resolveBuilderDocumentFromLayoutJson(pageSlug, pageContextVersion.layout_json)
       return renderDocumentToHtml(document)
@@ -850,7 +875,7 @@ export function SiteAiPageEditorLauncher() {
     }
 
     return ""
-  }, [importedPageBaseline?.html, pageContextVersion, pageSlug, previewPayload?.html])
+  }, [importedPageBaseline?.html, liveDomBaseline?.html, pageContextVersion, pageSlug, previewPayload?.html])
 
   const revisions = useMemo(() => {
     return pageDetailQuery.data?.versions ?? []
@@ -870,8 +895,9 @@ export function SiteAiPageEditorLauncher() {
         sendStatus,
         proposal,
         pendingPublication,
+        pendingTargetClarification,
       }),
-    [conversationPhase, pendingPublication, proposal, sendStatus],
+    [conversationPhase, pendingPublication, pendingTargetClarification, proposal, sendStatus],
   )
 
   function buildCurrentVersionSnapshot() {
@@ -1940,6 +1966,9 @@ export function SiteAiPageEditorLauncher() {
         currentLayoutJson,
         currentStyleJson,
         currentHtml,
+        currentDomLayoutJson: liveDomBaseline?.layoutJson ?? undefined,
+        currentDomStyleJson: liveDomBaseline?.styleJson ?? undefined,
+        currentDomHtml: liveDomBaseline?.html ?? undefined,
         attachments,
         conversationContext: {
           ...conversationContext,

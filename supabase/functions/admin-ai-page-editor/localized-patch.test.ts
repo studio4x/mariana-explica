@@ -53,6 +53,58 @@ function createVisualBaseVersion() {
   }
 }
 
+function createExplicacoesBaseVersion() {
+  return {
+    id: "version-explicacoes-1",
+    page_id: "page-explicacoes-1",
+    version_number: 22,
+    status: "published",
+    layout_json: {
+      projectData: {
+        blocks: [
+          {
+            id: "important-notes",
+            type: "rich_text",
+            content:
+              '<section class="me-explicacoes-notes"><h2>Notas importantes antes de enviares o teu formulário:</h2><p>Planeamento prévio.</p></section>',
+            layout: {
+              paddingTop: 0,
+              paddingRight: 16,
+              paddingBottom: 16,
+              paddingLeft: 16,
+              marginTop: 0,
+              marginBottom: 0,
+            },
+          },
+          {
+            id: "contact-form",
+            type: "rich_text",
+            content: "<section><h3>Formulario</h3><p>Conteudo preservado.</p></section>",
+            layout: {
+              paddingTop: 16,
+              paddingRight: 16,
+              paddingBottom: 16,
+              paddingLeft: 16,
+              marginTop: 0,
+              marginBottom: 0,
+            },
+          },
+        ],
+      },
+    },
+    style_json: {},
+    metadata: {
+      dynamic_slug: "explicacoes",
+      route_is_public: true,
+      route_is_allowed: true,
+      bootstrap_attempted: true,
+      bootstrap_created: false,
+      baseline_complete: true,
+      source: "published_version",
+    },
+  }
+}
+
 function createConversationContext(understandingSummary: string, originalMessage = understandingSummary) {
   return {
     phase: "awaiting_intent_confirmation" as const,
@@ -80,6 +132,7 @@ function materialize(
     baseVersion?: ReturnType<typeof createVisualBaseVersion>
     currentHtml?: string
     attachments?: Array<{ name: string; mime_type?: string; role?: string; id?: string }>
+    requestSnapshotBaseVersion?: ReturnType<typeof createVisualBaseVersion>
   } = {},
 ) {
   return materializeLocalizedVisualPatchProposal({
@@ -98,6 +151,7 @@ function materialize(
     latestDraftId: null,
     currentHtml: options.currentHtml,
     attachments: options.attachments,
+    requestSnapshotBaseVersion: options.requestSnapshotBaseVersion,
   })
 }
 
@@ -371,6 +425,31 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(result.proposal.metadata.ai_invariants?.provider_full_proposal_bypassed).toBe(true)
   })
 
+  it("materializes the exact /explicacoes quoted heading without asking for capture", () => {
+    const result = materialize(
+      'altere a cor do texto "Notas importantes antes de enviares o teu formulário:" para branco (#fff)',
+      'altere a cor do texto "Notas importantes antes de enviares o teu formulário:" para branco (#fff)',
+      {
+        baseVersion: createExplicacoesBaseVersion(),
+      },
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.proposal.metadata.ai_invariants?.branch_selected).toBe("localized_visual_patch")
+    expect(result.proposal.metadata.ai_invariants?.provider_full_proposal_bypassed).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.text_anchor_found).toBe(true)
+    expect(result.proposal.metadata.ai_invariants?.target_resolution_source).toBe("anchor_text")
+    expect(result.pendingTargetClarification).toBeUndefined()
+
+    const blocks = (result.proposal.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(blocks[0]).toMatchObject({
+      id: "important-notes",
+      color: "#fff",
+      textColor: "#fff",
+    })
+  })
+
   it("returns a specific not-found message when the quoted text anchor is absent", () => {
     const result = materialize(
       'mude a cor do texto "Texto inexistente desta pagina" para branco',
@@ -400,5 +479,45 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(result.status).toBe("failed")
     if (result.status !== "failed") throw new Error("expected failed")
     expect(result.assistantMessage).toMatch(/encontrei mais de um texto semelhante/i)
+    expect(result.pendingTargetClarification).toMatchObject({
+      awaiting: "selection_confirmation",
+    })
+  })
+
+  it("retries quoted text anchors against a live DOM snapshot base when the persisted baseline is stale", () => {
+    const staleBaseVersion = createVisualBaseVersion()
+    const staleBlocks = (staleBaseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    staleBlocks[0] = {
+      ...staleBlocks[0],
+      content: "<section><h2>Conteudo desatualizado</h2><p>Texto antigo.</p></section>",
+    }
+
+    const requestSnapshotBaseVersion = {
+      ...createVisualBaseVersion(),
+      metadata: {
+        ...createVisualBaseVersion().metadata,
+        source: "request_live_dom_snapshot",
+      },
+    }
+
+    const result = materialize(
+      'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+      'mude a cor do texto "De estudante para estudante: porque este projeto?" para branco',
+      {
+        baseVersion: staleBaseVersion,
+        requestSnapshotBaseVersion,
+      },
+    )
+
+    expect(result.status).toBe("success")
+    if (result.status !== "success") throw new Error("expected success")
+    expect(result.proposal.metadata.ai_invariants?.baseline_source).toBe("request_live_dom_snapshot")
+    expect(result.proposal.metadata.ai_invariants?.text_anchor_found).toBe(true)
+    const blocks = (result.proposal.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks
+    expect(blocks[0]).toMatchObject({
+      id: "about-story",
+      color: "#ffffff",
+      textColor: "#ffffff",
+    })
   })
 })

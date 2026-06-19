@@ -42,6 +42,25 @@ describe("resolveTextAnchor", () => {
     expect(result.selectedCandidate?.targetId).toBe("about-story")
   })
 
+  it("normalizes accents, trailing punctuation and nbsp for the /explicacoes heading", () => {
+    const result = resolveTextAnchor({
+      anchorText: "Notas importantes antes de enviares o teu formulário:",
+      candidates: [
+        {
+          targetId: "important-notes",
+          text: "Notas importantes antes de enviares o teu formulario:&nbsp;",
+          contextBefore: "Notas importantes antes de enviares o teu formulário",
+          source: "layout_json",
+        },
+      ],
+    })
+
+    expect(result.found).toBe(true)
+    expect(result.exactMatch).toBe(false)
+    expect(result.normalizedMatch).toBe(true)
+    expect(result.selectedCandidate?.targetId).toBe("important-notes")
+  })
+
   it("returns not found when the quoted text is absent", () => {
     const result = resolveTextAnchor({
       anchorText: "Texto inexistente",

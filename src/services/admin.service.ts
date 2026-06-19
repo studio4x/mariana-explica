@@ -1865,6 +1865,9 @@ export async function generateAdminAiPageEditorProposal(input: {
   currentLayoutJson: Record<string, unknown>
   currentStyleJson: Record<string, unknown>
   currentHtml: string
+  currentDomLayoutJson?: Record<string, unknown>
+  currentDomStyleJson?: Record<string, unknown>
+  currentDomHtml?: string
   attachments: AdminAiPageEditorAttachmentInput[]
   conversationContext?: AdminAiPageEditorConversationContext
 }) {
@@ -1904,6 +1907,9 @@ export async function generateAdminAiPageEditorProposal(input: {
       currentLayoutJson: input.currentLayoutJson,
       currentStyleJson: input.currentStyleJson,
       currentHtml: input.currentHtml,
+      currentDomLayoutJson: input.currentDomLayoutJson,
+      currentDomStyleJson: input.currentDomStyleJson,
+      currentDomHtml: input.currentDomHtml,
       attachments: input.attachments,
       conversationContext: input.conversationContext,
     })

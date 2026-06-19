@@ -114,6 +114,7 @@ vi.mock("@/lib/site-page-preview", () => ({
 
 vi.mock("@/lib/site-page-builder", () => ({
   composeManagedPageCss: vi.fn(() => ""),
+  convertLegacyHtmlToBuilderDocument: vi.fn((html) => ({ blocks: [{ id: "dom-snapshot", type: "rich_text", content: html }] })),
   renderDocumentToHtml: vi.fn((document) => JSON.stringify(document)),
   resolveBuilderDocumentFromLayoutJson: vi.fn((_slug, layoutJson) => layoutJson),
 }))
@@ -701,6 +702,7 @@ describe("SiteAiPageEditorLauncher", () => {
     await waitFor(() => {
       expect(screen.getByText(/preciso que seleciones melhor o titulo certo/i)).toBeInTheDocument()
     })
+    expect(screen.getByText(/falta mapear o alvo real da pagina/i)).toBeInTheDocument()
 
     await sendMessage(user, "agora esta certo")
 
@@ -753,7 +755,22 @@ describe("SiteAiPageEditorLauncher", () => {
         right: 320,
         bottom: 120,
       } as DOMRect)
-    document.elementsFromPoint = vi.fn(() => [heading, wrapper])
+    const extensionOverlay = document.createElement("div")
+    extensionOverlay.textContent = "overlay externo"
+    extensionOverlay.className = "browser-extension-overlay"
+    document.body.appendChild(extensionOverlay)
+    extensionOverlay.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        width: 1280,
+        height: 720,
+        top: 0,
+        left: 0,
+        right: 1280,
+        bottom: 720,
+      } as DOMRect)
+    document.elementsFromPoint = vi.fn(() => [extensionOverlay, heading, wrapper])
 
     const { user } = await renderLauncher()
     await user.click(screen.getByRole("button", { name: /capturar area/i }))
@@ -783,9 +800,15 @@ describe("SiteAiPageEditorLauncher", () => {
         managedNodeId: "content:hero-heading",
       },
     })
+    expect(
+      firstCall.attachments[0].metadata.target_capture.domCandidates.some(
+        (candidate: { classNames?: string[] }) => candidate.classNames?.includes("browser-extension-overlay"),
+      ),
+    ).toBe(false)
     expect(firstCall.attachments[0].metadata.target_capture.domCandidates.length).toBeGreaterThan(0)
     expect(firstCall.attachments[0].metadata.target_capture.textFragments[0]).toContain("Transforme o seu estudo")
 
+    extensionOverlay.remove()
     managedRoot.remove()
   })
 

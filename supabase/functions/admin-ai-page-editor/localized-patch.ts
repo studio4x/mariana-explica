@@ -70,6 +70,7 @@ interface LocalizedVisualPatchProposalInput {
   latestDraftId?: string | null
   currentHtml?: string | null
   attachments?: PatchEngineAttachmentContext[]
+  requestSnapshotBaseVersion?: PatchEngineBaseVersion | null
 }
 
 function normalizeString(value: unknown, fallback = "") {
@@ -265,13 +266,22 @@ function buildPendingTargetClarification(input: {
       ? patchedInvariants.text_anchor_raw.trim()
       : (input.intent.targetText ?? "").trim()
   const textAnchorFound = patchedInvariants.text_anchor_found === true
+  const textAnchorCandidateCount = Number(patchedInvariants.text_anchor_candidate_count ?? 0)
+  const textAnchorRejectionReasons = Array.isArray(patchedInvariants.text_anchor_rejection_reasons)
+    ? patchedInvariants.text_anchor_rejection_reasons.map((item) => String(item ?? ""))
+    : []
+  const textAnchorAmbiguous =
+    textAnchorCandidateCount > 1 ||
+    textAnchorRejectionReasons.some((reason) => /multiple|not_distinctive/i.test(reason))
   const rejectionReasons = Array.isArray(patchedInvariants.capture_target_rejection_reasons)
     ? patchedInvariants.capture_target_rejection_reasons.map((item) => String(item ?? ""))
     : []
   const capture = getLatestTargetCapture(input.attachments ?? [])
   const awaiting: LocalizedPendingTargetClarification["awaiting"] =
-    rejectionReasons.some((reason) => /external|dynamic/.test(reason)) || (textAnchorRaw && !textAnchorFound)
-      ? "context_text"
+    textAnchorAmbiguous
+      ? "selection_confirmation"
+      : rejectionReasons.some((reason) => /external|dynamic/.test(reason)) || (textAnchorRaw && !textAnchorFound)
+        ? "context_text"
       : "capture"
 
   return {
@@ -296,6 +306,7 @@ function createFriendlyLocalizedFailure(input: {
   patchedInvariants?: Record<string, unknown> | null
   requestedProperty?: string | null
   requestedValue?: string | null
+  baseVersion?: PatchEngineBaseVersion | null
 }): LocalizedVisualPatchMaterializationResult {
   const lowConfidence =
     input.intent.confidence === "low" ||
@@ -325,6 +336,8 @@ function createFriendlyLocalizedFailure(input: {
     : []
   const captureSelectedExternal = captureRejectionReasons.some((reason) => reason === "capture_target_external_or_dynamic")
   const captureSelectedExternalImage = captureRejectionReasons.some((reason) => reason === "capture_target_external_image")
+  const baselineSource = normalizeString(input.baseVersion?.metadata?.source, "baseline_atual")
+  const baselineLabel = input.baseVersion ? `${baselineSource} v${input.baseVersion.version_number}` : baselineSource
   const footerMessage =
     "Entendi o ajuste, mas nao encontrei com seguranca qual propriedade cria o espaco entre a ultima secao e o rodape. Analisei a ultima secao, o wrapper da pagina e os blocos proximos ao rodape. " +
     (bestCandidate?.heading
@@ -346,7 +359,7 @@ function createFriendlyLocalizedFailure(input: {
       : textAnchorProvided && !textAnchorFound && textAnchorAmbiguous
         ? "Encontrei mais de um texto semelhante. Seleciona a area correta ou indica uma frase antes ou depois dele para eu alterar apenas o elemento certo."
       : textAnchorProvided && !textAnchorFound
-        ? "Procurei o texto indicado, mas nao o encontrei com seguranca nesta versao da pagina. Seleciona a area onde ele aparece ou copia exatamente o texto visivel, incluindo uma frase proxima."
+        ? `Procurei o texto indicado, mas nao o encontrei com seguranca na base ${baselineLabel}. Seleciona a area onde ele aparece ou copia exatamente o texto visivel, incluindo uma frase proxima.`
       : input.intent.kind === "color" && input.intent.targetHint === "localized_heading" && hasTargetCapture
         ? "Entendi o ajuste, mas nao consegui identificar com seguranca qual titulo da area selecionada deve receber essa cor. Seleciona uma area um pouco maior incluindo o card completo ou indica o texto do titulo."
       : lowConfidence
@@ -371,6 +384,23 @@ function ensureHighConfidenceResolutions(
   return (
     resolutions.length > 0 &&
     resolutions.every((resolution) => Number(resolution.confidence ?? 0) >= LOCALIZED_CONFIDENCE_THRESHOLD)
+  )
+}
+
+function shouldRetryWithRequestSnapshotBaseVersion(input: {
+  result: LocalizedVisualPatchMaterializationResult
+  requestSnapshotBaseVersion?: PatchEngineBaseVersion | null
+  intent: LocalizedIntent
+}) {
+  if (!input.requestSnapshotBaseVersion || input.result.status !== "failed") return false
+  if (!normalizeString(input.intent.targetText)) return false
+
+  return (
+    input.result.reason === "low_confidence_target" ||
+    input.result.reason === "no_visible_change" ||
+    input.result.reason === "needs_clarification_after_patch" ||
+    /procurei o texto indicado/i.test(input.result.assistantMessage) ||
+    /texto semelhante/i.test(input.result.assistantMessage)
   )
 }
 
@@ -409,43 +439,49 @@ export function materializeLocalizedVisualPatchProposal(
     }
   }
 
-  const seedPlan = buildLocalizedEditPlan({
-    intent,
-    sourceText: sourceTexts.aggregate || sourceText,
-  })
-
-  if (!seedPlan || intent.confidence === "low") {
-    const diagnosis =
-      intent.targetHint === "footer_adjacent_spacing"
-        ? diagnoseFooterAdjacentSpacing({
-            slug: input.slug,
-            path: input.path,
-            message: sourceTexts.aggregate || sourceText,
-            baseVersion: input.baseVersion,
-            currentHtml: input.currentHtml,
-            attachments: input.attachments ?? [],
-          })
-        : null
-    return createFriendlyLocalizedFailure({
-      sourceText,
-      understandingSummary,
+  const materializeWithBaseVersion = (
+    baseVersion: PatchEngineBaseVersion,
+    baseVersionSource: LocalizedVisualPatchProposalInput["baseVersionSource"],
+    baseVersionSelectionReason: string,
+  ): LocalizedVisualPatchMaterializationResult => {
+    const seedPlan = buildLocalizedEditPlan({
       intent,
-      reason: "low_confidence_intent",
-      diagnosis,
-      attachments: input.attachments ?? [],
-      requestedProperty: seedPlan?.operations[0]?.path ?? null,
-      requestedValue: toPendingRequestedValue(seedPlan?.operations[0]?.value),
+      sourceText: sourceTexts.aggregate || sourceText,
     })
-  }
 
-  try {
+    if (!seedPlan || intent.confidence === "low") {
+      const diagnosis =
+        intent.targetHint === "footer_adjacent_spacing"
+          ? diagnoseFooterAdjacentSpacing({
+              slug: input.slug,
+              path: input.path,
+              message: sourceTexts.aggregate || sourceText,
+              baseVersion,
+              currentHtml: input.currentHtml,
+              attachments: input.attachments ?? [],
+            })
+          : null
+      return createFriendlyLocalizedFailure({
+        sourceText,
+        understandingSummary,
+        intent,
+        reason: "low_confidence_intent",
+        diagnosis,
+        attachments: input.attachments ?? [],
+        requestedProperty: seedPlan?.operations[0]?.path ?? null,
+        requestedValue: toPendingRequestedValue(seedPlan?.operations[0]?.value),
+        baseVersion,
+      })
+    }
+
+    try {
     const footerDiagnosis =
       intent.targetHint === "footer_adjacent_spacing"
         ? diagnoseFooterAdjacentSpacing({
             slug: input.slug,
             path: input.path,
             message: sourceTexts.aggregate || sourceText,
-            baseVersion: input.baseVersion,
+            baseVersion,
             currentHtml: input.currentHtml,
             attachments: input.attachments ?? [],
           })
@@ -462,7 +498,7 @@ export function materializeLocalizedVisualPatchProposal(
         ? refineSpacingEditPlanForKnownWrappers({
             message: sourceTexts.aggregate || sourceText,
             editPlan: diagnosticPlan,
-            baseVersion: input.baseVersion,
+            baseVersion,
           })
         : {
             editPlan: diagnosticPlan,
@@ -479,7 +515,7 @@ export function materializeLocalizedVisualPatchProposal(
       path: input.path,
       message: sourceTexts.aggregate || sourceText,
       editPlan,
-      baseVersion: input.baseVersion,
+      baseVersion,
       attachments: input.attachments ?? [],
     })
 
@@ -495,13 +531,14 @@ export function materializeLocalizedVisualPatchProposal(
         patchedInvariants: patched.invariants,
         requestedProperty: editPlan.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
+        baseVersion,
       })
     }
 
     const operationalState = resolvePersistibleProposalOperationalState({
       editPlan,
-      baseLayoutJson: input.baseVersion.layout_json,
-      baseStyleJson: input.baseVersion.style_json,
+      baseLayoutJson: baseVersion.layout_json,
+      baseStyleJson: baseVersion.style_json,
       proposalLayoutJson: patched.layoutJson,
       proposalStyleJson: patched.styleJson,
       targetResolutions: patched.resolutions,
@@ -522,6 +559,7 @@ export function materializeLocalizedVisualPatchProposal(
         patchedInvariants: patched.invariants,
         requestedProperty: editPlan.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
+        baseVersion,
       })
     }
 
@@ -537,6 +575,7 @@ export function materializeLocalizedVisualPatchProposal(
         patchedInvariants: patched.invariants,
         requestedProperty: editPlan.operations[0]?.path ?? null,
         requestedValue: toPendingRequestedValue(editPlan.operations[0]?.value),
+        baseVersion,
       })
     }
 
@@ -558,10 +597,10 @@ export function materializeLocalizedVisualPatchProposal(
         editPlan,
         intent,
         diagnosis: footerDiagnosis,
-        baseVersion: input.baseVersion,
-        baseVersionSource: input.baseVersionSource,
+        baseVersion,
+        baseVersionSource,
         degradedDraftBypassed: input.degradedDraftBypassed,
-        baseVersionSelectionReason: input.baseVersionSelectionReason,
+        baseVersionSelectionReason,
         publishedVersionId: input.publishedVersionId,
         latestDraftId: input.latestDraftId,
         sourceText,
@@ -589,14 +628,14 @@ export function materializeLocalizedVisualPatchProposal(
       sourceText,
       intent,
     }
-  } catch (error) {
+    } catch (error) {
     const diagnosis =
       intent.targetHint === "footer_adjacent_spacing"
         ? diagnoseFooterAdjacentSpacing({
             slug: input.slug,
             path: input.path,
             message: sourceTexts.aggregate || sourceText,
-            baseVersion: input.baseVersion,
+            baseVersion,
             currentHtml: input.currentHtml,
             attachments: input.attachments ?? [],
           })
@@ -610,6 +649,28 @@ export function materializeLocalizedVisualPatchProposal(
       attachments: input.attachments ?? [],
       requestedProperty: seedPlan.operations[0]?.path ?? null,
       requestedValue: toPendingRequestedValue(seedPlan.operations[0]?.value),
+      baseVersion,
     })
+    }
   }
+
+  const primaryResult = materializeWithBaseVersion(
+    input.baseVersion,
+    input.baseVersionSource,
+    input.baseVersionSelectionReason,
+  )
+
+  if (!shouldRetryWithRequestSnapshotBaseVersion({
+    result: primaryResult,
+    requestSnapshotBaseVersion: input.requestSnapshotBaseVersion,
+    intent,
+  })) {
+    return primaryResult
+  }
+
+  return materializeWithBaseVersion(
+    input.requestSnapshotBaseVersion!,
+    input.baseVersionSource,
+    `${input.baseVersionSelectionReason}|request_live_dom_snapshot_text_anchor_retry`,
+  )
 }

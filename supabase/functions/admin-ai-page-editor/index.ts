@@ -37,7 +37,13 @@ import {
 } from "./operational-state.ts"
 import { selectAiBaseVersion, toPatchEngineBaseVersion } from "./safety.ts"
 import { resolveManagedRouteCapability } from "./route-capability.ts"
-import { BASELINE_INCOMPLETE_MESSAGE, ensureManagedPageContext } from "./page-bootstrap.ts"
+import {
+  assessBootstrapBaseline,
+  BASELINE_INCOMPLETE_MESSAGE,
+  ensureManagedPageContext,
+  normalizeBootstrapLayout,
+  normalizeBootstrapStyle,
+} from "./page-bootstrap.ts"
 import {
   isExplicitUnderstandingConfirmation,
   isExplicitUnderstandingRejection,
@@ -91,6 +97,9 @@ interface Body {
   currentLayoutJson?: Record<string, unknown>
   currentStyleJson?: Record<string, unknown>
   currentHtml?: string
+  currentDomLayoutJson?: Record<string, unknown>
+  currentDomStyleJson?: Record<string, unknown>
+  currentDomHtml?: string
   currentHeaderText?: string
   currentFooterText?: string
   attachments?: AttachmentInput[]
@@ -790,6 +799,56 @@ function normalizeJsonObjectField(value: unknown, fieldName: string, fallbackToE
   }
 
   return null
+}
+
+function buildRequestSnapshotBaseVersion(input: {
+  requestId: string
+  pageId: string
+  slug: string
+  pathname: string
+  fallbackVersionNumber: number
+  fallbackStatus: string
+  layoutJson: Record<string, unknown>
+  styleJson: Record<string, unknown>
+  html: string
+}): PatchEngineBaseVersion | null {
+  const normalizedLayoutJson = normalizeBootstrapLayout(input.layoutJson, input.html)
+  const normalizedStyleJson = normalizeBootstrapStyle(input.styleJson)
+  const assessment = assessBootstrapBaseline({
+    layoutJson: normalizedLayoutJson,
+    styleJson: normalizedStyleJson,
+    currentHtml: input.html,
+  })
+
+  if (!assessment.complete) {
+    return null
+  }
+
+  return {
+    id: `request-snapshot:${input.requestId}`,
+    page_id: input.pageId,
+    version_number: input.fallbackVersionNumber,
+    status: input.fallbackStatus,
+    layout_json: normalizedLayoutJson,
+    style_json: normalizedStyleJson,
+    metadata: {
+      editor: "ai-page-editor",
+      source: "request_live_dom_snapshot",
+      pathname: input.pathname,
+      dynamic_slug: input.slug,
+      route_is_public: true,
+      route_is_allowed: true,
+      bootstrap_attempted: true,
+      bootstrap_created: false,
+      baseline_complete: assessment.complete,
+      baseline_block_count: assessment.block_count,
+      baseline_html_length: assessment.html_length,
+      baseline_css_length: assessment.css_length,
+      request_snapshot: true,
+      request_id: input.requestId,
+      created_at: new Date().toISOString(),
+    },
+  }
 }
 
 function normalizeMessageForParsing(value: string) {
@@ -4032,6 +4091,15 @@ Deno.serve(async (req) => {
         body.currentStyleJson && typeof body.currentStyleJson === "object" && !Array.isArray(body.currentStyleJson)
           ? (body.currentStyleJson as Record<string, unknown>)
           : {}
+      const currentDomHtml = normalizeString(body.currentDomHtml)
+      const currentDomLayoutJson =
+        body.currentDomLayoutJson && typeof body.currentDomLayoutJson === "object" && !Array.isArray(body.currentDomLayoutJson)
+          ? (body.currentDomLayoutJson as Record<string, unknown>)
+          : {}
+      const currentDomStyleJson =
+        body.currentDomStyleJson && typeof body.currentDomStyleJson === "object" && !Array.isArray(body.currentDomStyleJson)
+          ? (body.currentDomStyleJson as Record<string, unknown>)
+          : {}
       const attachments = Array.isArray(body.attachments) ? body.attachments : []
 
       if (!title) throw badRequest("title e obrigatorio")
@@ -4124,6 +4192,17 @@ Deno.serve(async (req) => {
           ...auditMeta,
         })
       }
+      const requestSnapshotBaseVersion = buildRequestSnapshotBaseVersion({
+        requestId,
+        pageId: String(managedPageContext.page.id),
+        slug,
+        pathname: routeCapability.normalizedPath,
+        fallbackVersionNumber: managedPageContext.baseVersion.version_number,
+        fallbackStatus: managedPageContext.baseVersion.status,
+        layoutJson: currentDomLayoutJson,
+        styleJson: currentDomStyleJson,
+        html: currentDomHtml,
+      })
       const validAttachments = attachments.map((item, index) => {
         const attachment = item as AttachmentInput
         const id = normalizeString(attachment.id, `attachment-${index + 1}`)
@@ -5025,6 +5104,7 @@ Deno.serve(async (req) => {
         latestDraftId: managedPageContext.latestDraft?.id ? String(managedPageContext.latestDraft.id) : null,
         currentHtml,
         attachments: validAttachments,
+        requestSnapshotBaseVersion,
       })
 
       logInfo("AI page editor localized visual branch decided", {
