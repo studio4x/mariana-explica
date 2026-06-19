@@ -20,8 +20,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Arvo"', "Georgia", "serif"],
-        sans: ['"Inter"', "system-ui", "sans-serif"],
+        display: ["var(--site-heading-font-family)", "Georgia", "serif"],
+        sans: ["var(--site-body-font-family)", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
