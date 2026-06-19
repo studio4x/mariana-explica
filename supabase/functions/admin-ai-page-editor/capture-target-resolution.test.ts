@@ -230,6 +230,6 @@ describe("capture target resolution", () => {
     })
 
     expect(resolution.found).toBe(false)
-    expect(resolution.rejectionReasons).toContain("capture_target_external_or_dynamic")
+    expect(resolution.rejectionReasons).toContain("unmanaged_dom_target")
   })
 })

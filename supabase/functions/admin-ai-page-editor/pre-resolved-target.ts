@@ -26,6 +26,15 @@ function buildCaptureFailureAssistantMessage(input: {
   latestTargetCapture: AiEditorTargetCapture
   resolvedTarget: AiConversationResolvedTarget
 }) {
+  const baseSource = normalizeString(input.resolvedTarget.sourceBaseVersion?.source, "baseline_atual")
+  const baseVersionNumber = Number(input.resolvedTarget.sourceBaseVersion?.version_number ?? 0)
+  const baseLabel = baseVersionNumber > 0 ? `${baseSource} v${baseVersionNumber}` : baseSource
+  const routePath = normalizeString(input.latestTargetCapture.pathname, "desta rota")
+
+  if (input.resolvedTarget.rejectionReasons.includes("unmanaged_dom_target")) {
+    return `Encontrei esse trecho visualmente na pagina, mas ele nao esta associado a nenhum bloco gerido persistivel da rota ${routePath}. A base atual e ${baseLabel} e nao contem esse card no layout_json/html persistido. Para editar com seguranca, esta secao precisa ser migrada ou reparada para a baseline gerida.`
+  }
+
   if (input.resolvedTarget.rejectionReasons.includes("capture_target_external_image")) {
     return "Recebi a captura, mas ela aponta para uma imagem ou camada visual fora do conteudo gerido da pagina. Seleciona o bloco textual do site que deve mudar ou indica uma frase visivel proxima."
   }

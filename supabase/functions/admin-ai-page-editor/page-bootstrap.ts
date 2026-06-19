@@ -35,6 +35,34 @@ function countManagedBlocks(layoutJson: Record<string, unknown>) {
   return 0
 }
 
+function extractBaselineHtml(input: {
+  layoutJson: Record<string, unknown>
+  currentHtml?: string
+}) {
+  const layoutJson = normalizeJsonObject(input.layoutJson)
+  if (typeof layoutJson.html === "string" && layoutJson.html.trim()) {
+    return layoutJson.html.trim()
+  }
+
+  if (
+    layoutJson.projectData &&
+    typeof layoutJson.projectData === "object" &&
+    typeof (layoutJson.projectData as Record<string, unknown>).html === "string"
+  ) {
+    return String((layoutJson.projectData as Record<string, unknown>).html ?? "").trim()
+  }
+
+  return String(input.currentHtml ?? "").trim()
+}
+
+function hasManagedHtmlRoot(html: string) {
+  return /class=(['"])[^'"]*\bme-managed-page-root\b/i.test(html)
+}
+
+function hasManagedHtmlDataMarkers(html: string) {
+  return /data-(?:managed-node-id|block-id|ai-editor-id)=/i.test(html)
+}
+
 export function assessBootstrapBaseline(input: {
   layoutJson: Record<string, unknown>
   styleJson?: Record<string, unknown>
@@ -42,22 +70,26 @@ export function assessBootstrapBaseline(input: {
 }) {
   const layoutJson = normalizeJsonObject(input.layoutJson)
   const styleJson = normalizeJsonObject(input.styleJson)
-  const html =
-    typeof layoutJson.html === "string" && layoutJson.html.trim()
-      ? layoutJson.html.trim()
-      : layoutJson.projectData && typeof layoutJson.projectData === "object" && typeof (layoutJson.projectData as Record<string, unknown>).html === "string"
-        ? String((layoutJson.projectData as Record<string, unknown>).html ?? "").trim()
-        : String(input.currentHtml ?? "").trim()
+  const html = extractBaselineHtml({
+    layoutJson,
+    currentHtml: input.currentHtml,
+  })
   const blockCount = countManagedBlocks(layoutJson)
   const cssLength = typeof styleJson.css === "string" ? styleJson.css.trim().length : 0
+  const managedHtmlRoot = hasManagedHtmlRoot(html)
+  const managedHtmlDataMarkers = hasManagedHtmlDataMarkers(html)
+  const persistibleSafe = blockCount > 0 && html.length > 0 && managedHtmlRoot && managedHtmlDataMarkers
   const complete = blockCount > 0 && html.length > 0
 
   return {
     complete,
+    persistible_safe: persistibleSafe,
     block_count: blockCount,
     html_length: html.length,
     css_length: cssLength,
-    reason: complete ? null : "missing_blocks_or_html_context",
+    has_managed_html_root: managedHtmlRoot,
+    has_managed_html_data_markers: managedHtmlDataMarkers,
+    reason: !complete ? "missing_blocks_or_html_context" : persistibleSafe ? null : "missing_managed_html_markers",
   }
 }
 
@@ -185,7 +217,7 @@ export async function ensureManagedPageContext(input: {
       throw unprocessable("Nao encontrei contexto suficiente para criar a baseline segura desta pagina.")
     }
 
-    if (!baselineAssessment.complete) {
+    if (!baselineAssessment.complete || !baselineAssessment.persistible_safe) {
       throw unprocessable(BASELINE_INCOMPLETE_MESSAGE)
     }
 
@@ -208,9 +240,13 @@ export async function ensureManagedPageContext(input: {
           bootstrap_created: true,
           persistible_flow_enabled: true,
           baseline_complete: baselineAssessment.complete,
+          baseline_persistible_safe: baselineAssessment.persistible_safe,
           baseline_block_count: baselineAssessment.block_count,
           baseline_html_length: baselineAssessment.html_length,
           baseline_css_length: baselineAssessment.css_length,
+          baseline_has_managed_html_root: baselineAssessment.has_managed_html_root,
+          baseline_has_managed_html_data_markers: baselineAssessment.has_managed_html_data_markers,
+          baseline_integrity_reason: baselineAssessment.reason,
           created_at: new Date().toISOString(),
         },
         created_by: input.userId,
@@ -243,8 +279,33 @@ export async function ensureManagedPageContext(input: {
     layoutJson: normalizeJsonObject(selectedBaseVersion.baseVersion.layout_json),
     styleJson: normalizeJsonObject(selectedBaseVersion.baseVersion.style_json),
   })
-  if (!selectedBaselineAssessment.complete) {
+  const selectedBaseVersionMetadata =
+    selectedBaseVersion.baseVersion.metadata && typeof selectedBaseVersion.baseVersion.metadata === "object"
+      ? (selectedBaseVersion.baseVersion.metadata as Record<string, unknown>)
+      : {}
+  const selectedBaseVersionSource = String(selectedBaseVersionMetadata.source ?? "").trim().toLowerCase()
+  const selectedBaseRequiresManagedMarkers =
+    selectedBaseVersionSource === "allowed_path_bootstrap" || selectedBaseVersionSource === "request_live_dom_snapshot"
+
+  if (!selectedBaselineAssessment.complete || (selectedBaseRequiresManagedMarkers && !selectedBaselineAssessment.persistible_safe)) {
     throw unprocessable(BASELINE_INCOMPLETE_MESSAGE)
+  }
+
+  const baseVersion = toPatchEngineBaseVersion(selectedBaseVersion.baseVersion)
+  baseVersion.metadata = {
+    ...(baseVersion.metadata ?? {}),
+    slug,
+    pathname: input.pathname,
+    page_status: String(page.status ?? "draft"),
+    published_version_id: page.published_version_id ? String(page.published_version_id) : null,
+    baseline_complete: selectedBaselineAssessment.complete,
+    baseline_persistible_safe: selectedBaselineAssessment.persistible_safe,
+    baseline_block_count: selectedBaselineAssessment.block_count,
+    baseline_html_length: selectedBaselineAssessment.html_length,
+    baseline_css_length: selectedBaselineAssessment.css_length,
+    baseline_has_managed_html_root: selectedBaselineAssessment.has_managed_html_root,
+    baseline_has_managed_html_data_markers: selectedBaselineAssessment.has_managed_html_data_markers,
+    baseline_integrity_reason: selectedBaselineAssessment.reason,
   }
 
   return {
@@ -252,7 +313,7 @@ export async function ensureManagedPageContext(input: {
     versions,
     publishedVersion,
     latestDraft,
-    baseVersion: toPatchEngineBaseVersion(selectedBaseVersion.baseVersion),
+    baseVersion,
     baseVersionSource: selectedBaseVersion.source,
     degradedDraftBypassed: selectedBaseVersion.degradedDraftBypassed,
     baseVersionSelectionReason: selectedBaseVersion.reason,

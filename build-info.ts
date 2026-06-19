@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "119"
-export const BUILD_COMMIT = "captured-target-materialization-hardening"
+export const BUILD_DEPLOY_NUMBER = "120"
+export const BUILD_COMMIT = "managed-baseline-reconciliation"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

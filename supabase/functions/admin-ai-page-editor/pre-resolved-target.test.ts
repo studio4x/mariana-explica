@@ -21,7 +21,8 @@ function createBaseVersion() {
     },
     style_json: {},
     metadata: {
-      source: "published_version",
+      source: "allowed_path_bootstrap",
+      pathname: "/explicacoes",
     },
   }
 }
@@ -148,11 +149,40 @@ function createExternalCaptureAttachment() {
           pageX: 48,
           pageY: 120,
         },
-        domCandidates: [],
+        domCandidates: [
+          {
+            candidateId: "unmanaged-card",
+            tagName: "section",
+            classNames: ["legacy-card"],
+            textContent: "Notas importantes antes de enviares o teu formulÃ¡rio:",
+            normalizedText: "notas importantes antes de enviares o teu formulario:",
+            rect: {
+              x: 48,
+              y: 120,
+              width: 420,
+              height: 220,
+              top: 120,
+              left: 48,
+              right: 468,
+              bottom: 340,
+            },
+            intersectsSelection: true,
+            intersectionRatio: 1,
+            isTextBearing: true,
+            isHeading: false,
+            isButton: false,
+            isImage: false,
+            isEditableManagedContent: false,
+            confidence: 0.8,
+            source: "rect_intersection",
+          },
+        ],
         primaryCandidate: {
           candidateId: "overlay",
           tagName: "div",
           classNames: ["browser-extension-overlay"],
+          textContent: "Notas importantes antes de enviares o teu formulÃ¡rio:",
+          normalizedText: "notas importantes antes de enviares o teu formulario:",
           rect: {
             x: 48,
             y: 120,
@@ -173,10 +203,10 @@ function createExternalCaptureAttachment() {
           confidence: 0.8,
           source: "elementsFromPoint",
         },
-        textFragments: [],
+        textFragments: ["Notas importantes antes de enviares o teu formulÃ¡rio:"],
         captureDiagnostics: {
-          elementCount: 1,
-          textCandidateCount: 0,
+          elementCount: 2,
+          textCandidateCount: 1,
           primaryCandidateConfidence: 0.8,
           source: "live_dom_selection",
         },
@@ -231,7 +261,8 @@ describe("resolvePendingTargetClarificationFromCapture", () => {
     expect(result.status).toBe("failed")
     if (result.status !== "failed") throw new Error("expected failed")
     expect(result.assistantMessage).not.toMatch(/alvo tecnico valido|ja o localizei/i)
+    expect(result.assistantMessage).toMatch(/nao esta associado a nenhum bloco gerido persistivel da rota \/explicacoes/i)
     expect(result.resolvedTarget.found).toBe(false)
-    expect(result.resolvedTarget.rejectionReasons).toContain("capture_target_external_or_dynamic")
+    expect(result.resolvedTarget.rejectionReasons).toContain("unmanaged_dom_target")
   })
 })

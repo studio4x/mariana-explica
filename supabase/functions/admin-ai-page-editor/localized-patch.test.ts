@@ -516,6 +516,163 @@ describe("materializeLocalizedVisualPatchProposal", () => {
     expect(result.assistantMessage).toMatch(/procurei o texto indicado, mas nao o encontrei com seguranca/i)
   })
 
+  it("blocks bootstrap-only unmanaged targets with a direct baseline divergence diagnosis", () => {
+    const baseVersion = {
+      ...createExplicacoesBaseVersion(),
+      layout_json: {
+        projectData: {
+          blocks: [
+            {
+              id: "bootstrap-shell",
+              type: "rich_text",
+              content: "<section><h2>Conteudo antigo</h2><p>Sem o card real.</p></section>",
+            },
+          ],
+        },
+      },
+      metadata: {
+        dynamic_slug: "explicacoes",
+        route_is_public: true,
+        route_is_allowed: true,
+        bootstrap_attempted: true,
+        bootstrap_created: true,
+        baseline_complete: true,
+        source: "allowed_path_bootstrap",
+        pathname: "/explicacoes",
+        published_version_id: null,
+      },
+    }
+    const result = materialize(
+      'altere a cor do texto "Notas importantes antes de enviares o teu formulÃ¡rio:" para branco (#fff)',
+      "Sim, pode avanÃ§ar",
+      {
+        baseVersion,
+        attachments: [
+          {
+            id: "capture-unmanaged",
+            name: "recorte-explicacoes.jpg",
+            mime_type: "image/jpeg",
+            role: "target_capture",
+            metadata: {
+              target_capture: {
+                id: "capture-unmanaged",
+                role: "target_capture",
+                pathname: "/explicacoes",
+                capturedAt: "2026-06-19T18:00:00.000Z",
+                viewport: {
+                  width: 1280,
+                  height: 720,
+                  scrollX: 0,
+                  scrollY: 0,
+                  devicePixelRatio: 1,
+                },
+                selectionRect: {
+                  x: 48,
+                  y: 120,
+                  width: 420,
+                  height: 220,
+                  pageX: 48,
+                  pageY: 120,
+                },
+                domCandidates: [
+                  {
+                    candidateId: "important-notes-card",
+                    tagName: "section",
+                    classNames: ["rounded-card"],
+                    textContent: "Notas importantes antes de enviares o teu formulÃ¡rio:",
+                    normalizedText: "notas importantes antes de enviares o teu formulario:",
+                    rect: {
+                      x: 48,
+                      y: 120,
+                      width: 420,
+                      height: 220,
+                      top: 120,
+                      left: 48,
+                      right: 468,
+                      bottom: 340,
+                    },
+                    intersectsSelection: true,
+                    intersectionRatio: 1,
+                    isTextBearing: true,
+                    isHeading: false,
+                    isButton: false,
+                    isImage: false,
+                    isEditableManagedContent: false,
+                    confidence: 0.81,
+                    source: "rect_intersection",
+                  },
+                ],
+                primaryCandidate: {
+                  candidateId: "important-notes-card",
+                  tagName: "section",
+                  classNames: ["rounded-card"],
+                  textContent: "Notas importantes antes de enviares o teu formulÃ¡rio:",
+                  normalizedText: "notas importantes antes de enviares o teu formulario:",
+                  rect: {
+                    x: 48,
+                    y: 120,
+                    width: 420,
+                    height: 220,
+                    top: 120,
+                    left: 48,
+                    right: 468,
+                    bottom: 340,
+                  },
+                  intersectsSelection: true,
+                  intersectionRatio: 1,
+                  isTextBearing: true,
+                  isHeading: false,
+                  isButton: false,
+                  isImage: false,
+                  isEditableManagedContent: false,
+                  confidence: 0.81,
+                  source: "rect_intersection",
+                },
+                textFragments: ["Notas importantes antes de enviares o teu formulÃ¡rio:"],
+                captureDiagnostics: {
+                  elementCount: 1,
+                  textCandidateCount: 1,
+                  primaryCandidateConfidence: 0.81,
+                  source: "live_dom_selection",
+                },
+              },
+            },
+          },
+        ],
+        pendingTargetClarification: {
+          requestedAt: "2026-06-19T18:00:00.000Z",
+          intent: "set_text_color",
+          textAnchor: "Notas importantes antes de enviares o teu formulÃ¡rio:",
+          requestedProperty: "color",
+          requestedValue: "#fff",
+          awaiting: "selection_confirmation",
+          resolvedTarget: {
+            found: false,
+            confidence: 0.42,
+            resolutionSource: "not_found",
+            candidateCount: 1,
+            evidence: {
+              captureProvided: true,
+              primaryCandidateProvided: true,
+              textAnchorProvided: true,
+              exactTextMatch: false,
+              normalizedTextMatch: false,
+              candidateIntersectsCapture: true,
+              candidateMatchesManagedContent: false,
+            },
+            rejectionReasons: ["unmanaged_dom_target"],
+          },
+        },
+      },
+    )
+
+    expect(result.status).toBe("failed")
+    if (result.status !== "failed") throw new Error("expected failed")
+    expect(result.assistantMessage).toMatch(/nao esta associado a nenhum bloco gerido persistivel da rota \/explicacoes/i)
+    expect(result.assistantMessage).toMatch(/allowed_path_bootstrap v22/i)
+    expect(result.pendingTargetClarification).toBeNull()
+  })
+
   it("returns a specific ambiguity message when the quoted text anchor appears more than once", () => {
     const baseVersion = createVisualBaseVersion()
     const blocks = (baseVersion.layout_json.projectData as { blocks: Array<Record<string, unknown>> }).blocks

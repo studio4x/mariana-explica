@@ -109,10 +109,14 @@ function getSanitizedDomSnapshot() {
     return ""
   }
 
-  const mainContent = document.querySelector("main")
-  const root = (mainContent?.cloneNode(true) as HTMLElement | null) ?? (document.body.cloneNode(true) as HTMLElement)
+  const managedRoot = document.querySelector(".me-managed-page-root")
+  if (!(managedRoot instanceof HTMLElement)) {
+    return ""
+  }
+
+  const root = managedRoot.cloneNode(true) as HTMLElement
   root.querySelectorAll("[data-ai-page-editor-root]").forEach((node) => node.remove())
-  return root.innerHTML
+  return root.outerHTML
 }
 
 function useSupportedCurrentPage() {
@@ -838,8 +842,43 @@ export function SiteAiPageEditorLauncher() {
   const footerDescription = brandingQuery.data?.config_value.footer_description?.trim() || APP_DESCRIPTION
   const headerAnnouncement = brandingQuery.data?.config_value.header_announcement?.trim() || APP_HEADER_ANNOUNCEMENT
 
-  const canPersistDraft = routeCapability.supportsPersistibleFlow && Boolean(pageSlug)
   const liveDomBaseline = useMemo(() => buildLiveDomBaseline(pageSlug), [pageSlug])
+  const publishedVersionId =
+    pageDetailQuery.data?.page?.published_version_id ?? publicPageQuery.data?.page?.published_version_id ?? null
+  const pageContextSource =
+    pageContextVersion?.metadata && typeof pageContextVersion.metadata === "object"
+      ? String(pageContextVersion.metadata.source ?? "").trim().toLowerCase()
+      : ""
+  const bootstrapOnlyWithoutManagedDom =
+    pageContextSource === "allowed_path_bootstrap" && !publishedVersionId && !liveDomBaseline
+  const persistibleGuardPending =
+    routeCapability.supportsPersistibleFlow && Boolean(pageSlug) && pageDetailQuery.isLoading
+  const persistibleRestrictionReason = useMemo(() => {
+    if (!routeCapability.supportsPersistibleFlow || !pageSlug) {
+      return routeCapability.reason
+    }
+
+    if (bootstrapOnlyWithoutManagedDom) {
+      return `Encontrei a rota ${pathname} nas Rotas permitidas, mas ela ainda so tem uma baseline allowed_path_bootstrap sem correspondencia com o DOM gerido visivel. Enquanto essa secao nao for migrada para a baseline persistivel, o editor nao pode abrir draft, previa e publicacao com seguranca.`
+    }
+
+    if (!pageContextVersion && !liveDomBaseline && !pageDetailQuery.isLoading) {
+      return `A rota ${pathname} ainda nao esta associada a uma baseline gerida persistivel. O conteudo visivel desta pagina nao esta a ser renderizado por .me-managed-page-root neste momento.`
+    }
+
+    return null
+  }, [
+    bootstrapOnlyWithoutManagedDom,
+    liveDomBaseline,
+    pageContextVersion,
+    pageDetailQuery.isLoading,
+    pageSlug,
+    pathname,
+    routeCapability.reason,
+    routeCapability.supportsPersistibleFlow,
+  ])
+  const canPersistDraft =
+    routeCapability.supportsPersistibleFlow && Boolean(pageSlug) && !persistibleGuardPending && !persistibleRestrictionReason
 
   const importedPageBaseline = useMemo(() => {
     if (pageContextVersion) return null
@@ -1935,6 +1974,10 @@ export function SiteAiPageEditorLauncher() {
 
       if (!canPersistDraft) {
         const blockedMessage =
+          persistibleRestrictionReason ??
+          (persistibleGuardPending
+            ? "Estou a confirmar se esta rota ja tem uma baseline gerida valida antes de abrir o fluxo persistivel."
+            : null) ??
           routeCapability.reason ??
           "Esta rota ainda nao entrou no fluxo seguro do editor com IA."
 
@@ -2116,13 +2159,15 @@ export function SiteAiPageEditorLauncher() {
   const currentVersionId = pageDetailQuery.data?.published_version?.id ?? pageContextVersion?.id ?? null
   const isChatBusy = Boolean(sendStatus) || generateMutation.isPending
   const isEditorDisabled = config?.config_value.enabled === false
-  const showPersistibleRestriction = !canPersistDraft
+  const showPersistibleRestriction = !canPersistDraft && !persistibleGuardPending
   const showBootstrapStatus = canPersistDraft && !pageContextVersion && Boolean(importedPageBaseline)
   const shouldDisableApply = saveDraftMutation.isPending || !proposalAssessment?.canApply
   const composerPlaceholder = isEditorDisabled
     ? "Editor desativado nas configuracoes."
     : isChatBusy
       ? "Envio em processamento. Aguarda a resposta..."
+      : persistibleGuardPending
+        ? "Estou a confirmar se esta rota ja tem uma baseline gerida valida antes de abrir o fluxo persistivel."
       : showPersistibleRestriction
         ? "Header/footer global ainda podem ser editados; o fluxo persistivel por secao fica apenas nas rotas publicas permitidas."
         : showBootstrapStatus
@@ -2208,7 +2253,7 @@ export function SiteAiPageEditorLauncher() {
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-950">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-700">Escopo desta fase</p>
                   <p className="mt-2">
-                    {routeCapability.reason}
+                    {persistibleRestrictionReason ?? routeCapability.reason}
                   </p>
                   <p className="mt-2">
                     Header e footer globais continuam suportados. Para preview persistivel por secao, usa apenas uma rota publica adicionada em Rotas permitidas.

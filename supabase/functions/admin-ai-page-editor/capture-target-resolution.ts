@@ -241,6 +241,25 @@ function buildTextSignals(input: {
   }
 }
 
+function classifyUnmanagedCaptureReason(capture: AiEditorTargetCapture, primaryCandidate: AiEditorDomCandidate | undefined) {
+  if (primaryCandidate?.isImage) return "capture_target_external_image"
+
+  const hasVisibleTextEvidence = Boolean(
+    normalizeString(primaryCandidate?.textContent) ||
+      normalizeString(primaryCandidate?.normalizedText) ||
+      capture.textFragments.some((fragment) => normalizeString(fragment)),
+  )
+  const hasAnyUnmanagedCandidate = capture.domCandidates.some(
+    (candidate) => candidate.intersectsSelection && !candidate.isEditableManagedContent,
+  )
+
+  if (hasVisibleTextEvidence || hasAnyUnmanagedCandidate) {
+    return "unmanaged_dom_target"
+  }
+
+  return "capture_target_external_or_dynamic"
+}
+
 export function resolveCaptureTarget(input: {
   attachments?: CaptureResolutionAttachmentInput[] | null
   candidates: CaptureResolutionCandidateInput[]
@@ -397,11 +416,12 @@ export function resolveCaptureTarget(input: {
         ...baseEvidence,
         candidateIntersectsCapture: primaryCandidate.intersectsSelection,
       },
-      rejectionReasons: [primaryCandidate.isImage ? "capture_target_external_image" : "capture_target_external_or_dynamic"],
+      rejectionReasons: [classifyUnmanagedCaptureReason(capture, primaryCandidate)],
       capture,
     } satisfies CaptureTargetResolution
   }
 
+  const managedDomCandidatesCount = capture.domCandidates.filter((candidate) => candidate.isEditableManagedContent).length
   return {
     found: false,
     confidence: 0,
@@ -410,10 +430,14 @@ export function resolveCaptureTarget(input: {
     evidence: {
       ...baseEvidence,
       candidateIntersectsCapture: capture.domCandidates.some((candidate) => candidate.intersectsSelection),
-      candidateMatchesManagedContent: capture.domCandidates.some((candidate) => candidate.isEditableManagedContent),
+      candidateMatchesManagedContent: managedDomCandidatesCount > 0,
     },
     rejectionReasons: [
-      capture.domCandidates.length === 0 ? "capture_without_dom_candidates" : "capture_target_not_found_in_managed_content",
+      capture.domCandidates.length === 0
+        ? "capture_without_dom_candidates"
+        : managedDomCandidatesCount === 0
+          ? "unmanaged_dom_target"
+          : "capture_target_not_found_in_managed_content",
     ],
     capture,
   } satisfies CaptureTargetResolution

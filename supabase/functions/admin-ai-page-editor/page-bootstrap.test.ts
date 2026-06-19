@@ -47,12 +47,14 @@ describe("page-bootstrap", () => {
           projectData: {
             blocks: [{ id: "hero", type: "rich_text", content: "<p>Hero</p>" }],
           },
-          html: "<section><h2>Hero</h2></section>",
+          html:
+            '<div class="me-managed-page-root"><section data-block-id="hero" data-managed-node-id="block:hero"><div data-managed-node-id="content:hero"><h2>Hero</h2></div></section></div>',
         },
         styleJson: { css: ".hero{color:#fff;}" },
       }),
     ).toMatchObject({
       complete: true,
+      persistible_safe: true,
       block_count: 1,
     })
 
@@ -66,5 +68,21 @@ describe("page-bootstrap", () => {
         styleJson: {},
       }).complete,
     ).toBe(false)
+  })
+
+  it("flags bootstrap baselines built from unmanaged html as non persistible", () => {
+    const assessment = assessBootstrapBaseline({
+      layoutJson: {
+        projectData: {
+          blocks: [{ id: "legacy-text-1", type: "rich_text", content: "<p>Texto solto</p>" }],
+        },
+        html: '<main><section><h2>Texto solto</h2></section></main>',
+      },
+      styleJson: { css: ".legacy{color:#fff;}" },
+    })
+
+    expect(assessment.complete).toBe(true)
+    expect(assessment.persistible_safe).toBe(false)
+    expect(assessment.reason).toBe("missing_managed_html_markers")
   })
 })

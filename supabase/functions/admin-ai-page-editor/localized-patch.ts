@@ -337,13 +337,35 @@ function createFriendlyLocalizedFailure(input: {
     : []
   const captureSelectedExternal = captureRejectionReasons.some((reason) => reason === "capture_target_external_or_dynamic")
   const captureSelectedExternalImage = captureRejectionReasons.some((reason) => reason === "capture_target_external_image")
+  const unmanagedDomTarget = captureRejectionReasons.some((reason) => reason === "unmanaged_dom_target")
   const baselineSource = normalizeString(input.baseVersion?.metadata?.source, "baseline_atual")
   const baselineLabel = input.baseVersion ? `${baselineSource} v${input.baseVersion.version_number}` : baselineSource
+  const routePath = normalizeString(
+    getLatestTargetCapture(input.attachments ?? [])?.pathname ?? input.baseVersion?.metadata?.pathname,
+    input.baseVersion?.metadata?.slug ? `/${normalizeString(input.baseVersion.metadata.slug)}` : "desta rota",
+  )
+  const bootstrapOnlyBaseline =
+    baselineSource === "allowed_path_bootstrap" &&
+    !normalizeString(input.baseVersion?.metadata?.published_version_id)
   const footerMessage =
     "Entendi o ajuste, mas nao encontrei com seguranca qual propriedade cria o espaco entre a ultima secao e o rodape. Analisei a ultima secao, o wrapper da pagina e os blocos proximos ao rodape. " +
     (bestCandidate?.heading
       ? `O melhor candidato foi a secao "${bestCandidate.heading}", mas ainda preciso de uma confirmacao mais especifica ou de uma area maior para aplicar sem risco.`
       : "Seleciona uma area maior pegando o final da secao e o inicio do rodape, ou confirma que posso testar uma previa reduzindo o espacamento da ultima secao.")
+
+  if (unmanagedDomTarget && bootstrapOnlyBaseline) {
+    return {
+      status: "failed",
+      sourceText: input.sourceText,
+      understandingSummary: input.understandingSummary,
+      intent: input.intent,
+      reason: input.reason,
+      assistantMessage: `Encontrei esse trecho visualmente na pagina, mas ele nao esta associado a nenhum bloco gerido persistivel da rota ${routePath}. A base atual e ${baselineLabel} e nao contem esse card no layout_json/html persistido. Para editar com seguranca, essa secao precisa ser migrada ou reparada para a baseline gerida.`,
+      warnings: input.warnings ?? [],
+      diagnosis: input.diagnosis ?? null,
+      pendingTargetClarification: null,
+    }
+  }
 
   return {
     status: "failed",
@@ -355,6 +377,8 @@ function createFriendlyLocalizedFailure(input: {
       ? footerMessage
       : captureSelectedExternalImage
         ? "A area selecionada parece apontar para uma imagem ou camada visual fora do conteudo gerido da pagina. Seleciona tambem o texto ou bloco do site que deve mudar, ou indica uma frase visivel para eu aplicar o ajuste localmente."
+      : unmanagedDomTarget
+        ? `Encontrei esse trecho visualmente na pagina, mas ele nao esta associado a nenhum bloco gerido persistivel da rota ${routePath}. A base atual e ${baselineLabel} e nao contem esse card no layout_json/html persistido. Para editar com seguranca, essa secao precisa ser migrada ou reparada para a baseline gerida.`
       : captureSelectedExternal
         ? "A area selecionada parece pertencer a um elemento visual externo ou dinamico que nao e a fonte real do conteudo gerido. Seleciona o bloco da pagina onde esse ajuste deve ser aplicado ou indica o texto visivel do elemento."
       : input.preResolvedTargetFound
@@ -372,14 +396,16 @@ function createFriendlyLocalizedFailure(input: {
         : "Entendi o ajuste, mas nao consegui localizar esse alvo com seguranca para preparar a previa sem risco.",
     warnings: input.warnings ?? [],
     diagnosis: input.diagnosis ?? null,
-    pendingTargetClarification: buildPendingTargetClarification({
-      intent: input.intent,
-      attachments: input.attachments,
-      understandingSummary: input.understandingSummary,
-      patchedInvariants,
-      requestedProperty: input.requestedProperty ?? null,
-      requestedValue: input.requestedValue ?? null,
-    }),
+    pendingTargetClarification: unmanagedDomTarget
+      ? null
+      : buildPendingTargetClarification({
+          intent: input.intent,
+          attachments: input.attachments,
+          understandingSummary: input.understandingSummary,
+          patchedInvariants,
+          requestedProperty: input.requestedProperty ?? null,
+          requestedValue: input.requestedValue ?? null,
+        }),
   }
 }
 

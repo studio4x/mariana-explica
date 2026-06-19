@@ -821,7 +821,7 @@ function buildRequestSnapshotBaseVersion(input: {
     currentHtml: input.html,
   })
 
-  if (!assessment.complete) {
+  if (!assessment.complete || !assessment.persistible_safe) {
     return null
   }
 
@@ -842,9 +842,13 @@ function buildRequestSnapshotBaseVersion(input: {
       bootstrap_attempted: true,
       bootstrap_created: false,
       baseline_complete: assessment.complete,
+      baseline_persistible_safe: assessment.persistible_safe,
       baseline_block_count: assessment.block_count,
       baseline_html_length: assessment.html_length,
       baseline_css_length: assessment.css_length,
+      baseline_has_managed_html_root: assessment.has_managed_html_root,
+      baseline_has_managed_html_data_markers: assessment.has_managed_html_data_markers,
+      baseline_integrity_reason: assessment.reason,
       request_snapshot: true,
       request_id: input.requestId,
       created_at: new Date().toISOString(),
@@ -4315,22 +4319,57 @@ Deno.serve(async (req) => {
             managedSlug: slug,
             baseVersionSource: managedPageContext.baseVersionSource,
             baseVersionNumber: captureClarification.sourceBaseVersion.version_number,
+            baseVersionId: captureClarification.sourceBaseVersion.id,
+            baseVersionWasBootstrap:
+              ["allowed_path_bootstrap", "request_live_dom_snapshot"].includes(
+                String(captureClarification.sourceBaseVersion.source ?? "").trim().toLowerCase(),
+              ),
             branch_selected: "captured_target_clarification",
+            routeCapabilityReason: routeCapability.reason,
             textAnchor: updatedPendingTargetClarification.textAnchor ?? null,
             requestedProperty: updatedPendingTargetClarification.requestedProperty ?? null,
             requestedValue: updatedPendingTargetClarification.requestedValue ?? null,
             hasLiveDomSnapshot: Boolean(requestSnapshotBaseVersion),
+            currentDomLayoutAvailable: Object.keys(currentDomLayoutJson).length > 0,
+            currentDomHtmlAvailable: currentDomHtml.length > 0,
             hasTargetCaptureAttachment: Boolean(latestTargetCapture),
+            targetCaptureAvailable: Boolean(latestTargetCapture),
+            baseLayoutBlocksCount: Number(managedPageContext.baseVersion.metadata?.baseline_block_count ?? 0),
+            baseHtmlLength: Number(managedPageContext.baseVersion.metadata?.baseline_html_length ?? 0),
+            baseContainsTextAnchor: updatedPendingTargetClarification.textAnchor
+              ? captureClarification.resolvedTarget.sourceBaseVersion?.source === "request_live_dom_snapshot"
+                ? false
+                : captureClarification.resolvedTarget.evidence.exactTextMatch ||
+                  captureClarification.resolvedTarget.evidence.normalizedTextMatch
+              : null,
+            liveDomContainsTextAnchor: updatedPendingTargetClarification.textAnchor
+              ? (latestTargetCapture?.textFragments ?? []).some((fragment) =>
+                  normalizeString(fragment).toLowerCase().includes(
+                    normalizeString(updatedPendingTargetClarification.textAnchor).toLowerCase(),
+                  ),
+                )
+              : null,
             domCandidatesCount: latestTargetCapture?.domCandidates.length ?? 0,
+            managedDomCandidatesCount:
+              latestTargetCapture?.domCandidates.filter((candidate) => candidate.isEditableManagedContent).length ?? 0,
             primaryCandidateManagedNodeId: primaryCandidate?.managedNodeId ?? null,
             primaryCandidateBlockId: primaryCandidate?.blockId ?? null,
             primaryCandidateSafeSelector: primaryCandidate?.safeSelector ?? null,
+            primaryCandidateHasManagedNodeId: Boolean(primaryCandidate?.managedNodeId),
+            primaryCandidateHasBlockId: Boolean(primaryCandidate?.blockId),
             capturedTargetFound: captureClarification.resolvedTarget.found,
             capturedTargetConfidence: captureClarification.resolvedTarget.confidence,
             capturedTargetResolutionSource: captureClarification.resolvedTarget.resolutionSource,
+            selectedTargetManagedNodeId: captureClarification.resolvedTarget.selectedTarget?.managedNodeId ?? null,
+            selectedTargetBlockId: captureClarification.resolvedTarget.selectedTarget?.blockId ?? null,
             usedPreResolvedTarget: captureClarification.resolvedTarget.found,
+            reconciliationAttempted: true,
+            reconciliationResult: captureClarification.resolvedTarget.found
+              ? captureClarification.resolvedTarget.resolutionSource
+              : "not_found",
             materializationResult:
               captureClarification.status === "resolved" ? "awaiting_confirmation" : "needs_clarification",
+            materializationBlockedReason: captureClarification.resolvedTarget.rejectionReasons[0] ?? null,
             failureReasons: captureClarification.resolvedTarget.rejectionReasons,
           }
 

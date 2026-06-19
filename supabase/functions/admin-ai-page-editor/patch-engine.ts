@@ -345,6 +345,22 @@ function extractBlocksFromLayoutJson(layoutJson: Record<string, unknown>) {
   return []
 }
 
+function extractHtmlFromLayoutJson(layoutJson: Record<string, unknown>) {
+  if (typeof layoutJson.html === "string" && layoutJson.html.trim()) {
+    return layoutJson.html.trim()
+  }
+
+  if (
+    layoutJson.projectData &&
+    typeof layoutJson.projectData === "object" &&
+    typeof (layoutJson.projectData as Record<string, unknown>).html === "string"
+  ) {
+    return String((layoutJson.projectData as Record<string, unknown>).html ?? "").trim()
+  }
+
+  return ""
+}
+
 function withBlocksAppliedToLayoutJson(layoutJson: Record<string, unknown>, blocks: Record<string, unknown>[]) {
   const record = cloneJsonValue(layoutJson)
   const nextBlocks = cloneJsonValue(blocks)
@@ -2819,6 +2835,8 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
   const targetResolutionSource = resolvedCandidates[0]?.resolution_source ?? "message"
   const textAnchorResolution = resolvedCandidates[0]?.text_anchor_resolution ?? null
   const captureTargetResolution = resolvedCandidates[0]?.capture_target_resolution ?? null
+  const primaryCaptureCandidate = captureTargetResolution?.capture?.primaryCandidate ?? null
+  const targetTextAnchor = normalizeString(textAnchorResolution?.anchorText)
   const usedPreResolvedTarget = Boolean(
     input.preResolvedCaptureTarget?.found &&
       captureTargetResolution?.found &&
@@ -2836,6 +2854,14 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       base_version_id: input.baseVersion.id,
       base_version_number: input.baseVersion.version_number,
       base_version_status: input.baseVersion.status,
+      base_version_source: normalizeString(input.baseVersion.metadata?.source) || null,
+      base_version_was_bootstrap: ["allowed_path_bootstrap", "request_live_dom_snapshot"].includes(
+        normalizeString(input.baseVersion.metadata?.source).toLowerCase(),
+      ),
+      base_layout_blocks_count: baseBlocks.length,
+      base_html_length: extractHtmlFromLayoutJson(input.baseVersion.layout_json).length,
+      base_has_managed_html_root: input.baseVersion.metadata?.baseline_has_managed_html_root === true,
+      base_has_managed_html_data_markers: input.baseVersion.metadata?.baseline_has_managed_html_data_markers === true,
       scoped_patch: true,
       touched_section_indexes: uniqueStrings(touchedSectionIndexes.map((item) => String(item))),
       resolution_count: resolutions.length,
@@ -2851,7 +2877,13 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       capture_target_resolution_source: captureTargetResolution?.resolutionSource ?? null,
       capture_target_confidence: captureTargetResolution?.confidence ?? 0,
       capture_target_candidate_count: captureTargetResolution?.candidateCount ?? 0,
+      dom_candidates_count: captureTargetResolution?.capture?.domCandidates.length ?? 0,
+      managed_dom_candidates_count:
+        captureTargetResolution?.capture?.domCandidates.filter((candidate) => candidate.isEditableManagedContent).length ?? 0,
+      primary_candidate_has_managed_node_id: Boolean(primaryCaptureCandidate?.managedNodeId),
+      primary_candidate_has_block_id: Boolean(primaryCaptureCandidate?.blockId),
       capture_target_selected_target: captureTargetResolution?.selectedTarget?.targetId ?? null,
+      capture_target_selected_managed_node_id: captureTargetResolution?.selectedTarget?.managedNodeId ?? null,
       capture_target_selected_block: captureTargetResolution?.selectedTarget?.blockId ?? null,
       capture_target_rejection_reasons: captureTargetResolution?.rejectionReasons ?? [],
       text_anchor_provided: Boolean(textAnchorResolution?.anchorText),
@@ -2865,6 +2897,19 @@ export function applyPatchPlan(input: PatchEngineInput): PatchEngineResult {
       text_anchor_selected_target: textAnchorResolution?.selectedCandidate?.targetId ?? null,
       text_anchor_confidence: textAnchorResolution?.confidence ?? 0,
       text_anchor_rejection_reasons: textAnchorResolution?.rejectionReasons ?? [],
+      base_contains_text_anchor: Boolean(targetTextAnchor && textAnchorResolution?.found),
+      live_dom_contains_text_anchor: Boolean(
+        targetTextAnchor &&
+          (captureTargetResolution?.capture?.textFragments ?? []).some((fragment) =>
+            normalizeText(fragment).includes(normalizeText(targetTextAnchor)),
+          ),
+      ),
+      reconciliation_attempted: Boolean(textAnchorResolution?.anchorText || captureTargetResolution?.capture),
+      reconciliation_result: captureTargetResolution?.found
+        ? captureTargetResolution.resolutionSource
+        : textAnchorResolution?.found
+          ? "baseline_text_exact"
+          : "not_found",
       preview_renderable: true,
       desktop_renderable: true,
       mobile_renderable: true,
