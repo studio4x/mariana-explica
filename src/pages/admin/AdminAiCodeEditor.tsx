@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CheckCircle2, Clock3, Eye, GitBranch, Loader2, RefreshCw, RotateCcw, Save, Send, ShieldAlert, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Clock3, CodeXml, Eye, GitBranch, Loader2, RefreshCw, RotateCcw, Save, Send, ShieldAlert, XCircle } from "lucide-react"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -9,9 +9,12 @@ import {
   useAdminAiCodeEditorTasks,
   useApproveAdminAiCodeEditorTask,
   useCreateAdminAiCodeEditorTask,
+  useRefreshAdminAiCodeEditorTaskPreview,
+  useRefreshAdminAiCodeEditorTaskStatus,
   useRejectAdminAiCodeEditorTask,
   useRequestAdjustmentAdminAiCodeEditorTask,
   useRollbackAdminAiCodeEditorTask,
+  useStartAdminAiCodeEditorTaskExecution,
   useUpdateAdminAiCodeEditorConfig,
 } from "@/hooks/useAdmin"
 import { resolveAdminAiCodeEditorTransition } from "@/lib/admin-ai-code-editor"
@@ -84,6 +87,9 @@ export function AdminAiCodeEditor() {
   const tasksQuery = useAdminAiCodeEditorTasks()
   const updateConfigMutation = useUpdateAdminAiCodeEditorConfig()
   const createTaskMutation = useCreateAdminAiCodeEditorTask()
+  const startExecutionMutation = useStartAdminAiCodeEditorTaskExecution()
+  const refreshTaskStatusMutation = useRefreshAdminAiCodeEditorTaskStatus()
+  const refreshTaskPreviewMutation = useRefreshAdminAiCodeEditorTaskPreview()
   const approveTaskMutation = useApproveAdminAiCodeEditorTask()
   const rejectTaskMutation = useRejectAdminAiCodeEditorTask()
   const requestAdjustmentMutation = useRequestAdjustmentAdminAiCodeEditorTask()
@@ -150,11 +156,55 @@ export function AdminAiCodeEditor() {
       const task = await createTaskMutation.mutateAsync({ prompt })
       setPrompt("")
       setSelectedTaskId(task.id)
-      setFeedback({ tone: "success", message: "Task criada e enviada para revisao do novo editor." })
+      setFeedback({
+        tone: "success",
+        message:
+          task.worker_mode === "github_worker"
+            ? "Task criada com branch, patch, commit e PR reais em andamento."
+            : "Task criada em modo de planejamento.",
+      })
     } catch (error) {
       setFeedback({
         tone: "danger",
         message: error instanceof Error ? error.message : "Nao foi possivel criar a task.",
+      })
+    }
+  }
+
+  async function handleRefreshTask(action: "status" | "preview", taskId: string) {
+    setFeedback(null)
+    try {
+      const task =
+        action === "status"
+          ? await refreshTaskStatusMutation.mutateAsync({ taskId })
+          : await refreshTaskPreviewMutation.mutateAsync({ taskId })
+
+      setSelectedTaskId(task.id)
+      setFeedback({
+        tone: "success",
+        message: action === "status" ? "Checks da task atualizados." : "Preview da task atualizado.",
+      })
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel atualizar a task.",
+      })
+    }
+  }
+
+  async function handleRestartExecution(taskId: string) {
+    setFeedback(null)
+    try {
+      const task = await startExecutionMutation.mutateAsync({ taskId })
+      setSelectedTaskId(task.id)
+      setFeedback({
+        tone: "success",
+        message: "Execucao real reiniciada para a task.",
+      })
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel reiniciar a execucao da task.",
       })
     }
   }
@@ -181,7 +231,7 @@ export function AdminAiCodeEditor() {
         tone: "success",
         message:
           action === "approve"
-            ? "Task aprovada. A publicacao continua manual e confirmada."
+            ? "Task aprovada e publicada com merge do Pull Request."
             : action === "reject"
               ? "Task rejeitada."
               : action === "adjust"
@@ -200,7 +250,7 @@ export function AdminAiCodeEditor() {
     <div className="space-y-6">
       <PageHeader
         title="Editor IA Irrestrito"
-        description="Novo fluxo administrativo para tarefas de codigo com branch, diff, auditoria, aprovacao e rollback. Nesta primeira entrega o worker ainda pode operar em modo simulado, sem fingir branch ou preview reais quando a integracao GitHub/Vercel ainda nao estiver ligada."
+        description="Fluxo administrativo para tarefas de codigo com branch real, patch real, diff persistido, Pull Request, preview, aprovacao manual e rollback auditavel."
         backTo={ROUTES.ADMIN}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -235,7 +285,7 @@ export function AdminAiCodeEditor() {
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Worker</p>
           <p className="mt-3 text-2xl font-bold text-slate-950">{draftConfig.worker_mode === "github_worker" ? "GitHub" : "Simulado"}</p>
-          <p className="mt-2 text-sm text-slate-600">Modo real so deve aparecer quando a camada Git/Vercel estiver pronta.</p>
+          <p className="mt-2 text-sm text-slate-600">Modo operacional do worker que executa as tasks do editor.</p>
         </div>
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Tasks</p>
@@ -263,7 +313,7 @@ export function AdminAiCodeEditor() {
             <div>
               <h2 className="text-2xl font-bold text-slate-950">Configuracao e transicao</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Mantem o editor atual como fallback enquanto o novo fluxo amadurece, sem apagar `site_pages` nem o launcher antigo.
+                Controla o worker GitHub/Vercel e a transicao que desativa o editor legado sem apagar os dados existentes.
               </p>
             </div>
             <StatusBadge label={draftConfig.worker_mode === "simulated" ? "Modo simulado" : "Worker real"} tone={draftConfig.worker_mode === "simulated" ? "warning" : "success"} />
@@ -278,13 +328,13 @@ export function AdminAiCodeEditor() {
             />
             <ToggleField
               label="Tornar padrao"
-              description="Prepara a fase 2, quando o launcher futuro deve preferir o novo editor."
+              description="Define o novo editor como fluxo principal e oculta o legado quando o fallback estiver desligado."
               checked={draftConfig.make_default}
               onChange={(checked) => setDraftConfig((current) => ({ ...current, make_default: checked }))}
             />
             <ToggleField
               label="Manter fallback legado"
-              description="Permite ocultar o editor antigo no admin sem remover a rota nem a implementacao."
+              description="Mantem o editor IA antigo disponivel apenas como fallback tecnico temporario."
               checked={draftConfig.legacy_editor_fallback_enabled}
               onChange={(checked) =>
                 setDraftConfig((current) => ({ ...current, legacy_editor_fallback_enabled: checked }))
@@ -292,19 +342,19 @@ export function AdminAiCodeEditor() {
             />
             <ToggleField
               label="Executar testes automaticamente"
-              description="Quando o worker GitHub estiver ativo, dispara os testes antes de qualquer aprovacao."
+              description="Consulta os checks do GitHub Actions antes de qualquer aprovacao."
               checked={draftConfig.auto_run_tests}
               onChange={(checked) => setDraftConfig((current) => ({ ...current, auto_run_tests: checked }))}
             />
             <ToggleField
               label="Executar build automaticamente"
-              description="Quando a integracao estiver disponivel, exige build rastreavel para cada task."
+              description="Exige build rastreavel da branch antes de aprovar a publicacao."
               checked={draftConfig.auto_run_build}
               onChange={(checked) => setDraftConfig((current) => ({ ...current, auto_run_build: checked }))}
             />
             <ToggleField
               label="Solicitar preview deploy"
-              description="Mantem a intencao de preview obrigatorio antes da publicacao, sem inventar URL quando ainda nao existir."
+              description="Captura o preview real do Vercel por commit antes da publicacao."
               checked={draftConfig.request_preview_deploy}
               onChange={(checked) => setDraftConfig((current) => ({ ...current, request_preview_deploy: checked }))}
             />
@@ -382,7 +432,7 @@ export function AdminAiCodeEditor() {
             <div>
               <h2 className="text-2xl font-bold text-slate-950">Nova task</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                O pedido vira uma task auditavel, com plano, branch sugerida, arquivos provaveis, diff planejado e gate de aprovacao.
+                O pedido vira uma task auditavel, com plano, branch real, patch aplicado, diff persistido, PR e gate de aprovacao manual.
               </p>
             </div>
             {draftConfig.worker_mode === "simulated" ? (
@@ -400,7 +450,7 @@ export function AdminAiCodeEditor() {
           />
 
           <div className="rounded-[1.25rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-            <p className="font-semibold text-slate-950">Fluxo deste MVP</p>
+            <p className="font-semibold text-slate-950">Fluxo operacional</p>
             <p className="mt-2">
               admin pede → IA planeia → arquivos provaveis → diff visivel → status de testes/build/preview honestos → revisao admin → aprovacao manual → rollback rastreavel.
             </p>
@@ -518,27 +568,60 @@ export function AdminAiCodeEditor() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center gap-2">
                     <GitBranch className="h-4 w-4 text-slate-500" />
                     <p className="text-sm font-semibold text-slate-950">Branch</p>
                   </div>
                   <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.branch_name}</p>
+                  <p className="mt-2 text-xs text-slate-500">Base: {selectedTask.default_branch ?? "por resolver"}</p>
                 </div>
                 <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Commit sugerido</p>
+                    <p className="text-sm font-semibold text-slate-950">Commit</p>
                   </div>
-                  <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.commit_message}</p>
+                  <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.commit_sha ?? "Ainda sem commit real"}</p>
+                  <p className="mt-2 text-xs text-slate-500">{selectedTask.commit_message}</p>
+                </div>
+                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center gap-2">
+                    <CodeXml className="h-4 w-4 text-slate-500" />
+                    <p className="text-sm font-semibold text-slate-950">Pull Request</p>
+                  </div>
+                  {selectedTask.pull_request_url ? (
+                    <a
+                      href={selectedTask.pull_request_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
+                    >
+                      #{selectedTask.pull_request_number ?? "?"} abrir PR
+                    </a>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-700">Ainda sem PR real</p>
+                  )}
+                  <p className="mt-2 text-xs text-slate-500">Estado: {selectedTask.pull_request_status ?? "nao aberto"}</p>
                 </div>
                 <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4 text-slate-500" />
                     <p className="text-sm font-semibold text-slate-950">Preview</p>
                   </div>
-                  <p className="mt-3 text-sm text-slate-700">{selectedTask.preview_url ?? "Ainda sem URL de preview"}</p>
+                  {selectedTask.preview_url ? (
+                    <a
+                      href={selectedTask.preview_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
+                    >
+                      Abrir preview
+                    </a>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-700">Ainda sem URL de preview</p>
+                  )}
+                  <p className="mt-2 text-xs text-slate-500">Estado: {selectedTask.preview_status}</p>
                 </div>
                 <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center gap-2">
@@ -546,6 +629,9 @@ export function AdminAiCodeEditor() {
                     <p className="text-sm font-semibold text-slate-950">Worker</p>
                   </div>
                   <p className="mt-3 text-sm text-slate-700">{selectedTask.worker_mode}</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Ultima execucao: {formatDateTime(selectedTask.last_execution_at ?? selectedTask.updated_at)}
+                  </p>
                 </div>
               </div>
 
@@ -559,6 +645,11 @@ export function AdminAiCodeEditor() {
                   <p className="text-sm font-semibold text-slate-950">Resumo operacional</p>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-slate-700">{selectedTask.result_summary ?? "Sem resumo operacional."}</p>
+                {selectedTask.execution_error ? (
+                  <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm leading-6 text-rose-900">
+                    {selectedTask.execution_error}
+                  </p>
+                ) : null}
                 {selectedTask.sensitive_reasons.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedTask.sensitive_reasons.map((reason) => (
@@ -610,12 +701,21 @@ export function AdminAiCodeEditor() {
                           <p className="text-sm font-semibold text-slate-950">{change.file_path}</p>
                           <StatusBadge label={change.change_type} tone="info" />
                           <StatusBadge label={change.status} tone={statusTone(change.status)} />
+                          {change.language ? <StatusBadge label={change.language} tone="neutral" /> : null}
                         </div>
+                        {change.summary ? (
+                          <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">{change.summary}</p>
+                        ) : null}
                         {change.rationale ? (
                           <p className="mt-2 text-sm leading-6 text-slate-600">{change.rationale}</p>
                         ) : null}
+                        {(change.before_sha || change.after_sha) ? (
+                          <p className="mt-2 break-all text-xs text-slate-500">
+                            before: {change.before_sha ?? "n/a"} | after: {change.after_sha ?? "n/a"}
+                          </p>
+                        ) : null}
                         <pre className="mt-3 overflow-x-auto rounded-[1rem] bg-slate-950 p-4 text-xs leading-6 text-slate-100">
-                          {change.diff_preview ?? "Sem diff planeado."}
+                          {change.diff_patch ?? change.diff_preview ?? "Sem diff persistido."}
                         </pre>
                       </div>
                     ))}
@@ -627,6 +727,38 @@ export function AdminAiCodeEditor() {
 
               <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
                 <h3 className="text-lg font-bold text-slate-950">Acoes do admin</h3>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => void handleRefreshTask("status", selectedTask.id)}
+                    disabled={refreshTaskStatusMutation.isPending}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Atualizar checks
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => void handleRefreshTask("preview", selectedTask.id)}
+                    disabled={refreshTaskPreviewMutation.isPending}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Atualizar preview
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => void handleRestartExecution(selectedTask.id)}
+                    disabled={startExecutionMutation.isPending}
+                  >
+                    <Loader2 className="mr-2 h-4 w-4" />
+                    Reexecutar worker
+                  </Button>
+                </div>
                 <textarea
                   value={actionNotes}
                   onChange={(event) => setActionNotes(event.target.value)}
@@ -641,7 +773,7 @@ export function AdminAiCodeEditor() {
                     disabled={approveTaskMutation.isPending}
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Aprovar
+                    Aprovar e publicar
                   </Button>
                   <Button
                     type="button"

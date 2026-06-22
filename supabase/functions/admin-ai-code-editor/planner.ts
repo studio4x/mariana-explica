@@ -167,6 +167,16 @@ function buildFilePlan(prompt: string): Array<Omit<AiCodeEditorPlannedFile, "dif
   }
 
   if (/\b(suporte|formulario|form)\b/.test(normalized)) {
+    if (/\b(texto|titulo|título|heading|copy)\b/.test(normalized)) {
+      return [
+        {
+          file_path: "src/pages/public/Support.tsx",
+          change_type: "modify",
+          rationale: "Ajustar apenas o texto solicitado na pagina publica de suporte, sem tocar no backend do formulario.",
+        },
+      ]
+    }
+
     return [
       {
         file_path: "src/pages/public/Support.tsx",

@@ -724,9 +724,17 @@ function normalizeAdminAiCodeEditorTask(row: Partial<AdminAiCodeEditorTask> | nu
     risk_level: (String(record.risk_level ?? "low") as AdminAiCodeEditorTask["risk_level"]),
     worker_mode: record.worker_mode === "github_worker" ? "github_worker" : "simulated",
     branch_name: String(record.branch_name ?? ""),
+    default_branch: record.default_branch ? String(record.default_branch) : null,
     commit_message: String(record.commit_message ?? ""),
     commit_sha: record.commit_sha ? String(record.commit_sha) : null,
+    pull_request_number:
+      typeof record.pull_request_number === "number"
+        ? record.pull_request_number
+        : record.pull_request_number
+          ? Number(record.pull_request_number)
+          : null,
     pull_request_url: record.pull_request_url ? String(record.pull_request_url) : null,
+    pull_request_status: record.pull_request_status ? String(record.pull_request_status) : null,
     preview_url: record.preview_url ? String(record.preview_url) : null,
     preview_status: (String(record.preview_status ?? "not_requested") as AdminAiCodeEditorTask["preview_status"]),
     test_status: (String(record.test_status ?? "not_requested") as AdminAiCodeEditorTask["test_status"]),
@@ -741,6 +749,9 @@ function normalizeAdminAiCodeEditorTask(row: Partial<AdminAiCodeEditorTask> | nu
     published_at: record.published_at ? String(record.published_at) : null,
     rolled_back_at: record.rolled_back_at ? String(record.rolled_back_at) : null,
     approved_at: record.approved_at ? String(record.approved_at) : null,
+    execution_error: record.execution_error ? String(record.execution_error) : null,
+    last_execution_at: record.last_execution_at ? String(record.last_execution_at) : null,
+    merged_at: record.merged_at ? String(record.merged_at) : null,
     metadata: normalizeUnknownRecord(record.metadata),
     created_at: String(record.created_at ?? ""),
     updated_at: String(record.updated_at ?? ""),
@@ -749,10 +760,17 @@ function normalizeAdminAiCodeEditorTask(row: Partial<AdminAiCodeEditorTask> | nu
           id: String(item?.id ?? ""),
           task_id: String(item?.task_id ?? ""),
           file_path: String(item?.file_path ?? ""),
+          previous_file_path: item?.previous_file_path ? String(item.previous_file_path) : null,
           change_type: String(item?.change_type ?? "modify") as AdminAiCodeEditorFileChange["change_type"],
           status: String(item?.status ?? "planned") as AdminAiCodeEditorFileChange["status"],
           rationale: item?.rationale ? String(item.rationale) : null,
+          summary: item?.summary ? String(item.summary) : null,
           diff_preview: item?.diff_preview ? String(item.diff_preview) : null,
+          diff_patch: item?.diff_patch ? String(item.diff_patch) : null,
+          before_sha: item?.before_sha ? String(item.before_sha) : null,
+          after_sha: item?.after_sha ? String(item.after_sha) : null,
+          language: item?.language ? String(item.language) : null,
+          risk_level: item?.risk_level ? String(item.risk_level) : null,
           metadata: normalizeUnknownRecord(item?.metadata),
           created_at: String(item?.created_at ?? ""),
           updated_at: String(item?.updated_at ?? ""),
@@ -778,6 +796,10 @@ function normalizeAdminAiCodeEditorTask(row: Partial<AdminAiCodeEditorTask> | nu
           deployment_id: item?.deployment_id ? String(item.deployment_id) : null,
           deployment_url: item?.deployment_url ? String(item.deployment_url) : null,
           status: String(item?.status ?? "not_requested") as AdminAiCodeEditorDeploy["status"],
+          git_branch: item?.git_branch ? String(item.git_branch) : null,
+          commit_sha: item?.commit_sha ? String(item.commit_sha) : null,
+          ready_at: item?.ready_at ? String(item.ready_at) : null,
+          error_message: item?.error_message ? String(item.error_message) : null,
           metadata: normalizeUnknownRecord(item?.metadata),
           created_at: String(item?.created_at ?? ""),
           updated_at: String(item?.updated_at ?? ""),
@@ -2030,6 +2052,62 @@ export async function createAdminAiCodeEditorTask(input: {
   }>("admin-ai-code-editor", {
     action: "create_task",
     prompt: input.prompt,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function generateAdminAiCodeEditorTaskPlan(input: {
+  taskId: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "generate_task_plan",
+    taskId: input.taskId,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function startAdminAiCodeEditorTaskExecution(input: {
+  taskId: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "start_task_execution",
+    taskId: input.taskId,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function refreshAdminAiCodeEditorTaskStatus(input: {
+  taskId: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "refresh_task_status",
+    taskId: input.taskId,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function refreshAdminAiCodeEditorTaskPreview(input: {
+  taskId: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "refresh_task_preview",
+    taskId: input.taskId,
   })
 
   return normalizeAdminAiCodeEditorTask(response.task)

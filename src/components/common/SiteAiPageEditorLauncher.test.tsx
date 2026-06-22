@@ -9,6 +9,7 @@ import { AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE } from "@/lib/ai-page-editor-r
 
 const {
   mockUseAuth,
+  mockUseAdminAiCodeEditorConfig,
   mockUseAdminOptionalSitePageDetail,
   mockGenerateProposalMutateAsync,
   mockSaveDraftMutateAsync,
@@ -21,6 +22,7 @@ const {
   mockStoreSitePagePreview,
 } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
+  mockUseAdminAiCodeEditorConfig: vi.fn(),
   mockUseAdminOptionalSitePageDetail: vi.fn(),
   mockGenerateProposalMutateAsync: vi.fn(),
   mockSaveDraftMutateAsync: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock("@/hooks/useAuth", () => ({
 }))
 
 vi.mock("@/hooks/useAdmin", () => ({
+  useAdminAiCodeEditorConfig: () => mockUseAdminAiCodeEditorConfig(),
   useAdminAiPageEditorConfig: () => ({
     data: {
       config_value: {
@@ -395,9 +398,27 @@ describe("SiteAiPageEditorLauncher", () => {
     mockFetchAdminBrandingConfig.mockReset()
     mockStoreSitePagePreview.mockReset()
     mockUseAdminOptionalSitePageDetail.mockReset()
+    mockUseAdminAiCodeEditorConfig.mockReset()
     mockUseAuth.mockReturnValue({
       isAdmin: true,
       loading: false,
+    })
+    mockUseAdminAiCodeEditorConfig.mockReturnValue({
+      data: {
+        config_value: {
+          enabled: false,
+          make_default: false,
+          legacy_editor_fallback_enabled: true,
+          worker_mode: "simulated",
+          github_repository: "studio4x/mariana-explica",
+          vercel_project_name: "mariana-explica",
+          auto_run_tests: true,
+          auto_run_build: true,
+          request_preview_deploy: true,
+          require_explicit_publish_confirmation: true,
+        },
+      },
+      isLoading: false,
     })
     mockFetchAdminBrandingConfig.mockResolvedValue({
       config_value: {
@@ -437,6 +458,44 @@ describe("SiteAiPageEditorLauncher", () => {
         created_at: "2026-06-15T12:15:00.000Z",
       },
     })
+  })
+
+  it("does not render the legacy launcher when the unrestricted editor is the default", () => {
+    mockUseAdminAiCodeEditorConfig.mockReturnValue({
+      data: {
+        config_value: {
+          enabled: true,
+          make_default: true,
+          legacy_editor_fallback_enabled: false,
+          worker_mode: "github_worker",
+          github_repository: "studio4x/mariana-explica",
+          vercel_project_name: "mariana-explica",
+          auto_run_tests: true,
+          auto_run_build: true,
+          request_preview_deploy: true,
+          require_explicit_publish_confirmation: true,
+        },
+      },
+      isLoading: false,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/sobre"]}>
+          <SiteAiPageEditorLauncher />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(screen.queryByRole("button", { name: /editar com ia/i })).not.toBeInTheDocument()
   })
 
   it("does not route a page-top spacing request to the global header branch", async () => {

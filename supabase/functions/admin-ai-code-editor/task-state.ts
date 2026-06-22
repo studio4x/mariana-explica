@@ -42,6 +42,16 @@ export interface AiCodeEditorTaskRecord {
   metadata: Record<string, unknown>
 }
 
+export interface AiCodeEditorPublicationReadiness {
+  branch_name?: string | null
+  commit_sha?: string | null
+  pull_request_url?: string | null
+  preview_status: AiCodeEditorPreviewStatus
+  test_status: AiCodeEditorExecutionStatus
+  build_status: AiCodeEditorExecutionStatus
+  has_diff: boolean
+}
+
 export interface AiCodeEditorInitialTaskState {
   status: AiCodeEditorTaskStatus
   previewStatus: AiCodeEditorPreviewStatus
@@ -152,5 +162,32 @@ export function transitionTaskRecord(input: {
       }
     default:
       throw new Error("Acao de task invalida.")
+  }
+}
+
+export function validatePublicationReadiness(task: AiCodeEditorPublicationReadiness) {
+  if (!task.branch_name?.trim()) {
+    throw new Error("Nao e possivel aprovar a task sem branch real.")
+  }
+  if (!task.commit_sha?.trim()) {
+    throw new Error("Nao e possivel aprovar a task sem commit real.")
+  }
+  if (!task.pull_request_url?.trim()) {
+    throw new Error("Nao e possivel aprovar a task sem Pull Request real.")
+  }
+  if (!task.has_diff) {
+    throw new Error("Nao e possivel aprovar a task sem diff real persistido.")
+  }
+  if (task.test_status === "failed" || task.build_status === "failed") {
+    throw new Error("Nao e possivel aprovar a task enquanto testes ou build falharem.")
+  }
+  if (task.test_status === "pending" || task.build_status === "pending") {
+    throw new Error("Ainda existem validacoes em processamento. Atualiza o status da task antes de aprovar.")
+  }
+  if (task.preview_status === "failed") {
+    throw new Error("Nao e possivel aprovar a task porque o preview falhou.")
+  }
+  if (task.preview_status === "pending") {
+    throw new Error("Preview ainda em processamento. Atualiza o preview antes de aprovar.")
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildInitialTaskState, transitionTaskRecord } from "./task-state.ts"
+import { buildInitialTaskState, transitionTaskRecord, validatePublicationReadiness } from "./task-state.ts"
 
 describe("buildInitialTaskState", () => {
   it("keeps preview, build and tests honest in simulated mode", () => {
@@ -85,5 +85,35 @@ describe("transitionTaskRecord", () => {
 
     expect(next.status).toBe("needs_adjustment")
     expect(next.metadata.latest_action_notes).toBe("Ajustar o diff antes de publicar")
+  })
+})
+
+describe("validatePublicationReadiness", () => {
+  it("blocks approval when a real diff is missing", () => {
+    expect(() =>
+      validatePublicationReadiness({
+        branch_name: "ai-editor/task",
+        commit_sha: "abc123",
+        pull_request_url: "https://github.com/example/repo/pull/1",
+        preview_status: "ready",
+        test_status: "passed",
+        build_status: "passed",
+        has_diff: false,
+      })
+    ).toThrow("diff real")
+  })
+
+  it("blocks approval while preview is still pending", () => {
+    expect(() =>
+      validatePublicationReadiness({
+        branch_name: "ai-editor/task",
+        commit_sha: "abc123",
+        pull_request_url: "https://github.com/example/repo/pull/1",
+        preview_status: "pending",
+        test_status: "passed",
+        build_status: "passed",
+        has_diff: true,
+      })
+    ).toThrow("Preview ainda em processamento")
   })
 })

@@ -6,6 +6,7 @@ import {
   archiveAdminProduct,
   approveAdminAiCodeEditorTask,
   createAdminAiCodeEditorTask,
+  generateAdminAiCodeEditorTaskPlan,
   createAdminAffiliate,
   createAdminCoupon,
   createAdminCourseRelease,
@@ -77,6 +78,8 @@ import {
   runOneAdminCron,
   scheduleAdminCronJobs,
   revokeAdminCourseRelease,
+  refreshAdminAiCodeEditorTaskPreview,
+  refreshAdminAiCodeEditorTaskStatus,
   rollbackAdminAiCodeEditorTask,
   replyAdminSupportTicket,
   replyAdminPublicFormSubmission,
@@ -98,6 +101,7 @@ import {
   updateAdminLegacyPageEditorConfig,
   updateAdminAiPageEditorConfig,
   updateAdminSiteMaintenanceConfig,
+  startAdminAiCodeEditorTaskExecution,
   testAdminAiPageEditorProviders,
   generateAdminAiPageEditorProposal,
   publishAdminSitePageVersion,
@@ -1342,6 +1346,22 @@ function useAdminAiCodeEditorTaskMutation<TInput extends { taskId: string }>(
       invalidate()
     },
   })
+}
+
+export function useGenerateAdminAiCodeEditorTaskPlan() {
+  return useAdminAiCodeEditorTaskMutation(generateAdminAiCodeEditorTaskPlan)
+}
+
+export function useStartAdminAiCodeEditorTaskExecution() {
+  return useAdminAiCodeEditorTaskMutation(startAdminAiCodeEditorTaskExecution)
+}
+
+export function useRefreshAdminAiCodeEditorTaskStatus() {
+  return useAdminAiCodeEditorTaskMutation(refreshAdminAiCodeEditorTaskStatus)
+}
+
+export function useRefreshAdminAiCodeEditorTaskPreview() {
+  return useAdminAiCodeEditorTaskMutation(refreshAdminAiCodeEditorTaskPreview)
 }
 
 export function useApproveAdminAiCodeEditorTask() {

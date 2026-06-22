@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { BarChart3, Check, KeyRound, Plus, RefreshCw, Route, Save, Settings2, TestTube2, Trash2 } from "lucide-react"
+import { Navigate } from "react-router-dom"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
+  useAdminAiCodeEditorConfig,
   useAdminAiPageEditorConfig,
   useAdminAiPageEditorUsageMetrics,
   useAdminSitePages,
   useTestAdminAiPageEditorProviders,
   useUpdateAdminAiPageEditorConfig,
 } from "@/hooks/useAdmin"
+import { resolveAdminAiCodeEditorTransition } from "@/lib/admin-ai-code-editor"
 import { AI_PAGE_EDITOR_ROUTE_OPTIONS, isAiPageEditorPublicContentPath, resolveAiPageEditorManagedSlug } from "@/lib/ai-page-editor"
 import { ROUTES } from "@/lib/constants"
 import type {
@@ -142,6 +145,7 @@ function ProviderModelCard({
 }
 
 export function AdminAiPageEditor() {
+  const aiCodeEditorConfigQuery = useAdminAiCodeEditorConfig()
   const query = useAdminAiPageEditorConfig()
   const usageQuery = useAdminAiPageEditorUsageMetrics(30)
   const sitePagesQuery = useAdminSitePages()
@@ -173,6 +177,10 @@ export function AdminAiPageEditor() {
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [providerTestOutput, setProviderTestOutput] = useState<string | null>(null)
   const [providerTestResults, setProviderTestResults] = useState<AdminAiPageEditorProviderTestResult[]>([])
+  const aiCodeEditorTransition = useMemo(
+    () => resolveAdminAiCodeEditorTransition(aiCodeEditorConfigQuery.data ?? null),
+    [aiCodeEditorConfigQuery.data],
+  )
 
   const config = query.data
   const usageMetrics = usageQuery.data
@@ -247,6 +255,10 @@ export function AdminAiPageEditor() {
 
   if (query.isLoading) {
     return <LoadingState message="A carregar configuração do editor via IA..." />
+  }
+
+  if (!aiCodeEditorTransition.showLegacyAiEditor || aiCodeEditorTransition.newEditorIsDefault) {
+    return <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR} replace />
   }
 
   if (query.isError) {

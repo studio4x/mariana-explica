@@ -241,7 +241,14 @@ export type AdminAiCodeEditorTaskStatus =
 export type AdminAiCodeEditorRiskLevel = "low" | "medium" | "high"
 export type AdminAiCodeEditorPreviewStatus = "not_requested" | "pending" | "ready" | "failed"
 export type AdminAiCodeEditorExecutionStatus = "not_requested" | "pending" | "passed" | "failed"
-export type AdminAiCodeEditorFileChangeType = "create" | "modify" | "delete"
+export type AdminAiCodeEditorFileChangeType =
+  | "create"
+  | "modify"
+  | "delete"
+  | "created"
+  | "modified"
+  | "deleted"
+  | "renamed"
 export type AdminAiCodeEditorFileChangeStatus = "planned" | "generated" | "applied" | "reverted"
 export type AdminAiCodeEditorDeployProvider = "vercel" | "github" | "manual"
 export type AdminAiCodeEditorDeployStatus = "not_requested" | "pending" | "ready" | "failed" | "rolled_back"
@@ -269,10 +276,17 @@ export interface AdminAiCodeEditorFileChange {
   id: string
   task_id: string
   file_path: string
+  previous_file_path?: string | null
   change_type: AdminAiCodeEditorFileChangeType
   status: AdminAiCodeEditorFileChangeStatus
   rationale: string | null
+  summary?: string | null
   diff_preview: string | null
+  diff_patch?: string | null
+  before_sha?: string | null
+  after_sha?: string | null
+  language?: string | null
+  risk_level?: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -296,6 +310,10 @@ export interface AdminAiCodeEditorDeploy {
   deployment_id: string | null
   deployment_url: string | null
   status: AdminAiCodeEditorDeployStatus
+  git_branch?: string | null
+  commit_sha?: string | null
+  ready_at?: string | null
+  error_message?: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -314,9 +332,12 @@ export interface AdminAiCodeEditorTask {
   risk_level: AdminAiCodeEditorRiskLevel
   worker_mode: AdminAiCodeEditorWorkerMode
   branch_name: string
+  default_branch?: string | null
   commit_message: string
   commit_sha: string | null
+  pull_request_number?: number | null
   pull_request_url: string | null
+  pull_request_status?: string | null
   preview_url: string | null
   preview_status: AdminAiCodeEditorPreviewStatus
   test_status: AdminAiCodeEditorExecutionStatus
@@ -331,6 +352,9 @@ export interface AdminAiCodeEditorTask {
   published_at: string | null
   rolled_back_at: string | null
   approved_at: string | null
+  execution_error?: string | null
+  last_execution_at?: string | null
+  merged_at?: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string

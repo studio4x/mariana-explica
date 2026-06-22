@@ -27,6 +27,15 @@ describe("buildAiCodeEditorPlan", () => {
     expect(plan.filesPlanned).toContain("supabase/functions/create-support-ticket/index.ts")
   })
 
+  it("keeps simple support copy changes scoped to the public page file", () => {
+    const plan = buildAiCodeEditorPlan({
+      prompt: "altere o texto do titulo da pagina de suporte",
+      timestampToken: "20260622113000",
+    })
+
+    expect(plan.filesPlanned).toEqual(["src/pages/public/Support.tsx"])
+  })
+
   it("requires explicit publish confirmation for sensitive auth changes", () => {
     const plan = buildAiCodeEditorPlan({
       prompt: "mude a autenticação da área do aluno e revise a sessão",
