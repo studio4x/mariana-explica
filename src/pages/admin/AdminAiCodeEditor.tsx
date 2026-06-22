@@ -118,6 +118,35 @@ function ToggleField(props: {
   )
 }
 
+type EditorTab = "chat" | "tasks" | "config"
+
+function EditorTabButton(props: {
+  active: boolean
+  label: string
+  description: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={props.active}
+      onClick={props.onClick}
+      className={[
+        "rounded-full border px-4 py-3 text-left transition",
+        props.active
+          ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-slate-950",
+      ].join(" ")}
+    >
+      <span className="block text-sm font-semibold">{props.label}</span>
+      <span className={["block text-xs leading-5", props.active ? "text-slate-200" : "text-slate-500"].join(" ")}>
+        {props.description}
+      </span>
+    </button>
+  )
+}
+
 export function AdminAiCodeEditor() {
   const configQuery = useAdminAiCodeEditorConfig()
   const tasksQuery = useAdminAiCodeEditorTasks()
@@ -135,6 +164,7 @@ export function AdminAiCodeEditor() {
   const [prompt, setPrompt] = useState("")
   const [actionNotes, setActionNotes] = useState("")
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<EditorTab>("chat")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
 
   const taskList = tasksQuery.data ?? []
@@ -343,8 +373,35 @@ export function AdminAiCodeEditor() {
         </div>
       ) : null}
 
-      <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+      <div role="tablist" aria-label="Secoes do editor IA irrestrito" className="grid gap-3 md:grid-cols-3">
+        <EditorTabButton
+          active={activeTab === "chat"}
+          label="Chat"
+          description="Ponto de entrada para pedidos e validação rápida."
+          onClick={() => setActiveTab("chat")}
+        />
+        <EditorTabButton
+          active={activeTab === "tasks"}
+          label="Tasks"
+          description="Lista, diff, PR, preview e rollback por tarefa."
+          onClick={() => setActiveTab("tasks")}
+        />
+        <EditorTabButton
+          active={activeTab === "config"}
+          label="Configuração"
+          description="Worker, providers, fallback e publicação."
+          onClick={() => setActiveTab("config")}
+        />
+      </div>
+
+      {activeTab !== "tasks" ? (
+        <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+        <div
+          className={[
+            "space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm",
+            activeTab === "config" ? "" : "hidden",
+          ].join(" ")}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-2xl font-bold text-slate-950">Configuracao e transicao</h2>
@@ -575,12 +632,17 @@ export function AdminAiCodeEditor() {
           </div>
         </div>
 
-        <div className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <div
+          className={[
+            "space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm",
+            activeTab === "chat" ? "" : "hidden",
+          ].join(" ")}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-slate-950">Nova task</h2>
+              <h2 className="text-2xl font-bold text-slate-950">Chat</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                O pedido vira uma task auditavel, com plano, branch real, patch aplicado, diff persistido, PR e gate de aprovacao manual.
+                Ponto principal do editor: o pedido entra aqui e vira uma task auditavel, com plano, branch real, patch aplicado, diff persistido, PR e gate de aprovacao manual.
               </p>
             </div>
             {draftConfig.worker_mode === "simulated" ? (
@@ -623,9 +685,11 @@ export function AdminAiCodeEditor() {
             )}
           </Button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+      {activeTab === "tasks" ? (
+        <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -1027,7 +1091,8 @@ export function AdminAiCodeEditor() {
             </div>
           )}
         </div>
-      </section>
+        </section>
+      ) : null}
     </div>
   )
 }

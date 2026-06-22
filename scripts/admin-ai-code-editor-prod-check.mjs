@@ -5,6 +5,8 @@ const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdvb2toZ3Vmc3hlcGxlbHBkYXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDM1OTYsImV4cCI6MjA5MTY3OTU5Nn0.9uw7Tk9R8-3tlPAJzRY8LxTC5TQMYVkHMf5JWsxqGjI"
 const DEFAULT_PROMPT =
   'troque o texto "Como podemos ajudar?" por "Como podemos ajudar? | Teste do Editor IA Irrestrito" na página /suporte'
+const DEFAULT_ROLLBACK_PROMPT =
+  "atualize o arquivo inofensivo docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md com uma nota curta de validacao do rollback por PR"
 
 function parseEnvFile(path) {
   const content = fs.readFileSync(path, "utf8")
@@ -42,12 +44,18 @@ function parseArgs(argv) {
       continue
     }
 
+    if (item === "--rollback-smoke") {
+      flags.add(item)
+      continue
+    }
+
     promptParts.push(item)
   }
 
   return {
     allowQuotaBlocked: flags.has("--allow-quota-blocked"),
-    prompt: promptParts.join(" ").trim() || DEFAULT_PROMPT,
+    rollbackSmoke: flags.has("--rollback-smoke"),
+    prompt: promptParts.join(" ").trim() || (flags.has("--rollback-smoke") ? DEFAULT_ROLLBACK_PROMPT : DEFAULT_PROMPT),
   }
 }
 
@@ -236,6 +244,39 @@ async function main() {
     }
 
     console.log(JSON.stringify(summary, null, 2))
+
+    if (args.rollbackSmoke) {
+      const rollbackResult = await callAdminAiCodeEditor({
+        supabaseUrl,
+        accessToken,
+        payload: {
+          action: "rollback_task",
+          taskId: task.id,
+          notes: "Smoke automatico do rollback por PR concluido.",
+        },
+      })
+
+      const rollbackTask = rollbackResult.task
+      console.log(JSON.stringify({
+        task_id: rollbackTask.id,
+        status: rollbackTask.status,
+        rollback_branch_name: rollbackTask.metadata?.rollback_branch_name ?? null,
+        rollback_pull_request_number: rollbackTask.metadata?.rollback_pull_request_number ?? null,
+        rollback_pull_request_url: rollbackTask.metadata?.rollback_pull_request_url ?? null,
+        rollback_pull_request_status: rollbackTask.metadata?.rollback_pull_request_status ?? null,
+      }, null, 2))
+
+      await callAdminAiCodeEditor({
+        supabaseUrl,
+        accessToken,
+        payload: {
+          action: "reject_task",
+          taskId: task.id,
+          notes: "Smoke automatico do rollback concluido sem publicar em producao.",
+        },
+      })
+      return
+    }
 
     await callAdminAiCodeEditor({
       supabaseUrl,

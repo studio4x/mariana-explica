@@ -231,6 +231,16 @@ function buildFilePlan(prompt: string): Array<Omit<AiCodeEditorPlannedFile, "dif
     ]
   }
 
+  if (/\b(rollback|revert)\b/.test(normalized) && /\b(smoke|inofensivo|inofensiva|docs|documentacao|documentação|validacao|validação)\b/.test(normalized)) {
+    return [
+      {
+        file_path: "docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md",
+        change_type: "modify",
+        rationale: "Atualizar a nota de validacao do rollback num arquivo inofensivo de docs.",
+      },
+    ]
+  }
+
   return [
     {
       file_path: "src/pages/public/ProductsCatalogExperience.tsx",

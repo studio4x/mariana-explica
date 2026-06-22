@@ -48,4 +48,13 @@ describe("buildAiCodeEditorPlan", () => {
     expect(plan.riskLevel).toBe("high")
     expect(plan.requiresExplicitPublishConfirmation).toBe(true)
   })
+  it("routes rollback smoke prompts to an inoffensive docs file", () => {
+    const plan = buildAiCodeEditorPlan({
+      prompt: "valide o rollback por PR usando um arquivo inofensivo de docs",
+      timestampToken: "20260622113000",
+    })
+
+    expect(plan.filesPlanned).toEqual(["docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md"])
+    expect(plan.riskLevel).toBe("low")
+  })
 })
