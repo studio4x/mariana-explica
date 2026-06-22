@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   buildPullRequestBody,
   buildTaskBranchName,
+  GitHubRepositoryClient,
   parseGitHubRepository,
   readGitHubSecrets,
 } from "./github-worker.ts"
@@ -61,5 +62,27 @@ describe("github-worker helpers", () => {
     expect(body).toContain("task-1")
     expect(body).toContain("Preview em processamento")
     expect(body).toContain("Support.tsx")
+  })
+
+  it("returns null when the branch does not exist on GitHub", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: "Not Found" }),
+    }))
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    const client = new GitHubRepositoryClient({
+      token: "token",
+      owner: "studio4x",
+      repo: "mariana-explica",
+    })
+
+    await expect(client.getBranch("ai-editor/task-demo")).resolves.toBeNull()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.github.com/repos/studio4x/mariana-explica/git/ref/heads/ai-editor/task-demo",
+      expect.any(Object),
+    )
   })
 })

@@ -159,6 +159,15 @@ function normalizeCompareChangeType(status: string | null | undefined): GitHubFi
   return "modified"
 }
 
+function isGitHubNotFoundError(error: unknown) {
+  return error instanceof Error &&
+    (
+      error.message.includes("404") ||
+      error.message.includes("Reference does not exist") ||
+      error.message.includes("Not Found")
+    )
+}
+
 export function buildPullRequestBody(input: {
   taskId: string
   prompt: string
@@ -261,21 +270,23 @@ export class GitHubRepositoryClient {
   }
 
   async getBranch(branchName: string): Promise<GitHubBranchInfo | null> {
+    const encodedBranchName = branchName
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/")
+
     try {
       const payload = await this.request<{
         ref?: string
         object?: { sha?: string }
-      }>(`/repos/${this.secrets.owner}/${this.secrets.repo}/git/ref/heads/${encodeURIComponent(branchName)}`)
+      }>(`/repos/${this.secrets.owner}/${this.secrets.repo}/git/ref/heads/${encodedBranchName}`)
 
       return {
         ref: normalizeText(payload.ref) || `refs/heads/${branchName}`,
         sha: normalizeText(payload.object?.sha),
       }
     } catch (error) {
-      if (error instanceof Error && error.message.includes("404")) {
-        return null
-      }
-      if (error instanceof Error && error.message.includes("Reference does not exist")) {
+      if (isGitHubNotFoundError(error)) {
         return null
       }
       throw error

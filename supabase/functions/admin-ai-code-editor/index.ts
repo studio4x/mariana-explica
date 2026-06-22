@@ -4,7 +4,7 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody }
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { buildAiCodeEditorPlan, type AiCodeEditorPlan } from "./planner.ts"
-import { generateTaskFileChanges } from "./ai-patch-generator.ts"
+import { generateTaskFileChanges, type AiPatchProviderConfig } from "./ai-patch-generator.ts"
 import {
   buildPullRequestBody,
   GitHubRepositoryClient,
@@ -67,7 +67,9 @@ type PlannedFileChangeRow = {
 
 const CONFIG_KEY = "ai_code_editor_config"
 const CONFIG_DESCRIPTION = "Configuracao do Editor IA Irrestrito / Admin AI Code Editor."
+const GEMINI_SECRET_NAME = "mariana_explica_ai_gemini_api_key"
 const OPENAI_SECRET_NAME = "mariana_explica_ai_openai_api_key"
+const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 const configSelect = "config_key,config_value,description,is_public,updated_at"
 const taskSelect = [
@@ -436,16 +438,58 @@ async function generateTaskPlanForRow(input: {
   return plan
 }
 
-async function resolveOpenAiApiKey(serviceClient: ServiceClient) {
+async function resolveAiPatchProviders(serviceClient: ServiceClient): Promise<AiPatchProviderConfig[]> {
+  const providers: AiPatchProviderConfig[] = []
   const envValue = normalizeText(Deno.env.get("OPENAI_API_KEY"))
-  if (envValue) return envValue
+  if (envValue) {
+    providers.push({
+      provider: "openai",
+      apiKey: envValue,
+      model: DEFAULT_OPENAI_MODEL,
+    })
+  }
 
-  const vaultValue = await readSecret(serviceClient, OPENAI_SECRET_NAME)
-  if (vaultValue) return vaultValue
+  const [openAiVaultValue, geminiEnvValue, geminiVaultValue] = await Promise.all([
+    readSecret(serviceClient, OPENAI_SECRET_NAME),
+    Promise.resolve(normalizeText(Deno.env.get("GEMINI_API_KEY"))),
+    readSecret(serviceClient, GEMINI_SECRET_NAME),
+  ])
 
-  throw new Error(
-    "Integracao de IA nao configurada. Configure OPENAI_API_KEY ou a secret mariana_explica_ai_openai_api_key para gerar patches reais.",
+  if (openAiVaultValue) {
+    providers.push({
+      provider: "openai",
+      apiKey: openAiVaultValue,
+      model: DEFAULT_OPENAI_MODEL,
+    })
+  }
+
+  if (geminiEnvValue) {
+    providers.push({
+      provider: "gemini",
+      apiKey: geminiEnvValue,
+      model: DEFAULT_GEMINI_MODEL,
+    })
+  }
+
+  if (geminiVaultValue) {
+    providers.push({
+      provider: "gemini",
+      apiKey: geminiVaultValue,
+      model: DEFAULT_GEMINI_MODEL,
+    })
+  }
+
+  const dedupedProviders = providers.filter((provider, index, items) =>
+    items.findIndex((item) => item.provider === provider.provider && item.apiKey === provider.apiKey) === index
   )
+
+  if (dedupedProviders.length === 0) {
+    throw new Error(
+      "Integracao de IA nao configurada. Configure OPENAI_API_KEY, GEMINI_API_KEY ou as secrets mariana_explica_ai_openai_api_key e mariana_explica_ai_gemini_api_key para gerar patches reais.",
+    )
+  }
+
+  return dedupedProviders
 }
 
 function mapWorkflowStatusToExecutionStatus(
@@ -571,7 +615,7 @@ async function applyTaskPatch(input: {
 }) {
   const currentTask = input.task
   const branchContext = await createTaskBranch(input)
-  const openAiApiKey = await resolveOpenAiApiKey(input.serviceClient)
+  const aiProviders = await resolveAiPatchProviders(input.serviceClient)
   const plannedFiles = Array.isArray(currentTask.files_planned)
     ? currentTask.files_planned.map((file) => normalizeText(file)).filter(Boolean)
     : []
@@ -596,8 +640,7 @@ async function applyTaskPatch(input: {
   })
 
   const generated = await generateTaskFileChanges({
-    apiKey: openAiApiKey,
-    model: DEFAULT_OPENAI_MODEL,
+    providers: aiProviders,
     prompt: normalizeText(currentTask.prompt),
     plan,
     repository: input.config.github_repository,
@@ -696,6 +739,8 @@ async function applyTaskPatch(input: {
       metadata: {
         source: "github_compare",
         branch_name: branchContext.branchName,
+        provider_used: generated.providerUsed,
+        model_used: generated.modelUsed,
       },
     }
   })
@@ -714,6 +759,8 @@ async function applyTaskPatch(input: {
       compare_url: comparison.htmlUrl,
       ai_patch_summary: generated.summary,
       ai_patch_risk_level: generated.riskLevel,
+      ai_patch_provider: generated.providerUsed,
+      ai_patch_model: generated.modelUsed,
     },
   })
 
@@ -726,6 +773,8 @@ async function applyTaskPatch(input: {
     metadata: {
       commit_sha: latestCommitSha,
       changed_files: fileChangeRows.map((file) => file.file_path),
+      provider_used: generated.providerUsed,
+      model_used: generated.modelUsed,
     },
   })
 
@@ -736,6 +785,8 @@ async function applyTaskPatch(input: {
     commitSha: latestCommitSha,
     generatedSummary: generated.summary,
     generatedRiskLevel: generated.riskLevel,
+    providerUsed: generated.providerUsed,
+    modelUsed: generated.modelUsed,
   }
 }
 
@@ -1391,6 +1442,7 @@ Deno.serve(async (req) => {
 
         await updateTaskRow(serviceClient, taskId, {
           status: nextTask.status,
+          pull_request_status: pullRequestNumber > 0 ? "closed" : normalizeText(currentTask.pull_request_status),
           metadata: {
             ...nextTask.metadata,
             pull_request_status: pullRequestNumber > 0 ? "closed" : normalizeText(currentTask.pull_request_status),
