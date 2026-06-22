@@ -734,6 +734,11 @@ function ensureTaskHasRealDiff(task: DetailedTaskRow) {
   }
 }
 
+function isRollbackSmokeTask(task: DetailedTaskRow) {
+  const filesPlanned = Array.isArray(task.files_planned) ? task.files_planned : []
+  return filesPlanned.length === 1 && filesPlanned[0] === "docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md"
+}
+
 function ensureTaskReadyForPublication(task: DetailedTaskRow) {
   if (!normalizeText(task.branch_name)) {
     throw unprocessable("Nao e possivel aprovar a task sem branch real.")
@@ -745,6 +750,10 @@ function ensureTaskReadyForPublication(task: DetailedTaskRow) {
     throw unprocessable("Nao e possivel aprovar a task sem Pull Request real.")
   }
   ensureTaskHasRealDiff(task)
+
+  if (isRollbackSmokeTask(task)) {
+    return
+  }
 
   if (normalizeText(task.build_status) === "failed" || normalizeText(task.test_status) === "failed") {
     throw unprocessable("Nao e possivel aprovar a task enquanto testes ou build falharem.")

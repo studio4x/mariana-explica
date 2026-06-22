@@ -246,12 +246,24 @@ async function main() {
     console.log(JSON.stringify(summary, null, 2))
 
     if (args.rollbackSmoke) {
+      const publishedTask = (
+        await callAdminAiCodeEditor({
+          supabaseUrl,
+          accessToken,
+          payload: {
+            action: "approve_task",
+            taskId: task.id,
+            notes: "Smoke automatico do rollback por PR publicado para validacao.",
+          },
+        })
+      ).task
+
       const rollbackResult = await callAdminAiCodeEditor({
         supabaseUrl,
         accessToken,
         payload: {
           action: "rollback_task",
-          taskId: task.id,
+          taskId: publishedTask.id,
           notes: "Smoke automatico do rollback por PR concluido.",
         },
       })
@@ -265,16 +277,6 @@ async function main() {
         rollback_pull_request_url: rollbackTask.metadata?.rollback_pull_request_url ?? null,
         rollback_pull_request_status: rollbackTask.metadata?.rollback_pull_request_status ?? null,
       }, null, 2))
-
-      await callAdminAiCodeEditor({
-        supabaseUrl,
-        accessToken,
-        payload: {
-          action: "reject_task",
-          taskId: task.id,
-          notes: "Smoke automatico do rollback concluido sem publicar em producao.",
-        },
-      })
       return
     }
 
