@@ -3,7 +3,6 @@ import { MemoryRouter } from "react-router-dom"
 import { render, screen } from "@testing-library/react"
 import { PublicManagedPage } from "./PublicManagedPage"
 import { storeSitePagePreview } from "@/lib/site-page-preview"
-import { buildCanonicalManagedPagePayload } from "@/lib/site-page-builder"
 
 const mockUsePublicSitePage = vi.fn()
 
@@ -83,51 +82,5 @@ describe("PublicManagedPage AI preview", () => {
     expect(screen.getByText("Remover padding superior do hero")).toBeInTheDocument()
     expect(screen.getByText(/1 alvo\(s\) destacados/i)).toBeInTheDocument()
     expect(document.querySelector("[data-block-id='hero']")?.getAttribute("data-me-ai-preview-highlight")).toBe("1")
-  })
-
-  it("renders the published managed baseline for /explicacoes with managed markers", () => {
-    const payload = buildCanonicalManagedPagePayload("explicacoes")
-    expect(JSON.stringify(payload.layoutJson)).toContain("Notas importantes antes de enviares o teu formulário:")
-    expect(payload.html).toContain("Notas importantes antes de enviares o teu formulário:")
-    mockUsePublicSitePage.mockImplementation((slug: string) => ({
-      data:
-        slug === "explicacoes"
-          ? {
-              page: {
-                id: "page-explicacoes",
-                slug: "explicacoes",
-                title: payload.title,
-                updated_at: "2026-06-19T10:00:00.000Z",
-                published_version_id: "version-explicacoes-1",
-              },
-              version: {
-                id: "version-explicacoes-1",
-                page_id: "page-explicacoes",
-                version_number: 1,
-                layout_json: payload.layoutJson,
-                style_json: payload.styleJson,
-                metadata: {
-                  source: "managed_public_page_seed",
-                },
-                created_at: "2026-06-19T10:00:00.000Z",
-              },
-            }
-          : null,
-      isLoading: false,
-      isError: false,
-    }))
-
-    render(
-      <MemoryRouter initialEntries={["/explicacoes"]}>
-        <PublicManagedPage slug="explicacoes" fallback={<div>fallback</div>} />
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByText("Notas importantes antes de enviares o teu formulário:")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /enviar formulário/i })).toBeInTheDocument()
-    expect(document.querySelector(".me-managed-page-root")).not.toBeNull()
-    expect(document.querySelector("[data-block-id]")).not.toBeNull()
-    expect(document.querySelector("[data-managed-node-id]")).not.toBeNull()
-    expect(screen.queryByText("fallback")).not.toBeInTheDocument()
   })
 })
