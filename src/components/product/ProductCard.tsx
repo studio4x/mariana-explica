@@ -62,7 +62,7 @@ export function ProductCard({
         {!product.cover_image_url ? (
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">{familyLabel}</p>
-            <h3 className="max-w-xs font-display text-2xl font-bold leading-tight">{product.title}</h3>
+            <p className="max-w-xs font-display text-2xl font-bold leading-tight">{product.title}</p>
           </div>
         ) : null}
       </div>

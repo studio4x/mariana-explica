@@ -40,8 +40,6 @@
   --site-link-hover-color: #0a3640;
   --site-selection-background: #dff2f8;
   --site-selection-foreground: #15323b;
-  --site-heading-font-family: "Arvo", Georgia, serif;
-  --site-body-font-family: "Inter", system-ui, sans-serif;
   --site-h1-font-family: "Arvo", Georgia, serif;
   --site-h1-font-size: 3.5rem;
   --site-h1-font-weight: 700;
@@ -121,7 +119,7 @@
   --site-small-color: var(--site-muted-color);
   color: hsl(var(--foreground));
   background-color: hsl(var(--background));
-  font-family: var(--site-body-font-family);
+  font-family: Inter, system-ui, sans-serif;
 }
 
 .dark {
@@ -158,7 +156,6 @@ body {
   margin: 0;
   background: var(--site-page-background);
   color: var(--site-body-color);
-  font-family: var(--site-body-font-family);
 }
 
 a {
@@ -429,92 +426,3 @@ small {
   color: var(--site-small-color);
 }
 
-.site-typography h1 {
-  font-family: var(--site-h1-font-family);
-  font-size: var(--site-h1-font-size);
-  font-weight: var(--site-h1-font-weight);
-  line-height: var(--site-h1-line-height);
-  letter-spacing: var(--site-h1-letter-spacing);
-  text-transform: var(--site-h1-text-transform);
-}
-
-.site-typography h2 {
-  font-family: var(--site-h2-font-family);
-  font-size: var(--site-h2-font-size);
-  font-weight: var(--site-h2-font-weight);
-  line-height: var(--site-h2-line-height);
-  letter-spacing: var(--site-h2-letter-spacing);
-  text-transform: var(--site-h2-text-transform);
-}
-
-.site-typography h3 {
-  font-family: var(--site-h3-font-family);
-  font-size: var(--site-h3-font-size);
-  font-weight: var(--site-h3-font-weight);
-  line-height: var(--site-h3-line-height);
-  letter-spacing: var(--site-h3-letter-spacing);
-  text-transform: var(--site-h3-text-transform);
-}
-
-.site-typography h4 {
-  font-family: var(--site-h4-font-family);
-  font-size: var(--site-h4-font-size);
-  font-weight: var(--site-h4-font-weight);
-  line-height: var(--site-h4-line-height);
-  letter-spacing: var(--site-h4-letter-spacing);
-  text-transform: var(--site-h4-text-transform);
-}
-
-.site-typography h5 {
-  font-family: var(--site-h5-font-family);
-  font-size: var(--site-h5-font-size);
-  font-weight: var(--site-h5-font-weight);
-  line-height: var(--site-h5-line-height);
-  letter-spacing: var(--site-h5-letter-spacing);
-  text-transform: var(--site-h5-text-transform);
-}
-
-.site-typography h6 {
-  font-family: var(--site-h6-font-family);
-  font-size: var(--site-h6-font-size);
-  font-weight: var(--site-h6-font-weight);
-  line-height: var(--site-h6-line-height);
-  letter-spacing: var(--site-h6-letter-spacing);
-  text-transform: var(--site-h6-text-transform);
-}
-
-.site-typography p:not([class*="font-display"]) {
-  font-family: var(--site-paragraph-font-family);
-  font-size: var(--site-paragraph-font-size);
-  font-weight: var(--site-paragraph-font-weight);
-  line-height: var(--site-paragraph-line-height);
-  letter-spacing: var(--site-paragraph-letter-spacing);
-  text-transform: var(--site-paragraph-text-transform);
-}
-
-.site-typography li:not([class*="font-display"]) {
-  font-family: var(--site-list-item-font-family);
-  font-size: var(--site-list-item-font-size);
-  font-weight: var(--site-list-item-font-weight);
-  line-height: var(--site-list-item-line-height);
-  letter-spacing: var(--site-list-item-letter-spacing);
-  text-transform: var(--site-list-item-text-transform);
-}
-
-.site-typography label {
-  font-family: var(--site-label-font-family);
-  font-size: var(--site-label-font-size);
-  font-weight: var(--site-label-font-weight);
-  line-height: var(--site-label-line-height);
-  letter-spacing: var(--site-label-letter-spacing);
-  text-transform: var(--site-label-text-transform);
-}
-
-.site-typography small {
-  font-family: var(--site-small-font-family);
-  font-size: var(--site-small-font-size);
-  font-weight: var(--site-small-font-weight);
-  line-height: var(--site-small-line-height);
-  letter-spacing: var(--site-small-letter-spacing);
-  text-transform: var(--site-small-text-transform);
-}

@@ -88,7 +88,7 @@ export function DashboardLayout() {
     : unreadNotificationsQuery.data ?? 0
 
   return (
-    <div className="site-typography min-h-screen bg-[#F2F7F9] text-[#163138]">
+    <div className="min-h-screen bg-[#F2F7F9] text-[#163138]">
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteThemeManager />
