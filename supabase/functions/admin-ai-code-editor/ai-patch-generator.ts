@@ -281,8 +281,41 @@ function tryGenerateDeterministicChanges(input: {
   }
 
   const normalizedPrompt = normalizePrompt(input.prompt)
+  const rollbackSmokeFile = input.files.find((file) => file.filePath === "docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md")
   const supportFile = input.files.find((file) => file.filePath === "src/pages/public/Support.tsx")
   const explicitReplacement = extractQuotedTextReplacement(input.prompt)
+
+  if (rollbackSmokeFile && normalizedPrompt.includes("rollback")) {
+    const marker = "Nao usar este arquivo para alteracoes de produto ou de interface."
+    if (!rollbackSmokeFile.content.includes(marker)) {
+      return {
+        success: false as const,
+        message: "Nao encontrei a marca de seguranca esperada no arquivo de smoke de rollback.",
+      }
+    }
+
+    return {
+      success: true as const,
+      providerUsed: "deterministic" as const,
+      modelUsed: "rule-based-rollback-smoke",
+      summary: "Atualizacao deterministica aplicada ao arquivo de smoke de rollback.",
+      executionNotes: "Patch real gerado por fallback deterministico em arquivo inofensivo de docs.",
+      riskLevel: "low" as const,
+      changedFiles: [
+        {
+          filePath: rollbackSmokeFile.filePath,
+          changeType: "modified" as const,
+          summary: "Nota de validacao adicionada ao smoke de rollback.",
+          rationale: "Pedido de smoke de rollback resolvido sem depender de quota externa.",
+          language: rollbackSmokeFile.language || "md",
+          content: rollbackSmokeFile.content.replace(
+            marker,
+            `${marker}\n\nValidacao do rollback por PR concluida com sucesso.`,
+          ),
+        },
+      ],
+    }
+  }
 
   if (
     supportFile &&

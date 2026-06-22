@@ -199,6 +199,44 @@ describe("ai-patch-generator", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it("returns a deterministic patch for the rollback smoke docs file", async () => {
+    const result = await generateTaskFileChanges({
+      providers: [],
+      preferDeterministicFirst: true,
+      prompt: "atualize o arquivo inofensivo docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md com uma nota curta de rollback",
+      plan: {
+        normalizedPrompt: "atualize o arquivo inofensivo docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md com uma nota curta de rollback",
+        title: "Smoke rollback",
+        summary: "Validacao do rollback por PR.",
+        workerMode: "github_worker",
+        scopeClassification: "frontend_copy",
+        riskLevel: "low",
+        branchName: "ai-editor/task-demo",
+        commitMessage: "feat(ai-editor): smoke rollback",
+        steps: [],
+        filesAnalyzed: ["docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md"],
+        filesPlanned: ["docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md"],
+        sensitiveChange: false,
+        sensitiveReasons: [],
+        requiresExplicitPublishConfirmation: true,
+        fileChanges: [],
+      },
+      repository: "studio4x/mariana-explica",
+      files: [
+        {
+          filePath: "docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md",
+          language: "md",
+          content:
+            "# Smoke de rollback do Editor IA Irrestrito\n\nNao usar este arquivo para alteracoes de produto ou de interface.",
+        },
+      ],
+    })
+
+    expect(result.providerUsed).toBe("deterministic")
+    expect(result.changedFiles[0]?.filePath).toBe("docs/AI_CODE_EDITOR_ROLLBACK_SMOKE.md")
+    expect(result.changedFiles[0]?.content).toContain("Validacao do rollback por PR concluida com sucesso.")
+  })
+
   it("returns a clear blocked_provider_quota error when all providers fail and no deterministic fallback applies", async () => {
     const fetchMock = vi
       .fn()
