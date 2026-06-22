@@ -258,7 +258,7 @@ export function AdminAiPageEditor() {
   }
 
   if (!aiCodeEditorTransition.showLegacyAiEditor || aiCodeEditorTransition.newEditorIsDefault) {
-    return <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR} replace />
+    return <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />
   }
 
   if (query.isError) {

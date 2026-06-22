@@ -69,7 +69,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
   { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Paginas", icon: LayoutTemplate },
   { to: ROUTES.ADMIN_AI_PAGE_EDITOR, label: "Editor IA", icon: Bot },
-  { to: ROUTES.ADMIN_AI_CODE_EDITOR, label: "Editor IA Irrestrito", icon: CodeXml },
+  { to: ROUTES.ADMIN_AI_CODE_EDITOR_CHAT, label: "Editor IA Irrestrito", icon: CodeXml },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formularios", icon: ClipboardList },
@@ -118,7 +118,7 @@ export function AdminLayout() {
   const visibleItems = items.filter((item) => {
     if (item.to === ROUTES.ADMIN_PAGE_EDITOR) return showLegacyPageEditor
     if (item.to === ROUTES.ADMIN_AI_PAGE_EDITOR) return showLegacyAiEditor
-    if (item.to === ROUTES.ADMIN_AI_CODE_EDITOR) return showAiCodeEditor
+    if (item.to.startsWith(ROUTES.ADMIN_AI_CODE_EDITOR)) return showAiCodeEditor
     return true
   })
 

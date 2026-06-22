@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, CodeXml, Eye, GitBranch, Loader2, 
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
+import { Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   useAdminAiCodeEditorConfig,
   useAdminAiCodeEditorTask,
@@ -120,6 +121,28 @@ function ToggleField(props: {
 
 type EditorTab = "chat" | "tasks" | "config"
 
+const EDITOR_TAB_ROUTES: Record<EditorTab, string> = {
+  chat: ROUTES.ADMIN_AI_CODE_EDITOR_CHAT,
+  tasks: ROUTES.ADMIN_AI_CODE_EDITOR_TASKS,
+  config: ROUTES.ADMIN_AI_CODE_EDITOR_CONFIG,
+}
+
+function resolveEditorTab(tab?: string | null): EditorTab | null {
+  if (tab === "chat" || tab === "tasks" || tab === "config") {
+    return tab
+  }
+
+  if (tab === "configuracao") {
+    return "config"
+  }
+
+  if (tab == null) {
+    return "chat"
+  }
+
+  return null
+}
+
 function EditorTabButton(props: {
   active: boolean
   label: string
@@ -148,6 +171,8 @@ function EditorTabButton(props: {
 }
 
 export function AdminAiCodeEditor() {
+  const navigate = useNavigate()
+  const { tab } = useParams<{ tab?: string }>()
   const configQuery = useAdminAiCodeEditorConfig()
   const tasksQuery = useAdminAiCodeEditorTasks()
   const updateConfigMutation = useUpdateAdminAiCodeEditorConfig()
@@ -164,8 +189,9 @@ export function AdminAiCodeEditor() {
   const [prompt, setPrompt] = useState("")
   const [actionNotes, setActionNotes] = useState("")
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<EditorTab>("chat")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
+  const activeTab = resolveEditorTab(tab) ?? "chat"
+  const hasInvalidTab = tab != null && resolveEditorTab(tab) === null
 
   const taskList = tasksQuery.data ?? []
   const selectedTaskQuery = useAdminAiCodeEditorTask(selectedTaskId ?? undefined, Boolean(selectedTaskId))
@@ -185,6 +211,10 @@ export function AdminAiCodeEditor() {
       setSelectedTaskId(taskList[0].id)
     }
   }, [selectedTaskId, taskList])
+
+  if (hasInvalidTab) {
+    return <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />
+  }
 
   if (configQuery.isLoading) {
     return <LoadingState message="A carregar o Editor IA Irrestrito..." />
@@ -207,11 +237,11 @@ export function AdminAiCodeEditor() {
         configValue: draftConfig,
       })
       setDraftConfig(nextConfig.config_value)
-      setFeedback({ tone: "success", message: "Configuracao do novo editor guardada com sucesso." })
-    } catch (error) {
+      setFeedback({ tone: "success", message: "Configurações salvas com sucesso." })
+    } catch {
       setFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "Nao foi possivel guardar a configuracao.",
+        message: "Não foi possível salvar as configurações do Editor IA Irrestrito. Verifique os dados e tente novamente.",
       })
     }
   }
@@ -378,19 +408,19 @@ export function AdminAiCodeEditor() {
           active={activeTab === "chat"}
           label="Chat"
           description="Ponto de entrada para pedidos e validação rápida."
-          onClick={() => setActiveTab("chat")}
+          onClick={() => navigate(EDITOR_TAB_ROUTES.chat)}
         />
         <EditorTabButton
           active={activeTab === "tasks"}
           label="Tasks"
           description="Lista, diff, PR, preview e rollback por tarefa."
-          onClick={() => setActiveTab("tasks")}
+          onClick={() => navigate(EDITOR_TAB_ROUTES.tasks)}
         />
         <EditorTabButton
           active={activeTab === "config"}
           label="Configuração"
           description="Worker, providers, fallback e publicação."
-          onClick={() => setActiveTab("config")}
+          onClick={() => navigate(EDITOR_TAB_ROUTES.config)}
         />
       </div>
 

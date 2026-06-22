@@ -26,6 +26,7 @@ import {
   type AiCodeEditorProvider,
   type AiCodeEditorProviderHealth,
 } from "./task-state.ts"
+import { ensureValidConfigPatch, mergeConfigValue } from "./config-utils.ts"
 
 type Action =
   | "get_config"
@@ -405,7 +406,8 @@ async function writeConfig(
   serviceClient: ServiceClient,
   value?: Partial<AiCodeEditorConfigValue>,
 ) {
-  const payload = normalizeConfigInput(value)
+  const current = await readConfig(serviceClient)
+  const payload = normalizeConfigInput(mergeConfigValue(current.config_value, value))
   const { data, error } = await serviceClient
     .from("site_config")
     .upsert(
@@ -1574,12 +1576,18 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "update_config") {
+      try {
+        ensureValidConfigPatch(body.configValue)
+      } catch {
+        throw badRequest("configValue invalido")
+      }
+
       const config = await writeConfig(serviceClient, body.configValue)
 
       await writeAuditLog(serviceClient, context, {
         action: "admin.ai_code_editor_config_updated",
         entityType: "site_config",
-        entityId: CONFIG_KEY,
+        entityId: null,
         metadata: {
           config_key: CONFIG_KEY,
           worker_mode: config.config_value.worker_mode,

@@ -584,6 +584,10 @@ export const router = createBrowserRouter(
         },
         {
           path: "editor-ia-irrestrito",
+          element: <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />,
+        },
+        {
+          path: "editor-ia-irrestrito/:tab",
           element: withSuspense(<AdminAiCodeEditor />),
         },
         {

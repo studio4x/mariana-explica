@@ -64,6 +64,9 @@ export const ROUTES = {
   ADMIN_PAGE_EDITOR: "/admin/editor-paginas",
   ADMIN_AI_PAGE_EDITOR: "/admin/editor-ia",
   ADMIN_AI_CODE_EDITOR: "/admin/editor-ia-irrestrito",
+  ADMIN_AI_CODE_EDITOR_CHAT: "/admin/editor-ia-irrestrito/chat",
+  ADMIN_AI_CODE_EDITOR_TASKS: "/admin/editor-ia-irrestrito/tasks",
+  ADMIN_AI_CODE_EDITOR_CONFIG: "/admin/editor-ia-irrestrito/configuracao",
 } as const
 
 // API
