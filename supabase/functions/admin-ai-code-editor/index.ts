@@ -4,18 +4,27 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody }
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { buildAiCodeEditorPlan, type AiCodeEditorPlan } from "./planner.ts"
-import { generateTaskFileChanges, type AiPatchProviderConfig } from "./ai-patch-generator.ts"
 import {
+  AiPatchGenerationError,
+  generateTaskFileChanges,
+  type AiPatchProviderAttempt,
+  type AiPatchProviderConfig,
+} from "./ai-patch-generator.ts"
+import {
+  buildRollbackPullRequestBody,
   buildPullRequestBody,
   GitHubRepositoryClient,
   inferFileLanguage,
   readGitHubSecrets,
 } from "./github-worker.ts"
-import { fetchVercelPreviewDeployment } from "./vercel-preview.ts"
+import { fetchVercelPreviewDeployment, readVercelSecrets } from "./vercel-preview.ts"
 import {
   buildInitialTaskState,
   transitionTaskRecord,
   type AiCodeEditorConfigValue,
+  type AiCodeEditorGenerationMode,
+  type AiCodeEditorProvider,
+  type AiCodeEditorProviderHealth,
 } from "./task-state.ts"
 
 type Action =
@@ -71,6 +80,22 @@ const GEMINI_SECRET_NAME = "mariana_explica_ai_gemini_api_key"
 const OPENAI_SECRET_NAME = "mariana_explica_ai_openai_api_key"
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+const DEFAULT_PROVIDER_HEALTH: Record<AiCodeEditorProvider, AiCodeEditorProviderHealth> = {
+  openai: {
+    configured: false,
+    model: DEFAULT_OPENAI_MODEL,
+    status: "not_configured",
+    last_error: null,
+    last_error_at: null,
+  },
+  gemini: {
+    configured: false,
+    model: DEFAULT_GEMINI_MODEL,
+    status: "not_configured",
+    last_error: null,
+    last_error_at: null,
+  },
+}
 const configSelect = "config_key,config_value,description,is_public,updated_at"
 const taskSelect = [
   "id",
@@ -126,10 +151,18 @@ const DEFAULT_CONFIG: AiCodeEditorConfigValue = {
   worker_mode: "simulated",
   github_repository: "studio4x/mariana-explica",
   vercel_project_name: "mariana-explica",
+  primary_provider: "openai",
+  secondary_provider: "gemini",
+  primary_model: DEFAULT_OPENAI_MODEL,
+  secondary_model: DEFAULT_GEMINI_MODEL,
   auto_run_tests: true,
   auto_run_build: true,
   request_preview_deploy: true,
   require_explicit_publish_confirmation: true,
+  generation_mode: "deterministic_only",
+  provider_statuses: DEFAULT_PROVIDER_HEALTH,
+  github_configured: false,
+  vercel_configured: false,
 }
 
 function normalizeText(value: unknown, fallback = "") {
@@ -142,6 +175,47 @@ function normalizeBoolean(value: unknown, fallback: boolean) {
 
 function normalizeWorkerMode(value: unknown) {
   return value === "github_worker" ? "github_worker" : "simulated"
+}
+
+function normalizeProvider(value: unknown, fallback: AiCodeEditorProvider) {
+  return value === "gemini" ? "gemini" : value === "openai" ? "openai" : fallback
+}
+
+function normalizeGenerationMode(value: unknown, fallback: AiCodeEditorGenerationMode) {
+  return value === "ai_enabled" || value === "blocked_provider_quota" || value === "deterministic_only"
+    ? value
+    : fallback
+}
+
+function normalizeProviderHealth(
+  value: unknown,
+  fallback: AiCodeEditorProviderHealth,
+): AiCodeEditorProviderHealth {
+  const record = value && typeof value === "object" ? value as Record<string, unknown> : {}
+  const status = String(record.status ?? "").trim()
+
+  return {
+    configured: typeof record.configured === "boolean" ? record.configured : fallback.configured,
+    model: normalizeText(record.model, fallback.model),
+    status:
+      status === "ready" || status === "quota_exceeded" || status === "error" || status === "not_configured"
+        ? status
+        : fallback.status,
+    last_error: normalizeText(record.last_error) || null,
+    last_error_at: normalizeText(record.last_error_at) || null,
+  }
+}
+
+function computeGenerationMode(config: Pick<AiCodeEditorConfigValue, "provider_statuses">) {
+  const statuses = Object.values(config.provider_statuses ?? {})
+  const configuredStatuses = statuses.filter((item) => item.configured)
+  if (configuredStatuses.length === 0) {
+    return "deterministic_only" satisfies AiCodeEditorGenerationMode
+  }
+  if (configuredStatuses.every((item) => item.status === "quota_exceeded")) {
+    return "blocked_provider_quota" satisfies AiCodeEditorGenerationMode
+  }
+  return "ai_enabled" satisfies AiCodeEditorGenerationMode
 }
 
 function normalizeTaskMetadata(task: TaskRow) {
@@ -160,6 +234,30 @@ function normalizeConfigRow(row?: Partial<{
   const rawValue = row?.config_value && typeof row.config_value === "object"
     ? row.config_value
     : {}
+  const rawProviderStatuses =
+    rawValue.provider_statuses && typeof rawValue.provider_statuses === "object"
+      ? rawValue.provider_statuses as Record<string, unknown>
+      : {}
+  const primaryProvider = normalizeProvider(rawValue.primary_provider, DEFAULT_CONFIG.primary_provider)
+  const secondaryProvider = normalizeProvider(rawValue.secondary_provider, DEFAULT_CONFIG.secondary_provider)
+  const providerStatuses = {
+    openai: normalizeProviderHealth(rawProviderStatuses.openai, {
+      ...DEFAULT_PROVIDER_HEALTH.openai,
+      model: primaryProvider === "openai"
+        ? normalizeText(rawValue.primary_model, DEFAULT_OPENAI_MODEL)
+        : secondaryProvider === "openai"
+          ? normalizeText(rawValue.secondary_model, DEFAULT_OPENAI_MODEL)
+          : DEFAULT_OPENAI_MODEL,
+    }),
+    gemini: normalizeProviderHealth(rawProviderStatuses.gemini, {
+      ...DEFAULT_PROVIDER_HEALTH.gemini,
+      model: primaryProvider === "gemini"
+        ? normalizeText(rawValue.primary_model, DEFAULT_GEMINI_MODEL)
+        : secondaryProvider === "gemini"
+          ? normalizeText(rawValue.secondary_model, DEFAULT_GEMINI_MODEL)
+          : DEFAULT_GEMINI_MODEL,
+    }),
+  } satisfies AiCodeEditorConfigValue["provider_statuses"]
 
   return {
     config_key: row?.config_key ?? CONFIG_KEY,
@@ -173,6 +271,10 @@ function normalizeConfigRow(row?: Partial<{
       worker_mode: normalizeWorkerMode(rawValue.worker_mode),
       github_repository: normalizeText(rawValue.github_repository, DEFAULT_CONFIG.github_repository),
       vercel_project_name: normalizeText(rawValue.vercel_project_name, DEFAULT_CONFIG.vercel_project_name),
+      primary_provider: primaryProvider,
+      secondary_provider: secondaryProvider,
+      primary_model: normalizeText(rawValue.primary_model, DEFAULT_CONFIG.primary_model),
+      secondary_model: normalizeText(rawValue.secondary_model, DEFAULT_CONFIG.secondary_model),
       auto_run_tests: normalizeBoolean(rawValue.auto_run_tests, DEFAULT_CONFIG.auto_run_tests),
       auto_run_build: normalizeBoolean(rawValue.auto_run_build, DEFAULT_CONFIG.auto_run_build),
       request_preview_deploy: normalizeBoolean(rawValue.request_preview_deploy, DEFAULT_CONFIG.request_preview_deploy),
@@ -180,6 +282,10 @@ function normalizeConfigRow(row?: Partial<{
         rawValue.require_explicit_publish_confirmation,
         DEFAULT_CONFIG.require_explicit_publish_confirmation,
       ),
+      generation_mode: normalizeGenerationMode(rawValue.generation_mode, computeGenerationMode({ provider_statuses: providerStatuses })),
+      provider_statuses: providerStatuses,
+      github_configured: normalizeBoolean(rawValue.github_configured, DEFAULT_CONFIG.github_configured),
+      vercel_configured: normalizeBoolean(rawValue.vercel_configured, DEFAULT_CONFIG.vercel_configured),
     },
     description: row?.description ?? CONFIG_DESCRIPTION,
     is_public: row?.is_public ?? false,
@@ -208,6 +314,76 @@ async function readSecret(serviceClient: ServiceClient, name: string) {
   return typeof data === "string" && data.trim() ? data.trim() : null
 }
 
+async function readProviderApiKey(serviceClient: ServiceClient, provider: AiCodeEditorProvider) {
+  if (provider === "openai") {
+    const envValue = normalizeText(Deno.env.get("OPENAI_API_KEY"))
+    if (envValue) return envValue
+    return await readSecret(serviceClient, OPENAI_SECRET_NAME)
+  }
+
+  const envValue = normalizeText(Deno.env.get("GEMINI_API_KEY"))
+  if (envValue) return envValue
+  return await readSecret(serviceClient, GEMINI_SECRET_NAME)
+}
+
+async function enrichConfigRuntimeState(
+  serviceClient: ServiceClient,
+  config: ReturnType<typeof normalizeConfigRow>,
+) {
+  const primaryProvider = config.config_value.primary_provider
+  const secondaryProvider = config.config_value.secondary_provider
+  const [primaryApiKey, secondaryApiKey] = await Promise.all([
+    readProviderApiKey(serviceClient, primaryProvider),
+    primaryProvider === secondaryProvider ? Promise.resolve(null) : readProviderApiKey(serviceClient, secondaryProvider),
+  ])
+
+  const providerStatuses = {
+    ...config.config_value.provider_statuses,
+    [primaryProvider]: {
+      ...config.config_value.provider_statuses[primaryProvider],
+      configured: Boolean(primaryApiKey),
+      model: config.config_value.primary_model,
+      status: primaryApiKey
+        ? config.config_value.provider_statuses[primaryProvider].status
+        : "not_configured",
+    },
+    [secondaryProvider]: {
+      ...config.config_value.provider_statuses[secondaryProvider],
+      configured: primaryProvider === secondaryProvider ? Boolean(primaryApiKey) : Boolean(secondaryApiKey),
+      model: config.config_value.secondary_model,
+      status:
+        primaryProvider === secondaryProvider
+          ? (primaryApiKey ? config.config_value.provider_statuses[secondaryProvider].status : "not_configured")
+          : (secondaryApiKey ? config.config_value.provider_statuses[secondaryProvider].status : "not_configured"),
+    },
+  } satisfies AiCodeEditorConfigValue["provider_statuses"]
+
+  return {
+    ...config,
+    config_value: {
+      ...config.config_value,
+      provider_statuses: providerStatuses,
+      generation_mode: computeGenerationMode({ provider_statuses: providerStatuses }),
+      github_configured: (() => {
+        try {
+          readGitHubSecrets(config.config_value.github_repository)
+          return true
+        } catch {
+          return false
+        }
+      })(),
+      vercel_configured: (() => {
+        try {
+          readVercelSecrets()
+          return true
+        } catch {
+          return false
+        }
+      })(),
+    },
+  }
+}
+
 async function readConfig(serviceClient: ServiceClient) {
   const { data, error } = await serviceClient
     .from("site_config")
@@ -219,7 +395,10 @@ async function readConfig(serviceClient: ServiceClient) {
     throw error
   }
 
-  return normalizeConfigRow(data as Record<string, unknown> | null)
+  return await enrichConfigRuntimeState(
+    serviceClient,
+    normalizeConfigRow(data as Record<string, unknown> | null),
+  )
 }
 
 async function writeConfig(
@@ -245,7 +424,27 @@ async function writeConfig(
     throw error
   }
 
-  return normalizeConfigRow(data as Record<string, unknown>)
+  return await enrichConfigRuntimeState(
+    serviceClient,
+    normalizeConfigRow(data as Record<string, unknown>),
+  )
+}
+
+async function updateConfigRuntimeDiagnostics(input: {
+  serviceClient: ServiceClient
+  patch: Partial<AiCodeEditorConfigValue>
+}) {
+  const current = await readConfig(input.serviceClient)
+  const mergedValue = {
+    ...current.config_value,
+    ...input.patch,
+    provider_statuses: {
+      ...current.config_value.provider_statuses,
+      ...(input.patch.provider_statuses ?? {}),
+    },
+  } satisfies AiCodeEditorConfigValue
+
+  return await writeConfig(input.serviceClient, mergedValue)
 }
 
 async function appendTaskEvent(input: {
@@ -438,58 +637,63 @@ async function generateTaskPlanForRow(input: {
   return plan
 }
 
-async function resolveAiPatchProviders(serviceClient: ServiceClient): Promise<AiPatchProviderConfig[]> {
-  const providers: AiPatchProviderConfig[] = []
-  const envValue = normalizeText(Deno.env.get("OPENAI_API_KEY"))
-  if (envValue) {
-    providers.push({
-      provider: "openai",
-      apiKey: envValue,
-      model: DEFAULT_OPENAI_MODEL,
-    })
-  }
+async function resolveAiPatchProviders(
+  serviceClient: ServiceClient,
+  config: AiCodeEditorConfigValue,
+): Promise<AiPatchProviderConfig[]> {
+  const providerSlots = [
+    {
+      provider: config.primary_provider,
+      model: normalizeText(config.primary_model, config.primary_provider === "openai" ? DEFAULT_OPENAI_MODEL : DEFAULT_GEMINI_MODEL),
+    },
+    {
+      provider: config.secondary_provider,
+      model: normalizeText(config.secondary_model, config.secondary_provider === "openai" ? DEFAULT_OPENAI_MODEL : DEFAULT_GEMINI_MODEL),
+    },
+  ] satisfies Array<{ provider: AiCodeEditorProvider; model: string }>
 
-  const [openAiVaultValue, geminiEnvValue, geminiVaultValue] = await Promise.all([
-    readSecret(serviceClient, OPENAI_SECRET_NAME),
-    Promise.resolve(normalizeText(Deno.env.get("GEMINI_API_KEY"))),
-    readSecret(serviceClient, GEMINI_SECRET_NAME),
-  ])
-
-  if (openAiVaultValue) {
-    providers.push({
-      provider: "openai",
-      apiKey: openAiVaultValue,
-      model: DEFAULT_OPENAI_MODEL,
-    })
-  }
-
-  if (geminiEnvValue) {
-    providers.push({
-      provider: "gemini",
-      apiKey: geminiEnvValue,
-      model: DEFAULT_GEMINI_MODEL,
-    })
-  }
-
-  if (geminiVaultValue) {
-    providers.push({
-      provider: "gemini",
-      apiKey: geminiVaultValue,
-      model: DEFAULT_GEMINI_MODEL,
-    })
-  }
-
-  const dedupedProviders = providers.filter((provider, index, items) =>
-    items.findIndex((item) => item.provider === provider.provider && item.apiKey === provider.apiKey) === index
+  const resolved = await Promise.all(
+    providerSlots.map(async (slot) => ({
+      provider: slot.provider,
+      model: slot.model,
+      apiKey: await readProviderApiKey(serviceClient, slot.provider),
+    })),
   )
 
-  if (dedupedProviders.length === 0) {
-    throw new Error(
-      "Integracao de IA nao configurada. Configure OPENAI_API_KEY, GEMINI_API_KEY ou as secrets mariana_explica_ai_openai_api_key e mariana_explica_ai_gemini_api_key para gerar patches reais.",
+  return resolved
+    .filter((item) => Boolean(item.apiKey))
+    .filter((item, index, items) =>
+      items.findIndex((candidate) =>
+        candidate.provider === item.provider &&
+        candidate.model === item.model &&
+        candidate.apiKey === item.apiKey
+      ) === index
     )
+    .map((item) => ({
+      provider: item.provider,
+      model: item.model,
+      apiKey: String(item.apiKey),
+    }))
+}
+
+function buildProviderStatusPatchFromAttempts(
+  current: AiCodeEditorConfigValue["provider_statuses"],
+  attempts: AiPatchProviderAttempt[],
+) {
+  const next = {
+    ...current,
   }
 
-  return dedupedProviders
+  for (const attempt of attempts) {
+    next[attempt.provider] = {
+      ...current[attempt.provider],
+      status: attempt.failureType === "quota" ? "quota_exceeded" : "error",
+      last_error: attempt.message,
+      last_error_at: attempt.occurredAt,
+    }
+  }
+
+  return next
 }
 
 function mapWorkflowStatusToExecutionStatus(
@@ -615,7 +819,7 @@ async function applyTaskPatch(input: {
 }) {
   const currentTask = input.task
   const branchContext = await createTaskBranch(input)
-  const aiProviders = await resolveAiPatchProviders(input.serviceClient)
+  const aiProviders = await resolveAiPatchProviders(input.serviceClient, input.config)
   const plannedFiles = Array.isArray(currentTask.files_planned)
     ? currentTask.files_planned.map((file) => normalizeText(file)).filter(Boolean)
     : []
@@ -761,6 +965,31 @@ async function applyTaskPatch(input: {
       ai_patch_risk_level: generated.riskLevel,
       ai_patch_provider: generated.providerUsed,
       ai_patch_model: generated.modelUsed,
+    },
+  })
+
+  const nextProviderStatuses =
+    generated.providerUsed === "deterministic"
+      ? {
+        ...input.config.provider_statuses,
+      }
+      : {
+        ...input.config.provider_statuses,
+        [generated.providerUsed]: {
+          ...input.config.provider_statuses[generated.providerUsed],
+          configured: true,
+          model: generated.modelUsed,
+          status: "ready",
+          last_error: null,
+          last_error_at: null,
+        },
+      }
+
+  await updateConfigRuntimeDiagnostics({
+    serviceClient: input.serviceClient,
+    patch: {
+      provider_statuses: nextProviderStatuses,
+      generation_mode: computeGenerationMode({ provider_statuses: nextProviderStatuses }),
     },
   })
 
@@ -971,6 +1200,85 @@ async function refreshTaskPreview(input: {
   })
 }
 
+function deriveTaskExecutionFailure(
+  error: unknown,
+  config: AiCodeEditorConfigValue,
+) {
+  const fallbackMessage = error instanceof Error ? error.message : String(error)
+  if (error instanceof AiPatchGenerationError) {
+    const providerStatuses = buildProviderStatusPatchFromAttempts(
+      config.provider_statuses,
+      error.providerAttempts,
+    )
+
+    return {
+      status: error.code === "blocked_provider_quota"
+        ? "blocked_provider_quota"
+        : "ai_generation_unavailable",
+      message: error.message,
+      metadata: {
+        provider_attempts: error.providerAttempts,
+        deterministic_attempt: error.deterministicAttempt,
+        generation_failure_code: error.code,
+      },
+      providerStatuses,
+      generationMode: error.code === "blocked_provider_quota"
+        ? "blocked_provider_quota"
+        : computeGenerationMode({ provider_statuses: providerStatuses }),
+    } as const
+  }
+
+  return {
+    status: "failed",
+    message: fallbackMessage,
+    metadata: {},
+    providerStatuses: config.provider_statuses,
+    generationMode: computeGenerationMode({ provider_statuses: config.provider_statuses }),
+  } as const
+}
+
+async function executeTaskWithFailureHandling(input: {
+  serviceClient: ServiceClient
+  taskId: string
+  config: AiCodeEditorConfigValue
+  actorUserId: string | null
+}) {
+  try {
+    await runTaskExecution(input)
+  } catch (error) {
+    const failure = deriveTaskExecutionFailure(error, input.config)
+    await updateTaskRow(input.serviceClient, input.taskId, {
+      status: failure.status,
+      execution_error: failure.message,
+      result_summary: failure.message,
+      last_execution_at: new Date().toISOString(),
+      metadata: {
+        ...normalizeTaskMetadata(await readTask(input.serviceClient, input.taskId, false)),
+        ...failure.metadata,
+      },
+    })
+
+    await updateConfigRuntimeDiagnostics({
+      serviceClient: input.serviceClient,
+      patch: {
+        provider_statuses: failure.providerStatuses,
+        generation_mode: failure.generationMode,
+      },
+    })
+
+    await appendTaskEvent({
+      serviceClient: input.serviceClient,
+      taskId: input.taskId,
+      actorUserId: input.actorUserId,
+      eventType: failure.status === "blocked_provider_quota"
+        ? "task_execution_blocked_provider_quota"
+        : "task_execution_failed",
+      message: failure.message,
+      metadata: failure.metadata,
+    })
+  }
+}
+
 async function runTaskExecution(input: {
   serviceClient: ServiceClient
   taskId: string
@@ -1087,6 +1395,155 @@ async function runTaskExecution(input: {
       commit_sha: applied.commitSha,
     },
   })
+}
+
+function toTaskTransitionRecord(currentTask: DetailedTaskRow) {
+  return {
+    id: String(currentTask.id),
+    status: String(currentTask.status) as never,
+    preview_status: String(currentTask.preview_status) as never,
+    test_status: String(currentTask.test_status) as never,
+    build_status: String(currentTask.build_status) as never,
+    sensitive_change: Boolean(currentTask.sensitive_change),
+    requires_explicit_publish_confirmation: Boolean(currentTask.requires_explicit_publish_confirmation),
+    worker_mode: normalizeWorkerMode(currentTask.worker_mode),
+    approved_at: currentTask.approved_at ? String(currentTask.approved_at) : null,
+    published_at: currentTask.published_at ? String(currentTask.published_at) : null,
+    rolled_back_at: currentTask.rolled_back_at ? String(currentTask.rolled_back_at) : null,
+    metadata: normalizeTaskMetadata(currentTask),
+  }
+}
+
+async function createRollbackPullRequestForTask(input: {
+  serviceClient: ServiceClient
+  task: DetailedTaskRow
+  config: AiCodeEditorConfigValue
+  notes?: string | null
+}) {
+  const taskId = String(input.task.id)
+  const fileChanges = Array.isArray(input.task.file_changes) ? input.task.file_changes : []
+  if (fileChanges.length === 0) {
+    throw new Error("Nao existem file_changes suficientes para gerar um rollback automatico desta task.")
+  }
+
+  const github = new GitHubRepositoryClient(readGitHubSecrets(input.config.github_repository))
+  const repository = await github.getRepositoryInfo()
+  const defaultBranch = normalizeText(input.task.default_branch) || repository.defaultBranch
+  const defaultBranchInfo = await github.getBranch(defaultBranch)
+  if (!defaultBranchInfo?.sha) {
+    throw new Error("Nao foi possivel determinar a branch base para o rollback.")
+  }
+
+  const timestampToken = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)
+  const rollbackBranchName = `ai-editor/rollback-${taskId.slice(0, 8)}-${timestampToken}`
+  await github.ensureBranch(rollbackBranchName, defaultBranchInfo.sha)
+
+  let latestCommitSha = ""
+  let commitCount = 0
+
+  for (const change of fileChanges) {
+    const filePath = normalizeText(change.file_path)
+    const previousFilePath = normalizeText(change.previous_file_path) || null
+    const changeType = normalizeText(change.change_type)
+    const beforeSha = normalizeText(change.before_sha) || null
+    const commitMessage = commitCount === 0
+      ? `revert(ai-editor): ${taskId.slice(0, 8)}`
+      : `revert(ai-editor): ${taskId.slice(0, 8)} [part ${commitCount + 1}]`
+
+    if (changeType === "created") {
+      const currentSnapshot = await github.getFile(filePath, defaultBranch)
+      if (!currentSnapshot.sha) {
+        continue
+      }
+
+      const deletion = await github.deleteFile({
+        path: filePath,
+        branch: rollbackBranchName,
+        message: commitMessage,
+        previousSha: currentSnapshot.sha,
+      })
+      latestCommitSha = deletion.commitSha ?? latestCommitSha
+      commitCount += 1
+      continue
+    }
+
+    if (!beforeSha) {
+      throw new Error(`Nao encontrei o blob anterior necessario para reverter ${filePath}.`)
+    }
+
+    const previousContent = await github.getBlobText(beforeSha)
+
+    if (changeType === "renamed" && previousFilePath) {
+      const renamedSnapshot = await github.getFile(filePath, defaultBranch)
+      if (renamedSnapshot.sha) {
+        const deletion = await github.deleteFile({
+          path: filePath,
+          branch: rollbackBranchName,
+          message: commitMessage,
+          previousSha: renamedSnapshot.sha,
+        })
+        latestCommitSha = deletion.commitSha ?? latestCommitSha
+        commitCount += 1
+      }
+
+      const originalSnapshot = await github.getFile(previousFilePath, defaultBranch)
+      const restoration = await github.upsertFile({
+        path: previousFilePath,
+        branch: rollbackBranchName,
+        message: commitMessage,
+        content: previousContent,
+        previousSha: originalSnapshot.sha,
+      })
+      latestCommitSha = restoration.commitSha ?? latestCommitSha
+      commitCount += 1
+      continue
+    }
+
+    const currentSnapshot = await github.getFile(filePath, defaultBranch)
+    const restoration = await github.upsertFile({
+      path: filePath,
+      branch: rollbackBranchName,
+      message: commitMessage,
+      content: previousContent,
+      previousSha: currentSnapshot.sha,
+    })
+    latestCommitSha = restoration.commitSha ?? latestCommitSha
+    commitCount += 1
+  }
+
+  if (!latestCommitSha) {
+    throw new Error("O rollback automatico nao gerou nenhum commit de revert.")
+  }
+
+  const comparison = await github.compare(defaultBranch, rollbackBranchName)
+  if (comparison.files.length === 0) {
+    throw new Error("O rollback automatico nao produziu diff real para revisao.")
+  }
+
+  const rollbackPullRequest = await github.createPullRequest({
+    title: `Revert AI Editor task ${taskId}`,
+    body: buildRollbackPullRequestBody({
+      taskId,
+      originalPrompt: normalizeText(input.task.prompt),
+      originalPullRequestUrl: normalizeText(input.task.pull_request_url) || null,
+      originalCommitSha: normalizeText(input.task.commit_sha) || null,
+      files: fileChanges.map((change) => ({
+        filePath: normalizeText(change.file_path),
+        previousFilePath: normalizeText(change.previous_file_path) || null,
+        changeType: normalizeText(change.change_type) as never,
+      })),
+      notes: normalizeText(input.notes) || null,
+    }),
+    head: rollbackBranchName,
+    base: defaultBranch,
+  })
+
+  return {
+    branchName: rollbackBranchName,
+    commitSha: latestCommitSha,
+    compareUrl: comparison.htmlUrl,
+    pullRequest: rollbackPullRequest,
+  }
 }
 
 Deno.serve(async (req) => {
@@ -1241,31 +1698,12 @@ Deno.serve(async (req) => {
       })
 
       if (config.config_value.worker_mode === "github_worker") {
-        try {
-          await runTaskExecution({
-            serviceClient,
-            taskId,
-            config: config.config_value,
-            actorUserId: context.user.id,
-          })
-        } catch (executionError) {
-          const message = executionError instanceof Error ? executionError.message : String(executionError)
-          await updateTaskRow(serviceClient, taskId, {
-            status: "failed",
-            execution_error: message,
-            result_summary: message,
-          })
-          await appendTaskEvent({
-            serviceClient,
-            taskId,
-            actorUserId: context.user.id,
-            eventType: "task_execution_failed",
-            message: "A execucao real da task falhou.",
-            metadata: {
-              error: message,
-            },
-          })
-        }
+        await executeTaskWithFailureHandling({
+          serviceClient,
+          taskId,
+          config: config.config_value,
+          actorUserId: context.user.id,
+        })
       }
 
       await writeAuditLog(serviceClient, context, {
@@ -1309,7 +1747,7 @@ Deno.serve(async (req) => {
           config: config.config_value,
         })
       } else if (body.action === "start_task_execution") {
-        await runTaskExecution({
+        await executeTaskWithFailureHandling({
           serviceClient,
           taskId,
           config: config.config_value,
@@ -1409,7 +1847,7 @@ Deno.serve(async (req) => {
           taskId,
           actorUserId: context.user.id,
           eventType: "task_published",
-          message: "Task aprovada e mergeada manualmente pelo admin.",
+          message: "Task aprovada e mergeada via GitHub API pelo admin.",
           metadata: {
             merge_commit_sha: mergeResult.sha,
           },
@@ -1422,20 +1860,7 @@ Deno.serve(async (req) => {
         }
 
         const nextTask = transitionTaskRecord({
-          task: {
-            id: String(currentTask.id),
-            status: String(currentTask.status) as never,
-            preview_status: String(currentTask.preview_status) as never,
-            test_status: String(currentTask.test_status) as never,
-            build_status: String(currentTask.build_status) as never,
-            sensitive_change: Boolean(currentTask.sensitive_change),
-            requires_explicit_publish_confirmation: Boolean(currentTask.requires_explicit_publish_confirmation),
-            worker_mode: normalizeWorkerMode(currentTask.worker_mode),
-            approved_at: currentTask.approved_at ? String(currentTask.approved_at) : null,
-            published_at: currentTask.published_at ? String(currentTask.published_at) : null,
-            rolled_back_at: currentTask.rolled_back_at ? String(currentTask.rolled_back_at) : null,
-            metadata,
-          },
+          task: toTaskTransitionRecord(currentTask),
           action: "reject",
           notes: body.notes ?? null,
         })
@@ -1461,20 +1886,7 @@ Deno.serve(async (req) => {
         })
       } else if (body.action === "request_adjustment") {
         const nextTask = transitionTaskRecord({
-          task: {
-            id: String(currentTask.id),
-            status: String(currentTask.status) as never,
-            preview_status: String(currentTask.preview_status) as never,
-            test_status: String(currentTask.test_status) as never,
-            build_status: String(currentTask.build_status) as never,
-            sensitive_change: Boolean(currentTask.sensitive_change),
-            requires_explicit_publish_confirmation: Boolean(currentTask.requires_explicit_publish_confirmation),
-            worker_mode: normalizeWorkerMode(currentTask.worker_mode),
-            approved_at: currentTask.approved_at ? String(currentTask.approved_at) : null,
-            published_at: currentTask.published_at ? String(currentTask.published_at) : null,
-            rolled_back_at: currentTask.rolled_back_at ? String(currentTask.rolled_back_at) : null,
-            metadata,
-          },
+          task: toTaskTransitionRecord(currentTask),
           action: "request_adjustment",
           notes: body.notes ?? null,
         })
@@ -1496,52 +1908,72 @@ Deno.serve(async (req) => {
         })
       } else if (body.action === "rollback_task") {
         const nextTask = transitionTaskRecord({
-          task: {
-            id: String(currentTask.id),
-            status: String(currentTask.status) as never,
-            preview_status: String(currentTask.preview_status) as never,
-            test_status: String(currentTask.test_status) as never,
-            build_status: String(currentTask.build_status) as never,
-            sensitive_change: Boolean(currentTask.sensitive_change),
-            requires_explicit_publish_confirmation: Boolean(currentTask.requires_explicit_publish_confirmation),
-            worker_mode: normalizeWorkerMode(currentTask.worker_mode),
-            approved_at: currentTask.approved_at ? String(currentTask.approved_at) : null,
-            published_at: currentTask.published_at ? String(currentTask.published_at) : null,
-            rolled_back_at: currentTask.rolled_back_at ? String(currentTask.rolled_back_at) : null,
-            metadata,
-          },
+          task: toTaskTransitionRecord(currentTask),
           action: "rollback",
           notes: body.notes ?? null,
         })
 
-        await updateTaskRow(serviceClient, taskId, {
-          status: nextTask.status,
-          rolled_back_at: nextTask.rolled_back_at,
-          metadata: {
-            ...nextTask.metadata,
-            rollback_mode: "manual_registered",
-          },
-        })
+        try {
+          const rollback = await createRollbackPullRequestForTask({
+            serviceClient,
+            task: currentTask,
+            config: config.config_value,
+            notes: body.notes ?? null,
+          })
 
-        await upsertDeployRow(serviceClient, taskId, {
-          status: "rolled_back",
-          error_message: normalizeText(body.notes) || null,
-          metadata: {
-            ...metadata,
-            rollback_mode: "manual_registered",
-          },
-        })
+          await updateTaskRow(serviceClient, taskId, {
+            status: nextTask.status,
+            metadata: {
+              ...nextTask.metadata,
+              rollback_mode: "revert_pull_request",
+              rollback_branch_name: rollback.branchName,
+              rollback_commit_sha: rollback.commitSha,
+              rollback_compare_url: rollback.compareUrl,
+              rollback_pull_request_number: rollback.pullRequest.number,
+              rollback_pull_request_url: rollback.pullRequest.htmlUrl,
+              rollback_pull_request_status: rollback.pullRequest.state,
+            },
+          })
 
-        await appendTaskEvent({
-          serviceClient,
-          taskId,
-          actorUserId: context.user.id,
-          eventType: "task_roll_back_requested",
-          message: "Rollback administrativo registado para esta task.",
-          metadata: {
-            notes: normalizeText(body.notes),
-          },
-        })
+          await appendTaskEvent({
+            serviceClient,
+            taskId,
+            actorUserId: context.user.id,
+            eventType: "rollback_pull_request_opened",
+            message: `Rollback operacional preparado via PR #${rollback.pullRequest.number}.`,
+            metadata: {
+              notes: normalizeText(body.notes),
+              rollback_branch_name: rollback.branchName,
+              rollback_commit_sha: rollback.commitSha,
+              rollback_pull_request_url: rollback.pullRequest.htmlUrl,
+            },
+          })
+        } catch (rollbackError) {
+          const message = rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+          await updateTaskRow(serviceClient, taskId, {
+            metadata: {
+              ...metadata,
+              rollback_mode: "manual_required",
+              rollback_error: message,
+            },
+          })
+
+          await appendTaskEvent({
+            serviceClient,
+            taskId,
+            actorUserId: context.user.id,
+            eventType: "rollback_manual_required",
+            message: "Rollback automatico indisponivel; revisao manual necessaria.",
+            metadata: {
+              notes: normalizeText(body.notes),
+              error: message,
+            },
+          })
+
+          throw unprocessable(
+            `Rollback automatico indisponivel: ${message}. Faz o revert manual no GitHub ou corrige os artefactos desta task.`,
+          )
+        }
       }
 
       const actionMap = {

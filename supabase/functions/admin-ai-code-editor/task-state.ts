@@ -5,14 +5,28 @@ export type AiCodeEditorTaskStatus =
   | "planning"
   | "ready_for_review"
   | "approved"
+  | "blocked_provider_quota"
+  | "ai_generation_unavailable"
   | "rejected"
   | "needs_adjustment"
   | "published"
+  | "rollback_ready_for_review"
   | "rolled_back"
   | "failed"
 
 export type AiCodeEditorPreviewStatus = "not_requested" | "pending" | "ready" | "failed"
 export type AiCodeEditorExecutionStatus = "not_requested" | "pending" | "passed" | "failed"
+export type AiCodeEditorProvider = "openai" | "gemini"
+export type AiCodeEditorGenerationMode = "ai_enabled" | "deterministic_only" | "blocked_provider_quota"
+export type AiCodeEditorProviderHealthStatus = "ready" | "quota_exceeded" | "error" | "not_configured"
+
+export interface AiCodeEditorProviderHealth {
+  configured: boolean
+  model: string
+  status: AiCodeEditorProviderHealthStatus
+  last_error: string | null
+  last_error_at: string | null
+}
 
 export interface AiCodeEditorConfigValue {
   enabled: boolean
@@ -21,10 +35,18 @@ export interface AiCodeEditorConfigValue {
   worker_mode: "simulated" | "github_worker"
   github_repository: string
   vercel_project_name: string
+  primary_provider: AiCodeEditorProvider
+  secondary_provider: AiCodeEditorProvider
+  primary_model: string
+  secondary_model: string
   auto_run_tests: boolean
   auto_run_build: boolean
   request_preview_deploy: boolean
   require_explicit_publish_confirmation: boolean
+  generation_mode: AiCodeEditorGenerationMode
+  provider_statuses: Record<AiCodeEditorProvider, AiCodeEditorProviderHealth>
+  github_configured: boolean
+  vercel_configured: boolean
 }
 
 export interface AiCodeEditorTaskRecord {
@@ -153,11 +175,11 @@ export function transitionTaskRecord(input: {
       }
       return {
         ...input.task,
-        status: "rolled_back",
-        rolled_back_at: actedAt,
+        status: "rollback_ready_for_review",
         metadata: {
           ...metadata,
           rollback_source: input.task.published_at ? "published_state" : "approved_state",
+          rollback_requested_at: actedAt,
         },
       }
     default:

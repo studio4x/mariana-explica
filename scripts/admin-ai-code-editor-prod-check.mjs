@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js"
 
 const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdvb2toZ3Vmc3hlcGxlbHBkYXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDM1OTYsImV4cCI6MjA5MTY3OTU5Nn0.9uw7Tk9R8-3tlPAJzRY8LxTC5TQMYVkHMf5JWsxqGjI"
-const DEFAULT_PROMPT = "altere o texto de um titulo da pagina /suporte apenas para teste do Editor IA Irrestrito"
+const DEFAULT_PROMPT =
+  'troque o texto "Como podemos ajudar?" por "Como podemos ajudar? | Teste do Editor IA Irrestrito" na página /suporte'
 
 function parseEnvFile(path) {
   const content = fs.readFileSync(path, "utf8")
@@ -29,6 +30,25 @@ function assert(condition, message) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function parseArgs(argv) {
+  const flags = new Set()
+  const promptParts = []
+
+  for (const item of argv) {
+    if (item === "--allow-quota-blocked") {
+      flags.add(item)
+      continue
+    }
+
+    promptParts.push(item)
+  }
+
+  return {
+    allowQuotaBlocked: flags.has("--allow-quota-blocked"),
+    prompt: promptParts.join(" ").trim() || DEFAULT_PROMPT,
+  }
 }
 
 async function waitForProfile(admin, userId, timeoutMs = 30000) {
@@ -87,7 +107,8 @@ async function main() {
   const env = parseEnvFile(".env.local")
   const supabaseUrl = env.SUPABASE_PROJECT_URL
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
-  const prompt = process.argv.slice(2).join(" ").trim() || DEFAULT_PROMPT
+  const args = parseArgs(process.argv.slice(2))
+  const prompt = args.prompt
 
   assert(supabaseUrl, "SUPABASE_PROJECT_URL ausente no .env.local")
   assert(serviceRoleKey, "SUPABASE_SERVICE_ROLE_KEY ausente no .env.local")
@@ -178,7 +199,23 @@ async function main() {
         break
       }
 
+      if (task.status === "blocked_provider_quota" || task.status === "ai_generation_unavailable" || task.status === "failed") {
+        break
+      }
+
       await sleep(15_000)
+    }
+
+    const quotaBlocked = task.status === "blocked_provider_quota"
+    if (quotaBlocked && args.allowQuotaBlocked) {
+      console.log(JSON.stringify({
+        task_id: task.id,
+        status: task.status,
+        execution_error: task.execution_error,
+        result_summary: task.result_summary,
+        provider_attempts: task.metadata?.provider_attempts ?? [],
+      }, null, 2))
+      return
     }
 
     assert(task.branch_name, "Task sem branch real")

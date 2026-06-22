@@ -11,10 +11,33 @@ describe("buildInitialTaskState", () => {
         worker_mode: "simulated",
         github_repository: "studio4x/mariana-explica",
         vercel_project_name: "mariana-explica",
+        primary_provider: "openai",
+        secondary_provider: "gemini",
+        primary_model: "gpt-4.1-mini",
+        secondary_model: "gemini-2.0-flash",
         auto_run_tests: true,
         auto_run_build: true,
         request_preview_deploy: true,
         require_explicit_publish_confirmation: true,
+        generation_mode: "deterministic_only",
+        provider_statuses: {
+          openai: {
+            configured: false,
+            model: "gpt-4.1-mini",
+            status: "not_configured",
+            last_error: null,
+            last_error_at: null,
+          },
+          gemini: {
+            configured: false,
+            model: "gemini-2.0-flash",
+            status: "not_configured",
+            last_error: null,
+            last_error_at: null,
+          },
+        },
+        github_configured: false,
+        vercel_configured: false,
       },
       plan: {
         normalizedPrompt: "altere o layout dos cards",
@@ -85,6 +108,23 @@ describe("transitionTaskRecord", () => {
 
     expect(next.status).toBe("needs_adjustment")
     expect(next.metadata.latest_action_notes).toBe("Ajustar o diff antes de publicar")
+  })
+
+  it("marks rollback as a revert PR pending review instead of pretending it was already merged", () => {
+    const next = transitionTaskRecord({
+      task: {
+        ...baseTask,
+        status: "published",
+        published_at: "2026-06-22T12:00:00.000Z",
+      },
+      action: "rollback",
+      notes: "Abrir PR de revert",
+      actedAt: "2026-06-22T13:30:00.000Z",
+    })
+
+    expect(next.status).toBe("rollback_ready_for_review")
+    expect(next.rolled_back_at).toBeNull()
+    expect(next.metadata.rollback_requested_at).toBe("2026-06-22T13:30:00.000Z")
   })
 })
 

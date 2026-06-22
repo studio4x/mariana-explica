@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   buildPullRequestBody,
+  buildRollbackPullRequestBody,
   buildTaskBranchName,
   GitHubRepositoryClient,
   parseGitHubRepository,
@@ -84,5 +85,26 @@ describe("github-worker helpers", () => {
       "https://api.github.com/repos/studio4x/mariana-explica/git/ref/heads/ai-editor/task-demo",
       expect.any(Object),
     )
+  })
+
+  it("builds a rollback PR body with the original task context", () => {
+    const body = buildRollbackPullRequestBody({
+      taskId: "task-1",
+      originalPrompt: "altere o titulo da pagina /suporte",
+      originalPullRequestUrl: "https://github.com/studio4x/mariana-explica/pull/3",
+      originalCommitSha: "abc123",
+      notes: "Reverter smoke",
+      files: [
+        {
+          filePath: "src/pages/public/Support.tsx",
+          changeType: "modified",
+        },
+      ],
+    })
+
+    expect(body).toContain("task-1")
+    expect(body).toContain("abc123")
+    expect(body).toContain("Reverter smoke")
+    expect(body).toContain("Support.tsx")
   })
 })

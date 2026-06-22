@@ -226,6 +226,48 @@ export function buildPullRequestBody(input: {
   ].join("\n")
 }
 
+export function buildRollbackPullRequestBody(input: {
+  taskId: string
+  originalPrompt: string
+  originalPullRequestUrl?: string | null
+  originalCommitSha?: string | null
+  notes?: string | null
+  files: Array<{
+    filePath: string
+    previousFilePath?: string | null
+    changeType: GitHubFileChangeType
+  }>
+}) {
+  const changedFiles = input.files.length > 0
+    ? input.files
+      .map((file) =>
+        `- \`${file.filePath}\`${file.previousFilePath ? ` (antes: \`${file.previousFilePath}\`)` : ""} - ${file.changeType}`
+      )
+      .join("\n")
+    : "- Nenhum arquivo mapeado para revert."
+
+  return [
+    "## Rollback solicitado",
+    `Reverter a task ${input.taskId}.`,
+    "",
+    "## Pedido original",
+    input.originalPrompt,
+    "",
+    "## Referencias",
+    `- Commit original: ${input.originalCommitSha ?? "nao registado"}`,
+    `- Pull Request original: ${input.originalPullRequestUrl ?? "nao registado"}`,
+    "",
+    "## Arquivos revertidos",
+    changedFiles,
+    "",
+    "## Notas do admin",
+    normalizeText(input.notes) || "Sem notas adicionais.",
+    "",
+    "## Revisao",
+    "- Confirmar o diff de revert antes do merge em producao.",
+  ].join("\n")
+}
+
 export class GitHubRepositoryClient {
   constructor(private readonly secrets: GitHubSecrets) {}
 
@@ -362,6 +404,29 @@ export class GitHubRepositoryClient {
       content: encodedContent ? decodeBase64(encodedContent) : "",
       exists: true,
     }
+  }
+
+  async getBlobText(blobSha: string) {
+    const payload = await this.request<{
+      content?: string
+      encoding?: string
+    }>(
+      `/repos/${this.secrets.owner}/${this.secrets.repo}/git/blobs/${encodeURIComponent(blobSha)}`,
+    )
+
+    const encodedContent = typeof payload.content === "string"
+      ? payload.content.replace(/\n/g, "")
+      : ""
+
+    if (!encodedContent) {
+      return ""
+    }
+
+    if (normalizeText(payload.encoding) === "base64") {
+      return decodeBase64(encodedContent)
+    }
+
+    return encodedContent
   }
 
   async upsertFile(input: {

@@ -3,6 +3,8 @@ import type { GitHubFileChangeType } from "./github-worker.ts"
 
 export type AiPatchProvider = "openai" | "gemini"
 export type AiPatchExecutionProvider = AiPatchProvider | "deterministic"
+export type AiPatchGenerationFailureCode = "blocked_provider_quota" | "ai_generation_unavailable"
+export type AiPatchProviderFailureType = "quota" | "provider_error" | "not_configured"
 
 export interface AiPatchProviderConfig {
   provider: AiPatchProvider
@@ -25,6 +27,39 @@ export interface GeneratedTaskFileChange {
   content: string
 }
 
+export interface AiPatchProviderAttempt {
+  provider: AiPatchProvider
+  model: string
+  failureType: AiPatchProviderFailureType
+  message: string
+  occurredAt: string
+}
+
+export interface AiPatchDeterministicAttempt {
+  attempted: boolean
+  applied: boolean
+  message: string
+}
+
+export class AiPatchGenerationError extends Error {
+  readonly code: AiPatchGenerationFailureCode
+  readonly providerAttempts: AiPatchProviderAttempt[]
+  readonly deterministicAttempt: AiPatchDeterministicAttempt
+
+  constructor(input: {
+    code: AiPatchGenerationFailureCode
+    message: string
+    providerAttempts: AiPatchProviderAttempt[]
+    deterministicAttempt: AiPatchDeterministicAttempt
+  }) {
+    super(input.message)
+    this.name = "AiPatchGenerationError"
+    this.code = input.code
+    this.providerAttempts = input.providerAttempts
+    this.deterministicAttempt = input.deterministicAttempt
+  }
+}
+
 interface FileChangeResponse {
   summary: string
   execution_notes: string
@@ -41,6 +76,12 @@ interface FileChangeResponse {
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim()
+}
+
+function sanitizeProviderErrorMessage(message: string) {
+  return normalizeText(message)
+    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer [redacted]")
+    .replace(/[A-Za-z0-9_-]{24,}/g, "[redacted]")
 }
 
 function extractTextFromOpenAIResponse(payload: unknown) {
@@ -124,8 +165,8 @@ function normalizePrompt(value: string) {
 
 function extractQuotedTextReplacement(prompt: string) {
   const patterns = [
-    /(?:altera(?:r)?|troca(?:r)?|substitui(?:r)?|muda(?:r)?).*?"([^"]+)"\s+(?:para|por)\s+"([^"]+)"/i,
-    /(?:altera(?:r)?|troca(?:r)?|substitui(?:r)?|muda(?:r)?).*?'([^']+)'\s+(?:para|por)\s+'([^']+)'/i,
+    /(?:altera(?:r)?|altere|troca(?:r)?|troque|substitui(?:r)?|substitua|muda(?:r)?|mude).*?"([^"]+)"\s+(?:para|por)\s+"([^"]+)"/i,
+    /(?:altera(?:r)?|altere|troca(?:r)?|troque|substitui(?:r)?|substitua|muda(?:r)?|mude).*?'([^']+)'\s+(?:para|por)\s+'([^']+)'/i,
   ]
 
   for (const pattern of patterns) {
@@ -140,11 +181,105 @@ function extractQuotedTextReplacement(prompt: string) {
   return null
 }
 
+function countOccurrences(content: string, searchText: string) {
+  if (!searchText) return 0
+
+  let count = 0
+  let startIndex = 0
+  while (true) {
+    const nextIndex = content.indexOf(searchText, startIndex)
+    if (nextIndex === -1) break
+    count += 1
+    startIndex = nextIndex + searchText.length
+  }
+
+  return count
+}
+
+function replaceFirstOccurrence(content: string, searchText: string, replacementText: string) {
+  const index = content.indexOf(searchText)
+  if (index === -1) return content
+  return `${content.slice(0, index)}${replacementText}${content.slice(index + searchText.length)}`
+}
+
+function tryGenerateExactTextReplacement(input: {
+  prompt: string
+  files: RepositoryFileContext[]
+}) {
+  const explicitReplacement = extractQuotedTextReplacement(input.prompt)
+  if (!explicitReplacement?.currentText || !explicitReplacement.nextText) {
+    return {
+      success: false as const,
+      message: "O fallback deterministico exige texto atual e texto novo entre aspas.",
+    }
+  }
+
+  const matches = input.files
+    .map((file) => ({
+      file,
+      occurrences: countOccurrences(file.content, explicitReplacement.currentText),
+    }))
+    .filter((item) => item.occurrences > 0)
+
+  const totalOccurrences = matches.reduce((sum, item) => sum + item.occurrences, 0)
+  if (totalOccurrences === 0) {
+    return {
+      success: false as const,
+      message: `Nao encontrei o texto "${explicitReplacement.currentText}" nos arquivos candidatos desta task.`,
+    }
+  }
+
+  if (totalOccurrences > 1) {
+    return {
+      success: false as const,
+      message:
+        `Encontrei ${totalOccurrences} ocorrencias de "${explicitReplacement.currentText}" nos arquivos candidatos. ` +
+        "Especifica melhor o alvo antes de aplicar o fallback deterministico.",
+    }
+  }
+
+  const matchedFile = matches[0]?.file
+  if (!matchedFile) {
+    return {
+      success: false as const,
+      message: "Nao foi possivel determinar com seguranca o arquivo alvo do fallback deterministico.",
+    }
+  }
+
+  return {
+    success: true as const,
+    providerUsed: "deterministic" as const,
+    modelUsed: "rule-based-exact-text-replacement",
+    summary: `Troca deterministica aplicada em ${matchedFile.filePath}.`,
+    executionNotes: "Patch real gerado por substituicao textual exata sem depender de quota externa.",
+    riskLevel: "low" as const,
+    changedFiles: [
+      {
+        filePath: matchedFile.filePath,
+        changeType: "modified" as const,
+        summary: `Substituicao textual exata de "${explicitReplacement.currentText}" por "${explicitReplacement.nextText}".`,
+        rationale: "Pedido simples de texto resolvido por fallback deterministico com alvo unico.",
+        language: matchedFile.language || "text",
+        content: replaceFirstOccurrence(
+          matchedFile.content,
+          explicitReplacement.currentText,
+          explicitReplacement.nextText,
+        ),
+      },
+    ],
+  }
+}
+
 function tryGenerateDeterministicChanges(input: {
   prompt: string
   plan: AiCodeEditorPlan
   files: RepositoryFileContext[]
 }) {
+  const exactReplacement = tryGenerateExactTextReplacement(input)
+  if (exactReplacement.success) {
+    return exactReplacement
+  }
+
   const normalizedPrompt = normalizePrompt(input.prompt)
   const supportFile = input.files.find((file) => file.filePath === "src/pages/public/Support.tsx")
   const explicitReplacement = extractQuotedTextReplacement(input.prompt)
@@ -155,7 +290,12 @@ function tryGenerateDeterministicChanges(input: {
     (normalizedPrompt.includes("titulo") || normalizedPrompt.includes("texto") || normalizedPrompt.includes("heading"))
   ) {
     const headingMatch = supportFile.content.match(/(<h1\b[^>]*>)([^<]+)(<\/h1>)/)
-    if (!headingMatch) return null
+    if (!headingMatch) {
+      return {
+        success: false as const,
+        message: "Nao encontrei o titulo principal esperado na pagina /suporte.",
+      }
+    }
 
     const currentHeading = normalizeText(headingMatch[2])
     let nextHeading = explicitReplacement?.nextText ?? ""
@@ -167,14 +307,21 @@ function tryGenerateDeterministicChanges(input: {
     }
 
     if (explicitReplacement?.currentText && explicitReplacement.currentText !== currentHeading) {
-      return null
+      return {
+        success: false as const,
+        message: "O texto atual indicado nao corresponde ao titulo principal encontrado na pagina /suporte.",
+      }
     }
 
     if (!nextHeading || nextHeading === currentHeading) {
-      return null
+      return {
+        success: false as const,
+        message: "O fallback deterministico nao encontrou um novo titulo valido para aplicar em /suporte.",
+      }
     }
 
     return {
+      success: true as const,
       providerUsed: "deterministic" as const,
       modelUsed: "rule-based-support-title",
       summary: "Ajuste deterministico aplicado ao titulo principal da pagina /suporte.",
@@ -193,7 +340,10 @@ function tryGenerateDeterministicChanges(input: {
     }
   }
 
-  return null
+  return {
+    success: false as const,
+    message: exactReplacement.message || "Nenhum fallback deterministico seguro foi reconhecido para esta task.",
+  }
 }
 
 function buildResponseSchema() {
@@ -385,15 +535,16 @@ export async function generateTaskFileChanges(input: {
   plan: AiCodeEditorPlan
   repository: string
   files: RepositoryFileContext[]
+  preferDeterministicFirst?: boolean
 }) {
   const systemPrompt = buildSystemPrompt()
   const userPrompt = buildUserPrompt(input)
   const responseSchema = buildResponseSchema()
-  const providerErrors: string[] = []
-  let lastError: Error | null = null
+  const providerAttempts: AiPatchProviderAttempt[] = []
+  const preferDeterministicFirst = input.preferDeterministicFirst !== false
 
   const deterministic = tryGenerateDeterministicChanges(input)
-  if (deterministic) {
+  if (preferDeterministicFirst && deterministic.success) {
     return deterministic
   }
 
@@ -424,17 +575,50 @@ export async function generateTaskFileChanges(input: {
         }),
       }
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-      providerErrors.push(`${provider.provider}:${lastError.message}`)
-      if (!isQuotaExceededErrorMessage(lastError.message) && input.providers.length === 1) {
-        throw lastError
-      }
+      const rawMessage = error instanceof Error ? error.message : String(error)
+      providerAttempts.push({
+        provider: provider.provider,
+        model: provider.model,
+        failureType: isQuotaExceededErrorMessage(rawMessage) ? "quota" : "provider_error",
+        message: sanitizeProviderErrorMessage(rawMessage),
+        occurredAt: new Date().toISOString(),
+      })
     }
   }
 
-  if (providerErrors.length > 1) {
-    throw new Error(`Falha ao gerar patch real com os providers configurados. ${providerErrors.join(" | ")}`)
+  if (!preferDeterministicFirst && deterministic.success) {
+    return deterministic
   }
 
-  throw lastError ?? new Error("Falha ao gerar patch real para a task.")
+  if (input.providers.length === 0) {
+    throw new AiPatchGenerationError({
+      code: "ai_generation_unavailable",
+      message:
+        "A geracao livre por IA esta indisponivel porque nao ha providers configurados e nao encontrei fallback deterministico seguro para este pedido.",
+      providerAttempts,
+      deterministicAttempt: {
+        attempted: true,
+        applied: false,
+        message: deterministic.message,
+      },
+    })
+  }
+
+  const allQuotaFailures = providerAttempts.length > 0 &&
+    providerAttempts.every((attempt) => attempt.failureType === "quota")
+
+  throw new AiPatchGenerationError({
+    code: allQuotaFailures ? "blocked_provider_quota" : "ai_generation_unavailable",
+    message: allQuotaFailures
+      ? "A geracao livre por IA esta temporariamente indisponivel porque os providers configurados retornaram erro de quota. Configure creditos/limites em OpenAI ou Gemini, ou use uma alteracao deterministica suportada."
+      : "Nao foi possivel gerar um patch real confiavel com os providers configurados nem com o fallback deterministico disponivel para esta task.",
+    providerAttempts,
+    deterministicAttempt: {
+      attempted: true,
+      applied: false,
+      message: deterministic.success
+        ? "O fallback deterministico estava disponivel, mas esta task ficou reservada para geracao por IA."
+        : deterministic.message,
+    },
+  })
 }

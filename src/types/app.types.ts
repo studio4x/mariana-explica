@@ -228,14 +228,20 @@ export interface AdminLegacyPageEditorConfig {
 }
 
 export type AdminAiCodeEditorWorkerMode = "simulated" | "github_worker"
+export type AdminAiCodeEditorProvider = "openai" | "gemini"
+export type AdminAiCodeEditorGenerationMode = "ai_enabled" | "deterministic_only" | "blocked_provider_quota"
+export type AdminAiCodeEditorProviderHealthStatus = "ready" | "quota_exceeded" | "error" | "not_configured"
 export type AdminAiCodeEditorTaskStatus =
   | "queued"
   | "planning"
   | "ready_for_review"
   | "approved"
+  | "blocked_provider_quota"
+  | "ai_generation_unavailable"
   | "rejected"
   | "needs_adjustment"
   | "published"
+  | "rollback_ready_for_review"
   | "rolled_back"
   | "failed"
 export type AdminAiCodeEditorRiskLevel = "low" | "medium" | "high"
@@ -253,6 +259,14 @@ export type AdminAiCodeEditorFileChangeStatus = "planned" | "generated" | "appli
 export type AdminAiCodeEditorDeployProvider = "vercel" | "github" | "manual"
 export type AdminAiCodeEditorDeployStatus = "not_requested" | "pending" | "ready" | "failed" | "rolled_back"
 
+export interface AdminAiCodeEditorProviderHealth {
+  configured: boolean
+  model: string
+  status: AdminAiCodeEditorProviderHealthStatus
+  last_error: string | null
+  last_error_at: string | null
+}
+
 export interface AdminAiCodeEditorConfig {
   config_key: string
   config_value: {
@@ -262,10 +276,18 @@ export interface AdminAiCodeEditorConfig {
     worker_mode: AdminAiCodeEditorWorkerMode
     github_repository: string
     vercel_project_name: string
+    primary_provider: AdminAiCodeEditorProvider
+    secondary_provider: AdminAiCodeEditorProvider
+    primary_model: string
+    secondary_model: string
     auto_run_tests: boolean
     auto_run_build: boolean
     request_preview_deploy: boolean
     require_explicit_publish_confirmation: boolean
+    generation_mode: AdminAiCodeEditorGenerationMode
+    provider_statuses: Record<AdminAiCodeEditorProvider, AdminAiCodeEditorProviderHealth>
+    github_configured: boolean
+    vercel_configured: boolean
   }
   description: string | null
   is_public: boolean

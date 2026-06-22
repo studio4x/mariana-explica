@@ -36,13 +36,26 @@ function formatDateTime(value: string | null) {
 
 function statusTone(status: string) {
   if (status === "approved" || status === "published" || status === "ready" || status === "passed") return "success"
-  if (status === "failed" || status === "rejected" || status === "rolled_back") return "danger"
+  if (status === "failed" || status === "rejected" || status === "rolled_back" || status === "blocked_provider_quota" || status === "ai_generation_unavailable") return "danger"
+  if (status === "rollback_ready_for_review") return "warning"
   if (status === "needs_adjustment" || status === "pending") return "warning"
   return "neutral"
 }
 
 function riskTone(riskLevel: AdminAiCodeEditorTask["risk_level"]) {
   return riskLevel === "high" ? "danger" : riskLevel === "medium" ? "warning" : "success"
+}
+
+function generationModeTone(mode: AdminAiCodeEditorConfig["config_value"]["generation_mode"]) {
+  if (mode === "ai_enabled") return "success"
+  if (mode === "blocked_provider_quota") return "danger"
+  return "warning"
+}
+
+function providerStatusTone(status: AdminAiCodeEditorConfig["config_value"]["provider_statuses"]["openai"]["status"]) {
+  if (status === "ready") return "success"
+  if (status === "quota_exceeded" || status === "error") return "danger"
+  return "warning"
 }
 
 function createEmptyConfig(): AdminAiCodeEditorConfig["config_value"] {
@@ -53,10 +66,33 @@ function createEmptyConfig(): AdminAiCodeEditorConfig["config_value"] {
     worker_mode: "simulated",
     github_repository: "studio4x/mariana-explica",
     vercel_project_name: "mariana-explica",
+    primary_provider: "openai",
+    secondary_provider: "gemini",
+    primary_model: "gpt-4.1-mini",
+    secondary_model: "gemini-2.0-flash",
     auto_run_tests: true,
     auto_run_build: true,
     request_preview_deploy: true,
     require_explicit_publish_confirmation: true,
+    generation_mode: "deterministic_only",
+    provider_statuses: {
+      openai: {
+        configured: false,
+        model: "gpt-4.1-mini",
+        status: "not_configured",
+        last_error: null,
+        last_error_at: null,
+      },
+      gemini: {
+        configured: false,
+        model: "gemini-2.0-flash",
+        status: "not_configured",
+        last_error: null,
+        last_error_at: null,
+      },
+    },
+    github_configured: false,
+    vercel_configured: false,
   }
 }
 
@@ -231,12 +267,12 @@ export function AdminAiCodeEditor() {
         tone: "success",
         message:
           action === "approve"
-            ? "Task aprovada e publicada com merge do Pull Request."
+            ? "Task aprovada e publicada com merge via GitHub API."
             : action === "reject"
               ? "Task rejeitada."
               : action === "adjust"
                 ? "Task devolvida para ajuste."
-                : "Rollback registado para a task.",
+                : "Rollback preparado com branch e PR de revert para revisao.",
       })
     } catch (error) {
       setFeedback({
@@ -319,6 +355,66 @@ export function AdminAiCodeEditor() {
             <StatusBadge label={draftConfig.worker_mode === "simulated" ? "Modo simulado" : "Worker real"} tone={draftConfig.worker_mode === "simulated" ? "warning" : "success"} />
           </div>
 
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Modo IA</p>
+              <div className="mt-3">
+                <StatusBadge label={draftConfig.generation_mode.replace(/_/g, " ")} tone={generationModeTone(draftConfig.generation_mode)} />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {draftConfig.generation_mode === "blocked_provider_quota"
+                  ? "A geracao livre esta bloqueada por quota e o editor depende de fallback deterministico."
+                  : draftConfig.generation_mode === "deterministic_only"
+                    ? "Sem provider IA utilizavel neste momento; apenas pedidos deterministicos ficam disponiveis."
+                    : "Geracao livre por IA disponivel, com fallback deterministico para pedidos simples."}
+              </p>
+            </div>
+            <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">GitHub</p>
+              <div className="mt-3">
+                <StatusBadge label={draftConfig.github_configured ? "Configurado" : "Nao configurado"} tone={draftConfig.github_configured ? "success" : "danger"} />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">{draftConfig.github_repository}</p>
+            </div>
+            <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Vercel</p>
+              <div className="mt-3">
+                <StatusBadge label={draftConfig.vercel_configured ? "Configurado" : "Nao configurado"} tone={draftConfig.vercel_configured ? "success" : "danger"} />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">{draftConfig.vercel_project_name}</p>
+            </div>
+            <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Editor legado</p>
+              <div className="mt-3">
+                <StatusBadge label={transitionState.showLegacyAiEditor ? "Fallback ativo" : "Oculto"} tone={transitionState.showLegacyAiEditor ? "warning" : "success"} />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {transitionState.newEditorIsDefault ? "O fluxo principal ja aponta para o editor irrestrito." : "Ainda existe transicao paralela entre novo e legado."}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {(["openai", "gemini"] as const).map((provider) => {
+              const providerState = draftConfig.provider_statuses[provider]
+              return (
+                <div key={provider} className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-950">{provider.toUpperCase()}</p>
+                    <StatusBadge label={providerState.status.replace(/_/g, " ")} tone={providerStatusTone(providerState.status)} />
+                    <StatusBadge label={providerState.configured ? "Com chave" : "Sem chave"} tone={providerState.configured ? "success" : "warning"} />
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">Modelo: {providerState.model}</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    {providerState.last_error
+                      ? `${providerState.last_error} (${formatDateTime(providerState.last_error_at)})`
+                      : "Sem erro recente registado."}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+
           <div className="grid gap-3">
             <ToggleField
               label="Ativar novo editor"
@@ -387,6 +483,58 @@ export function AdminAiCodeEditor() {
                 <option value="simulated">simulated</option>
                 <option value="github_worker">github_worker</option>
               </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Provider primario</span>
+              <select
+                value={draftConfig.primary_provider}
+                onChange={(event) =>
+                  setDraftConfig((current) => ({
+                    ...current,
+                    primary_provider: event.target.value as AdminAiCodeEditorConfig["config_value"]["primary_provider"],
+                  }))
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+              >
+                <option value="openai">openai</option>
+                <option value="gemini">gemini</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Modelo primario</span>
+              <input
+                value={draftConfig.primary_model}
+                onChange={(event) =>
+                  setDraftConfig((current) => ({ ...current, primary_model: event.target.value }))
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Provider secundario</span>
+              <select
+                value={draftConfig.secondary_provider}
+                onChange={(event) =>
+                  setDraftConfig((current) => ({
+                    ...current,
+                    secondary_provider: event.target.value as AdminAiCodeEditorConfig["config_value"]["secondary_provider"],
+                  }))
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+              >
+                <option value="gemini">gemini</option>
+                <option value="openai">openai</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Modelo secundario</span>
+              <input
+                value={draftConfig.secondary_model}
+                onChange={(event) =>
+                  setDraftConfig((current) => ({ ...current, secondary_model: event.target.value }))
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+              />
             </label>
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Repositorio GitHub</span>
@@ -657,7 +805,50 @@ export function AdminAiCodeEditor() {
                     ))}
                   </div>
                 ) : null}
+                {Array.isArray(selectedTask.metadata.provider_attempts) && selectedTask.metadata.provider_attempts.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    {selectedTask.metadata.provider_attempts.map((attempt, index) => (
+                      <div key={`${String((attempt as { provider?: string }).provider ?? "provider")}-${index}`} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs leading-5 text-slate-600">
+                        <span className="font-semibold text-slate-900">
+                          {String((attempt as { provider?: string }).provider ?? "provider")} / {String((attempt as { model?: string }).model ?? "model")}
+                        </span>
+                        {" - "}
+                        {String((attempt as { failureType?: string }).failureType ?? "error")}
+                        {" - "}
+                        {String((attempt as { message?: string }).message ?? "")}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {selectedTask.status === "blocked_provider_quota" ? (
+                  <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-900">
+                    A geracao livre por IA ficou bloqueada por quota. O admin pode restaurar creditos dos providers ou reenquadrar o pedido para um fallback deterministico suportado.
+                  </p>
+                ) : null}
               </div>
+
+              {selectedTask.metadata.rollback_pull_request_url ? (
+                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center gap-2">
+                    <RotateCcw className="h-4 w-4 text-slate-500" />
+                    <p className="text-sm font-semibold text-slate-950">Rollback operacional</p>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-700">
+                    Branch de revert: {String(selectedTask.metadata.rollback_branch_name ?? "n/a")}
+                  </p>
+                  <a
+                    href={String(selectedTask.metadata.rollback_pull_request_url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
+                  >
+                    Abrir PR de rollback #{String(selectedTask.metadata.rollback_pull_request_number ?? "?")}
+                  </a>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Estado: {String(selectedTask.metadata.rollback_pull_request_status ?? "nao aberto")}
+                  </p>
+                </div>
+              ) : null}
 
               <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
                 <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
@@ -727,6 +918,9 @@ export function AdminAiCodeEditor() {
 
               <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
                 <h3 className="text-lg font-bold text-slate-950">Acoes do admin</h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  A aprovacao faz merge via GitHub API quando diff, checks e preview estao prontos. O rollback cria uma branch de revert e abre um PR de rollback para revisao.
+                </p>
                 <div className="flex flex-wrap gap-3">
                   <Button
                     type="button"
@@ -803,7 +997,7 @@ export function AdminAiCodeEditor() {
                     disabled={rollbackTaskMutation.isPending}
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    Rollback
+                    Criar rollback PR
                   </Button>
                 </div>
               </div>

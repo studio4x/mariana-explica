@@ -323,10 +323,33 @@ const DEFAULT_AI_CODE_EDITOR_CONFIG: AdminAiCodeEditorConfig["config_value"] = {
   worker_mode: "simulated",
   github_repository: "studio4x/mariana-explica",
   vercel_project_name: "mariana-explica",
+  primary_provider: "openai",
+  secondary_provider: "gemini",
+  primary_model: "gpt-4.1-mini",
+  secondary_model: "gemini-2.0-flash",
   auto_run_tests: true,
   auto_run_build: true,
   request_preview_deploy: true,
   require_explicit_publish_confirmation: true,
+  generation_mode: "deterministic_only",
+  provider_statuses: {
+    openai: {
+      configured: false,
+      model: "gpt-4.1-mini",
+      status: "not_configured",
+      last_error: null,
+      last_error_at: null,
+    },
+    gemini: {
+      configured: false,
+      model: "gemini-2.0-flash",
+      status: "not_configured",
+      last_error: null,
+      last_error_at: null,
+    },
+  },
+  github_configured: false,
+  vercel_configured: false,
 }
 
 export interface AdminModuleAssetSignedUploadResult {
@@ -678,6 +701,10 @@ function normalizeAdminAiCodeEditorConfig(
     row?.config_value && typeof row.config_value === "object"
       ? (row.config_value as Record<string, unknown>)
       : {}
+  const providerStatuses =
+    value.provider_statuses && typeof value.provider_statuses === "object"
+      ? (value.provider_statuses as Record<string, unknown>)
+      : {}
 
   return {
     config_key: row?.config_key ?? AI_CODE_EDITOR_KEY,
@@ -692,6 +719,10 @@ function normalizeAdminAiCodeEditorConfig(
         String(value.github_repository ?? "").trim() || DEFAULT_AI_CODE_EDITOR_CONFIG.github_repository,
       vercel_project_name:
         String(value.vercel_project_name ?? "").trim() || DEFAULT_AI_CODE_EDITOR_CONFIG.vercel_project_name,
+      primary_provider: value.primary_provider === "gemini" ? "gemini" : "openai",
+      secondary_provider: value.secondary_provider === "openai" ? "openai" : "gemini",
+      primary_model: String(value.primary_model ?? "").trim() || DEFAULT_AI_CODE_EDITOR_CONFIG.primary_model,
+      secondary_model: String(value.secondary_model ?? "").trim() || DEFAULT_AI_CODE_EDITOR_CONFIG.secondary_model,
       auto_run_tests: Boolean(value.auto_run_tests ?? DEFAULT_AI_CODE_EDITOR_CONFIG.auto_run_tests),
       auto_run_build: Boolean(value.auto_run_build ?? DEFAULT_AI_CODE_EDITOR_CONFIG.auto_run_build),
       request_preview_deploy: Boolean(
@@ -701,6 +732,54 @@ function normalizeAdminAiCodeEditorConfig(
         value.require_explicit_publish_confirmation ??
           DEFAULT_AI_CODE_EDITOR_CONFIG.require_explicit_publish_confirmation,
       ),
+      generation_mode:
+        value.generation_mode === "ai_enabled" || value.generation_mode === "blocked_provider_quota"
+          ? value.generation_mode
+          : "deterministic_only",
+      provider_statuses: {
+        openai: {
+          configured: Boolean(
+            (providerStatuses.openai as Record<string, unknown> | undefined)?.configured ??
+              DEFAULT_AI_CODE_EDITOR_CONFIG.provider_statuses.openai.configured,
+          ),
+          model:
+            String((providerStatuses.openai as Record<string, unknown> | undefined)?.model ?? "").trim() ||
+            DEFAULT_AI_CODE_EDITOR_CONFIG.provider_statuses.openai.model,
+          status:
+            (() => {
+              const status = String((providerStatuses.openai as Record<string, unknown> | undefined)?.status ?? "").trim()
+              return status === "ready" || status === "quota_exceeded" || status === "error" || status === "not_configured"
+                ? status
+                : DEFAULT_AI_CODE_EDITOR_CONFIG.provider_statuses.openai.status
+            })(),
+          last_error:
+            String((providerStatuses.openai as Record<string, unknown> | undefined)?.last_error ?? "").trim() || null,
+          last_error_at:
+            String((providerStatuses.openai as Record<string, unknown> | undefined)?.last_error_at ?? "").trim() || null,
+        },
+        gemini: {
+          configured: Boolean(
+            (providerStatuses.gemini as Record<string, unknown> | undefined)?.configured ??
+              DEFAULT_AI_CODE_EDITOR_CONFIG.provider_statuses.gemini.configured,
+          ),
+          model:
+            String((providerStatuses.gemini as Record<string, unknown> | undefined)?.model ?? "").trim() ||
+            DEFAULT_AI_CODE_EDITOR_CONFIG.provider_statuses.gemini.model,
+          status:
+            (() => {
+              const status = String((providerStatuses.gemini as Record<string, unknown> | undefined)?.status ?? "").trim()
+              return status === "ready" || status === "quota_exceeded" || status === "error" || status === "not_configured"
+                ? status
+                : DEFAULT_AI_CODE_EDITOR_CONFIG.provider_statuses.gemini.status
+            })(),
+          last_error:
+            String((providerStatuses.gemini as Record<string, unknown> | undefined)?.last_error ?? "").trim() || null,
+          last_error_at:
+            String((providerStatuses.gemini as Record<string, unknown> | undefined)?.last_error_at ?? "").trim() || null,
+        },
+      },
+      github_configured: Boolean(value.github_configured ?? DEFAULT_AI_CODE_EDITOR_CONFIG.github_configured),
+      vercel_configured: Boolean(value.vercel_configured ?? DEFAULT_AI_CODE_EDITOR_CONFIG.vercel_configured),
     },
     description: row?.description ?? "Configuracao do Editor IA Irrestrito / Admin AI Code Editor.",
     is_public: row?.is_public ?? false,
