@@ -227,6 +227,118 @@ export interface AdminLegacyPageEditorConfig {
   updated_at: string | null
 }
 
+export type AdminAiCodeEditorWorkerMode = "simulated" | "github_worker"
+export type AdminAiCodeEditorTaskStatus =
+  | "queued"
+  | "planning"
+  | "ready_for_review"
+  | "approved"
+  | "rejected"
+  | "needs_adjustment"
+  | "published"
+  | "rolled_back"
+  | "failed"
+export type AdminAiCodeEditorRiskLevel = "low" | "medium" | "high"
+export type AdminAiCodeEditorPreviewStatus = "not_requested" | "pending" | "ready" | "failed"
+export type AdminAiCodeEditorExecutionStatus = "not_requested" | "pending" | "passed" | "failed"
+export type AdminAiCodeEditorFileChangeType = "create" | "modify" | "delete"
+export type AdminAiCodeEditorFileChangeStatus = "planned" | "generated" | "applied" | "reverted"
+export type AdminAiCodeEditorDeployProvider = "vercel" | "github" | "manual"
+export type AdminAiCodeEditorDeployStatus = "not_requested" | "pending" | "ready" | "failed" | "rolled_back"
+
+export interface AdminAiCodeEditorConfig {
+  config_key: string
+  config_value: {
+    enabled: boolean
+    make_default: boolean
+    legacy_editor_fallback_enabled: boolean
+    worker_mode: AdminAiCodeEditorWorkerMode
+    github_repository: string
+    vercel_project_name: string
+    auto_run_tests: boolean
+    auto_run_build: boolean
+    request_preview_deploy: boolean
+    require_explicit_publish_confirmation: boolean
+  }
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+}
+
+export interface AdminAiCodeEditorFileChange {
+  id: string
+  task_id: string
+  file_path: string
+  change_type: AdminAiCodeEditorFileChangeType
+  status: AdminAiCodeEditorFileChangeStatus
+  rationale: string | null
+  diff_preview: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminAiCodeEditorEvent {
+  id: string
+  task_id: string
+  actor_user_id: string | null
+  event_type: string
+  message: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface AdminAiCodeEditorDeploy {
+  id: string
+  task_id: string
+  provider: AdminAiCodeEditorDeployProvider
+  environment: string
+  deployment_id: string | null
+  deployment_url: string | null
+  status: AdminAiCodeEditorDeployStatus
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminAiCodeEditorTask {
+  id: string
+  requested_by: string
+  approved_by: string | null
+  prompt: string
+  normalized_prompt: string
+  title: string
+  summary: string
+  status: AdminAiCodeEditorTaskStatus
+  scope_classification: string
+  risk_level: AdminAiCodeEditorRiskLevel
+  worker_mode: AdminAiCodeEditorWorkerMode
+  branch_name: string
+  commit_message: string
+  commit_sha: string | null
+  pull_request_url: string | null
+  preview_url: string | null
+  preview_status: AdminAiCodeEditorPreviewStatus
+  test_status: AdminAiCodeEditorExecutionStatus
+  build_status: AdminAiCodeEditorExecutionStatus
+  files_analyzed: string[]
+  files_planned: string[]
+  plan_json: Record<string, unknown>
+  result_summary: string | null
+  sensitive_change: boolean
+  sensitive_reasons: string[]
+  requires_explicit_publish_confirmation: boolean
+  published_at: string | null
+  rolled_back_at: string | null
+  approved_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  file_changes?: AdminAiCodeEditorFileChange[]
+  events?: AdminAiCodeEditorEvent[]
+  deploys?: AdminAiCodeEditorDeploy[]
+}
+
 export type AiPageEditorProvider = "gemini" | "openai"
 export type AdminAiPageEditorModelStage =
   | "conversation"

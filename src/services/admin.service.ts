@@ -9,6 +9,10 @@ import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT, SUPABASE_ANON_KEY, SUPABASE_U
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminCheckoutModeConfig,
+  AdminAiCodeEditorConfig,
+  AdminAiCodeEditorDeploy,
+  AdminAiCodeEditorFileChange,
+  AdminAiCodeEditorTask,
   AdminAiPageEditorConfig,
   AdminAiPageEditorConversationContext,
   AdminAiPageEditorConversationResponse,
@@ -194,6 +198,7 @@ const PUBLIC_FORM_NOTIFICATIONS_KEY = "public_form_notifications"
 const SITE_MAINTENANCE_KEY = "site_maintenance_mode"
 const LEGACY_PAGE_EDITOR_KEY = "legacy_page_editor_config"
 const AI_PAGE_EDITOR_KEY = "ai_page_editor_config"
+const AI_CODE_EDITOR_KEY = "ai_code_editor_config"
 const SITE_THEME_KEY = "site_theme"
 
 const DEFAULT_SITE_THEME_PALETTE: AdminSiteThemeConfig["config_value"]["palette"] = {
@@ -309,6 +314,19 @@ const DEFAULT_SITE_THEME_TYPOGRAPHY: AdminSiteThemeConfig["config_value"]["typog
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.muted_color,
   },
+}
+
+const DEFAULT_AI_CODE_EDITOR_CONFIG: AdminAiCodeEditorConfig["config_value"] = {
+  enabled: false,
+  make_default: false,
+  legacy_editor_fallback_enabled: true,
+  worker_mode: "simulated",
+  github_repository: "studio4x/mariana-explica",
+  vercel_project_name: "mariana-explica",
+  auto_run_tests: true,
+  auto_run_build: true,
+  request_preview_deploy: true,
+  require_explicit_publish_confirmation: true,
 }
 
 export interface AdminModuleAssetSignedUploadResult {
@@ -466,6 +484,17 @@ function normalizeAdminTrackingConfig(
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[]
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean)
+}
+
+function normalizeUnknownRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
 }
 
 function normalizeThemeColor(value: unknown, fallback: string) {
@@ -639,6 +668,121 @@ function normalizeAdminSiteMaintenanceConfig(
       "Controle operacional do modo de manutencao da plataforma. Quando ativo, apenas admins autenticados acessam a aplicação.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminAiCodeEditorConfig(
+  row?: Partial<AdminAiCodeEditorConfig> | null,
+): AdminAiCodeEditorConfig {
+  const value =
+    row?.config_value && typeof row.config_value === "object"
+      ? (row.config_value as Record<string, unknown>)
+      : {}
+
+  return {
+    config_key: row?.config_key ?? AI_CODE_EDITOR_KEY,
+    config_value: {
+      enabled: Boolean(value.enabled ?? DEFAULT_AI_CODE_EDITOR_CONFIG.enabled),
+      make_default: Boolean(value.make_default ?? DEFAULT_AI_CODE_EDITOR_CONFIG.make_default),
+      legacy_editor_fallback_enabled: Boolean(
+        value.legacy_editor_fallback_enabled ?? DEFAULT_AI_CODE_EDITOR_CONFIG.legacy_editor_fallback_enabled,
+      ),
+      worker_mode: value.worker_mode === "github_worker" ? "github_worker" : "simulated",
+      github_repository:
+        String(value.github_repository ?? "").trim() || DEFAULT_AI_CODE_EDITOR_CONFIG.github_repository,
+      vercel_project_name:
+        String(value.vercel_project_name ?? "").trim() || DEFAULT_AI_CODE_EDITOR_CONFIG.vercel_project_name,
+      auto_run_tests: Boolean(value.auto_run_tests ?? DEFAULT_AI_CODE_EDITOR_CONFIG.auto_run_tests),
+      auto_run_build: Boolean(value.auto_run_build ?? DEFAULT_AI_CODE_EDITOR_CONFIG.auto_run_build),
+      request_preview_deploy: Boolean(
+        value.request_preview_deploy ?? DEFAULT_AI_CODE_EDITOR_CONFIG.request_preview_deploy,
+      ),
+      require_explicit_publish_confirmation: Boolean(
+        value.require_explicit_publish_confirmation ??
+          DEFAULT_AI_CODE_EDITOR_CONFIG.require_explicit_publish_confirmation,
+      ),
+    },
+    description: row?.description ?? "Configuracao do Editor IA Irrestrito / Admin AI Code Editor.",
+    is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+function normalizeAdminAiCodeEditorTask(row: Partial<AdminAiCodeEditorTask> | null | undefined): AdminAiCodeEditorTask {
+  const record = row && typeof row === "object" ? row : {}
+
+  return {
+    id: String(record.id ?? ""),
+    requested_by: String(record.requested_by ?? ""),
+    approved_by: record.approved_by ? String(record.approved_by) : null,
+    prompt: String(record.prompt ?? ""),
+    normalized_prompt: String(record.normalized_prompt ?? ""),
+    title: String(record.title ?? ""),
+    summary: String(record.summary ?? ""),
+    status: (String(record.status ?? "queued") as AdminAiCodeEditorTask["status"]),
+    scope_classification: String(record.scope_classification ?? ""),
+    risk_level: (String(record.risk_level ?? "low") as AdminAiCodeEditorTask["risk_level"]),
+    worker_mode: record.worker_mode === "github_worker" ? "github_worker" : "simulated",
+    branch_name: String(record.branch_name ?? ""),
+    commit_message: String(record.commit_message ?? ""),
+    commit_sha: record.commit_sha ? String(record.commit_sha) : null,
+    pull_request_url: record.pull_request_url ? String(record.pull_request_url) : null,
+    preview_url: record.preview_url ? String(record.preview_url) : null,
+    preview_status: (String(record.preview_status ?? "not_requested") as AdminAiCodeEditorTask["preview_status"]),
+    test_status: (String(record.test_status ?? "not_requested") as AdminAiCodeEditorTask["test_status"]),
+    build_status: (String(record.build_status ?? "not_requested") as AdminAiCodeEditorTask["build_status"]),
+    files_analyzed: normalizeStringArray(record.files_analyzed),
+    files_planned: normalizeStringArray(record.files_planned),
+    plan_json: normalizeUnknownRecord(record.plan_json),
+    result_summary: record.result_summary ? String(record.result_summary) : null,
+    sensitive_change: Boolean(record.sensitive_change),
+    sensitive_reasons: normalizeStringArray(record.sensitive_reasons),
+    requires_explicit_publish_confirmation: Boolean(record.requires_explicit_publish_confirmation),
+    published_at: record.published_at ? String(record.published_at) : null,
+    rolled_back_at: record.rolled_back_at ? String(record.rolled_back_at) : null,
+    approved_at: record.approved_at ? String(record.approved_at) : null,
+    metadata: normalizeUnknownRecord(record.metadata),
+    created_at: String(record.created_at ?? ""),
+    updated_at: String(record.updated_at ?? ""),
+    file_changes: Array.isArray(record.file_changes)
+      ? record.file_changes.map((item) => ({
+          id: String(item?.id ?? ""),
+          task_id: String(item?.task_id ?? ""),
+          file_path: String(item?.file_path ?? ""),
+          change_type: String(item?.change_type ?? "modify") as AdminAiCodeEditorFileChange["change_type"],
+          status: String(item?.status ?? "planned") as AdminAiCodeEditorFileChange["status"],
+          rationale: item?.rationale ? String(item.rationale) : null,
+          diff_preview: item?.diff_preview ? String(item.diff_preview) : null,
+          metadata: normalizeUnknownRecord(item?.metadata),
+          created_at: String(item?.created_at ?? ""),
+          updated_at: String(item?.updated_at ?? ""),
+        }))
+      : [],
+    events: Array.isArray(record.events)
+      ? record.events.map((item) => ({
+          id: String(item?.id ?? ""),
+          task_id: String(item?.task_id ?? ""),
+          actor_user_id: item?.actor_user_id ? String(item.actor_user_id) : null,
+          event_type: String(item?.event_type ?? ""),
+          message: String(item?.message ?? ""),
+          metadata: normalizeUnknownRecord(item?.metadata),
+          created_at: String(item?.created_at ?? ""),
+        }))
+      : [],
+    deploys: Array.isArray(record.deploys)
+      ? record.deploys.map((item) => ({
+          id: String(item?.id ?? ""),
+          task_id: String(item?.task_id ?? ""),
+          provider: String(item?.provider ?? "manual") as AdminAiCodeEditorDeploy["provider"],
+          environment: String(item?.environment ?? ""),
+          deployment_id: item?.deployment_id ? String(item.deployment_id) : null,
+          deployment_url: item?.deployment_url ? String(item.deployment_url) : null,
+          status: String(item?.status ?? "not_requested") as AdminAiCodeEditorDeploy["status"],
+          metadata: normalizeUnknownRecord(item?.metadata),
+          created_at: String(item?.created_at ?? ""),
+          updated_at: String(item?.updated_at ?? ""),
+        }))
+      : [],
   }
 }
 
@@ -1764,6 +1908,31 @@ export async function fetchAdminLegacyPageEditorConfig() {
   return normalizeAdminLegacyPageEditorConfig(data as Partial<AdminLegacyPageEditorConfig> | null)
 }
 
+export async function fetchAdminAiCodeEditorConfig() {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminAiCodeEditorConfig
+  }>("admin-ai-code-editor", {
+    action: "get_config",
+  })
+
+  return normalizeAdminAiCodeEditorConfig(response.config)
+}
+
+export async function updateAdminAiCodeEditorConfig(input: {
+  configValue: AdminAiCodeEditorConfig["config_value"]
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminAiCodeEditorConfig
+  }>("admin-ai-code-editor", {
+    action: "update_config",
+    configValue: input.configValue,
+  })
+
+  return normalizeAdminAiCodeEditorConfig(response.config)
+}
+
 export async function updateAdminLegacyPageEditorConfig(input: {
   enabled: boolean
 }) {
@@ -1827,6 +1996,107 @@ export async function fetchAdminAiPageEditorConfig() {
     ...normalizeAdminAiPageEditorConfig(response.config),
     secret_status: response.secret_status,
   }
+}
+
+export async function fetchAdminAiCodeEditorTasks() {
+  const response = await invokeAdminFunction<{
+    success: true
+    tasks: AdminAiCodeEditorTask[]
+  }>("admin-ai-code-editor", {
+    action: "list_tasks",
+  })
+
+  return (response.tasks ?? []).map((task) => normalizeAdminAiCodeEditorTask(task))
+}
+
+export async function fetchAdminAiCodeEditorTask(taskId: string) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "get_task",
+    taskId,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function createAdminAiCodeEditorTask(input: {
+  prompt: string
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "create_task",
+    prompt: input.prompt,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function approveAdminAiCodeEditorTask(input: {
+  taskId: string
+  notes?: string | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "approve_task",
+    taskId: input.taskId,
+    notes: input.notes ?? null,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function rejectAdminAiCodeEditorTask(input: {
+  taskId: string
+  notes?: string | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "reject_task",
+    taskId: input.taskId,
+    notes: input.notes ?? null,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function requestAdjustmentAdminAiCodeEditorTask(input: {
+  taskId: string
+  notes?: string | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "request_adjustment",
+    taskId: input.taskId,
+    notes: input.notes ?? null,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
+}
+
+export async function rollbackAdminAiCodeEditorTask(input: {
+  taskId: string
+  notes?: string | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    task: AdminAiCodeEditorTask
+  }>("admin-ai-code-editor", {
+    action: "rollback_task",
+    taskId: input.taskId,
+    notes: input.notes ?? null,
+  })
+
+  return normalizeAdminAiCodeEditorTask(response.task)
 }
 
 export async function testAdminAiPageEditorProviders() {

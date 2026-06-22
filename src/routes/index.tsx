@@ -174,6 +174,9 @@ const AdminPageEditor = lazy(() =>
 const AdminAiPageEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAiPageEditor })),
 )
+const AdminAiCodeEditor = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminAiCodeEditor })),
+)
 
 function withSuspense(node: ReactNode) {
   return (
@@ -578,6 +581,10 @@ export const router = createBrowserRouter(
         {
           path: "editor-ia",
           element: withSuspense(<AdminAiPageEditor />),
+        },
+        {
+          path: "editor-ia-irrestrito",
+          element: withSuspense(<AdminAiCodeEditor />),
         },
         {
           path: "produtos",

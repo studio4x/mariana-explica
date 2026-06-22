@@ -63,6 +63,7 @@ export const ROUTES = {
   ADMIN_COUPONS: "/admin/cupons",
   ADMIN_PAGE_EDITOR: "/admin/editor-paginas",
   ADMIN_AI_PAGE_EDITOR: "/admin/editor-ia",
+  ADMIN_AI_CODE_EDITOR: "/admin/editor-ia-irrestrito",
 } as const
 
 // API

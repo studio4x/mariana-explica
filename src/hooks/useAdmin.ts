@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 import {
   archiveAdminProduct,
+  approveAdminAiCodeEditorTask,
+  createAdminAiCodeEditorTask,
   createAdminAffiliate,
   createAdminCoupon,
   createAdminCourseRelease,
@@ -28,6 +30,9 @@ import {
   fetchAdminAffiliates,
   fetchAdminDashboardOverview,
   fetchAdminDashboardMetrics,
+  fetchAdminAiCodeEditorConfig,
+  fetchAdminAiCodeEditorTask,
+  fetchAdminAiCodeEditorTasks,
   fetchAdminAiPageEditorConfig,
   fetchAdminAiPageEditorUsageMetrics,
   fetchAdminLegacyPageEditorConfig,
@@ -72,9 +77,12 @@ import {
   runOneAdminCron,
   scheduleAdminCronJobs,
   revokeAdminCourseRelease,
+  rollbackAdminAiCodeEditorTask,
   replyAdminSupportTicket,
   replyAdminPublicFormSubmission,
+  requestAdjustmentAdminAiCodeEditorTask,
   queueAdminCronTestEmail,
+  rejectAdminAiCodeEditorTask,
   fetchSupportAttachmentUrl,
   uploadSupportAttachment,
   uploadAdminModuleAssetFile,
@@ -86,6 +94,7 @@ import {
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
   updateAdminPublicFormNotificationsConfig,
+  updateAdminAiCodeEditorConfig,
   updateAdminLegacyPageEditorConfig,
   updateAdminAiPageEditorConfig,
   updateAdminSiteMaintenanceConfig,
@@ -114,6 +123,7 @@ import {
   updateAdminUserPassword,
 } from "@/services"
 import type {
+  AdminAiCodeEditorTask,
   AdminSitePageDetail,
   AdminNotificationSummary,
   AdminSupportTicketSummary,
@@ -264,6 +274,15 @@ export function useAdminLegacyPageEditorConfig(enabled = true) {
   })
 }
 
+export function useAdminAiCodeEditorConfig(enabled = true) {
+  return useQuery({
+    queryKey: ["admin", "ai-code-editor", "config"],
+    queryFn: fetchAdminAiCodeEditorConfig,
+    enabled,
+    ...getAdminQueryOptions(),
+  })
+}
+
 export function useAdminAiPageEditorConfig(enabled = true) {
   return useQuery({
     queryKey: ["admin", "ai-page-editor"],
@@ -278,6 +297,24 @@ export function useAdminAiPageEditorUsageMetrics(periodDays = 30, enabled = true
     queryKey: ["admin", "ai-page-editor", "usage-metrics", periodDays],
     queryFn: () => fetchAdminAiPageEditorUsageMetrics(periodDays),
     enabled,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminAiCodeEditorTasks(enabled = true) {
+  return useQuery({
+    queryKey: ["admin", "ai-code-editor", "tasks"],
+    queryFn: fetchAdminAiCodeEditorTasks,
+    enabled,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminAiCodeEditorTask(taskId: string | undefined, enabled = true) {
+  return useQuery<AdminAiCodeEditorTask>({
+    queryKey: ["admin", "ai-code-editor", "tasks", taskId],
+    queryFn: () => fetchAdminAiCodeEditorTask(taskId ?? ""),
+    enabled: enabled && Boolean(taskId),
     ...getAdminQueryOptions(),
   })
 }
@@ -1267,9 +1304,60 @@ export function useUpdateAdminLegacyPageEditorConfig() {
   return useMutation({ mutationFn: updateAdminLegacyPageEditorConfig, onSuccess: invalidate })
 }
 
+export function useUpdateAdminAiCodeEditorConfig() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: updateAdminAiCodeEditorConfig, onSuccess: invalidate })
+}
+
 export function useUpdateAdminAiPageEditorConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminAiPageEditorConfig, onSuccess: invalidate })
+}
+
+export function useCreateAdminAiCodeEditorTask() {
+  const invalidate = useAdminInvalidation()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminAiCodeEditorTask,
+    onSuccess: (task) => {
+      queryClient.setQueryData<AdminAiCodeEditorTask>(["admin", "ai-code-editor", "tasks", task.id], task)
+      void queryClient.invalidateQueries({ queryKey: ["admin", "ai-code-editor", "tasks"] })
+      invalidate()
+    },
+  })
+}
+
+function useAdminAiCodeEditorTaskMutation<TInput extends { taskId: string }>(
+  mutationFn: (input: TInput) => Promise<AdminAiCodeEditorTask>,
+) {
+  const invalidate = useAdminInvalidation()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn,
+    onSuccess: (task) => {
+      queryClient.setQueryData<AdminAiCodeEditorTask>(["admin", "ai-code-editor", "tasks", task.id], task)
+      void queryClient.invalidateQueries({ queryKey: ["admin", "ai-code-editor", "tasks"] })
+      invalidate()
+    },
+  })
+}
+
+export function useApproveAdminAiCodeEditorTask() {
+  return useAdminAiCodeEditorTaskMutation(approveAdminAiCodeEditorTask)
+}
+
+export function useRejectAdminAiCodeEditorTask() {
+  return useAdminAiCodeEditorTaskMutation(rejectAdminAiCodeEditorTask)
+}
+
+export function useRequestAdjustmentAdminAiCodeEditorTask() {
+  return useAdminAiCodeEditorTaskMutation(requestAdjustmentAdminAiCodeEditorTask)
+}
+
+export function useRollbackAdminAiCodeEditorTask() {
+  return useAdminAiCodeEditorTaskMutation(rollbackAdminAiCodeEditorTask)
 }
 
 export function useTestAdminAiPageEditorProviders() {
