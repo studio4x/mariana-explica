@@ -10,8 +10,6 @@ Regras de uso:
 
 Nao usar este arquivo para alteracoes de produto ou de interface.
 
-Validacao do rollback por PR concluida com sucesso.
-
 ## Comportamento de quota
 
 Quando os providers configurados devolvem quota indisponivel, o editor deve expor o estado `blocked_provider_quota`, manter o diff e a auditoria, e orientar o admin a restaurar credito ou trocar para fallback deterministico. Nao deve pedir captura visual quando o alvo ja esta resolvido por baseline gerida.
