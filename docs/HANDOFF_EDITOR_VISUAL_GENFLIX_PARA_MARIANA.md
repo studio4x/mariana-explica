@@ -98,6 +98,64 @@ Motivos:
   - `Avancado` para ver resumo tecnico, fallback hardcoded e versoes recentes.
 - Os controles de estilo sao propositalmente limitados a entradas seguras, sem permitir CSS arbitrario no fluxo visual.
 - O editor continua livre no fluxo de IA irrestrito, mas o editor visual nao expande permissao alem do que a pagina e a policy ja permitem.
+- O `style_json` nao exige migration nova neste ciclo: ele ja existe como coluna real em `public.visual_site_page_versions`, criada pela migration `0043_visual_site_editor_foundation`.
+
+## Propriedades suportadas
+
+### Texto / titulo
+
+- cor do texto;
+- cor de fundo;
+- familia tipografica;
+- tamanho da fonte;
+- peso da fonte;
+- altura da linha;
+- espacamento entre letras;
+- alinhamento;
+- transformacao de texto;
+- estilo tipografico normal ou italico;
+- tag `H1` a `H6` para campos de titulo;
+- reset do estilo para o fallback hardcoded.
+
+### Botao / link
+
+- cor do texto;
+- cor de fundo;
+- familia tipografica;
+- tamanho da fonte;
+- peso da fonte;
+- border radius;
+- border width;
+- border style;
+- border color;
+- padding horizontal;
+- padding vertical;
+- sombra;
+- alinhamento;
+- reset do estilo para o fallback hardcoded.
+
+### Imagem
+
+- border radius;
+- width;
+- height;
+- max width;
+- object fit (`cover` ou `contain`);
+- sombra.
+
+### Container
+
+- o container pratico atual e o wrapper da imagem ou do CTA;
+- ele suporta border radius, width, height, max width e sombra;
+- ainda nao existe editor livre de padding/background para container generico neste ciclo.
+
+## Validacao e whitelist
+
+- Valores invalidos de cor sao descartados.
+- Valores invalidos de fonte, peso, alinhamento, transformacao, border style, object fit e heading tag sao normalizados ou removidos.
+- Comprimentos aceitam apenas valores com unidade segura (`px`, `rem`, `em`, `%`) ou numeros convertidos para a unidade padrao do campo.
+- Nao existe entrada de CSS arbitrario no fluxo visual.
+- O estilo salvo e um documento estruturado por campo, nao uma string de CSS livre.
 
 ## Diferenca para o Genflix
 
@@ -121,6 +179,8 @@ Motivos:
 - `Publicar` promove a versao para publicada e atualiza `published_version_id`.
 - `Restaurar` cria um novo draft a partir de uma versao anterior.
 - A pagina publicada passa a apontar para a versao promovida.
+- Conteudo e estilo sao publicados juntos no mesmo salvamento de versao. Se a versao for restaurada ou revertida para fallback hardcoded, o estilo salvo junto tambem volta ao estado correspondente da versao ou desaparece junto com o conteudo publicado.
+- O reset de estilo remove apenas o override do campo e retorna ao fallback hardcoded da pagina.
 
 ## Protecao para visitante comum
 
@@ -128,6 +188,7 @@ Motivos:
 - Controles visuais nao aparecem para usuario comum.
 - RLS bloqueia escrita fora do backend/admin.
 - A tentativa de escrita direta com usuario comum nao afetou `visual_site_pages`.
+- Visitante comum nao ve controles, nao abre sidebar e nao publica estilo porque a edicao exige o estado autenticado/admin e a protecao de RLS continua no banco.
 
 ## RLS e policies criadas
 
@@ -212,6 +273,7 @@ Ele valida:
 - A pagina `/materiais` foi restaurada para a versao original 1.
 - As versoes temporarias de smoke permanecem apenas como historico/auditoria.
 - O historico nao invalida a entrega, desde que o `published_version_id` final aponte para a versao original publicada.
+- O smoke desta etapa precisa provar persistencia apos reload, estilo publicado no anonimo e retorno ao fallback/original para encerrar a entrega.
 
 ## Maintenance mode
 
@@ -256,6 +318,6 @@ Ele valida:
 
 ## Status final
 
-- Build `1.0.0-135-visual-editor-style-tabs`: concluida e validada.
+- Build `1.0.0-136-visual-editor-style-controls`: concluida e validada.
 - Publicacao em Vercel: concluida e reimplantada no commit final de documentacao.
 - Producao: ativa e acessivel.
