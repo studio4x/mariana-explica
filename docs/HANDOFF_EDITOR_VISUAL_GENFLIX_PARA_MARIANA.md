@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Entregar o **Editor Visual** em paralelo ao **Editor IA Irrestrito**, com namespace proprio, versionamento por pagina e publicacao segura. Nesta fase o piloto saiu de `/suporte` e passou a incluir tambem `/materiais`.
+Entregar o **Editor Visual** em paralelo ao **Editor IA Irrestrito**, com namespace proprio, versionamento por pagina e publicacao segura. Nesta fase o foco deixou de ser expandir novas paginas e passou a corrigir a experiencia real de edicao por clique, com sidebar fixa na pagina publica.
 
 ## Diferenca para o Editor IA Irrestrito
 
@@ -17,6 +17,13 @@ Entregar o **Editor Visual** em paralelo ao **Editor IA Irrestrito**, com namesp
 - O MVP visual ainda cobre apenas paginas publicas selecionadas.
 - O editor de IA irrestrito nao foi substituido nem rebaixado.
 - A Mariana pode evoluir o Visual Editor pagina a pagina sem quebrar o fluxo administrativo existente.
+
+## Problema encontrado
+
+- Os elementos editaveis ja marcavam selecao, mas o clique nao abria uma experiencia de edicao util na pagina publica.
+- A selecao ficava invisivel para o admin porque faltava uma sidebar fixa consumindo esse estado.
+- Na pratica, o usuario clicava e parecia que nada acontecia.
+- A causa raiz nao era o clique em si, e sim a ausencia de uma superficie de edicao conectada ao estado selecionado.
 
 ## Paginas piloto migradas
 
@@ -143,13 +150,14 @@ Fluxo validado:
 1. abrir `/admin/editor-visual` ou `/admin/editor-visual/materials`;
 2. confirmar que o admin ve o workspace;
 3. abrir `/suporte` e `/materiais` como admin;
-4. confirmar controles visuais;
-5. editar um campo simples;
-6. salvar e publicar;
-7. verificar a pagina como visitante comum;
-8. restaurar a versao anterior;
-9. confirmar fallback hardcoded quando `published_version_id` e limpo;
-10. confirmar que o editor de IA irrestrito continua carregando.
+4. clicar em um titulo, botao, link ou imagem editavel;
+5. confirmar que a sidebar lateral abre;
+6. editar um campo simples;
+7. salvar e publicar;
+8. verificar a pagina como visitante comum;
+9. restaurar a versao anterior;
+10. confirmar fallback hardcoded quando `published_version_id` e limpo;
+11. confirmar que o editor de IA irrestrito continua carregando.
 
 ## Smoke de producao
 
@@ -170,8 +178,8 @@ Ele valida:
 
 ### Smoke desta fase
 
-- A validacao de `/materiais` foi executada em producao com um smoke temporario equivalente, seguindo o mesmo padrao de admin/comum/anon e restauracao de fallback.
-- As alteracoes temporarias de smoke permaneceram apenas como historico/auditoria e a pagina foi restaurada ao estado original final.
+- A validacao desta fase foi executada em producao com um smoke temporario equivalente, cobrindo clique, abertura da sidebar, edicao, salvamento, publicacao, restauracao e fallback em `/suporte` e `/materiais`.
+- As alteracoes temporarias de smoke permaneceram apenas como historico/auditoria e as paginas foram restauradas ao estado original final.
 
 ## Deploy e publicacao
 
@@ -210,6 +218,8 @@ Ele valida:
 - O piloto agora cobre `/suporte` e `/materiais`.
 - O historico de versoes acumula entradas reais de smoke.
 - A granularidade do modelo ainda e por pagina/documento, nao por bloco isolado fora do JSON.
+- A sidebar cobre texto, textarea, link e imagem; listas e JSON ainda sao evolucoes futuras, se forem necessarias.
+- No mobile, a sidebar vira drawer inferior simples.
 - Falta expandir o editor para outras paginas publicas.
 
 ## Proximos passos
@@ -224,12 +234,12 @@ Ele valida:
 ## Validacao executada
 
 - `node scripts/visual-editor-prod-check.mjs`
-- `node tmp_visual_editor_materials_smoke.mjs` durante a entrega desta fase
+- smoke temporario de navegador para a sidebar em `/suporte` e `/materiais`
 - `cmd /c npm.cmd run build`
 - `cmd /c npm.cmd test`
 
 ## Status final
 
-- Build `1.0.0-133-visual-editor-materiais`: concluida e validada.
+- Build `1.0.0-134-visual-editor-sidebar`: concluida e validada.
 - Publicacao em Vercel: concluida e reimplantada no commit final de documentacao.
 - Producao: ativa e acessivel.

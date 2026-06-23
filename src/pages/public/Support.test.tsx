@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Support } from "./Support"
 
 const mockUseAuth = vi.fn()
@@ -26,6 +27,82 @@ vi.mock("@/features/site-editor/visual-editor/api", () => ({
   publishVisualEditorPageVersion: vi.fn(),
   restoreVisualEditorPageVersion: vi.fn(),
 }))
+
+function buildSupportDetail() {
+    const draftVersion = {
+      id: "support-version-2",
+      page_id: "support-page-1",
+      version_number: 2,
+      status: "draft",
+      entries_json: {
+        hero: {
+          eyebrow: "Suporte e FAQ",
+          title: "Como podemos ajudar?",
+          lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
+          primaryCta: {
+            label: "Abrir um chamado",
+            href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+          },
+          secondaryCta: {
+            label: "Entrar na conta",
+            href: "/login",
+          },
+          image: {
+            src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'></svg>",
+            alt: "Ilustracao",
+          },
+        },
+        supportCta: {
+          title: "Ainda precisa de ajuda?",
+          lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
+          primaryCta: {
+            label: "Abrir um chamado",
+            href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+          },
+          secondaryCta: {
+            label: "Entrar na conta",
+            href: "/login",
+          },
+        },
+      },
+      style_json: {},
+      metadata: {},
+      created_by: null,
+      created_at: "2026-01-02T00:00:00.000Z",
+    }
+
+    const publishedVersion = {
+      id: "support-version-1",
+      page_id: "support-page-1",
+      version_number: 1,
+      status: "published",
+      entries_json: {},
+      style_json: {},
+      metadata: {},
+      created_by: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+    }
+
+    return {
+      page: {
+        id: "support-page-1",
+        page_key: "support",
+        title: "Suporte",
+      status: "published",
+      published_version_id: "support-version-1",
+      created_by: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+      },
+      versions: [
+        draftVersion,
+        publishedVersion,
+      ],
+      publishedVersion,
+      latestDraft: draftVersion,
+      assets: [],
+    }
+}
 
 function renderSupport(pathname = "/suporte") {
   const queryClient = new QueryClient({
@@ -78,60 +155,30 @@ describe("Support", () => {
     renderSupport()
 
     expect(screen.getByRole("heading", { name: "Como podemos ajudar?" })).toBeInTheDocument()
-    expect(screen.getAllByRole("link", { name: "Entrar na conta" })[0]).toHaveAttribute("href", "/login")
+    expect(screen.getAllByRole("link", { name: "Abrir um chamado" })[0]).toHaveAttribute(
+      "href",
+      "/aluno/chamados?openTicketModal=1&ticketStep=form",
+    )
     expect(screen.getByText("Pergunta de teste")).toBeInTheDocument()
-    expect(screen.queryByText("Editar imagem")).not.toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()
   })
 
-  it("shows editor controls to an admin on the public support page", async () => {
+  it("opens the sidebar when an admin clicks an editable element", async () => {
+    const user = userEvent.setup()
+
     mockUseAuth.mockReturnValue({
       isAdmin: true,
       loading: false,
     })
-    mockFetchAdminVisualEditorPageDetail.mockResolvedValue({
-      page: {
-        id: "page-1",
-        page_key: "support",
-        title: "Suporte",
-        status: "published",
-        published_version_id: "version-1",
-        created_by: null,
-        created_at: "2026-01-01T00:00:00.000Z",
-        updated_at: "2026-01-01T00:00:00.000Z",
-      },
-      versions: [
-        {
-          id: "version-1",
-          page_id: "page-1",
-          version_number: 1,
-          status: "published",
-          entries_json: {},
-          style_json: {},
-          metadata: {},
-          created_by: null,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      publishedVersion: {
-        id: "version-1",
-        page_id: "page-1",
-        version_number: 1,
-        status: "published",
-        entries_json: {},
-        style_json: {},
-        metadata: {},
-        created_by: null,
-        created_at: "2026-01-01T00:00:00.000Z",
-      },
-      latestDraft: null,
-      assets: [],
-    })
+    mockFetchAdminVisualEditorPageDetail.mockResolvedValue(buildSupportDetail())
 
     renderSupport()
 
+    expect(await screen.findByRole("button", { name: "Como podemos ajudar?" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Como podemos ajudar?" }))
+
+    expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Como podemos ajudar?")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeInTheDocument()
-    expect(screen.getByText("Editor visual")).toBeInTheDocument()
-    expect(screen.getByText("Clique num elemento da pagina para editá-lo.")).toBeInTheDocument()
   })
 })

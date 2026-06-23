@@ -1,6 +1,6 @@
 export type VisualEditorPageKey = "support" | "materials"
 
-export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image"
+export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image" | "list" | "json"
 
 export interface VisualEditorDocument extends Record<string, unknown> {}
 
@@ -72,6 +72,16 @@ export interface VisualEditorFieldDefinition {
   kind: VisualEditorFieldKind
   description?: string
   placeholder?: string
+}
+
+export interface VisualEditorSelectedEditable {
+  pageKey: VisualEditorPageKey | string
+  entryKey: string
+  entryType: VisualEditorFieldKind
+  label: string
+  fallback: unknown
+  currentValue: unknown
+  schema: VisualEditorFieldDefinition
 }
 
 export interface VisualEditorPageDefinition {

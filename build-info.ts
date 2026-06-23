@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "133"
-export const BUILD_COMMIT = "visual-editor-materiais"
+export const BUILD_DEPLOY_NUMBER = "134"
+export const BUILD_COMMIT = "visual-editor-sidebar"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

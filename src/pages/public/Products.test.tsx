@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Products } from "./Products"
 
 const mockUseAuth = vi.fn()
@@ -40,75 +41,79 @@ vi.mock("@/features/site-editor/visual-editor/api", () => ({
 }))
 
 function buildMaterialsDetail() {
-  return {
-    page: {
-      id: "materials-page-1",
-      page_key: "materials",
-      title: "Materiais",
+    const draftVersion = {
+      id: "materials-version-2",
+      page_id: "materials-page-1",
+      version_number: 2,
+      status: "draft",
+      entries_json: {
+        hero: {
+          eyebrow: "Materiais",
+          title: "Tudo o que precisas para brilhares",
+          lead: "Encontra aqui os teus melhores amigos de estudo.",
+          primaryCta: {
+            label: "Explorar catálogos",
+            href: "#catalogo",
+          },
+        },
+        catalogHelpCta: {
+          label: "Precisas de ajuda para escolher?",
+          href: "/suporte",
+        },
+        supportCta: {
+          title: "Dúvidas? Estou aqui para ajudar!",
+          lead: "Se precisares, fala diretamente comigo.",
+          primaryCta: {
+            label: "Preciso de ajuda!",
+            href: "/suporte",
+          },
+          secondaryCta: {
+            label: "Entrar na conta",
+            href: "/login",
+          },
+        },
+        faq: {
+          eyebrow: "Respostas úteis",
+          title: "Perguntas Frequentes",
+        },
+      },
+      style_json: {},
+      metadata: {},
+      created_by: null,
+      created_at: "2026-01-02T00:00:00.000Z",
+    }
+
+    const publishedVersion = {
+      id: "materials-version-1",
+      page_id: "materials-page-1",
+      version_number: 1,
+      status: "published",
+      entries_json: {},
+      style_json: {},
+      metadata: {},
+      created_by: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+    }
+
+    return {
+      page: {
+        id: "materials-page-1",
+        page_key: "materials",
+        title: "Materiais",
       status: "published",
       published_version_id: "materials-version-1",
       created_by: null,
       created_at: "2026-01-01T00:00:00.000Z",
-      updated_at: "2026-01-01T00:00:00.000Z",
-    },
-    versions: [
-      {
-        id: "materials-version-2",
-        page_id: "materials-page-1",
-        version_number: 2,
-        status: "draft",
-        entries_json: {
-          hero: {
-            eyebrow: "Materiais",
-            title: "Tudo o que precisas para brilhares",
-            lead: "Encontra aqui os teus melhores amigos de estudo.",
-            primaryCta: {
-              label: "Explorar catálogo",
-              href: "#catalogo",
-            },
-          },
-          catalogHelpCta: {
-            label: "Precisas de ajuda para escolher?",
-            href: "/suporte",
-          },
-          supportCta: {
-            title: "Dúvidas? Estou aqui para ajudar!",
-            lead: "Se precisares, fala diretamente comigo.",
-            primaryCta: {
-              label: "Preciso de ajuda!",
-              href: "/suporte",
-            },
-            secondaryCta: {
-              label: "Entrar na conta",
-              href: "/login",
-            },
-          },
-          faq: {
-            eyebrow: "Respostas úteis",
-            title: "Perguntas Frequentes",
-          },
-        },
-        style_json: {},
-        metadata: {},
-        created_by: null,
-        created_at: "2026-01-02T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
       },
-      {
-        id: "materials-version-1",
-        page_id: "materials-page-1",
-        version_number: 1,
-        status: "published",
-        entries_json: {},
-        style_json: {},
-        metadata: {},
-        created_by: null,
-        created_at: "2026-01-01T00:00:00.000Z",
-      },
-    ],
-    publishedVersion: null,
-    latestDraft: null,
-    assets: [],
-  }
+      versions: [
+        draftVersion,
+        publishedVersion,
+      ],
+      publishedVersion,
+      latestDraft: draftVersion,
+      assets: [],
+    }
 }
 
 function renderProducts(pathname = "/materiais") {
@@ -222,6 +227,8 @@ describe("Products", () => {
   })
 
   it("shows editor controls to an admin on the public materials page", async () => {
+    const user = userEvent.setup()
+
     mockUseAuth.mockReturnValue({
       isAdmin: true,
       loading: false,
@@ -232,7 +239,10 @@ describe("Products", () => {
 
     expect(await screen.findByRole("button", { name: "Tudo o que precisas para brilhares" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeInTheDocument()
-    expect(screen.getByText("Editor visual")).toBeInTheDocument()
-    expect(screen.getByText("Explorar catálogo")).toBeInTheDocument()
+    expect(screen.getAllByText("Editor visual").length).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole("button", { name: "Tudo o que precisas para brilhares" }))
+    expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Tudo o que precisas para brilhares")).toBeInTheDocument()
   })
 })

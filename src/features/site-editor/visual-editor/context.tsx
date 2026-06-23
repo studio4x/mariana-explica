@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useLocation } from "react-router-dom"
-import { ArrowRight, Image as ImageIcon, Link2, PencilLine, Sparkles } from "lucide-react"
+import { ArrowRight, Link2, PencilLine, Sparkles } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
+import { VisualEditorSidebar } from "./VisualEditorSidebar"
 import {
   fetchAdminVisualEditorPageDetail,
   fetchPublicVisualEditorPage,
@@ -22,6 +23,7 @@ import type {
   VisualEditorPageKey,
   VisualEditorPageVersion,
   VisualEditorPublicPagePayload,
+  VisualEditorSelectedEditable,
 } from "./types"
 import {
   cloneVisualEditorDocument,
@@ -38,7 +40,10 @@ interface VisualEditorContextValue {
   document: VisualEditorDocument
   baselineDocument: VisualEditorDocument
   selectedFieldKey: string | null
+  selectedEditable: VisualEditorSelectedEditable | null
+  draftValue: unknown
   isAdminEditorRoute: boolean
+  isPublicEditorRoute: boolean
   canEdit: boolean
   isDirty: boolean
   isLoading: boolean
@@ -46,10 +51,17 @@ interface VisualEditorContextValue {
   setSelectedFieldKey: (fieldKey: string | null) => void
   selectField: (fieldKey: string) => void
   clearSelection: () => void
+  openEditor: (fieldKey: string) => void
+  closeEditor: () => void
+  cancelEditor: () => void
+  restoreFallback: () => void
+  setDraftValue: (value: unknown) => void
   setFieldValue: (fieldKey: string, value: unknown) => void
   resetDocument: () => void
   saveDraft: () => Promise<VisualEditorPageVersion>
+  saveEditor: () => Promise<VisualEditorPageVersion>
   publishDraft: () => Promise<VisualEditorPageVersion>
+  publishEditor: () => Promise<VisualEditorPageVersion>
   restoreVersion: (versionId: string) => Promise<VisualEditorPageVersion>
   refresh: () => Promise<void>
   getFieldValue: (fieldKey: string, fallback?: unknown) => unknown
@@ -71,6 +83,36 @@ function isDeepEqual(left: VisualEditorDocument, right: VisualEditorDocument) {
 
 function buildSelectedFieldLabel(field: VisualEditorFieldDefinition | undefined) {
   return field ? `${field.label}` : "Campo visual"
+}
+
+function normalizeEditableValue(field: VisualEditorFieldDefinition | undefined, rawValue: unknown) {
+  if (!field) return rawValue
+
+  if (field.kind === "link") {
+    const fallback = typeof rawValue === "object" && rawValue ? (rawValue as Record<string, unknown>) : {}
+    return {
+      label: typeof fallback.label === "string" ? fallback.label : "",
+      href: typeof fallback.href === "string" ? fallback.href : "",
+    }
+  }
+
+  if (field.kind === "image") {
+    const fallback = typeof rawValue === "object" && rawValue ? (rawValue as Record<string, unknown>) : {}
+    return {
+      src: typeof fallback.src === "string" ? fallback.src : "",
+      alt: typeof fallback.alt === "string" ? fallback.alt : "",
+    }
+  }
+
+  if (field.kind === "textarea" || field.kind === "text") {
+    return typeof rawValue === "string" ? rawValue : ""
+  }
+
+  return rawValue ?? ""
+}
+
+function resolveEditableValue(document: VisualEditorDocument, field: VisualEditorFieldDefinition) {
+  return normalizeEditableValue(field, getVisualEditorPathValue(document, field.key))
 }
 
 export function VisualEditorProvider(props: {
@@ -115,6 +157,7 @@ export function VisualEditorProvider(props: {
     cloneVisualEditorDocument(baseDocument),
   )
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null)
+  const [draftValue, setDraftValueState] = useState<unknown>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -132,6 +175,21 @@ export function VisualEditorProvider(props: {
 
   const fieldDefinitions = pageDefinition?.fields ?? []
   const currentField = selectedFieldKey ? fieldDefinitions.find((field) => field.key === selectedFieldKey) : undefined
+  const selectedEditable = useMemo<VisualEditorSelectedEditable | null>(() => {
+    if (!selectedFieldKey || !currentField || !pageDefinition) {
+      return null
+    }
+
+    return {
+      pageKey,
+      entryKey: selectedFieldKey,
+      entryType: currentField.kind,
+      label: currentField.label,
+      fallback: resolveEditableValue(pageDefinition.defaultDocument, currentField),
+      currentValue: resolveEditableValue(document, currentField),
+      schema: currentField,
+    }
+  }, [currentField, document, pageDefinition, pageKey, selectedFieldKey])
   const canEdit = Boolean(
     isAdmin &&
       !authLoading &&
@@ -171,13 +229,74 @@ export function VisualEditorProvider(props: {
     return fallback
   }
 
+  const getSelectedFieldBaselineValue = () => {
+    if (!currentField) {
+      return undefined
+    }
+
+    return resolveEditableValue(baselineDocument, currentField)
+  }
+
+  const openEditor = (fieldKey: string) => {
+    const nextField = fieldDefinitions.find((field) => field.key === fieldKey)
+    if (!nextField) return
+
+    const nextValue = resolveEditableValue(document, nextField)
+    setSelectedFieldKey(fieldKey)
+    setDraftValueState(nextValue)
+    setStatusMessage(null)
+  }
+
+  const closeEditor = () => {
+    setSelectedFieldKey(null)
+    setDraftValueState(null)
+  }
+
+  const restoreFallback = () => {
+    if (!currentField || !pageDefinition || !selectedFieldKey) {
+      return
+    }
+
+    const fallbackValue = resolveEditableValue(pageDefinition.defaultDocument, currentField)
+    setDocument((current) => setVisualEditorPathValue(current, selectedFieldKey, fallbackValue))
+    setDraftValueState(fallbackValue)
+    setStatusMessage(`Campo ${currentField.label} restaurado para o fallback hardcoded.`)
+  }
+
+  const cancelEditor = () => {
+    if (!selectedFieldKey || !currentField) {
+      closeEditor()
+      return
+    }
+
+    const baselineValue = getSelectedFieldBaselineValue()
+    if (baselineValue !== undefined) {
+      setDocument((current) => setVisualEditorPathValue(current, selectedFieldKey, baselineValue))
+      setDraftValueState(baselineValue)
+      setStatusMessage(`Alteracoes de ${currentField.label} canceladas.`)
+    }
+
+    closeEditor()
+  }
+
   const setFieldValue = (fieldKey: string, value: unknown) => {
     setDocument((current) => setVisualEditorPathValue(current, fieldKey, value))
+    if (selectedFieldKey === fieldKey) {
+      setDraftValueState(value)
+    }
+  }
+
+  const setDraftValue = (value: unknown) => {
+    setDraftValueState(value)
+    if (selectedFieldKey) {
+      setDocument((current) => setVisualEditorPathValue(current, selectedFieldKey, value))
+    }
   }
 
   const resetDocument = () => {
     setDocument(cloneVisualEditorDocument(baselineDocument))
     setSelectedFieldKey(null)
+    setDraftValueState(null)
     setStatusMessage("Alteracoes revertidas para a ultima versao carregada.")
   }
 
@@ -195,7 +314,9 @@ export function VisualEditorProvider(props: {
     const normalizedDocument = mergeVisualEditorDocuments(pageDefinition.defaultDocument, saved.version.entries_json)
     setBaselineDocument(cloneVisualEditorDocument(normalizedDocument))
     setDocument(cloneVisualEditorDocument(normalizedDocument))
-    setSelectedFieldKey(null)
+    if (selectedFieldKey && currentField) {
+      setDraftValueState(resolveEditableValue(normalizedDocument, currentField))
+    }
     setStatusMessage(`Rascunho salvo na versao ${saved.version.version_number}.`)
 
     await queryClient.invalidateQueries({ queryKey: ["visual-editor", "public", pageKey] })
@@ -210,6 +331,9 @@ export function VisualEditorProvider(props: {
     const normalizedDocument = mergeVisualEditorDocuments(pageDefinition?.defaultDocument ?? {}, published.version.entries_json)
     setBaselineDocument(cloneVisualEditorDocument(normalizedDocument))
     setDocument(cloneVisualEditorDocument(normalizedDocument))
+    if (selectedFieldKey && currentField) {
+      setDraftValueState(resolveEditableValue(normalizedDocument, currentField))
+    }
     setStatusMessage(`Versao ${published.version.version_number} publicada com sucesso.`)
 
     await queryClient.invalidateQueries({ queryKey: ["visual-editor", "public", pageKey] })
@@ -223,6 +347,9 @@ export function VisualEditorProvider(props: {
     const normalizedDocument = mergeVisualEditorDocuments(pageDefinition?.defaultDocument ?? {}, restored.version.entries_json)
     setBaselineDocument(cloneVisualEditorDocument(normalizedDocument))
     setDocument(cloneVisualEditorDocument(normalizedDocument))
+    if (selectedFieldKey && currentField) {
+      setDraftValueState(resolveEditableValue(normalizedDocument, currentField))
+    }
     setStatusMessage(`Versao ${restored.version.version_number} restaurada como novo rascunho.`)
 
     await queryClient.invalidateQueries({ queryKey: ["visual-editor", "public", pageKey] })
@@ -237,6 +364,8 @@ export function VisualEditorProvider(props: {
   }
 
   const selectedFieldLabel = buildSelectedFieldLabel(currentField)
+  const saveEditor = saveDraft
+  const publishEditor = publishDraft
 
   const contextValue = useMemo<VisualEditorContextValue>(
     () => ({
@@ -247,20 +376,28 @@ export function VisualEditorProvider(props: {
       document,
       baselineDocument,
       selectedFieldKey,
+      selectedEditable,
+      draftValue,
       isAdminEditorRoute,
+      isPublicEditorRoute,
       canEdit,
       isDirty,
       isLoading,
       fieldDefinitions,
       setSelectedFieldKey,
-      selectField: (fieldKey: string) => {
-        setSelectedFieldKey(fieldKey)
-      },
-      clearSelection: () => setSelectedFieldKey(null),
+      selectField: openEditor,
+      clearSelection: closeEditor,
+      openEditor,
+      closeEditor,
+      cancelEditor,
+      restoreFallback,
+      setDraftValue,
       setFieldValue,
       resetDocument,
       saveDraft,
+      saveEditor,
       publishDraft,
+      publishEditor,
       restoreVersion,
       refresh,
       getFieldValue,
@@ -272,28 +409,40 @@ export function VisualEditorProvider(props: {
     [
       baselineDocument,
       canEdit,
+      cancelEditor,
+      closeEditor,
       document,
       fieldDefinitions,
+      draftValue,
       getFieldValue,
       getImageField,
       getLinkField,
       isAdminEditorRoute,
+      isPublicEditorRoute,
       isDirty,
       isLoading,
       pageDefinition,
       pageDetail,
       pageKey,
       publicPage,
+      openEditor,
       refresh,
       resetDocument,
+      restoreFallback,
       restoreVersion,
+      saveEditor,
       saveDraft,
       publishDraft,
+      publishEditor,
       selectedFieldKey,
+      selectedEditable,
       setStatusMessage,
+      setDraftValue,
       statusMessage,
     ],
   )
+
+  const showFixedSidebar = canEdit && !isAdminEditorRoute && (isPublicEditorRoute || location.search.includes("visual-editor=1"))
 
   return (
     <VisualEditorContext.Provider value={contextValue}>
@@ -321,21 +470,48 @@ export function VisualEditorProvider(props: {
               <Button type="button" variant="outline" className="h-10 rounded-full bg-white" onClick={() => void refresh()}>
                 Atualizar
               </Button>
-              <Button type="button" variant="outline" className="h-10 rounded-full bg-white" onClick={resetDocument}>
-                Reverter
-              </Button>
-              <Button type="button" className="h-10 rounded-full" onClick={() => void saveDraft()} disabled={!isDirty}>
-                Guardar rascunho
-              </Button>
-              <Button type="button" className="h-10 rounded-full bg-slate-950 text-white hover:bg-slate-800" onClick={() => void publishDraft()}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Publicar
-              </Button>
+              {isAdminEditorRoute ? (
+                <>
+                  <Button type="button" variant="outline" className="h-10 rounded-full bg-white" onClick={resetDocument}>
+                    Reverter
+                  </Button>
+                  <Button type="button" className="h-10 rounded-full" onClick={() => void saveDraft()} disabled={!isDirty}>
+                    Guardar rascunho
+                  </Button>
+                  <Button type="button" className="h-10 rounded-full bg-slate-950 text-white hover:bg-slate-800" onClick={() => void publishDraft()}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Publicar
+                  </Button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
       ) : null}
-      {children}
+      {showFixedSidebar ? (
+        <VisualEditorSidebar
+          mode="fixed"
+          canEdit={canEdit}
+          pageDefinition={pageDefinition}
+          pageDetail={pageDetail}
+          publicPage={publicPage}
+          selectedEditable={selectedEditable}
+          draftValue={draftValue}
+          isDirty={isDirty}
+          statusMessage={statusMessage}
+          setStatusMessage={setStatusMessage}
+          setDraftValue={setDraftValue}
+          closeEditor={closeEditor}
+          cancelEditor={cancelEditor}
+          restoreFallback={restoreFallback}
+          resetDocument={resetDocument}
+          saveEditor={saveEditor}
+          publishEditor={publishEditor}
+          restoreVersion={restoreVersion}
+          refresh={refresh}
+        />
+      ) : null}
+      <div className={cn(showFixedSidebar && "lg:pr-[448px]")}>{children}</div>
     </VisualEditorContext.Provider>
   )
 }
@@ -349,7 +525,8 @@ function useVisualEditorContext() {
 }
 
 function useEditableElementState(fieldKey: string) {
-  const { canEdit, selectedFieldKey, selectField, clearSelection } = useVisualEditorContext()
+  const { canEdit, selectedFieldKey, selectField, clearSelection, fieldDefinitions } = useVisualEditorContext()
+  const fieldDefinition = fieldDefinitions.find((field) => field.key === fieldKey)
   const isSelected = selectedFieldKey === fieldKey
 
   const select = () => {
@@ -357,7 +534,42 @@ function useEditableElementState(fieldKey: string) {
     selectField(fieldKey)
   }
 
-  return { canEdit, isSelected, select, clearSelection }
+  return { canEdit, isSelected, select, clearSelection, fieldDefinition }
+}
+
+function EditableMarker(props: { label: string; kind: string; selected: boolean }) {
+  const { label, kind, selected } = props
+
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none absolute -top-3 right-3 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] shadow-sm transition",
+        selected ? "border-sky-300 bg-sky-600 text-white" : "border-sky-200 bg-white text-sky-700 opacity-0 group-hover:opacity-100",
+      )}
+    >
+      <PencilLine className="h-3.5 w-3.5" />
+      <span>{label}</span>
+      <span className="font-medium tracking-normal opacity-80">{kind}</span>
+    </span>
+  )
+}
+
+function getEditableKindLabel(kind: string | undefined) {
+  switch (kind) {
+    case "textarea":
+      return "Texto longo"
+    case "link":
+      return "Link"
+    case "image":
+      return "Imagem"
+    case "list":
+      return "Lista"
+    case "json":
+      return "JSON"
+    default:
+      return "Texto"
+  }
 }
 
 export function useVisualEditorPage() {
@@ -398,7 +610,7 @@ export function EditableText(props: {
 }) {
   const { fieldKey, as = "p", fallback, className } = props
   const { getFieldValue, canEdit } = useVisualEditorContext()
-  const { isSelected, select } = useEditableElementState(fieldKey)
+  const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = String(getFieldValue(fieldKey, fallback) ?? fallback)
   const Element = as as keyof JSX.IntrinsicElements
 
@@ -406,6 +618,7 @@ export function EditableText(props: {
     <Element
       data-visual-editor-field={fieldKey}
       className={cn(
+        "group relative",
         className,
         canEdit && "cursor-pointer transition",
         canEdit && "hover:outline hover:outline-2 hover:outline-sky-300/80",
@@ -425,6 +638,13 @@ export function EditableText(props: {
       tabIndex={canEdit ? 0 : undefined}
       role={canEdit ? "button" : undefined}
     >
+      {canEdit ? (
+        <EditableMarker
+          label="Editar"
+          kind={getEditableKindLabel(fieldDefinition?.kind)}
+          selected={isSelected}
+        />
+      ) : null}
       {value}
     </Element>
   )
@@ -437,7 +657,7 @@ export function EditableLink(props: {
 }) {
   const { fieldKey, fallback, className } = props
   const { getLinkField, canEdit } = useVisualEditorContext()
-  const { isSelected, select } = useEditableElementState(fieldKey)
+  const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = getLinkField(fieldKey, fallback)
 
   if (canEdit) {
@@ -446,7 +666,7 @@ export function EditableLink(props: {
         type="button"
         data-visual-editor-field={fieldKey}
         className={cn(
-          "inline-flex items-center gap-2 text-left",
+          "group relative inline-flex items-center gap-2 text-left",
           className,
           "cursor-pointer transition hover:outline hover:outline-2 hover:outline-sky-300/80",
           isSelected && "outline outline-2 outline-sky-500 outline-offset-4",
@@ -455,6 +675,11 @@ export function EditableLink(props: {
       >
         <Link2 className="h-4 w-4" />
         <span>{value.label}</span>
+        <EditableMarker
+          label="Editar"
+          kind={getEditableKindLabel(fieldDefinition?.kind)}
+          selected={isSelected}
+        />
       </button>
     )
   }
@@ -474,7 +699,7 @@ export function EditableButton(props: {
 }) {
   const { fieldKey, fallback, className, variant = "primary" } = props
   const { getLinkField, canEdit } = useVisualEditorContext()
-  const { isSelected, select } = useEditableElementState(fieldKey)
+  const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = getLinkField(fieldKey, fallback)
   const baseClassName =
     variant === "secondary"
@@ -487,6 +712,7 @@ export function EditableButton(props: {
         type="button"
         data-visual-editor-field={fieldKey}
         className={cn(
+          "group relative",
           baseClassName,
           className,
           "cursor-pointer",
@@ -496,6 +722,11 @@ export function EditableButton(props: {
       >
         <ArrowRight className="mr-2 h-4 w-4" />
         {value.label}
+        <EditableMarker
+          label="Editar"
+          kind={getEditableKindLabel(fieldDefinition?.kind)}
+          selected={isSelected}
+        />
       </button>
     )
   }
@@ -518,7 +749,7 @@ export function EditableImage(props: {
 }) {
   const { fieldKey, fallback, className } = props
   const { getImageField, canEdit } = useVisualEditorContext()
-  const { isSelected, select } = useEditableElementState(fieldKey)
+  const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = getImageField(fieldKey, fallback)
 
   return (
@@ -535,10 +766,11 @@ export function EditableImage(props: {
     >
       <img src={value.src} alt={value.alt} className="h-full w-full object-cover" />
       {canEdit ? (
-        <span className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-sky-700 shadow-sm">
-          <ImageIcon className="h-3.5 w-3.5" />
-          Editar imagem
-        </span>
+        <EditableMarker
+          label="Editar"
+          kind={getEditableKindLabel(fieldDefinition?.kind)}
+          selected={isSelected}
+        />
       ) : null}
     </button>
   )

@@ -1,4 +1,5 @@
 export * from "./api"
+export * from "./VisualEditorSidebar"
 export * from "./context"
 export * from "./page-definitions"
 export * from "./types"
