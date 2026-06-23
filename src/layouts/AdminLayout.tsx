@@ -15,6 +15,7 @@ import {
   MessageSquareText,
   Package,
   Percent,
+  Paintbrush,
   Settings,
   TicketPercent,
   UserCircle2,
@@ -69,6 +70,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
   { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Paginas", icon: LayoutTemplate },
   { to: ROUTES.ADMIN_AI_PAGE_EDITOR, label: "Editor IA", icon: Bot },
+  { to: ROUTES.ADMIN_VISUAL_EDITOR, label: "Editor Visual", icon: Paintbrush },
   { to: ROUTES.ADMIN_AI_CODE_EDITOR_CHAT, label: "Editor IA Irrestrito", icon: CodeXml },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
@@ -110,9 +112,11 @@ export function AdminLayout() {
   const showAiCodeEditor = aiCodeEditorTransition.showNewEditor
   const isLegacyPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
   const isLegacyAiEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_AI_PAGE_EDITOR)
+  const isVisualEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_VISUAL_EDITOR)
   const isAiCodeEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_AI_CODE_EDITOR)
   const isPageEditorRoute =
     isAiCodeEditorRoute ||
+    isVisualEditorRoute ||
     (isLegacyAiEditorRoute && showLegacyAiEditor) ||
     (isLegacyPageEditorRoute && showLegacyPageEditor)
   const visibleItems = items.filter((item) => {
