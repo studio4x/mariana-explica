@@ -460,7 +460,7 @@ describe("SiteAiPageEditorLauncher", () => {
     })
   })
 
-  it("does not render the legacy launcher when the unrestricted editor is the default", () => {
+  it("renders the floating launcher on the frontend when the feature is enabled", () => {
     mockUseAdminAiCodeEditorConfig.mockReturnValue({
       data: {
         config_value: {
@@ -495,7 +495,12 @@ describe("SiteAiPageEditorLauncher", () => {
       </QueryClientProvider>,
     )
 
-    expect(screen.queryByRole("button", { name: /editar com ia/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /editar com ia/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /editar com ia/i }).closest("[data-ai-page-editor-root]")).toHaveClass(
+      "fixed",
+      "bottom-5",
+      "right-5",
+    )
   })
 
   it("does not route a page-top spacing request to the global header branch", async () => {

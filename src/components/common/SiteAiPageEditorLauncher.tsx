@@ -6,7 +6,6 @@ import { Bot, Camera, Check, History, ImagePlus, Loader2, RotateCcw, Send, X } f
 import { useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import {
-  useAdminAiCodeEditorConfig,
   useAdminAiPageEditorConfig,
   usePublishAdminSitePageVersion,
   useRollbackAdminSitePageVersion,
@@ -33,7 +32,6 @@ import {
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
 } from "@/lib/site-page-builder"
-import { resolveAdminAiCodeEditorTransition } from "@/lib/admin-ai-code-editor"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
 import {
   AI_PAGE_EDITOR_NO_VISIBLE_CHANGE_MESSAGE,
@@ -775,7 +773,6 @@ function resolveConversationStatusCopy(input: {
 export function SiteAiPageEditorLauncher() {
   const { isAdmin, loading: authLoading } = useAuth()
   const queryClient = useQueryClient()
-  const aiCodeEditorConfigQuery = useAdminAiCodeEditorConfig(isAdmin && !authLoading)
   const configQuery = useAdminAiPageEditorConfig(isAdmin && !authLoading)
   const generateMutation = useGenerateAdminAiPageEditorProposal()
   const saveDraftMutation = useSaveAdminSitePageDraft()
@@ -818,19 +815,13 @@ export function SiteAiPageEditorLauncher() {
   const requestSequenceRef = useRef(0)
 
   const config = configQuery.data
-  const aiCodeEditorTransition = resolveAdminAiCodeEditorTransition(aiCodeEditorConfigQuery.data ?? null)
   const allowedPath = !config || isAiPageEditorAllowedPath(pathname, config.config_value.allowed_paths)
   const routeCapability = useMemo(
     () => getAiPageEditorRouteCapability(pathname, { allowedPaths: config?.config_value.allowed_paths }),
     [config?.config_value.allowed_paths, pathname],
   )
-  const canRenderLauncher = Boolean(
-    isAdmin &&
-      !authLoading &&
-      allowedPath &&
-      aiCodeEditorTransition.showLegacyAiEditor &&
-      !aiCodeEditorTransition.newEditorIsDefault,
-  )
+  const launcherIsEnabled = config?.config_value.enabled === true
+  const canRenderLauncher = Boolean(isAdmin && !authLoading && launcherIsEnabled && allowedPath)
   const routeOption = routeCapability.routeOption ?? discoveredRouteCapability.routeOption
   const pageSlug = routeCapability.managedSlug
   const pageDetailQuery = useAdminOptionalSitePageDetail(
