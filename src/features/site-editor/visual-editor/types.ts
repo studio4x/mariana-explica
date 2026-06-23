@@ -1,4 +1,4 @@
-export type VisualEditorPageKey = "support"
+export type VisualEditorPageKey = "support" | "materials"
 
 export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image"
 
@@ -82,4 +82,3 @@ export interface VisualEditorPageDefinition {
   defaultDocument: VisualEditorDocument
   fields: VisualEditorFieldDefinition[]
 }
-

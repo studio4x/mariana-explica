@@ -1,4 +1,4 @@
-import { Navigate, useParams } from "react-router-dom"
+import { Link, Navigate, useParams } from "react-router-dom"
 import { ExternalLink, Eye, Sparkles } from "lucide-react"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -8,11 +8,21 @@ import {
   VisualEditorProvider,
   useVisualEditorPage,
 } from "@/features/site-editor/visual-editor"
-import { getVisualEditorPageDefinition } from "@/features/site-editor/visual-editor/page-definitions"
+import {
+  VISUAL_EDITOR_PAGE_DEFINITIONS,
+  getVisualEditorPageDefinition,
+} from "@/features/site-editor/visual-editor/page-definitions"
+import { MaterialsPageContent } from "@/pages/public/MaterialsPageContent"
 import { SupportPageContent } from "@/pages/public/Support"
+
+function getAdminVisualEditorPath(pageKey: string) {
+  return pageKey === "support" ? ROUTES.ADMIN_VISUAL_EDITOR : `${ROUTES.ADMIN_VISUAL_EDITOR}/${pageKey}`
+}
 
 function VisualEditorWorkspace() {
   const { pageDefinition, pageDetail, isDirty, canEdit } = useVisualEditorPage()
+  const previewPage = pageDefinition?.pageKey === "materials" ? <MaterialsPageContent /> : <SupportPageContent />
+  const publicPagePath = pageDefinition?.publicPath ?? ROUTES.SUPPORT
 
   return (
     <div className="space-y-6">
@@ -22,7 +32,7 @@ function VisualEditorWorkspace() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" className="h-10 rounded-full">
-              <a href={ROUTES.SUPPORT} target="_blank" rel="noreferrer">
+              <a href={publicPagePath} target="_blank" rel="noreferrer">
                 <Eye className="mr-2 h-4 w-4" />
                 Abrir pagina publica
               </a>
@@ -36,6 +46,23 @@ function VisualEditorWorkspace() {
           </div>
         }
       />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {VISUAL_EDITOR_PAGE_DEFINITIONS.map((definition) => {
+          const isActive = definition.pageKey === pageDefinition?.pageKey
+
+          return (
+            <Button
+              key={definition.pageKey}
+              asChild
+              variant={isActive ? "default" : "outline"}
+              className="h-10 rounded-full"
+            >
+              <Link to={getAdminVisualEditorPath(definition.pageKey)}>{definition.title}</Link>
+            </Button>
+          )
+        })}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge label={canEdit ? "Edicao ativa" : "Somente leitura"} tone={canEdit ? "info" : "neutral"} />
@@ -65,7 +92,7 @@ function VisualEditorWorkspace() {
           </div>
 
           <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-            <SupportPageContent />
+            {previewPage}
           </div>
         </div>
 

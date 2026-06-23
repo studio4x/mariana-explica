@@ -27,6 +27,111 @@ vi.mock("@/features/site-editor/visual-editor/api", () => ({
   restoreVisualEditorPageVersion: vi.fn(),
 }))
 
+function buildPageDetail(pageKey: string) {
+  const isMaterials = pageKey === "materials"
+  const publishedVersion = {
+    id: `${pageKey}-version-1`,
+    page_id: `${pageKey}-page-1`,
+    version_number: 1,
+    status: "published" as const,
+    entries_json: isMaterials
+      ? {
+          hero: {
+            eyebrow: "Materiais",
+            title: "Tudo o que precisas para brilhares",
+            lead: "Encontra aqui os teus melhores amigos de estudo.",
+            primaryCta: {
+              label: "Explorar catálogo",
+              href: "#catalogo",
+            },
+          },
+          catalogHelpCta: {
+            label: "Precisas de ajuda para escolher?",
+            href: "/suporte",
+          },
+          supportCta: {
+            title: "Dúvidas? Estou aqui para ajudar!",
+            lead: "Se precisares, fala diretamente comigo.",
+            primaryCta: {
+              label: "Preciso de ajuda!",
+              href: "/suporte",
+            },
+            secondaryCta: {
+              label: "Entrar na conta",
+              href: "/login",
+            },
+          },
+          faq: {
+            eyebrow: "Respostas úteis",
+            title: "Perguntas Frequentes",
+          },
+        }
+      : {
+          hero: {
+            eyebrow: "Suporte e FAQ",
+            title: "Como podemos ajudar?",
+            lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
+            primaryCta: {
+              label: "Abrir um chamado",
+              href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+            },
+            secondaryCta: {
+              label: "Entrar na conta",
+              href: "/login",
+            },
+            image: {
+              src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'></svg>",
+              alt: "Ilustracao",
+            },
+          },
+          supportCta: {
+            title: "Ainda precisa de ajuda?",
+            lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
+            primaryCta: {
+              label: "Abrir um chamado",
+              href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+            },
+            secondaryCta: {
+              label: "Entrar na conta",
+              href: "/login",
+            },
+          },
+        },
+    style_json: {},
+    metadata: {},
+    created_by: null,
+    created_at: "2026-01-01T00:00:00.000Z",
+  }
+  const draftVersion = {
+    id: `${pageKey}-version-2`,
+    page_id: `${pageKey}-page-1`,
+    version_number: 2,
+    status: "draft" as const,
+    entries_json: publishedVersion.entries_json,
+    style_json: {},
+    metadata: {},
+    created_by: null,
+    created_at: "2026-01-02T00:00:00.000Z",
+  }
+
+  return {
+    page: {
+      id: `${pageKey}-page-1`,
+      page_key: pageKey,
+      title: isMaterials ? "Materiais" : "Suporte",
+      status: "published" as const,
+      published_version_id: `${pageKey}-version-1`,
+      created_by: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    },
+    versions: [draftVersion, publishedVersion],
+    publishedVersion,
+    latestDraft: draftVersion,
+    assets: [],
+  }
+}
+
 function renderEditor(pathname = "/admin/editor-visual") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -74,85 +179,26 @@ describe("AdminVisualSiteEditor", () => {
       ],
     })
     mockFetchPublicVisualEditorPage.mockResolvedValue(null)
-    mockFetchAdminVisualEditorPageDetail.mockResolvedValue({
-      page: {
-        id: "page-1",
-        page_key: "support",
-        title: "Suporte",
-        status: "published",
-        published_version_id: "version-1",
-        created_by: null,
-        created_at: "2026-01-01T00:00:00.000Z",
-        updated_at: "2026-01-01T00:00:00.000Z",
-      },
-      versions: [
-        {
-          id: "version-2",
-          page_id: "page-1",
-          version_number: 2,
-          status: "draft",
-          entries_json: {
-            hero: {
-              eyebrow: "Suporte e FAQ",
-              title: "Como podemos ajudar?",
-              lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.",
-              primaryCta: {
-                label: "Abrir um chamado",
-                href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
-              },
-              secondaryCta: {
-                label: "Entrar na conta",
-                href: "/login",
-              },
-              image: {
-                src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'></svg>",
-                alt: "Ilustracao",
-              },
-            },
-            supportCta: {
-              title: "Ainda precisa de ajuda?",
-              lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
-              primaryCta: {
-                label: "Abrir um chamado",
-                href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
-              },
-              secondaryCta: {
-                label: "Entrar na conta",
-                href: "/login",
-              },
-            },
-          },
-          style_json: {},
-          metadata: {},
-          created_by: null,
-          created_at: "2026-01-02T00:00:00.000Z",
-        },
-        {
-          id: "version-1",
-          page_id: "page-1",
-          version_number: 1,
-          status: "published",
-          entries_json: {},
-          style_json: {},
-          metadata: {},
-          created_by: null,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      publishedVersion: null,
-      latestDraft: null,
-      assets: [],
-    })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async (pageKey: string) => buildPageDetail(pageKey))
   })
 
   it("shows the visual editor workspace", async () => {
     renderEditor()
 
     expect(screen.getByRole("heading", { name: "Editor Visual" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Materiais" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /guardar rascunho/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /publicar/i })).toBeInTheDocument()
     expect(await screen.findByText("Versao 2")).toBeInTheDocument()
     expect(screen.getByText("Como podemos ajudar?")).toBeInTheDocument()
   })
-})
 
+  it("opens the materials editor workspace", async () => {
+    renderEditor("/admin/editor-visual/materials")
+
+    expect(screen.getByRole("heading", { name: "Editor Visual" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /Materiais/i })).toBeInTheDocument()
+    expect(screen.getByText("Tudo o que precisas para brilhares")).toBeInTheDocument()
+    expect(screen.getByText("Explorar catálogo")).toBeInTheDocument()
+  })
+})
