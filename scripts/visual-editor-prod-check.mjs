@@ -143,15 +143,15 @@ async function waitForPath(page, pathname, timeoutMs = 30000) {
   await page.waitForURL((url) => url.pathname === pathname, { timeout: timeoutMs })
 }
 
-async function getSupportState(adminClient) {
+async function getVisualPageState(adminClient, pageKey) {
   const pageResult = await adminClient
     .from("visual_site_pages")
     .select("id,page_key,title,status,published_version_id")
-    .eq("page_key", "support")
+    .eq("page_key", pageKey)
     .maybeSingle()
 
   if (pageResult.error) throw pageResult.error
-  assert(pageResult.data?.id, "Pagina visual support nao encontrada.")
+  assert(pageResult.data?.id, `Pagina visual ${pageKey} nao encontrada.`)
 
   const versionsResult = await adminClient
     .from("visual_site_page_versions")
@@ -167,25 +167,32 @@ async function getSupportState(adminClient) {
   }
 }
 
+async function getSupportState(adminClient) {
+  return getVisualPageState(adminClient, "support")
+}
+
 function getHeroTitle(version) {
   return String(version?.entries_json?.hero?.title ?? "")
 }
 
-async function selectAndEditHeroTitle(page, newTitle) {
-  const titleField = page.locator('[data-visual-editor-field="hero.title"]')
+async function selectAndEditHeroTitle(page, currentTitle, newTitle) {
+  const titleField = page.getByRole("button", { name: currentTitle })
   await titleField.waitFor({ state: "visible", timeout: 30000 })
   await titleField.click()
+  if (process.env.VISUAL_DEBUG_SCREENSHOT === "1") {
+    await page.screenshot({ path: "tmp_visual_editor_debug.png", fullPage: true })
+  }
 
-  const selectedPanel = page
-    .getByText("Elemento selecionado")
-    .locator("xpath=ancestor::div[contains(@class,'rounded-[1.75rem]')][1]")
-
+  const restoreFallbackButton = page.getByRole("button", { name: "Restaurar fallback" }).first()
+  await restoreFallbackButton.waitFor({ state: "visible", timeout: 30000 })
+  const selectedPanel = restoreFallbackButton.locator("xpath=ancestor::section[1]")
   const input = selectedPanel.locator("input").first()
   await input.waitFor({ state: "visible", timeout: 30000 })
   const currentValue = await input.inputValue()
   await input.fill(newTitle)
+  const updatedValue = await input.inputValue()
 
-  return currentValue
+  return { currentValue, updatedValue }
 }
 
 async function clickButtonAndWaitForMessage(page, name, messagePattern) {
@@ -390,15 +397,25 @@ async function main() {
       await adminPage.getByRole("heading", { name: "Editor Visual" }).waitFor({ state: "visible", timeout: 30000 })
       evidence.adminRoute = "/admin/editor-visual carregou para admin."
 
-      const currentHeroTitle = await adminPage.locator('[data-visual-editor-field="hero.title"]').innerText()
+      const currentHeroTitle = originalHeroTitle
       const smokeTitle = `${currentHeroTitle.replace(/\s*\|\s*Smoke Visual.*$/i, "")} | Smoke Visual ${stamp}`
-      const inspectorBefore = await selectAndEditHeroTitle(adminPage, smokeTitle)
-      assert(inspectorBefore.trim().length > 0, "Nao foi possivel ler o titulo atual no inspector")
+      const inspectorBefore = await selectAndEditHeroTitle(adminPage, currentHeroTitle, smokeTitle)
+      assert(inspectorBefore.currentValue.trim().length > 0, "Nao foi possivel ler o titulo atual no inspector")
+      assert(inspectorBefore.updatedValue === smokeTitle, "Input do editor nao refletiu o novo titulo")
 
       await adminPage.getByRole("button", { name: "Guardar rascunho" }).waitFor({ state: "visible", timeout: 30000 })
       await clickButtonAndWaitForMessage(adminPage, "Guardar rascunho", /Rascunho salvo na versao \d+\./i)
-      const afterSave = await getSupportState(adminClient)
-      const savedDraftVersion = afterSave.versions[afterSave.versions.length - 1]
+      let afterSave = null
+      let savedDraftVersion = null
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        afterSave = await getSupportState(adminClient)
+        savedDraftVersion = afterSave.versions[afterSave.versions.length - 1]
+        if (getHeroTitle(savedDraftVersion) === smokeTitle) {
+          break
+        }
+        await sleep(1000)
+      }
+      assert(afterSave, "Nao foi possivel ler o estado apos o save")
       assert(savedDraftVersion, "Nao foi possivel localizar o rascunho salvo")
       assert(getHeroTitle(savedDraftVersion) === smokeTitle, "Rascunho salvo nao corresponde ao texto editado")
       evidence.savedDraft = `Hero title alterado para: ${smokeTitle}`
@@ -500,9 +517,14 @@ async function main() {
       await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
       await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
       await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
-      const materialsOriginalTitle = await adminPage.locator('[data-visual-editor-field="hero.title"]').innerText()
+      const materialsState = await getVisualPageState(adminClient, "materials")
+      const materialsPublishedVersion = materialsState.versions.find((item) => item.id === materialsState.page.published_version_id)
+      assert(materialsPublishedVersion, "Versao publicada inicial de materiais nao encontrada")
+      const materialsOriginalTitle = getHeroTitle(materialsPublishedVersion)
       const smokeMaterialsTitle = `${materialsOriginalTitle.replace(/\s*\|\s*Smoke Visual.*$/i, "")} | Smoke Visual Materials ${stamp}`
-      await selectAndEditHeroTitle(adminPage, smokeMaterialsTitle)
+      const materialsEditorBefore = await selectAndEditHeroTitle(adminPage, materialsOriginalTitle, smokeMaterialsTitle)
+      assert(materialsEditorBefore.currentValue.trim().length > 0, "Nao foi possivel ler o titulo atual em materiais")
+      assert(materialsEditorBefore.updatedValue === smokeMaterialsTitle, "Input do editor em materiais nao refletiu o novo titulo")
       await clickButtonAndWaitForMessage(adminPage, "Guardar rascunho", /Rascunho salvo na versao \d+\./i)
       await clickButtonAndWaitForMessage(adminPage, "Publicar", /Versao \d+ publicada com sucesso\./i)
       await adminPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeMaterialsTitle, {
