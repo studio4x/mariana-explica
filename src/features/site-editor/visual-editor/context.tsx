@@ -89,11 +89,14 @@ export function VisualEditorProvider(props: {
     enabled: Boolean(pageKey),
   })
   const isAdminEditorRoute = Boolean(isAdmin && !authLoading && isPathUnderEditor(location.pathname))
+  const isPublicEditorRoute = Boolean(
+    isAdmin && !authLoading && pageDefinition?.publicPath && location.pathname === pageDefinition.publicPath,
+  )
   const adminQuery = useQuery({
     queryKey: ["visual-editor", "admin", pageKey],
     queryFn: () => fetchAdminVisualEditorPageDetail(pageKey),
     staleTime: 30_000,
-    enabled: Boolean(pageKey) && isAdminEditorRoute,
+    enabled: Boolean(pageKey) && (isAdminEditorRoute || isPublicEditorRoute),
   })
 
   const pageDetail = adminQuery.data ?? null
@@ -129,9 +132,13 @@ export function VisualEditorProvider(props: {
 
   const fieldDefinitions = pageDefinition?.fields ?? []
   const currentField = selectedFieldKey ? fieldDefinitions.find((field) => field.key === selectedFieldKey) : undefined
-  const canEdit = Boolean(isAdmin && !authLoading && (isAdminEditorRoute || location.search.includes("visual-editor=1")))
+  const canEdit = Boolean(
+    isAdmin &&
+      !authLoading &&
+      (isAdminEditorRoute || isPublicEditorRoute || location.search.includes("visual-editor=1")),
+  )
   const isDirty = !isDeepEqual(document, baselineDocument)
-  const isLoading = pageQuery.isLoading || (isAdminEditorRoute && adminQuery.isLoading)
+  const isLoading = pageQuery.isLoading || ((isAdminEditorRoute || isPublicEditorRoute) && adminQuery.isLoading)
 
   const getFieldValue = (fieldKey: string, fallback?: unknown) => {
     const value = getVisualEditorPathValue(document, fieldKey)

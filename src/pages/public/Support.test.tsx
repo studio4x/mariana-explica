@@ -83,4 +83,55 @@ describe("Support", () => {
     expect(screen.queryByText("Editar imagem")).not.toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()
   })
+
+  it("shows editor controls to an admin on the public support page", async () => {
+    mockUseAuth.mockReturnValue({
+      isAdmin: true,
+      loading: false,
+    })
+    mockFetchAdminVisualEditorPageDetail.mockResolvedValue({
+      page: {
+        id: "page-1",
+        page_key: "support",
+        title: "Suporte",
+        status: "published",
+        published_version_id: "version-1",
+        created_by: null,
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+      },
+      versions: [
+        {
+          id: "version-1",
+          page_id: "page-1",
+          version_number: 1,
+          status: "published",
+          entries_json: {},
+          style_json: {},
+          metadata: {},
+          created_by: null,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      publishedVersion: {
+        id: "version-1",
+        page_id: "page-1",
+        version_number: 1,
+        status: "published",
+        entries_json: {},
+        style_json: {},
+        metadata: {},
+        created_by: null,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      latestDraft: null,
+      assets: [],
+    })
+
+    renderSupport()
+
+    expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeInTheDocument()
+    expect(screen.getByText("Editor visual")).toBeInTheDocument()
+    expect(screen.getByText("Clique num elemento da pagina para editá-lo.")).toBeInTheDocument()
+  })
 })
