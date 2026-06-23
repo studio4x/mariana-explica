@@ -4,7 +4,7 @@ import {
   Footer,
   Navbar,
   ScrollToTop,
-  SiteAiPageEditorLauncher,
+  SiteAiCodeEditorLauncher,
   SiteBrandingManager,
   SiteThemeManager,
   SiteTrackingManager,
@@ -25,7 +25,7 @@ export function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <SiteAiPageEditorLauncher />
+      <SiteAiCodeEditorLauncher />
       <CookieConsentBanner />
       {isCheckout ? null : <Footer />}
     </div>

@@ -8,7 +8,7 @@ import {
   User,
 } from "lucide-react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteAiPageEditorLauncher, SiteBrandingManager, SiteLogo, SiteThemeManager, SiteTrackingManager } from "@/components/common"
+import { CookieConsentBanner, InstallPrompt, ScrollToTop, SiteAiCodeEditorLauncher, SiteBrandingManager, SiteLogo, SiteThemeManager, SiteTrackingManager } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
@@ -230,7 +230,7 @@ export function DashboardLayout() {
         markAsReadPending={markAsRead.isPending}
         clearAllPending={markAllAsRead.isPending}
       />
-      <SiteAiPageEditorLauncher />
+      <SiteAiCodeEditorLauncher />
       <InstallPrompt />
     </div>
   )

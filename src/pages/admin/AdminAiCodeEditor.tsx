@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CheckCircle2, CodeXml, Eye, GitBranch, Loader2, RefreshCw, RotateCcw, Save, Send, ShieldAlert, XCircle } from "lucide-react"
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CodeXml,
+  Eye,
+  GitBranch,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Send,
+  ShieldAlert,
+  XCircle,
+} from "lucide-react"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -120,6 +133,7 @@ function ToggleField(props: {
 }
 
 type EditorTab = "chat" | "tasks" | "config"
+type TaskListFilter = "all" | "in_progress" | "ready" | "failed" | "rejected" | "rollback"
 
 const EDITOR_TAB_ROUTES: Record<EditorTab, string> = {
   chat: ROUTES.ADMIN_AI_CODE_EDITOR_CHAT,
@@ -170,6 +184,29 @@ function EditorTabButton(props: {
   )
 }
 
+function parseDateValue(value: string | null | undefined) {
+  if (!value) return 0
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+function matchesTaskFilter(task: AdminAiCodeEditorTask, filter: TaskListFilter) {
+  if (filter === "all") return true
+  if (filter === "in_progress") {
+    return task.status === "queued" || task.status === "planning" || task.status === "approved"
+  }
+  if (filter === "ready") {
+    return task.status === "ready_for_review"
+  }
+  if (filter === "failed") {
+    return task.status === "failed" || task.status === "blocked_provider_quota" || task.status === "ai_generation_unavailable"
+  }
+  if (filter === "rejected") {
+    return task.status === "rejected" || task.status === "needs_adjustment"
+  }
+  return task.status === "rollback_ready_for_review" || Boolean(task.rolled_back_at ?? task.metadata.rollback_pull_request_url)
+}
+
 export function AdminAiCodeEditor() {
   const navigate = useNavigate()
   const { tab } = useParams<{ tab?: string }>()
@@ -189,11 +226,38 @@ export function AdminAiCodeEditor() {
   const [prompt, setPrompt] = useState("")
   const [actionNotes, setActionNotes] = useState("")
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [taskFilter] = useState<TaskListFilter>("all")
+  const [taskSearch] = useState("")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const activeTab = resolveEditorTab(tab) ?? "chat"
   const hasInvalidTab = tab != null && resolveEditorTab(tab) === null
 
-  const taskList = tasksQuery.data ?? []
+  const rawTaskList = tasksQuery.data ?? []
+  const taskList = useMemo(
+    () => [...rawTaskList].sort((left, right) => parseDateValue(right.updated_at) - parseDateValue(left.updated_at)),
+    [rawTaskList],
+  )
+  const filteredTaskList = useMemo(() => {
+    const normalizedSearch = taskSearch.trim().toLocaleLowerCase("pt-PT")
+
+    return taskList.filter((task) => {
+      if (!matchesTaskFilter(task, taskFilter)) return false
+      if (!normalizedSearch) return true
+
+      const searchableText = [
+        task.title,
+        task.summary,
+        task.prompt,
+        task.branch_name,
+        task.commit_sha ?? "",
+        task.pull_request_number ? String(task.pull_request_number) : "",
+      ]
+        .join(" ")
+        .toLocaleLowerCase("pt-PT")
+
+      return searchableText.includes(normalizedSearch)
+    })
+  }, [taskFilter, taskList, taskSearch])
   const taskMetrics = useMemo(() => {
     const metrics = {
       total: taskList.length,
@@ -224,7 +288,8 @@ export function AdminAiCodeEditor() {
     return metrics
   }, [taskList])
   const selectedTaskQuery = useAdminAiCodeEditorTask(selectedTaskId ?? undefined, Boolean(selectedTaskId))
-  const selectedTask = selectedTaskQuery.data ?? null
+  const selectedTask =
+    selectedTaskQuery.data ?? filteredTaskList.find((task) => task.id === selectedTaskId) ?? null
   const transitionState = useMemo(
     () => resolveAdminAiCodeEditorTransition(configQuery.data ?? null),
     [configQuery.data],
@@ -236,10 +301,15 @@ export function AdminAiCodeEditor() {
   }, [configQuery.data])
 
   useEffect(() => {
-    if (!selectedTaskId && taskList.length > 0) {
-      setSelectedTaskId(taskList[0].id)
+    if (filteredTaskList.length === 0) {
+      setSelectedTaskId(null)
+      return
     }
-  }, [selectedTaskId, taskList])
+
+    if (!selectedTaskId || !filteredTaskList.some((task) => task.id === selectedTaskId)) {
+      setSelectedTaskId(filteredTaskList[0].id)
+    }
+  }, [filteredTaskList, selectedTaskId])
 
   if (hasInvalidTab) {
     return <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />
