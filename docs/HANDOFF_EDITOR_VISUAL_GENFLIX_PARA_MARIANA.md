@@ -180,6 +180,7 @@ Ele valida:
 
 - A validacao desta fase foi executada em producao com um smoke temporario equivalente, cobrindo clique, abertura da sidebar, edicao, salvamento, publicacao, restauracao e fallback em `/suporte` e `/materiais`.
 - As alteracoes temporarias de smoke permaneceram apenas como historico/auditoria e as paginas foram restauradas ao estado original final.
+- A parte autenticada do smoke ficou limitada pelo fixture temporario de login comum, entao o arquivo de auditoria nao e tratado como prova final de fluxos de autenticacao humana para esse usuario.
 
 ## Deploy e publicacao
 
@@ -221,6 +222,7 @@ Ele valida:
 - A sidebar cobre texto, textarea, link e imagem; listas e JSON ainda sao evolucoes futuras, se forem necessarias.
 - No mobile, a sidebar vira drawer inferior simples.
 - Falta expandir o editor para outras paginas publicas.
+- O smoke autenticado comum precisa de um fixture de login mais robusto para ser repetido de ponta a ponta sem depender de login temporario fraco.
 
 ## Proximos passos
 
