@@ -4,8 +4,8 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
 import {
-  VisualEditorInspectorPanel,
   VisualEditorProvider,
+  VisualEditorSidebar,
   useVisualEditorPage,
 } from "@/features/site-editor/visual-editor"
 import {
@@ -20,7 +20,28 @@ function getAdminVisualEditorPath(pageKey: string) {
 }
 
 function VisualEditorWorkspace() {
-  const { pageDefinition, pageDetail, isDirty, canEdit } = useVisualEditorPage()
+  const {
+    pageDefinition,
+    pageDetail,
+    publicPage,
+    isDirty,
+    canEdit,
+    selectedEditable,
+    draftValue,
+    statusMessage,
+    setStatusMessage,
+    setDraftValue,
+    setStyleValue,
+    closeEditor,
+    cancelEditor,
+    restoreFallback,
+    restoreStyleFallback,
+    resetDocument,
+    saveEditor,
+    publishEditor,
+    restoreVersion,
+    refresh,
+  } = useVisualEditorPage()
   const previewPage = pageDefinition?.pageKey === "materials" ? <MaterialsPageContent /> : <SupportPageContent />
   const publicPagePath = pageDefinition?.publicPath ?? ROUTES.SUPPORT
 
@@ -97,7 +118,30 @@ function VisualEditorWorkspace() {
         </div>
 
         <div className="space-y-4">
-          <VisualEditorInspectorPanel className="sticky top-6" />
+          <VisualEditorSidebar
+            mode="inline"
+            className="sticky top-6"
+            canEdit={canEdit}
+            pageDefinition={pageDefinition}
+            pageDetail={pageDetail}
+            publicPage={publicPage}
+            selectedEditable={selectedEditable}
+            draftValue={draftValue}
+            isDirty={isDirty}
+            statusMessage={statusMessage}
+            setStatusMessage={setStatusMessage}
+            setDraftValue={setDraftValue}
+            setStyleValue={setStyleValue}
+            closeEditor={closeEditor}
+            cancelEditor={cancelEditor}
+            restoreFallback={restoreFallback}
+            restoreStyleFallback={restoreStyleFallback}
+            resetDocument={resetDocument}
+            saveEditor={saveEditor}
+            publishEditor={publishEditor}
+            restoreVersion={restoreVersion}
+            refresh={refresh}
+          />
 
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start gap-3">

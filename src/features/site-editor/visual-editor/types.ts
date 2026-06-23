@@ -31,7 +31,7 @@ export interface VisualEditorPageVersion {
   version_number: number
   status: "draft" | "published" | "archived"
   entries_json: VisualEditorDocument
-  style_json: Record<string, unknown>
+  style_json: VisualEditorStyleDocument
   metadata: Record<string, unknown>
   created_by: string | null
   created_at: string
@@ -72,6 +72,7 @@ export interface VisualEditorFieldDefinition {
   kind: VisualEditorFieldKind
   description?: string
   placeholder?: string
+  styleGroup?: "heading" | "text" | "interactive" | "image"
 }
 
 export interface VisualEditorSelectedEditable {
@@ -81,6 +82,8 @@ export interface VisualEditorSelectedEditable {
   label: string
   fallback: unknown
   currentValue: unknown
+  fallbackStyle: VisualEditorFieldStyleValue
+  currentStyle: VisualEditorFieldStyleValue
   schema: VisualEditorFieldDefinition
 }
 
@@ -91,4 +94,41 @@ export interface VisualEditorPageDefinition {
   description: string
   defaultDocument: VisualEditorDocument
   fields: VisualEditorFieldDefinition[]
+}
+
+export interface VisualEditorStyleDocument {
+  fields: Record<string, VisualEditorFieldStyleValue>
+}
+
+export interface VisualEditorFieldStyleValue extends Record<string, unknown> {
+  color?: string
+  backgroundColor?: string
+  fontFamily?: string
+  fontSize?: string
+  fontWeight?: string
+  lineHeight?: string
+  letterSpacing?: string
+  textAlign?: "left" | "center" | "right" | "justify"
+  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize"
+  fontStyle?: "normal" | "italic"
+  headingTag?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+  borderRadius?: string
+  borderWidth?: string
+  borderStyle?: "none" | "solid" | "dashed" | "dotted"
+  borderColor?: string
+  paddingX?: string
+  paddingY?: string
+  paddingTop?: string
+  paddingRight?: string
+  paddingBottom?: string
+  paddingLeft?: string
+  marginTop?: string
+  marginRight?: string
+  marginBottom?: string
+  marginLeft?: string
+  width?: string
+  height?: string
+  maxWidth?: string
+  objectFit?: "cover" | "contain"
+  boxShadow?: string
 }

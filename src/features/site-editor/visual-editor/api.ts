@@ -5,7 +5,9 @@ import type {
   VisualEditorPageSummary,
   VisualEditorPageVersion,
   VisualEditorPublicPagePayload,
+  VisualEditorStyleDocument,
 } from "./types"
+import { normalizeVisualEditorStyleDocument } from "./styles"
 
 function isSchemaMismatch(error: unknown) {
   if (!error || typeof error !== "object") return false
@@ -64,7 +66,12 @@ async function fetchVisualEditorVersionRecord(
   }
 
   const version = data as VisualEditorPageVersion | null
-  return version
+  if (!version) return null
+
+  return {
+    ...version,
+    style_json: normalizeVisualEditorStyleDocument(version.style_json ?? {}),
+  }
 }
 
 export async function fetchPublicVisualEditorPage(pageKey: string): Promise<VisualEditorPublicPagePayload | null> {
@@ -90,7 +97,7 @@ export async function fetchPublicVisualEditorPage(pageKey: string): Promise<Visu
       page_id: version.page_id,
       version_number: version.version_number,
       entries_json: version.entries_json ?? {},
-      style_json: version.style_json ?? {},
+      style_json: normalizeVisualEditorStyleDocument(version.style_json ?? {}),
       metadata: version.metadata ?? {},
       created_at: version.created_at,
     },
@@ -115,7 +122,10 @@ export async function fetchAdminVisualEditorPageDetail(pageKey: string): Promise
     throw versionsError
   }
 
-  const versions = (versionsData ?? []) as VisualEditorPageVersion[]
+  const versions = (versionsData ?? []).map((version) => ({
+    ...(version as VisualEditorPageVersion),
+    style_json: normalizeVisualEditorStyleDocument((version as VisualEditorPageVersion).style_json ?? {}),
+  }))
   const publishedVersion = versions.find((version) => version.id === page.published_version_id) ?? null
   const latestDraft =
     versions.find(
@@ -146,6 +156,7 @@ export async function fetchAdminVisualEditorPageDetail(pageKey: string): Promise
 export async function saveVisualEditorPageDraft(input: {
   pageKey: string
   document: VisualEditorDocument
+  styles: VisualEditorStyleDocument
   title?: string
 }) {
   const page = await fetchVisualEditorPageRecord(supabase, input.pageKey, false)
@@ -174,7 +185,7 @@ export async function saveVisualEditorPageDraft(input: {
       version_number: nextVersionNumber,
       status: "draft",
       entries_json: input.document,
-      style_json: {},
+      style_json: input.styles,
       metadata: {
         saved_via: "visual_editor",
       },
@@ -201,7 +212,10 @@ export async function saveVisualEditorPageDraft(input: {
 
   return {
     page: await fetchVisualEditorPageRecord(supabase, input.pageKey, false),
-    version: versionData as VisualEditorPageVersion,
+    version: {
+      ...(versionData as VisualEditorPageVersion),
+      style_json: normalizeVisualEditorStyleDocument((versionData as VisualEditorPageVersion).style_json ?? {}),
+    },
   }
 }
 
@@ -239,7 +253,10 @@ export async function publishVisualEditorPageVersion(input: { pageKey: string; v
 
   return {
     page: await fetchVisualEditorPageRecord(supabase, input.pageKey, false),
-    version: versionData as VisualEditorPageVersion,
+    version: {
+      ...(versionData as VisualEditorPageVersion),
+      style_json: normalizeVisualEditorStyleDocument((versionData as VisualEditorPageVersion).style_json ?? {}),
+    },
   }
 }
 
@@ -289,6 +306,9 @@ export async function restoreVisualEditorPageVersion(input: { pageKey: string; v
 
   return {
     page,
-    version: restoredVersionData as VisualEditorPageVersion,
+    version: {
+      ...(restoredVersionData as VisualEditorPageVersion),
+      style_json: normalizeVisualEditorStyleDocument((restoredVersionData as VisualEditorPageVersion).style_json ?? {}),
+    },
   }
 }

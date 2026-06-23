@@ -7,6 +7,7 @@ Entregar o **Editor Visual** em paralelo ao **Editor IA Irrestrito**, com namesp
 ## Diferenca para o Editor IA Irrestrito
 
 - O **Editor Visual** trabalha no conteudo publicado da pagina, com preview visual, selecao de campo no DOM e versionamento por pagina.
+- O **Editor Visual** agora versiona conteudo e estilo juntos: `entries_json` guarda o documento da pagina e `style_json` guarda os overrides visuais do campo selecionado.
 - O **Editor IA Irrestrito** continua sendo o fluxo administrativo de tarefas de codigo, prompts, diff, PR e rollback auditavel.
 - Os dois ficam em paralelo porque atendem problemas diferentes:
   - o Visual Editor resolve edicao de conteudo/pagina;
@@ -87,6 +88,16 @@ Motivos:
 - A granularidade editavel existe dentro do JSON da pagina, por campos como `hero.title`, `catalogHelpCta.label` e `supportCta.primaryCta.label`.
 - Ou seja: o armazenamento e por pagina/versionamento, mas a edicao no editor ocorre por entradas/campos dentro desse documento.
 - O modelo pode evoluir depois para uma granularidade ainda maior se houver necessidade.
+- O estilo tambem segue o mesmo principio: cada versao carrega o documento visual salvo em `style_json`, sem depender de CSS global fora da versao.
+
+## Edicao visual
+
+- A sidebar do editor agora tem tres abas:
+  - `Conteudo` para editar os valores do campo;
+  - `Estilo` para ajustar tipografia, cores, espacamento, imagem e botoes;
+  - `Avancado` para ver resumo tecnico, fallback hardcoded e versoes recentes.
+- Os controles de estilo sao propositalmente limitados a entradas seguras, sem permitir CSS arbitrario no fluxo visual.
+- O editor continua livre no fluxo de IA irrestrito, mas o editor visual nao expande permissao alem do que a pagina e a policy ja permitem.
 
 ## Diferenca para o Genflix
 
@@ -153,11 +164,12 @@ Fluxo validado:
 4. clicar em um titulo, botao, link ou imagem editavel;
 5. confirmar que a sidebar lateral abre;
 6. editar um campo simples;
-7. salvar e publicar;
-8. verificar a pagina como visitante comum;
-9. restaurar a versao anterior;
-10. confirmar fallback hardcoded quando `published_version_id` e limpo;
-11. confirmar que o editor de IA irrestrito continua carregando.
+7. abrir a aba `Estilo` e ajustar pelo menos uma propriedade visual segura;
+8. salvar e publicar;
+9. verificar a pagina como visitante comum;
+10. restaurar a versao anterior;
+11. confirmar fallback hardcoded quando `published_version_id` e limpo;
+12. confirmar que o editor de IA irrestrito continua carregando.
 
 ## Smoke de producao
 
@@ -221,6 +233,7 @@ Ele valida:
 - O historico de versoes acumula entradas reais de smoke.
 - A granularidade do modelo ainda e por pagina/documento, nao por bloco isolado fora do JSON.
 - A sidebar cobre texto, textarea, link e imagem; listas e JSON ainda sao evolucoes futuras, se forem necessarias.
+- A sidebar cobre tambem controles basicos de estilo por campo, mas ainda nao permite CSS livre.
 - No mobile, a sidebar vira drawer inferior simples.
 - Falta expandir o editor para outras paginas publicas.
 - O smoke autenticado comum precisa de um fixture de login mais robusto para ser repetido de ponta a ponta sem depender de login temporario fraco.
@@ -243,6 +256,6 @@ Ele valida:
 
 ## Status final
 
-- Build `1.0.0-134-visual-editor-sidebar`: concluida e validada.
+- Build `1.0.0-135-visual-editor-style-tabs`: concluida e validada.
 - Publicacao em Vercel: concluida e reimplantada no commit final de documentacao.
 - Producao: ativa e acessivel.
