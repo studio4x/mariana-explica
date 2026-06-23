@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CheckCircle2, Clock3, CodeXml, Eye, GitBranch, Loader2, RefreshCw, RotateCcw, Save, Send, ShieldAlert, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CodeXml, Eye, GitBranch, Loader2, RefreshCw, RotateCcw, Save, Send, ShieldAlert, XCircle } from "lucide-react"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -194,6 +194,35 @@ export function AdminAiCodeEditor() {
   const hasInvalidTab = tab != null && resolveEditorTab(tab) === null
 
   const taskList = tasksQuery.data ?? []
+  const taskMetrics = useMemo(() => {
+    const metrics = {
+      total: taskList.length,
+      readyForReview: 0,
+      blocked: 0,
+      rollbackReady: 0,
+      failed: 0,
+    }
+
+    for (const task of taskList) {
+      if (task.status === "ready_for_review" || task.status === "rollback_ready_for_review") {
+        metrics.readyForReview += 1
+      }
+
+      if (task.status === "blocked_provider_quota" || task.status === "ai_generation_unavailable") {
+        metrics.blocked += 1
+      }
+
+      if (task.status === "rollback_ready_for_review" || Boolean(task.rolled_back_at ?? task.metadata.rollback_pull_request_url)) {
+        metrics.rollbackReady += 1
+      }
+
+      if (task.status === "failed") {
+        metrics.failed += 1
+      }
+    }
+
+    return metrics
+  }, [taskList])
   const selectedTaskQuery = useAdminAiCodeEditorTask(selectedTaskId ?? undefined, Boolean(selectedTaskId))
   const selectedTask = selectedTaskQuery.data ?? null
   const transitionState = useMemo(
@@ -425,10 +454,10 @@ export function AdminAiCodeEditor() {
       </div>
 
       {activeTab !== "tasks" ? (
-        <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+        <section className="space-y-5">
         <div
           className={[
-            "space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm",
+            "w-full space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm",
             activeTab === "config" ? "" : "hidden",
           ].join(" ")}
         >
@@ -663,8 +692,9 @@ export function AdminAiCodeEditor() {
         </div>
 
         <div
+          data-testid="ai-editor-chat-panel"
           className={[
-            "space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm",
+            "w-full space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm",
             activeTab === "chat" ? "" : "hidden",
           ].join(" ")}
         >
@@ -719,408 +749,458 @@ export function AdminAiCodeEditor() {
       ) : null}
 
       {activeTab === "tasks" ? (
-        <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-4 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-950">Tasks</h2>
-              <p className="mt-1 text-sm text-slate-600">Historico do novo editor, sem apagar o legado.</p>
+        <section className="space-y-5" data-testid="ai-editor-tasks-panel">
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Tasks</p>
+                <h2 className="mt-3 text-2xl font-bold text-slate-950">Tarefas do Editor IA</h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+                  Acompanhe solicitações, branches, PRs, previews, rollbacks e auditoria num único painel mais legível.
+                </p>
+              </div>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => void tasksQuery.refetch()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Atualizar tasks
+              </Button>
             </div>
-            <StatusBadge label={`${taskList.length} task(s)`} tone={taskList.length > 0 ? "success" : "neutral"} />
           </div>
 
-          {tasksQuery.isLoading ? (
-            <LoadingState message="A carregar tasks..." />
-          ) : tasksQuery.isError ? (
-            <ErrorState
-              title="Nao foi possivel carregar as tasks"
-              message={tasksQuery.error instanceof Error ? tasksQuery.error.message : "Tenta novamente dentro de instantes."}
-              onRetry={() => void tasksQuery.refetch()}
-            />
-          ) : taskList.length > 0 ? (
-            <div className="space-y-3">
-              {taskList.map((task) => {
-                const active = task.id === selectedTaskId
-
-                return (
-                  <button
-                    key={task.id}
-                    type="button"
-                    onClick={() => setSelectedTaskId(task.id)}
-                    className={[
-                      "w-full rounded-[1.25rem] border px-4 py-4 text-left transition",
-                      active
-                        ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                        : "border-slate-200 bg-slate-50 text-slate-900 hover:border-slate-300",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-semibold">{task.title}</p>
-                      <StatusBadge label={task.status.replace(/_/g, " ")} tone={statusTone(task.status)} />
-                    </div>
-                    <p className={`mt-2 text-xs leading-5 ${active ? "text-slate-200" : "text-slate-600"}`}>{task.summary}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <StatusBadge label={task.risk_level} tone={riskTone(task.risk_level)} />
-                      <StatusBadge label={task.worker_mode} tone={task.worker_mode === "simulated" ? "warning" : "success"} />
-                    </div>
-                    <p className={`mt-3 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>Atualizada em {formatDateTime(task.updated_at)}</p>
-                  </button>
-                )
-              })}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Total</p>
+              <p className="mt-3 text-3xl font-bold text-slate-950">{taskMetrics.total}</p>
+              <p className="mt-2 text-sm text-slate-600">Tarefas registadas no histórico.</p>
             </div>
-          ) : (
-            <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-              Ainda nao existem tasks do novo editor.
-            </p>
-          )}
-        </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Prontas p/ revisão</p>
+              <p className="mt-3 text-3xl font-bold text-slate-950">{taskMetrics.readyForReview}</p>
+              <p className="mt-2 text-sm text-slate-600">Aguardam validação ou aprovação manual.</p>
+            </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Bloqueadas</p>
+              <p className="mt-3 text-3xl font-bold text-slate-950">{taskMetrics.blocked}</p>
+              <p className="mt-2 text-sm text-slate-600">Quotas ou indisponibilidade de geração.</p>
+            </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Com rollback</p>
+              <p className="mt-3 text-3xl font-bold text-slate-950">{taskMetrics.rollbackReady}</p>
+              <p className="mt-2 text-sm text-slate-600">Revert preparado ou já registado.</p>
+            </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Falhas</p>
+              <p className="mt-3 text-3xl font-bold text-slate-950">{taskMetrics.failed}</p>
+              <p className="mt-2 text-sm text-slate-600">Execuções interrompidas ou inválidas.</p>
+            </div>
+          </div>
 
-        <div className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-          {selectedTaskId && selectedTaskQuery.isLoading ? (
-            <LoadingState message="A carregar detalhes da task..." />
-          ) : selectedTaskId && selectedTaskQuery.isError ? (
-            <ErrorState
-              title="Nao foi possivel carregar a task"
-              message={
-                selectedTaskQuery.error instanceof Error
-                  ? selectedTaskQuery.error.message
-                  : "Tenta novamente dentro de instantes."
-              }
-              onRetry={() => void selectedTaskQuery.refetch()}
-            />
-          ) : selectedTask ? (
-            <>
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="space-y-4 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-2xl font-bold text-slate-950">{selectedTask.title}</h2>
-                    <StatusBadge label={selectedTask.status.replace(/_/g, " ")} tone={statusTone(selectedTask.status)} />
-                    <StatusBadge label={selectedTask.risk_level} tone={riskTone(selectedTask.risk_level)} />
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{selectedTask.summary}</p>
-                  <p className="mt-2 text-xs text-slate-500">Criada em {formatDateTime(selectedTask.created_at)}</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Lista</p>
+                  <h3 className="mt-2 text-xl font-bold text-slate-950">Fila de tasks</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Escolhe uma tarefa para abrir o detalhe completo.</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedTask.sensitive_change ? (
-                    <StatusBadge label="Area sensivel" tone="danger" />
-                  ) : null}
-                  <StatusBadge label={`Preview ${selectedTask.preview_status}`} tone={statusTone(selectedTask.preview_status)} />
-                  <StatusBadge label={`Testes ${selectedTask.test_status}`} tone={statusTone(selectedTask.test_status)} />
-                  <StatusBadge label={`Build ${selectedTask.build_status}`} tone={statusTone(selectedTask.build_status)} />
-                </div>
+                <StatusBadge label={`${taskList.length}`} tone={taskList.length > 0 ? "success" : "neutral"} />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Branch</p>
-                  </div>
-                  <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.branch_name}</p>
-                  <p className="mt-2 text-xs text-slate-500">Base: {selectedTask.default_branch ?? "por resolver"}</p>
-                </div>
-                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Commit</p>
-                  </div>
-                  <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.commit_sha ?? "Ainda sem commit real"}</p>
-                  <p className="mt-2 text-xs text-slate-500">{selectedTask.commit_message}</p>
-                </div>
-                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2">
-                    <CodeXml className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Pull Request</p>
-                  </div>
-                  {selectedTask.pull_request_url ? (
-                    <a
-                      href={selectedTask.pull_request_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
-                    >
-                      #{selectedTask.pull_request_number ?? "?"} abrir PR
-                    </a>
-                  ) : (
-                    <p className="mt-3 text-sm text-slate-700">Ainda sem PR real</p>
-                  )}
-                  <p className="mt-2 text-xs text-slate-500">Estado: {selectedTask.pull_request_status ?? "nao aberto"}</p>
-                </div>
-                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Preview</p>
-                  </div>
-                  {selectedTask.preview_url ? (
-                    <a
-                      href={selectedTask.preview_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
-                    >
-                      Abrir preview
-                    </a>
-                  ) : (
-                    <p className="mt-3 text-sm text-slate-700">Ainda sem URL de preview</p>
-                  )}
-                  <p className="mt-2 text-xs text-slate-500">Estado: {selectedTask.preview_status}</p>
-                </div>
-                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2">
-                    <Clock3 className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Worker</p>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-700">{selectedTask.worker_mode}</p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Ultima execucao: {formatDateTime(selectedTask.last_execution_at ?? selectedTask.updated_at)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2">
-                  {selectedTask.sensitive_change ? (
-                    <ShieldAlert className="h-4 w-4 text-rose-700" />
-                  ) : (
-                    <AlertTriangle className="h-4 w-4 text-amber-700" />
-                  )}
-                  <p className="text-sm font-semibold text-slate-950">Resumo operacional</p>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-700">{selectedTask.result_summary ?? "Sem resumo operacional."}</p>
-                {selectedTask.execution_error ? (
-                  <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm leading-6 text-rose-900">
-                    {selectedTask.execution_error}
-                  </p>
-                ) : null}
-                {selectedTask.sensitive_reasons.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {selectedTask.sensitive_reasons.map((reason) => (
-                      <StatusBadge key={reason} label={reason} tone="danger" />
-                    ))}
-                  </div>
-                ) : null}
-                {Array.isArray(selectedTask.metadata.provider_attempts) && selectedTask.metadata.provider_attempts.length > 0 ? (
-                  <div className="mt-4 space-y-2">
-                    {selectedTask.metadata.provider_attempts.map((attempt, index) => (
-                      <div key={`${String((attempt as { provider?: string }).provider ?? "provider")}-${index}`} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs leading-5 text-slate-600">
-                        <span className="font-semibold text-slate-900">
-                          {String((attempt as { provider?: string }).provider ?? "provider")} / {String((attempt as { model?: string }).model ?? "model")}
-                        </span>
-                        {" - "}
-                        {String((attempt as { failureType?: string }).failureType ?? "error")}
-                        {" - "}
-                        {String((attempt as { message?: string }).message ?? "")}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {selectedTask.status === "blocked_provider_quota" ? (
-                  <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-900">
-                    A geracao livre por IA ficou bloqueada por quota. O admin pode restaurar creditos dos providers ou reenquadrar o pedido para um fallback deterministico suportado.
-                  </p>
-                ) : null}
-              </div>
-
-              {selectedTask.metadata.rollback_pull_request_url ? (
-                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2">
-                    <RotateCcw className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-950">Rollback operacional</p>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-slate-700">
-                    Branch de revert: {String(selectedTask.metadata.rollback_branch_name ?? "n/a")}
-                  </p>
-                  <a
-                    href={String(selectedTask.metadata.rollback_pull_request_url)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
-                  >
-                    Abrir PR de rollback #{String(selectedTask.metadata.rollback_pull_request_number ?? "?")}
-                  </a>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Estado: {String(selectedTask.metadata.rollback_pull_request_status ?? "nao aberto")}
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                  <h3 className="text-lg font-bold text-slate-950">Arquivos analisados</h3>
-                  {selectedTask.files_analyzed.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTask.files_analyzed.map((filePath) => (
-                        <span key={filePath} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
-                          {filePath}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-600">Nenhum arquivo analisado registado.</p>
-                  )}
-                </div>
-
-                <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                  <h3 className="text-lg font-bold text-slate-950">Plano do worker</h3>
-                  {Array.isArray(selectedTask.plan_json.steps) && selectedTask.plan_json.steps.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedTask.plan_json.steps.map((step, index) => (
-                        <div key={`${String(step)}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                          {index + 1}. {String(step)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-600">Sem passos detalhados no plano.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                <h3 className="text-lg font-bold text-slate-950">Arquivos alterados e diff</h3>
-                {selectedTask.file_changes && selectedTask.file_changes.length > 0 ? (
-                  <div className="space-y-4">
-                    {selectedTask.file_changes.map((change) => (
-                      <div key={change.id} className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-slate-950">{change.file_path}</p>
-                          <StatusBadge label={change.change_type} tone="info" />
-                          <StatusBadge label={change.status} tone={statusTone(change.status)} />
-                          {change.language ? <StatusBadge label={change.language} tone="neutral" /> : null}
-                        </div>
-                        {change.summary ? (
-                          <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">{change.summary}</p>
-                        ) : null}
-                        {change.rationale ? (
-                          <p className="mt-2 text-sm leading-6 text-slate-600">{change.rationale}</p>
-                        ) : null}
-                        {(change.before_sha || change.after_sha) ? (
-                          <p className="mt-2 break-all text-xs text-slate-500">
-                            before: {change.before_sha ?? "n/a"} | after: {change.after_sha ?? "n/a"}
-                          </p>
-                        ) : null}
-                        <pre className="mt-3 overflow-x-auto rounded-[1rem] bg-slate-950 p-4 text-xs leading-6 text-slate-100">
-                          {change.diff_patch ?? change.diff_preview ?? "Sem diff persistido."}
-                        </pre>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600">Sem alteracoes listadas para esta task.</p>
-                )}
-              </div>
-
-              <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                <h3 className="text-lg font-bold text-slate-950">Acoes do admin</h3>
-                <p className="text-sm leading-6 text-slate-600">
-                  A aprovacao faz merge via GitHub API quando diff, checks e preview estao prontos. O rollback cria uma branch de revert e abre um PR de rollback para revisao.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => void handleRefreshTask("status", selectedTask.id)}
-                    disabled={refreshTaskStatusMutation.isPending}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Atualizar checks
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => void handleRefreshTask("preview", selectedTask.id)}
-                    disabled={refreshTaskPreviewMutation.isPending}
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    Atualizar preview
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => void handleRestartExecution(selectedTask.id)}
-                    disabled={startExecutionMutation.isPending}
-                  >
-                    <Loader2 className="mr-2 h-4 w-4" />
-                    Reexecutar worker
-                  </Button>
-                </div>
-                <textarea
-                  value={actionNotes}
-                  onChange={(event) => setActionNotes(event.target.value)}
-                  className="min-h-[110px] w-full rounded-[1.25rem] border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-400"
-                  placeholder="Notas opcionais para aprovacao, rejeicao, ajuste ou rollback"
+              {tasksQuery.isLoading ? (
+                <LoadingState message="A carregar tasks..." />
+              ) : tasksQuery.isError ? (
+                <ErrorState
+                  title="Nao foi possivel carregar as tasks"
+                  message={tasksQuery.error instanceof Error ? tasksQuery.error.message : "Tenta novamente dentro de instantes."}
+                  onRetry={() => void tasksQuery.refetch()}
                 />
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    className="rounded-full"
-                    onClick={() => void handleTaskAction("approve", selectedTask.id)}
-                    disabled={approveTaskMutation.isPending}
-                  >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Aprovar e publicar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => void handleTaskAction("adjust", selectedTask.id)}
-                    disabled={requestAdjustmentMutation.isPending}
-                  >
-                    <Loader2 className="mr-2 h-4 w-4" />
-                    Pedir ajuste
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
-                    onClick={() => void handleTaskAction("reject", selectedTask.id)}
-                    disabled={rejectTaskMutation.isPending}
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Rejeitar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => void handleTaskAction("rollback", selectedTask.id)}
-                    disabled={rollbackTaskMutation.isPending}
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Criar rollback PR
-                  </Button>
-                </div>
-              </div>
+              ) : taskList.length > 0 ? (
+                <div className="space-y-3">
+                  {taskList.map((task) => {
+                    const active = task.id === selectedTaskId
 
-              <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                <h3 className="text-lg font-bold text-slate-950">Auditoria da task</h3>
-                {selectedTask.events && selectedTask.events.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedTask.events.map((event) => (
-                      <div key={event.id} className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-950">{event.event_type}</p>
-                          <p className="text-xs text-slate-500">{formatDateTime(event.created_at)}</p>
+                    return (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => setSelectedTaskId(task.id)}
+                        className={[
+                          "w-full rounded-[1.4rem] border px-4 py-4 text-left transition",
+                          active
+                            ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                            : "border-slate-200 bg-slate-50 text-slate-900 hover:border-slate-300 hover:bg-white",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm font-semibold leading-6">{task.title}</p>
+                          <StatusBadge label={task.status.replace(/_/g, " ")} tone={statusTone(task.status)} />
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-700">{event.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600">Sem eventos registados.</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
-              Seleciona uma task para ver diff, eventos, preview, estado do build e acoes do admin.
+                        <p className={`mt-2 text-xs leading-5 ${active ? "text-slate-200" : "text-slate-600"}`}>{task.summary}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <StatusBadge label={task.risk_level} tone={riskTone(task.risk_level)} />
+                          <StatusBadge label={`Preview ${task.preview_status}`} tone={statusTone(task.preview_status)} />
+                          <StatusBadge label={`Build ${task.build_status}`} tone={statusTone(task.build_status)} />
+                        </div>
+                        <p className={`mt-3 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>
+                          Atualizada em {formatDateTime(task.updated_at)}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                  Ainda nao existem tasks do novo editor.
+                </p>
+              )}
             </div>
-          )}
-        </div>
+
+            <div className="space-y-5 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+              {selectedTaskId && selectedTaskQuery.isLoading ? (
+                <LoadingState message="A carregar detalhes da task..." />
+              ) : selectedTaskId && selectedTaskQuery.isError ? (
+                <ErrorState
+                  title="Nao foi possivel carregar a task"
+                  message={
+                    selectedTaskQuery.error instanceof Error
+                      ? selectedTaskQuery.error.message
+                      : "Tenta novamente dentro de instantes."
+                  }
+                  onRetry={() => void selectedTaskQuery.refetch()}
+                />
+              ) : selectedTask ? (
+                <>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-bold text-slate-950">{selectedTask.title}</h2>
+                        <StatusBadge label={selectedTask.status.replace(/_/g, " ")} tone={statusTone(selectedTask.status)} />
+                        <StatusBadge label={selectedTask.risk_level} tone={riskTone(selectedTask.risk_level)} />
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{selectedTask.summary}</p>
+                      <p className="mt-2 text-xs text-slate-500">Criada em {formatDateTime(selectedTask.created_at)}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTask.sensitive_change ? (
+                        <StatusBadge label="Area sensivel" tone="danger" />
+                      ) : null}
+                      <StatusBadge label={`Preview ${selectedTask.preview_status}`} tone={statusTone(selectedTask.preview_status)} />
+                      <StatusBadge label={`Testes ${selectedTask.test_status}`} tone={statusTone(selectedTask.test_status)} />
+                      <StatusBadge label={`Build ${selectedTask.build_status}`} tone={statusTone(selectedTask.build_status)} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm font-semibold text-slate-950">Branch</p>
+                      </div>
+                      <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.branch_name}</p>
+                      <p className="mt-2 text-xs text-slate-500">Base: {selectedTask.default_branch ?? "por resolver"}</p>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm font-semibold text-slate-950">Commit</p>
+                      </div>
+                      <p className="mt-3 break-all text-sm text-slate-700">{selectedTask.commit_sha ?? "Ainda sem commit real"}</p>
+                      <p className="mt-2 text-xs text-slate-500">{selectedTask.commit_message}</p>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <CodeXml className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm font-semibold text-slate-950">Pull Request</p>
+                      </div>
+                      {selectedTask.pull_request_url ? (
+                        <a
+                          href={selectedTask.pull_request_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
+                        >
+                          #{selectedTask.pull_request_number ?? "?"} abrir PR
+                        </a>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-700">Ainda sem PR real</p>
+                      )}
+                      <p className="mt-2 text-xs text-slate-500">Estado: {selectedTask.pull_request_status ?? "nao aberto"}</p>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm font-semibold text-slate-950">Preview</p>
+                      </div>
+                      {selectedTask.preview_url ? (
+                        <a
+                          href={selectedTask.preview_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
+                        >
+                          Abrir preview
+                        </a>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-700">Ainda sem URL de preview</p>
+                      )}
+                      <p className="mt-2 text-xs text-slate-500">Estado: {selectedTask.preview_status}</p>
+                    </div>
+                    <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm font-semibold text-slate-950">Rollback</p>
+                      </div>
+                      {selectedTask.metadata.rollback_pull_request_url ? (
+                        <a
+                          href={String(selectedTask.metadata.rollback_pull_request_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 block break-all text-sm font-semibold text-sky-700 hover:text-sky-900"
+                        >
+                          Abrir PR de rollback #{String(selectedTask.metadata.rollback_pull_request_number ?? "?")}
+                        </a>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-700">Ainda sem rollback preparado</p>
+                      )}
+                      <p className="mt-2 text-xs text-slate-500">
+                        Estado: {String(selectedTask.metadata.rollback_pull_request_status ?? "nao aberto")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center gap-2">
+                      {selectedTask.sensitive_change ? (
+                        <ShieldAlert className="h-4 w-4 text-rose-700" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-amber-700" />
+                      )}
+                      <p className="text-sm font-semibold text-slate-950">Resumo operacional</p>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-700">{selectedTask.result_summary ?? "Sem resumo operacional."}</p>
+                    {selectedTask.execution_error ? (
+                      <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm leading-6 text-rose-900">
+                        {selectedTask.execution_error}
+                      </p>
+                    ) : null}
+                    {selectedTask.sensitive_reasons.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedTask.sensitive_reasons.map((reason) => (
+                          <StatusBadge key={reason} label={reason} tone="danger" />
+                        ))}
+                      </div>
+                    ) : null}
+                    {Array.isArray(selectedTask.metadata.provider_attempts) && selectedTask.metadata.provider_attempts.length > 0 ? (
+                      <div className="mt-4 space-y-2">
+                        {selectedTask.metadata.provider_attempts.map((attempt, index) => (
+                          <div
+                            key={`${String((attempt as { provider?: string }).provider ?? "provider")}-${index}`}
+                            className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs leading-5 text-slate-600"
+                          >
+                            <span className="font-semibold text-slate-900">
+                              {String((attempt as { provider?: string }).provider ?? "provider")} /{" "}
+                              {String((attempt as { model?: string }).model ?? "model")}
+                            </span>
+                            {" - "}
+                            {String((attempt as { failureType?: string }).failureType ?? "error")}
+                            {" - "}
+                            {String((attempt as { message?: string }).message ?? "")}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {selectedTask.status === "blocked_provider_quota" ? (
+                      <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-900">
+                        A geracao livre por IA ficou bloqueada por quota. O admin pode restaurar creditos dos providers ou reenquadrar o pedido para um fallback deterministico suportado.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+                    <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                      <h3 className="text-lg font-bold text-slate-950">Arquivos analisados</h3>
+                      {selectedTask.files_analyzed.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedTask.files_analyzed.map((filePath) => (
+                            <span
+                              key={filePath}
+                              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700"
+                            >
+                              {filePath}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-600">Nenhum arquivo analisado registado.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                      <h3 className="text-lg font-bold text-slate-950">Plano do worker</h3>
+                      {Array.isArray(selectedTask.plan_json.steps) && selectedTask.plan_json.steps.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedTask.plan_json.steps.map((step, index) => (
+                            <div
+                              key={`${String(step)}-${index}`}
+                              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                            >
+                              {index + 1}. {String(step)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-600">Sem passos detalhados no plano.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                    <h3 className="text-lg font-bold text-slate-950">Arquivos alterados e diff</h3>
+                    {selectedTask.file_changes && selectedTask.file_changes.length > 0 ? (
+                      <div className="space-y-4">
+                        {selectedTask.file_changes.map((change) => (
+                          <div key={change.id} className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-950">{change.file_path}</p>
+                              <StatusBadge label={change.change_type} tone="info" />
+                              <StatusBadge label={change.status} tone={statusTone(change.status)} />
+                              {change.language ? <StatusBadge label={change.language} tone="neutral" /> : null}
+                            </div>
+                            {change.summary ? (
+                              <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">{change.summary}</p>
+                            ) : null}
+                            {change.rationale ? (
+                              <p className="mt-2 text-sm leading-6 text-slate-600">{change.rationale}</p>
+                            ) : null}
+                            {(change.before_sha || change.after_sha) ? (
+                              <p className="mt-2 break-all text-xs text-slate-500">
+                                before: {change.before_sha ?? "n/a"} | after: {change.after_sha ?? "n/a"}
+                              </p>
+                            ) : null}
+                            <pre className="mt-3 max-h-72 overflow-auto rounded-[1rem] bg-slate-950 p-4 text-xs leading-6 text-slate-100">
+                              {change.diff_patch ?? change.diff_preview ?? "Sem diff persistido."}
+                            </pre>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-600">Sem alteracoes listadas para esta task.</p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+                    <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                      <h3 className="text-lg font-bold text-slate-950">Acoes do admin</h3>
+                      <p className="text-sm leading-6 text-slate-600">
+                        A aprovacao faz merge via GitHub API quando diff, checks e preview estao prontos. O rollback cria uma branch de revert e abre um PR de rollback para revisao.
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => void handleRefreshTask("status", selectedTask.id)}
+                          disabled={refreshTaskStatusMutation.isPending}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Atualizar checks
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => void handleRefreshTask("preview", selectedTask.id)}
+                          disabled={refreshTaskPreviewMutation.isPending}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Atualizar preview
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => void handleRestartExecution(selectedTask.id)}
+                          disabled={startExecutionMutation.isPending}
+                        >
+                          <Loader2 className="mr-2 h-4 w-4" />
+                          Reexecutar worker
+                        </Button>
+                      </div>
+                      <textarea
+                        value={actionNotes}
+                        onChange={(event) => setActionNotes(event.target.value)}
+                        className="min-h-[110px] w-full rounded-[1.25rem] border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-400"
+                        placeholder="Notas opcionais para aprovacao, rejeicao, ajuste ou rollback"
+                      />
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          className="rounded-full"
+                          onClick={() => void handleTaskAction("approve", selectedTask.id)}
+                          disabled={approveTaskMutation.isPending}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Aprovar e publicar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => void handleTaskAction("adjust", selectedTask.id)}
+                          disabled={requestAdjustmentMutation.isPending}
+                        >
+                          <Loader2 className="mr-2 h-4 w-4" />
+                          Pedir ajuste
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                          onClick={() => void handleTaskAction("reject", selectedTask.id)}
+                          disabled={rejectTaskMutation.isPending}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Rejeitar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => void handleTaskAction("rollback", selectedTask.id)}
+                          disabled={rollbackTaskMutation.isPending}
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Criar rollback PR
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                      <h3 className="text-lg font-bold text-slate-950">Auditoria da task</h3>
+                      {selectedTask.events && selectedTask.events.length > 0 ? (
+                        <div className="space-y-3">
+                          {selectedTask.events.map((event) => (
+                            <div key={event.id} className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-sm font-semibold text-slate-950">{event.event_type}</p>
+                                <p className="text-xs text-slate-500">{formatDateTime(event.created_at)}</p>
+                              </div>
+                              <p className="mt-2 text-sm leading-6 text-slate-700">{event.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-600">Sem eventos registados.</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
+                  Seleciona uma task para ver diff, eventos, preview, estado do build e acoes do admin.
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       ) : null}
     </div>

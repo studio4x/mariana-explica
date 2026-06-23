@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { AdminAiCodeEditor } from "./AdminAiCodeEditor"
 import { ROUTES } from "@/lib/constants"
+import type { AdminAiCodeEditorTask } from "@/types/app.types"
 
 const mockUseAdminAiCodeEditorConfig = vi.fn()
 const mockUseAdminAiCodeEditorTasks = vi.fn()
@@ -102,6 +103,92 @@ const taskResponse = {
   refetch: vi.fn(),
 }
 
+const sampleTask: AdminAiCodeEditorTask = {
+  id: "task-1",
+  requested_by: "user-1",
+  approved_by: null,
+  prompt: "Alterar a cor do texto",
+  normalized_prompt: "Alterar a cor do texto",
+  title: "Atualizar destaque visual",
+  summary: "Ajustar a cor do texto principal para melhorar contraste.",
+  status: "ready_for_review",
+  scope_classification: "text",
+  risk_level: "medium",
+  worker_mode: "github_worker",
+  branch_name: "ai/update-text-color",
+  default_branch: "main",
+  commit_message: "Update important text color",
+  commit_sha: "abc123def456",
+  pull_request_number: 12,
+  pull_request_url: "https://github.com/studio4x/mariana-explica/pull/12",
+  pull_request_status: "open",
+  preview_url: "https://preview.example.com/task-1",
+  preview_status: "ready",
+  test_status: "passed",
+  build_status: "passed",
+  files_analyzed: ["src/pages/Home.tsx"],
+  files_planned: ["src/pages/Home.tsx"],
+  plan_json: { steps: ["Encontrar o bloco", "Atualizar a cor"] },
+  result_summary: "Patch aplicado e pronto para revisão.",
+  sensitive_change: false,
+  sensitive_reasons: [],
+  requires_explicit_publish_confirmation: true,
+  published_at: null,
+  rolled_back_at: null,
+  approved_at: null,
+  execution_error: null,
+  last_execution_at: "2026-06-22T10:00:00Z",
+  merged_at: null,
+  metadata: {
+    rollback_pull_request_url: "https://github.com/studio4x/mariana-explica/pull/99",
+    rollback_pull_request_number: 99,
+    rollback_pull_request_status: "open",
+    rollback_branch_name: "ai/rollback-task-1",
+    provider_attempts: [
+      {
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        failureType: "none",
+        message: "ok",
+      },
+    ],
+  },
+  created_at: "2026-06-22T09:00:00Z",
+  updated_at: "2026-06-22T10:00:00Z",
+  file_changes: [
+    {
+      id: "change-1",
+      task_id: "task-1",
+      file_path: "src/pages/Home.tsx",
+      change_type: "modify",
+      status: "applied",
+      rationale: "Atualização visual pontual.",
+      summary: "Cor do texto atualizada.",
+      diff_preview: "+ color: #fff",
+      diff_patch: "+ color: #fff",
+      before_sha: "1111111",
+      after_sha: "2222222",
+      language: "tsx",
+      risk_level: "low",
+      metadata: {},
+      created_at: "2026-06-22T09:00:00Z",
+      updated_at: "2026-06-22T10:00:00Z",
+    },
+  ],
+  events: [
+    {
+      id: "event-1",
+      task_id: "task-1",
+      actor_user_id: null,
+      event_type: "created",
+      message: "Task criada",
+      metadata: {},
+      created_at: "2026-06-22T09:00:00Z",
+    },
+  ],
+  deploys: [],
+}
+
 beforeEach(() => {
   mockUseAdminAiCodeEditorConfig.mockReturnValue(configResponse)
   mockUseAdminAiCodeEditorTasks.mockReturnValue(tasksResponse)
@@ -179,6 +266,55 @@ describe("AdminAiCodeEditor", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("location")).toHaveTextContent("/admin/editor-ia-irrestrito/tasks")
+    })
+  })
+
+  it("renders the chat panel at full width", async () => {
+    renderEditor("/admin/editor-ia-irrestrito/chat")
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/altere o layout dos cards da pagina de materiais/i)).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId("ai-editor-chat-panel")).toHaveClass("w-full")
+  })
+
+  it("renders organized task metrics and a selected task detail", async () => {
+    mockUseAdminAiCodeEditorTasks.mockReturnValue({
+      ...tasksResponse,
+      data: [sampleTask],
+    })
+    mockUseAdminAiCodeEditorTask.mockReturnValue({
+      data: sampleTask,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+
+    renderEditor("/admin/editor-ia-irrestrito/tasks")
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ai-editor-tasks-panel")).toBeInTheDocument()
+    })
+
+    expect(screen.getByText("Tarefas do Editor IA")).toBeInTheDocument()
+    expect(screen.getByText("Total")).toBeInTheDocument()
+    expect(screen.getByText("Prontas p/ revisão")).toBeInTheDocument()
+    expect(screen.getByText("Com rollback")).toBeInTheDocument()
+    expect(screen.getByText("Fila de tasks")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: sampleTask.title })).toBeInTheDocument()
+    expect(screen.getByText("Arquivos analisados")).toBeInTheDocument()
+    expect(screen.getByText("Auditoria da task")).toBeInTheDocument()
+  })
+
+  it("keeps configuration save working", async () => {
+    const user = userEvent.setup()
+    renderEditor("/admin/editor-ia-irrestrito/configuracao")
+
+    await user.click(screen.getByRole("button", { name: /Guardar configuracao/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/salvas com sucesso/i)).toBeInTheDocument()
     })
   })
 })
