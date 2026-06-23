@@ -180,5 +180,10 @@ describe("Support", () => {
     expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Como podemos ajudar?")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeInTheDocument()
+
+    await user.click(screen.getAllByRole("button", { name: "Abrir um chamado" })[0])
+    expect(await screen.findByText("Botao principal")).toBeInTheDocument()
+    expect(screen.getByLabelText("Rotulo")).toBeInTheDocument()
+    expect(screen.getByLabelText("Destino")).toBeInTheDocument()
   })
 })

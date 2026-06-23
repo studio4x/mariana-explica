@@ -244,5 +244,10 @@ describe("Products", () => {
     await user.click(screen.getByRole("button", { name: "Tudo o que precisas para brilhares" }))
     expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Tudo o que precisas para brilhares")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: /Explorar/i }))
+    expect(await screen.findByText("Botao principal")).toBeInTheDocument()
+    expect(screen.getByLabelText("Rotulo")).toBeInTheDocument()
+    expect(screen.getByLabelText("Destino")).toBeInTheDocument()
   })
 })
