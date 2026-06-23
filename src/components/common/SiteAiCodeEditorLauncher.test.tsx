@@ -4,9 +4,13 @@ import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { SiteAiCodeEditorLauncher } from "./SiteAiCodeEditorLauncher"
 
-const { mockUseAuth, mockUseAdminAiCodeEditorConfig } = vi.hoisted(() => ({
+const { mockUseAuth, mockUseAdminAiCodeEditorConfig, mockCreateTaskMutation } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockUseAdminAiCodeEditorConfig: vi.fn(),
+  mockCreateTaskMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
 }))
 
 vi.mock("@/hooks/useAuth", () => ({
@@ -15,6 +19,7 @@ vi.mock("@/hooks/useAuth", () => ({
 
 vi.mock("@/hooks/useAdmin", () => ({
   useAdminAiCodeEditorConfig: () => mockUseAdminAiCodeEditorConfig(),
+  useCreateAdminAiCodeEditorTask: () => mockCreateTaskMutation,
 }))
 
 function renderLauncher(pathname = "/sobre") {
@@ -29,6 +34,7 @@ describe("SiteAiCodeEditorLauncher", () => {
   beforeEach(() => {
     mockUseAuth.mockReset()
     mockUseAdminAiCodeEditorConfig.mockReset()
+    mockCreateTaskMutation.mutateAsync.mockReset()
     mockUseAuth.mockReturnValue({
       isAdmin: true,
       loading: false,
@@ -41,16 +47,22 @@ describe("SiteAiCodeEditorLauncher", () => {
       },
       isLoading: false,
     })
+    mockCreateTaskMutation.mutateAsync.mockResolvedValue({ id: "task-1" })
+    mockCreateTaskMutation.isPending = false
   })
 
-  it("renders the floating launcher and opens the irrestrito chat iframe", async () => {
+  it("renders the floating launcher and sends a task through the irrestrito chat", async () => {
     const user = userEvent.setup()
     renderLauncher()
 
     await user.click(screen.getByRole("button", { name: /abrir chat irrestrito/i }))
+    await user.type(screen.getByRole("textbox", { name: /mensagem/i }), "altera o texto")
+    await user.click(screen.getByRole("button", { name: /enviar pedido/i }))
 
-    const iframe = screen.getByTitle("Editor IA irrestrito")
-    expect(iframe).toHaveAttribute("src", "/admin/editor-ia-irrestrito/chat")
+    expect(mockCreateTaskMutation.mutateAsync).toHaveBeenCalledWith({
+      prompt: "altera o texto",
+    })
+    expect(screen.getByText(/pedido enviado para o editor irrestrito/i)).toBeInTheDocument()
   })
 
   it("does not render when the editor irrestrito is disabled", () => {
