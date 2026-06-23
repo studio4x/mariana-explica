@@ -45,6 +45,9 @@ interface VisualEditorContextValue {
   isAdminEditorRoute: boolean
   isPublicEditorRoute: boolean
   canEdit: boolean
+  isEditingActive: boolean
+  isPublicEditorPanelOpen: boolean
+  isPublicEditorCollapsed: boolean
   isDirty: boolean
   isLoading: boolean
   fieldDefinitions: VisualEditorFieldDefinition[]
@@ -53,6 +56,10 @@ interface VisualEditorContextValue {
   clearSelection: () => void
   openEditor: (fieldKey: string) => void
   closeEditor: () => void
+  openPublicEditorPanel: () => void
+  closePublicEditorPanel: () => void
+  activatePublicEditor: () => void
+  togglePublicEditorCollapsed: () => void
   cancelEditor: () => void
   restoreFallback: () => void
   setDraftValue: (value: unknown) => void
@@ -159,6 +166,9 @@ export function VisualEditorProvider(props: {
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null)
   const [draftValue, setDraftValueState] = useState<unknown>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [isPublicEditorPanelOpen, setIsPublicEditorPanelOpen] = useState(false)
+  const [isPublicEditorCollapsed, setIsPublicEditorCollapsed] = useState(false)
+  const [isEditingUnlocked, setIsEditingUnlocked] = useState(false)
 
   useEffect(() => {
     if (!isDeepEqual(document, baselineDocument)) {
@@ -172,6 +182,31 @@ export function VisualEditorProvider(props: {
     setDocument(cloneVisualEditorDocument(baseDocument))
     setBaselineDocument(cloneVisualEditorDocument(baseDocument))
   }, [baseDocument, baselineDocument, document])
+
+  useEffect(() => {
+    setSelectedFieldKey(null)
+    setDraftValueState(null)
+    setStatusMessage(null)
+    setIsPublicEditorPanelOpen(false)
+    setIsPublicEditorCollapsed(false)
+    setIsEditingUnlocked(false)
+  }, [pageKey])
+
+  useEffect(() => {
+    if (!isPublicEditorRoute) {
+      setIsPublicEditorPanelOpen(false)
+      setIsPublicEditorCollapsed(false)
+      setIsEditingUnlocked(false)
+      return
+    }
+
+    setSelectedFieldKey(null)
+    setDraftValueState(null)
+    setStatusMessage(null)
+    setIsPublicEditorPanelOpen(false)
+    setIsPublicEditorCollapsed(false)
+    setIsEditingUnlocked(false)
+  }, [isPublicEditorRoute])
 
   const fieldDefinitions = pageDefinition?.fields ?? []
   const currentField = selectedFieldKey ? fieldDefinitions.find((field) => field.key === selectedFieldKey) : undefined
@@ -195,6 +230,8 @@ export function VisualEditorProvider(props: {
       !authLoading &&
       (isAdminEditorRoute || isPublicEditorRoute || location.search.includes("visual-editor=1")),
   )
+  const isEditingActive = Boolean(isAdminEditorRoute || (isPublicEditorRoute && isPublicEditorPanelOpen && isEditingUnlocked))
+  const canInteractWithEditable = isEditingActive
   const isDirty = !isDeepEqual(document, baselineDocument)
   const isLoading = pageQuery.isLoading || ((isAdminEditorRoute || isPublicEditorRoute) && adminQuery.isLoading)
 
@@ -238,6 +275,10 @@ export function VisualEditorProvider(props: {
   }
 
   const openEditor = (fieldKey: string) => {
+    if (!canInteractWithEditable) {
+      return
+    }
+
     const nextField = fieldDefinitions.find((field) => field.key === fieldKey)
     if (!nextField) return
 
@@ -250,6 +291,47 @@ export function VisualEditorProvider(props: {
   const closeEditor = () => {
     setSelectedFieldKey(null)
     setDraftValueState(null)
+    if (isPublicEditorRoute) {
+      setIsPublicEditorPanelOpen(false)
+      setIsPublicEditorCollapsed(false)
+      setIsEditingUnlocked(false)
+    }
+  }
+
+  const openPublicEditorPanel = () => {
+    if (!isPublicEditorRoute) {
+      return
+    }
+
+    setIsPublicEditorPanelOpen(true)
+    setIsPublicEditorCollapsed(false)
+    setSelectedFieldKey(null)
+    setDraftValueState(null)
+    setStatusMessage(null)
+  }
+
+  const closePublicEditorPanel = () => {
+    setSelectedFieldKey(null)
+    setDraftValueState(null)
+    setStatusMessage(null)
+    setIsPublicEditorPanelOpen(false)
+    setIsPublicEditorCollapsed(false)
+    setIsEditingUnlocked(false)
+  }
+
+  const activatePublicEditor = () => {
+    if (!isPublicEditorRoute) {
+      return
+    }
+
+    setIsPublicEditorPanelOpen(true)
+    setIsPublicEditorCollapsed(false)
+    setIsEditingUnlocked(true)
+    setStatusMessage("Edicao ativada. Clique num elemento para editar.")
+  }
+
+  const togglePublicEditorCollapsed = () => {
+    setIsPublicEditorCollapsed((current) => !current)
   }
 
   const restoreFallback = () => {
@@ -381,6 +463,9 @@ export function VisualEditorProvider(props: {
       isAdminEditorRoute,
       isPublicEditorRoute,
       canEdit,
+      isEditingActive,
+      isPublicEditorPanelOpen,
+      isPublicEditorCollapsed,
       isDirty,
       isLoading,
       fieldDefinitions,
@@ -389,6 +474,10 @@ export function VisualEditorProvider(props: {
       clearSelection: closeEditor,
       openEditor,
       closeEditor,
+      openPublicEditorPanel,
+      closePublicEditorPanel,
+      activatePublicEditor,
+      togglePublicEditorCollapsed,
       cancelEditor,
       restoreFallback,
       setDraftValue,
@@ -409,8 +498,15 @@ export function VisualEditorProvider(props: {
     [
       baselineDocument,
       canEdit,
+      isEditingActive,
+      isPublicEditorPanelOpen,
+      isPublicEditorCollapsed,
       cancelEditor,
       closeEditor,
+      openPublicEditorPanel,
+      closePublicEditorPanel,
+      activatePublicEditor,
+      togglePublicEditorCollapsed,
       document,
       fieldDefinitions,
       draftValue,
@@ -442,11 +538,12 @@ export function VisualEditorProvider(props: {
     ],
   )
 
-  const showFixedSidebar = canEdit && !isAdminEditorRoute && (isPublicEditorRoute || location.search.includes("visual-editor=1"))
+  const showPublicLauncher = canEdit && isPublicEditorRoute && !isPublicEditorPanelOpen
+  const showPublicPanel = canEdit && isPublicEditorRoute && isPublicEditorPanelOpen
 
   return (
     <VisualEditorContext.Provider value={contextValue}>
-      {canEdit ? (
+      {isAdminEditorRoute ? (
         <div className="sticky top-0 z-30 border-b border-sky-200 bg-sky-50/95 px-4 py-3 text-sky-950 shadow-sm backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
@@ -488,10 +585,22 @@ export function VisualEditorProvider(props: {
           </div>
         </div>
       ) : null}
-      {showFixedSidebar ? (
+      {showPublicLauncher ? (
+        <button
+          type="button"
+          onClick={openPublicEditorPanel}
+          className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-3 text-sm font-semibold text-sky-800 shadow-[0_20px_45px_rgba(14,165,233,0.18)] transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-900"
+        >
+          <PencilLine className="h-4 w-4" />
+          Abrir editor visual
+        </button>
+      ) : null}
+      {showPublicPanel ? (
         <VisualEditorSidebar
           mode="fixed"
           canEdit={canEdit}
+          isEditingUnlocked={isEditingUnlocked}
+          isCollapsed={isPublicEditorCollapsed}
           pageDefinition={pageDefinition}
           pageDetail={pageDetail}
           publicPage={publicPage}
@@ -509,9 +618,11 @@ export function VisualEditorProvider(props: {
           publishEditor={publishEditor}
           restoreVersion={restoreVersion}
           refresh={refresh}
+          activateEditing={activatePublicEditor}
+          toggleCollapsed={togglePublicEditorCollapsed}
         />
       ) : null}
-      <div className={cn(showFixedSidebar && "lg:pr-[448px]")}>{children}</div>
+      <div className={cn(showPublicPanel && "lg:pr-[448px]")}>{children}</div>
     </VisualEditorContext.Provider>
   )
 }
@@ -525,16 +636,17 @@ function useVisualEditorContext() {
 }
 
 function useEditableElementState(fieldKey: string) {
-  const { canEdit, selectedFieldKey, selectField, clearSelection, fieldDefinitions } = useVisualEditorContext()
+  const { canEdit, isEditingActive, selectedFieldKey, selectField, clearSelection, fieldDefinitions } =
+    useVisualEditorContext()
   const fieldDefinition = fieldDefinitions.find((field) => field.key === fieldKey)
   const isSelected = selectedFieldKey === fieldKey
 
   const select = () => {
-    if (!canEdit) return
+    if (!isEditingActive) return
     selectField(fieldKey)
   }
 
-  return { canEdit, isSelected, select, clearSelection, fieldDefinition }
+  return { canEdit, isEditingActive, isSelected, select, clearSelection, fieldDefinition }
 }
 
 function EditableMarker(props: { label: string; kind: string; selected: boolean }) {
@@ -582,15 +694,19 @@ export function SiteContentScope(props: {
   className?: string
   children: ReactNode
 }) {
-  const { canEdit } = useVisualEditorContext()
+  const { isEditingActive } = useVisualEditorContext()
   const { title, description, className, children } = props
 
   return (
     <section
       data-visual-editor-scope={title}
-      className={cn("relative", canEdit && "rounded-[2rem] outline outline-1 outline-dashed outline-sky-200/80", className)}
+      className={cn(
+        "relative",
+        isEditingActive && "rounded-[2rem] outline outline-1 outline-dashed outline-sky-200/80",
+        className,
+      )}
     >
-      {canEdit ? (
+      {isEditingActive ? (
         <div className="pointer-events-none absolute -top-3 left-5 z-10 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-sky-700 shadow-sm">
           <PencilLine className="h-3.5 w-3.5" />
           <span>{title}</span>
@@ -609,7 +725,7 @@ export function EditableText(props: {
   className?: string
 }) {
   const { fieldKey, as = "p", fallback, className } = props
-  const { getFieldValue, canEdit } = useVisualEditorContext()
+  const { getFieldValue, isEditingActive } = useVisualEditorContext()
   const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = String(getFieldValue(fieldKey, fallback) ?? fallback)
   const Element = as as keyof JSX.IntrinsicElements
@@ -620,13 +736,13 @@ export function EditableText(props: {
       className={cn(
         "group relative",
         className,
-        canEdit && "cursor-pointer transition",
-        canEdit && "hover:outline hover:outline-2 hover:outline-sky-300/80",
+        isEditingActive && "cursor-pointer transition",
+        isEditingActive && "hover:outline hover:outline-2 hover:outline-sky-300/80",
         isSelected && "outline outline-2 outline-sky-500 outline-offset-4",
       )}
-      onClick={canEdit ? select : undefined}
+      onClick={isEditingActive ? select : undefined}
       onKeyDown={
-        canEdit
+        isEditingActive
           ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault()
@@ -635,10 +751,10 @@ export function EditableText(props: {
             }
           : undefined
       }
-      tabIndex={canEdit ? 0 : undefined}
-      role={canEdit ? "button" : undefined}
+      tabIndex={isEditingActive ? 0 : undefined}
+      role={isEditingActive ? "button" : undefined}
     >
-      {canEdit ? (
+      {isEditingActive ? (
         <EditableMarker
           label="Editar"
           kind={getEditableKindLabel(fieldDefinition?.kind)}
@@ -656,11 +772,11 @@ export function EditableLink(props: {
   className?: string
 }) {
   const { fieldKey, fallback, className } = props
-  const { getLinkField, canEdit } = useVisualEditorContext()
+  const { getLinkField, isEditingActive } = useVisualEditorContext()
   const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = getLinkField(fieldKey, fallback)
 
-  if (canEdit) {
+  if (isEditingActive) {
     return (
       <button
         type="button"
@@ -698,7 +814,7 @@ export function EditableButton(props: {
   variant?: "primary" | "secondary"
 }) {
   const { fieldKey, fallback, className, variant = "primary" } = props
-  const { getLinkField, canEdit } = useVisualEditorContext()
+  const { getLinkField, isEditingActive } = useVisualEditorContext()
   const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = getLinkField(fieldKey, fallback)
   const baseClassName =
@@ -706,7 +822,7 @@ export function EditableButton(props: {
       ? "inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
       : "inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-slate-800"
 
-  if (canEdit) {
+  if (isEditingActive) {
     return (
       <button
         type="button"
@@ -748,7 +864,7 @@ export function EditableImage(props: {
   className?: string
 }) {
   const { fieldKey, fallback, className } = props
-  const { getImageField, canEdit } = useVisualEditorContext()
+  const { getImageField, isEditingActive } = useVisualEditorContext()
   const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = getImageField(fieldKey, fallback)
 
@@ -758,14 +874,14 @@ export function EditableImage(props: {
       data-visual-editor-field={fieldKey}
       className={cn(
         "group relative block overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)]",
-        canEdit && "cursor-pointer transition hover:border-sky-300 hover:shadow-[0_20px_50px_rgba(2,132,199,0.16)]",
+        isEditingActive && "cursor-pointer transition hover:border-sky-300 hover:shadow-[0_20px_50px_rgba(2,132,199,0.16)]",
         isSelected && "outline outline-2 outline-sky-500 outline-offset-4",
         className,
       )}
-      onClick={canEdit ? select : undefined}
+      onClick={isEditingActive ? select : undefined}
     >
       <img src={value.src} alt={value.alt} className="h-full w-full object-cover" />
-      {canEdit ? (
+      {isEditingActive ? (
         <EditableMarker
           label="Editar"
           kind={getEditableKindLabel(fieldDefinition?.kind)}

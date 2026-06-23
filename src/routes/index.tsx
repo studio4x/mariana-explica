@@ -174,8 +174,8 @@ const AdminPageEditor = lazy(() =>
 const AdminAiPageEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAiPageEditor })),
 )
-const AdminAiCodeEditor = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminAiCodeEditor })),
+const AdminAiCodeEditorDisabled = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminAiCodeEditorDisabled })),
 )
 const AdminVisualSiteEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminVisualSiteEditor })),
@@ -595,11 +595,11 @@ export const router = createBrowserRouter(
         },
         {
           path: "editor-ia-irrestrito",
-          element: <Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />,
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "editor-ia-irrestrito/:tab",
-          element: withSuspense(<AdminAiCodeEditor />),
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "produtos",

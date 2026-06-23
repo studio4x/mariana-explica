@@ -382,8 +382,8 @@ async function main() {
       await dismissCookieBanner(adminPage)
 
       await adminPage.getByRole("link", { name: "Editor Visual" }).first().waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("link", { name: "Editor IA Irrestrito" }).first().waitFor({ state: "visible", timeout: 30000 })
-      evidence.menu = "Menu admin exibiu Editor Visual e Editor IA Irrestrito."
+      assert((await adminPage.getByRole("link", { name: "Editor IA Irrestrito" }).count()) === 0, "Menu admin ainda exibiu Editor IA Irrestrito")
+      evidence.menu = "Menu admin exibiu Editor Visual e nao exibiu Editor IA Irrestrito."
 
       await adminPage.goto(`${BASE_URL}/admin/editor-visual`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/admin/editor-visual")
@@ -416,9 +416,13 @@ async function main() {
 
       await adminPage.goto(`${BASE_URL}/suporte`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/suporte")
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
       await adminPage.getByRole("button", { name: "Guardar rascunho" }).waitFor({ state: "visible", timeout: 30000 })
       await adminPage.getByRole("button", { name: "Publicar" }).waitFor({ state: "visible", timeout: 30000 })
-      evidence.adminSupport = "Admin viu controles visuais em /suporte."
+      evidence.adminSupport = "Admin abriu o widget em /suporte e ativou a edicao visual."
 
       const commonContext = await browser.newContext()
       const commonPage = await commonContext.newPage()
@@ -431,6 +435,7 @@ async function main() {
         await commonPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeTitle, {
           timeout: 30000,
         })
+        assert((await commonPage.getByRole("button", { name: "Abrir editor visual" }).count()) === 0, "Usuario comum enxergou o widget visual")
         assert((await commonPage.getByRole("button", { name: "Guardar rascunho" }).count()) === 0, "Usuario comum enxergou controles visuais")
         evidence.commonRead = "Usuario comum viu o texto editado sem controles visuais."
       } finally {
@@ -448,6 +453,7 @@ async function main() {
         await anonPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeTitle, {
           timeout: 30000,
         })
+        assert((await anonPage.getByRole("button", { name: "Abrir editor visual" }).count()) === 0, "Visitante anonimo enxergou o widget visual")
         assert((await anonPage.getByRole("button", { name: "Guardar rascunho" }).count()) === 0, "Visitante anonimo enxergou controles visuais")
         evidence.anonRead = "Visitante anonimo viu o texto editado sem controles visuais."
       } finally {
@@ -488,6 +494,71 @@ async function main() {
       await adminPage.getByRole("button", { name: "Guardar rascunho" }).waitFor({ state: "visible", timeout: 30000 })
       evidence.fallbackVisible = "Fallback hardcoded voltou a aparecer em /suporte para admin."
 
+      await adminPage.goto(`${BASE_URL}/materiais`, { waitUntil: "domcontentloaded" })
+      await waitForPath(adminPage, "/materiais")
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
+      const materialsOriginalTitle = await adminPage.locator('[data-visual-editor-field="hero.title"]').innerText()
+      const smokeMaterialsTitle = `${materialsOriginalTitle.replace(/\s*\|\s*Smoke Visual.*$/i, "")} | Smoke Visual Materials ${stamp}`
+      await selectAndEditHeroTitle(adminPage, smokeMaterialsTitle)
+      await clickButtonAndWaitForMessage(adminPage, "Guardar rascunho", /Rascunho salvo na versao \d+\./i)
+      await clickButtonAndWaitForMessage(adminPage, "Publicar", /Versao \d+ publicada com sucesso\./i)
+      await adminPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeMaterialsTitle, {
+        timeout: 30000,
+      })
+      evidence.materialsEdit = `Hero title alterado para: ${smokeMaterialsTitle}`
+
+      const materialsCommonContext = await browser.newContext()
+      const materialsCommonPage = await materialsCommonContext.newPage()
+      await capturePageIssues(materialsCommonPage, issues, "materials-common")
+
+      try {
+        await login(materialsCommonPage, BASE_URL, commonEmail, password, "/materiais")
+        await waitForPath(materialsCommonPage, "/materiais")
+        await dismissCookieBanner(materialsCommonPage)
+        await materialsCommonPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeMaterialsTitle, {
+          timeout: 30000,
+        })
+        assert((await materialsCommonPage.getByRole("button", { name: "Abrir editor visual" }).count()) === 0, "Usuario comum enxergou o widget visual em materiais")
+        assert((await materialsCommonPage.getByRole("button", { name: "Guardar rascunho" }).count()) === 0, "Usuario comum enxergou controles visuais em materiais")
+        evidence.materialsCommon = "Usuario comum viu materiais sem controles visuais."
+      } finally {
+        await materialsCommonContext.close()
+      }
+
+      const materialsAnonContext = await browser.newContext()
+      const materialsAnonPage = await materialsAnonContext.newPage()
+      await capturePageIssues(materialsAnonPage, issues, "materials-anon")
+
+      try {
+        await materialsAnonPage.goto(`${BASE_URL}/materiais`, { waitUntil: "domcontentloaded" })
+        await waitForPath(materialsAnonPage, "/materiais")
+        await dismissCookieBanner(materialsAnonPage)
+        await materialsAnonPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeMaterialsTitle, {
+          timeout: 30000,
+        })
+        assert((await materialsAnonPage.getByRole("button", { name: "Abrir editor visual" }).count()) === 0, "Visitante anonimo enxergou o widget visual em materiais")
+        assert((await materialsAnonPage.getByRole("button", { name: "Guardar rascunho" }).count()) === 0, "Visitante anonimo enxergou controles visuais em materiais")
+        evidence.materialsAnon = "Visitante anonimo viu materiais sem controles visuais."
+      } finally {
+        await materialsAnonContext.close()
+      }
+
+      await adminPage.goto(`${BASE_URL}/materiais`, { waitUntil: "domcontentloaded" })
+      await waitForPath(adminPage, "/materiais")
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
+      await restoreVersionByNumber(adminPage, 1)
+      await clickButtonAndWaitForMessage(adminPage, "Publicar", /Versao \d+ publicada com sucesso\./i)
+      await adminPage.waitForFunction((title) => document.body?.innerText.includes(title), materialsOriginalTitle, {
+        timeout: 30000,
+      })
+      evidence.materialsRestore = "Materiais voltou ao conteudo original após restauracao."
+
       const commonWriteAttempt = await commonAuthClient
         .from("visual_site_pages")
         .update({ title: "Nao deve gravar" })
@@ -512,17 +583,19 @@ async function main() {
       evidence.finalSupport = "State restored to original published version in the database."
 
       const aiRoutes = [
-        { path: "/admin/editor-ia-irrestrito/chat", tab: "Chat" },
-        { path: "/admin/editor-ia-irrestrito/tasks", tab: "Tasks" },
-        { path: "/admin/editor-ia-irrestrito/configuracao", tab: "Configuração" },
+        "/admin/editor-ia-irrestrito",
+        "/admin/editor-ia-irrestrito/chat",
+        "/admin/editor-ia-irrestrito/tasks",
+        "/admin/editor-ia-irrestrito/configuracao",
       ]
 
-      for (const item of aiRoutes) {
-        await adminPage.goto(`${BASE_URL}${item.path}`, { waitUntil: "domcontentloaded" })
-        await waitForPath(adminPage, item.path)
+      for (const path of aiRoutes) {
+        await adminPage.goto(`${BASE_URL}${path}`, { waitUntil: "domcontentloaded" })
+        await waitForPath(adminPage, new URL(path, BASE_URL).pathname)
         await adminPage.getByRole("heading", { name: "Editor IA Irrestrito" }).waitFor({ state: "visible", timeout: 30000 })
-        await adminPage.getByRole("tab", { name: item.tab }).waitFor({ state: "visible", timeout: 30000 })
-        evidence[`ai_${item.tab.toLowerCase()}`] = `${item.path} carregou corretamente.`
+        await adminPage.getByRole("heading", { name: "Acesso desativado" }).waitFor({ state: "visible", timeout: 30000 })
+        assert((await adminPage.getByRole("tab").count()) === 0, "Tela desativada ainda exibiu abas")
+        evidence[`ai_${path.split("/").pop() || "base"}`] = `${path} carregou como tela desativada.`
       }
 
       const anonRedirectContext = await browser.newContext()

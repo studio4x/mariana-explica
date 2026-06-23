@@ -161,6 +161,7 @@ describe("Support", () => {
     )
     expect(screen.getByText("Pergunta de teste")).toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
   })
 
   it("opens the sidebar when an admin clicks an editable element", async () => {
@@ -173,6 +174,10 @@ describe("Support", () => {
     mockFetchAdminVisualEditorPageDetail.mockResolvedValue(buildSupportDetail())
 
     renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    expect(await screen.findByRole("button", { name: "Ativar edicao" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Ativar edicao" }))
 
     expect(await screen.findByRole("button", { name: "Como podemos ajudar?" })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Como podemos ajudar?" }))

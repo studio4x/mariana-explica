@@ -224,6 +224,7 @@ describe("Products", () => {
     expect(screen.getByRole("heading", { name: "Sebenta Teste" })).toBeInTheDocument()
     expect(screen.getByText("Pergunta de teste")).toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
   })
 
   it("shows editor controls to an admin on the public materials page", async () => {
@@ -237,10 +238,11 @@ describe("Products", () => {
 
     renderProducts()
 
-    expect(await screen.findByRole("button", { name: "Tudo o que precisas para brilhares" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeInTheDocument()
-    expect(screen.getAllByText("Editor visual").length).toBeGreaterThan(0)
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    expect(await screen.findByRole("button", { name: "Ativar edicao" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Ativar edicao" }))
 
+    expect(await screen.findByRole("button", { name: "Tudo o que precisas para brilhares" })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Tudo o que precisas para brilhares" }))
     expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Tudo o que precisas para brilhares")).toBeInTheDocument()
