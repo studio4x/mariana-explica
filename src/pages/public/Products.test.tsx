@@ -86,7 +86,7 @@ function buildMaterialsDetail() {
   const publishedVersion = {
     id: "materials-version-1",
     page_id: "materials-page-1",
-    version_number: 1,
+    version_number: 2,
     status: "published",
     entries_json: publishedDocument,
     style_json: {},
@@ -98,7 +98,7 @@ function buildMaterialsDetail() {
   const draftVersion = {
     id: "materials-version-2",
     page_id: "materials-page-1",
-    version_number: 2,
+    version_number: 1,
     status: "draft",
     entries_json: staleDraftDocument,
     style_json: {},
@@ -118,9 +118,9 @@ function buildMaterialsDetail() {
       created_at: "2026-01-01T00:00:00.000Z",
       updated_at: "2026-01-01T00:00:00.000Z",
     },
-    versions: [draftVersion, publishedVersion],
+    versions: [publishedVersion, draftVersion],
     publishedVersion,
-    latestDraft: draftVersion,
+    latestDraft: null,
     assets: [],
   }
 }
@@ -340,7 +340,7 @@ describe("Products", () => {
 
     await clickEditableField(user, "hero.title")
     expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
-    expect(screen.getByDisplayValue("Tudo o que precisas para brilhares | Draft antigo")).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Tudo o que precisas para brilhares")).toBeInTheDocument()
 
     await clickEditableField(user, "hero.primaryCta")
     expect(await screen.findByText("Botao principal")).toBeInTheDocument()
@@ -360,7 +360,7 @@ describe("Products", () => {
     await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
     await clickEditableField(user, "hero.title")
 
-    const titleInput = await screen.findByDisplayValue("Tudo o que precisas para brilhares | Draft antigo")
+    const titleInput = await screen.findByDisplayValue("Tudo o que precisas para brilhares")
     await user.clear(titleInput)
     await user.type(titleInput, "Tudo o que precisas para brilhares | Teste Persistencia")
     await user.click(screen.getByRole("button", { name: "Publicar" }))

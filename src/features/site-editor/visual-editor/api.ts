@@ -117,7 +117,11 @@ export async function fetchAdminVisualEditorPageDetail(pageKey: string): Promise
 
   const versions = (versionsData ?? []) as VisualEditorPageVersion[]
   const publishedVersion = versions.find((version) => version.id === page.published_version_id) ?? null
-  const latestDraft = versions.find((version) => version.status === "draft") ?? null
+  const latestDraft =
+    versions.find(
+      (version) =>
+        version.status === "draft" && (!publishedVersion || version.version_number > publishedVersion.version_number),
+    ) ?? null
 
   const { data: assetsData, error: assetsError } = await supabase
     .from("visual_site_page_assets")
@@ -288,4 +292,3 @@ export async function restoreVisualEditorPageVersion(input: { pageKey: string; v
     version: restoredVersionData as VisualEditorPageVersion,
   }
 }
-
