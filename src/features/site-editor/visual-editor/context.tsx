@@ -408,7 +408,7 @@ export function VisualEditorProvider(props: {
   }
 
   const publishDraft = async () => {
-    const draftVersion = pageDetail?.latestDraft && !isDirty ? pageDetail.latestDraft : await saveDraft()
+    const draftVersion = isDirty || !pageDetail?.latestDraft ? await saveDraft() : pageDetail.latestDraft
     const published = await publishVisualEditorPageVersion({ pageKey, versionId: draftVersion.id })
     const normalizedDocument = mergeVisualEditorDocuments(pageDefinition?.defaultDocument ?? {}, published.version.entries_json)
     setBaselineDocument(cloneVisualEditorDocument(normalizedDocument))

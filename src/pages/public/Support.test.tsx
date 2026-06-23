@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Support } from "./Support"
 
@@ -10,6 +10,9 @@ const mockUsePublishedFaqCategories = vi.fn()
 const mockUsePublishedFaqs = vi.fn()
 const mockFetchPublicVisualEditorPage = vi.fn()
 const mockFetchAdminVisualEditorPageDetail = vi.fn()
+const mockSaveVisualEditorPageDraft = vi.fn()
+const mockPublishVisualEditorPageVersion = vi.fn()
+const mockRestoreVisualEditorPageVersion = vi.fn()
 
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
@@ -23,86 +26,92 @@ vi.mock("@/hooks/useFaqs", () => ({
 vi.mock("@/features/site-editor/visual-editor/api", () => ({
   fetchPublicVisualEditorPage: (...args: unknown[]) => mockFetchPublicVisualEditorPage(...args),
   fetchAdminVisualEditorPageDetail: (...args: unknown[]) => mockFetchAdminVisualEditorPageDetail(...args),
-  saveVisualEditorPageDraft: vi.fn(),
-  publishVisualEditorPageVersion: vi.fn(),
-  restoreVisualEditorPageVersion: vi.fn(),
+  saveVisualEditorPageDraft: (...args: unknown[]) => mockSaveVisualEditorPageDraft(...args),
+  publishVisualEditorPageVersion: (...args: unknown[]) => mockPublishVisualEditorPageVersion(...args),
+  restoreVisualEditorPageVersion: (...args: unknown[]) => mockRestoreVisualEditorPageVersion(...args),
 }))
 
-function buildSupportDetail() {
-    const draftVersion = {
-      id: "support-version-2",
-      page_id: "support-page-1",
-      version_number: 2,
-      status: "draft",
-      entries_json: {
-        hero: {
-          eyebrow: "Suporte e FAQ",
-          title: "Como podemos ajudar?",
-          lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
-          primaryCta: {
-            label: "Abrir um chamado",
-            href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
-          },
-          secondaryCta: {
-            label: "Entrar na conta",
-            href: "/login",
-          },
-          image: {
-            src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'></svg>",
-            alt: "Ilustracao",
-          },
-        },
-        supportCta: {
-          title: "Ainda precisa de ajuda?",
-          lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
-          primaryCta: {
-            label: "Abrir um chamado",
-            href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
-          },
-          secondaryCta: {
-            label: "Entrar na conta",
-            href: "/login",
-          },
-        },
+function buildSupportDocument(title: string) {
+  return {
+    hero: {
+      eyebrow: "Suporte e FAQ",
+      title,
+      lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
+      primaryCta: {
+        label: "Abrir um chamado",
+        href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
       },
-      style_json: {},
-      metadata: {},
-      created_by: null,
-      created_at: "2026-01-02T00:00:00.000Z",
-    }
+      secondaryCta: {
+        label: "Entrar na conta",
+        href: "/login",
+      },
+      image: {
+        src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'></svg>",
+        alt: "Ilustracao",
+      },
+    },
+    supportCta: {
+      title: "Ainda precisa de ajuda?",
+      lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
+      primaryCta: {
+        label: "Abrir um chamado",
+        href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+      },
+      secondaryCta: {
+        label: "Entrar na conta",
+        href: "/login",
+      },
+    },
+  }
+}
 
-    const publishedVersion = {
-      id: "support-version-1",
-      page_id: "support-page-1",
-      version_number: 1,
-      status: "published",
-      entries_json: {},
-      style_json: {},
-      metadata: {},
-      created_by: null,
-      created_at: "2026-01-01T00:00:00.000Z",
-    }
+function buildSupportDetail() {
+  const publishedDocument = buildSupportDocument("Como podemos ajudar?")
+  const staleDraftDocument = buildSupportDocument("Como podemos ajudar? | Draft antigo")
 
-    return {
-      page: {
-        id: "support-page-1",
-        page_key: "support",
-        title: "Suporte",
+  const publishedVersion = {
+    id: "support-version-1",
+    page_id: "support-page-1",
+    version_number: 1,
+    status: "published",
+    entries_json: publishedDocument,
+    style_json: {},
+    metadata: {},
+    created_by: null,
+    created_at: "2026-01-01T00:00:00.000Z",
+  }
+
+  const draftVersion = {
+    id: "support-version-2",
+    page_id: "support-page-1",
+    version_number: 2,
+    status: "draft",
+    entries_json: staleDraftDocument,
+    style_json: {},
+    metadata: {},
+    created_by: null,
+    created_at: "2026-01-02T00:00:00.000Z",
+  }
+
+  return {
+    page: {
+      id: "support-page-1",
+      page_key: "support",
+      title: "Suporte",
       status: "published",
       published_version_id: "support-version-1",
       created_by: null,
       created_at: "2026-01-01T00:00:00.000Z",
-        updated_at: "2026-01-01T00:00:00.000Z",
-      },
-      versions: [
-        draftVersion,
-        publishedVersion,
-      ],
-      publishedVersion,
-      latestDraft: draftVersion,
-      assets: [],
-    }
+      updated_at: "2026-01-01T00:00:00.000Z",
+    },
+    versions: [draftVersion, publishedVersion],
+    publishedVersion,
+    latestDraft: draftVersion,
+    assets: [],
+  }
 }
+
+let supportPageDetail: any = buildSupportDetail()
 
 function renderSupport(pathname = "/suporte") {
   const queryClient = new QueryClient({
@@ -118,12 +127,23 @@ function renderSupport(pathname = "/suporte") {
   )
 }
 
+async function clickEditableField(user: ReturnType<typeof userEvent.setup>, fieldKey: string) {
+  const field = await waitFor(() => {
+    const element = document.querySelector<HTMLElement>(`[data-visual-editor-field="${fieldKey}"]`)
+    expect(element).not.toBeNull()
+    return element as HTMLElement
+  })
+
+  await user.click(field)
+}
+
 describe("Support", () => {
   beforeEach(() => {
-    mockUseAuth.mockReturnValue({
-      isAdmin: false,
-      loading: false,
-    })
+    supportPageDetail = buildSupportDetail()
+    mockSaveVisualEditorPageDraft.mockReset()
+    mockPublishVisualEditorPageVersion.mockReset()
+    mockRestoreVisualEditorPageVersion.mockReset()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
     mockUsePublishedFaqCategories.mockReturnValue({
       data: [
         {
@@ -148,7 +168,86 @@ describe("Support", () => {
       ],
     })
     mockFetchPublicVisualEditorPage.mockResolvedValue(null)
-    mockFetchAdminVisualEditorPageDetail.mockResolvedValue(null)
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    mockSaveVisualEditorPageDraft.mockImplementation(async ({ document, title }: any) => {
+      const nextDocument = document ?? buildSupportDocument(title ?? "Como podemos ajudar?")
+      const saved: any = {
+        page: {
+          id: "support-page-1",
+          page_key: "support",
+          title: title ?? "Suporte",
+          status: "published",
+          published_version_id: "support-version-3",
+          created_by: null,
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-03T00:00:00.000Z",
+        },
+        version: {
+          id: "support-version-3",
+          page_id: "support-page-1",
+          version_number: 3,
+          status: "draft",
+          entries_json: nextDocument,
+          style_json: {},
+          metadata: {},
+          created_by: null,
+          created_at: "2026-01-03T00:00:00.000Z",
+        },
+      }
+
+      supportPageDetail = {
+        ...supportPageDetail,
+        versions: [saved.version, ...supportPageDetail.versions.filter((version: any) => version.id !== saved.version.id)],
+        latestDraft: saved.version,
+        page: {
+          ...supportPageDetail.page,
+          updated_at: saved.page.updated_at,
+        },
+      }
+
+      return saved
+    })
+
+    mockPublishVisualEditorPageVersion.mockImplementation(async ({ versionId }: any) => {
+      const published: any = {
+        page: {
+          id: "support-page-1",
+          page_key: "support",
+          title: "Suporte",
+          status: "published",
+          published_version_id: versionId,
+          created_by: null,
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-03T00:00:00.000Z",
+        },
+        version: {
+          id: versionId,
+          page_id: "support-page-1",
+          version_number: 3,
+          status: "published",
+          entries_json: buildSupportDocument("Como podemos ajudar? | Teste Persistencia"),
+          style_json: {},
+          metadata: {},
+          created_by: null,
+          created_at: "2026-01-03T00:00:00.000Z",
+        },
+      }
+
+      supportPageDetail = {
+        ...supportPageDetail,
+        versions: [published.version, ...supportPageDetail.versions.filter((version: any) => version.id !== published.version.id)],
+        latestDraft: null,
+        publishedVersion: published.version,
+        page: {
+          ...supportPageDetail.page,
+          published_version_id: versionId,
+          updated_at: published.page.updated_at,
+        },
+      }
+
+      return published
+    })
   })
 
   it("renders the public support page without editor controls", async () => {
@@ -167,11 +266,8 @@ describe("Support", () => {
   it("opens the sidebar when an admin clicks an editable element", async () => {
     const user = userEvent.setup()
 
-    mockUseAuth.mockReturnValue({
-      isAdmin: true,
-      loading: false,
-    })
-    mockFetchAdminVisualEditorPageDetail.mockResolvedValue(buildSupportDetail())
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
 
     renderSupport()
 
@@ -179,16 +275,50 @@ describe("Support", () => {
     expect(await screen.findByRole("button", { name: "Ativar edicao" })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Ativar edicao" }))
 
-    expect(await screen.findByRole("button", { name: "Como podemos ajudar?" })).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Como podemos ajudar?" }))
+    await clickEditableField(user, "hero.title")
 
     expect(await screen.findByText("Elemento selecionado")).toBeInTheDocument()
-    expect(screen.getByDisplayValue("Como podemos ajudar?")).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Como podemos ajudar? | Draft antigo")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeInTheDocument()
 
-    await user.click(screen.getAllByRole("button", { name: "Abrir um chamado" })[0])
+    await clickEditableField(user, "hero.primaryCta")
     expect(await screen.findByText("Botao principal")).toBeInTheDocument()
     expect(screen.getByLabelText("Rotulo")).toBeInTheDocument()
     expect(screen.getByLabelText("Destino")).toBeInTheDocument()
+  })
+
+  it("publishes the freshly saved support draft instead of a stale draft", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "hero.title")
+
+    const titleInput = await screen.findByDisplayValue("Como podemos ajudar? | Draft antigo")
+    await user.clear(titleInput)
+    await user.type(titleInput, "Como podemos ajudar? | Teste Persistencia")
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "support",
+        document: expect.objectContaining({
+          hero: expect.objectContaining({
+            title: "Como podemos ajudar? | Teste Persistencia",
+          }),
+        }),
+      }),
+    )
+    expect(mockPublishVisualEditorPageVersion).toHaveBeenCalledWith({
+      pageKey: "support",
+      versionId: "support-version-3",
+    })
+    expect(await screen.findByText("Versao 3 publicada com sucesso.")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Como podemos ajudar? | Teste Persistencia" })).toBeInTheDocument()
   })
 })
