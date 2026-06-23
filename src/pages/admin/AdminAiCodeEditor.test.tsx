@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -129,7 +129,7 @@ const sampleTask: AdminAiCodeEditorTask = {
   files_analyzed: ["src/pages/Home.tsx"],
   files_planned: ["src/pages/Home.tsx"],
   plan_json: { steps: ["Encontrar o bloco", "Atualizar a cor"] },
-  result_summary: "Patch aplicado e pronto para revisão.",
+  result_summary: "Patch aplicado e pronto para revisao.",
   sensitive_change: false,
   sensitive_reasons: [],
   requires_explicit_publish_confirmation: true,
@@ -162,7 +162,7 @@ const sampleTask: AdminAiCodeEditorTask = {
       file_path: "src/pages/Home.tsx",
       change_type: "modify",
       status: "applied",
-      rationale: "Atualização visual pontual.",
+      rationale: "Atualizacao visual pontual.",
       summary: "Cor do texto atualizada.",
       diff_preview: "+ color: #fff",
       diff_patch: "+ color: #fff",
@@ -185,8 +185,53 @@ const sampleTask: AdminAiCodeEditorTask = {
       metadata: {},
       created_at: "2026-06-22T09:00:00Z",
     },
+    {
+      id: "event-2",
+      task_id: "task-1",
+      actor_user_id: null,
+      event_type: "planned",
+      message: "Plano gerado",
+      metadata: {},
+      created_at: "2026-06-22T09:10:00Z",
+    },
+    {
+      id: "event-3",
+      task_id: "task-1",
+      actor_user_id: null,
+      event_type: "preview_ready",
+      message: "Preview pronto",
+      metadata: {},
+      created_at: "2026-06-22T09:20:00Z",
+    },
+    {
+      id: "event-4",
+      task_id: "task-1",
+      actor_user_id: null,
+      event_type: "checks_passed",
+      message: "Checks concluidos",
+      metadata: {},
+      created_at: "2026-06-22T09:30:00Z",
+    },
   ],
   deploys: [],
+}
+
+const secondTask: AdminAiCodeEditorTask = {
+  ...sampleTask,
+  id: "task-2",
+  prompt: "Refinar cards antigos",
+  normalized_prompt: "Refinar cards antigos",
+  title: "Refinar cards antigos",
+  summary: "Task secundaria para validar a inbox compacta.",
+  status: "failed",
+  risk_level: "low",
+  preview_status: "failed",
+  test_status: "failed",
+  build_status: "failed",
+  pull_request_number: 18,
+  pull_request_url: "https://github.com/studio4x/mariana-explica/pull/18",
+  created_at: "2026-06-21T09:00:00Z",
+  updated_at: "2026-06-21T10:00:00Z",
 }
 
 beforeEach(() => {
@@ -208,10 +253,7 @@ function renderEditor(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route
-          path="/admin/editor-ia-irrestrito"
-          element={<Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />}
-        />
+        <Route path="/admin/editor-ia-irrestrito" element={<Navigate to={ROUTES.ADMIN_AI_CODE_EDITOR_CHAT} replace />} />
         <Route
           path="/admin/editor-ia-irrestrito/:tab"
           element={
@@ -239,7 +281,7 @@ describe("AdminAiCodeEditor", () => {
   it.each([
     ["/admin/editor-ia-irrestrito/chat", "Chat"],
     ["/admin/editor-ia-irrestrito/tasks", "Tasks"],
-    ["/admin/editor-ia-irrestrito/configuracao", "Configuração"],
+    ["/admin/editor-ia-irrestrito/configuracao", "Configura"],
   ] as const)("opens the %s slug on load", async (path, tabLabel) => {
     renderEditor(path)
 
@@ -279,10 +321,11 @@ describe("AdminAiCodeEditor", () => {
     expect(screen.getByTestId("ai-editor-chat-panel")).toHaveClass("w-full")
   })
 
-  it("renders organized task metrics and a selected task detail", async () => {
+  it("renders the redesigned tasks inbox with collapsed heavy sections by default", async () => {
+    const user = userEvent.setup()
     mockUseAdminAiCodeEditorTasks.mockReturnValue({
       ...tasksResponse,
-      data: [sampleTask],
+      data: [sampleTask, secondTask],
     })
     mockUseAdminAiCodeEditorTask.mockReturnValue({
       data: sampleTask,
@@ -299,12 +342,25 @@ describe("AdminAiCodeEditor", () => {
 
     expect(screen.getByText("Tarefas do Editor IA")).toBeInTheDocument()
     expect(screen.getByText("Total")).toBeInTheDocument()
-    expect(screen.getByText("Prontas p/ revisão")).toBeInTheDocument()
+    expect(screen.getByText(/Prontas p\/ revis/i)).toBeInTheDocument()
     expect(screen.getByText("Com rollback")).toBeInTheDocument()
-    expect(screen.getByText("Fila de tasks")).toBeInTheDocument()
+    expect(screen.getByText("Inbox de tasks")).toBeInTheDocument()
+    expect(screen.getByTestId("ai-editor-task-list")).toHaveClass("overflow-y-auto")
+    expect(screen.getByText(secondTask.title)).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: sampleTask.title })).toBeInTheDocument()
     expect(screen.getByText("Arquivos analisados")).toBeInTheDocument()
-    expect(screen.getByText("Auditoria da task")).toBeInTheDocument()
+    expect(screen.getByText("Acoes principais")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: /Arquivos e diff/i }))
+
+    expect(screen.getByRole("button", { name: "Ver diff" })).toBeInTheDocument()
+    expect(screen.queryByText("+ color: #fff")).not.toBeInTheDocument()
+    expect(screen.queryByText("Task criada")).not.toBeInTheDocument()
+
+    await user.click(screen.getAllByRole("button", { name: /Mostra so os eventos recentes/i })[0])
+
+    expect(screen.getByRole("button", { name: /Ver auditoria completa/i })).toBeInTheDocument()
+    expect(screen.getByText("Task criada")).toBeInTheDocument()
   })
 
   it("keeps configuration save working", async () => {
