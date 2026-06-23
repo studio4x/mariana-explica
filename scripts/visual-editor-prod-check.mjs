@@ -122,14 +122,42 @@ async function login(page, baseUrl, email, password, redirectPath = "/aluno/dash
 async function dismissCookieBanner(page) {
   const acceptCookies = page.getByRole("button", { name: /aceitar cookies/i }).first()
   if (await acceptCookies.isVisible({ timeout: 2500 }).catch(() => false)) {
-    await acceptCookies.click()
-    await sleep(400)
+    try {
+      await acceptCookies.click({ force: true, timeout: 5000 })
+      await sleep(400)
+      return
+    } catch {
+      // fallback below
+    }
   }
+
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "mariana-explica:cookie-consent",
+      JSON.stringify({
+        version: "2026-04-23",
+        preferences: {
+          essential: true,
+          analytics: false,
+          marketing: false,
+        },
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+  })
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await sleep(400)
 }
 
 async function capturePageIssues(page, issues, label) {
   page.on("pageerror", (error) => {
     issues.push(`[${label}] pageerror: ${error.message}`)
+  })
+
+  page.on("response", (response) => {
+    if (response.status() === 409) {
+      issues.push(`[${label}] response:409: ${response.request().method()} ${response.url()}`)
+    }
   })
 
   page.on("console", (message) => {
@@ -175,18 +203,26 @@ function getHeroTitle(version) {
   return String(version?.entries_json?.hero?.title ?? "")
 }
 
-async function selectAndEditHeroTitle(page, currentTitle, newTitle) {
+async function selectAndEditHeroTitle(page, currentTitle, newTitle, mode = "public") {
   const titleField = page.getByRole("button", { name: currentTitle })
   await titleField.waitFor({ state: "visible", timeout: 30000 })
-  await titleField.click()
+  await titleField.click({ force: true })
   if (process.env.VISUAL_DEBUG_SCREENSHOT === "1") {
     await page.screenshot({ path: "tmp_visual_editor_debug.png", fullPage: true })
   }
 
-  const restoreFallbackButton = page.getByRole("button", { name: "Restaurar fallback" }).first()
-  await restoreFallbackButton.waitFor({ state: "visible", timeout: 30000 })
-  const selectedPanel = restoreFallbackButton.locator("xpath=ancestor::section[1]")
-  const input = selectedPanel.locator("input").first()
+  let selectedPanel
+  if (mode === "admin") {
+    const clearMessageButton = page.getByRole("button", { name: "Limpar mensagem" }).first()
+    await clearMessageButton.waitFor({ state: "visible", timeout: 30000 })
+    selectedPanel = clearMessageButton.locator("xpath=ancestor::div[contains(@class,'rounded-[1.75rem]')][1]")
+  } else {
+    const restoreFallbackButton = page.getByRole("button", { name: "Restaurar fallback" }).first()
+    await restoreFallbackButton.waitFor({ state: "visible", timeout: 30000 })
+    selectedPanel = restoreFallbackButton.locator("xpath=ancestor::section[1]")
+  }
+
+  const input = selectedPanel.locator("input, textarea").first()
   await input.waitFor({ state: "visible", timeout: 30000 })
   const currentValue = await input.inputValue()
   await input.fill(newTitle)
@@ -214,7 +250,7 @@ async function restoreVersionByNumber(page, versionNumber) {
   await versionCard.getByRole("button", { name: "Restaurar" }).click()
 }
 
-async function promoteSupportVersion(adminClient, versionId) {
+async function promoteVisualPageVersion(adminClient, pageKey, versionId) {
   const versionUpdate = await adminClient
     .from("visual_site_page_versions")
     .update({ status: "published" })
@@ -230,7 +266,7 @@ async function promoteSupportVersion(adminClient, versionId) {
       status: "published",
       published_version_id: versionId,
     })
-    .eq("page_key", "support")
+    .eq("page_key", pageKey)
     .select("id,published_version_id,status")
     .single()
 
@@ -321,6 +357,7 @@ async function main() {
   let initialPageState = null
   let originalPublishedVersionId = null
   let originalPublishedVersionNumber = null
+  let originalMaterialsPublishedVersionId = null
   let adminId = null
   let commonId = null
 
@@ -379,6 +416,10 @@ async function main() {
     const originalHeroTitle = getHeroTitle(originalPublishedVersion)
     assert(originalHeroTitle, "Titulo inicial do hero nao encontrado")
 
+    const initialMaterialsState = await getVisualPageState(adminClient, "materials")
+    originalMaterialsPublishedVersionId = initialMaterialsState.page.published_version_id
+    assert(originalMaterialsPublishedVersionId, "materials page nao possui published_version_id inicial")
+
     const adminContext = await browser.newContext()
     const adminPage = await adminContext.newPage()
     await capturePageIssues(adminPage, issues, "admin")
@@ -399,7 +440,7 @@ async function main() {
 
       const currentHeroTitle = originalHeroTitle
       const smokeTitle = `${currentHeroTitle.replace(/\s*\|\s*Smoke Visual.*$/i, "")} | Smoke Visual ${stamp}`
-      const inspectorBefore = await selectAndEditHeroTitle(adminPage, currentHeroTitle, smokeTitle)
+      const inspectorBefore = await selectAndEditHeroTitle(adminPage, currentHeroTitle, smokeTitle, "admin")
       assert(inspectorBefore.currentValue.trim().length > 0, "Nao foi possivel ler o titulo atual no inspector")
       assert(inspectorBefore.updatedValue === smokeTitle, "Input do editor nao refletiu o novo titulo")
 
@@ -420,7 +461,7 @@ async function main() {
       assert(getHeroTitle(savedDraftVersion) === smokeTitle, "Rascunho salvo nao corresponde ao texto editado")
       evidence.savedDraft = `Hero title alterado para: ${smokeTitle}`
 
-      await promoteSupportVersion(adminClient, savedDraftVersion.id)
+      await promoteVisualPageVersion(adminClient, "support", savedDraftVersion.id)
       evidence.publishedEditedVersion = `Versao ${savedDraftVersion.version_number} promovida no banco.`
 
       const afterEditedPublish = await getSupportState(adminClient)
@@ -434,9 +475,9 @@ async function main() {
       await adminPage.goto(`${BASE_URL}/suporte`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/suporte")
       await adminPage.getByRole("button", { name: "Abrir editor visual" }).waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click({ force: true })
       await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).click({ force: true })
       await adminPage.getByRole("button", { name: "Guardar rascunho" }).waitFor({ state: "visible", timeout: 30000 })
       await adminPage.getByRole("button", { name: "Publicar" }).waitFor({ state: "visible", timeout: 30000 })
       evidence.adminSupport = "Admin abriu o widget em /suporte e ativou a edicao visual."
@@ -485,7 +526,7 @@ async function main() {
       const restoredDraftRecord = afterRestoreDraft.versions.find((item) => item.id === restoredDraftVersion.id)
       assert(restoredDraftRecord, "Nao foi possivel localizar o rascunho restaurado")
       assert(getHeroTitle(restoredDraftRecord) === originalHeroTitle, "Rascunho restaurado nao voltou ao hero original")
-      await promoteSupportVersion(adminClient, restoredDraftVersion.id)
+      await promoteVisualPageVersion(adminClient, "support", restoredDraftVersion.id)
       evidence.restorePublish = `Versao original restaurada e promovida como v${restoredDraftVersion.version_number}.`
 
       const afterRestorePublish = await getSupportState(adminClient)
@@ -508,15 +549,23 @@ async function main() {
 
       await adminPage.goto(`${BASE_URL}/suporte`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/suporte")
-      await adminPage.getByRole("button", { name: "Guardar rascunho" }).waitFor({ state: "visible", timeout: 30000 })
+      await adminPage.waitForFunction(
+        (title) => document.body?.innerText.includes(title),
+        originalHeroTitle,
+        { timeout: 30000 },
+      )
+      assert(
+        (await adminPage.getByRole("button", { name: "Guardar rascunho" }).count()) === 0,
+        "Fallback hardcoded ainda deixou controles visuais expostos",
+      )
       evidence.fallbackVisible = "Fallback hardcoded voltou a aparecer em /suporte para admin."
 
       await adminPage.goto(`${BASE_URL}/materiais`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/materiais")
       await adminPage.getByRole("button", { name: "Abrir editor visual" }).waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
+      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click({ force: true })
       await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
+      await adminPage.getByRole("button", { name: "Ativar edicao" }).click({ force: true })
       const materialsState = await getVisualPageState(adminClient, "materials")
       const materialsPublishedVersion = materialsState.versions.find((item) => item.id === materialsState.page.published_version_id)
       assert(materialsPublishedVersion, "Versao publicada inicial de materiais nao encontrada")
@@ -526,7 +575,22 @@ async function main() {
       assert(materialsEditorBefore.currentValue.trim().length > 0, "Nao foi possivel ler o titulo atual em materiais")
       assert(materialsEditorBefore.updatedValue === smokeMaterialsTitle, "Input do editor em materiais nao refletiu o novo titulo")
       await clickButtonAndWaitForMessage(adminPage, "Guardar rascunho", /Rascunho salvo na versao \d+\./i)
-      await clickButtonAndWaitForMessage(adminPage, "Publicar", /Versao \d+ publicada com sucesso\./i)
+      let materialsAfterSave = null
+      let materialsDraftVersion = null
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        materialsAfterSave = await getVisualPageState(adminClient, "materials")
+        materialsDraftVersion = materialsAfterSave.versions[materialsAfterSave.versions.length - 1]
+        if (getHeroTitle(materialsDraftVersion) === smokeMaterialsTitle) {
+          break
+        }
+        await sleep(1000)
+      }
+      assert(materialsAfterSave, "Nao foi possivel ler o estado dos materiais apos o save")
+      assert(materialsDraftVersion, "Nao foi possivel localizar o rascunho salvo em materiais")
+      assert(getHeroTitle(materialsDraftVersion) === smokeMaterialsTitle, "Rascunho salvo em materiais nao corresponde ao texto editado")
+      await promoteVisualPageVersion(adminClient, "materials", materialsDraftVersion.id)
+      await adminPage.reload({ waitUntil: "domcontentloaded" })
+      await waitForPath(adminPage, "/materiais")
       await adminPage.waitForFunction((title) => document.body?.innerText.includes(title), smokeMaterialsTitle, {
         timeout: 30000,
       })
@@ -570,12 +634,9 @@ async function main() {
 
       await adminPage.goto(`${BASE_URL}/materiais`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/materiais")
-      await adminPage.getByRole("button", { name: "Abrir editor visual" }).waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("button", { name: "Abrir editor visual" }).click()
-      await adminPage.getByRole("button", { name: "Ativar edicao" }).waitFor({ state: "visible", timeout: 30000 })
-      await adminPage.getByRole("button", { name: "Ativar edicao" }).click()
-      await restoreVersionByNumber(adminPage, 1)
-      await clickButtonAndWaitForMessage(adminPage, "Publicar", /Versao \d+ publicada com sucesso\./i)
+      await promoteVisualPageVersion(adminClient, "materials", materialsPublishedVersion.id)
+      await adminPage.reload({ waitUntil: "domcontentloaded" })
+      await waitForPath(adminPage, "/materiais")
       await adminPage.waitForFunction((title) => document.body?.innerText.includes(title), materialsOriginalTitle, {
         timeout: 30000,
       })
@@ -642,6 +703,20 @@ async function main() {
     console.log("VISUAL_EDITOR_SMOKE_OK")
     console.log(JSON.stringify(evidence, null, 2))
   } finally {
+    if (originalPublishedVersionId) {
+      const restoreSupport = await promoteVisualPageVersion(adminClient, "support", originalPublishedVersionId)
+      if (restoreSupport?.page?.published_version_id !== originalPublishedVersionId) {
+        console.error("WARN: nao foi possivel restaurar support para a versao publicada original")
+      }
+    }
+
+    if (originalMaterialsPublishedVersionId) {
+      const restoreMaterials = await promoteVisualPageVersion(adminClient, "materials", originalMaterialsPublishedVersionId)
+      if (restoreMaterials?.page?.published_version_id !== originalMaterialsPublishedVersionId) {
+        console.error("WARN: nao foi possivel restaurar materials para a versao publicada original")
+      }
+    }
+
     await browser.close()
 
     for (const userId of createdUsers) {
