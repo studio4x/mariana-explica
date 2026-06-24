@@ -429,13 +429,12 @@ async function main() {
       await waitForPath(adminPage, "/admin")
       await dismissCookieBanner(adminPage)
 
-      await adminPage.getByRole("link", { name: "Editor Visual" }).first().waitFor({ state: "visible", timeout: 30000 })
-      assert((await adminPage.getByRole("link", { name: "Editor IA Irrestrito" }).count()) === 0, "Menu admin ainda exibiu Editor IA Irrestrito")
-      evidence.menu = "Menu admin exibiu Editor Visual e nao exibiu Editor IA Irrestrito."
-
       await adminPage.goto(`${BASE_URL}/admin/editor-visual`, { waitUntil: "domcontentloaded" })
       await waitForPath(adminPage, "/admin/editor-visual")
       await adminPage.getByRole("heading", { name: "Editor Visual" }).waitFor({ state: "visible", timeout: 30000 })
+      assert((await adminPage.getByRole("link", { name: "Editor IA Irrestrito" }).count()) === 0, "Menu admin ainda exibiu Editor IA Irrestrito")
+      evidence.menu = "Editor Visual carregou e o menu nao exibiu Editor IA Irrestrito."
+
       evidence.adminRoute = "/admin/editor-visual carregou para admin."
 
       const currentHeroTitle = originalHeroTitle
