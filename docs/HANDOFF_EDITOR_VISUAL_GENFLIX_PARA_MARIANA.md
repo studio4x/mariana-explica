@@ -263,8 +263,8 @@ Ele valida:
 - O fluxo oficial usado foi Vercel.
 - A migration `0043_visual_site_editor_foundation` foi aplicada e registrada no Supabase remoto.
 - A migration `0044_visual_site_editor_materials_page` foi aplicada e registrada no Supabase remoto.
-- SHA de implementacao funcional do editor visual: `f7ebe05f9b3b34a46591c48f0f23eb7684dd00ab`.
-- SHA do deploy atualmente ativo em producao: `f7ebe05f9b3b34a46591c48f0f23eb7684dd00ab`.
+- SHA de implementacao funcional do editor visual: commit desta entrega.
+- SHA do deploy atualmente ativo em producao: commit desta entrega.
 - A publicacao final em producao foi reimplantada pela Vercel com o commit de documentacao final desta entrega.
 - Dominio canonico: `https://www.mariana-explica.pt`
 - O deploy de producao ficou `READY`.
