@@ -11,6 +11,9 @@ import type {
 import {
   VISUAL_EDITOR_BORDER_STYLE_OPTIONS,
   VISUAL_EDITOR_BOX_SHADOW_OPTIONS,
+  VISUAL_EDITOR_BACKGROUND_POSITION_OPTIONS,
+  VISUAL_EDITOR_BACKGROUND_REPEAT_OPTIONS,
+  VISUAL_EDITOR_BACKGROUND_SIZE_OPTIONS,
   VISUAL_EDITOR_FONT_PRESETS,
   VISUAL_EDITOR_FONT_STYLE_OPTIONS,
   VISUAL_EDITOR_FONT_WEIGHT_OPTIONS,
@@ -18,6 +21,7 @@ import {
   VISUAL_EDITOR_OBJECT_FIT_OPTIONS,
   VISUAL_EDITOR_TEXT_ALIGN_OPTIONS,
   VISUAL_EDITOR_TEXT_TRANSFORM_OPTIONS,
+  getVisualEditorContainerStyle,
   getVisualEditorStyleGroup,
   getVisualEditorStyleSummary,
   parseVisualEditorLengthValue,
@@ -128,6 +132,7 @@ export function VisualEditorSidebar(props: {
     textarea: "Texto longo",
     link: "Link / botao",
     image: "Imagem",
+    container: "Container / card",
     list: "Lista",
     json: "JSON",
   }
@@ -160,13 +165,18 @@ export function VisualEditorSidebar(props: {
     })
   }
 
+  const removeStyleKey = (key: string) => {
+    if (!selectedEditable) return
+    const nextStyle = { ...selectedStyle }
+    delete nextStyle[key]
+    setStyleValue(selectedEditable.entryKey, nextStyle)
+  }
+
   const updateLengthStyle = (key: string, value: string, unit: StyleLengthUnit, allowEmpty = true) => {
     if (!selectedEditable) return
     if (!value.trim()) {
       if (allowEmpty) {
-        const nextStyle = { ...selectedStyle }
-        delete nextStyle[key]
-        setStyleValue(selectedEditable.entryKey, nextStyle)
+        removeStyleKey(key)
       }
       return
     }
@@ -178,15 +188,18 @@ export function VisualEditorSidebar(props: {
     if (!selectedEditable) return
     if (!value.trim()) {
       if (allowEmpty) {
-        const nextStyle = { ...selectedStyle }
-        delete nextStyle[key]
-        setStyleValue(selectedEditable.entryKey, nextStyle)
+        removeStyleKey(key)
       }
       return
     }
 
     updateStyle({ [key]: value.trim() })
   }
+
+  const imageAssets = (pageDetail?.assets ?? []).filter((asset) => {
+    const mimeType = String(asset.mime_type ?? "").toLowerCase()
+    return mimeType.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(asset.file_name)
+  })
 
   const wrapperClassName = isFixed
     ? "pointer-events-none fixed inset-x-0 bottom-0 z-50 lg:inset-y-24 lg:right-4 lg:bottom-4 lg:left-auto lg:w-[440px]"
@@ -298,7 +311,7 @@ export function VisualEditorSidebar(props: {
                       <p className="mt-2 text-base font-black text-slate-950">Nenhum elemento selecionado</p>
                     )}
                   </div>
-                  {selectedEditable ? (
+                  {selectedEditable && selectedEditable.entryType !== "container" ? (
                     <button
                       type="button"
                       onClick={restoreFallback}
@@ -337,7 +350,11 @@ export function VisualEditorSidebar(props: {
                           <p className="mt-1 break-words">{renderValuePreview(selectedEditable.fallback)}</p>
                         </div>
 
-                        {selectedEditable.entryType === "textarea" ? (
+                        {selectedEditable.entryType === "container" ? (
+                          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
+                            Este bloco não possui conteúdo textual direto. Use a aba Estilo para editar a aparência.
+                          </div>
+                        ) : selectedEditable.entryType === "textarea" ? (
                           <label className="block text-sm font-semibold text-slate-700">
                             Editar texto
                             <textarea
@@ -376,20 +393,51 @@ export function VisualEditorSidebar(props: {
                             </label>
                           </div>
                         ) : selectedEditable.entryType === "image" ? (
-                          <div className="space-y-3">
-                            <label className="block text-sm font-semibold text-slate-700">
-                              URL da imagem
-                              <input
-                                value={String((selectedValue as { src?: string })?.src ?? "")}
-                                onChange={(event) =>
-                                  setDraftValue({
-                                    ...(selectedValue && typeof selectedValue === "object" ? selectedValue : {}),
-                                    src: event.target.value,
-                                  })
-                                }
-                                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400"
+                          <div className="space-y-4">
+                            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                              <img
+                                src={String((selectedValue as { src?: string })?.src ?? "")}
+                                alt={String((selectedValue as { alt?: string })?.alt ?? "")}
+                                className="h-40 w-full object-cover"
                               />
-                            </label>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                URL da imagem
+                                <input
+                                  value={String((selectedValue as { src?: string })?.src ?? "")}
+                                  onChange={(event) =>
+                                    setDraftValue({
+                                      ...(selectedValue && typeof selectedValue === "object" ? selectedValue : {}),
+                                      src: event.target.value,
+                                    })
+                                  }
+                                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400"
+                                />
+                              </label>
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Asset existente
+                                <select
+                                  value={String((selectedValue as { src?: string })?.src ?? "")}
+                                  onChange={(event) =>
+                                    setDraftValue({
+                                      ...(selectedValue && typeof selectedValue === "object" ? selectedValue : {}),
+                                      src: event.target.value,
+                                    })
+                                  }
+                                  className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                >
+                                  <option value="">Escolher asset publicado</option>
+                                  {imageAssets.map((asset) => (
+                                    <option key={asset.id} value={asset.public_url}>
+                                      {asset.file_name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+
                             <label className="block text-sm font-semibold text-slate-700">
                               Texto alternativo
                               <input
@@ -403,6 +451,25 @@ export function VisualEditorSidebar(props: {
                                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400"
                               />
                             </label>
+
+                            <div className="grid gap-2 md:grid-cols-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-10 rounded-full"
+                                onClick={() => void runAction("restore-image", async () => restoreFallback())}
+                              >
+                                Restaurar imagem fallback
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-10 rounded-full"
+                                onClick={() => void runAction("restore-image", async () => restoreFallback())}
+                              >
+                                Remover imagem personalizada
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           <label className="block text-sm font-semibold text-slate-700">
@@ -720,7 +787,7 @@ export function VisualEditorSidebar(props: {
                                 onClick={() => void runAction("style-reset", async () => restoreStyleFallback())}
                               >
                                 <RefreshCcw className="mr-2 h-4 w-4" />
-                                Restaurar estilo
+                                Resetar estilo
                               </Button>
                               <Button
                                 type="button"
@@ -735,6 +802,249 @@ export function VisualEditorSidebar(props: {
                                 Centralizar texto
                               </Button>
                             </div>
+                          </div>
+                        ) : styleGroup === "container" ? (
+                          <div className="space-y-5">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Cor de fundo
+                                <input
+                                  type="color"
+                                  value={String(selectedStyle.backgroundColor ?? "#ffffff")}
+                                  onChange={(event) => updateStyle({ backgroundColor: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                />
+                              </label>
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Cor do texto
+                                <input
+                                  type="color"
+                                  value={String(selectedStyle.color ?? "#000000")}
+                                  onChange={(event) => updateStyle({ color: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <LengthField
+                                label="Border radius"
+                                value={selectedStyle.borderRadius}
+                                onChange={(nextValue) => updateLengthStyle("borderRadius", nextValue.value, nextValue.unit)}
+                              />
+                              <LengthField
+                                label="Border width"
+                                value={selectedStyle.borderWidth}
+                                onChange={(nextValue) => updateLengthStyle("borderWidth", nextValue.value, nextValue.unit)}
+                              />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Border style
+                                <select
+                                  value={String(selectedStyle.borderStyle ?? "")}
+                                  onChange={(event) => updateStyle({ borderStyle: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                >
+                                  <option value="">Padrão</option>
+                                  {VISUAL_EDITOR_BORDER_STYLE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Cor da borda
+                                <input
+                                  type="color"
+                                  value={String(selectedStyle.borderColor ?? "#000000")}
+                                  onChange={(event) => updateStyle({ borderColor: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Sombra
+                                <select
+                                  value={String(selectedStyle.boxShadow ?? "")}
+                                  onChange={(event) => updateStyle({ boxShadow: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                >
+                                  <option value="">Padrão</option>
+                                  {VISUAL_EDITOR_BOX_SHADOW_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <LengthField
+                                label="Largura"
+                                value={selectedStyle.width}
+                                onChange={(nextValue) => updateLengthStyle("width", nextValue.value, nextValue.unit)}
+                              />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <LengthField
+                                label="Padding horizontal"
+                                value={selectedStyle.paddingX}
+                                onChange={(nextValue) => updateLengthStyle("paddingX", nextValue.value, nextValue.unit)}
+                              />
+                              <LengthField
+                                label="Padding vertical"
+                                value={selectedStyle.paddingY}
+                                onChange={(nextValue) => updateLengthStyle("paddingY", nextValue.value, nextValue.unit)}
+                              />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <LengthField
+                                label="Margin top"
+                                value={selectedStyle.marginTop}
+                                onChange={(nextValue) => updateLengthStyle("marginTop", nextValue.value, nextValue.unit)}
+                              />
+                              <LengthField
+                                label="Margin bottom"
+                                value={selectedStyle.marginBottom}
+                                onChange={(nextValue) => updateLengthStyle("marginBottom", nextValue.value, nextValue.unit)}
+                              />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <LengthField
+                                label="Margin left"
+                                value={selectedStyle.marginLeft}
+                                onChange={(nextValue) => updateLengthStyle("marginLeft", nextValue.value, nextValue.unit)}
+                              />
+                              <LengthField
+                                label="Margin right"
+                                value={selectedStyle.marginRight}
+                                onChange={(nextValue) => updateLengthStyle("marginRight", nextValue.value, nextValue.unit)}
+                              />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <LengthField
+                                label="Max width"
+                                value={selectedStyle.maxWidth}
+                                onChange={(nextValue) => updateLengthStyle("maxWidth", nextValue.value, nextValue.unit)}
+                              />
+                            </div>
+
+                            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">Fundo</p>
+                                  <p className="text-xs text-slate-500">Imagem de fundo segura e normalizada pelo editor.</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-9 rounded-full"
+                                  onClick={() => removeStyleKey("backgroundImage")}
+                                >
+                                  Remover imagem de fundo
+                                </Button>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <label className="block text-sm font-semibold text-slate-700">
+                                  URL da imagem de fundo
+                                  <input
+                                    value={String(selectedStyle.backgroundImage ?? "")}
+                                    onChange={(event) => updateStyle({ backgroundImage: event.target.value })}
+                                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400"
+                                  />
+                                </label>
+                                <label className="block text-sm font-semibold text-slate-700">
+                                  Asset existente
+                                  <select
+                                    value={String(selectedStyle.backgroundImage ?? "")}
+                                    onChange={(event) => updateStyle({ backgroundImage: event.target.value })}
+                                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                  >
+                                    <option value="">Escolher asset publicado</option>
+                                    {imageAssets.map((asset) => (
+                                      <option key={asset.id} value={asset.public_url}>
+                                        {asset.file_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <label className="block text-sm font-semibold text-slate-700">
+                                  Tamanho do fundo
+                                  <select
+                                    value={String(selectedStyle.backgroundSize ?? "")}
+                                    onChange={(event) => updateStyle({ backgroundSize: event.target.value })}
+                                    className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                  >
+                                    <option value="">Padrão</option>
+                                    {VISUAL_EDITOR_BACKGROUND_SIZE_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="block text-sm font-semibold text-slate-700">
+                                  Posição do fundo
+                                  <select
+                                    value={String(selectedStyle.backgroundPosition ?? "")}
+                                    onChange={(event) => updateStyle({ backgroundPosition: event.target.value })}
+                                    className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                  >
+                                    <option value="">Padrão</option>
+                                    {VISUAL_EDITOR_BACKGROUND_POSITION_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Repetição do fundo
+                                <select
+                                  value={String(selectedStyle.backgroundRepeat ?? "")}
+                                  onChange={(event) => updateStyle({ backgroundRepeat: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                >
+                                  <option value="">Padrão</option>
+                                  {VISUAL_EDITOR_BACKGROUND_REPEAT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Preview do fundo</p>
+                                <div
+                                  className="mt-3 min-h-24 rounded-2xl border border-dashed border-slate-200 bg-slate-100"
+                                  style={getVisualEditorContainerStyle(selectedStyle)}
+                                />
+                              </div>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-10 rounded-full"
+                              onClick={() => void runAction("style-reset", async () => restoreStyleFallback())}
+                            >
+                              <RefreshCcw className="mr-2 h-4 w-4" />
+                              Resetar estilo
+                            </Button>
                           </div>
                         ) : styleGroup === "image" ? (
                           <div className="space-y-4">
@@ -797,7 +1107,7 @@ export function VisualEditorSidebar(props: {
                               onClick={() => void runAction("style-reset", async () => restoreStyleFallback())}
                             >
                               <RefreshCcw className="mr-2 h-4 w-4" />
-                              Restaurar estilo
+                              Resetar estilo
                             </Button>
                           </div>
                         ) : (
@@ -845,11 +1155,13 @@ export function VisualEditorSidebar(props: {
                         </div>
 
                         <div className="grid gap-2 sm:grid-cols-2">
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={restoreFallback}>
-                            Restaurar conteudo
-                          </Button>
+                          {selectedEditable.entryType !== "container" ? (
+                            <Button type="button" variant="outline" className="h-10 rounded-full" onClick={restoreFallback}>
+                              Restaurar conteudo
+                            </Button>
+                          ) : null}
                           <Button type="button" variant="outline" className="h-10 rounded-full" onClick={restoreStyleFallback}>
-                            Restaurar estilo
+                            Resetar estilo
                           </Button>
                           <Button type="button" className="h-10 rounded-full" onClick={() => void runAction("save", saveEditor)} disabled={!isDirty || busyAction === "save"}>
                             <Check className="mr-2 h-4 w-4" />

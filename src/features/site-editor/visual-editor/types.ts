@@ -1,6 +1,8 @@
 export type VisualEditorPageKey = "support" | "materials"
 
-export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image" | "list" | "json"
+export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image" | "list" | "json" | "container"
+
+export type VisualEditorStyleGroup = "heading" | "text" | "interactive" | "image" | "container"
 
 export interface VisualEditorDocument extends Record<string, unknown> {}
 
@@ -72,7 +74,7 @@ export interface VisualEditorFieldDefinition {
   kind: VisualEditorFieldKind
   description?: string
   placeholder?: string
-  styleGroup?: "heading" | "text" | "interactive" | "image"
+  styleGroup?: VisualEditorStyleGroup
 }
 
 export interface VisualEditorSelectedEditable {
@@ -103,6 +105,10 @@ export interface VisualEditorStyleDocument {
 export interface VisualEditorFieldStyleValue extends Record<string, unknown> {
   color?: string
   backgroundColor?: string
+  backgroundImage?: string
+  backgroundSize?: "cover" | "contain" | "auto"
+  backgroundPosition?: "center" | "top" | "bottom" | "left" | "right"
+  backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y"
   fontFamily?: string
   fontSize?: string
   fontWeight?: string

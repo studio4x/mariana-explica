@@ -315,6 +315,137 @@ describe("Support", () => {
     expect(screen.getByLabelText("Destino")).toBeInTheDocument()
   })
 
+  it("saves and reloads the support CTA container style", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    const initialRender = renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "supportCta.container")
+
+    expect(await screen.findByText("Container / card")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.change(screen.getByLabelText("Cor de fundo"), { target: { value: "#0f172a" } })
+    fireEvent.input(screen.getByLabelText("Border radius"), { target: { value: "28" } })
+
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "support",
+        styles: expect.objectContaining({
+          fields: expect.objectContaining({
+            "supportCta.container": expect.objectContaining({
+              backgroundColor: "#0f172a",
+              borderRadius: "28px",
+            }),
+          }),
+        }),
+      }),
+    )
+    expect(mockPublishVisualEditorPageVersion).toHaveBeenCalledWith({
+      pageKey: "support",
+      versionId: "support-version-3",
+    })
+
+    initialRender.unmount()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
+    mockFetchPublicVisualEditorPage.mockResolvedValueOnce(buildSupportPublicPayload())
+
+    renderSupport()
+
+    await waitFor(() => {
+      const container = document.querySelector<HTMLElement>('[data-visual-editor-field="supportCta.container"]')
+      expect(container).not.toBeNull()
+      expect(container?.style.backgroundColor).toBe("rgb(15, 23, 42)")
+      expect(container?.style.borderRadius).toBe("28px")
+    })
+    expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
+  })
+
+  it("restores the support CTA container fallback style", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "supportCta.container")
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.change(screen.getByLabelText("Cor de fundo"), { target: { value: "#0f172a" } })
+    await user.click(screen.getByRole("button", { name: "Resetar estilo" }))
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "support",
+      }),
+    )
+    const lastCall = mockSaveVisualEditorPageDraft.mock.calls[mockSaveVisualEditorPageDraft.mock.calls.length - 1]
+    expect(lastCall?.[0].styles.fields["supportCta.container"]).toBeUndefined()
+  })
+
+  it("keeps image editing working with style controls", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    const initialRender = renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "hero.image")
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.input(screen.getByLabelText("Border radius"), { target: { value: "32" } })
+    fireEvent.input(screen.getByLabelText("Largura"), { target: { value: "360" } })
+    fireEvent.input(screen.getByLabelText("Altura"), { target: { value: "420" } })
+    await user.selectOptions(screen.getByLabelText("Object fit"), "contain")
+
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "support",
+        styles: expect.objectContaining({
+          fields: expect.objectContaining({
+            "hero.image": expect.objectContaining({
+              borderRadius: "32px",
+              width: "360px",
+              height: "420px",
+              objectFit: "contain",
+            }),
+          }),
+        }),
+      }),
+    )
+
+    initialRender.unmount()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
+    mockFetchPublicVisualEditorPage.mockResolvedValueOnce(buildSupportPublicPayload())
+
+    renderSupport()
+
+    await waitFor(() => {
+      const imageWrapper = document.querySelector<HTMLElement>('[data-visual-editor-field="hero.image"]')
+      expect(imageWrapper).not.toBeNull()
+      expect(imageWrapper?.style.borderRadius).toBe("32px")
+      expect(imageWrapper?.style.width).toBe("360px")
+    })
+    expect(screen.getByAltText("Ilustracao").style.objectFit).toBe("contain")
+    expect(screen.getByAltText("Ilustracao").style.height).toBe("420px")
+  })
+
   it("publishes the freshly saved support draft instead of a stale draft", async () => {
     const user = userEvent.setup()
 

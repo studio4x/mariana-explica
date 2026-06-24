@@ -472,4 +472,52 @@ describe("Products", () => {
     })
     expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
   })
+
+  it("saves and reloads the materials support container style", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => materialsPageDetail)
+
+    const initialRender = renderProducts()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "supportCta.container")
+
+    expect(await screen.findByText("Container / card")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.change(screen.getByLabelText("Cor de fundo"), { target: { value: "#d9f99d" } })
+    fireEvent.input(screen.getByLabelText("Border radius"), { target: { value: "30" } })
+
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "materials",
+        styles: expect.objectContaining({
+          fields: expect.objectContaining({
+            "supportCta.container": expect.objectContaining({
+              backgroundColor: "#d9f99d",
+              borderRadius: "30px",
+            }),
+          }),
+        }),
+      }),
+    )
+
+    initialRender.unmount()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
+    mockFetchPublicVisualEditorPage.mockResolvedValueOnce(buildMaterialsPublicPayload())
+
+    renderProducts()
+
+    await waitFor(() => {
+      const container = document.querySelector<HTMLElement>('[data-visual-editor-field="supportCta.container"]')
+      expect(container).not.toBeNull()
+      expect(container?.style.backgroundColor).toBe("rgb(217, 249, 157)")
+      expect(container?.style.borderRadius).toBe("30px")
+    })
+  })
 })

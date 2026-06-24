@@ -35,6 +35,7 @@ import {
 } from "./utils"
 import {
   cloneVisualEditorStyleDocument,
+  getVisualEditorContainerStyle,
   getVisualEditorImageStyle,
   getVisualEditorImageWrapperStyle,
   getVisualEditorInteractiveStyle,
@@ -128,6 +129,10 @@ function normalizeEditableValue(field: VisualEditorFieldDefinition | undefined, 
       src: typeof fallback.src === "string" ? fallback.src : "",
       alt: typeof fallback.alt === "string" ? fallback.alt : "",
     }
+  }
+
+  if (field.kind === "container") {
+    return typeof rawValue === "string" ? rawValue : ""
   }
 
   if (field.kind === "textarea" || field.kind === "text") {
@@ -403,6 +408,11 @@ export function VisualEditorProvider(props: {
       return
     }
 
+    if (currentField.kind === "container") {
+      setStatusMessage("Este bloco não possui conteúdo direto para restaurar.")
+      return
+    }
+
     const fallbackValue = resolveEditableValue(pageDefinition.defaultDocument, currentField)
     setDocument((current) => setVisualEditorPathValue(current, selectedFieldKey, fallbackValue))
     setDraftValueState(fallbackValue)
@@ -462,7 +472,15 @@ export function VisualEditorProvider(props: {
 
   const setStyleValue = (fieldKey: string, value: unknown) => {
     const fieldDefinition = fieldDefinitions.find((field) => field.key === fieldKey)
-    setStyles((current) => setVisualEditorStyleValue(current, fieldKey, fieldDefinition, value))
+    setStyles((current) => {
+      const currentStyleValue = getVisualEditorStyleValue(current, fieldKey) ?? {}
+      const nextValue =
+        value && typeof value === "object" && !Array.isArray(value)
+          ? { ...currentStyleValue, ...(value as Record<string, unknown>) }
+          : value
+
+      return setVisualEditorStyleValue(current, fieldKey, fieldDefinition, nextValue)
+    })
   }
 
   const resetDocument = () => {
@@ -788,6 +806,8 @@ function getEditableKindLabel(kind: string | undefined) {
       return "Link"
     case "image":
       return "Imagem"
+    case "container":
+      return "Container"
     case "list":
       return "Lista"
     case "json":
@@ -1016,6 +1036,67 @@ export function EditableImage(props: {
   )
 }
 
+export function EditableContainer(props: {
+  fieldKey: string
+  as?: keyof JSX.IntrinsicElements
+  className?: string
+  children: ReactNode
+}) {
+  const { fieldKey, as = "div", className, children } = props
+  const { getStyleValue, isEditingActive } = useVisualEditorContext()
+  const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
+  const style = getVisualEditorContainerStyle(getStyleValue(fieldKey))
+  const Element = as as keyof JSX.IntrinsicElements
+
+  return (
+    <Element
+      data-visual-editor-field={fieldKey}
+      style={style}
+      className={cn(
+        "group relative",
+        className,
+        isEditingActive && "transition",
+        isEditingActive && "hover:outline hover:outline-2 hover:outline-sky-300/80",
+        isSelected && "outline outline-2 outline-sky-500 outline-offset-4",
+      )}
+      onClick={
+        isEditingActive
+          ? (event) => {
+              const targetField = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-visual-editor-field]")
+                ?.dataset.visualEditorField
+              if (!targetField || targetField === fieldKey) {
+                select()
+              }
+            }
+          : undefined
+      }
+      onKeyDown={
+        isEditingActive
+          ? (event) => {
+              const targetField = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-visual-editor-field]")
+                ?.dataset.visualEditorField
+              if ((event.key === "Enter" || event.key === " ") && (!targetField || targetField === fieldKey)) {
+                event.preventDefault()
+                select()
+              }
+            }
+          : undefined
+      }
+      tabIndex={isEditingActive ? 0 : undefined}
+      role={isEditingActive ? "button" : undefined}
+    >
+      {isEditingActive ? (
+        <EditableMarker
+          label="Editar"
+          kind={getEditableKindLabel(fieldDefinition?.kind)}
+          selected={isSelected}
+        />
+      ) : null}
+      {children}
+    </Element>
+  )
+}
+
 export function VisualEditorInspectorPanel(props: { className?: string }) {
   const { className } = props
   const {
@@ -1074,7 +1155,11 @@ export function VisualEditorInspectorPanel(props: { className?: string }) {
               <p className="mt-1 text-xs leading-5 text-slate-500">{selectedField.description ?? "Ajuste o valor deste campo."}</p>
             </div>
 
-            {selectedField.kind === "textarea" ? (
+            {selectedField.kind === "container" ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
+                Este bloco não possui conteúdo textual direto. Use a aba Estilo para editar a aparência.
+              </div>
+            ) : selectedField.kind === "textarea" ? (
               <textarea
                 value={String(selectedValue ?? "")}
                 onChange={(event) => setFieldValue(selectedField.key, event.target.value)}

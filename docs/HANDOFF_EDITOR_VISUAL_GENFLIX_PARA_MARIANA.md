@@ -42,6 +42,7 @@ Entregar o **Editor Visual** em paralelo ao **Editor IA Irrestrito**, com namesp
 - `hero.primaryCta`
 - `hero.secondaryCta`
 - `hero.image`
+- `supportCta.container`
 - `supportCta.title`
 - `supportCta.lead`
 - `supportCta.primaryCta`
@@ -55,6 +56,7 @@ Entregar o **Editor Visual** em paralelo ao **Editor IA Irrestrito**, com namesp
 - `hero.primaryCta`
 - `catalogHelpCta.label`
 - `catalogHelpCta.href`
+- `supportCta.container`
 - `supportCta.title`
 - `supportCta.lead`
 - `supportCta.primaryCta`
@@ -143,18 +145,24 @@ Motivos:
 - max width;
 - object fit (`cover` ou `contain`);
 - sombra.
+- preview da imagem na sidebar;
+- selecao de asset existente quando disponivel;
+- restauracao do fallback original do campo.
 
 ### Container
 
-- o container pratico atual e o wrapper da imagem ou do CTA;
-- ele suporta border radius, width, height, max width e sombra;
-- ainda nao existe editor livre de padding/background para container generico neste ciclo.
+- o container pratico atual e o wrapper do bloco ou CTA;
+- ele suporta cor de fundo, cor do texto, border radius, border width, border style, border color e sombra;
+- ele suporta padding horizontal, padding vertical, margin top, margin bottom, width e max width;
+- ele suporta background image segura, background size, background position e background repeat;
+- nao existe CSS livre no fluxo visual.
 
 ## Validacao e whitelist
 
 - Valores invalidos de cor sao descartados.
 - Valores invalidos de fonte, peso, alinhamento, transformacao, border style, object fit e heading tag sao normalizados ou removidos.
 - Comprimentos aceitam apenas valores com unidade segura (`px`, `rem`, `em`, `%`) ou numeros convertidos para a unidade padrao do campo.
+- URLs de background image aceitam apenas `https://` e `data:image/` quando presentes no fluxo visual.
 - Nao existe entrada de CSS arbitrario no fluxo visual.
 - O estilo salvo e um documento estruturado por campo, nao uma string de CSS livre.
 
@@ -254,6 +262,7 @@ Ele valida:
 
 - A validacao desta fase foi executada em producao com um smoke temporario equivalente, cobrindo clique, abertura da sidebar, edicao, salvamento, publicacao, restauracao e fallback em `/suporte` e `/materiais`.
 - O bug de `isDirty` que olhava apenas `document` foi corrigido e o smoke desta rodada validou alteracao somente de estilo em `/suporte` e `/materiais`, com persistencia apos publicacao e reload.
+- Esta evolucao amplia o smoke com superficie de bloco/container e confirma edicao de imagem com width, height, border radius e object fit.
 - As alteracoes temporarias de smoke permaneceram apenas como historico/auditoria e as paginas foram restauradas ao estado original final.
 - A parte autenticada do smoke ficou limitada pelo fixture temporario de login comum, entao o arquivo de auditoria nao e tratado como prova final de fluxos de autenticacao humana para esse usuario.
 
@@ -320,6 +329,6 @@ Ele valida:
 
 ## Status final
 
-- Build `1.0.0-137-visual-editor-style-dirty-state`: concluida e validada.
+- Build `1.0.0-138-visual-editor-container-image-styles`: concluida e validada.
 - Publicacao em Vercel: concluida e reimplantada no commit final de documentacao.
 - Producao: ativa e acessivel.

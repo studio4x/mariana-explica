@@ -13,6 +13,7 @@ import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
 import {
+  EditableContainer,
   EditableButton,
   EditableLink,
   EditableText,
@@ -307,7 +308,11 @@ export function MaterialsPageContent() {
         <SiteContentScope title="Suporte rápido" description="Bloco final com apoio e redirecionamento">
           <section className="mx-auto mt-16 max-w-6xl">
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-[1.75rem] border border-white/70 bg-white/55 p-8 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
+              <EditableContainer
+                fieldKey="supportCta.container"
+                as="section"
+                className="rounded-[1.75rem] border border-white/70 bg-white/55 p-8 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur"
+              >
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-[#4e6880]">Suporte rápido</p>
                 <EditableText
                   fieldKey="supportCta.title"
@@ -354,7 +359,7 @@ export function MaterialsPageContent() {
                     className="inline-flex h-11 items-center justify-center rounded-full border border-[#c5d7e2] bg-white/90 px-5 text-sm font-bold text-[#21485f] transition hover:bg-white"
                   />
                 </div>
-              </div>
+              </EditableContainer>
 
               <div className="rounded-[1.75rem] border border-white/70 bg-white/55 p-8 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
                 <EditableText

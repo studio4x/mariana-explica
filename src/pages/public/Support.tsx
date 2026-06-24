@@ -6,6 +6,7 @@ import { ROUTES } from "@/lib/constants"
 import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
 import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
 import {
+  EditableContainer,
   EditableButton,
   EditableImage,
   EditableLink,
@@ -213,7 +214,11 @@ function SupportPageContent() {
         </SiteContentScope>
 
         <SiteContentScope title="CTA final" description="Convite para abrir chamado ou entrar na conta">
-          <section className="rounded-lg border border-slate-200 bg-slate-950 p-8 text-white shadow-sm">
+          <EditableContainer
+            fieldKey="supportCta.container"
+            as="section"
+            className="rounded-lg border border-slate-200 bg-slate-950 p-8 text-white shadow-sm"
+          >
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <HelpCircle className="h-7 w-7 text-sky-200" />
@@ -243,7 +248,7 @@ function SupportPageContent() {
                 />
               </div>
             </div>
-          </section>
+          </EditableContainer>
         </SiteContentScope>
       </div>
     </div>

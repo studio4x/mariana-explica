@@ -1,7 +1,10 @@
 import type { CSSProperties } from "react"
-import type { VisualEditorFieldDefinition, VisualEditorFieldStyleValue, VisualEditorStyleDocument } from "./types"
-
-export type VisualEditorStyleGroup = "heading" | "text" | "interactive" | "image"
+import type {
+  VisualEditorFieldDefinition,
+  VisualEditorFieldStyleValue,
+  VisualEditorStyleDocument,
+  VisualEditorStyleGroup,
+} from "./types"
 
 export interface VisualEditorFontPreset {
   label: string
@@ -63,6 +66,27 @@ export const VISUAL_EDITOR_BORDER_STYLE_OPTIONS = [
 export const VISUAL_EDITOR_OBJECT_FIT_OPTIONS = [
   { label: "Cover", value: "cover" },
   { label: "Contain", value: "contain" },
+]
+
+export const VISUAL_EDITOR_BACKGROUND_SIZE_OPTIONS = [
+  { label: "Cover", value: "cover" },
+  { label: "Contain", value: "contain" },
+  { label: "Auto", value: "auto" },
+]
+
+export const VISUAL_EDITOR_BACKGROUND_POSITION_OPTIONS = [
+  { label: "Centro", value: "center" },
+  { label: "Topo", value: "top" },
+  { label: "Base", value: "bottom" },
+  { label: "Esquerda", value: "left" },
+  { label: "Direita", value: "right" },
+]
+
+export const VISUAL_EDITOR_BACKGROUND_REPEAT_OPTIONS = [
+  { label: "Sem repeticao", value: "no-repeat" },
+  { label: "Repetir", value: "repeat" },
+  { label: "Repetir horizontalmente", value: "repeat-x" },
+  { label: "Repetir verticalmente", value: "repeat-y" },
 ]
 
 export const VISUAL_EDITOR_HEADING_TAG_OPTIONS = [
@@ -128,6 +152,26 @@ function normalizeShadowValue(value: unknown) {
   return normalizePresetValue(value, VISUAL_EDITOR_BOX_SHADOW_OPTIONS.map((option) => option.value))
 }
 
+function normalizeBackgroundImageValue(value: unknown) {
+  const normalized = String(value ?? "").trim()
+  if (!normalized) return undefined
+
+  const lower = normalized.toLowerCase()
+  if (lower.includes("javascript:") || lower.includes("expression(") || lower.startsWith("url(")) {
+    return undefined
+  }
+
+  if (/^https:\/\/[^\s"']+$/i.test(normalized)) {
+    return normalized
+  }
+
+  if (/^data:image\//i.test(normalized)) {
+    return normalized
+  }
+
+  return undefined
+}
+
 function getFieldStyleGroup(fieldDefinition?: VisualEditorFieldDefinition): VisualEditorStyleGroup {
   if (fieldDefinition?.styleGroup) {
     return fieldDefinition.styleGroup
@@ -138,6 +182,8 @@ function getFieldStyleGroup(fieldDefinition?: VisualEditorFieldDefinition): Visu
       return "interactive"
     case "image":
       return "image"
+    case "container":
+      return "container"
     case "textarea":
     case "text":
     default:
@@ -255,6 +301,71 @@ function normalizeImageStyle(rawValue: unknown): VisualEditorFieldStyleValue {
   return next
 }
 
+function normalizeContainerStyle(rawValue: unknown): VisualEditorFieldStyleValue {
+  const record = isPlainObject(rawValue) ? rawValue : {}
+  const next: VisualEditorFieldStyleValue = {}
+  const color = normalizeHexColor(record.color)
+  if (color) next.color = color
+  const backgroundColor = normalizeHexColor(record.backgroundColor)
+  if (backgroundColor) next.backgroundColor = backgroundColor
+  const backgroundImage = normalizeBackgroundImageValue(record.backgroundImage)
+  if (backgroundImage) next.backgroundImage = backgroundImage
+  const backgroundSize = normalizePresetValue(
+    record.backgroundSize,
+    VISUAL_EDITOR_BACKGROUND_SIZE_OPTIONS.map((option) => option.value),
+  ) as VisualEditorFieldStyleValue["backgroundSize"] | undefined
+  if (backgroundSize) next.backgroundSize = backgroundSize
+  const backgroundPosition = normalizePresetValue(
+    record.backgroundPosition,
+    VISUAL_EDITOR_BACKGROUND_POSITION_OPTIONS.map((option) => option.value),
+  ) as VisualEditorFieldStyleValue["backgroundPosition"] | undefined
+  if (backgroundPosition) next.backgroundPosition = backgroundPosition
+  const backgroundRepeat = normalizePresetValue(
+    record.backgroundRepeat,
+    VISUAL_EDITOR_BACKGROUND_REPEAT_OPTIONS.map((option) => option.value),
+  ) as VisualEditorFieldStyleValue["backgroundRepeat"] | undefined
+  if (backgroundRepeat) next.backgroundRepeat = backgroundRepeat
+  const borderRadius = normalizeLengthValue(record.borderRadius, "px")
+  if (borderRadius) next.borderRadius = borderRadius
+  const borderWidth = normalizeLengthValue(record.borderWidth, "px")
+  if (borderWidth) next.borderWidth = borderWidth
+  const borderStyle = normalizePresetValue(
+    record.borderStyle,
+    VISUAL_EDITOR_BORDER_STYLE_OPTIONS.map((option) => option.value),
+  ) as VisualEditorFieldStyleValue["borderStyle"] | undefined
+  if (borderStyle) next.borderStyle = borderStyle
+  const borderColor = normalizeHexColor(record.borderColor)
+  if (borderColor) next.borderColor = borderColor
+  const paddingX = normalizeLengthValue(record.paddingX, "px")
+  if (paddingX) next.paddingX = paddingX
+  const paddingY = normalizeLengthValue(record.paddingY, "px")
+  if (paddingY) next.paddingY = paddingY
+  const paddingTop = normalizeLengthValue(record.paddingTop, "px")
+  if (paddingTop) next.paddingTop = paddingTop
+  const paddingRight = normalizeLengthValue(record.paddingRight, "px")
+  if (paddingRight) next.paddingRight = paddingRight
+  const paddingBottom = normalizeLengthValue(record.paddingBottom, "px")
+  if (paddingBottom) next.paddingBottom = paddingBottom
+  const paddingLeft = normalizeLengthValue(record.paddingLeft, "px")
+  if (paddingLeft) next.paddingLeft = paddingLeft
+  const marginTop = normalizeLengthValue(record.marginTop, "px")
+  if (marginTop) next.marginTop = marginTop
+  const marginRight = normalizeLengthValue(record.marginRight, "px")
+  if (marginRight) next.marginRight = marginRight
+  const marginBottom = normalizeLengthValue(record.marginBottom, "px")
+  if (marginBottom) next.marginBottom = marginBottom
+  const marginLeft = normalizeLengthValue(record.marginLeft, "px")
+  if (marginLeft) next.marginLeft = marginLeft
+  const width = normalizeLengthValue(record.width, "px")
+  if (width) next.width = width
+  const maxWidth = normalizeLengthValue(record.maxWidth, "px", true)
+  if (maxWidth) next.maxWidth = maxWidth
+  const boxShadow = normalizeShadowValue(record.boxShadow)
+  if (boxShadow) next.boxShadow = boxShadow
+
+  return next
+}
+
 export function cloneVisualEditorStyleDocument(document: VisualEditorStyleDocument): VisualEditorStyleDocument {
   return {
     fields: cloneRecord(document?.fields ?? {}),
@@ -308,6 +419,8 @@ export function normalizeVisualEditorStyleDocument(
       normalized = normalizeInteractiveStyle(value)
     } else if (styleGroup === "image") {
       normalized = normalizeImageStyle(value)
+    } else if (styleGroup === "container") {
+      normalized = normalizeContainerStyle(value)
     }
 
     if (normalized && Object.keys(normalized).length > 0) {
@@ -339,6 +452,8 @@ export function setVisualEditorStyleValue(
     normalized = normalizeInteractiveStyle(value)
   } else if (styleGroup === "image") {
     normalized = normalizeImageStyle(value)
+  } else if (styleGroup === "container") {
+    normalized = normalizeContainerStyle(value)
   }
 
   if (Object.keys(normalized).length === 0) {
@@ -449,11 +564,47 @@ export function getVisualEditorImageStyle(value: VisualEditorFieldStyleValue | n
   return style
 }
 
+export function getVisualEditorContainerStyle(value: VisualEditorFieldStyleValue | null | undefined) {
+  const style: CSSProperties = {}
+  if (!value) return style
+
+  if (value.color) style.color = value.color
+  if (value.backgroundColor) style.backgroundColor = value.backgroundColor
+  if (value.backgroundImage) style.backgroundImage = `url("${value.backgroundImage}")`
+  if (value.backgroundSize) style.backgroundSize = value.backgroundSize
+  if (value.backgroundPosition) style.backgroundPosition = value.backgroundPosition
+  if (value.backgroundRepeat) style.backgroundRepeat = value.backgroundRepeat
+  if (value.borderRadius) style.borderRadius = value.borderRadius
+  if (value.borderWidth) style.borderWidth = value.borderWidth
+  if (value.borderStyle) style.borderStyle = value.borderStyle
+  if (value.borderColor) style.borderColor = value.borderColor
+  if (value.boxShadow) style.boxShadow = value.boxShadow
+  if (value.width) style.width = value.width
+  if (value.maxWidth) style.maxWidth = value.maxWidth
+  if (value.marginTop) style.marginTop = value.marginTop
+  if (value.marginRight) style.marginRight = value.marginRight
+  if (value.marginBottom) style.marginBottom = value.marginBottom
+  if (value.marginLeft) style.marginLeft = value.marginLeft
+
+  if (value.paddingTop || value.paddingRight || value.paddingBottom || value.paddingLeft) {
+    style.paddingTop = value.paddingTop ?? "0px"
+    style.paddingRight = value.paddingRight ?? "0px"
+    style.paddingBottom = value.paddingBottom ?? "0px"
+    style.paddingLeft = value.paddingLeft ?? "0px"
+  } else if (value.paddingY || value.paddingX) {
+    style.padding = `${value.paddingY ?? "0px"} ${value.paddingX ?? "0px"}`
+  }
+
+  return style
+}
+
 export function getVisualEditorStyleSummary(value: VisualEditorFieldStyleValue | null | undefined) {
   if (!value) return "Sem estilo personalizado."
   const parts: string[] = []
   if (value.color) parts.push(`cor ${value.color}`)
   if (value.backgroundColor) parts.push(`fundo ${value.backgroundColor}`)
+  if (value.backgroundImage) parts.push("imagem de fundo")
+  if (value.borderColor) parts.push(`borda ${value.borderColor}`)
   if (value.fontFamily) parts.push("fonte personalizada")
   if (value.fontSize) parts.push(`tamanho ${value.fontSize}`)
   if (value.fontWeight) parts.push(`peso ${value.fontWeight}`)
