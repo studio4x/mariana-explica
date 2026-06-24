@@ -261,6 +261,29 @@ export function cloneVisualEditorStyleDocument(document: VisualEditorStyleDocume
   }
 }
 
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`
+  }
+
+  if (isPlainObject(value)) {
+    const entries = Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+
+    return `{${entries.join(",")}}`
+  }
+
+  return JSON.stringify(value)
+}
+
+export function isVisualEditorStyleDocumentEqual(
+  left: VisualEditorStyleDocument | null | undefined,
+  right: VisualEditorStyleDocument | null | undefined,
+) {
+  return stableStringify(left ?? { fields: {} }) === stableStringify(right ?? { fields: {} })
+}
+
 export function normalizeVisualEditorStyleDocument(
   raw: unknown,
   fieldDefinitions: VisualEditorFieldDefinition[] = [],

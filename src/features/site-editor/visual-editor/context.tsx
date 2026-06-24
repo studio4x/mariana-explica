@@ -40,6 +40,7 @@ import {
   getVisualEditorInteractiveStyle,
   getVisualEditorStyleValue,
   getVisualEditorTextStyle,
+  isVisualEditorStyleDocumentEqual,
   normalizeVisualEditorStyleDocument,
   resetVisualEditorStyleValue,
   setVisualEditorStyleValue,
@@ -214,11 +215,11 @@ export function VisualEditorProvider(props: {
   }, [baseDocument, baselineDocument, document])
 
   useEffect(() => {
-    if (!isDeepEqual(styles as unknown as VisualEditorDocument, baselineStyles as unknown as VisualEditorDocument)) {
+    if (!isVisualEditorStyleDocumentEqual(styles, baselineStyles)) {
       return
     }
 
-    if (isDeepEqual(baselineStyles as unknown as VisualEditorDocument, baseStyleDocument as unknown as VisualEditorDocument)) {
+    if (isVisualEditorStyleDocumentEqual(baselineStyles, baseStyleDocument)) {
       return
     }
 
@@ -281,7 +282,9 @@ export function VisualEditorProvider(props: {
   )
   const isEditingActive = Boolean(isAdminEditorRoute || (isPublicEditorRoute && isPublicEditorPanelOpen && isEditingUnlocked))
   const canInteractWithEditable = isEditingActive
-  const isDirty = !isDeepEqual(document, baselineDocument)
+  const isDocumentDirty = !isDeepEqual(document, baselineDocument)
+  const isStyleDirty = !isVisualEditorStyleDocumentEqual(styles, baselineStyles)
+  const isDirty = isDocumentDirty || isStyleDirty
   const isLoading = pageQuery.isLoading || ((isAdminEditorRoute || isPublicEditorRoute) && adminQuery.isLoading)
 
   const getFieldValue = (fieldKey: string, fallback?: unknown) => {

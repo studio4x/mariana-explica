@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Support } from "./Support"
 
@@ -113,6 +113,29 @@ function buildSupportDetail() {
 
 let supportPageDetail: any = buildSupportDetail()
 
+function buildSupportPublicPayload() {
+  const publishedVersion = supportPageDetail.publishedVersion
+
+  return {
+    page: {
+      id: supportPageDetail.page.id,
+      page_key: supportPageDetail.page.page_key,
+      title: supportPageDetail.page.title,
+      updated_at: supportPageDetail.page.updated_at,
+      published_version_id: supportPageDetail.page.published_version_id,
+    },
+    version: {
+      id: publishedVersion.id,
+      page_id: publishedVersion.page_id,
+      version_number: publishedVersion.version_number,
+      entries_json: publishedVersion.entries_json,
+      style_json: publishedVersion.style_json,
+      metadata: publishedVersion.metadata,
+      created_at: publishedVersion.created_at,
+    },
+  }
+}
+
 function renderSupport(pathname = "/suporte") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -170,15 +193,16 @@ describe("Support", () => {
     mockFetchPublicVisualEditorPage.mockResolvedValue(null)
     mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
 
-    mockSaveVisualEditorPageDraft.mockImplementation(async ({ document, title }: any) => {
+    mockSaveVisualEditorPageDraft.mockImplementation(async ({ document, styles, title }: any) => {
       const nextDocument = document ?? buildSupportDocument(title ?? "Como podemos ajudar?")
+      const nextStyles = styles ?? { fields: {} }
       const saved: any = {
         page: {
           id: "support-page-1",
           page_key: "support",
           title: title ?? "Suporte",
           status: "published",
-          published_version_id: "support-version-3",
+          published_version_id: "support-version-1",
           created_by: null,
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-03T00:00:00.000Z",
@@ -189,7 +213,7 @@ describe("Support", () => {
           version_number: 3,
           status: "draft",
           entries_json: nextDocument,
-          style_json: {},
+          style_json: nextStyles,
           metadata: {},
           created_by: null,
           created_at: "2026-01-03T00:00:00.000Z",
@@ -210,6 +234,7 @@ describe("Support", () => {
     })
 
     mockPublishVisualEditorPageVersion.mockImplementation(async ({ versionId }: any) => {
+      const publishedSource = supportPageDetail.versions.find((version: any) => version.id === versionId)
       const published: any = {
         page: {
           id: "support-page-1",
@@ -222,15 +247,18 @@ describe("Support", () => {
           updated_at: "2026-01-03T00:00:00.000Z",
         },
         version: {
-          id: versionId,
-          page_id: "support-page-1",
-          version_number: 3,
+          ...(publishedSource ?? {
+            id: versionId,
+            page_id: "support-page-1",
+            version_number: 3,
+            status: "draft",
+            entries_json: buildSupportDocument("Como podemos ajudar? | Teste Persistencia"),
+            style_json: {},
+            metadata: {},
+            created_by: null,
+            created_at: "2026-01-03T00:00:00.000Z",
+          }),
           status: "published",
-          entries_json: buildSupportDocument("Como podemos ajudar? | Teste Persistencia"),
-          style_json: {},
-          metadata: {},
-          created_by: null,
-          created_at: "2026-01-03T00:00:00.000Z",
         },
       }
 
@@ -320,5 +348,67 @@ describe("Support", () => {
     })
     expect(await screen.findByText("Versao 3 publicada com sucesso.")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Como podemos ajudar? | Teste Persistencia" })).toBeInTheDocument()
+  })
+
+  it("persists style-only edits when publishing the support page", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    const initialRender = renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "hero.title")
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.input(screen.getByLabelText("Cor do texto"), { target: { value: "#b91c1c" } })
+    fireEvent.change(screen.getByLabelText("Tamanho da fonte"), { target: { value: "56" } })
+    await user.selectOptions(screen.getByLabelText("Fonte"), '"Arvo", Georgia, serif')
+
+    expect(screen.getByText("Alteracoes pendentes")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeEnabled()
+
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "support",
+        styles: expect.objectContaining({
+          fields: expect.objectContaining({
+            "hero.title": expect.objectContaining({
+              color: "#b91c1c",
+              fontSize: "56px",
+              fontFamily: '"Arvo", Georgia, serif',
+            }),
+          }),
+        }),
+      }),
+    )
+    expect(mockPublishVisualEditorPageVersion).toHaveBeenCalledWith({
+      pageKey: "support",
+      versionId: "support-version-3",
+    })
+    expect(supportPageDetail.page.published_version_id).toBe("support-version-3")
+    expect(supportPageDetail.publishedVersion.style_json.fields["hero.title"]).toMatchObject({
+      color: "#b91c1c",
+      fontSize: "56px",
+      fontFamily: '"Arvo", Georgia, serif',
+    })
+
+    initialRender.unmount()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
+    mockFetchPublicVisualEditorPage.mockResolvedValueOnce(buildSupportPublicPayload())
+
+    renderSupport()
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Como podemos ajudar?" })).toHaveStyle({
+        color: "#b91c1c",
+        fontSize: "56px",
+      })
+    })
+    expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
   })
 })

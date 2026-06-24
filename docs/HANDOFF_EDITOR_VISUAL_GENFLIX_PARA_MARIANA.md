@@ -89,6 +89,7 @@ Motivos:
 - Ou seja: o armazenamento e por pagina/versionamento, mas a edicao no editor ocorre por entradas/campos dentro desse documento.
 - O modelo pode evoluir depois para uma granularidade ainda maior se houver necessidade.
 - O estilo tambem segue o mesmo principio: cada versao carrega o documento visual salvo em `style_json`, sem depender de CSS global fora da versao.
+- O dirty state do editor considera `document` e `styles`; alterar apenas estilo agora habilita guardar rascunho e publica uma nova versao corretamente.
 
 ## Edicao visual
 
@@ -252,6 +253,7 @@ Ele valida:
 ### Smoke desta fase
 
 - A validacao desta fase foi executada em producao com um smoke temporario equivalente, cobrindo clique, abertura da sidebar, edicao, salvamento, publicacao, restauracao e fallback em `/suporte` e `/materiais`.
+- O bug de `isDirty` que olhava apenas `document` foi corrigido e o smoke desta rodada validou alteracao somente de estilo em `/suporte` e `/materiais`, com persistencia apos publicacao e reload.
 - As alteracoes temporarias de smoke permaneceram apenas como historico/auditoria e as paginas foram restauradas ao estado original final.
 - A parte autenticada do smoke ficou limitada pelo fixture temporario de login comum, entao o arquivo de auditoria nao e tratado como prova final de fluxos de autenticacao humana para esse usuario.
 
@@ -261,8 +263,8 @@ Ele valida:
 - O fluxo oficial usado foi Vercel.
 - A migration `0043_visual_site_editor_foundation` foi aplicada e registrada no Supabase remoto.
 - A migration `0044_visual_site_editor_materials_page` foi aplicada e registrada no Supabase remoto.
-- SHA de implementacao funcional do editor visual: `51fefe64b3feaf1446c932331efa8f91b1d5d2e5`.
-- SHA do deploy atualmente ativo em producao: `96151d8cc54aefd2c72989e3259c5b0b007dbed7`.
+- SHA de implementacao funcional do editor visual: `f7ebe05f9b3b34a46591c48f0f23eb7684dd00ab`.
+- SHA do deploy atualmente ativo em producao: `f7ebe05f9b3b34a46591c48f0f23eb7684dd00ab`.
 - A publicacao final em producao foi reimplantada pela Vercel com o commit de documentacao final desta entrega.
 - Dominio canonico: `https://www.mariana-explica.pt`
 - O deploy de producao ficou `READY`.
@@ -318,6 +320,6 @@ Ele valida:
 
 ## Status final
 
-- Build `1.0.0-136-visual-editor-style-controls`: concluida e validada.
+- Build `1.0.0-137-visual-editor-style-dirty-state`: concluida e validada.
 - Publicacao em Vercel: concluida e reimplantada no commit final de documentacao.
 - Producao: ativa e acessivel.

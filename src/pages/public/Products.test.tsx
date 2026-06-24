@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Products } from "./Products"
 
@@ -127,6 +127,29 @@ function buildMaterialsDetail() {
 
 let materialsPageDetail: any = buildMaterialsDetail()
 
+function buildMaterialsPublicPayload() {
+  const publishedVersion = materialsPageDetail.publishedVersion
+
+  return {
+    page: {
+      id: materialsPageDetail.page.id,
+      page_key: materialsPageDetail.page.page_key,
+      title: materialsPageDetail.page.title,
+      updated_at: materialsPageDetail.page.updated_at,
+      published_version_id: materialsPageDetail.page.published_version_id,
+    },
+    version: {
+      id: publishedVersion.id,
+      page_id: publishedVersion.page_id,
+      version_number: publishedVersion.version_number,
+      entries_json: publishedVersion.entries_json,
+      style_json: publishedVersion.style_json,
+      metadata: publishedVersion.metadata,
+      created_at: publishedVersion.created_at,
+    },
+  }
+}
+
 function renderProducts(pathname = "/materiais") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -234,15 +257,16 @@ describe("Products", () => {
     mockFetchPublicVisualEditorPage.mockResolvedValue(null)
     mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => materialsPageDetail)
 
-    mockSaveVisualEditorPageDraft.mockImplementation(async ({ document, title }: any) => {
+    mockSaveVisualEditorPageDraft.mockImplementation(async ({ document, styles, title }: any) => {
       const nextDocument = document ?? buildMaterialsDocument(title ?? "Tudo o que precisas para brilhares")
+      const nextStyles = styles ?? { fields: {} }
       const saved: any = {
         page: {
           id: "materials-page-1",
           page_key: "materials",
           title: title ?? "Materiais",
           status: "published",
-          published_version_id: "materials-version-3",
+          published_version_id: "materials-version-1",
           created_by: null,
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-03T00:00:00.000Z",
@@ -253,7 +277,7 @@ describe("Products", () => {
           version_number: 3,
           status: "draft",
           entries_json: nextDocument,
-          style_json: {},
+          style_json: nextStyles,
           metadata: {},
           created_by: null,
           created_at: "2026-01-03T00:00:00.000Z",
@@ -274,6 +298,7 @@ describe("Products", () => {
     })
 
     mockPublishVisualEditorPageVersion.mockImplementation(async ({ versionId }: any) => {
+      const publishedSource = materialsPageDetail.versions.find((version: any) => version.id === versionId)
       const published: any = {
         page: {
           id: "materials-page-1",
@@ -286,15 +311,18 @@ describe("Products", () => {
           updated_at: "2026-01-03T00:00:00.000Z",
         },
         version: {
-          id: versionId,
-          page_id: "materials-page-1",
-          version_number: 3,
+          ...(publishedSource ?? {
+            id: versionId,
+            page_id: "materials-page-1",
+            version_number: 3,
+            status: "draft",
+            entries_json: buildMaterialsDocument("Tudo o que precisas para brilhares | Teste Persistencia"),
+            style_json: {},
+            metadata: {},
+            created_by: null,
+            created_at: "2026-01-03T00:00:00.000Z",
+          }),
           status: "published",
-          entries_json: buildMaterialsDocument("Tudo o que precisas para brilhares | Teste Persistencia"),
-          style_json: {},
-          metadata: {},
-          created_by: null,
-          created_at: "2026-01-03T00:00:00.000Z",
         },
       }
 
@@ -381,5 +409,67 @@ describe("Products", () => {
     })
     expect(await screen.findByText("Versao 3 publicada com sucesso.")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Tudo o que precisas para brilhares | Teste Persistencia" })).toBeInTheDocument()
+  })
+
+  it("persists style-only edits when publishing the materials page", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => materialsPageDetail)
+
+    const initialRender = renderProducts()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "hero.title")
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.input(screen.getByLabelText("Cor do texto"), { target: { value: "#0f766e" } })
+    fireEvent.change(screen.getByLabelText("Tamanho da fonte"), { target: { value: "52" } })
+    await user.selectOptions(screen.getByLabelText("Fonte"), '"Lora", Georgia, serif')
+
+    expect(screen.getByText("Alteracoes pendentes")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Guardar rascunho/i })).toBeEnabled()
+
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "materials",
+        styles: expect.objectContaining({
+          fields: expect.objectContaining({
+            "hero.title": expect.objectContaining({
+              color: "#0f766e",
+              fontSize: "52px",
+              fontFamily: '"Lora", Georgia, serif',
+            }),
+          }),
+        }),
+      }),
+    )
+    expect(mockPublishVisualEditorPageVersion).toHaveBeenCalledWith({
+      pageKey: "materials",
+      versionId: "materials-version-3",
+    })
+    expect(materialsPageDetail.page.published_version_id).toBe("materials-version-3")
+    expect(materialsPageDetail.publishedVersion.style_json.fields["hero.title"]).toMatchObject({
+      color: "#0f766e",
+      fontSize: "52px",
+      fontFamily: '"Lora", Georgia, serif',
+    })
+
+    initialRender.unmount()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
+    mockFetchPublicVisualEditorPage.mockResolvedValueOnce(buildMaterialsPublicPayload())
+
+    renderProducts()
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Tudo o que precisas para brilhares" })).toHaveStyle({
+        color: "#0f766e",
+        fontSize: "52px",
+      })
+    })
+    expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
   })
 })

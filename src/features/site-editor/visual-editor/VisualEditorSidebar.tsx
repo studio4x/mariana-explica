@@ -959,6 +959,7 @@ function LengthField(props: {
       <div className="grid grid-cols-[minmax(0,1fr)_84px] gap-2">
         <input
           type="number"
+          aria-label={label}
           value={parsed.value}
           min="0"
           step="0.1"
@@ -966,6 +967,7 @@ function LengthField(props: {
           className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
         />
         <select
+          aria-label={`${label} unidade`}
           value={parsed.unit}
           onChange={(event) => onChange({ value: parsed.value, unit: event.target.value as StyleLengthUnit })}
           className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-2 text-sm outline-none transition focus:border-sky-400"
