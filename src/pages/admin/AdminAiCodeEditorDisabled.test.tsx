@@ -11,9 +11,9 @@ describe("AdminAiCodeEditorDisabled", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole("heading", { name: "Editor IA Irrestrito" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Acesso desativado" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Abrir Editor Visual" })).toHaveAttribute("href", "/admin/editor-visual")
+    expect(screen.getByRole("heading", { name: "Editor desativado" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Fluxo novo desativado" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Abrir editor legado" })).toHaveAttribute("href", "/admin/editor-paginas")
     expect(screen.getByRole("link", { name: "Voltar ao painel" })).toHaveAttribute("href", "/admin")
   })
 })

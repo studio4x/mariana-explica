@@ -171,14 +171,8 @@ const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ defaul
 const AdminPageEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPageEditor })),
 )
-const AdminAiPageEditor = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminAiPageEditor })),
-)
 const AdminAiCodeEditorDisabled = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAiCodeEditorDisabled })),
-)
-const AdminVisualSiteEditor = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminVisualSiteEditor })),
 )
 
 function withSuspense(node: ReactNode) {
@@ -583,15 +577,15 @@ export const router = createBrowserRouter(
         },
         {
           path: "editor-ia",
-          element: withSuspense(<AdminAiPageEditor />),
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "editor-visual",
-          element: withSuspense(<AdminVisualSiteEditor />),
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "editor-visual/:pageKey",
-          element: withSuspense(<AdminVisualSiteEditor />),
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "editor-ia-irrestrito",

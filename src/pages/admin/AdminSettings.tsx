@@ -1,24 +1,23 @@
 ﻿import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Activity, Code2, EyeOff, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { ErrorState } from "@/components/feedback"
+import { Button } from "@/components/ui"
 import { applySiteFavicon, broadcastBrandingUpdate, StatusBadge } from "@/components/common"
 import {
   fetchAdminBrandingConfig,
-  fetchAdminLegacyPageEditorConfig,
   fetchAdminSiteMaintenanceConfig,
   fetchAdminTrackingConfig,
   updateAdminBrandingConfig,
-  updateAdminLegacyPageEditorConfig,
   updateAdminSiteMaintenanceConfig,
   updateAdminTrackingConfig,
   uploadAdminBrandingAssetFile,
 } from "@/services/admin.service"
+import { ROUTES } from "@/lib/constants"
 import type {
   AdminBrandingAsset,
   AdminBrandingConfig,
-  AdminLegacyPageEditorConfig,
   AdminSiteMaintenanceConfig,
   AdminTrackingConfig,
 } from "@/types/app.types"
@@ -208,11 +207,6 @@ export function AdminSettings() {
     queryFn: fetchAdminTrackingConfig,
     staleTime: 60_000,
   })
-  const legacyEditorQuery = useQuery({
-    queryKey: ["admin", "legacy-page-editor"],
-    queryFn: fetchAdminLegacyPageEditorConfig,
-    staleTime: 60_000,
-  })
   const maintenanceQuery = useQuery({
     queryKey: ["admin", "site-maintenance"],
     queryFn: fetchAdminSiteMaintenanceConfig,
@@ -233,12 +227,6 @@ export function AdminSettings() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "tracking"] })
       await queryClient.invalidateQueries({ queryKey: ["site", "tracking"] })
-    },
-  })
-  const saveLegacyEditor = useMutation({
-    mutationFn: updateAdminLegacyPageEditorConfig,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin", "legacy-page-editor"] })
     },
   })
   const saveMaintenance = useMutation({
@@ -324,16 +312,6 @@ export function AdminSettings() {
     )
   }
 
-  if (legacyEditorQuery.isError) {
-    return (
-      <ErrorState
-        title="Não foi possível carregar as configurações"
-        message={legacyEditorQuery.error instanceof Error ? legacyEditorQuery.error.message : "Tenta novamente dentro de instantes."}
-        onRetry={() => void legacyEditorQuery.refetch()}
-      />
-    )
-  }
-
   const branding = brandingQuery.data
   const trackingConfig = trackingQuery.data ?? {
     config_key: "site_tracking",
@@ -359,15 +337,6 @@ export function AdminSettings() {
     is_public: true,
     updated_at: null,
   }
-  const legacyEditorConfig = legacyEditorQuery.data ?? {
-    config_key: "legacy_page_editor_config",
-    config_value: {
-      enabled: true,
-    },
-    description: null,
-    is_public: false,
-    updated_at: null,
-  } satisfies AdminLegacyPageEditorConfig
   const maintenanceState = maintenanceDraft ?? maintenanceConfig.config_value
   const readyCount = branding ? countReady(branding) : 0
   const tabs: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
@@ -375,7 +344,7 @@ export function AdminSettings() {
     { key: "site-theme", label: "Tipografia & cores", icon: Palette },
     { key: "tracking", label: "Rastreamento", icon: Code2 as typeof Palette },
     { key: "maintenance", label: "Manutenção", icon: Activity },
-    { key: "legacy-editor", label: "Editor antigo", icon: EyeOff as typeof Palette },
+    { key: "legacy-editor", label: "Editor principal", icon: EyeOff as typeof Palette },
     { key: "operations", label: "Operações", icon: Activity },
   ]
   const sectionCopy = {
@@ -400,9 +369,9 @@ export function AdminSettings() {
         "Ative este modo para restringir o acesso da plataforma durante ajustes operacionais. Admins autenticados continuam com acesso total.",
     },
     "legacy-editor": {
-      title: "Editor antigo",
+      title: "Editor principal",
       description:
-        "Desative o editor de páginas antigo para escondê-lo da plataforma e concentrar a edição no novo fluxo com IA.",
+        "O editor visual legado voltou a ser o fluxo oficial. Os editores com IA e o editor visual novo estão desativados.",
     },
     operations: {
       title: "Operações do ambiente",
@@ -440,17 +409,13 @@ export function AdminSettings() {
                   void maintenanceQuery.refetch()
                   return
                 }
-                if (activeTab === "legacy-editor") {
-                  void legacyEditorQuery.refetch()
-                  return
-                }
                 void brandingQuery.refetch()
               }}
-              disabled={brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching || legacyEditorQuery.isFetching}
+              disabled={brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 disabled:opacity-60"
             >
               <RefreshCw className="h-4 w-4" />
-              {brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching || legacyEditorQuery.isFetching ? "A atualizar..." : "Atualizar"}
+              {brandingQuery.isFetching || trackingQuery.isFetching || maintenanceQuery.isFetching ? "A atualizar..." : "Atualizar"}
             </button>
           ) : null}
         </div>
@@ -630,71 +595,37 @@ export function AdminSettings() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Estado atual</p>
-              <p className="mt-4 text-2xl font-bold text-slate-950">
-                {legacyEditorConfig.config_value.enabled ? "Ativo" : "Inativo"}
-              </p>
-              <p className="mt-2 text-sm text-slate-600">Enquanto ativo, o editor antigo continua visível no admin.</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Ativo</p>
+              <p className="mt-2 text-sm text-slate-600">O editor visual legado é o caminho oficial de edição.</p>
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Visibilidade</p>
-              <p className="mt-4 text-2xl font-bold text-slate-950">
-                {legacyEditorConfig.config_value.enabled ? "Exposto" : "Oculto"}
-              </p>
-              <p className="mt-2 text-sm text-slate-600">Quando desligado, o menu some e a rota antiga redireciona.</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Editor novo</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Desativado</p>
+              <p className="mt-2 text-sm text-slate-600">Os fluxos com IA e o editor visual novo ficam sem uso operacional.</p>
             </div>
             <div className="border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Substituto</p>
-              <p className="mt-4 text-2xl font-bold text-slate-950">Editor IA</p>
-              <p className="mt-2 text-sm text-slate-600">O novo fluxo passa a ser a interface oficial de edição.</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Editor novo</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">Desativado</p>
+              <p className="mt-2 text-sm text-slate-600">Os fluxos com IA e o editor visual novo ficam sem uso operacional.</p>
             </div>
           </div>
 
           <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="rounded-2xl border border-slate-200 bg-[#f4f9fb] p-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Controle</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Fluxo oficial</p>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Usa este botão para desligar ou reativar o editor de páginas antigo. Quando desligado, ele fica
-                invisível na plataforma para os admins.
+                O editor visual legado voltou a ser o padrão. Os editores novos permanecem desligados para evitar
+                uso operacional acidental.
               </p>
-              <button
-                type="button"
-                onClick={async () => {
-                  setFeedback(null)
-                  try {
-                    await saveLegacyEditor.mutateAsync({ enabled: !legacyEditorConfig.config_value.enabled })
-                    setFeedback({
-                      tone: "success",
-                      message: legacyEditorConfig.config_value.enabled
-                        ? "Editor antigo desativado com sucesso."
-                        : "Editor antigo reativado com sucesso.",
-                    })
-                  } catch (error) {
-                    setFeedback({
-                      tone: "danger",
-                      message: error instanceof Error ? error.message : "Não foi possível atualizar o editor antigo.",
-                    })
-                  }
-                }}
-                disabled={saveLegacyEditor.isPending}
-                className={[
-                  "mt-4 inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-bold text-white shadow-sm transition disabled:opacity-60",
-                  legacyEditorConfig.config_value.enabled
-                    ? "bg-rose-600 hover:bg-rose-700"
-                    : "bg-emerald-600 hover:bg-emerald-700",
-                ].join(" ")}
-              >
-                {saveLegacyEditor.isPending
-                  ? "A guardar..."
-                  : legacyEditorConfig.config_value.enabled
-                    ? "Desativar editor antigo"
-                    : "Reativar editor antigo"}
-              </button>
+              <Button asChild className="mt-4 rounded-full">
+                <Link to={ROUTES.ADMIN_PAGE_EDITOR}>Abrir editor legado</Link>
+              </Button>
             </div>
 
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
               <p>
-                Quando este switch estiver desligado, o item do menu some, a rota antiga deixa de ser exibida e o
-                editor IA passa a ser o caminho principal.
+                Nesta configuração, os fluxos novos ficam sem exposição operacional. O caminho principal volta a ser
+                o editor visual antigo.
               </p>
             </div>
           </section>

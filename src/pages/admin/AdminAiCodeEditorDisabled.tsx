@@ -8,8 +8,8 @@ export function AdminAiCodeEditorDisabled() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Editor IA Irrestrito"
-        description="Esta area foi desativada nesta build. O fluxo oficial passa pelo Editor Visual e pelas edicoes aprovadas do painel administrativo."
+        title="Editor desativado"
+        description="Os editores novos foram desativados nesta build. O fluxo oficial voltou para o editor visual legado."
         backTo={ROUTES.ADMIN}
       />
 
@@ -19,19 +19,18 @@ export function AdminAiCodeEditorDisabled() {
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
               <Lock className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-950">Acesso desativado</h2>
+            <h2 className="text-2xl font-bold text-slate-950">Fluxo novo desativado</h2>
             <p className="text-sm leading-6 text-slate-600">
-              O Editor IA Irrestrito foi removido da navega&ccedil;&atilde;o operacional para evitar uso acidental.
-              As tarefas e valida&ccedil;&otilde;es continuam dispon&iacute;veis apenas no contexto interno da
-              implementa&ccedil;&atilde;o e nos testes existentes.
+              Os editores com IA e o editor visual novo deixaram de ser o caminho operacional. O editor visual legado
+              voltou a ser o ponto principal de edi&ccedil;&atilde;o da plataforma.
             </p>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
               <div className="flex items-center gap-2 font-semibold">
                 <AlertTriangle className="h-4 w-4" />
-                Fluxo oficial
+                Fluxo oficial ativo
               </div>
               <p className="mt-1">
-                Para edi&ccedil;&atilde;o de conte&uacute;do visual, use o Editor Visual. Para opera&ccedil;&otilde;es
+                Para edi&ccedil;&atilde;o de p&aacute;ginas, use o editor visual legado. Para opera&ccedil;&otilde;es
                 administrativas, use os restantes pain&eacute;is do admin.
               </p>
             </div>
@@ -39,7 +38,7 @@ export function AdminAiCodeEditorDisabled() {
 
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="rounded-full">
-              <Link to={ROUTES.ADMIN_VISUAL_EDITOR}>Abrir Editor Visual</Link>
+              <Link to={ROUTES.ADMIN_PAGE_EDITOR}>Abrir editor legado</Link>
             </Button>
             <Button asChild className="rounded-full">
               <Link to={ROUTES.ADMIN}>Voltar ao painel</Link>

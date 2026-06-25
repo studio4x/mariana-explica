@@ -2,7 +2,6 @@ import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Bell,
-  Bot,
   CircleHelp,
   ClipboardList,
   CreditCard,
@@ -14,7 +13,6 @@ import {
   MessageSquareText,
   Package,
   Percent,
-  Paintbrush,
   Settings,
   TicketPercent,
   UserCircle2,
@@ -33,14 +31,11 @@ import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
 import {
-  useAdminAiCodeEditorConfig,
-  useAdminLegacyPageEditorConfig,
   useAdminNotifications,
   useAdminUsers,
   useMarkAdminNotificationAsRead,
   useMarkAllAdminNotificationsAsRead,
 } from "@/hooks/useAdmin"
-import { resolveAdminAiCodeEditorTransition } from "@/lib/admin-ai-code-editor"
 import { BUILD_VERSION } from "@/lib/build"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/constants"
@@ -67,9 +62,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
-  { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Paginas", icon: LayoutTemplate },
-  { to: ROUTES.ADMIN_AI_PAGE_EDITOR, label: "Editor IA", icon: Bot },
-  { to: ROUTES.ADMIN_VISUAL_EDITOR, label: "Editor Visual", icon: Paintbrush },
+  { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Visual", icon: LayoutTemplate },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },
   { to: ROUTES.ADMIN_PUBLIC_FORMS, label: "Formularios", icon: ClipboardList },
@@ -97,28 +90,14 @@ export function AdminLayout() {
   const queryClient = useQueryClient()
   const { profile, signOut } = useAuth()
   const notificationsQuery = useAdminNotifications()
-  const legacyPageEditorQuery = useAdminLegacyPageEditorConfig(Boolean(profile?.id))
-  const aiCodeEditorConfigQuery = useAdminAiCodeEditorConfig(Boolean(profile?.id))
   const usersQuery = useAdminUsers()
   const markNotificationAsRead = useMarkAdminNotificationAsRead()
   const markAllNotificationsAsRead = useMarkAllAdminNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Admin"
   const initials = getInitials(profile?.full_name, profile?.email)
-  const showLegacyPageEditor = legacyPageEditorQuery.data?.config_value.enabled !== false
-  const aiCodeEditorTransition = resolveAdminAiCodeEditorTransition(aiCodeEditorConfigQuery.data ?? null)
-  const showLegacyAiEditor = aiCodeEditorTransition.showLegacyAiEditor
   const isLegacyPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
-  const isLegacyAiEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_AI_PAGE_EDITOR)
-  const isVisualEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_VISUAL_EDITOR)
-  const isPageEditorRoute =
-    isVisualEditorRoute ||
-    (isLegacyAiEditorRoute && showLegacyAiEditor) ||
-    (isLegacyPageEditorRoute && showLegacyPageEditor)
-  const visibleItems = items.filter((item) => {
-    if (item.to === ROUTES.ADMIN_PAGE_EDITOR) return showLegacyPageEditor
-    if (item.to === ROUTES.ADMIN_AI_PAGE_EDITOR) return showLegacyAiEditor
-    return true
-  })
+  const isPageEditorRoute = isLegacyPageEditorRoute
+  const visibleItems = items
 
   useEffect(() => {
     void queryClient.prefetchQuery({
@@ -257,7 +236,7 @@ export function AdminLayout() {
                 <p className="mt-2 text-lg font-black text-slate-950">Admin</p>
               </div>
               <nav className="space-y-1 p-3">
-                {visibleItems.map((item) => (
+          {visibleItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}

@@ -2,7 +2,7 @@
 import type { DragEvent, FocusEvent, ReactNode } from "react"
 import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
-import { Link, Navigate, useBlocker, useSearchParams } from "react-router-dom"
+import { Link, useBlocker, useSearchParams } from "react-router-dom"
 import {
   Blocks,
   ChevronDown,
@@ -32,7 +32,6 @@ import { BUILD_VERSION } from "@/lib/build"
 import {
   useAdminSitePageDetail,
   useAdminSitePages,
-  useAdminLegacyPageEditorConfig,
   usePublishAdminSitePageVersion,
   useRollbackAdminSitePageVersion,
   useSaveAdminSitePageDraft,
@@ -1142,7 +1141,6 @@ export function AdminPageEditor() {
   const rollbackMutation = useRollbackAdminSitePageVersion()
   const unpublishMutation = useUnpublishAdminSitePage()
   const uploadAssetMutation = useUploadAdminSitePageAssetFile()
-  const legacyEditorQuery = useAdminLegacyPageEditorConfig()
 
   const pageSummary = useMemo(() => {
     return (pagesQuery.data ?? []).find((page) => page.slug === selectedSlug) ?? null
@@ -1151,6 +1149,10 @@ export function AdminPageEditor() {
   const versions = useMemo(() => detailQuery.data?.versions ?? [], [detailQuery.data?.versions])
   const assets = useMemo(() => detailQuery.data?.assets ?? [], [detailQuery.data?.assets])
   const publishedVersionId = detailQuery.data?.page.published_version_id ?? null
+  const publishedVersion = useMemo(
+    () => versions.find((version) => version.id === publishedVersionId) ?? null,
+    [publishedVersionId, versions],
+  )
   const selectedVersion = useMemo(() => versions.find((v) => v.id === selectedVersionId) ?? null, [selectedVersionId, versions])
   const selectedBlock = useMemo(
     () => findBlockByIdInTree(documentDraft.blocks, selectedBlockId),
@@ -3157,10 +3159,6 @@ export function AdminPageEditor() {
     setInlineEditingBlockId(null)
   }
 
-  if (legacyEditorQuery.data?.config_value.enabled === false) {
-    return <Navigate to={ROUTES.ADMIN_AI_PAGE_EDITOR} replace />
-  }
-
   if (pagesQuery.isLoading && !pagesQuery.data) {
     return <LoadingState message="A carregar editor visual..." />
   }
@@ -3188,16 +3186,45 @@ export function AdminPageEditor() {
   return (
     <div className="flex h-full min-h-[calc(100vh-110px)] flex-col gap-3 pb-24">
       <PageHeader
-        title="Editor Visual de Páginas"
+        title="Editor Visual"
+        description="Editor visual legado com blocos, versões, preview e publicação."
         backTo={ROUTES.ADMIN}
         actions={
-          <Button asChild type="button" variant="outline" className="rounded-full border-slate-300 bg-white shadow-sm">
-            <Link to={ROUTES.ADMIN}>Voltar ao dashboard</Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild type="button" variant="outline" className="rounded-full border-slate-300 bg-white shadow-sm">
+              <Link to={getPublicPathForSlug(selectedSlug)} target="_blank" rel="noreferrer">
+                Abrir página pública
+              </Link>
+            </Button>
+            <Button asChild type="button" variant="outline" className="rounded-full border-slate-300 bg-white shadow-sm">
+              <Link to={ROUTES.ADMIN}>Voltar ao dashboard</Link>
+            </Button>
+          </div>
         }
       />
 
-      <div className="-mx-1 space-y-2 px-1 pb-2 pt-1">
+      <div className="-mx-1 space-y-3 px-1 pb-2 pt-1">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Página ativa</p>
+              <h2 className="text-xl font-black text-slate-950">{pageSummary?.title ?? getTitleForSlug(selectedSlug)}</h2>
+              <p className="text-sm text-slate-600">
+                {selectedSlug} · {getPublicPathForSlug(selectedSlug)} · {pageSummary?.status ?? "sem estado"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <StatusBadge label={autosaveLabel} tone="neutral" />
+              {publishedVersionId ? (
+                <StatusBadge label={`Publicada v${publishedVersion?.version_number ?? "?"}`} tone="success" />
+              ) : (
+                <StatusBadge label="Sem publicação ativa" tone="warning" />
+              )}
+              <StatusBadge label={selectedVersion ? `Versão em foco v${selectedVersion.version_number}` : "Sem versão selecionada"} tone="info" />
+            </div>
+          </div>
+        </section>
+
       <section className="rounded-2xl border border-slate-200 bg-white/98 p-3 shadow-sm backdrop-blur">
         <div className="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)_auto] xl:items-end">
           <label className="block">
