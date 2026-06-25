@@ -18,6 +18,18 @@ interface Body {
 
 const pageSelect = "id,slug,title,status,published_version_id,created_by,created_at,updated_at"
 const versionSelect = "id,page_id,version_number,status,layout_json,style_json,metadata,created_by,created_at"
+const KNOWN_MANAGED_PAGE_TITLES: Record<string, string> = {
+  home: "Home",
+  sobre: "Sobre",
+  explicacoes: "Explicacoes",
+  materiais: "Materiais",
+  suporte: "Suporte",
+  privacidade: "Privacidade",
+  cookies: "Cookies",
+  termos: "Termos de uso",
+  checkout: "Checkout",
+  "checkout-success": "Checkout concluido",
+}
 
 function sanitizeSlug(value: string) {
   return value
@@ -107,6 +119,61 @@ async function fetchPageBySlug(serviceClient: ReturnType<typeof createServiceCli
   return data
 }
 
+async function ensureManagedPageBySlug(serviceClient: ReturnType<typeof createServiceClient>, slug: string) {
+  const existingPage = await fetchPageBySlug(serviceClient, slug).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.toLowerCase().includes("pagina nao encontrada")) {
+      return null
+    }
+    throw error
+  })
+
+  if (existingPage) return existingPage
+
+  const knownTitle = KNOWN_MANAGED_PAGE_TITLES[slug]
+  if (!knownTitle) {
+    throw badRequest("Pagina nao encontrada")
+  }
+
+  const { data, error } = await serviceClient
+    .from("site_pages")
+    .insert({
+      slug,
+      title: knownTitle,
+      status: "draft",
+    })
+    .select(pageSelect)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+async function ensureKnownManagedPages(serviceClient: ReturnType<typeof createServiceClient>) {
+  const slugs = Object.keys(KNOWN_MANAGED_PAGE_TITLES)
+  const { data: existingPages, error } = await serviceClient
+    .from("site_pages")
+    .select("slug")
+    .in("slug", slugs)
+
+  if (error) throw error
+
+  const existingSlugs = new Set((existingPages ?? []).map((page) => String(page.slug ?? "").trim()).filter(Boolean))
+  const missingSlugs = slugs.filter((slug) => !existingSlugs.has(slug))
+
+  if (missingSlugs.length === 0) return
+
+  const { error: insertError } = await serviceClient.from("site_pages").insert(
+    missingSlugs.map((slug) => ({
+      slug,
+      title: KNOWN_MANAGED_PAGE_TITLES[slug] ?? slug,
+      status: "draft",
+    })),
+  )
+
+  if (insertError) throw insertError
+}
+
 async function fetchNextVersionNumber(serviceClient: ReturnType<typeof createServiceClient>, pageId: string) {
   const { data, error } = await serviceClient
     .from("site_page_versions")
@@ -136,6 +203,7 @@ Deno.serve(async (req) => {
     if (!body.action) throw badRequest("action e obrigatorio")
 
     if (body.action === "list_pages") {
+      await ensureKnownManagedPages(serviceClient)
       const { data, error } = await serviceClient
         .from("site_pages")
         .select(pageSelect)
@@ -146,7 +214,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "get_page") {
       const slug = requireSlug(body.slug)
-      const page = await fetchPageBySlug(serviceClient, slug)
+      const page = await ensureManagedPageBySlug(serviceClient, slug)
 
       const { data: versions, error: versionsError } = await serviceClient
         .from("site_page_versions")
@@ -188,7 +256,7 @@ Deno.serve(async (req) => {
       const styleJson = normalizeObject(body.styleJson, "styleJson")
       const metadata = normalizeObject(body.metadata, "metadata")
 
-      const page = await fetchPageBySlug(serviceClient, slug)
+      const page = await ensureManagedPageBySlug(serviceClient, slug)
       const versionNumber = await fetchNextVersionNumber(serviceClient, page.id)
 
       const { data: draftVersion, error: draftError } = await serviceClient
@@ -245,7 +313,7 @@ Deno.serve(async (req) => {
       const versionId = String(body.versionId ?? "").trim()
       if (!versionId) throw badRequest("versionId e obrigatorio")
 
-      const page = await fetchPageBySlug(serviceClient, slug)
+      const page = await ensureManagedPageBySlug(serviceClient, slug)
       const previousPublishedVersionId = page.published_version_id ? String(page.published_version_id) : null
       const { data: targetVersion, error: targetVersionError } = await serviceClient
         .from("site_page_versions")
@@ -312,7 +380,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "unpublish") {
       const slug = requireSlug(body.slug)
-      const page = await fetchPageBySlug(serviceClient, slug)
+      const page = await ensureManagedPageBySlug(serviceClient, slug)
 
       const { error: archivePreviousError } = await serviceClient
         .from("site_page_versions")
