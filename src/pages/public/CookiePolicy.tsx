@@ -1,4 +1,5 @@
-﻿import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
+import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
 
 const sections: LegalSection[] = [
   {
@@ -54,12 +55,15 @@ const sections: LegalSection[] = [
 
 export function CookiePolicy() {
   return (
-    <LegalPageLayout
-      eyebrow="Cookies"
-      title="Política de Cookies"
-      intro="Esta Política de Cookies descreve de forma transparente que tipos de cookies e tecnologias semelhantes podem ser utilizados na Mariana Explica, em que circunstâncias são necessários, quando dependem de consentimento e como podem ser geridos pelo utilizador, em conformidade com as regras aplicáveis em Portugal e na União Europeia."
-      updatedAt="23/04/2026"
-      sections={sections}
-    />
+    <VisualEditorProvider pageKey="cookies">
+      <LegalPageLayout
+        eyebrow="Cookies"
+        title="Política de Cookies"
+        intro="Esta Política de Cookies descreve de forma transparente que tipos de cookies e tecnologias semelhantes podem ser utilizados na Mariana Explica, em que circunstâncias são necessários, quando dependem de consentimento e como podem ser geridos pelo utilizador, em conformidade com as regras aplicáveis em Portugal e na União Europeia."
+        updatedAt="23/04/2026"
+        sections={sections}
+      />
+    </VisualEditorProvider>
   )
 }
+

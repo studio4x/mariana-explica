@@ -9,6 +9,7 @@ import {
 } from "@/layouts"
 import { ProtectedRoute, AdminRoute, SiteMaintenanceGate } from "@/components/common"
 import { ErrorState } from "@/components/feedback/ErrorState"
+import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
 import { isDynamicImportError, reloadAfterRuntimeCleanup } from "@/lib/runtime-recovery"
@@ -29,9 +30,6 @@ const CookiePolicy = lazy(() =>
 )
 const TermsOfUse = lazy(() =>
   import("@/pages/public").then((module) => ({ default: module.TermsOfUse })),
-)
-const PublicManagedPage = lazy(() =>
-  import("@/pages/public").then((module) => ({ default: module.PublicManagedPage })),
 )
 const Login = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Login })))
 const Register = lazy(() => import("@/pages/auth").then((module) => ({ default: module.Register })))
@@ -253,7 +251,7 @@ export const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: withSuspense(<PublicManagedPage slug="home" fallback={<Home />} />),
+          element: withSuspense(<Home />),
         },
         {
           path: "materiais",
@@ -273,7 +271,11 @@ export const router = createBrowserRouter(
         },
         {
           path: "checkout",
-          element: withSuspense(<Checkout />),
+          element: withSuspense(
+            <VisualEditorProvider pageKey="checkout">
+              <Checkout />
+            </VisualEditorProvider>,
+          ),
         },
         {
           path: "checkout/confirmacao",
@@ -289,19 +291,19 @@ export const router = createBrowserRouter(
         },
         {
           path: "sobre",
-          element: withSuspense(<PublicManagedPage slug="sobre" fallback={<About />} />),
+          element: withSuspense(<About />),
         },
         {
           path: "privacidade",
-          element: withSuspense(<PublicManagedPage slug="privacidade" fallback={<PrivacyPolicy />} />),
+          element: withSuspense(<PrivacyPolicy />),
         },
         {
           path: "cookies",
-          element: withSuspense(<PublicManagedPage slug="cookies" fallback={<CookiePolicy />} />),
+          element: withSuspense(<CookiePolicy />),
         },
         {
           path: "termos-de-uso",
-          element: withSuspense(<PublicManagedPage slug="termos" fallback={<TermsOfUse />} />),
+          element: withSuspense(<TermsOfUse />),
         },
         {
           path: "produtos",

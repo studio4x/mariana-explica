@@ -1,4 +1,5 @@
-﻿import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
+import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
 
 const sections: LegalSection[] = [
   {
@@ -74,12 +75,15 @@ const sections: LegalSection[] = [
 
 export function TermsOfUse() {
   return (
-    <LegalPageLayout
-      eyebrow="Termos"
-      title="Termos de Uso"
-      intro="Estes Termos de Uso definem as regras aplicáveis ao acesso ao site, criação de conta, compra de conteúdos digitais e utilização da plataforma Mariana Explica. O texto foi preparado para um serviço operado em Portugal e deve ser lido em conjunto com a Política de Privacidade, a Política de Cookies e as informações comerciais apresentadas nas páginas de produto e checkout."
-      updatedAt="23/04/2026"
-      sections={sections}
-    />
+    <VisualEditorProvider pageKey="terms">
+      <LegalPageLayout
+        eyebrow="Termos"
+        title="Termos de Uso"
+        intro="Estes Termos de Uso definem as regras aplicáveis ao acesso ao site, criação de conta, compra de conteúdos digitais e utilização da plataforma Mariana Explica. O texto foi preparado para um serviço operado em Portugal e deve ser lido em conjunto com a Política de Privacidade, a Política de Cookies e as informações comerciais apresentadas nas páginas de produto e checkout."
+        updatedAt="23/04/2026"
+        sections={sections}
+      />
+    </VisualEditorProvider>
   )
 }
+

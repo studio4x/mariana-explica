@@ -1,5 +1,6 @@
 import { ROUTES } from "@/lib/constants"
 import type { VisualEditorPageDefinition } from "./types"
+import { PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS } from "./public-page-definitions"
 
 export interface SupportVisualEditorLinkField {
   label: string
@@ -124,6 +125,7 @@ export const MATERIALS_VISUAL_EDITOR_DEFAULT_DOCUMENT: MaterialsVisualEditorDocu
 }
 
 export const VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[] = [
+  ...PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS,
   {
     pageKey: "support",
     title: "Suporte",

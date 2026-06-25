@@ -23,6 +23,14 @@ import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
+import {
+  EditableText,
+  useVisualEditorPage,
+} from "@/features/site-editor/visual-editor"
+import {
+  CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type CheckoutVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
 
 const CHECKOUT_DRAFT_STORAGE_KEY = "mariana-explica:checkout-draft"
 
@@ -115,9 +123,11 @@ function isValidEmail(value: string) {
 function TermsModal({
   open,
   onClose,
+  document,
 }: {
   open: boolean
   onClose: () => void
+  document: CheckoutVisualEditorDocument["termsModal"]
 }) {
   if (!open) {
     return null
@@ -129,7 +139,7 @@ function TermsModal({
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Termos e condições</p>
-            <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">Antes de avançar</h2>
+            <h2 className="mt-2 font-display text-3xl font-bold text-slate-950">{document.title}</h2>
           </div>
           <button
             type="button"
@@ -141,24 +151,20 @@ function TermsModal({
           </button>
         </div>
         <div className="space-y-4 px-6 py-6 text-sm leading-7 text-slate-600">
-          <p>
-            Ao continuar, confirmas que leste e aceitas os termos de uso, a política de privacidade e as condições
-            comerciais apresentadas para este material.
-          </p>
+          <p>{document.line1}</p>
           <ul className="space-y-2">
-            <li>• O pagamento é processado pela Stripe e validado no backend.</li>
-            <li>• O acesso ao conteúdo depende da confirmação do pagamento.</li>
-            <li>• Os teus dados são tratados para operacionalizar a compra e o acesso.</li>
+            <li>• {document.line2}</li>
+            <li>• {document.line3}</li>
           </ul>
           <p>
             Podes rever o texto completo na página oficial de termos antes de concluir.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild className="rounded-full">
-              <Link to={ROUTES.TERMS}>Ler termos completos</Link>
+              <Link to={ROUTES.TERMS}>{document.primaryCtaLabel}</Link>
             </Button>
             <Button type="button" variant="outline" className="rounded-full" onClick={onClose}>
-              Fechar
+              {document.secondaryCtaLabel}
             </Button>
           </div>
         </div>
@@ -172,6 +178,7 @@ export function Checkout() {
   const slug = searchParams.get("slug") ?? undefined
   const navigate = useNavigate()
   const location = useLocation()
+  const { document } = useVisualEditorPage()
   const { session, profile: authProfile } = useAuth()
   const profileQuery = useProfilePreferences({ enabled: Boolean(session) })
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
@@ -188,6 +195,8 @@ export function Checkout() {
   const [draft, setDraft] = useState<CheckoutDraft>(() => loadCheckoutDraft())
   const nifDirtyRef = useRef(false)
   const syncedProfileNifRef = useRef<string | null>(null)
+  const visualDocument =
+    (document as CheckoutVisualEditorDocument | undefined) ?? CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
 
   const profile = profileQuery.data ?? authProfile
 
@@ -509,9 +518,12 @@ export function Checkout() {
           <div className="mb-10 flex flex-col gap-4 border-b border-[#dee3e5]/50 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]">
-                Ambiente de inscrição seguro
-              </p>
+              <EditableText
+                fieldKey="hero.eyebrow"
+                as="p"
+                fallback={visualDocument.hero.eyebrow}
+                className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]"
+              />
             </div>
             <Link
               to={`${ROUTES.COURSE}/${product.slug}`}
@@ -525,15 +537,24 @@ export function Checkout() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-7">
               <div className="space-y-3">
-                <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
-                  Confirmação de pedido
-                </span>
-                <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
-                  Quase lá! Vamos finalizar sua inscrição.
-                </h1>
-                <p className="max-w-xl text-lg leading-8 text-[#46464d]">
-                  Preenche os dados de checkout e segue para o pagamento com segurança.
-                </p>
+                <EditableText
+                  fieldKey="hero.eyebrow"
+                  as="span"
+                  fallback={visualDocument.hero.eyebrow}
+                  className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]"
+                />
+                <EditableText
+                  fieldKey="hero.title"
+                  as="h1"
+                  fallback={visualDocument.hero.title}
+                  className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl"
+                />
+                <EditableText
+                  fieldKey="hero.lead"
+                  as="p"
+                  fallback={visualDocument.hero.lead}
+                  className="max-w-xl text-lg leading-8 text-[#46464d]"
+                />
               </div>
 
               <div className="relative flex flex-col gap-8 overflow-hidden rounded-lg border border-[#dee3e5]/40 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,18,44,0.05)] md:flex-row">
@@ -548,20 +569,38 @@ export function Checkout() {
                 </div>
                 <div className="flex flex-1 flex-col justify-center space-y-4">
                   <div>
-                    <span className="mb-2 inline-block rounded-full bg-[#d1e4ff]/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[#315882]">
-                      {getCheckoutBadge(product.product_type)}
-                    </span>
+                    <EditableText
+                      fieldKey="productCard.badge"
+                      as="span"
+                      fallback={visualDocument.productCard.badge || getCheckoutBadge(product.product_type)}
+                      className="mb-2 inline-block rounded-full bg-[#d1e4ff]/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[#315882]"
+                    />
                     <h2 className="font-display text-3xl font-bold leading-tight text-[#0f122c]">{product.title}</h2>
                   </div>
-                  <p className="text-base leading-7 text-[#46464d]">{productDescription}</p>
+                  <EditableText
+                    fieldKey="productCard.buttonHint"
+                    as="p"
+                    fallback={productDescription}
+                    className="text-base leading-7 text-[#46464d]"
+                  />
                   <div className="flex flex-wrap items-center gap-4 border-t border-[#dee3e5]/40 py-3">
                     <div className="flex items-center gap-2">
                       <BadgeCheck className="h-5 w-5 text-[#af8962]" />
-                      <span className="text-xs font-bold uppercase tracking-[0.12em]">Acesso na conta</span>
+                      <EditableText
+                        fieldKey="productCard.accessLabel"
+                        as="span"
+                        fallback={visualDocument.productCard.accessLabel}
+                        className="text-xs font-bold uppercase tracking-[0.12em]"
+                      />
                     </div>
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="h-5 w-5 text-[#af8962]" />
-                      <span className="text-xs font-bold uppercase tracking-[0.12em]">Ambiente seguro</span>
+                      <EditableText
+                        fieldKey="productCard.secureLabel"
+                        as="span"
+                        fallback={visualDocument.productCard.secureLabel}
+                        className="text-xs font-bold uppercase tracking-[0.12em]"
+                      />
                     </div>
                   </div>
                 </div>
@@ -994,7 +1033,11 @@ export function Checkout() {
         </footer>
       </div>
 
-      <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
+      <TermsModal
+        open={termsOpen}
+        onClose={() => setTermsOpen(false)}
+        document={visualDocument.termsModal}
+      />
     </>
   )
 }

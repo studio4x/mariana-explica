@@ -1,4 +1,5 @@
-﻿import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
+import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
 
 const sections: LegalSection[] = [
   {
@@ -74,12 +75,15 @@ const sections: LegalSection[] = [
 
 export function PrivacyPolicy() {
   return (
-    <LegalPageLayout
-      eyebrow="Privacidade"
-      title="Política de Privacidade"
-      intro="Esta página explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site público, da Área autenticada, do checkout, do suporte e da entrega de conteúdos digitais. O texto foi estruturado para refletir os princípios do RGPD e a legislação aplicável em Portugal e na União Europeia."
-      updatedAt="23/04/2026"
-      sections={sections}
-    />
+    <VisualEditorProvider pageKey="privacy">
+      <LegalPageLayout
+        eyebrow="Privacidade"
+        title="Política de Privacidade"
+        intro="Esta página explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site público, da Área autenticada, do checkout, do suporte e da entrega de conteúdos digitais. O texto foi estruturado para refletir os princípios do RGPD e a legislação aplicável em Portugal e na União Europeia."
+        updatedAt="23/04/2026"
+        sections={sections}
+      />
+    </VisualEditorProvider>
   )
 }
+

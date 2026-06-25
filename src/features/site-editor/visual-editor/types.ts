@@ -1,4 +1,14 @@
-export type VisualEditorPageKey = "support" | "materials"
+export type VisualEditorPageKey =
+  | "support"
+  | "materials"
+  | "home"
+  | "about"
+  | "explicacoes"
+  | "privacy"
+  | "cookies"
+  | "terms"
+  | "checkout"
+  | "checkout-success"
 
 export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image" | "list" | "json" | "container"
 
