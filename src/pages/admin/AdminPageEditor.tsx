@@ -29,6 +29,7 @@ import { ErrorState, LoadingState } from "@/components/feedback"
 import { RichTextEditor, type RichTextEditorHandle } from "@/components/common/RichTextEditor"
 import { Button } from "@/components/ui"
 import { BUILD_VERSION } from "@/lib/build"
+import { VISUAL_EDITOR_PAGE_DEFINITIONS } from "@/features/site-editor/visual-editor/page-definitions"
 import {
   useAdminSitePageDetail,
   useAdminSitePages,
@@ -63,6 +64,12 @@ const PAGE_OPTIONS: Array<{ slug: SitePageSlug; label: string; publicPath: strin
   { slug: "cookies", label: "Cookies", publicPath: "/cookies" },
   { slug: "termos", label: "Termos de uso", publicPath: "/termos-de-uso" },
 ]
+
+const VISUAL_EDITOR_SHORTCUTS = VISUAL_EDITOR_PAGE_DEFINITIONS.map((definition) => ({
+  pageKey: definition.pageKey,
+  title: definition.title,
+  publicPath: definition.publicPath,
+}))
 
 const BLOCK_LIBRARY: Array<{ type: PageBlockType; label: string }> = [
   { type: "heading", label: "Título" },
@@ -3202,6 +3209,36 @@ export function AdminPageEditor() {
           </div>
         }
       />
+
+      <section className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Editor visual</p>
+            <h2 className="mt-1 text-lg font-black text-slate-950">Atalhos para as páginas novas</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              As páginas que foram migradas para o editor visual dedicado continuam acessíveis por aqui.
+            </p>
+          </div>
+          <Button asChild type="button" variant="outline" className="rounded-full border-sky-200 bg-white shadow-sm">
+            <Link to={ROUTES.ADMIN_VISUAL_EDITOR}>Abrir editor visual</Link>
+          </Button>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {VISUAL_EDITOR_SHORTCUTS.map((definition) => (
+            <Button
+              key={definition.pageKey}
+              asChild
+              type="button"
+              variant="outline"
+              className="rounded-full border-sky-200 bg-white shadow-sm"
+            >
+              <Link to={`${ROUTES.ADMIN_VISUAL_EDITOR}/${definition.pageKey}`}>
+                {definition.title}
+              </Link>
+            </Button>
+          ))}
+        </div>
+      </section>
 
       <div className="-mx-1 space-y-3 px-1 pb-2 pt-1">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
