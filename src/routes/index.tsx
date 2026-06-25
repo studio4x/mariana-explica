@@ -9,7 +9,6 @@ import {
 } from "@/layouts"
 import { ProtectedRoute, AdminRoute, SiteMaintenanceGate } from "@/components/common"
 import { ErrorState } from "@/components/feedback/ErrorState"
-import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
 import { BUILD_VERSION } from "@/lib/build"
 import { ROUTES } from "@/lib/constants"
 import { isDynamicImportError, reloadAfterRuntimeCleanup } from "@/lib/runtime-recovery"
@@ -271,11 +270,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "checkout",
-          element: withSuspense(
-            <VisualEditorProvider pageKey="checkout">
-              <Checkout />
-            </VisualEditorProvider>,
-          ),
+          element: withSuspense(<Checkout />),
         },
         {
           path: "checkout/confirmacao",

@@ -1,10 +1,5 @@
-import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
-import { MaterialsPageContent } from "./MaterialsPageContent"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 export function Products() {
-  return (
-    <VisualEditorProvider pageKey="materials">
-      <MaterialsPageContent />
-    </VisualEditorProvider>
-  )
+  return <PublicManagedPage slug="materiais" />
 }

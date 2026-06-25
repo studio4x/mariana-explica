@@ -42,7 +42,7 @@ export function ExplicacoesFormExperience() {
       setIsSuccessModalOpen(true)
       setForm(initialFormState)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Não foi possível enviar o formulário.")
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel enviar o formulario.")
     } finally {
       setIsSubmitting(false)
     }
@@ -97,9 +97,9 @@ export function ExplicacoesFormExperience() {
           </label>
 
           <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-            <p className="font-black">Se o teu pedido for para Explicações, indica obrigatoriamente nesta caixa:</p>
-            <p className="mt-1">O Ano Escolar do Aluno (ex: 10.º, 11.º ou 12.º ano)</p>
-            <p>A Disciplina pretendida (Filosofia ou Português)</p>
+            <p className="font-black">Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:</p>
+            <p className="mt-1">O Ano Escolar do Aluno (ex: 10.o, 11.o ou 12.o ano)</p>
+            <p>A Disciplina pretendida (Filosofia ou Portugues)</p>
           </div>
 
           <div className="flex flex-wrap justify-end gap-3">
@@ -108,7 +108,7 @@ export function ExplicacoesFormExperience() {
               className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "A enviar..." : "Enviar formulário"}
+              {isSubmitting ? "A enviar..." : "Enviar formulario"}
               <Send className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -126,7 +126,7 @@ export function ExplicacoesFormExperience() {
         tone="success"
         title="Pedido enviado"
         confirmLabel="Fechar"
-        message="Obrigada pelo teu contacto! Recebi o teu pedido com sucesso.Em breve, receberás uma resposta da minha parte! Fica atento/a. Beijinho, Mariana."
+        message="Obrigada pelo teu contacto! Recebi o teu pedido com sucesso. Em breve, receberas uma resposta da minha parte. Fica atento/a. Beijinho, Mariana."
         onClose={() => setIsSuccessModalOpen(false)}
       />
     </>

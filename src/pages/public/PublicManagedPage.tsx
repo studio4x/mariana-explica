@@ -6,6 +6,7 @@ import { LoadingState } from "@/components/feedback"
 import { HomeReviewsFeed } from "@/components/reviews"
 import { formatAiPageEditorModeLabel, formatAiPageEditorScopeLabel } from "@/lib/ai-page-editor"
 import {
+  buildCanonicalManagedPagePayload,
   composeManagedPageCss,
   renderDocumentToHtml,
   resolveBuilderDocumentFromLayoutJson,
@@ -13,6 +14,9 @@ import {
 import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { usePublicSitePage } from "@/hooks/usePublicSitePage"
 import type { PublicSitePagePayload, SitePageSlug } from "@/types/app.types"
+import { ExplicacoesFormExperience } from "./ExplicacoesFormExperience"
+import { ProductsCatalogExperience } from "./ProductsCatalogExperience"
+import { SupportFaqExperience } from "./SupportFaqExperience"
 
 function normalizeHtml(layoutJson?: Record<string, unknown>) {
   if (!layoutJson || typeof layoutJson !== "object") return ""
@@ -28,7 +32,10 @@ function normalizeCss(styleJson?: Record<string, unknown>) {
   return ""
 }
 
-function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSitePagePayload["version"] | null | undefined) {
+function rebuildManagedPayloadFromVersion(
+  slug: SitePageSlug,
+  version: PublicSitePagePayload["version"] | null | undefined,
+) {
   if (!version?.layout_json || typeof version.layout_json !== "object") return null
 
   const layoutJson = version.layout_json as Record<string, unknown>
@@ -57,7 +64,7 @@ function rebuildManagedPayloadFromVersion(slug: SitePageSlug, version: PublicSit
 
 interface PublicManagedPageProps {
   slug: SitePageSlug
-  fallback: ReactNode
+  fallback?: ReactNode
 }
 
 export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
@@ -65,11 +72,22 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   const pageQuery = usePublicSitePage(slug)
   const managedRootRef = useRef<HTMLDivElement | null>(null)
   const [homeReviewsMountNode, setHomeReviewsMountNode] = useState<HTMLElement | null>(null)
+  const [explicacoesFormMountNode, setExplicacoesFormMountNode] = useState<HTMLElement | null>(null)
+  const [productsExperienceMountNode, setProductsExperienceMountNode] = useState<HTMLElement | null>(null)
+  const [supportExperienceMountNode, setSupportExperienceMountNode] = useState<HTMLElement | null>(null)
   const [highlightedTargetsCount, setHighlightedTargetsCount] = useState(0)
 
   const previewPayload = useMemo(() => {
     return readSitePagePreviewFromSearch(slug, location.search)
   }, [location.search, slug])
+
+  const canonicalPayload = useMemo(() => {
+    const baseline = buildCanonicalManagedPagePayload(slug)
+    return {
+      html: baseline.html,
+      css: composeManagedPageCss(""),
+    }
+  }, [slug])
 
   const managedPayload = useMemo(() => {
     if (previewPayload) {
@@ -79,31 +97,48 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
       }
     }
 
-    if (!pageQuery.data?.version) return null
-    return rebuildManagedPayloadFromVersion(slug, pageQuery.data.version)
-  }, [pageQuery.data, previewPayload, slug])
+    if (pageQuery.data?.version) {
+      return rebuildManagedPayloadFromVersion(slug, pageQuery.data.version) ?? canonicalPayload
+    }
+
+    if (pageQuery.isLoading) {
+      return null
+    }
+
+    return canonicalPayload
+  }, [canonicalPayload, pageQuery.data?.version, pageQuery.isLoading, previewPayload, slug])
+
+  function prepareMountNode(selector: string, markerName: string) {
+    const root = managedRootRef.current
+    if (!root) return null
+
+    const placeholder = root.querySelector<HTMLElement>(selector)
+    if (!placeholder) return null
+
+    placeholder.setAttribute(markerName, "1")
+    placeholder.innerHTML = ""
+    return placeholder
+  }
 
   useEffect(() => {
-    if (slug !== "home") {
-      setHomeReviewsMountNode(null)
-      return
-    }
-
-    const root = managedRootRef.current
-    if (!root) {
-      setHomeReviewsMountNode(null)
-      return
-    }
-
-    const placeholder = root.querySelector<HTMLElement>(".me-home-review-placeholder")
-    if (!placeholder) {
-      setHomeReviewsMountNode(null)
-      return
-    }
-
-    placeholder.setAttribute("data-me-home-reviews-live", "1")
-    placeholder.innerHTML = ""
-    setHomeReviewsMountNode(placeholder)
+    setHomeReviewsMountNode(
+      slug === "home" ? prepareMountNode(".me-home-review-placeholder", "data-me-home-reviews-live") : null,
+    )
+    setExplicacoesFormMountNode(
+      slug === "explicacoes"
+        ? prepareMountNode(".me-explicacoes-form-placeholder", "data-me-explicacoes-form-live")
+        : null,
+    )
+    setProductsExperienceMountNode(
+      slug === "materiais"
+        ? prepareMountNode(".me-products-experience-placeholder", "data-me-products-experience-live")
+        : null,
+    )
+    setSupportExperienceMountNode(
+      slug === "suporte"
+        ? prepareMountNode(".me-support-experience-placeholder", "data-me-support-experience-live")
+        : null,
+    )
   }, [managedPayload?.html, slug])
 
   useEffect(() => {
@@ -153,16 +188,15 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   }, [managedPayload?.html, previewPayload?.highlightSelectors])
 
   if (pageQuery.isLoading && !previewPayload) {
-    return <LoadingState message="A carregar conteúdo da página..." />
+    return <LoadingState message="A carregar conteudo da pagina..." />
   }
 
-  if (pageQuery.isError && !previewPayload) {
-    // Fail-open for public pages: fallback component prevents hard outage when managed content fails.
+  if (pageQuery.isError && !previewPayload && fallback) {
     return <>{fallback}</>
   }
 
   if (!managedPayload?.html) {
-    return <>{fallback}</>
+    return fallback ? <>{fallback}</> : null
   }
 
   return (
@@ -189,24 +223,29 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
           }
         `}</style>
       ) : null}
-      {slug === "home" ? (
-        <style>{`
-          .me-home-review-placeholder[data-me-home-reviews-live="1"] {
-            max-width: none;
-            border: 0;
-            background: transparent;
-            padding: 0;
-          }
-        `}</style>
-      ) : null}
+      <style>{`
+        .me-home-review-placeholder[data-me-home-reviews-live="1"] {
+          max-width: none;
+          border: 0;
+          background: transparent;
+          padding: 0;
+        }
+
+        .me-explicacoes-form-placeholder[data-me-explicacoes-form-live="1"],
+        .me-products-experience-placeholder[data-me-products-experience-live="1"],
+        .me-support-experience-placeholder[data-me-support-experience-live="1"] {
+          min-height: 0;
+        }
+      `}</style>
       {previewPayload ? (
         <div className="border-b border-sky-200 bg-sky-50/95 px-4 py-3 text-slate-900 shadow-sm">
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">
-              <span>Pré-visualização IA</span>
+              <span>Pre-visualizacao IA</span>
               {previewPayload.editPlan ? (
                 <span className="rounded-full bg-white px-2 py-1 text-[10px] text-sky-900">
-                  {formatAiPageEditorModeLabel(previewPayload.editPlan.mode)} · {formatAiPageEditorScopeLabel(previewPayload.editPlan.scope)}
+                  {formatAiPageEditorModeLabel(previewPayload.editPlan.mode)} ·{" "}
+                  {formatAiPageEditorScopeLabel(previewPayload.editPlan.scope)}
                 </span>
               ) : null}
               {previewPayload.baseVersion ? (
@@ -218,13 +257,17 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
             {previewPayload.summary ? <p className="text-sm font-semibold text-slate-950">{previewPayload.summary}</p> : null}
             {previewPayload.explanation ? <p className="text-sm leading-6 text-slate-700">{previewPayload.explanation}</p> : null}
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-              <span>{highlightedTargetsCount > 0 ? `${highlightedTargetsCount} alvo(s) destacados` : "Sem destaque visual disponível"}</span>
+              <span>
+                {highlightedTargetsCount > 0
+                  ? `${highlightedTargetsCount} alvo(s) destacados`
+                  : "Sem destaque visual disponivel"}
+              </span>
               {previewPayload.warnings?.length ? <span>{previewPayload.warnings.length} aviso(s) desta proposta</span> : null}
             </div>
             {previewPayload.warnings?.length ? (
               <ul className="space-y-1 text-xs leading-5 text-amber-900">
                 {previewPayload.warnings.slice(0, 3).map((warning) => (
-                  <li key={warning}>• {warning}</li>
+                  <li key={warning}>- {warning}</li>
                 ))}
               </ul>
             ) : null}
@@ -234,6 +277,15 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
       <div ref={managedRootRef} dangerouslySetInnerHTML={{ __html: managedPayload.html }} />
       {slug === "home" && homeReviewsMountNode
         ? createPortal(<HomeReviewsFeed className="!mt-0" />, homeReviewsMountNode)
+        : null}
+      {slug === "explicacoes" && explicacoesFormMountNode
+        ? createPortal(<ExplicacoesFormExperience />, explicacoesFormMountNode)
+        : null}
+      {slug === "materiais" && productsExperienceMountNode
+        ? createPortal(<ProductsCatalogExperience />, productsExperienceMountNode)
+        : null}
+      {slug === "suporte" && supportExperienceMountNode
+        ? createPortal(<SupportFaqExperience />, supportExperienceMountNode)
         : null}
     </div>
   )

@@ -24,10 +24,6 @@ import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/servic
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
 import {
-  EditableText,
-  useVisualEditorPage,
-} from "@/features/site-editor/visual-editor"
-import {
   CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
@@ -178,7 +174,6 @@ export function Checkout() {
   const slug = searchParams.get("slug") ?? undefined
   const navigate = useNavigate()
   const location = useLocation()
-  const { document } = useVisualEditorPage()
   const { session, profile: authProfile } = useAuth()
   const profileQuery = useProfilePreferences({ enabled: Boolean(session) })
   const { data: product, isLoading, isError, error, refetch } = usePublishedProductBySlug(slug)
@@ -195,8 +190,7 @@ export function Checkout() {
   const [draft, setDraft] = useState<CheckoutDraft>(() => loadCheckoutDraft())
   const nifDirtyRef = useRef(false)
   const syncedProfileNifRef = useRef<string | null>(null)
-  const visualDocument =
-    (document as CheckoutVisualEditorDocument | undefined) ?? CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const visualDocument = CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
 
   const profile = profileQuery.data ?? authProfile
 
@@ -518,12 +512,9 @@ export function Checkout() {
           <div className="mb-10 flex flex-col gap-4 border-b border-[#dee3e5]/50 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>
-              <EditableText
-                fieldKey="hero.eyebrow"
-                as="p"
-                fallback={visualDocument.hero.eyebrow}
-                className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]"
-              />
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]">
+                {visualDocument.hero.eyebrow}
+              </p>
             </div>
             <Link
               to={`${ROUTES.COURSE}/${product.slug}`}
@@ -537,24 +528,13 @@ export function Checkout() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-7">
               <div className="space-y-3">
-                <EditableText
-                  fieldKey="hero.eyebrow"
-                  as="span"
-                  fallback={visualDocument.hero.eyebrow}
-                  className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]"
-                />
-                <EditableText
-                  fieldKey="hero.title"
-                  as="h1"
-                  fallback={visualDocument.hero.title}
-                  className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl"
-                />
-                <EditableText
-                  fieldKey="hero.lead"
-                  as="p"
-                  fallback={visualDocument.hero.lead}
-                  className="max-w-xl text-lg leading-8 text-[#46464d]"
-                />
+                <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
+                  {visualDocument.hero.eyebrow}
+                </span>
+                <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
+                  {visualDocument.hero.title}
+                </h1>
+                <p className="max-w-xl text-lg leading-8 text-[#46464d]">{visualDocument.hero.lead}</p>
               </div>
 
               <div className="relative flex flex-col gap-8 overflow-hidden rounded-lg border border-[#dee3e5]/40 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,18,44,0.05)] md:flex-row">
@@ -569,38 +549,24 @@ export function Checkout() {
                 </div>
                 <div className="flex flex-1 flex-col justify-center space-y-4">
                   <div>
-                    <EditableText
-                      fieldKey="productCard.badge"
-                      as="span"
-                      fallback={visualDocument.productCard.badge || getCheckoutBadge(product.product_type)}
-                      className="mb-2 inline-block rounded-full bg-[#d1e4ff]/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[#315882]"
-                    />
+                    <span className="mb-2 inline-block rounded-full bg-[#d1e4ff]/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[#315882]">
+                      {visualDocument.productCard.badge || getCheckoutBadge(product.product_type)}
+                    </span>
                     <h2 className="font-display text-3xl font-bold leading-tight text-[#0f122c]">{product.title}</h2>
                   </div>
-                  <EditableText
-                    fieldKey="productCard.buttonHint"
-                    as="p"
-                    fallback={productDescription}
-                    className="text-base leading-7 text-[#46464d]"
-                  />
+                  <p className="text-base leading-7 text-[#46464d]">{productDescription}</p>
                   <div className="flex flex-wrap items-center gap-4 border-t border-[#dee3e5]/40 py-3">
                     <div className="flex items-center gap-2">
                       <BadgeCheck className="h-5 w-5 text-[#af8962]" />
-                      <EditableText
-                        fieldKey="productCard.accessLabel"
-                        as="span"
-                        fallback={visualDocument.productCard.accessLabel}
-                        className="text-xs font-bold uppercase tracking-[0.12em]"
-                      />
+                      <span className="text-xs font-bold uppercase tracking-[0.12em]">
+                        {visualDocument.productCard.accessLabel}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="h-5 w-5 text-[#af8962]" />
-                      <EditableText
-                        fieldKey="productCard.secureLabel"
-                        as="span"
-                        fallback={visualDocument.productCard.secureLabel}
-                        className="text-xs font-bold uppercase tracking-[0.12em]"
-                      />
+                      <span className="text-xs font-bold uppercase tracking-[0.12em]">
+                        {visualDocument.productCard.secureLabel}
+                      </span>
                     </div>
                   </div>
                 </div>

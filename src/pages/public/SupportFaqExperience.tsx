@@ -43,9 +43,9 @@ export function SupportFaqExperience() {
     return {
       id: "support-escalation",
       category_id: supportCategory?.id ?? "support-escalation",
-      question: "A FAQ ainda não resolveu a minha dúvida. O que faço?",
+      question: "A FAQ ainda nao resolveu a minha duvida. O que faco?",
       answer:
-        "Se a resposta não foi suficiente, abre um chamado e a equipa acompanha o caso no dashboard do aluno.",
+        "Se a resposta nao foi suficiente, abre um chamado e a equipa acompanha o caso no dashboard do aluno.",
       sort_order: 999,
       is_active: true,
       created_at: "2026-01-01T00:00:00.000Z",
@@ -73,7 +73,9 @@ export function SupportFaqExperience() {
   }, [activeCategory, faqCategoryById, faqsWithEscalation, query])
 
   const filteredFaqs = useMemo(() => {
-    return [...activeFaqs].sort((left, right) => left.sort_order - right.sort_order || left.question.localeCompare(right.question))
+    return [...activeFaqs].sort(
+      (left, right) => left.sort_order - right.sort_order || left.question.localeCompare(right.question),
+    )
   }, [activeFaqs])
 
   return (
@@ -84,7 +86,9 @@ export function SupportFaqExperience() {
             <button
               type="button"
               onClick={() => setActiveCategory("all")}
-              className={`rounded-full px-4 py-2 text-left text-sm font-bold ${activeCategory === "all" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"}`}
+              className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
+                activeCategory === "all" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+              }`}
             >
               Todas
             </button>
@@ -93,7 +97,9 @@ export function SupportFaqExperience() {
                 key={category.slug}
                 type="button"
                 onClick={() => setActiveCategory(category.slug)}
-                className={`rounded-full px-4 py-2 text-left text-sm font-bold ${activeCategory === category.slug ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"}`}
+                className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
+                  activeCategory === category.slug ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                }`}
               >
                 {category.title}
               </button>
@@ -160,7 +166,11 @@ export function SupportFaqExperience() {
             <Button asChild className="rounded-full bg-white text-slate-950 hover:bg-slate-100">
               <Link to={`${ROUTES.DASHBOARD_SUPPORT}?openTicketModal=1&ticketStep=form`}>Abrir um chamado</Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10">
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10"
+            >
               <Link to={ROUTES.LOGIN}>Entrar na conta</Link>
             </Button>
           </div>
