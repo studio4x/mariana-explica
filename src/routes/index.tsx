@@ -169,9 +169,6 @@ const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ defaul
 const AdminPageEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPageEditor })),
 )
-const AdminVisualSiteEditor = lazy(() =>
-  import("@/pages/admin").then((module) => ({ default: module.AdminVisualSiteEditor })),
-)
 const AdminAiCodeEditorDisabled = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAiCodeEditorDisabled })),
 )
@@ -586,11 +583,11 @@ export const router = createBrowserRouter(
         },
         {
           path: "editor-visual",
-          element: withSuspense(<AdminVisualSiteEditor />),
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "editor-visual/:pageKey",
-          element: withSuspense(<AdminVisualSiteEditor />),
+          element: withSuspense(<AdminAiCodeEditorDisabled />),
         },
         {
           path: "editor-ia-irrestrito",

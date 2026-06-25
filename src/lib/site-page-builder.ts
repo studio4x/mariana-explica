@@ -2571,6 +2571,10 @@ export function getManagedPageTitle(slug: ManagedSitePageSlug) {
       return "Cookies"
     case "termos":
       return "Termos de uso"
+    case "checkout":
+      return "Checkout"
+    case "checkout-success":
+      return "Checkout concluído"
     default:
       return String(slug ?? "").trim() || "Página"
   }

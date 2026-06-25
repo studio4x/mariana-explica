@@ -905,6 +905,8 @@ export type SitePageSlug =
   | "privacidade"
   | "cookies"
   | "termos"
+  | "checkout"
+  | "checkout-success"
 
 export interface AdminSitePageSummary {
   id: string
