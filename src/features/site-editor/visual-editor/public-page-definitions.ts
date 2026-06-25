@@ -218,9 +218,9 @@ function buildFields(keys: Array<Pick<VisualEditorFieldDefinition, "key" | "labe
 export const HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT: HomeVisualEditorDocument = {
   hero: {
     eyebrow: "Estudo claro e direto",
-    title: "Tens dificuldades a Portugu�s ou Filosofia?",
+    title: "Tens dificuldades a Portugu\u00eas ou Filosofia?",
     subtitle: "Nunca tiveste a disciplina e vais fazer exame?",
-    lead: "Ent�o fica aqui que este local � para ti!",
+    lead: "Ent\u00e3o fica aqui que este local \u00e9 para ti!",
     primaryCta: {
       label: "Explorar materiais",
       href: ROUTES.COURSES,
@@ -229,61 +229,61 @@ export const HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT: HomeVisualEditorDocument = {
   objective: {
     eyebrow: "Objetivo principal",
     text:
-      "Criei este espa�o para te dar o apoio que os manuais n�o d�o: leveza, clareza e uma estrat�gia real para brilhares nos exames de Filosofia e Portugu�s. Vamo-nos simplificar?",
+      "Criei este espa\u00e7o para te dar o apoio que os manuais n\u00e3o d\u00e3o: leveza, clareza e uma estrat\u00e9gia real para brilhares nos exames de Filosofia e Portugu\u00eas. Vamo-nos simplificar?",
   },
   featureBlocks: {
     block1: {
       eyebrow: "EM BREVE - AULAS GRAVADAS",
-      text: "Domina temas complexos ao teu ritmo, com aulas organizadas e flex�veis, prontas quando tu estiveres.",
+      text: "Domina temas complexos ao teu ritmo, com aulas organizadas e flex\u00edveis, prontas quando tu estiveres.",
     },
     block2: {
-      eyebrow: "EXPLICA��ES",
-      text: "Acompanhamento personalizado e focado nas tuas d�vidas espec�ficas para garantires resultados.",
+      eyebrow: "EXPLICA\u00c7\u00d5ES",
+      text: "Acompanhamento personalizado e focado nas tuas d\u00favidas espec\u00edficas para garantires resultados.",
     },
     block3: {
       eyebrow: "MATERIAIS DIGITAIS",
-      text: "Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota m�xima sem complica��es.",
+      text: "Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota m\u00e1xima sem complica\u00e7\u00f5es.",
     },
     block4: {
       eyebrow: "MATERIAIS DIGITAIS - GRATUITOS",
-      text: "Dicas flash e recursos r�pidos para descarregar e dares um boost imediato no teu estudo.",
+      text: "Dicas flash e recursos r\u00e1pidos para descarregar e dares um boost imediato no teu estudo.",
     },
   },
   steps: {
     step1: {
       eyebrow: "ENCONTRA O TEU APOIO",
       text:
-        "Explora as sebentas e materiais dispon�veis. Cada material foi criado para resolver uma dor espec�fica, por isso vais perceber logo qual � o ideal para o teu momento.",
+        "Explora as sebentas e materiais dispon\u00edveis. Cada material foi criado para resolver uma dor espec\u00edfica, por isso vais perceber logo qual \u00e9 o ideal para o teu momento.",
     },
     step2: {
-      eyebrow: "ACESSO R�PIDO E SEGURO",
+      eyebrow: "ACESSO R\u00c1PIDO E SEGURO",
       text:
-        "O processo � direto e transparente. Sem taxas escondidas ou passos desnecess�rios. Pagas de forma segura e o material � teu no segundo seguinte.",
+        "O processo \u00e9 direto e transparente. Sem taxas escondidas ou passos desnecess\u00e1rios. Pagas de forma segura e o material \u00e9 teu no segundo seguinte.",
     },
     step3: {
       eyebrow: "FOCA-TE NO QUE IMPORTA",
       text:
-        "Tudo fica organizado na tua �rea do aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.",
+        "Tudo fica organizado na tua \u00e1rea do aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.",
     },
   },
   trust: {
     leftTitle: "Vantagens de trabalhares comigo",
     leftPoint1: {
       title: "Linguagem Direta:",
-      text: "Falamos a mesma l�ngua. Esquece os termos imposs�veis dos manuais e entende a mat�ria � primeira.",
+      text: "Falamos a mesma l\u00edngua. Esquece os termos imposs\u00edveis dos manuais e entende a mat\u00e9ria \u00e0 primeira.",
     },
     leftPoint2: {
       title: "Foco no Exame:",
-      text: "Materiais desenhados apenas com o que realmente sai. Sem distra��es.",
+      text: "Materiais desenhados apenas com o que realmente sai. Sem distra\u00e7\u00f5es.",
     },
     leftPoint3: {
       title: "Resumos Visuais:",
       text: "Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.",
     },
-    rightTitle: "Leveza e Confian�a em cada passo",
-    rightPoint1: "Suporte Real: N�o recebes s� um PDF. Tens uma \"amiga\" (eu!) nas DMs para te apoiar sempre que precisares.",
-    rightPoint2: "Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua �rea do aluno.",
-    rightPoint3: "P�s na Terra: Filosofia e Portugu�s deixam de ser abstratos e passam a ser ferramentas que dominas com seguran�a.",
+    rightTitle: "Leveza e Confian\u00e7a em cada passo",
+    rightPoint1: "Suporte Real: N\u00e3o recebes s\u00f3 um PDF. Tens uma \"amiga\" (eu!) nas DMs para te apoiar sempre que precisares.",
+    rightPoint2: "Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua \u00e1rea do aluno.",
+    rightPoint3: "P\u00e9s na Terra: Filosofia e Portugu\u00eas deixam de ser abstratos e passam a ser ferramentas que dominas com seguran\u00e7a.",
     primaryCta: {
       label: "Explorar materiais",
       href: ROUTES.COURSES,
@@ -296,84 +296,84 @@ export const HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT: HomeVisualEditorDocument = {
   reviews: {
     eyebrow: "Reviews",
     title: "E o que dizem os nossos alunos?",
-    lead: "Avalia��es reais publicadas no m�dulo de Reviews.",
+    lead: "Avalia\u00e7\u00f5es reais publicadas no m\u00f3dulo de Reviews.",
   },
 }
 
 export const ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: AboutVisualEditorDocument = {
   hero: {
-    title: "Muito mais do que uma explicadora:\nQuem � a Mariana?",
-    subtitle: "Conhece a pessoa por tr�s da marca Mariana Explica.",
+    title: "Muito mais do que uma explicadora:\nQuem \u00e9 a Mariana?",
+    subtitle: "Conhece a pessoa por tr\u00e1s da marca Mariana Explica.",
   },
   portrait: {
     src: ABOUT_IMAGE_PLACEHOLDER,
     alt: "Retrato ilustrado da Mariana",
   },
   intro: {
-    title: "Ol�! Eu sou a Mariana, fundadora do Mariana Explica e, atualmente, estudante de Filosofia na FLUP.",
+    title: "Ol\u00e1! Eu sou a Mariana, fundadora do Mariana Explica e, atualmente, estudante de Filosofia na FLUP.",
     text1:
-      "Se chegaste at� aqui, � muito prov�vel que estejas a sentir o peso dos manuais gigantes de Portugu�s, o n� cego da L�gica em Filosofia ou o p�nico silencioso da aproxima��o dos Exames Nacionais.",
+      "Se chegaste at\u00e9 aqui, \u00e9 muito prov\u00e1vel que estejas a sentir o peso dos manuais gigantes de Portugu\u00eas, o n\u00f3 cego da L\u00f3gica em Filosofia ou o p\u00e2nico silencioso da aproxima\u00e7\u00e3o dos Exames Nacionais.",
     text2:
-      "Deixa-me dizer-te uma coisa: eu percebo-te perfeitamente, porque eu ainda estou a�.",
+      "Deixa-me dizer-te uma coisa: eu percebo-te perfeitamente, porque eu ainda estou a\u00ed.",
   },
   project: {
-    title: "De estudante para estudante: porqu� este projeto?",
+    title: "De estudante para estudante: porqu\u00ea este projeto?",
     card1:
-      "Durante o meu percurso, percebi que a maior barreira entre um aluno e uma nota excelente n�o � a falta de intelig�ncia, mas sim a forma como a mat�ria � ensinada. Estive cansada de manuais densos, linguagem excessivamente formal e calhama�os cheios de 'palha' que s� servem para causar ansiedade.",
+      "Durante o meu percurso, percebi que a maior barreira entre um aluno e uma nota excelente n\u00e3o \u00e9 a falta de intelig\u00eancia, mas sim a forma como a mat\u00e9ria \u00e9 ensinada. Estive cansada de manuais densos, linguagem excessivamente formal e calhama\u00e7os cheios de 'palha' que s\u00f3 servem para causar ansiedade.",
     card2:
-      "Este projeto nasceu exatamente para ser a ponte. Eu transformo a mat�ria mais complexa em esquemas visuais, resumos diretos e explica��es descontra�das. Eu explico-te a mat�ria da forma que eu pr�pria gostava que me tivessem explicado quando estava no teu lugar. � isso que faz toda a diferen�a.",
+      "Este projeto nasceu exatamente para ser a ponte. Eu transformo a mat\u00e9ria mais complexa em esquemas visuais, resumos diretos e explica\u00e7\u00f5es descontra\u00eddas. Eu explico-te a mat\u00e9ria da forma que eu pr\u00f3pria gostava que me tivessem explicado quando estava no teu lugar. \u00c9 isso que faz toda a diferen\u00e7a.",
   },
   pillars: {
-    title: "Os 3 Pilares do Meu M�todo",
-    pillar1Label: "Rigor Acad�mico",
+    title: "Os 3 Pilares do Meu M\u00e9todo",
+    pillar1Label: "Rigor Acad\u00e9mico",
     pillar1Text:
-      "Estar ainda a estudar d�-me as ferramentas di�rias para dominar a fundo a Filosofia e a Escrita. O meu m�todo une a leveza que tu precisas ao rigor t�cnico que os corretores de exame exigem.",
-    pillar2Label: "Foco Visual e Estrat�gia",
+      "Estar ainda a estudar d\u00e1-me as ferramentas di\u00e1rias para dominar a fundo a Filosofia e a Escrita. O meu m\u00e9todo une a leveza que tu precisas ao rigor t\u00e9cnico que os corretores de exame exigem.",
+    pillar2Label: "Foco Visual e Estrat\u00e9gia",
     pillar2Text:
-      "O nosso c�rebro funciona melhor com cores, conex�es e l�gica direta. Quer compres as minhas sebentas ou venhas para as explica��es, vais aprender a estruturar respostas perfeitas sem perder tempo.",
+      "O nosso c\u00e9rebro funciona melhor com cores, conex\u00f5es e l\u00f3gica direta. Quer compres as minhas sebentas ou venhas para as explica\u00e7\u00f5es, vais aprender a estruturar respostas perfeitas sem perder tempo.",
     pillar3Label: "Apoio e Empatia Total",
     pillar3Text:
-      "Aqui n�o h� perguntas est�pidas. Isto � um safe space! Quero que entres na sala de exame e de aula a saber exatamente o que vais fazer.",
+      "Aqui n\u00e3o h\u00e1 perguntas est\u00fapidas. Isto \u00e9 um safe space! Quero que entres na sala de exame e de aula a saber exatamente o que vais fazer.",
   },
 }
 
 export const EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT: ExplicacoesVisualEditorDocument = {
   hero: {
-    eyebrow: "Explica��es",
+    eyebrow: "Explica\u00e7\u00f5es",
     title: "Vamos descomplicar o teu ano letivo juntos?",
     lead:
-      "N�o tens Instagram ou preferes o contacto formal por e-mail? Sem problema, est�s no s�tio certo! Este espa�o foi pensado tanto para estudantes como para encarregados de educa��o que queiram esclarecer d�vidas sobre os meus materiais ou solicitar apoio individual.",
+      "N\u00e3o tens Instagram ou preferes o contacto formal por e-mail? Sem problema, est\u00e1s no s\u00edtio certo! Este espa\u00e7o foi pensado tanto para estudantes como para encarregados de educa\u00e7\u00e3o que queiram esclarecer d\u00favidas sobre os meus materiais ou solicitar apoio individual.",
   },
   notes: {
-    title: "Notas importantes antes de enviares o teu formul�rio:",
+    title: "Notas importantes antes de enviares o teu formul\u00e1rio:",
     paragraph1:
-      "Planeamento Pr�vio: Devido � agenda preenchida, todos os pedidos para explica��es devem ser efetuados com um m�nimo de 3 semanas de anteced�ncia.",
+      "Planeamento Pr\u00e9vio: Devido \u00e0 agenda preenchida, todos os pedidos para explica\u00e7\u00f5es devem ser efetuados com um m\u00ednimo de 3 semanas de anteced\u00eancia.",
     paragraph2:
-      "N�o Garante Reserva: O envio e submiss�o deste formul�rio funciona estritamente como um pedido de informa��es e consulta de disponibilidade. N�o constitui, de forma alguma, uma marca��o autom�tica ou garantia de vaga.",
+      "N\u00e3o Garante Reserva: O envio e submiss\u00e3o deste formul\u00e1rio funciona estritamente como um pedido de informa\u00e7\u00f5es e consulta de disponibilidade. N\u00e3o constitui, de forma alguma, uma marca\u00e7\u00e3o autom\u00e1tica ou garantia de vaga.",
   },
   formNote: {
-    title: "Se o teu pedido for para Explica��es, indica obrigatoriamente nesta caixa:",
-    line1: "O Ano Escolar do Aluno (ex: 10.�, 11.� ou 12.� ano)",
-    line2: "A Disciplina pretendida (Filosofia ou Portugu�s)",
+    title: "Se o teu pedido for para Explica\u00e7\u00f5es, indica obrigatoriamente nesta caixa:",
+    line1: "O Ano Escolar do Aluno (ex: 10.\u00ba, 11.\u00ba ou 12.\u00ba ano)",
+    line2: "A Disciplina pretendida (Filosofia ou Portugu\u00eas)",
   },
   submitCta: {
-    label: "Enviar formul�rio",
+    label: "Enviar formul\u00e1rio",
   },
 }
 
 export const LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT: LegalVisualEditorDocument = {
   hero: {
     eyebrow: "Privacidade",
-    title: "Pol�tica de Privacidade",
+    title: "Pol\u00edtica de Privacidade",
     intro:
-      "Esta p�gina explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site p�blico, da �rea autenticada, do checkout, do suporte e da entrega de conte�dos digitais. O texto foi estruturado para refletir os princ�pios do RGPD e a legisla��o aplic�vel em Portugal e na Uni�o Europeia.",
+      "Esta p\u00e1gina explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site p\u00fablico, da \u00e1rea autenticada, do checkout, do suporte e da entrega de conte\u00fados digitais. O texto foi estruturado para refletir os princ\u00edpios do RGPD e a legisla\u00e7\u00e3o aplic\u00e1vel em Portugal e na Uni\u00e3o Europeia.",
     updatedAt: "23/04/2026",
   },
   support: {
     eyebrow: "Apoio",
     title: "Precisa de esclarecimentos?",
     lead:
-      "Se precisar de ajuda adicional sobre privacidade, cookies, condi��es de utiliza��o ou exerc�cio de direitos, utilize os canais de apoio dispon�veis na plataforma.",
+      "Se precisar de ajuda adicional sobre privacidade, cookies, condi\u00e7\u00f5es de utiliza\u00e7\u00e3o ou exerc\u00edcio de direitos, utilize os canais de apoio dispon\u00edveis na plataforma.",
     primaryCta: {
       label: "Contactar suporte",
       href: SUPPORT_LINK,
@@ -387,9 +387,9 @@ export const LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT: LegalVisualEditorDocument = {
 
 export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocument = {
   hero: {
-    eyebrow: "Confirma��o de pedido",
-    title: "Quase l�! Vamos finalizar a tua inscri��o.",
-    lead: "Preenche os dados de checkout e segue para o pagamento com seguran�a.",
+    eyebrow: "Confirma\u00e7\u00e3o de pedido",
+    title: "Quase l\u00e1! Vamos finalizar a tua inscri\u00e7\u00e3o.",
+    lead: "Preenche os dados de checkout e segue para o pagamento com seguran\u00e7a.",
   },
   productCard: {
     badge: "CURSO COMPLETO",
@@ -399,16 +399,16 @@ export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocume
   },
   authPanel: {
     eyebrow: "Acesso e pagamento",
-    titleLogin: "J� tenho conta",
+    titleLogin: "J\u00e1 tenho conta",
     titleRegister: "Quero me cadastrar",
   },
   termsModal: {
-    title: "Antes de avan�ar",
+    title: "Antes de avan\u00e7ar",
     line1:
-      "Ao continuar, confirmas que leste e aceitas os termos de uso, a pol�tica de privacidade e as condi��es comerciais apresentadas para este material.",
-    line2: "O pagamento � processado pela Stripe e validado no backend.",
+      "Ao continuar, confirmas que leste e aceitas os termos de uso, a pol\u00edtica de privacidade e as condi\u00e7\u00f5es comerciais apresentadas para este material.",
+    line2: "O pagamento \u00e9 processado pela Stripe e validado no backend.",
     line3:
-      "O acesso ao conte�do depende da confirma��o do pagamento e os teus dados s�o tratados para operacionalizar a compra e o acesso.",
+      "O acesso ao conte\u00fado depende da confirma\u00e7\u00e3o do pagamento e os teus dados s\u00e3o tratados para operacionalizar a compra e o acesso.",
     primaryCtaLabel: "Ler termos completos",
     secondaryCtaLabel: "Fechar",
   },
@@ -416,28 +416,28 @@ export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocume
 
 export const CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutSuccessVisualEditorDocument = {
   hero: {
-    eyebrow: "Checkout conclu�do",
-    title: "A tua inscri��o foi recebida com sucesso.",
+    eyebrow: "Checkout conclu\u00eddo",
+    title: "A tua inscri\u00e7\u00e3o foi recebida com sucesso.",
     lead:
-      "O acesso ao material ser� apresentado na �rea do aluno assim que a confirma��o de pagamento estiver refletida na plataforma.",
+      "O acesso ao material ser\u00e1 apresentado na \u00e1rea do aluno assim que a confirma\u00e7\u00e3o de pagamento estiver refletida na plataforma.",
   },
   nextStep: {
-    title: "Pr�ximo passo",
+    title: "Pr\u00f3ximo passo",
     lead:
       "Entra diretamente no material para verificar o acesso e continuar a tua jornada de estudo.",
   },
   benefits: {
     firstTitle: "Material organizado",
-    firstLead: "Aulas e materiais ficam reunidos na �rea do aluno.",
+    firstLead: "Aulas e materiais ficam reunidos na \u00e1rea do aluno.",
     secondTitle: "Acesso protegido",
-    secondLead: "A liberta��o � validada pelo backend e pelo Stripe.",
+    secondLead: "A liberta\u00e7\u00e3o \u00e9 validada pelo backend e pelo Stripe.",
   },
   access: {
-    eyebrow: "Acesso r�pido",
+    eyebrow: "Acesso r\u00e1pido",
     primaryCtaLabel: "Ir para o material",
-    secondaryCtaLabel: "Abrir �rea do aluno",
+    secondaryCtaLabel: "Abrir \u00e1rea do aluno",
     note:
-      "Se o material ainda n�o aparecer, aguarda alguns segundos e atualiza a �rea do aluno. A confirma��o depende do retorno do Stripe.",
+      "Se o material ainda n\u00e3o aparecer, aguarda alguns segundos e atualiza a \u00e1rea do aluno. A confirma\u00e7\u00e3o depende do retorno do Stripe.",
   },
 }
 
