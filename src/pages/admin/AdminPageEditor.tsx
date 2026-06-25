@@ -563,14 +563,20 @@ ${getDefaultStyleCss()}
   padding: 40px 0 !important;
 }
 .me-about-page,
-.me-legal-page {
+.me-legal-page,
+.me-explicacoes-page,
+.me-materiais-page,
+.me-support-page {
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
 .me-about-page {
   padding: 40px 0 !important;
 }
-.me-legal-page {
+.me-legal-page,
+.me-explicacoes-page,
+.me-materiais-page,
+.me-support-page {
   padding: 20px 0 !important;
 }
 .me-home-shell {
@@ -581,7 +587,10 @@ ${getDefaultStyleCss()}
   box-sizing: border-box;
 }
 .me-about-shell,
-.me-legal-shell {
+.me-legal-shell,
+.me-explicacoes-shell,
+.me-materiais-shell,
+.me-support-shell {
   width: min(100%, 1120px) !important;
   margin: 0 auto !important;
   padding-left: 20px;
@@ -641,7 +650,10 @@ ${getDefaultStyleCss()}
 @media (max-width: 880px) {
   .me-home-shell,
   .me-about-shell,
-  .me-legal-shell {
+  .me-legal-shell,
+  .me-explicacoes-shell,
+  .me-materiais-shell,
+  .me-support-shell {
     width: 100% !important;
     padding-left: 14px;
     padding-right: 14px;
