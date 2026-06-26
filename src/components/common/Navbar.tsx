@@ -26,7 +26,7 @@ export function Navbar() {
     () =>
       [
         { to: ROUTES.COURSES, label: "Materiais" },
-        { to: ROUTES.EXPLANATIONS, label: "Explicacoes" },
+        { to: ROUTES.EXPLANATIONS, label: "Explicações" },
         { to: ROUTES.ABOUT, label: "Sobre" },
         { to: ROUTES.SUPPORT, label: "Suporte" },
       ].filter(Boolean) as Array<{ to: string; label: string }>,
