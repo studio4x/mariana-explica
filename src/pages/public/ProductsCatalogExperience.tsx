@@ -6,15 +6,12 @@ import { ProductCard } from "@/components/product"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
 import { usePublishedProductCategories, usePublishedProducts } from "@/hooks/useProducts"
 import { ROUTES } from "@/lib/constants"
 import { findEnrolledCourse, getEnrolledCourseAction } from "@/lib/course-cta"
-import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
 import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
-import type { FaqCategorySummary, FaqSummary } from "@/types/faq.types"
 import type { ProductCategorySummary, ProductSummary } from "@/types/product.types"
 
 type SortMode = "recent" | "price_asc" | "popular"
@@ -65,8 +62,6 @@ export function ProductsCatalogExperience() {
   const deferredSearch = useDeferredValue(search)
   const { data: products, isLoading, isError, error, refetch } = usePublishedProducts()
   const { data: categoriesFromDb } = usePublishedProductCategories()
-  const { data: faqCategoriesFromDb } = usePublishedFaqCategories()
-  const { data: faqsFromDb } = usePublishedFaqs()
   const { data: enrolledCourses } = useMyProducts({ enabled: Boolean(session) })
 
   const categories = useMemo(() => {
@@ -79,21 +74,6 @@ export function ProductsCatalogExperience() {
 
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const categoriesBySlug = useMemo(() => new Map(categories.map((category) => [category.slug, category])), [categories])
-
-  const faqCategories = useMemo<FaqCategorySummary[]>(() => {
-    return faqCategoriesFromDb && faqCategoriesFromDb.length > 0
-      ? faqCategoriesFromDb
-      : buildDefaultFaqCategories()
-  }, [faqCategoriesFromDb])
-
-  const faqCategoryById = useMemo(
-    () => new Map(faqCategories.map((category) => [category.id, category])),
-    [faqCategories],
-  )
-
-  const faqs = useMemo<FaqSummary[]>(() => {
-    return faqsFromDb && faqsFromDb.length > 0 ? faqsFromDb : buildDefaultFaqs(faqCategories)
-  }, [faqCategories, faqsFromDb])
 
   const currentCategorySlug = searchParams.get("categoria")?.trim().toLowerCase() ?? ""
   const selectedCategorySlug =
@@ -207,76 +187,41 @@ export function ProductsCatalogExperience() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.9fr)]">
-        <div>
-          {isLoading ? <LoadingState message="A carregar catalogo..." /> : null}
-          {isError ? (
-            <ErrorState
-              title="Falha ao carregar o catalogo"
-              message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
-              onRetry={() => void refetch()}
-            />
-          ) : null}
-          {!isLoading && !isError && filteredProducts.length === 0 ? (
-            <EmptyState
-              title="Nenhum material encontrado"
-              message={
-                search.trim()
-                  ? "Experimenta outro termo de pesquisa ou limpa os filtros."
-                  : "Ainda nao ha materiais publicados para mostrar."
-              }
-            />
-          ) : null}
-          {!isLoading && !isError && filteredProducts.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2">
-              {filteredProducts.map((product) => {
-                const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
-
-                return (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
-                    actionLabel={enrolledAction?.label ?? "Ver detalhes"}
-                  />
-                )
-              })}
-            </div>
-          ) : null}
-        </div>
-
-        <aside className="rounded-[1.75rem] border border-white/70 bg-white/60 p-6 shadow-[0_24px_70px_rgba(19,54,75,0.08)] backdrop-blur">
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#4e6880]">FAQ em destaque</p>
-          <h3 className="mt-3 font-display text-3xl font-bold tracking-[-0.02em] text-[#1b2644]">
-            Duvidas comuns antes de comprares
-          </h3>
-          <div className="mt-6 space-y-4">
-            {faqs.slice(0, 4).map((faqItem) => {
-              const category = faqCategoryById.get(faqItem.category_id)
+      <div>
+        {isLoading ? <LoadingState message="A carregar catalogo..." /> : null}
+        {isError ? (
+          <ErrorState
+            title="Falha ao carregar o catalogo"
+            message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
+            onRetry={() => void refetch()}
+          />
+        ) : null}
+        {!isLoading && !isError && filteredProducts.length === 0 ? (
+          <EmptyState
+            title="Nenhum material encontrado"
+            message={
+              search.trim()
+                ? "Experimenta outro termo de pesquisa ou limpa os filtros."
+                : "Ainda nao ha materiais publicados para mostrar."
+            }
+          />
+        ) : null}
+        {!isLoading && !isError && filteredProducts.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredProducts.map((product) => {
+              const enrolledAction = getEnrolledCourseAction(findEnrolledCourse(product.id, enrolledCourses))
 
               return (
-                <details key={faqItem.id} className="rounded-[1.1rem] border border-white/70 bg-white/90 px-4 py-3 shadow-sm">
-                  <summary className="cursor-pointer list-none font-semibold text-[#1b2644]">
-                    {faqItem.question}
-                  </summary>
-                  <div className="mt-3 space-y-2 text-sm leading-7 text-[#41586c]">
-                    <p>{faqItem.answer}</p>
-                    {category ? (
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#7b94a7]">
-                        {category.title}
-                      </p>
-                    ) : null}
-                  </div>
-                </details>
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  actionTo={enrolledAction?.to ?? publicCoursePath(product.slug, product.id)}
+                  actionLabel={enrolledAction?.label ?? "Ver detalhes"}
+                />
               )
             })}
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild className="rounded-full bg-[#28304f] text-white hover:bg-[#1d2340]">
-              <Link to={ROUTES.SUPPORT}>Ir para suporte</Link>
-            </Button>
-          </div>
-        </aside>
+        ) : null}
       </div>
     </section>
   )
