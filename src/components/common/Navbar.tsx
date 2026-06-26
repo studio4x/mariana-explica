@@ -93,12 +93,20 @@ export function Navbar() {
           ) : (
             <>
               {isAdmin ? (
-                <Button asChild size="sm" className="rounded-full">
-                  <Link to={ROUTES.ADMIN}>
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    Operacao
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild variant="ghost" size="sm" className="rounded-full">
+                    <Link to={ROUTES.DASHBOARD}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Area do Aluno
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className="rounded-full">
+                    <Link to={ROUTES.ADMIN}>
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Operacao
+                    </Link>
+                  </Button>
+                </>
               ) : (
                 <Button asChild variant="ghost" size="sm" className="rounded-full">
                   <Link to={ROUTES.DASHBOARD}>
@@ -149,18 +157,32 @@ export function Navbar() {
                   </Link>
                 ))}
                 {isAdmin ? (
-                  <Link
-                    to={ROUTES.ADMIN}
-                    onClick={closeMenu}
-                    className={cn(
-                      "rounded-2xl border px-4 py-3 text-sm font-medium transition",
-                      isActiveItem(ROUTES.ADMIN)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-slate-200 bg-white text-slate-700",
-                    )}
-                  >
-                    Admin
-                  </Link>
+                  <>
+                    <Link
+                      to={ROUTES.DASHBOARD}
+                      onClick={closeMenu}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                        isActiveItem(ROUTES.DASHBOARD)
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-slate-200 bg-white text-slate-700",
+                      )}
+                    >
+                      Area do Aluno
+                    </Link>
+                    <Link
+                      to={ROUTES.ADMIN}
+                      onClick={closeMenu}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                        isActiveItem(ROUTES.ADMIN)
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-slate-200 bg-white text-slate-700",
+                      )}
+                    >
+                      Admin
+                    </Link>
+                  </>
                 ) : null}
               </nav>
             </section>
@@ -182,11 +204,18 @@ export function Navbar() {
               ) : (
                 <>
                   {isAdmin ? (
-                    <Button asChild className="w-full rounded-full">
-                      <Link to={ROUTES.ADMIN} onClick={closeMenu}>
-                        Painel admin
-                      </Link>
-                    </Button>
+                    <>
+                      <Button asChild variant="outline" className="w-full rounded-full">
+                        <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
+                          Area do Aluno
+                        </Link>
+                      </Button>
+                      <Button asChild className="w-full rounded-full">
+                        <Link to={ROUTES.ADMIN} onClick={closeMenu}>
+                          Painel admin
+                        </Link>
+                      </Button>
+                    </>
                   ) : (
                     <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
