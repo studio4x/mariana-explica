@@ -178,6 +178,16 @@ export interface AdminSiteThemeConfig {
       selection_foreground: string
     }
     typography: {
+      headline_xl: AdminSiteThemeTextStyle
+      headline_lg: AdminSiteThemeTextStyle
+      headline_md: AdminSiteThemeTextStyle
+      headline_sm: AdminSiteThemeTextStyle
+      headline_xs: AdminSiteThemeTextStyle
+      headline_2xs: AdminSiteThemeTextStyle
+      body_lg: AdminSiteThemeTextStyle
+      body_md: AdminSiteThemeTextStyle
+      body_sm: AdminSiteThemeTextStyle
+      label_md: AdminSiteThemeTextStyle
       h1: AdminSiteThemeTextStyle
       h2: AdminSiteThemeTextStyle
       h3: AdminSiteThemeTextStyle

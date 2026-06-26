@@ -214,103 +214,153 @@ const DEFAULT_SITE_THEME_PALETTE: AdminSiteThemeConfig["config_value"]["palette"
   selection_foreground: "#15323b",
 }
 
+const ORIGINAL_SITE_THEME_HEADING_FAMILY = '"Arvo", Georgia, serif'
+const ORIGINAL_SITE_THEME_BODY_FAMILY = '"Inter", system-ui, sans-serif'
+
+function createTypographyStyle(
+  overrides: AdminSiteThemeTextStyle,
+): AdminSiteThemeTextStyle {
+  return overrides
+}
+
+function createHeadingStyle(
+  font_size: string,
+  line_height: string,
+  font_weight: string,
+  letter_spacing = "-0.02em",
+  text_transform: SiteThemeTextTransform = "none",
+): AdminSiteThemeTextStyle {
+  return createTypographyStyle({
+    font_family: ORIGINAL_SITE_THEME_HEADING_FAMILY,
+    font_size,
+    font_weight,
+    line_height,
+    letter_spacing,
+    text_transform,
+    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
+  })
+}
+
+function createBodyStyle(
+  font_size: string,
+  line_height: string,
+  font_weight: string,
+  letter_spacing = "0",
+  text_transform: SiteThemeTextTransform = "none",
+  color: string = DEFAULT_SITE_THEME_PALETTE.body_color,
+): AdminSiteThemeTextStyle {
+  return createTypographyStyle({
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
+    font_size,
+    font_weight,
+    line_height,
+    letter_spacing,
+    text_transform,
+    color,
+  })
+}
+
+function createLabelStyle(color: string = DEFAULT_SITE_THEME_PALETTE.muted_color): AdminSiteThemeTextStyle {
+  return createTypographyStyle({
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
+    font_size: "0.75rem",
+    font_weight: "600",
+    line_height: "1",
+    letter_spacing: "0.05em",
+    text_transform: "uppercase",
+    color,
+  })
+}
+
 const DEFAULT_SITE_THEME_TYPOGRAPHY: AdminSiteThemeConfig["config_value"]["typography"] = {
+  headline_xl: createHeadingStyle("3rem", "1.2", "700"),
+  headline_lg: createHeadingStyle("2rem", "1.3", "700"),
+  headline_md: createHeadingStyle("1.5rem", "1.4", "400", "0"),
+  headline_sm: createHeadingStyle("1.25rem", "1.3", "700", "-0.01em"),
+  headline_xs: createHeadingStyle("1.125rem", "1.35", "700", "0"),
+  headline_2xs: createHeadingStyle("1rem", "1.4", "700", "0"),
+  body_lg: createBodyStyle("1.125rem", "1.6", "400"),
+  body_md: createBodyStyle("1rem", "1.5", "400"),
+  body_sm: createBodyStyle("0.875rem", "1.5", "400"),
+  label_md: createLabelStyle(),
   h1: {
-    font_family: '"Arvo", Georgia, serif',
-    font_size: "3.5rem",
-    font_weight: "700",
-    line_height: "1.1",
-    letter_spacing: "-0.02em",
-    text_transform: "none",
-    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
-  },
-  h2: {
-    font_family: '"Arvo", Georgia, serif',
+    font_family: ORIGINAL_SITE_THEME_HEADING_FAMILY,
     font_size: "3rem",
-    font_weight: "700",
-    line_height: "1.15",
-    letter_spacing: "-0.02em",
-    text_transform: "none",
-    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
-  },
-  h3: {
-    font_family: '"Arvo", Georgia, serif',
-    font_size: "2.25rem",
     font_weight: "700",
     line_height: "1.2",
     letter_spacing: "-0.02em",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.heading_color,
   },
-  h4: {
-    font_family: '"Arvo", Georgia, serif',
-    font_size: "1.75rem",
-    font_weight: "700",
-    line_height: "1.25",
-    letter_spacing: "-0.01em",
-    text_transform: "none",
-    color: DEFAULT_SITE_THEME_PALETTE.heading_color,
-  },
-  h5: {
-    font_family: '"Arvo", Georgia, serif',
-    font_size: "1.375rem",
+  h2: {
+    font_family: ORIGINAL_SITE_THEME_HEADING_FAMILY,
+    font_size: "2rem",
     font_weight: "700",
     line_height: "1.3",
-    letter_spacing: "-0.01em",
+    letter_spacing: "-0.02em",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.heading_color,
   },
-  h6: {
-    font_family: '"Arvo", Georgia, serif',
-    font_size: "1.125rem",
-    font_weight: "700",
-    line_height: "1.35",
+  h3: {
+    font_family: ORIGINAL_SITE_THEME_HEADING_FAMILY,
+    font_size: "1.5rem",
+    font_weight: "400",
+    line_height: "1.4",
     letter_spacing: "0",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.heading_color,
   },
+  h4: {
+    ...createHeadingStyle("1.25rem", "1.3", "700", "-0.01em"),
+  },
+  h5: {
+    ...createHeadingStyle("1.125rem", "1.35", "700", "0"),
+  },
+  h6: {
+    ...createHeadingStyle("1rem", "1.4", "700", "0"),
+  },
   paragraph: {
-    font_family: '"Inter", system-ui, sans-serif',
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
     font_size: "1rem",
     font_weight: "400",
-    line_height: "1.7",
+    line_height: "1.5",
     letter_spacing: "0",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.body_color,
   },
   list_item: {
-    font_family: '"Inter", system-ui, sans-serif',
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
     font_size: "1rem",
     font_weight: "400",
-    line_height: "1.7",
+    line_height: "1.5",
     letter_spacing: "0",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.body_color,
   },
   link: {
-    font_family: '"Inter", system-ui, sans-serif',
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
     font_size: "1rem",
     font_weight: "600",
-    line_height: "1.7",
+    line_height: "1.5",
     letter_spacing: "0",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.link_color,
   },
   label: {
-    font_family: '"Inter", system-ui, sans-serif',
-    font_size: "0.875rem",
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
+    font_size: "0.75rem",
     font_weight: "600",
-    line_height: "1.45",
-    letter_spacing: "0.01em",
-    text_transform: "none",
+    line_height: "1",
+    letter_spacing: "0.05em",
+    text_transform: "uppercase",
     color: DEFAULT_SITE_THEME_PALETTE.muted_color,
   },
   small: {
-    font_family: '"Inter", system-ui, sans-serif',
+    font_family: ORIGINAL_SITE_THEME_BODY_FAMILY,
     font_size: "0.875rem",
-    font_weight: "500",
+    font_weight: "400",
     line_height: "1.5",
-    letter_spacing: "0.01em",
+    letter_spacing: "0",
     text_transform: "none",
     color: DEFAULT_SITE_THEME_PALETTE.muted_color,
   },
@@ -619,6 +669,34 @@ function normalizeAdminSiteThemeConfig(
         ),
       },
       typography: {
+        headline_xl: normalizeSiteThemeTextStyle(
+          typographyValue.headline_xl,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.headline_xl,
+        ),
+        headline_lg: normalizeSiteThemeTextStyle(
+          typographyValue.headline_lg,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.headline_lg,
+        ),
+        headline_md: normalizeSiteThemeTextStyle(
+          typographyValue.headline_md,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.headline_md,
+        ),
+        headline_sm: normalizeSiteThemeTextStyle(
+          typographyValue.headline_sm,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.headline_sm,
+        ),
+        headline_xs: normalizeSiteThemeTextStyle(
+          typographyValue.headline_xs,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.headline_xs,
+        ),
+        headline_2xs: normalizeSiteThemeTextStyle(
+          typographyValue.headline_2xs,
+          DEFAULT_SITE_THEME_TYPOGRAPHY.headline_2xs,
+        ),
+        body_lg: normalizeSiteThemeTextStyle(typographyValue.body_lg, DEFAULT_SITE_THEME_TYPOGRAPHY.body_lg),
+        body_md: normalizeSiteThemeTextStyle(typographyValue.body_md, DEFAULT_SITE_THEME_TYPOGRAPHY.body_md),
+        body_sm: normalizeSiteThemeTextStyle(typographyValue.body_sm, DEFAULT_SITE_THEME_TYPOGRAPHY.body_sm),
+        label_md: normalizeSiteThemeTextStyle(typographyValue.label_md, DEFAULT_SITE_THEME_TYPOGRAPHY.label_md),
         h1: normalizeSiteThemeTextStyle(typographyValue.h1, DEFAULT_SITE_THEME_TYPOGRAPHY.h1),
         h2: normalizeSiteThemeTextStyle(typographyValue.h2, DEFAULT_SITE_THEME_TYPOGRAPHY.h2),
         h3: normalizeSiteThemeTextStyle(typographyValue.h3, DEFAULT_SITE_THEME_TYPOGRAPHY.h3),
@@ -640,7 +718,7 @@ function normalizeAdminSiteThemeConfig(
     },
     description:
       row?.description ??
-      "Configuração pública de tipografia e cores base do site, aplicada às tags globais e conteúdos textuais.",
+      "Configuração pública da escala tipográfica original e das cores base do site, aplicada às tags globais e conteúdos textuais.",
     is_public: row?.is_public ?? true,
     updated_at: row?.updated_at ?? null,
   }
