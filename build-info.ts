@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "146"
-export const BUILD_COMMIT = "original-typography-scale"
+export const BUILD_DEPLOY_NUMBER = "147"
+export const BUILD_COMMIT = "restore-public-layout-baseline"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
