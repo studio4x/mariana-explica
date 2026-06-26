@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useLocation, useSearchParams } from "react-router-dom"
 import { Search } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { ProductCard } from "@/components/product"
@@ -14,6 +14,7 @@ import { ROUTES } from "@/lib/constants"
 import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getProductFamilyLabel } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
+import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import type { FaqCategorySummary, FaqSummary } from "@/types/faq.types"
 import type { ProductCategorySummary, ProductSummary } from "@/types/product.types"
 import { PublicManagedPage } from "./PublicManagedPage"
@@ -347,9 +348,10 @@ function ProductsPublicPage() {
 }
 
 export function Products() {
-  const { isAdmin } = useAuth()
+  const location = useLocation()
+  const previewPayload = readSitePagePreviewFromSearch("materiais", location.search)
 
-  if (isAdmin) {
+  if (previewPayload) {
     return <PublicManagedPage slug="materiais" />
   }
 

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { HelpCircle, LifeBuoy, Search } from "lucide-react"
 import { Button } from "@/components/ui"
-import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
 import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
+import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import type { FaqSummary } from "@/types/faq.types"
 import { PublicManagedPage } from "./PublicManagedPage"
 import { SupportFaqExperience } from "./SupportFaqExperience"
@@ -197,9 +197,10 @@ function SupportPublicPage() {
 export const SupportPageContent = SupportFaqExperience
 
 export function Support() {
-  const { isAdmin } = useAuth()
+  const location = useLocation()
+  const previewPayload = readSitePagePreviewFromSearch("suporte", location.search)
 
-  if (isAdmin) {
+  if (previewPayload) {
     return <PublicManagedPage slug="suporte" />
   }
 

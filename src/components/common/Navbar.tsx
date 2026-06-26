@@ -4,8 +4,7 @@ import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react"
 import { SiteLogo } from "@/components/common"
 import { Button } from "@/components/ui"
-import { ROUTES } from "@/lib/constants"
-import { APP_HEADER_ANNOUNCEMENT } from "@/lib/constants"
+import { APP_HEADER_ANNOUNCEMENT, ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { fetchPublicBrandingConfig } from "@/services"
 import { cn } from "@/lib/cn"
@@ -27,7 +26,7 @@ export function Navbar() {
     () =>
       [
         { to: ROUTES.COURSES, label: "Materiais" },
-        { to: ROUTES.EXPLANATIONS, label: "Explicações" },
+        { to: ROUTES.EXPLANATIONS, label: "Explicacoes" },
         { to: ROUTES.ABOUT, label: "Sobre" },
         { to: ROUTES.SUPPORT, label: "Suporte" },
       ].filter(Boolean) as Array<{ to: string; label: string }>,
@@ -94,25 +93,17 @@ export function Navbar() {
           ) : (
             <>
               {isAdmin ? (
-                <>
-                  <Button asChild variant="ghost" size="sm" className="rounded-full">
-                    <Link to={ROUTES.DASHBOARD}>
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Área do Aluno
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" className="rounded-full">
-                    <Link to={ROUTES.ADMIN}>
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      Operação
-                    </Link>
-                  </Button>
-                </>
+                <Button asChild size="sm" className="rounded-full">
+                  <Link to={ROUTES.ADMIN}>
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Operacao
+                  </Link>
+                </Button>
               ) : (
                 <Button asChild variant="ghost" size="sm" className="rounded-full">
                   <Link to={ROUTES.DASHBOARD}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Área do Aluno
+                    Area do Aluno
                   </Link>
                 </Button>
               )}
@@ -191,22 +182,15 @@ export function Navbar() {
               ) : (
                 <>
                   {isAdmin ? (
-                    <>
-                      <Button asChild variant="outline" className="w-full rounded-full">
-                        <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
-                          Área do Aluno
-                        </Link>
-                      </Button>
-                      <Button asChild className="w-full rounded-full">
-                        <Link to={ROUTES.ADMIN} onClick={closeMenu}>
-                          Painel admin
-                        </Link>
-                      </Button>
-                    </>
+                    <Button asChild className="w-full rounded-full">
+                      <Link to={ROUTES.ADMIN} onClick={closeMenu}>
+                        Painel admin
+                      </Link>
+                    </Button>
                   ) : (
                     <Button asChild className="w-full rounded-full">
                       <Link to={ROUTES.DASHBOARD} onClick={closeMenu}>
-                        Área do Aluno
+                        Area do Aluno
                       </Link>
                     </Button>
                   )}
