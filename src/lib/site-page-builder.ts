@@ -1687,12 +1687,111 @@ function getWrapperStyle(layout: BlockLayoutStyle) {
   ].join(";")
 }
 
+function getHeadingTypographyToken(level: number) {
+  const normalizedLevel = Math.max(1, Math.min(6, Number(level) || 1))
+  return `h${normalizedLevel}`
+}
+
+function buildTypographyStyleDeclaration(token: string, colorOverride?: string | null) {
+  const colorDeclaration = colorOverride ? escapeHtml(colorOverride) : `var(--site-${token}-color)`
+  return [
+    `font-family:var(--site-${token}-font-family)`,
+    `font-size:var(--site-${token}-font-size)`,
+    `font-weight:var(--site-${token}-font-weight)`,
+    `line-height:var(--site-${token}-line-height)`,
+    `letter-spacing:var(--site-${token}-letter-spacing)`,
+    `text-transform:var(--site-${token}-text-transform)`,
+    `color:${colorDeclaration}`,
+  ].join(";")
+}
+
+function buildTypographyCssRule(selectors: string[], token: string) {
+  if (selectors.length === 0) return ""
+
+  const declarations = [
+    `font-family: var(--site-${token}-font-family) !important;`,
+    `font-size: var(--site-${token}-font-size) !important;`,
+    `font-weight: var(--site-${token}-font-weight) !important;`,
+    `line-height: var(--site-${token}-line-height) !important;`,
+    `letter-spacing: var(--site-${token}-letter-spacing) !important;`,
+    `text-transform: var(--site-${token}-text-transform) !important;`,
+    `color: var(--site-${token}-color) !important;`,
+  ].join("\n  ")
+
+  return `${selectors.join(",\n")} {\n  ${declarations}\n}`
+}
+
+function getManagedSemanticTypographyCss() {
+  return [
+    buildTypographyCssRule([".me-managed-page-root h1"], "h1"),
+    buildTypographyCssRule([".me-managed-page-root h2"], "h2"),
+    buildTypographyCssRule([".me-managed-page-root h3"], "h3"),
+    buildTypographyCssRule([".me-managed-page-root h4"], "h4"),
+    buildTypographyCssRule([".me-managed-page-root h5"], "h5"),
+    buildTypographyCssRule([".me-managed-page-root h6"], "h6"),
+    buildTypographyCssRule([".me-managed-page-root p", ".me-managed-page-root blockquote", ".me-managed-richtext"], "paragraph"),
+    buildTypographyCssRule([".me-managed-page-root li"], "list-item"),
+    buildTypographyCssRule([".me-managed-page-root label"], "label"),
+    buildTypographyCssRule([".me-managed-page-root small"], "small"),
+    buildTypographyCssRule(
+      [
+        ".me-managed-page-root .me-home-display-copy",
+        ".me-managed-page-root .me-about-copy .me-about-lead",
+      ],
+      "h3",
+    ),
+    buildTypographyCssRule(
+      [
+        ".me-managed-page-root .me-home-chip-title",
+        ".me-managed-page-root .me-about-pillar-tag p",
+      ],
+      "h4",
+    ),
+    buildTypographyCssRule(
+      [
+        ".me-managed-page-root .me-home-eyebrow",
+        ".me-managed-page-root .me-home-pill",
+        ".me-managed-page-root .me-explicacoes-pill",
+        ".me-managed-page-root .me-materiais-eyebrow",
+        ".me-managed-page-root .me-materiais-helper-label",
+        ".me-managed-page-root .me-support-helper-label",
+        ".me-managed-page-root .me-support-icon-badge",
+        ".me-managed-page-root .me-legal-eyebrow",
+        ".me-managed-page-root .me-legal-updated",
+      ],
+      "label",
+    ),
+    buildTypographyCssRule(
+      [
+        ".me-managed-page-root .me-managed-richtext a",
+        ".me-managed-page-root p a",
+        ".me-managed-page-root li a",
+        ".me-managed-page-root blockquote a",
+        ".me-managed-page-root .me-legal-back",
+      ],
+      "link",
+    ),
+    `
+.me-managed-page-root .me-managed-richtext a:hover,
+.me-managed-page-root p a:hover,
+.me-managed-page-root li a:hover,
+.me-managed-page-root blockquote a:hover,
+.me-managed-page-root .me-legal-back:hover {
+  color: var(--site-link-hover-color) !important;
+}
+    `.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+}
+
 function renderSingleBlockToHtml(block: PageBlock): string {
       const contentIdentityAttributes = buildBlockContentIdentityAttributes(block)
       if (block.type === "heading") {
         const tag = `h${block.level}`
         const classAttribute = buildClassAttribute(block.customClassName)
-        return `<${tag}${classAttribute}${contentIdentityAttributes} style="margin:0;color:${escapeHtml(block.color)};text-align:${block.align};font-weight:800;line-height:1.12;">${escapeHtml(block.content)}</${tag}>`
+        const typographyStyle = buildTypographyStyleDeclaration(getHeadingTypographyToken(block.level), block.color)
+        return `<${tag}${classAttribute}${contentIdentityAttributes} style="margin:0;text-align:${block.align};${typographyStyle}">${escapeHtml(block.content)}</${tag}>`
       }
 
       if (block.type === "rich_text") {
@@ -2544,6 +2643,8 @@ export function getDefaultStyleCss() {
     font-size: 18px;
   }
 }
+
+${getManagedSemanticTypographyCss()}
   `.trim()
 }
 

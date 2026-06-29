@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RefreshCw, RotateCcw, Save } from "lucide-react"
-import { ErrorState } from "@/components/feedback"
 import { broadcastSiteThemeUpdate } from "@/components/common"
+import { ErrorState } from "@/components/feedback"
 import { fetchAdminSiteThemeConfig, updateAdminSiteThemeConfig } from "@/services/admin.service"
 import type { AdminSiteThemeConfig, AdminSiteThemeTextStyle, SiteThemeTextTransform } from "@/types/app.types"
 
@@ -25,31 +25,31 @@ const FONT_OPTIONS = [
 
 const TRANSFORM_OPTIONS: SiteThemeTextTransform[] = ["none", "uppercase", "lowercase", "capitalize", "inherit"]
 
-const ORIGINAL_SCALE_SECTIONS: Array<{ key: TypographyKey; title: string; sample: string }> = [
-  { key: "headline_xl", title: "Headline XL", sample: "Tens dificuldades a Português ou Filosofia?" },
-  { key: "headline_lg", title: "Headline LG", sample: "Nunca tiveste a disciplina e vais fazer exame?" },
-  { key: "headline_md", title: "Headline MD", sample: "Criei este espaço para te dar o apoio que precisas." },
-  { key: "headline_sm", title: "Headline SM", sample: "Vantagens de trabalhares comigo" },
-  { key: "headline_xs", title: "Headline XS", sample: "Leveza e confiança em cada passo" },
-  { key: "headline_2xs", title: "Headline 2XS", sample: "Perguntas frequentes" },
-  { key: "body_lg", title: "Body LG", sample: "Esquece as complicações burocráticas. Aqui, o foco é o teu estudo." },
-  { key: "body_md", title: "Body MD", sample: "Explora as sebentas e cursos disponíveis." },
-  { key: "body_sm", title: "Body SM", sample: "Domina temas complexos ao teu ritmo." },
-  { key: "label_md", title: "Label MD", sample: "OBJETIVO PRINCIPAL" },
+const PRIMARY_TEXT_TYPE_SECTIONS: Array<{ key: TypographyKey; title: string; sample: string }> = [
+  { key: "headline_xl", title: "H1", sample: "Tens dificuldades a Portugues ou Filosofia?" },
+  { key: "headline_lg", title: "H2", sample: "Nunca tiveste a disciplina e vais fazer exame?" },
+  { key: "headline_md", title: "H3", sample: "Criei este espaco para te dar o apoio que precisas." },
+  { key: "headline_sm", title: "H4", sample: "Vantagens de trabalhares comigo" },
+  { key: "headline_xs", title: "H5", sample: "Leveza e confianca em cada passo" },
+  { key: "headline_2xs", title: "H6", sample: "Perguntas frequentes" },
+  { key: "body_lg", title: "Paragrafo destaque", sample: "Esquece as complicacoes burocraticas. Aqui, o foco e o teu estudo." },
+  { key: "body_md", title: "Paragrafo", sample: "Explora as sebentas e cursos disponiveis." },
+  { key: "body_sm", title: "Texto pequeno", sample: "Domina temas complexos ao teu ritmo." },
+  { key: "label_md", title: "Label", sample: "OBJETIVO PRINCIPAL" },
 ]
 
 const SEMANTIC_SECTIONS: Array<{ key: TypographyKey; title: string; sample: string }> = [
-  { key: "h1", title: "H1", sample: "Tens dificuldades a Português ou Filosofia?" },
+  { key: "h1", title: "H1", sample: "Tens dificuldades a Portugues ou Filosofia?" },
   { key: "h2", title: "H2", sample: "Nunca tiveste a disciplina e vais fazer exame?" },
-  { key: "h3", title: "H3", sample: "Criei este espaço para te dar o apoio que precisas." },
+  { key: "h3", title: "H3", sample: "Criei este espaco para te dar o apoio que precisas." },
   { key: "h4", title: "H4", sample: "Vantagens de trabalhares comigo" },
-  { key: "h5", title: "H5", sample: "Leveza e confiança em cada passo" },
+  { key: "h5", title: "H5", sample: "Leveza e confianca em cada passo" },
   { key: "h6", title: "H6", sample: "Perguntas frequentes" },
-  { key: "paragraph", title: "Parágrafo", sample: "Texto corrido para explicar, orientar e dar contexto ao utilizador." },
-  { key: "list_item", title: "Item de lista", sample: "Item com leitura rápida e direta." },
-  { key: "link", title: "Link", sample: "Ver material disponível" },
-  { key: "label", title: "Label", sample: "Campo obrigatório" },
-  { key: "small", title: "Texto pequeno", sample: "Observação auxiliar e informação secundária." },
+  { key: "paragraph", title: "Paragrafo", sample: "Texto corrido para explicar, orientar e dar contexto ao utilizador." },
+  { key: "list_item", title: "Item de lista", sample: "Item com leitura rapida e direta." },
+  { key: "link", title: "Link", sample: "Ver material disponivel" },
+  { key: "label", title: "Label", sample: "Campo obrigatorio" },
+  { key: "small", title: "Texto pequeno", sample: "Observacao auxiliar e informacao secundaria." },
 ]
 
 const TYPOGRAPHY_SYNC_TARGETS: Partial<Record<TypographyKey, TypographyKey[]>> = {
@@ -66,15 +66,15 @@ const TYPOGRAPHY_SYNC_TARGETS: Partial<Record<TypographyKey, TypographyKey[]>> =
 }
 
 const PALETTE_FIELDS: Array<{ key: PaletteKey; label: string; description: string }> = [
-  { key: "page_background", label: "Fundo da página", description: "Base visual do site e áreas neutras." },
-  { key: "surface_background", label: "Fundo de superfície", description: "Cards, painéis e áreas elevadas." },
-  { key: "border_color", label: "Cor de borda", description: "Contornos padrão e divisórias." },
-  { key: "heading_color", label: "Cor dos títulos", description: "Tom principal para headings." },
+  { key: "page_background", label: "Fundo da pagina", description: "Base visual do site e areas neutras." },
+  { key: "surface_background", label: "Fundo de superficie", description: "Cards, paineis e areas elevadas." },
+  { key: "border_color", label: "Cor de borda", description: "Contornos padrao e divisorias." },
+  { key: "heading_color", label: "Cor dos titulos", description: "Tom principal para headings." },
   { key: "body_color", label: "Cor do corpo", description: "Texto corrido e blocos descritivos." },
   { key: "muted_color", label: "Cor auxiliar", description: "Textos de apoio, labels e notas." },
-  { key: "link_color", label: "Cor de link", description: "Estado padrão dos links." },
+  { key: "link_color", label: "Cor de link", description: "Estado padrao dos links." },
   { key: "link_hover_color", label: "Link hover", description: "Estado ao passar o cursor." },
-  { key: "selection_background", label: "Seleção de texto", description: "Fundo da seleção nativa do navegador." },
+  { key: "selection_background", label: "Selecao de texto", description: "Fundo da selecao nativa do navegador." },
   { key: "selection_foreground", label: "Texto selecionado", description: "Cor do texto ao selecionar." },
 ]
 
@@ -168,7 +168,7 @@ function ThemeStyleCard({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#5F7077]">Transformação</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#5F7077]">Transformacao</span>
             <select
               value={value.text_transform}
               onChange={(event) => onChange({ text_transform: event.target.value as SiteThemeTextTransform })}
@@ -251,7 +251,7 @@ export function AdminSiteThemeSettings() {
   if (themeQuery.isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar o tema do site"
+        title="Nao foi possivel carregar o tema do site"
         message={themeQuery.error instanceof Error ? themeQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void themeQuery.refetch()}
       />
@@ -325,9 +325,10 @@ export function AdminSiteThemeSettings() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#1398B7]">Tipografia e cores</p>
-            <h2 className="mt-1 text-xl font-semibold text-[#15323b]">Padrão original de textos e palette base</h2>
+            <h2 className="mt-1 text-xl font-semibold text-[#15323b]">Tipografia semantica e palette base</h2>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#5F7077]">
-              Defina a escala original do projeto para títulos, corpo, links e etiquetas do site inteiro.
+              Define os estilos que alimentam H1, H2, Paragrafo, Link, Label e os demais textos usados no editor visual
+              e no frontend.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -340,7 +341,7 @@ export function AdminSiteThemeSettings() {
               className="inline-flex h-8 items-center justify-center gap-2 border border-[#D8E6EB] bg-white px-3 text-sm font-medium text-[#15323b] transition hover:bg-[#F2F7F9]"
             >
               <RotateCcw className="h-4 w-4" />
-              Repor alterações
+              Repor alteracoes
             </button>
             <button
               type="button"
@@ -357,11 +358,11 @@ export function AdminSiteThemeSettings() {
                 try {
                   const saved = await saveTheme.mutateAsync(currentValue)
                   setDraft(saved.config_value)
-                  setFeedback({ tone: "success", message: "Escala e cores guardadas com sucesso." })
+                  setFeedback({ tone: "success", message: "Tipografia e cores guardadas com sucesso." })
                 } catch (error) {
                   setFeedback({
                     tone: "danger",
-                    message: error instanceof Error ? error.message : "Não foi possível guardar o tema do site.",
+                    message: error instanceof Error ? error.message : "Nao foi possivel guardar o tema do site.",
                   })
                 }
               }}
@@ -369,14 +370,14 @@ export function AdminSiteThemeSettings() {
               className="inline-flex h-8 items-center justify-center gap-2 bg-[#0A3640] px-3 text-sm font-medium text-white transition hover:bg-[#0A3640]/90 disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
-              {saveTheme.isPending ? "A guardar..." : "Salvar escala"}
+              {saveTheme.isPending ? "A guardar..." : "Salvar tipografia"}
             </button>
           </div>
         </div>
 
         <div className="mt-4 rounded-[16px] border border-[#D8E6EB] bg-[#F8FBFC] p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5F7077]">
-            Aplicar família rápida em todos os grupos
+            Aplicar familia rapida em todos os grupos
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {FONT_OPTIONS.map((option) => (
@@ -420,17 +421,15 @@ export function AdminSiteThemeSettings() {
         <div className="mt-4 rounded-[16px] border border-[#D8E6EB] bg-[#F8FBFC] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-sm font-black text-[#15323b]">Escala original da marca</h3>
+              <h3 className="text-sm font-black text-[#15323b]">Tipos de texto principais</h3>
               <p className="mt-1 text-xs leading-5 text-[#5F7077]">
-                Estes são os tokens que recriam a tipografia usada quando as páginas nasceram.
+                Estes estilos-base sincronizam o editor visual com o site publico.
               </p>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#1398B7]">
-              Ajusta aqui primeiro
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#1398B7]">Ajusta aqui primeiro</p>
           </div>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {ORIGINAL_SCALE_SECTIONS.map((section) => (
+            {PRIMARY_TEXT_TYPE_SECTIONS.map((section) => (
               <ThemeStyleCard
                 key={section.key}
                 title={section.title}
@@ -443,11 +442,9 @@ export function AdminSiteThemeSettings() {
         </div>
 
         <details className="mt-4 rounded-[16px] border border-[#D8E6EB] bg-[#F8FBFC] p-4">
-          <summary className="cursor-pointer list-none text-sm font-black text-[#15323b]">
-            Ajustes avançados por tag
-          </summary>
+          <summary className="cursor-pointer list-none text-sm font-black text-[#15323b]">Mais tipos de texto</summary>
           <p className="mt-1 text-xs leading-5 text-[#5F7077]">
-            Mantidos para casos especiais e para ajustes finos de cada elemento.
+            Ajustes adicionais para elementos especificos como itens de lista, links e textos auxiliares.
           </p>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {SEMANTIC_SECTIONS.map((section) => (
@@ -463,7 +460,7 @@ export function AdminSiteThemeSettings() {
         </details>
 
         <section className="mt-4 rounded-[18px] border border-[#D8E6EB] bg-[#F8FBFC] p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5F7077]">Pré-visualização global</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5F7077]">Pre-visualizacao global</p>
           <div
             className="mt-3 rounded-[18px] border px-5 py-6"
             style={{
@@ -471,29 +468,29 @@ export function AdminSiteThemeSettings() {
               borderColor: currentValue.palette.border_color,
             }}
           >
-            <h1 style={previewStyles.headline_xl}>Título H1 com presença comercial</h1>
-            <h2 className="mt-4" style={previewStyles.headline_lg}>Título H2 para secções principais</h2>
-            <h3 className="mt-4" style={previewStyles.headline_md}>Título H3 para subtítulos e blocos de destaque</h3>
-            <p className="mt-4" style={previewStyles.body_lg}>
-              Este parágrafo mostra a leitura de destaque usada nos blocos introdutórios.
+            <h1 style={previewStyles.h1}>Titulo H1 com presenca comercial</h1>
+            <h2 className="mt-4" style={previewStyles.h2}>Titulo H2 para seccoes principais</h2>
+            <h3 className="mt-4" style={previewStyles.h3}>Titulo H3 para subtitulos e blocos de destaque</h3>
+            <p className="mt-4" style={previewStyles.paragraph}>
+              Este paragrafo mostra a leitura base usada nos blocos introdutorios.
             </p>
-            <p className="mt-4" style={previewStyles.body_md}>
+            <p className="mt-4" style={previewStyles.paragraph}>
               Texto corrido para explicar, orientar e dar contexto ao utilizador.
             </p>
             <ul className="mt-4 list-disc pl-5">
-              <li style={previewStyles.body_md}>Primeiro tópico de uma lista informativa.</li>
-              <li style={previewStyles.body_md}>Segundo tópico com leitura escaneável.</li>
+              <li style={previewStyles.list_item}>Primeiro topico de uma lista informativa.</li>
+              <li style={previewStyles.list_item}>Segundo topico com leitura escaneavel.</li>
             </ul>
             <p className="mt-4">
               <a href="#site-theme-preview" style={previewStyles.link}>
-                Exemplo de link com hover configurável
+                Exemplo de link com hover configuravel
               </a>
             </p>
-            <label className="mt-4 block" style={previewStyles.label_md}>
+            <label className="mt-4 block" style={previewStyles.label}>
               Label de campo
             </label>
-            <small className="mt-2 block" style={previewStyles.body_sm}>
-              Texto pequeno para notas, observações e estados auxiliares.
+            <small className="mt-2 block" style={previewStyles.small}>
+              Texto pequeno para notas, observacoes e estados auxiliares.
             </small>
           </div>
         </section>

@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "159"
-export const BUILD_COMMIT = "admin-editor-text-type"
+export const BUILD_DEPLOY_NUMBER = "160"
+export const BUILD_COMMIT = "site-theme-typography-sync"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

@@ -680,44 +680,10 @@ ${getDefaultStyleCss()}
 .me-about-pillar-wide {
   align-items: center;
 }
-.me-home-hero-copy h1 {
-  font-size: clamp(40px, 4vw, 64px);
-}
-.me-home-hero-copy h2 {
-  font-size: clamp(26px, 3vw, 38px);
-}
-.me-home-display-copy {
-  font-size: clamp(26px, 2.8vw, 36px);
-}
-.me-about-hero h1,
-.me-about-section-head h2 {
-  font-size: clamp(34px, 4vw, 54px);
-}
-.me-about-copy p,
-.me-about-card p {
-  font-size: clamp(17px, 2vw, 21px);
-}
-.me-about-copy .me-about-lead {
-  font-size: clamp(24px, 2.6vw, 32px);
-}
-.me-about-pillar-tag p {
-  font-size: clamp(20px, 2.2vw, 28px);
-}
 .me-legal-hero-card,
 .me-legal-article,
 .me-legal-support {
   box-sizing: border-box;
-}
-.me-legal-hero-card h1 {
-  font-size: clamp(32px, 3.6vw, 46px);
-}
-.me-legal-article h2,
-.me-legal-support h2 {
-  font-size: clamp(24px, 2.8vw, 34px);
-}
-.me-home-section-intro h2,
-.me-home-reviews h2 {
-  font-size: clamp(34px, 4vw, 52px);
 }
 @media (max-width: 880px) {
   .me-home-shell,
@@ -752,23 +718,30 @@ function getBlockLabel(block: PageBlock) {
   return "Espaço"
 }
 
-function getStructureRichNodeLabel(node: Element, index: number) {
-  const tagName = node.tagName.toLowerCase()
+function getSemanticTextLabel(tagName: string) {
+  const normalizedTagName = tagName.trim().toLowerCase()
   const tagLabelMap: Record<string, string> = {
-    h1: "Título H1",
-    h2: "Título H2",
-    h3: "Título H3",
-    h4: "Título H4",
-    h5: "Título H5",
-    h6: "Título H6",
-    p: "Paragrafo",
+    h1: "H1",
+    h2: "H2",
+    h3: "H3",
+    h4: "H4",
+    h5: "H5",
+    h6: "H6",
+    p: "Parágrafo",
     a: "Link",
     li: "Item de lista",
-    blockquote: "Citacao",
+    blockquote: "Citação",
     img: "Imagem",
     span: "Texto",
   }
-  const baseLabel = tagLabelMap[tagName] ?? `Elemento ${tagName.toUpperCase()}`
+
+  return tagLabelMap[normalizedTagName] ?? normalizedTagName.toUpperCase()
+}
+
+function getStructureRichNodeLabel(node: Element, index: number) {
+  const tagName = node.tagName.toLowerCase()
+  const semanticLabel = getSemanticTextLabel(tagName)
+  const baseLabel = semanticLabel === tagName.toUpperCase() ? `Elemento ${tagName.toUpperCase()}` : semanticLabel
   const rawPreview =
     tagName === "img"
       ? node.getAttribute("alt") || "sem descrição"
@@ -779,6 +752,20 @@ function getStructureRichNodeLabel(node: Element, index: number) {
   if (!preview) return `${baseLabel} ${index + 1}`
   const compact = preview.length > 46 ? `${preview.slice(0, 46)}...` : preview
   return `${baseLabel}: ${compact}`
+}
+
+function getHeadingCanvasStyle(level: 1 | 2 | 3 | 4, color: string, align: "left" | "center" | "right"): CSSProperties {
+  const token = `h${level}`
+  return {
+    color,
+    textAlign: align,
+    fontFamily: `var(--site-${token}-font-family)`,
+    fontSize: `var(--site-${token}-font-size)`,
+    fontWeight: `var(--site-${token}-font-weight)` as CSSProperties["fontWeight"],
+    lineHeight: `var(--site-${token}-line-height)`,
+    letterSpacing: `var(--site-${token}-letter-spacing)`,
+    textTransform: `var(--site-${token}-text-transform)` as CSSProperties["textTransform"],
+  }
 }
 
 function buildBlockStructureNode(block: PageBlock, nodeId: string): EditorStructureNode {
@@ -1360,6 +1347,14 @@ export function AdminPageEditor() {
   const selectedRichNodeText = useMemo(() => {
     return selectedRichNodeDescriptor?.textContent ?? ""
   }, [selectedRichNodeDescriptor])
+
+  const selectedInspectorTitle = useMemo(() => {
+    if (!selectedBlock) return ""
+    if (selectedBlock.type === "rich_text" && selectedRichNodeDescriptor) {
+      return getSemanticTextLabel(selectedRichNodeDescriptor.tagName)
+    }
+    return getBlockLabel(selectedBlock)
+  }, [selectedBlock, selectedRichNodeDescriptor])
 
   const showSectionLayoutOnlyInspector = useMemo(() => {
     return !!selectedBlock && selectedSectionBlockId === selectedBlock.id
@@ -3671,7 +3666,7 @@ export function AdminPageEditor() {
                               suppressContentEditableWarning
                               onBlur={(event) => handleInlineTextCommit(block.id, event)}
                               className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
-                              style={{ color: block.color, textAlign: block.align, fontSize: "2.4rem", fontWeight: 800, lineHeight: 1.08 }}
+                              style={getHeadingCanvasStyle(1, block.color, block.align)}
                             >
                               {block.content}
                             </h1>
@@ -3681,7 +3676,7 @@ export function AdminPageEditor() {
                               suppressContentEditableWarning
                               onBlur={(event) => handleInlineTextCommit(block.id, event)}
                               className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
-                              style={{ color: block.color, textAlign: block.align, fontSize: "2rem", fontWeight: 800, lineHeight: 1.1 }}
+                              style={getHeadingCanvasStyle(2, block.color, block.align)}
                             >
                               {block.content}
                             </h2>
@@ -3691,7 +3686,7 @@ export function AdminPageEditor() {
                               suppressContentEditableWarning
                               onBlur={(event) => handleInlineTextCommit(block.id, event)}
                               className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
-                              style={{ color: block.color, textAlign: block.align, fontSize: "1.5rem", fontWeight: 800, lineHeight: 1.1 }}
+                              style={getHeadingCanvasStyle(3, block.color, block.align)}
                             >
                               {block.content}
                             </h3>
@@ -3701,7 +3696,7 @@ export function AdminPageEditor() {
                               suppressContentEditableWarning
                               onBlur={(event) => handleInlineTextCommit(block.id, event)}
                               className={isInlineEditing ? "outline-none ring-2 ring-sky-200" : "outline-none"}
-                              style={{ color: block.color, textAlign: block.align, fontSize: "1.2rem", fontWeight: 800, lineHeight: 1.15 }}
+                              style={getHeadingCanvasStyle(4, block.color, block.align)}
                             >
                               {block.content}
                             </h4>
@@ -4500,7 +4495,7 @@ export function AdminPageEditor() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-bold text-slate-900">
-                      {showSectionLayoutOnlyInspector ? "Secao" : getBlockLabel(selectedBlock)}
+                      {showSectionLayoutOnlyInspector ? "Secao" : selectedInspectorTitle}
                     </p>
                     <div className="flex items-center gap-2">
                       {!showSectionLayoutOnlyInspector ? (
