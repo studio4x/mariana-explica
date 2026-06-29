@@ -1,11 +1,24 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { HelpCircle } from "lucide-react"
+import { HelpCircle, LifeBuoy } from "lucide-react"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
 import { buildDefaultFaqCategories, buildDefaultFaqs } from "@/lib/faq-defaults"
 import { usePublishedFaqCategories, usePublishedFaqs } from "@/hooks/useFaqs"
 import type { FaqSummary } from "@/types/faq.types"
+import {
+  EditableButton,
+  EditableContainer,
+  EditableImage,
+  EditableLink,
+  EditableText,
+  SiteContentScope,
+  useVisualEditorPage,
+} from "@/features/site-editor/visual-editor"
+import {
+  SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type SupportVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/page-definitions"
 
 type SupportFaq = FaqSummary & {
   ctaLabel?: string
@@ -17,6 +30,12 @@ export function SupportFaqExperience() {
   const [activeCategory, setActiveCategory] = useState("all")
   const { data: faqCategoriesFromDb } = usePublishedFaqCategories()
   const { data: faqsFromDb } = usePublishedFaqs()
+  const { document } = useVisualEditorPage()
+
+  const visualDocument =
+    (document as unknown as SupportVisualEditorDocument | undefined) ?? SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const hero = visualDocument.hero
+  const supportCta = visualDocument.supportCta
 
   const faqCategories = useMemo(() => {
     return faqCategoriesFromDb && faqCategoriesFromDb.length > 0
@@ -79,103 +98,242 @@ export function SupportFaqExperience() {
   }, [activeFaqs])
 
   return (
-    <div className="space-y-12">
-      <section className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 grid gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveCategory("all")}
-              className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
-                activeCategory === "all" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              Todas
-            </button>
-            {faqCategories.map((category) => (
-              <button
-                key={category.slug}
-                type="button"
-                onClick={() => setActiveCategory(category.slug)}
-                className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
-                  activeCategory === category.slug ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
-                }`}
-              >
-                {category.title}
-              </button>
-            ))}
-          </div>
-        </aside>
+    <div className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
+        <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
+        <div className="absolute bottom-[-10rem] left-1/4 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
+      </div>
 
-        <div>
-          <label className="relative block">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Pesquisar no suporte..."
-              className="mb-4 h-14 w-full rounded-full border border-slate-200 bg-slate-50 px-5 text-base outline-none focus:border-sky-500 focus:bg-white"
-            />
-          </label>
-
-          <select
-            value={activeCategory}
-            onChange={(event) => setActiveCategory(event.target.value)}
-            className="mb-4 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm lg:hidden"
-          >
-            <option value="all">Todas</option>
-            {faqCategories.map((category) => (
-              <option key={category.slug} value={category.slug}>
-                {category.title}
-              </option>
-            ))}
-          </select>
-
-          <div className="space-y-3">
-            {filteredFaqs.map((faq) => (
-              <details key={faq.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <summary className="cursor-pointer font-black text-slate-950">{faq.question}</summary>
-                <div className="mt-3 space-y-4 text-sm leading-7 text-slate-600">
-                  <p>{faq.answer}</p>
-                  {faq.ctaTo ? (
-                    <Button asChild className="rounded-full">
-                      <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir chamado"}</Link>
-                    </Button>
-                  ) : null}
-                </div>
-              </details>
-            ))}
-            {filteredFaqs.length === 0 ? (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
-                Nenhuma pergunta encontrada para esta busca.
+      <div className="container relative space-y-12">
+        <SiteContentScope title="Hero principal" description="Texto, CTAs e imagem de abertura">
+          <section className="grid gap-8 overflow-hidden rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] md:p-10">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#e7f3fb] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#114866]">
+                <LifeBuoy className="h-4 w-4" />
+                <EditableText
+                  fieldKey="hero.eyebrow"
+                  as="span"
+                  fallback={hero.eyebrow}
+                  className="text-[11px] font-black uppercase tracking-[0.18em] text-[#114866]"
+                />
               </div>
-            ) : null}
-          </div>
-        </div>
-      </section>
 
-      <section className="rounded-lg border border-slate-200 bg-slate-950 p-8 text-white shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <HelpCircle className="h-7 w-7 text-sky-200" />
-            <h2 className="mt-3 font-display text-3xl font-black">Ainda precisa de ajuda?</h2>
-            <p className="mt-2 text-sm leading-7 text-white/70">
-              Abra um chamado autenticado para receber acompanhamento pelo dashboard.
+              <EditableText
+                fieldKey="hero.title"
+                as="h1"
+                fallback={hero.title}
+                className="max-w-3xl text-3xl font-black leading-tight text-[#102c40] md:text-5xl"
+              />
+
+              <EditableText
+                fieldKey="hero.lead"
+                as="p"
+                fallback={hero.lead}
+                className="max-w-3xl text-base leading-8 text-slate-600 md:text-lg"
+              />
+
+              <div className="flex flex-wrap gap-3">
+                <EditableButton
+                  fieldKey="hero.primaryCta"
+                  fallback={hero.primaryCta}
+                  className="rounded-full bg-[#123f59] px-6 text-white hover:bg-[#0f3247]"
+                />
+                <EditableLink
+                  fieldKey="hero.secondaryCta"
+                  fallback={hero.secondaryCta}
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-800 transition hover:bg-slate-50"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center">
+              <EditableImage fieldKey="hero.image" fallback={hero.image} className="w-full max-w-[360px]" />
+            </div>
+          </section>
+        </SiteContentScope>
+
+        <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
+          <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulário:</h2>
+          <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
+            <p>
+              <span className="font-black text-white">Planeamento Prévio:</span> Devido à agenda preenchida, todos os
+              pedidos para explicações devem ser efetuados com um mínimo de 3 semanas de antecedência.
+            </p>
+            <p>
+              <span className="font-black text-white">Não Garante Reserva:</span> O envio e submissão deste formulário
+              funciona estritamente como um pedido de informações e consulta de disponibilidade. Não constitui, de
+              forma alguma, uma marcação automática ou garantia de vaga.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild className="rounded-full bg-white text-slate-950 hover:bg-slate-100">
-              <Link to={`${ROUTES.DASHBOARD_SUPPORT}?openTicketModal=1&ticketStep=form`}>Abrir um chamado</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="rounded-full border-white/30 bg-transparent text-white hover:bg-white/10"
+        </section>
+
+        <section className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
+          <form className="space-y-5">
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                Nome
+                <input
+                  required
+                  className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                Email
+                <input
+                  required
+                  type="email"
+                  className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                />
+              </label>
+            </div>
+
+            <label className="grid gap-2 text-sm font-semibold text-slate-700">
+              Assunto
+              <input
+                required
+                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-slate-700">
+              Mensagem
+              <textarea
+                required
+                rows={7}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+              />
+            </label>
+
+            <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
+              <p className="font-black">Se o teu pedido for para Explicações, indica obrigatoriamente nesta caixa:</p>
+              <p className="mt-1">O Ano Escolar do Aluno (ex: 10.º, 11.º ou 12.º ano)</p>
+              <p>A Disciplina pretendida (Filosofia ou Português)</p>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
+                Enviar formulário
+              </Button>
+            </div>
+          </form>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 grid gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveCategory("all")}
+                className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
+                  activeCategory === "all" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                Todas
+              </button>
+              {faqCategories.map((category) => (
+                <button
+                  key={category.slug}
+                  type="button"
+                  onClick={() => setActiveCategory(category.slug)}
+                  className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
+                    activeCategory === category.slug ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {category.title}
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          <div>
+            <label className="relative block">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Pesquisar no suporte..."
+                className="mb-4 h-14 w-full rounded-full border border-slate-200 bg-slate-50 px-5 text-base outline-none focus:border-sky-500 focus:bg-white"
+              />
+            </label>
+
+            <select
+              value={activeCategory}
+              onChange={(event) => setActiveCategory(event.target.value)}
+              className="mb-4 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm lg:hidden"
             >
-              <Link to={ROUTES.LOGIN}>Entrar na conta</Link>
-            </Button>
+              <option value="all">Todas</option>
+              {faqCategories.map((category) => (
+                <option key={category.slug} value={category.slug}>
+                  {category.title}
+                </option>
+              ))}
+            </select>
+
+            <div className="space-y-3">
+              {filteredFaqs.map((faq) => (
+                <details key={faq.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <summary className="cursor-pointer font-black text-slate-950">{faq.question}</summary>
+                  <div className="mt-3 space-y-4 text-sm leading-7 text-slate-600">
+                    <p>{faq.answer}</p>
+                    {faq.ctaTo ? (
+                      <Button asChild className="rounded-full">
+                        <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir chamado"}</Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                </details>
+              ))}
+              {filteredFaqs.length === 0 ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+                  Nenhuma pergunta encontrada para esta busca.
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <SiteContentScope title="Suporte rápido" description="Bloco final com apoio e redirecionamento">
+          <EditableContainer
+            fieldKey="supportCta.container"
+            as="section"
+            className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm"
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <HelpCircle className="h-7 w-7 text-sky-200" />
+                <EditableText
+                  fieldKey="supportCta.title"
+                  as="h2"
+                  fallback={supportCta.title}
+                  className="mt-3 font-display text-3xl font-black"
+                />
+                <EditableText
+                  fieldKey="supportCta.lead"
+                  as="p"
+                  fallback={supportCta.lead}
+                  className="mt-2 text-sm leading-7 text-white/70"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <EditableButton
+                  fieldKey="supportCta.primaryCta"
+                  fallback={supportCta.primaryCta}
+                  className="rounded-full bg-white text-slate-950 hover:bg-slate-100"
+                  variant="secondary"
+                />
+                <EditableLink
+                  fieldKey="supportCta.secondaryCta"
+                  fallback={supportCta.secondaryCta}
+                  className="rounded-full border border-white/30 bg-transparent px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                />
+              </div>
+            </div>
+          </EditableContainer>
+        </SiteContentScope>
+      </div>
     </div>
   )
 }
+
+export const SupportPageContent = SupportFaqExperience

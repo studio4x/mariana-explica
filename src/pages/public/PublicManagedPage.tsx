@@ -241,7 +241,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
         <div className="border-b border-sky-200 bg-sky-50/95 px-4 py-3 text-slate-900 shadow-sm">
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">
-              <span>Pre-visualizacao IA</span>
+              <span>Pré-visualização IA</span>
               {previewPayload.editPlan ? (
                 <span className="rounded-full bg-white px-2 py-1 text-[10px] text-sky-900">
                   {formatAiPageEditorModeLabel(previewPayload.editPlan.mode)} ·{" "}
