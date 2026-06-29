@@ -9,7 +9,7 @@ interface RichTextEditorProps {
   placeholder?: string
   className?: string
   minHeightPx?: number
-  toolbarVariant?: "lesson" | "compact"
+  toolbarVariant?: "lesson" | "compact" | "inline"
   disabled?: boolean
 }
 
@@ -42,7 +42,9 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const modules = useMemo(
     () => ({
       toolbar:
-        toolbarVariant === "compact"
+        toolbarVariant === "inline"
+          ? [["bold", "italic", "underline"], ["link"], ["clean"]]
+          : toolbarVariant === "compact"
           ? [
               ["bold", "italic", "underline"],
               [{ list: "ordered" }, { list: "bullet" }],
@@ -62,7 +64,9 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
 
   const formats = useMemo(
     () =>
-      toolbarVariant === "compact"
+      toolbarVariant === "inline"
+        ? ["bold", "italic", "underline", "link"]
+        : toolbarVariant === "compact"
         ? ["bold", "italic", "underline", "list", "bullet", "link", "blockquote"]
         : [
             "header",

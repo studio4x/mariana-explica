@@ -194,6 +194,78 @@ function isRichTextNodeTextEditable(tagName: string) {
   return ["h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "span"].includes(tagName)
 }
 
+function isSemanticRichTextTag(tagName: string) {
+  return tagName === "p" || /^h[1-6]$/.test(tagName)
+}
+
+function isHeadingRichTextTag(tagName: string) {
+  return /^h[1-6]$/.test(tagName)
+}
+
+function appendInlineRichTextNode(doc: Document, parent: HTMLElement, node: Node) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    parent.appendChild(doc.createTextNode(node.textContent ?? ""))
+    return
+  }
+
+  if (!(node instanceof HTMLElement)) {
+    return
+  }
+
+  const tagName = node.tagName.toLowerCase()
+  if (tagName === "br") {
+    parent.appendChild(doc.createElement("br"))
+    return
+  }
+
+  if (["strong", "em", "u", "a", "span"].includes(tagName)) {
+    const clone = doc.createElement(tagName)
+    Array.from(node.attributes).forEach((attribute) => {
+      if (tagName === "a" || attribute.name === "style") {
+        clone.setAttribute(attribute.name, attribute.value)
+      }
+    })
+    Array.from(node.childNodes).forEach((child) => appendInlineRichTextNode(doc, clone, child))
+    parent.appendChild(clone)
+    return
+  }
+
+  Array.from(node.childNodes).forEach((child) => appendInlineRichTextNode(doc, parent, child))
+}
+
+function normalizeInlineRichTextEditorHtml(value: string) {
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return value
+      .replace(/^<p>/i, "")
+      .replace(/<\/p>$/i, "")
+      .trim()
+  }
+
+  const parser = new DOMParser()
+  const parsed = parser.parseFromString(value, "text/html")
+  const container = parsed.createElement("div")
+  const topLevelNodes = Array.from(parsed.body.childNodes).filter((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node.textContent ?? "").trim().length > 0
+    }
+
+    if (node instanceof HTMLElement) {
+      return node.tagName.toLowerCase() === "br" || (node.textContent ?? "").trim().length > 0
+    }
+
+    return false
+  })
+
+  topLevelNodes.forEach((node, index) => {
+    if (index > 0) {
+      container.appendChild(parsed.createElement("br"))
+    }
+    appendInlineRichTextNode(parsed, container, node)
+  })
+
+  return container.innerHTML.trim()
+}
+
 function resolveRichNodeIndexFromTarget(target: HTMLElement | null, scope?: ParentNode | null) {
   const node = target?.closest?.("[data-me-node]") as HTMLElement | null
   if (node) {
@@ -1234,6 +1306,9 @@ export function AdminPageEditor() {
       innerHtml: element.innerHTML,
       textContent: element.textContent?.trim() ?? "",
       isTextEditable: isRichTextNodeTextEditable(tagName),
+      isSemanticText: isSemanticRichTextTag(tagName),
+      isParagraph: tagName === "p",
+      headingLevel: isHeadingRichTextTag(tagName) ? Number(tagName.replace("h", "")) : null,
       isImage: tagName === "img",
       isLink: tagName === "a",
       linkHref: element.getAttribute("href") ?? "",
@@ -2141,6 +2216,56 @@ export function AdminPageEditor() {
         targetNode.style.backgroundColor = partial.backgroundColor
       }
 
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeInlineHtmlEdit = useCallback(
+    (nextHtml: string) => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode) return
+
+      targetNode.innerHTML = normalizeInlineRichTextEditorHtml(nextHtml)
+      updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
+    },
+    [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
+  )
+
+  const applyRichNodeSemanticTagEdit = useCallback(
+    (nextTag: "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6") => {
+      if (!selectedBlock || selectedBlock.type !== "rich_text") return
+      if (selectedRichNodeIndex === null) return
+      if (typeof window === "undefined" || typeof DOMParser === "undefined") return
+
+      const parser = new DOMParser()
+      const parsed = parser.parseFromString(selectedBlock.content, "text/html")
+      const nodes = Array.from(parsed.body.querySelectorAll(EDITABLE_RICH_TEXT_SELECTOR))
+      const targetNode = nodes[selectedRichNodeIndex] as HTMLElement | undefined
+      if (!targetNode) return
+
+      const currentTag = targetNode.tagName.toLowerCase()
+      if (currentTag === nextTag) return
+
+      const replacement = parsed.createElement(nextTag)
+      Array.from(targetNode.attributes).forEach((attribute) => {
+        replacement.setAttribute(attribute.name, attribute.value)
+      })
+
+      if (nextTag === "p") {
+        replacement.innerHTML = normalizeInlineRichTextEditorHtml(targetNode.innerHTML)
+      } else {
+        replacement.textContent = targetNode.textContent ?? ""
+      }
+
+      targetNode.replaceWith(replacement)
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
     },
     [selectedBlock, selectedRichNodeIndex, updateSelectedBlock],
@@ -4883,6 +5008,28 @@ export function AdminPageEditor() {
                           {selectedRichNodeDescriptor?.isTextEditable ? (
                             <InspectorCollapsibleGroup title="Texto do trecho">
                               <p className="text-xs font-semibold text-slate-600">Conteúdo do elemento</p>
+                              {selectedRichNodeDescriptor.isSemanticText && !selectedRichNodeDescriptor.isLink ? (
+                                <label className="block text-xs font-semibold text-slate-600">
+                                  Tipo de texto
+                                  <select
+                                    value={selectedRichNodeDescriptor.isParagraph ? "p" : `h${selectedRichNodeDescriptor.headingLevel ?? 2}`}
+                                    onChange={(event) =>
+                                      applyRichNodeSemanticTagEdit(
+                                        event.target.value as "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6",
+                                      )
+                                    }
+                                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                  >
+                                    <option value="p">Parágrafo</option>
+                                    <option value="h1">Título H1</option>
+                                    <option value="h2">Título H2</option>
+                                    <option value="h3">Título H3</option>
+                                    <option value="h4">Título H4</option>
+                                    <option value="h5">Título H5</option>
+                                    <option value="h6">Título H6</option>
+                                  </select>
+                                </label>
+                              ) : null}
                               <div className="grid grid-cols-2 gap-2">
                                 <label className="block text-xs font-semibold text-slate-600">
                                   Cor do texto
@@ -5084,12 +5231,26 @@ export function AdminPageEditor() {
                                   </div>
                                 </InspectorCollapsibleGroup>
                               ) : null}
-                              <textarea
-                                key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
-                                value={selectedRichNodeDescriptor.textContent}
-                                onChange={(event) => applyRichNodeTextContentEdit(event.target.value)}
-                                className="min-h-[120px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                              />
+                              {selectedRichNodeDescriptor.isParagraph && !selectedRichNodeDescriptor.isLink ? (
+                                <div className="space-y-2">
+                                  <p className="text-[11px] text-slate-500">
+                                    O parágrafo usa editor de texto rico diretamente no painel lateral.
+                                  </p>
+                                  <RichTextEditor
+                                    value={selectedRichNodeDescriptor.innerHtml}
+                                    onChange={applyRichNodeInlineHtmlEdit}
+                                    toolbarVariant="inline"
+                                    minHeightPx={160}
+                                  />
+                                </div>
+                              ) : (
+                                <textarea
+                                  key={`${selectedBlock.id}-${selectedRichNodeIndex}-text`}
+                                  value={selectedRichNodeDescriptor.textContent}
+                                  onChange={(event) => applyRichNodeTextContentEdit(event.target.value)}
+                                  className="min-h-[120px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                />
+                              )}
                             </InspectorCollapsibleGroup>
                           ) : null}
                           {selectedRichNodeDescriptor?.isLink ? (
