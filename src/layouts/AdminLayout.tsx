@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   Package,
   Percent,
+  RefreshCw,
   Settings,
   TicketPercent,
   UserCircle2,
@@ -23,9 +24,11 @@ import {
   CookieConsentBanner,
   ScrollToTop,
   SiteBrandingManager,
+  SiteCacheControlManager,
   SiteLogo,
   SiteTrackingManager,
   StatusBadge,
+  broadcastCacheControl,
 } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
@@ -151,6 +154,7 @@ export function AdminLayout() {
     <div className="min-h-screen bg-[#f3f7fa] text-slate-950">
       <ScrollToTop />
       <SiteBrandingManager />
+      <SiteCacheControlManager />
       <SiteTrackingManager />
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="flex min-h-[64px] w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
@@ -168,22 +172,52 @@ export function AdminLayout() {
             <StatusBadge label="Area protegida" tone="info" />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               asChild
               type="button"
               variant="outline"
-              className="h-11 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
+              className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
             >
               <Link to={ROUTES.HOME}>
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Site publico
+                Home pública
               </Link>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
+              onClick={() => broadcastCacheControl("server")}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Cache servidor
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
+              onClick={() => broadcastCacheControl("browser")}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Cache navegador
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
+              onClick={() => broadcastCacheControl("full")}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Cache completo
             </Button>
 
             <Link
               to={ROUTES.ADMIN_NOTIFICATIONS}
-              className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               aria-label="Abrir notificacoes"
             >
               <Bell className="h-5 w-5" />
@@ -212,7 +246,7 @@ export function AdminLayout() {
             <Button
               type="button"
               variant="outline"
-              className="h-11 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
+              className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
               onClick={() => void signOut()}
             >
               <LogOut className="mr-2 h-4 w-4" />

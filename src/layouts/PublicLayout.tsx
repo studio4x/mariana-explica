@@ -5,6 +5,7 @@ import {
   Navbar,
   ScrollToTop,
   SiteBrandingManager,
+  SiteCacheControlManager,
   SiteThemeManager,
   SiteTrackingManager,
 } from "@/components/common"
@@ -18,6 +19,7 @@ export function PublicLayout() {
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
       <SiteBrandingManager />
+      <SiteCacheControlManager />
       <SiteThemeManager />
       <SiteTrackingManager />
       {isCheckout ? null : <Navbar />}

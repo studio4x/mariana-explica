@@ -34,6 +34,11 @@ import {
   setVisualEditorPathValue,
 } from "./utils"
 import {
+  VISUAL_EDITOR_REFRESH_EVENT,
+  broadcastVisualEditorRefresh,
+  readVisualEditorRefreshPayload,
+} from "./refresh"
+import {
   cloneVisualEditorStyleDocument,
   getVisualEditorContainerStyle,
   getVisualEditorImageStyle,
@@ -106,6 +111,13 @@ function isPathUnderEditor(pathname: string) {
 
 function isDeepEqual(left: VisualEditorDocument, right: VisualEditorDocument) {
   return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function shouldHandleVisualEditorRefreshPayload(
+  payload: { pageKey: string } | null,
+  currentPageKey: string,
+) {
+  return Boolean(payload && payload.pageKey === currentPageKey)
 }
 
 function buildSelectedFieldLabel(field: VisualEditorFieldDefinition | undefined) {
@@ -260,6 +272,44 @@ export function VisualEditorProvider(props: {
     setStyles(cloneVisualEditorStyleDocument(baseStyleDocument))
     setBaselineStyles(cloneVisualEditorStyleDocument(baseStyleDocument))
   }, [isPublicEditorRoute])
+
+  useEffect(() => {
+    const invalidateCurrentPage = async () => {
+      await queryClient.invalidateQueries({ queryKey: ["visual-editor", "public", pageKey] })
+      await queryClient.invalidateQueries({ queryKey: ["visual-editor", "admin", pageKey] })
+      await queryClient.refetchQueries({ queryKey: ["visual-editor", "public", pageKey], type: "active" })
+      await queryClient.refetchQueries({ queryKey: ["visual-editor", "admin", pageKey], type: "active" })
+    }
+
+    const handleRefreshPayload = (payload: { pageKey: string } | null) => {
+      if (!shouldHandleVisualEditorRefreshPayload(payload, pageKey)) {
+        return
+      }
+
+      void invalidateCurrentPage()
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== "mariana-explica:visual-editor-refresh") {
+        return
+      }
+
+      handleRefreshPayload(readVisualEditorRefreshPayload(event.newValue))
+    }
+
+    const handleCustomEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<unknown>
+      handleRefreshPayload(readVisualEditorRefreshPayload(JSON.stringify(customEvent.detail)))
+    }
+
+    window.addEventListener("storage", handleStorage)
+    window.addEventListener(VISUAL_EDITOR_REFRESH_EVENT, handleCustomEvent)
+
+    return () => {
+      window.removeEventListener("storage", handleStorage)
+      window.removeEventListener(VISUAL_EDITOR_REFRESH_EVENT, handleCustomEvent)
+    }
+  }, [pageKey, queryClient])
 
   const fieldDefinitions = pageDefinition?.fields ?? []
   const currentField = selectedFieldKey ? fieldDefinitions.find((field) => field.key === selectedFieldKey) : undefined
@@ -536,6 +586,7 @@ export function VisualEditorProvider(props: {
 
     await queryClient.invalidateQueries({ queryKey: ["visual-editor", "public", pageKey] })
     await queryClient.invalidateQueries({ queryKey: ["visual-editor", "admin", pageKey] })
+    broadcastVisualEditorRefresh(pageKey)
 
     return published.version
   }
