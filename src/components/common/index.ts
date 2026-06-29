@@ -18,7 +18,15 @@ export { SiteCacheControlManager } from "./SiteCacheControlManager"
 export { SiteAiCodeEditorLauncher } from "./SiteAiCodeEditorLauncher"
 export { SiteAiPageEditorLauncher } from "./SiteAiPageEditorLauncher"
 export { applySiteFavicon, broadcastBrandingUpdate } from "./site-branding"
-export { broadcastCacheControl } from "./site-cache-control"
+export {
+  CACHE_CONTROL_FEEDBACK_EVENT,
+  broadcastCacheControl,
+  broadcastCacheControlFeedback,
+  clearCacheControlFeedback,
+  getCacheControlFeedbackStorageKey,
+  readCacheControlFeedbackPayload,
+} from "./site-cache-control"
+export type { CacheControlFeedbackPayload } from "./site-cache-control"
 export { SiteThemeManager } from "./SiteThemeManager"
 export { broadcastSiteThemeUpdate } from "./site-theme"
 export { SiteLogo } from "./SiteLogo"

@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query"
 import { clearBrowserRuntimeCaches } from "@/lib/runtime-recovery"
 import {
   CACHE_CONTROL_EVENT,
+  broadcastCacheControlFeedback,
+  clearCacheControlFeedback,
   getCacheControlStorageKey,
   readCacheControlPayload,
 } from "./site-cache-control"
@@ -30,21 +32,43 @@ export function SiteCacheControlManager() {
         return
       }
 
-      if (payload.action === "server") {
-        await Promise.all([
-          queryClient.invalidateQueries({ predicate: () => true }),
-          queryClient.refetchQueries({ type: "active" }),
-        ])
-        return
-      }
+      try {
+        if (payload.action === "server") {
+          await Promise.all([
+            queryClient.invalidateQueries({ predicate: () => true }),
+            queryClient.refetchQueries({ type: "active" }),
+          ])
+          broadcastCacheControlFeedback({
+            tone: "success",
+            message: "Cache servidor atualizado com sucesso.",
+          })
+          return
+        }
 
-      if (payload.action === "full") {
-        queryClient.clear()
-        clearManagedSessionStorage()
-      }
+        if (payload.action === "full") {
+          queryClient.clear()
+          clearManagedSessionStorage()
+        }
 
-      await clearBrowserRuntimeCaches()
-      window.location.reload()
+        broadcastCacheControlFeedback(
+          {
+            tone: "success",
+            message:
+              payload.action === "browser"
+                ? "Cache do navegador limpo com sucesso. O login foi preservado."
+                : "Cache completo limpo com sucesso. A aplicação será recarregada.",
+          },
+          { persist: true },
+        )
+        await clearBrowserRuntimeCaches()
+        window.location.reload()
+      } catch (error) {
+        clearCacheControlFeedback()
+        broadcastCacheControlFeedback({
+          tone: "error",
+          message: error instanceof Error ? error.message : "Não foi possível limpar o cache.",
+        })
+      }
     }
 
     const handleStorage = (event: StorageEvent) => {

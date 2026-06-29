@@ -1,10 +1,12 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  AlertCircle,
   Bell,
   CircleHelp,
   ClipboardList,
   CreditCard,
+  CheckCircle2,
   ExternalLink,
   LayoutDashboard,
   LayoutTemplate,
@@ -16,12 +18,14 @@ import {
   RefreshCw,
   Settings,
   TicketPercent,
+  X,
   UserCircle2,
   Users,
 } from "lucide-react"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import {
   CookieConsentBanner,
+  CACHE_CONTROL_FEEDBACK_EVENT,
   ScrollToTop,
   SiteBrandingManager,
   SiteCacheControlManager,
@@ -29,6 +33,10 @@ import {
   SiteTrackingManager,
   StatusBadge,
   broadcastCacheControl,
+  clearCacheControlFeedback,
+  getCacheControlFeedbackStorageKey,
+  readCacheControlFeedbackPayload,
+  type CacheControlFeedbackPayload,
 } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
 import { Button } from "@/components/ui"
@@ -98,6 +106,7 @@ export function AdminLayout() {
   const markAllNotificationsAsRead = useMarkAllAdminNotificationsAsRead()
   const displayName = profile?.full_name?.trim() || profile?.email || "Admin"
   const initials = getInitials(profile?.full_name, profile?.email)
+  const [cacheFeedback, setCacheFeedback] = useState<CacheControlFeedbackPayload | null>(null)
   const isLegacyPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
   const isPageEditorRoute = isLegacyPageEditorRoute
   const visibleItems = items
@@ -145,10 +154,69 @@ export function AdminLayout() {
     })
   }, [queryClient, profile?.id])
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const storedFeedback = readCacheControlFeedbackPayload(
+      window.sessionStorage.getItem(getCacheControlFeedbackStorageKey()),
+    )
+
+    if (storedFeedback) {
+      setCacheFeedback(storedFeedback)
+      clearCacheControlFeedback()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!cacheFeedback) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setCacheFeedback(null)
+    }, 6000)
+
+    return () => window.clearTimeout(timeout)
+  }, [cacheFeedback])
+
+  useEffect(() => {
+    const handleFeedback = (event: Event) => {
+      const customEvent = event as CustomEvent<unknown>
+      const payload = readCacheControlFeedbackPayload(JSON.stringify(customEvent.detail))
+      if (payload) {
+        setCacheFeedback(payload)
+      }
+    }
+
+    window.addEventListener(CACHE_CONTROL_FEEDBACK_EVENT, handleFeedback)
+
+    return () => {
+      window.removeEventListener(CACHE_CONTROL_FEEDBACK_EVENT, handleFeedback)
+    }
+  }, [])
+
   const userMap = new Map((usersQuery.data ?? []).map((user) => [user.id, user]))
   const unreadNotificationsCount = (notificationsQuery.data ?? []).filter(
     (notification) => notification.status === "unread",
   ).length
+  const handleCacheControlAction = (action: "server" | "browser" | "full") => {
+    try {
+      broadcastCacheControl(action)
+    } catch (error) {
+      clearCacheControlFeedback()
+      setCacheFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Não foi possível limpar o cache.",
+        issuedAt: new Date().toISOString(),
+      })
+    }
+  }
+  const dismissCacheFeedback = () => {
+    setCacheFeedback(null)
+    clearCacheControlFeedback()
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f7fa] text-slate-950">
@@ -189,7 +257,7 @@ export function AdminLayout() {
               type="button"
               variant="outline"
               className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
-              onClick={() => broadcastCacheControl("server")}
+              onClick={() => handleCacheControlAction("server")}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Cache servidor
@@ -199,7 +267,7 @@ export function AdminLayout() {
               type="button"
               variant="outline"
               className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
-              onClick={() => broadcastCacheControl("browser")}
+              onClick={() => handleCacheControlAction("browser")}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Cache navegador
@@ -209,7 +277,7 @@ export function AdminLayout() {
               type="button"
               variant="outline"
               className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm"
-              onClick={() => broadcastCacheControl("full")}
+              onClick={() => handleCacheControlAction("full")}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Cache completo
@@ -255,6 +323,51 @@ export function AdminLayout() {
           </div>
         </div>
       </header>
+
+      {cacheFeedback ? (
+        <div
+          className={cn(
+            "mx-4 mt-4 rounded-[24px] border px-4 py-3 shadow-sm sm:mx-6 lg:mx-8",
+            cacheFeedback.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+              : "border-rose-200 bg-rose-50 text-rose-950",
+          )}
+          aria-live="polite"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span
+                className={cn(
+                  "mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl",
+                  cacheFeedback.tone === "success"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-rose-100 text-rose-700",
+                )}
+              >
+                {cacheFeedback.tone === "success" ? (
+                  <CheckCircle2 className="h-5 w-5" />
+                ) : (
+                  <AlertCircle className="h-5 w-5" />
+                )}
+              </span>
+              <div>
+                <p className="text-sm font-bold">
+                  {cacheFeedback.tone === "success" ? "Cache atualizado" : "Não foi possível concluir"}
+                </p>
+                <p className="mt-1 text-sm leading-6 opacity-90">{cacheFeedback.message}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-transparent text-current/70 transition hover:bg-white/70 hover:text-current"
+              onClick={dismissCacheFeedback}
+              aria-label="Fechar mensagem"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div
         className={cn(
