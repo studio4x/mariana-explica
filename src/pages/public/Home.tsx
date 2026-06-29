@@ -11,6 +11,7 @@ import {
 } from "@/features/site-editor/visual-editor/public-page-definitions"
 import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 function formatReviewDate(value: string) {
   return new Intl.DateTimeFormat("pt-PT", {
@@ -251,10 +252,14 @@ function HomePageContent() {
   )
 }
 
-export function Home() {
+function LegacyHome() {
   return (
     <VisualEditorProvider pageKey="home">
       <HomePageContent />
     </VisualEditorProvider>
   )
+}
+
+export function Home() {
+  return <PublicManagedPage slug="home" fallback={<LegacyHome />} />
 }
