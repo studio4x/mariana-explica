@@ -8,6 +8,7 @@ import {
   EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type ExplicacoesVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 interface ExplicacoesFormState {
   nome: string
@@ -173,10 +174,14 @@ function ExplicacoesPageContent() {
   )
 }
 
-export function Explicacoes() {
+function LegacyExplicacoes() {
   return (
     <VisualEditorProvider pageKey="explicacoes">
       <ExplicacoesPageContent />
     </VisualEditorProvider>
   )
+}
+
+export function Explicacoes() {
+  return <PublicManagedPage slug="explicacoes" fallback={<LegacyExplicacoes />} />
 }

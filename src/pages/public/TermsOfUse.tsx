@@ -4,6 +4,7 @@ import {
   LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type LegalVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 const sections: LegalSection[] = [
   {
@@ -101,10 +102,14 @@ function TermsOfUsePageContent() {
   )
 }
 
-export function TermsOfUse() {
+function LegacyTermsOfUse() {
   return (
     <VisualEditorProvider pageKey="terms">
       <TermsOfUsePageContent />
     </VisualEditorProvider>
   )
+}
+
+export function TermsOfUse() {
+  return <PublicManagedPage slug="termos" fallback={<LegacyTermsOfUse />} />
 }

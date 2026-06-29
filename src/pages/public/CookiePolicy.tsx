@@ -4,6 +4,7 @@ import {
   LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type LegalVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 const sections: LegalSection[] = [
   {
@@ -81,10 +82,14 @@ function CookiePolicyPageContent() {
   )
 }
 
-export function CookiePolicy() {
+function LegacyCookiePolicy() {
   return (
     <VisualEditorProvider pageKey="cookies">
       <CookiePolicyPageContent />
     </VisualEditorProvider>
   )
+}
+
+export function CookiePolicy() {
+  return <PublicManagedPage slug="cookies" fallback={<LegacyCookiePolicy />} />
 }

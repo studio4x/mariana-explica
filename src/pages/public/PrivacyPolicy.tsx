@@ -4,6 +4,7 @@ import {
   LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type LegalVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 const sections: LegalSection[] = [
   {
@@ -101,10 +102,14 @@ function PrivacyPolicyPageContent() {
   )
 }
 
-export function PrivacyPolicy() {
+function LegacyPrivacyPolicy() {
   return (
     <VisualEditorProvider pageKey="privacy">
       <PrivacyPolicyPageContent />
     </VisualEditorProvider>
   )
+}
+
+export function PrivacyPolicy() {
+  return <PublicManagedPage slug="privacidade" fallback={<LegacyPrivacyPolicy />} />
 }
