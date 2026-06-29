@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Check, ChevronDown, ChevronUp, RefreshCcw, Sparkles, X } from "lucide-react"
+import { RichTextEditor } from "@/components/common"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
+import { richTextToPlainText } from "@/lib/rich-text"
 import type {
   VisualEditorPageDetail,
   VisualEditorPageVersion,
@@ -24,12 +26,14 @@ import {
   getVisualEditorContainerStyle,
   getVisualEditorStyleGroup,
   getVisualEditorStyleSummary,
+  normalizeVisualEditorTextSemanticTag,
   parseVisualEditorLengthValue,
 } from "./styles"
 
 type SidebarMode = "fixed" | "inline"
 type SidebarTab = "content" | "style" | "advanced"
 type StyleLengthUnit = "px" | "rem" | "em" | "%"
+type TextPresentationMode = "title" | "paragraph"
 
 const LENGTH_UNIT_OPTIONS: Array<{ label: string; value: StyleLengthUnit }> = [
   { label: "px", value: "px" },
@@ -37,6 +41,52 @@ const LENGTH_UNIT_OPTIONS: Array<{ label: string; value: StyleLengthUnit }> = [
   { label: "em", value: "em" },
   { label: "%", value: "%" },
 ]
+
+const HEADING_ONLY_OPTIONS = VISUAL_EDITOR_HEADING_TAG_OPTIONS.filter((option) => option.value !== "p")
+
+function isTextEditable(selectedEditable: VisualEditorSelectedEditable | null) {
+  return selectedEditable?.entryType === "text" || selectedEditable?.entryType === "textarea"
+}
+
+function resolveDefaultTextMode(selectedEditable: VisualEditorSelectedEditable) {
+  const explicitTag = normalizeVisualEditorTextSemanticTag(selectedEditable.currentStyle.headingTag)
+  if (explicitTag === "p") {
+    return "paragraph" as const
+  }
+
+  if (explicitTag) {
+    return "title" as const
+  }
+
+  const defaultTag = String(selectedEditable.defaultTextTag ?? "").toLowerCase()
+  if (defaultTag === "p") {
+    return "paragraph" as const
+  }
+
+  if (/^h[1-6]$/.test(defaultTag)) {
+    return "title" as const
+  }
+
+  if (selectedEditable.entryType === "textarea") {
+    return "paragraph" as const
+  }
+
+  return selectedEditable.schema.styleGroup === "heading" ? "title" : "paragraph"
+}
+
+function resolveHeadingTag(selectedEditable: VisualEditorSelectedEditable) {
+  const explicitTag = normalizeVisualEditorTextSemanticTag(selectedEditable.currentStyle.headingTag)
+  if (explicitTag && explicitTag !== "p") {
+    return explicitTag
+  }
+
+  const defaultTag = String(selectedEditable.defaultTextTag ?? "").toLowerCase()
+  if (/^h[1-6]$/.test(defaultTag)) {
+    return defaultTag
+  }
+
+  return selectedEditable.schema.styleGroup === "heading" ? "h2" : "h3"
+}
 
 export function VisualEditorSidebar(props: {
   mode?: SidebarMode
@@ -115,6 +165,9 @@ export function VisualEditorSidebar(props: {
   const selectedStyle = selectedEditable?.currentStyle ?? {}
   const fallbackStyle = selectedEditable?.fallbackStyle ?? {}
   const styleGroup = getVisualEditorStyleGroup(selectedEditable?.schema)
+  const isSelectedTextField = isTextEditable(selectedEditable)
+  const textPresentationMode = selectedEditable && isSelectedTextField ? resolveDefaultTextMode(selectedEditable) : null
+  const selectedHeadingTag = selectedEditable && isSelectedTextField ? resolveHeadingTag(selectedEditable) : "h2"
 
   const runAction = async (actionName: string, action: () => Promise<unknown>) => {
     setBusyAction(actionName)
@@ -139,7 +192,7 @@ export function VisualEditorSidebar(props: {
 
   const renderValuePreview = (value: unknown) => {
     if (typeof value === "string") {
-      return value || "Vazio"
+      return richTextToPlainText(value) || value || "Vazio"
     }
 
     if (value && typeof value === "object") {
@@ -194,6 +247,24 @@ export function VisualEditorSidebar(props: {
     }
 
     updateStyle({ [key]: value.trim() })
+  }
+
+  const updateTextPresentationMode = (mode: TextPresentationMode) => {
+    if (!selectedEditable || !isTextEditable(selectedEditable)) return
+
+    if (mode === "paragraph") {
+      updateStyle({ headingTag: "p" })
+      return
+    }
+
+    updateStyle({ headingTag: selectedHeadingTag })
+    setDraftValue(richTextToPlainText(String(selectedValue ?? "")))
+  }
+
+  const updateTextHeadingTag = (nextHeadingTag: string) => {
+    if (!selectedEditable || !isTextEditable(selectedEditable)) return
+    updateStyle({ headingTag: nextHeadingTag })
+    setDraftValue(richTextToPlainText(String(selectedValue ?? "")))
   }
 
   const imageAssets = (pageDetail?.assets ?? []).filter((asset) => {
@@ -354,15 +425,64 @@ export function VisualEditorSidebar(props: {
                           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
                             Este bloco não possui conteúdo textual direto. Use a aba Estilo para editar a aparência.
                           </div>
-                        ) : selectedEditable.entryType === "textarea" ? (
-                          <label className="block text-sm font-semibold text-slate-700">
-                            Editar texto
-                            <textarea
-                              value={String(selectedValue ?? "")}
-                              onChange={(event) => setDraftValue(event.target.value)}
-                              className="mt-2 min-h-[160px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-sky-400"
-                            />
-                          </label>
+                        ) : isSelectedTextField && textPresentationMode ? (
+                          <div className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Tipo de texto
+                                <select
+                                  value={textPresentationMode}
+                                  onChange={(event) => updateTextPresentationMode(event.target.value as TextPresentationMode)}
+                                  className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                >
+                                  <option value="title">Titulo</option>
+                                  <option value="paragraph">Paragrafo</option>
+                                </select>
+                              </label>
+
+                              {textPresentationMode === "title" ? (
+                                <label className="block text-sm font-semibold text-slate-700">
+                                  Tag do titulo
+                                  <select
+                                    value={selectedHeadingTag}
+                                    onChange={(event) => updateTextHeadingTag(event.target.value)}
+                                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                  >
+                                    {HEADING_ONLY_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : (
+                                <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
+                                  O campo passa a aceitar formatacao rica diretamente no painel lateral.
+                                </div>
+                              )}
+                            </div>
+
+                            {textPresentationMode === "paragraph" ? (
+                              <div className="space-y-2">
+                                <p className="text-sm font-semibold text-slate-700">Editar conteudo</p>
+                                <RichTextEditor
+                                  value={String(selectedValue ?? "")}
+                                  onChange={(value) => setDraftValue(value)}
+                                  toolbarVariant="compact"
+                                  minHeightPx={180}
+                                />
+                              </div>
+                            ) : (
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Editar texto
+                                <input
+                                  value={richTextToPlainText(String(selectedValue ?? ""))}
+                                  onChange={(event) => setDraftValue(event.target.value)}
+                                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400"
+                                />
+                              </label>
+                            )}
+                          </div>
                         ) : selectedEditable.entryType === "link" ? (
                           <div className="space-y-3">
                             <label className="block text-sm font-semibold text-slate-700">

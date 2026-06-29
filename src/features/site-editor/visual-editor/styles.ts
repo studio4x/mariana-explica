@@ -4,6 +4,7 @@ import type {
   VisualEditorFieldStyleValue,
   VisualEditorStyleDocument,
   VisualEditorStyleGroup,
+  VisualEditorTextSemanticTag,
 } from "./types"
 
 export interface VisualEditorFontPreset {
@@ -90,6 +91,7 @@ export const VISUAL_EDITOR_BACKGROUND_REPEAT_OPTIONS = [
 ]
 
 export const VISUAL_EDITOR_HEADING_TAG_OPTIONS = [
+  { label: "Paragrafo", value: "p" },
   { label: "H1", value: "h1" },
   { label: "H2", value: "h2" },
   { label: "H3", value: "h3" },
@@ -127,6 +129,15 @@ function normalizePresetValue<T extends string>(value: unknown, allowed: readonl
   const normalized = String(value ?? "").trim()
   if (!normalized) return undefined
   return allowed.includes(normalized as T) ? (normalized as T) : undefined
+}
+
+export function normalizeVisualEditorTextSemanticTag(value: unknown): VisualEditorTextSemanticTag | undefined {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (normalized === "p" || /^h[1-6]$/.test(normalized)) {
+    return normalized as VisualEditorTextSemanticTag
+  }
+
+  return undefined
 }
 
 function normalizeLengthValue(value: unknown, defaultUnit: "px" | "rem" | "em" | "%" = "px", allowUnitless = false) {
@@ -203,9 +214,8 @@ function normalizeTextStyle(rawValue: unknown): VisualEditorFieldStyleValue {
   const fontStyle = normalizePresetValue(record.fontStyle, VISUAL_EDITOR_FONT_STYLE_OPTIONS.map((option) => option.value)) as
     | VisualEditorFieldStyleValue["fontStyle"]
     | undefined
-  const headingTag = normalizePresetValue(record.headingTag, VISUAL_EDITOR_HEADING_TAG_OPTIONS.map((option) => option.value)) as
-    | VisualEditorFieldStyleValue["headingTag"]
-    | undefined
+  const headingTag =
+    normalizeVisualEditorTextSemanticTag(record.headingTag) ?? normalizeVisualEditorTextSemanticTag(record.textTag)
 
   const next: VisualEditorFieldStyleValue = {}
   const color = normalizeHexColor(record.color)
@@ -513,7 +523,7 @@ export function getVisualEditorTextStyle(value: VisualEditorFieldStyleValue | nu
 
   return {
     style,
-    headingTag: allowHeadingTag ? value.headingTag : undefined,
+    headingTag: allowHeadingTag ? normalizeVisualEditorTextSemanticTag(value.headingTag) : undefined,
   }
 }
 

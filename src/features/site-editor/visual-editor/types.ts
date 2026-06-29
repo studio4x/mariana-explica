@@ -13,6 +13,7 @@ export type VisualEditorPageKey =
 export type VisualEditorFieldKind = "text" | "textarea" | "link" | "image" | "list" | "json" | "container"
 
 export type VisualEditorStyleGroup = "heading" | "text" | "interactive" | "image" | "container"
+export type VisualEditorTextSemanticTag = "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
 
 export interface VisualEditorDocument extends Record<string, unknown> {}
 
@@ -96,6 +97,7 @@ export interface VisualEditorSelectedEditable {
   currentValue: unknown
   fallbackStyle: VisualEditorFieldStyleValue
   currentStyle: VisualEditorFieldStyleValue
+  defaultTextTag?: string
   schema: VisualEditorFieldDefinition
 }
 
@@ -127,7 +129,7 @@ export interface VisualEditorFieldStyleValue extends Record<string, unknown> {
   textAlign?: "left" | "center" | "right" | "justify"
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize"
   fontStyle?: "normal" | "italic"
-  headingTag?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+  headingTag?: VisualEditorTextSemanticTag
   borderRadius?: string
   borderWidth?: string
   borderStyle?: "none" | "solid" | "dashed" | "dotted"

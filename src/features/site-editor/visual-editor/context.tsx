@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, Link2, PencilLine, Sparkles } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
+import { isRichTextEmpty, richTextToPlainText, sanitizeRichTextHtml } from "@/lib/rich-text"
 import { VisualEditorSidebar } from "./VisualEditorSidebar"
 import {
   fetchAdminVisualEditorPageDetail,
@@ -26,6 +27,7 @@ import type {
   VisualEditorPublicPagePayload,
   VisualEditorSelectedEditable,
   VisualEditorStyleDocument,
+  VisualEditorTextSemanticTag,
 } from "./types"
 import {
   cloneVisualEditorDocument,
@@ -47,6 +49,7 @@ import {
   getVisualEditorStyleValue,
   getVisualEditorTextStyle,
   isVisualEditorStyleDocumentEqual,
+  normalizeVisualEditorTextSemanticTag,
   normalizeVisualEditorStyleDocument,
   resetVisualEditorStyleValue,
   setVisualEditorStyleValue,
@@ -101,6 +104,7 @@ interface VisualEditorContextValue {
   getStyleValue: (fieldKey: string) => VisualEditorFieldStyleValue | null
   setStatusMessage: (message: string | null) => void
   statusMessage: string | null
+  registerTextFieldTag: (fieldKey: string, tag: string) => void
 }
 
 const VisualEditorContext = createContext<VisualEditorContextValue | undefined>(undefined)
@@ -122,6 +126,40 @@ function shouldHandleVisualEditorRefreshPayload(
 
 function buildSelectedFieldLabel(field: VisualEditorFieldDefinition | undefined) {
   return field ? `${field.label}` : "Campo visual"
+}
+
+function resolveTextDefaultTag(value: string | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (normalized === "p" || normalized === "span" || normalized === "div" || /^h[1-6]$/.test(normalized)) {
+    return normalized
+  }
+
+  return undefined
+}
+
+function resolveVisualEditorTextTag(
+  explicitTag: VisualEditorTextSemanticTag | undefined,
+  defaultTag: string | undefined,
+  fieldDefinition: VisualEditorFieldDefinition | undefined,
+) {
+  if (explicitTag) {
+    return explicitTag
+  }
+
+  const normalizedDefaultTag = resolveTextDefaultTag(defaultTag)
+  if (normalizedDefaultTag === "p" || /^h[1-6]$/.test(normalizedDefaultTag ?? "")) {
+    return normalizedDefaultTag as VisualEditorTextSemanticTag
+  }
+
+  if (fieldDefinition?.kind === "textarea") {
+    return "p"
+  }
+
+  if (fieldDefinition?.styleGroup === "heading") {
+    return "h2"
+  }
+
+  return "p"
 }
 
 function normalizeEditableValue(field: VisualEditorFieldDefinition | undefined, rawValue: unknown) {
@@ -214,6 +252,7 @@ export function VisualEditorProvider(props: {
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null)
   const [draftValue, setDraftValueState] = useState<unknown>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [registeredTextTags, setRegisteredTextTags] = useState<Record<string, string>>({})
   const [isPublicEditorPanelOpen, setIsPublicEditorPanelOpen] = useState(false)
   const [isPublicEditorCollapsed, setIsPublicEditorCollapsed] = useState(false)
   const [isEditingUnlocked, setIsEditingUnlocked] = useState(false)
@@ -248,6 +287,7 @@ export function VisualEditorProvider(props: {
     setSelectedFieldKey(null)
     setDraftValueState(null)
     setStatusMessage(null)
+    setRegisteredTextTags({})
     setIsPublicEditorPanelOpen(false)
     setIsPublicEditorCollapsed(false)
     setIsEditingUnlocked(false)
@@ -266,6 +306,7 @@ export function VisualEditorProvider(props: {
     setSelectedFieldKey(null)
     setDraftValueState(null)
     setStatusMessage(null)
+    setRegisteredTextTags({})
     setIsPublicEditorPanelOpen(false)
     setIsPublicEditorCollapsed(false)
     setIsEditingUnlocked(false)
@@ -313,6 +354,18 @@ export function VisualEditorProvider(props: {
 
   const fieldDefinitions = pageDefinition?.fields ?? []
   const currentField = selectedFieldKey ? fieldDefinitions.find((field) => field.key === selectedFieldKey) : undefined
+  const registerTextFieldTag = useCallback((fieldKey: string, tag: string) => {
+    setRegisteredTextTags((current) => {
+      if (current[fieldKey] === tag) {
+        return current
+      }
+
+      return {
+        ...current,
+        [fieldKey]: tag,
+      }
+    })
+  }, [])
   const selectedEditable = useMemo<VisualEditorSelectedEditable | null>(() => {
     if (!selectedFieldKey || !currentField || !pageDefinition) {
       return null
@@ -327,9 +380,10 @@ export function VisualEditorProvider(props: {
       currentValue: resolveEditableValue(document, currentField),
       fallbackStyle: {},
       currentStyle: getVisualEditorStyleValue(styles, selectedFieldKey) ?? {},
+      defaultTextTag: registeredTextTags[selectedFieldKey],
       schema: currentField,
     }
-  }, [baseStyleDocument, currentField, document, pageDefinition, pageKey, selectedFieldKey, styles])
+  }, [currentField, document, pageDefinition, pageKey, registeredTextTags, selectedFieldKey, styles])
   const canEdit = Boolean(
     isAdmin &&
       !authLoading &&
@@ -669,6 +723,7 @@ export function VisualEditorProvider(props: {
       getStyleValue,
       setStatusMessage,
       statusMessage,
+      registerTextFieldTag,
     }),
     [
       baselineDocument,
@@ -711,6 +766,7 @@ export function VisualEditorProvider(props: {
       publishEditor,
       selectedFieldKey,
       selectedEditable,
+      registerTextFieldTag,
       setStatusMessage,
       setDraftValue,
       setStyleValue,
@@ -909,12 +965,64 @@ export function EditableText(props: {
   className?: string
 }) {
   const { fieldKey, as = "p", fallback, className } = props
-  const { getFieldValue, getStyleValue, isEditingActive } = useVisualEditorContext()
+  const { getFieldValue, getStyleValue, isEditingActive, registerTextFieldTag } = useVisualEditorContext()
   const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = String(getFieldValue(fieldKey, fallback) ?? fallback)
   const styleValue = getStyleValue(fieldKey)
-  const { style, headingTag } = getVisualEditorTextStyle(styleValue, fieldDefinition?.styleGroup === "heading")
-  const Element = ((headingTag && /^h[1-6]$/.test(String(as))) ? headingTag : as) as keyof JSX.IntrinsicElements
+  const { style, headingTag } = getVisualEditorTextStyle(styleValue, true)
+  const textTag = resolveVisualEditorTextTag(normalizeVisualEditorTextSemanticTag(headingTag), String(as), fieldDefinition)
+  const plainValue = richTextToPlainText(value) || value
+
+  useEffect(() => {
+    registerTextFieldTag(fieldKey, String(as))
+  }, [as, fieldKey, registerTextFieldTag])
+
+  if (textTag === "p") {
+    const sanitizedValue = sanitizeRichTextHtml(value)
+    const showRichTextFallback = isRichTextEmpty(value) && fallback.trim().length > 0
+
+    return (
+      <div
+        data-visual-editor-field={fieldKey}
+        style={style}
+        className={cn(
+          "group relative",
+          className,
+          isEditingActive && "cursor-pointer transition",
+          isEditingActive && "hover:outline hover:outline-2 hover:outline-sky-300/80",
+          isSelected && "outline outline-2 outline-sky-500 outline-offset-4",
+        )}
+        onClick={isEditingActive ? select : undefined}
+        onKeyDown={
+          isEditingActive
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  select()
+                }
+              }
+            : undefined
+        }
+        tabIndex={isEditingActive ? 0 : undefined}
+        role={isEditingActive ? "button" : undefined}
+      >
+        {isEditingActive ? (
+          <EditableMarker
+            label="Editar"
+            kind={getEditableKindLabel(fieldDefinition?.kind)}
+            selected={isSelected}
+          />
+        ) : null}
+        {showRichTextFallback ? (
+          <p>{fallback}</p>
+        ) : (
+          <div className="rich-text-content" dangerouslySetInnerHTML={{ __html: sanitizedValue }} />
+        )}
+      </div>
+    )
+  }
+
+  const Element = textTag as keyof JSX.IntrinsicElements
 
   return (
     <Element
@@ -948,7 +1056,7 @@ export function EditableText(props: {
           selected={isSelected}
         />
       ) : null}
-      {value}
+      {plainValue}
     </Element>
   )
 }
