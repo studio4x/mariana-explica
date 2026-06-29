@@ -3,6 +3,11 @@ import { MessageCircleHeart, Send } from "lucide-react"
 import { OperationFeedbackModal } from "@/components/common"
 import { Button } from "@/components/ui"
 import { submitPublicForm } from "@/services"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type ExplicacoesVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
 
 interface ExplicacoesFormState {
   nome: string
@@ -18,7 +23,15 @@ const initialFormState: ExplicacoesFormState = {
   mensagem: "",
 }
 
-export function Explicacoes() {
+function ExplicacoesPageContent() {
+  const { document } = useVisualEditorPage()
+  const visualDocument =
+    (document as ExplicacoesVisualEditorDocument | undefined) ?? EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const hero = visualDocument.hero
+  const notes = visualDocument.notes
+  const formNote = visualDocument.formNote
+  const submitCta = visualDocument.submitCta
+
   const [form, setForm] = useState<ExplicacoesFormState>(initialFormState)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -54,31 +67,24 @@ export function Explicacoes() {
         <header className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#e7f3fb] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#114866]">
             <MessageCircleHeart className="h-4 w-4" />
-            Explicações
+            {hero.eyebrow}
           </div>
 
-          <h1 className="mt-5 text-3xl font-black leading-tight text-[#102c40] md:text-5xl">
-            Vamos descomplicar o teu ano letivo juntos?
-          </h1>
+          <h1 className="mt-5 text-3xl font-black leading-tight text-[#102c40] md:text-5xl">{hero.title}</h1>
 
-          <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 md:text-lg">
-            Não tens Instagram ou preferes o contacto formal por e-mail? Sem problema, estás no sítio certo! Este
-            espaço foi pensado tanto para estudantes como para encarregados de educação que queiram esclarecer dúvidas
-            sobre os meus materiais ou solicitar apoio individual.
-          </p>
+          <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 md:text-lg">{hero.lead}</p>
         </header>
 
         <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
-          <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulário:</h2>
+          <h2 className="text-2xl font-black md:text-3xl">{notes.title}</h2>
           <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
             <p>
-              <span className="font-black text-white">Planeamento Prévio:</span> Devido à agenda preenchida, todos os
-              pedidos para explicações devem ser efetuados com um mínimo de 3 semanas de antecedência.
+              <span className="font-black text-white">{notes.paragraph1.split(":")[0]}:</span>{" "}
+              {notes.paragraph1.split(":").slice(1).join(":").trim()}
             </p>
             <p>
-              <span className="font-black text-white">Não Garante Reserva:</span> O envio e submissão deste formulário
-              funciona estritamente como um pedido de informações e consulta de disponibilidade. Não constitui, de
-              forma alguma, uma marcação automática ou garantia de vaga.
+              <span className="font-black text-white">{notes.paragraph2.split(":")[0]}:</span>{" "}
+              {notes.paragraph2.split(":").slice(1).join(":").trim()}
             </p>
           </div>
         </section>
@@ -130,9 +136,9 @@ export function Explicacoes() {
             </label>
 
             <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-              <p className="font-black">Se o teu pedido for para Explicações, indica obrigatoriamente nesta caixa:</p>
-              <p className="mt-1">O Ano Escolar do Aluno (ex: 10.º, 11.º ou 12.º ano)</p>
-              <p>A Disciplina pretendida (Filosofia ou Português)</p>
+              <p className="font-black">{formNote.title}</p>
+              <p className="mt-1">{formNote.line1}</p>
+              <p>{formNote.line2}</p>
             </div>
 
             <div className="flex flex-wrap justify-end gap-3">
@@ -141,7 +147,7 @@ export function Explicacoes() {
                 className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "A enviar..." : "Enviar formulario"}
+                {isSubmitting ? "A enviar..." : submitCta.label}
                 <Send className="ml-2 h-4 w-4" />
               </Button>
             </div>
@@ -160,9 +166,17 @@ export function Explicacoes() {
         tone="success"
         title="Pedido enviado"
         confirmLabel="Fechar"
-        message="Obrigada pelo teu contacto! Recebi o teu pedido com sucesso.Em breve, receberás uma resposta da minha parte! Fica atento/a. Beijinho, Mariana."
+        message="Obrigada pelo teu contacto! Recebi o teu pedido com sucesso. Em breve, receberás uma resposta da minha parte! Fica atento/a. Beijinho, Mariana."
         onClose={() => setIsSuccessModalOpen(false)}
       />
     </div>
+  )
+}
+
+export function Explicacoes() {
+  return (
+    <VisualEditorProvider pageKey="explicacoes">
+      <ExplicacoesPageContent />
+    </VisualEditorProvider>
   )
 }

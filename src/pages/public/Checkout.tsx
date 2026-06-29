@@ -23,6 +23,7 @@ import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutVisualEditorDocument,
@@ -169,7 +170,7 @@ function TermsModal({
   )
 }
 
-export function Checkout() {
+function CheckoutPageContent() {
   const [searchParams] = useSearchParams()
   const slug = searchParams.get("slug") ?? undefined
   const navigate = useNavigate()
@@ -190,7 +191,9 @@ export function Checkout() {
   const [draft, setDraft] = useState<CheckoutDraft>(() => loadCheckoutDraft())
   const nifDirtyRef = useRef(false)
   const syncedProfileNifRef = useRef<string | null>(null)
-  const visualDocument = CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const { document } = useVisualEditorPage()
+  const visualDocument =
+    (document as CheckoutVisualEditorDocument | undefined) ?? CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
 
   const profile = profileQuery.data ?? authProfile
 
@@ -576,18 +579,18 @@ export function Checkout() {
 
             <aside className="lg:col-span-5">
               <div className="sticky top-28 space-y-4">
-                <div className="rounded-lg bg-[#242742] p-8 text-white shadow-[0_4px_20px_-2px_rgba(15,18,44,0.22)]">
-                  <div className="mb-6 flex items-start justify-between gap-4">
-                    <div>
-                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#8c8eae]">
-                        Acesso e pagamento
-                      </p>
+              <div className="rounded-lg bg-[#242742] p-8 text-white shadow-[0_4px_20px_-2px_rgba(15,18,44,0.22)]">
+                <div className="mb-6 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#8c8eae]">
+                      {visualDocument.authPanel.eyebrow}
+                    </p>
                       <h3 className="font-display text-2xl font-bold text-white">
                         {hasSession
                           ? "Confirma os teus dados"
                           : activeAuthTab === "login"
-                            ? "JÁ tenho conta"
-                            : "Quero me cadastrar"}
+                            ? visualDocument.authPanel.titleLogin
+                            : visualDocument.authPanel.titleRegister}
                       </h3>
                     </div>
                     <Lock className="h-10 w-10 text-[#af8962]" />
@@ -985,6 +988,9 @@ export function Checkout() {
                         {submitting ? "A processar..." : "Ir para pagamento"}
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
+                      <p className="text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
+                        {visualDocument.productCard.buttonHint}
+                      </p>
                     </form>
                   )}
                 </div>
@@ -1005,6 +1011,14 @@ export function Checkout() {
         document={visualDocument.termsModal}
       />
     </>
+  )
+}
+
+export function Checkout() {
+  return (
+    <VisualEditorProvider pageKey="checkout">
+      <CheckoutPageContent />
+    </VisualEditorProvider>
   )
 }
 

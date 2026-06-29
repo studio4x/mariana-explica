@@ -1,4 +1,9 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type LegalVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
 
 const sections: LegalSection[] = [
   {
@@ -72,14 +77,34 @@ const sections: LegalSection[] = [
   },
 ]
 
-export function PrivacyPolicy() {
+function PrivacyPolicyPageContent() {
+  const { document } = useVisualEditorPage()
+  const visualDocument = (document as LegalVisualEditorDocument | undefined) ?? LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT
+
   return (
     <LegalPageLayout
-      eyebrow="Privacidade"
-      title="Politica de Privacidade"
-      intro="Esta pagina explica como a Mariana Explica recolhe, utiliza, protege e conserva dados pessoais no contexto do site publico, da area autenticada, do checkout, do suporte e da entrega de conteudos digitais. O texto foi estruturado para refletir os principios do RGPD e a legislacao aplicavel em Portugal e na Uniao Europeia."
-      updatedAt="23/04/2026"
+      eyebrow={visualDocument.hero.eyebrow}
+      title={visualDocument.hero.title}
+      intro={visualDocument.hero.intro}
+      updatedAt={visualDocument.hero.updatedAt}
       sections={sections}
+      support={{
+        eyebrow: visualDocument.support.eyebrow,
+        title: visualDocument.support.title,
+        lead: visualDocument.support.lead,
+        primaryCtaLabel: visualDocument.support.primaryCta.label,
+        primaryCtaHref: visualDocument.support.primaryCta.href,
+        secondaryCtaLabel: visualDocument.support.secondaryCta.label,
+        secondaryCtaHref: visualDocument.support.secondaryCta.href,
+      }}
     />
+  )
+}
+
+export function PrivacyPolicy() {
+  return (
+    <VisualEditorProvider pageKey="privacy">
+      <PrivacyPolicyPageContent />
+    </VisualEditorProvider>
   )
 }

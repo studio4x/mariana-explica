@@ -6,13 +6,19 @@ import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
 import { createCheckoutAutologin } from "@/services"
-import { CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT } from "@/features/site-editor/visual-editor/public-page-definitions"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type CheckoutSuccessVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
 
 function CheckoutSuccessPageContent() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { session, profile, loading } = useAuth()
-  const visualDocument = CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const { document } = useVisualEditorPage()
+  const visualDocument =
+    (document as CheckoutSuccessVisualEditorDocument | undefined) ?? CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const productId = searchParams.get("product_id") ?? ""
   const sessionId = searchParams.get("session_id") ?? ""
   const mode = searchParams.get("mode") ?? "stripe"
@@ -143,5 +149,9 @@ function CheckoutSuccessPageContent() {
 }
 
 export function CheckoutSuccess() {
-  return <CheckoutSuccessPageContent />
+  return (
+    <VisualEditorProvider pageKey="checkout-success">
+      <CheckoutSuccessPageContent />
+    </VisualEditorProvider>
+  )
 }

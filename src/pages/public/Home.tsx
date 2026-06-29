@@ -5,62 +5,12 @@ import { ErrorState, LoadingState } from "@/components/feedback"
 import { StarRating } from "@/components/reviews"
 import { ROUTES } from "@/lib/constants"
 import { useHomepageReviews } from "@/hooks/useReviews"
+import {
+  HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type HomeVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
-
-const featureBlocks = [
-  {
-    eyebrow: "EM BREVE - AULAS GRAVADAS",
-    text: "Domina temas complexos ao teu ritmo, com aulas organizadas e flexíveis, prontas quando tu estiveres.",
-  },
-  {
-    eyebrow: "EXPLICAÇÕES",
-    text: "Acompanhamento personalizado e focado nas tuas dúvidas específicas para garantires resultados.",
-  },
-  {
-    eyebrow: "MATERIAIS DIGITAIS",
-    text: "Resumos visuais e esquemas claros para simplificar o teu estudo e garantires a nota máxima sem complicações.",
-  },
-  {
-    eyebrow: "MATERIAIS DIGITAIS - GRATUITOS",
-    text: "Dicas flash e recursos rápidos para descarregar e dares um boost imediato no teu estudo.",
-  },
-]
-
-const steps = [
-  {
-    eyebrow: "ENCONTRA O TEU APOIO",
-    text: "Explora as sebentas e materiais disponíveis. Cada material foi criado para resolver uma dor específica, por isso vais perceber logo qual é o ideal para o teu momento.",
-  },
-  {
-    eyebrow: "ACESSO RÁPIDO E SEGURO",
-    text: "O processo é direto e transparente. Sem taxas escondidas ou passos desnecessários. Pagas de forma segura e o material é teu no segundo seguinte.",
-  },
-  {
-    eyebrow: "FOCA-TE NO QUE IMPORTA",
-    text: "Tudo fica organizado na tua Área do Aluno. Podes aceder aos PDFs e aulas sempre que quiseres, ao teu ritmo, e retomar o estudo exatamente onde paraste.",
-  },
-]
-
-const trustPointsLeft = [
-  {
-    title: "Linguagem Direta:",
-    text: "Falamos a mesma língua. Esquece os termos impossíveis dos manuais e entende a matéria à primeira.",
-  },
-  {
-    title: "Foco no Exame:",
-    text: "Materiais desenhados apenas com o que realmente sai. Sem distrações.",
-  },
-  {
-    title: "Resumos Visuais:",
-    text: "Esquemas e cores pensados para quem precisa de organizar ideias rapidamente.",
-  },
-]
-
-const trustPointsRight = [
-  "Suporte Real: Não recebes só um PDF. Tens uma \"amiga\" (eu!) nas DMs para te apoiar sempre que precisares.",
-  "Tudo Organizado: Esquece o caos do WhatsApp. Os teus materiais ficam sempre guardados na tua Área do Aluno.",
-  "Pés na Terra: Filosofia e Português deixam de ser abstratos e passam a ser ferramentas que dominas com segurança.",
-]
 
 function formatReviewDate(value: string) {
   return new Intl.DateTimeFormat("pt-PT", {
@@ -70,9 +20,17 @@ function formatReviewDate(value: string) {
   }).format(new Date(value))
 }
 
-export function Home() {
+function HomePageContent() {
   const reviewsQuery = useHomepageReviews(6)
   const reviews = reviewsQuery.data ?? []
+  const { document } = useVisualEditorPage()
+  const visualDocument = (document as HomeVisualEditorDocument | undefined) ?? HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const hero = visualDocument.hero
+  const objective = visualDocument.objective
+  const featureBlocks = visualDocument.featureBlocks
+  const steps = visualDocument.steps
+  const trust = visualDocument.trust
+  const reviewsCopy = visualDocument.reviews
 
   return (
     <div className="flex flex-col">
@@ -91,22 +49,23 @@ export function Home() {
 
           <div className="order-1 space-y-8 lg:order-2">
             <div className="space-y-4">
+              <span className="inline-flex rounded-full bg-[#242742] px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white">
+                {hero.eyebrow}
+              </span>
               <h1 className="max-w-[12ch] font-display text-5xl font-bold leading-[1.1] tracking-[-0.02em] text-[#0f122c] lg:text-6xl">
-                Tens dificuldades a Português ou Filosofia?
+                {hero.title}
               </h1>
               <h2 className="max-w-[14ch] font-display text-3xl font-bold leading-[1.3] tracking-[-0.02em] text-[#0f122c]/80 lg:text-4xl">
-                Nunca tiveste a disciplina e vais fazer exame?
+                {hero.subtitle}
               </h2>
-              <p className="max-w-[18ch] font-sans text-xl leading-[1.6] text-[#46464d]">
-                Então fica aqui que este local é para ti!
-              </p>
+              <p className="max-w-[18ch] font-sans text-xl leading-[1.6] text-[#46464d]">{hero.lead}</p>
             </div>
 
             <Button
               asChild
               className="rounded-full bg-[#242742] px-12 py-6 text-sm font-bold uppercase tracking-widest text-white shadow-lg hover:bg-[#1d2036]"
             >
-              <Link to={ROUTES.COURSES}>Explorar materiais</Link>
+              <Link to={hero.primaryCta.href}>{hero.primaryCta.label}</Link>
             </Button>
           </div>
         </div>
@@ -116,16 +75,13 @@ export function Home() {
         <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
           <div className="flex flex-col items-center rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 text-center shadow-sm">
             <span className="mb-8 inline-flex rounded-full bg-[#242742] px-6 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
-              Objetivo Principal
+              {objective.eyebrow}
             </span>
-            <p className="max-w-2xl font-display text-2xl leading-relaxed text-[#0f122c]">
-              Criei este espaço para te dar o apoio que os manuais não dão: leveza, clareza e uma estratégia real para
-              brilhares nos exames de Filosofia e Português. Vamo-nos simplificar?
-            </p>
+            <p className="max-w-2xl font-display text-2xl leading-relaxed text-[#0f122c]">{objective.text}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            {featureBlocks.map((block) => (
+            {Object.values(featureBlocks).map((block) => (
               <div
                 key={block.eyebrow}
                 className="flex flex-col items-center rounded border border-[rgba(71,71,77,0.12)] bg-white p-8 text-center shadow-sm"
@@ -153,7 +109,7 @@ export function Home() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {steps.map((step) => (
+            {Object.values(steps).map((step) => (
               <div
                 key={step.eyebrow}
                 className="flex flex-col rounded border border-[rgba(71,71,77,0.12)] bg-white p-10 shadow-sm"
@@ -172,10 +128,10 @@ export function Home() {
         <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 px-6 lg:grid-cols-2">
           <div className="rounded border border-[rgba(71,71,77,0.12)] bg-white p-12 shadow-sm">
             <h3 className="mb-12 inline-flex rounded-full bg-[rgba(169,207,255,0.35)] px-6 py-2 text-lg font-display text-[#0f122c]">
-              Vantagens de trabalhares comigo
+              {trust.leftTitle}
             </h3>
             <ul className="space-y-8">
-              {trustPointsLeft.map((point) => (
+              {[trust.leftPoint1, trust.leftPoint2, trust.leftPoint3].map((point) => (
                 <li key={point.title} className="flex items-start gap-3">
                   <span className="mt-1 text-xs text-[#242742]">•</span>
                   <div>
@@ -190,10 +146,10 @@ export function Home() {
           <div className="flex flex-col justify-between rounded bg-[rgba(169,207,255,0.2)] p-12">
             <div>
               <h3 className="mb-12 inline-flex rounded-full bg-white px-6 py-2 text-lg font-display text-[#0f122c]">
-                Leveza e Confiança em cada passo
+                {trust.rightTitle}
               </h3>
               <ul className="space-y-6">
-                {trustPointsRight.map((point) => (
+                {[trust.rightPoint1, trust.rightPoint2, trust.rightPoint3].map((point) => (
                   <li key={point} className="flex items-start gap-3">
                     <span className="mt-1 text-xs text-[#242742]">•</span>
                     <span className="text-sm font-medium leading-6 text-[#242742]">{point}</span>
@@ -208,14 +164,14 @@ export function Home() {
                 variant="outline"
                 className="rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm"
               >
-                <Link to={ROUTES.COURSES}>Explorar materiais</Link>
+                <Link to={trust.primaryCta.href}>{trust.primaryCta.label}</Link>
               </Button>
               <Button
                 asChild
                 variant="outline"
                 className="rounded-xl border border-[rgba(71,71,77,0.12)] bg-white px-8 py-3 text-xs font-bold uppercase shadow-sm"
               >
-                <Link to={ROUTES.REGISTER}>Criar Conta</Link>
+                <Link to={trust.secondaryCta.href}>{trust.secondaryCta.label}</Link>
               </Button>
             </div>
           </div>
@@ -227,12 +183,12 @@ export function Home() {
           <div className="mx-auto max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[#567085] shadow-sm ring-1 ring-black/5">
               <MessageCircleHeart className="h-4 w-4 text-[#242742]" />
-              Reviews
+              {reviewsCopy.eyebrow}
             </div>
             <h2 className="mt-4 font-display text-5xl font-bold tracking-[-0.02em] text-[#0f122c]">
-              E o que dizem os nossos alunos?
+              {reviewsCopy.title}
             </h2>
-            <p className="mt-4 text-base leading-7 text-[#46464d]">Avaliações reais publicadas no módulo de Reviews.</p>
+            <p className="mt-4 text-base leading-7 text-[#46464d]">{reviewsCopy.lead}</p>
           </div>
 
           {reviewsQuery.isLoading ? <LoadingState message="A carregar avaliações..." /> : null}
@@ -292,5 +248,13 @@ export function Home() {
         </div>
       </section>
     </div>
+  )
+}
+
+export function Home() {
+  return (
+    <VisualEditorProvider pageKey="home">
+      <HomePageContent />
+    </VisualEditorProvider>
   )
 }

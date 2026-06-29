@@ -1,4 +1,9 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type LegalVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
 
 const sections: LegalSection[] = [
   {
@@ -52,14 +57,34 @@ const sections: LegalSection[] = [
   },
 ]
 
-export function CookiePolicy() {
+function CookiePolicyPageContent() {
+  const { document } = useVisualEditorPage()
+  const visualDocument = (document as LegalVisualEditorDocument | undefined) ?? LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT
+
   return (
     <LegalPageLayout
-      eyebrow="Cookies"
-      title="Politica de Cookies"
-      intro="Esta Politica de Cookies descreve de forma transparente que tipos de cookies e tecnologias semelhantes podem ser utilizados na Mariana Explica, em que circunstancias sao necessarios, quando dependem de consentimento e como podem ser geridos pelo utilizador, em conformidade com as regras aplicaveis em Portugal e na Uniao Europeia."
-      updatedAt="23/04/2026"
+      eyebrow={visualDocument.hero.eyebrow}
+      title={visualDocument.hero.title}
+      intro={visualDocument.hero.intro}
+      updatedAt={visualDocument.hero.updatedAt}
       sections={sections}
+      support={{
+        eyebrow: visualDocument.support.eyebrow,
+        title: visualDocument.support.title,
+        lead: visualDocument.support.lead,
+        primaryCtaLabel: visualDocument.support.primaryCta.label,
+        primaryCtaHref: visualDocument.support.primaryCta.href,
+        secondaryCtaLabel: visualDocument.support.secondaryCta.label,
+        secondaryCtaHref: visualDocument.support.secondaryCta.href,
+      }}
     />
+  )
+}
+
+export function CookiePolicy() {
+  return (
+    <VisualEditorProvider pageKey="cookies">
+      <CookiePolicyPageContent />
+    </VisualEditorProvider>
   )
 }

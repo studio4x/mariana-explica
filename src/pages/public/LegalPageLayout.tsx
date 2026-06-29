@@ -12,6 +12,15 @@ type LegalPageLayoutProps = {
   intro: string
   updatedAt: string
   sections: LegalSection[]
+  support?: {
+    eyebrow: string
+    title: string
+    lead: string
+    primaryCtaLabel: string
+    primaryCtaHref: string
+    secondaryCtaLabel: string
+    secondaryCtaHref: string
+  }
 }
 
 export function LegalPageLayout({
@@ -20,7 +29,19 @@ export function LegalPageLayout({
   intro,
   updatedAt,
   sections,
+  support,
 }: LegalPageLayoutProps) {
+  const supportBlock = support ?? {
+    eyebrow: "Apoio",
+    title: "Precisa de esclarecimentos?",
+    lead:
+      "Se precisar de ajuda adicional sobre privacidade, cookies, condicoes de utilizacao ou exercicio de direitos, utilize os canais de apoio disponiveis na plataforma.",
+    primaryCtaLabel: "Contactar suporte",
+    primaryCtaHref: ROUTES.SUPPORT,
+    secondaryCtaLabel: `Aceder a ${APP_NAME}`,
+    secondaryCtaHref: ROUTES.LOGIN,
+  }
+
   return (
     <div className="bg-white">
       <section className="container py-10 sm:py-14 lg:py-16">
@@ -59,24 +80,21 @@ export function LegalPageLayout({
           </div>
 
           <div className="mt-8 rounded-[24px] border border-sky-100 bg-sky-50/80 p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">Apoio</p>
-            <h2 className="mt-3 font-display text-2xl text-slate-950">Precisa de esclarecimentos?</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-              Se precisar de ajuda adicional sobre privacidade, cookies, condicoes de utilizacao ou exercicio de
-              direitos, utilize os canais de apoio disponiveis na plataforma.
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">{supportBlock.eyebrow}</p>
+            <h2 className="mt-3 font-display text-2xl text-slate-950">{supportBlock.title}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{supportBlock.lead}</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
-                to={ROUTES.SUPPORT}
+                to={supportBlock.primaryCtaHref}
                 className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Contactar suporte
+                {supportBlock.primaryCtaLabel}
               </Link>
               <Link
-                to={ROUTES.LOGIN}
+                to={supportBlock.secondaryCtaHref}
                 className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
               >
-                Aceder a {APP_NAME}
+                {supportBlock.secondaryCtaLabel}
               </Link>
             </div>
           </div>

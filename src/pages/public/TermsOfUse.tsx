@@ -1,4 +1,9 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
+  type LegalVisualEditorDocument,
+} from "@/features/site-editor/visual-editor/public-page-definitions"
 
 const sections: LegalSection[] = [
   {
@@ -72,14 +77,34 @@ const sections: LegalSection[] = [
   },
 ]
 
-export function TermsOfUse() {
+function TermsOfUsePageContent() {
+  const { document } = useVisualEditorPage()
+  const visualDocument = (document as LegalVisualEditorDocument | undefined) ?? LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT
+
   return (
     <LegalPageLayout
-      eyebrow="Termos"
-      title="Termos de Uso"
-      intro="Estes Termos de Uso definem as regras aplicaveis ao acesso ao site, criacao de conta, compra de conteudos digitais e utilizacao da plataforma Mariana Explica. O texto foi preparado para um servico operado em Portugal e deve ser lido em conjunto com a Politica de Privacidade, a Politica de Cookies e as informacoes comerciais apresentadas nas paginas de produto e checkout."
-      updatedAt="23/04/2026"
+      eyebrow={visualDocument.hero.eyebrow}
+      title={visualDocument.hero.title}
+      intro={visualDocument.hero.intro}
+      updatedAt={visualDocument.hero.updatedAt}
       sections={sections}
+      support={{
+        eyebrow: visualDocument.support.eyebrow,
+        title: visualDocument.support.title,
+        lead: visualDocument.support.lead,
+        primaryCtaLabel: visualDocument.support.primaryCta.label,
+        primaryCtaHref: visualDocument.support.primaryCta.href,
+        secondaryCtaLabel: visualDocument.support.secondaryCta.label,
+        secondaryCtaHref: visualDocument.support.secondaryCta.href,
+      }}
     />
+  )
+}
+
+export function TermsOfUse() {
+  return (
+    <VisualEditorProvider pageKey="terms">
+      <TermsOfUsePageContent />
+    </VisualEditorProvider>
   )
 }
