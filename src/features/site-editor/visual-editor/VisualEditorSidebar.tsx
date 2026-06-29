@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, ChevronDown, ChevronUp, RefreshCcw, Sparkles, X } from "lucide-react"
 import { RichTextEditor } from "@/components/common"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
-import { richTextToPlainText } from "@/lib/rich-text"
+import { isRichTextEmpty, richTextToPlainText, sanitizeRichTextHtml } from "@/lib/rich-text"
 import type {
   VisualEditorPageDetail,
   VisualEditorPageVersion,
@@ -208,6 +208,27 @@ export function VisualEditorSidebar(props: {
     }
 
     return String(value)
+  }
+
+  const renderValuePreviewNode = (value: unknown): ReactNode => {
+    if (
+      typeof value === "string" &&
+      isSelectedTextField &&
+      textPresentationMode === "paragraph"
+    ) {
+      if (isRichTextEmpty(value)) {
+        return <p className="text-sm italic text-slate-400">Vazio</p>
+      }
+
+      return (
+        <div
+          className="rich-text-content break-words text-sm leading-6 text-slate-600"
+          dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value) }}
+        />
+      )
+    }
+
+    return <p className="break-words">{renderValuePreview(value)}</p>
   }
 
   const updateStyle = (patch: Record<string, unknown>) => {
@@ -416,9 +437,9 @@ export function VisualEditorSidebar(props: {
                       <>
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
                           <p className="font-semibold text-slate-800">Valor atual</p>
-                          <p className="mt-1 break-words">{renderValuePreview(selectedEditable.currentValue)}</p>
+                          <div className="mt-1">{renderValuePreviewNode(selectedEditable.currentValue)}</div>
                           <p className="mt-3 font-semibold text-slate-800">Fallback hardcoded</p>
-                          <p className="mt-1 break-words">{renderValuePreview(selectedEditable.fallback)}</p>
+                          <div className="mt-1">{renderValuePreviewNode(selectedEditable.fallback)}</div>
                         </div>
 
                         {selectedEditable.entryType === "container" ? (
