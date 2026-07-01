@@ -206,7 +206,7 @@ function readThemeTypographyBaseline(token: string) {
   }
 }
 
-function normalizeTypographyValue(value: string | undefined) {
+function normalizeTypographyValue(value: string | number | undefined) {
   return String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase()
 }
 
@@ -256,10 +256,11 @@ function buildVisualEditorTextStyleOverrides(
       continue
     }
 
+    const normalizedValue = String(currentValue)
     if (mode === "inline") {
-      style[property] = currentValue
+      style[property] = normalizedValue
     } else {
-      style[cssVariable] = currentValue
+      style[cssVariable] = normalizedValue
     }
   }
 

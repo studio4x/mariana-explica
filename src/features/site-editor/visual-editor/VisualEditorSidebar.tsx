@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { Check, ChevronDown, ChevronUp, RefreshCcw, Sparkles, X } from "lucide-react"
+import { ChevronDown, ChevronUp, RefreshCcw, X } from "lucide-react"
 import { RichTextEditor } from "@/components/common"
 import { Button } from "@/components/ui"
 import { cn } from "@/lib/cn"
@@ -139,18 +139,13 @@ export function VisualEditorSidebar(props: {
     publicPage,
     selectedEditable,
     draftValue,
-    isDirty,
     statusMessage,
     setStatusMessage,
     setDraftValue,
     setStyleValue,
     closeEditor,
-    cancelEditor,
     restoreFallback,
     restoreStyleFallback,
-    resetDocument,
-    saveEditor,
-    publishEditor,
     restoreVersion,
     refresh,
     activateEditing,
