@@ -194,7 +194,7 @@
   font-family: var(--site-body-font-family);
 }
 
-.rich-text-content h1 {
+.me-visual-rich-text[data-me-rich-text-token="h1"] {
   font-family: var(--me-rich-text-font-family, var(--site-h1-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-h1-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-h1-font-weight));
@@ -204,7 +204,7 @@
   color: var(--me-rich-text-color, var(--site-h1-color));
 }
 
-.rich-text-content h2 {
+.me-visual-rich-text[data-me-rich-text-token="h2"] {
   font-family: var(--me-rich-text-font-family, var(--site-h2-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-h2-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-h2-font-weight));
@@ -214,7 +214,7 @@
   color: var(--me-rich-text-color, var(--site-h2-color));
 }
 
-.rich-text-content h3 {
+.me-visual-rich-text[data-me-rich-text-token="h3"] {
   font-family: var(--me-rich-text-font-family, var(--site-h3-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-h3-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-h3-font-weight));
@@ -224,7 +224,7 @@
   color: var(--me-rich-text-color, var(--site-h3-color));
 }
 
-.rich-text-content h4 {
+.me-visual-rich-text[data-me-rich-text-token="h4"] {
   font-family: var(--me-rich-text-font-family, var(--site-h4-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-h4-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-h4-font-weight));
@@ -234,7 +234,7 @@
   color: var(--me-rich-text-color, var(--site-h4-color));
 }
 
-.rich-text-content h5 {
+.me-visual-rich-text[data-me-rich-text-token="h5"] {
   font-family: var(--me-rich-text-font-family, var(--site-h5-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-h5-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-h5-font-weight));
@@ -244,7 +244,7 @@
   color: var(--me-rich-text-color, var(--site-h5-color));
 }
 
-.rich-text-content h6 {
+.me-visual-rich-text[data-me-rich-text-token="h6"] {
   font-family: var(--me-rich-text-font-family, var(--site-h6-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-h6-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-h6-font-weight));
@@ -254,7 +254,13 @@
   color: var(--me-rich-text-color, var(--site-h6-color));
 }
 
-.rich-text-content p {
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] {
+  color: var(--me-rich-text-color, var(--site-paragraph-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] .rich-text-content,
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] > p,
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] > blockquote {
   font-family: var(--me-rich-text-font-family, var(--site-paragraph-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-paragraph-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-paragraph-font-weight));
@@ -264,7 +270,7 @@
   color: var(--me-rich-text-color, var(--site-paragraph-color));
 }
 
-.rich-text-content li {
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] li {
   font-family: var(--me-rich-text-font-family, var(--site-list-item-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-list-item-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-list-item-font-weight));
@@ -274,17 +280,7 @@
   color: var(--me-rich-text-color, var(--site-list-item-color));
 }
 
-.rich-text-content blockquote {
-  font-family: var(--me-rich-text-font-family, var(--site-paragraph-font-family));
-  font-size: var(--me-rich-text-font-size, var(--site-paragraph-font-size));
-  font-weight: var(--me-rich-text-font-weight, var(--site-paragraph-font-weight));
-  line-height: var(--me-rich-text-line-height, var(--site-paragraph-line-height));
-  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-paragraph-letter-spacing));
-  text-transform: var(--me-rich-text-text-transform, var(--site-paragraph-text-transform));
-  color: var(--me-rich-text-color, var(--site-paragraph-color));
-}
-
-.rich-text-content a {
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] a {
   font-family: var(--me-rich-text-font-family, var(--site-link-font-family));
   font-size: var(--me-rich-text-font-size, var(--site-link-font-size));
   font-weight: var(--me-rich-text-font-weight, var(--site-link-font-weight));
@@ -294,7 +290,68 @@
   color: var(--me-rich-text-color, var(--site-link-color-rule));
 }
 
-.rich-text-content a:hover {
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] h1 {
+  font-family: var(--me-rich-text-font-family, var(--site-h1-font-family));
+  font-size: var(--me-rich-text-font-size, var(--site-h1-font-size));
+  font-weight: var(--me-rich-text-font-weight, var(--site-h1-font-weight));
+  line-height: var(--me-rich-text-line-height, var(--site-h1-line-height));
+  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-h1-letter-spacing));
+  text-transform: var(--me-rich-text-text-transform, var(--site-h1-text-transform));
+  color: var(--me-rich-text-color, var(--site-h1-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] h2 {
+  font-family: var(--me-rich-text-font-family, var(--site-h2-font-family));
+  font-size: var(--me-rich-text-font-size, var(--site-h2-font-size));
+  font-weight: var(--me-rich-text-font-weight, var(--site-h2-font-weight));
+  line-height: var(--me-rich-text-line-height, var(--site-h2-line-height));
+  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-h2-letter-spacing));
+  text-transform: var(--me-rich-text-text-transform, var(--site-h2-text-transform));
+  color: var(--me-rich-text-color, var(--site-h2-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] h3 {
+  font-family: var(--me-rich-text-font-family, var(--site-h3-font-family));
+  font-size: var(--me-rich-text-font-size, var(--site-h3-font-size));
+  font-weight: var(--me-rich-text-font-weight, var(--site-h3-font-weight));
+  line-height: var(--me-rich-text-line-height, var(--site-h3-line-height));
+  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-h3-letter-spacing));
+  text-transform: var(--me-rich-text-text-transform, var(--site-h3-text-transform));
+  color: var(--me-rich-text-color, var(--site-h3-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] h4 {
+  font-family: var(--me-rich-text-font-family, var(--site-h4-font-family));
+  font-size: var(--me-rich-text-font-size, var(--site-h4-font-size));
+  font-weight: var(--me-rich-text-font-weight, var(--site-h4-font-weight));
+  line-height: var(--me-rich-text-line-height, var(--site-h4-line-height));
+  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-h4-letter-spacing));
+  text-transform: var(--me-rich-text-text-transform, var(--site-h4-text-transform));
+  color: var(--me-rich-text-color, var(--site-h4-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] h5 {
+  font-family: var(--me-rich-text-font-family, var(--site-h5-font-family));
+  font-size: var(--me-rich-text-font-size, var(--site-h5-font-size));
+  font-weight: var(--me-rich-text-font-weight, var(--site-h5-font-weight));
+  line-height: var(--me-rich-text-line-height, var(--site-h5-line-height));
+  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-h5-letter-spacing));
+  text-transform: var(--me-rich-text-text-transform, var(--site-h5-text-transform));
+  color: var(--me-rich-text-color, var(--site-h5-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] h6 {
+  font-family: var(--me-rich-text-font-family, var(--site-h6-font-family));
+  font-size: var(--me-rich-text-font-size, var(--site-h6-font-size));
+  font-weight: var(--me-rich-text-font-weight, var(--site-h6-font-weight));
+  line-height: var(--me-rich-text-line-height, var(--site-h6-line-height));
+  letter-spacing: var(--me-rich-text-letter-spacing, var(--site-h6-letter-spacing));
+  text-transform: var(--me-rich-text-text-transform, var(--site-h6-text-transform));
+  color: var(--me-rich-text-color, var(--site-h6-color));
+}
+
+.me-visual-rich-text[data-me-rich-text-token="link"]:hover,
+.me-visual-rich-text[data-me-rich-text-token="paragraph"] a:hover {
   color: var(--site-link-hover-color);
 }
 

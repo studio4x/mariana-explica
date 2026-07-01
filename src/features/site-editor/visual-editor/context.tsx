@@ -1126,9 +1126,10 @@ export function EditableText(props: {
     return (
       <div
         data-visual-editor-field={fieldKey}
+        data-me-rich-text-token={themeToken}
         style={resolvedStyle}
         className={cn(
-          "group relative",
+          "me-visual-rich-text group relative",
           className,
           isEditingActive && "cursor-pointer transition",
           isEditingActive && "hover:outline hover:outline-2 hover:outline-sky-300/80",
@@ -1169,9 +1170,10 @@ export function EditableText(props: {
   return (
     <Element
       data-visual-editor-field={fieldKey}
+      data-me-rich-text-token={themeToken}
       style={resolvedStyle}
       className={cn(
-        "group relative",
+        "me-visual-rich-text group relative",
         className,
         isEditingActive && "cursor-pointer transition",
         isEditingActive && "hover:outline hover:outline-2 hover:outline-sky-300/80",
