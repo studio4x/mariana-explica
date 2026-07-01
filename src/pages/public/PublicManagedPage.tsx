@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { useLocation } from "react-router-dom"
-import { LoadingState } from "@/components/feedback"
 import { HomeReviewsFeed } from "@/components/reviews"
+import { VisualEditorProvider } from "@/features/site-editor/visual-editor"
 import { formatAiPageEditorModeLabel, formatAiPageEditorScopeLabel } from "@/lib/ai-page-editor"
 import {
   buildCanonicalManagedPagePayload,
@@ -101,12 +101,8 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
       return rebuildManagedPayloadFromVersion(slug, pageQuery.data.version) ?? canonicalPayload
     }
 
-    if (pageQuery.isLoading) {
-      return null
-    }
-
     return canonicalPayload
-  }, [canonicalPayload, pageQuery.data?.version, pageQuery.isLoading, previewPayload, slug])
+  }, [canonicalPayload, pageQuery.data?.version, previewPayload, slug])
 
   function prepareMountNode(selector: string, markerName: string) {
     const root = managedRootRef.current
@@ -136,7 +132,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     )
     setSupportExperienceMountNode(
       slug === "suporte"
-        ? prepareMountNode(".me-support-experience-placeholder", "data-me-support-experience-live")
+        ? prepareMountNode(".me-support-shell", "data-me-support-shell-live")
         : null,
     )
   }, [managedPayload?.html, slug])
@@ -187,10 +183,6 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     }
   }, [managedPayload?.html, previewPayload?.highlightSelectors])
 
-  if (pageQuery.isLoading && !previewPayload) {
-    return <LoadingState message="A carregar conteudo da pagina..." />
-  }
-
   if (pageQuery.isError && !previewPayload && fallback) {
     return <>{fallback}</>
   }
@@ -199,7 +191,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     return fallback ? <>{fallback}</> : null
   }
 
-  return (
+  const pageContent = (
     <div className="w-full bg-white">
       {managedPayload.css ? <style>{managedPayload.css}</style> : null}
       {previewPayload ? (
@@ -233,6 +225,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
 
         .me-explicacoes-form-placeholder[data-me-explicacoes-form-live="1"],
         .me-products-experience-placeholder[data-me-products-experience-live="1"],
+        .me-support-shell[data-me-support-shell-live="1"],
         .me-support-experience-placeholder[data-me-support-experience-live="1"] {
           min-height: 0;
         }
@@ -289,4 +282,6 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
         : null}
     </div>
   )
+
+  return slug === "suporte" ? <VisualEditorProvider pageKey="support">{pageContent}</VisualEditorProvider> : pageContent
 }

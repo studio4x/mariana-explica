@@ -3,6 +3,7 @@ const ALLOWED_TAGS = new Set([
   "blockquote",
   "br",
   "em",
+  "h1",
   "h2",
   "h3",
   "h4",
@@ -14,7 +15,7 @@ const ALLOWED_TAGS = new Set([
   "ul",
 ])
 
-const BLOCK_TAGS = new Set(["blockquote", "h2", "h3", "h4", "li", "ol", "p", "ul"])
+const BLOCK_TAGS = new Set(["blockquote", "h1", "h2", "h3", "h4", "li", "ol", "p", "ul"])
 
 function sanitizeHref(value: string | null) {
   if (!value) return null
@@ -88,7 +89,7 @@ function sanitizeNode(node: Node) {
 function normalizeHtml(html: string) {
   return html
     .replace(/&nbsp;/g, " ")
-    .replace(/\s+(<\/(p|li|blockquote|h2|h3|h4|ul|ol)>)/g, "$1")
+    .replace(/\s+(<\/(p|li|blockquote|h1|h2|h3|h4|ul|ol)>)/g, "$1")
     .trim()
 }
 

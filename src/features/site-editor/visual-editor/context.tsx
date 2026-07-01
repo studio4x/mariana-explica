@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, Link2, PencilLine, Sparkles } from "lucide-react"
@@ -160,6 +160,110 @@ function resolveVisualEditorTextTag(
   }
 
   return "p"
+}
+
+function resolveThemeTypographyToken(textTag: string, fieldDefinition?: VisualEditorFieldDefinition) {
+  const normalizedTag = textTag.trim().toLowerCase()
+
+  if (/^h[1-6]$/.test(normalizedTag)) {
+    return normalizedTag
+  }
+
+  if (normalizedTag === "a" || fieldDefinition?.kind === "link") {
+    return "link"
+  }
+
+  if (normalizedTag === "label") {
+    return "label"
+  }
+
+  if (normalizedTag === "small") {
+    return "small"
+  }
+
+  return "paragraph"
+}
+
+function readThemeTypographyBaseline(token: string) {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return null
+  }
+
+  const rootStyle = window.getComputedStyle(document.documentElement)
+  const read = (property: string) => {
+    const value = rootStyle.getPropertyValue(property).trim()
+    return value || undefined
+  }
+
+  return {
+    fontFamily: read(`--site-${token}-font-family`),
+    fontSize: read(`--site-${token}-font-size`),
+    fontWeight: read(`--site-${token}-font-weight`),
+    lineHeight: read(`--site-${token}-line-height`),
+    letterSpacing: read(`--site-${token}-letter-spacing`),
+    textTransform: read(`--site-${token}-text-transform`),
+    color: read(`--site-${token}-color`),
+  }
+}
+
+function normalizeTypographyValue(value: string | undefined) {
+  return String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase()
+}
+
+function buildVisualEditorTextStyleOverrides(
+  value: VisualEditorFieldStyleValue | null | undefined,
+  token: string,
+  mode: "inline" | "rich-text",
+) {
+  const baseline = readThemeTypographyBaseline(token)
+  const source = getVisualEditorTextStyle(value, true).style
+  const style: CSSProperties & Record<string, string> = {}
+
+  if (source.textAlign) {
+    style.textAlign = source.textAlign
+  }
+
+  if (source.fontStyle) {
+    style.fontStyle = source.fontStyle
+  }
+
+  const typographyMappings: Array<
+    [
+      keyof Pick<
+        CSSProperties,
+        "fontFamily" | "fontSize" | "fontWeight" | "lineHeight" | "letterSpacing" | "textTransform" | "color"
+      >,
+      string,
+    ]
+  > = [
+    ["fontFamily", "--me-rich-text-font-family"],
+    ["fontSize", "--me-rich-text-font-size"],
+    ["fontWeight", "--me-rich-text-font-weight"],
+    ["lineHeight", "--me-rich-text-line-height"],
+    ["letterSpacing", "--me-rich-text-letter-spacing"],
+    ["textTransform", "--me-rich-text-text-transform"],
+    ["color", "--me-rich-text-color"],
+  ]
+
+  for (const [property, cssVariable] of typographyMappings) {
+    const currentValue = source[property]
+    if (!currentValue) {
+      continue
+    }
+
+    const baselineValue = baseline?.[property]
+    if (baselineValue && normalizeTypographyValue(currentValue) === normalizeTypographyValue(baselineValue)) {
+      continue
+    }
+
+    if (mode === "inline") {
+      style[property] = currentValue
+    } else {
+      style[cssVariable] = currentValue
+    }
+  }
+
+  return style as CSSProperties
 }
 
 function normalizeEditableValue(field: VisualEditorFieldDefinition | undefined, rawValue: unknown) {
@@ -832,6 +936,35 @@ export function VisualEditorProvider(props: {
         </button>
       ) : null}
       {showPublicPanel ? (
+        <div className="fixed left-4 top-4 z-50 flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+          <span
+            className={cn(
+              "rounded-full px-3 py-1 text-[11px] font-semibold",
+              isDirty ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700",
+            )}
+          >
+            {isDirty ? "Alteracoes pendentes" : "Tudo sincronizado"}
+          </span>
+          {statusMessage ? (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-700">
+              {statusMessage}
+            </span>
+          ) : null}
+          <Button type="button" className="h-9 rounded-full px-4 text-xs" onClick={() => void saveDraft()} disabled={!isDirty}>
+            Guardar rascunho
+          </Button>
+          <Button type="button" className="h-9 rounded-full px-4 text-xs" onClick={() => void publishDraft()}>
+            Publicar
+          </Button>
+          <Button type="button" variant="outline" className="h-9 rounded-full px-4 text-xs bg-white" onClick={cancelEditor} disabled={!selectedFieldKey}>
+            Cancelar
+          </Button>
+          <Button type="button" variant="outline" className="h-9 rounded-full px-4 text-xs bg-white" onClick={resetDocument}>
+            Reverter pagina
+          </Button>
+        </div>
+      ) : null}
+      {showPublicPanel ? (
         <VisualEditorSidebar
           mode="fixed"
           canEdit={canEdit}
@@ -928,6 +1061,10 @@ export function useVisualEditorPage() {
   return useVisualEditorContext()
 }
 
+export function useOptionalVisualEditorPage() {
+  return useContext(VisualEditorContext) ?? null
+}
+
 export function SiteContentScope(props: {
   title: string
   description?: string
@@ -969,8 +1106,13 @@ export function EditableText(props: {
   const { isSelected, select, fieldDefinition } = useEditableElementState(fieldKey)
   const value = String(getFieldValue(fieldKey, fallback) ?? fallback)
   const styleValue = getStyleValue(fieldKey)
-  const { style, headingTag } = getVisualEditorTextStyle(styleValue, true)
+  const { headingTag } = getVisualEditorTextStyle(styleValue, true)
   const textTag = resolveVisualEditorTextTag(normalizeVisualEditorTextSemanticTag(headingTag), String(as), fieldDefinition)
+  const themeToken = resolveThemeTypographyToken(textTag, fieldDefinition)
+  const resolvedStyle = useMemo(
+    () => buildVisualEditorTextStyleOverrides(styleValue, themeToken, textTag === "p" ? "rich-text" : "inline"),
+    [styleValue, themeToken, textTag],
+  )
   const plainValue = richTextToPlainText(value) || value
 
   useEffect(() => {
@@ -984,7 +1126,7 @@ export function EditableText(props: {
     return (
       <div
         data-visual-editor-field={fieldKey}
-        style={style}
+        style={resolvedStyle}
         className={cn(
           "group relative",
           className,
@@ -1027,7 +1169,7 @@ export function EditableText(props: {
   return (
     <Element
       data-visual-editor-field={fieldKey}
-      style={style}
+      style={resolvedStyle}
       className={cn(
         "group relative",
         className,

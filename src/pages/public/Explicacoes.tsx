@@ -3,7 +3,7 @@ import { MessageCircleHeart, Send } from "lucide-react"
 import { OperationFeedbackModal } from "@/components/common"
 import { Button } from "@/components/ui"
 import { submitPublicForm } from "@/services"
-import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type ExplicacoesVisualEditorDocument,
@@ -25,9 +25,10 @@ const initialFormState: ExplicacoesFormState = {
 }
 
 function ExplicacoesPageContent() {
-  const { document } = useVisualEditorPage()
+  const visualEditorPage = useOptionalVisualEditorPage()
   const visualDocument =
-    (document as ExplicacoesVisualEditorDocument | undefined) ?? EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT
+    (visualEditorPage?.document as ExplicacoesVisualEditorDocument | undefined) ??
+    EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const hero = visualDocument.hero
   const notes = visualDocument.notes
   const formNote = visualDocument.formNote

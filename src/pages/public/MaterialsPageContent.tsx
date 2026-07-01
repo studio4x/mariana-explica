@@ -18,7 +18,7 @@ import {
   EditableLink,
   EditableText,
   SiteContentScope,
-  useVisualEditorPage,
+  useOptionalVisualEditorPage,
 } from "@/features/site-editor/visual-editor"
 import {
   MATERIALS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
@@ -71,7 +71,7 @@ export function MaterialsPageContent() {
   const [search, setSearch] = useState("")
   const [sortMode, setSortMode] = useState<SortMode>("recent")
   const deferredSearch = useDeferredValue(search)
-  const { document } = useVisualEditorPage()
+  const visualEditorPage = useOptionalVisualEditorPage()
   const { data: products, isLoading, isError, error, refetch } = usePublishedProducts()
   const { data: categoriesFromDb } = usePublishedProductCategories()
   const { data: faqCategoriesFromDb } = usePublishedFaqCategories()
@@ -151,7 +151,8 @@ export function MaterialsPageContent() {
   )
 
   const visualDocument =
-    (document as unknown as MaterialsVisualEditorDocument | undefined) ?? MATERIALS_VISUAL_EDITOR_DEFAULT_DOCUMENT
+    (visualEditorPage?.document as unknown as MaterialsVisualEditorDocument | undefined) ??
+    MATERIALS_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const hero = visualDocument.hero
   const catalogHelpCta = visualDocument.catalogHelpCta
   const supportCta = visualDocument.supportCta

@@ -1,5 +1,5 @@
 import { LegalPageLayout, type LegalSection } from "./LegalPageLayout"
-import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type LegalVisualEditorDocument,
@@ -59,8 +59,9 @@ const sections: LegalSection[] = [
 ]
 
 function CookiePolicyPageContent() {
-  const { document } = useVisualEditorPage()
-  const visualDocument = (document as LegalVisualEditorDocument | undefined) ?? LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const visualEditorPage = useOptionalVisualEditorPage()
+  const visualDocument =
+    (visualEditorPage?.document as LegalVisualEditorDocument | undefined) ?? LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT
 
   return (
     <LegalPageLayout

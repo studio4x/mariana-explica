@@ -1,14 +1,19 @@
-import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type AboutVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
-import { EditableText, SiteContentScope } from "@/features/site-editor/visual-editor"
+import {
+  EditableText,
+  SiteContentScope,
+  VisualEditorProvider,
+  useOptionalVisualEditorPage,
+} from "@/features/site-editor/visual-editor"
 import { PublicManagedPage } from "./PublicManagedPage"
 
 function AboutPageContent() {
-  const { document } = useVisualEditorPage()
-  const visualDocument = (document as AboutVisualEditorDocument | undefined) ?? ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const visualEditorPage = useOptionalVisualEditorPage()
+  const visualDocument =
+    (visualEditorPage?.document as AboutVisualEditorDocument | undefined) ?? ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const hero = visualDocument.hero
   const portrait = visualDocument.portrait
   const intro = visualDocument.intro

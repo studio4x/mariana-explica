@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
 import { createCheckoutAutologin } from "@/services"
-import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutSuccessVisualEditorDocument,
@@ -16,9 +16,10 @@ function CheckoutSuccessPageContent() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { session, profile, loading } = useAuth()
-  const { document } = useVisualEditorPage()
+  const visualEditorPage = useOptionalVisualEditorPage()
   const visualDocument =
-    (document as CheckoutSuccessVisualEditorDocument | undefined) ?? CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT
+    (visualEditorPage?.document as CheckoutSuccessVisualEditorDocument | undefined) ??
+    CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const productId = searchParams.get("product_id") ?? ""
   const sessionId = searchParams.get("session_id") ?? ""
   const mode = searchParams.get("mode") ?? "stripe"

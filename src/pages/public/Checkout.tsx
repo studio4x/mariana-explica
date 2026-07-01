@@ -23,7 +23,7 @@ import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
-import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutVisualEditorDocument,
@@ -191,9 +191,9 @@ function CheckoutPageContent() {
   const [draft, setDraft] = useState<CheckoutDraft>(() => loadCheckoutDraft())
   const nifDirtyRef = useRef(false)
   const syncedProfileNifRef = useRef<string | null>(null)
-  const { document } = useVisualEditorPage()
+  const visualEditorPage = useOptionalVisualEditorPage()
   const visualDocument =
-    (document as CheckoutVisualEditorDocument | undefined) ?? CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+    (visualEditorPage?.document as CheckoutVisualEditorDocument | undefined) ?? CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
 
   const profile = profileQuery.data ?? authProfile
 

@@ -13,7 +13,7 @@ import {
   EditableLink,
   EditableText,
   SiteContentScope,
-  useVisualEditorPage,
+  useOptionalVisualEditorPage,
 } from "@/features/site-editor/visual-editor"
 import {
   SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
@@ -25,15 +25,33 @@ type SupportFaq = FaqSummary & {
   ctaTo?: string
 }
 
-export function SupportFaqExperience() {
+function renderSupportLink(link: { label: string; href: string }, className: string) {
+  if (link.href.startsWith("/")) {
+    return (
+      <Button asChild className={className}>
+        <Link to={link.href}>{link.label}</Link>
+      </Button>
+    )
+  }
+
+  return (
+    <a href={link.href} className={className}>
+      {link.label}
+    </a>
+  )
+}
+
+function SupportFaqExperienceContent(props: { includeHero: boolean }) {
+  const { includeHero } = props
   const [query, setQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState("all")
   const { data: faqCategoriesFromDb } = usePublishedFaqCategories()
   const { data: faqsFromDb } = usePublishedFaqs()
-  const { document } = useVisualEditorPage()
+  const visualEditorPage = useOptionalVisualEditorPage()
 
   const visualDocument =
-    (document as unknown as SupportVisualEditorDocument | undefined) ?? SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+    (visualEditorPage?.document as unknown as SupportVisualEditorDocument | undefined) ??
+    SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const hero = visualDocument.hero
   const supportCta = visualDocument.supportCta
 
@@ -106,64 +124,102 @@ export function SupportFaqExperience() {
       </div>
 
       <div className="container relative space-y-12">
-        <SiteContentScope title="Hero principal" description="Texto, CTAs e imagem de abertura">
-          <section className="grid gap-8 overflow-hidden rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] md:p-10">
-            <div className="space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#e7f3fb] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#114866]">
-                <LifeBuoy className="h-4 w-4" />
-                <EditableText
-                  fieldKey="hero.eyebrow"
-                  as="span"
-                  fallback={hero.eyebrow}
-                  className="text-[11px] font-black uppercase tracking-[0.18em] text-[#114866]"
-                />
+        {includeHero ? (
+          visualEditorPage ? (
+            <SiteContentScope title="Hero principal" description="Texto, CTAs e imagem de abertura">
+              <section className="grid gap-8 overflow-hidden rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] md:p-10">
+                <div className="space-y-5">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#e7f3fb] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#114866]">
+                    <LifeBuoy className="h-4 w-4" />
+                    <EditableText
+                      fieldKey="hero.eyebrow"
+                      as="span"
+                      fallback={hero.eyebrow}
+                      className="text-[11px] font-black uppercase tracking-[0.18em] text-[#114866]"
+                    />
+                  </div>
+
+                  <EditableText
+                    fieldKey="hero.title"
+                    as="h1"
+                    fallback={hero.title}
+                    className="max-w-3xl text-3xl font-black leading-tight text-[#102c40] md:text-5xl"
+                  />
+
+                  <EditableText
+                    fieldKey="hero.lead"
+                    as="p"
+                    fallback={hero.lead}
+                    className="max-w-3xl text-base leading-8 text-slate-600 md:text-lg"
+                  />
+
+                  <div className="flex flex-wrap gap-3">
+                    <EditableButton
+                      fieldKey="hero.primaryCta"
+                      fallback={hero.primaryCta}
+                      className="rounded-full bg-[#123f59] px-6 text-white hover:bg-[#0f3247]"
+                    />
+                    <EditableLink
+                      fieldKey="hero.secondaryCta"
+                      fallback={hero.secondaryCta}
+                      className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-800 transition hover:bg-slate-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <EditableImage fieldKey="hero.image" fallback={hero.image} className="w-full max-w-[360px]" />
+                </div>
+              </section>
+            </SiteContentScope>
+          ) : (
+            <section className="grid gap-8 overflow-hidden rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] md:p-10">
+              <div className="space-y-5">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#e7f3fb] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#114866]">
+                  <LifeBuoy className="h-4 w-4" />
+                  <span className="text-[11px] font-black uppercase tracking-[0.18em] text-[#114866]">
+                    {hero.eyebrow}
+                  </span>
+                </div>
+
+                <h1 className="max-w-3xl text-3xl font-black leading-tight text-[#102c40] md:text-5xl">{hero.title}</h1>
+
+                <p className="max-w-3xl text-base leading-8 text-slate-600 md:text-lg">{hero.lead}</p>
+
+                <div className="flex flex-wrap gap-3">
+                  {renderSupportLink(
+                    hero.primaryCta,
+                    "inline-flex h-11 items-center justify-center rounded-full bg-[#123f59] px-6 text-sm font-bold text-white transition hover:bg-[#0f3247]",
+                  )}
+                  {renderSupportLink(
+                    hero.secondaryCta,
+                    "inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-800 transition hover:bg-slate-50",
+                  )}
+                </div>
               </div>
 
-              <EditableText
-                fieldKey="hero.title"
-                as="h1"
-                fallback={hero.title}
-                className="max-w-3xl text-3xl font-black leading-tight text-[#102c40] md:text-5xl"
-              />
-
-              <EditableText
-                fieldKey="hero.lead"
-                as="p"
-                fallback={hero.lead}
-                className="max-w-3xl text-base leading-8 text-slate-600 md:text-lg"
-              />
-
-              <div className="flex flex-wrap gap-3">
-                <EditableButton
-                  fieldKey="hero.primaryCta"
-                  fallback={hero.primaryCta}
-                  className="rounded-full bg-[#123f59] px-6 text-white hover:bg-[#0f3247]"
-                />
-                <EditableLink
-                  fieldKey="hero.secondaryCta"
-                  fallback={hero.secondaryCta}
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-800 transition hover:bg-slate-50"
+              <div className="flex items-center justify-center">
+                <img
+                  src={hero.image.src}
+                  alt={hero.image.alt}
+                  className="w-full max-w-[360px] rounded-[2rem] border border-slate-200 bg-white shadow-sm"
                 />
               </div>
-            </div>
-
-            <div className="flex items-center justify-center">
-              <EditableImage fieldKey="hero.image" fallback={hero.image} className="w-full max-w-[360px]" />
-            </div>
-          </section>
-        </SiteContentScope>
+            </section>
+          )
+        ) : null}
 
         <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
-          <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulário:</h2>
+          <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulario:</h2>
           <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
             <p>
-              <span className="font-black text-white">Planeamento Prévio:</span> Devido à agenda preenchida, todos os
-              pedidos para explicações devem ser efetuados com um mínimo de 3 semanas de antecedência.
+              <span className="font-black text-white">Planeamento Previo:</span> Devido a agenda preenchida, todos os
+              pedidos para explicacoes devem ser efetuados com um minimo de 3 semanas de antecedencia.
             </p>
             <p>
-              <span className="font-black text-white">Não Garante Reserva:</span> O envio e submissão deste formulário
-              funciona estritamente como um pedido de informações e consulta de disponibilidade. Não constitui, de
-              forma alguma, uma marcação automática ou garantia de vaga.
+              <span className="font-black text-white">Nao Garante Reserva:</span> O envio e submissao deste formulario
+              funciona estritamente como um pedido de informacoes e consulta de disponibilidade. Nao constitui, de
+              forma alguma, uma marcacao automatica ou garantia de vaga.
             </p>
           </div>
         </section>
@@ -207,14 +263,14 @@ export function SupportFaqExperience() {
             </label>
 
             <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-              <p className="font-black">Se o teu pedido for para Explicações, indica obrigatoriamente nesta caixa:</p>
-              <p className="mt-1">O Ano Escolar do Aluno (ex: 10.º, 11.º ou 12.º ano)</p>
-              <p>A Disciplina pretendida (Filosofia ou Português)</p>
+              <p className="font-black">Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:</p>
+              <p className="mt-1">O Ano Escolar do Aluno (ex: 10.0, 11.0 ou 12.0 ano)</p>
+              <p>A Disciplina pretendida (Filosofia ou Portugues)</p>
             </div>
 
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
-                Enviar formulário
+                Enviar formulario
               </Button>
             </div>
           </form>
@@ -293,47 +349,77 @@ export function SupportFaqExperience() {
           </div>
         </section>
 
-        <SiteContentScope title="Suporte rápido" description="Bloco final com apoio e redirecionamento">
-          <EditableContainer
-            fieldKey="supportCta.container"
-            as="section"
-            className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm"
-          >
+        {visualEditorPage ? (
+          <SiteContentScope title="Suporte rapido" description="Bloco final com apoio e redirecionamento">
+            <EditableContainer
+              fieldKey="supportCta.container"
+              as="section"
+              className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <HelpCircle className="h-7 w-7 text-sky-200" />
+                  <EditableText
+                    fieldKey="supportCta.title"
+                    as="h2"
+                    fallback={supportCta.title}
+                    className="mt-3 font-display text-3xl font-black"
+                  />
+                  <EditableText
+                    fieldKey="supportCta.lead"
+                    as="p"
+                    fallback={supportCta.lead}
+                    className="mt-2 text-sm leading-7 text-white/70"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <EditableButton
+                    fieldKey="supportCta.primaryCta"
+                    fallback={supportCta.primaryCta}
+                    className="rounded-full bg-white text-slate-950 hover:bg-slate-100"
+                    variant="secondary"
+                  />
+                  <EditableLink
+                    fieldKey="supportCta.secondaryCta"
+                    fallback={supportCta.secondaryCta}
+                    className="rounded-full border border-white/30 bg-transparent px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  />
+                </div>
+              </div>
+            </EditableContainer>
+          </SiteContentScope>
+        ) : (
+          <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <HelpCircle className="h-7 w-7 text-sky-200" />
-                <EditableText
-                  fieldKey="supportCta.title"
-                  as="h2"
-                  fallback={supportCta.title}
-                  className="mt-3 font-display text-3xl font-black"
-                />
-                <EditableText
-                  fieldKey="supportCta.lead"
-                  as="p"
-                  fallback={supportCta.lead}
-                  className="mt-2 text-sm leading-7 text-white/70"
-                />
+                <h2 className="mt-3 font-display text-3xl font-black">{supportCta.title}</h2>
+                <p className="mt-2 text-sm leading-7 text-white/70">{supportCta.lead}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <EditableButton
-                  fieldKey="supportCta.primaryCta"
-                  fallback={supportCta.primaryCta}
-                  className="rounded-full bg-white text-slate-950 hover:bg-slate-100"
-                  variant="secondary"
-                />
-                <EditableLink
-                  fieldKey="supportCta.secondaryCta"
-                  fallback={supportCta.secondaryCta}
-                  className="rounded-full border border-white/30 bg-transparent px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                />
+                {renderSupportLink(
+                  supportCta.primaryCta,
+                  "inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100",
+                )}
+                {renderSupportLink(
+                  supportCta.secondaryCta,
+                  "inline-flex h-11 items-center justify-center rounded-full border border-white/30 bg-transparent px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10",
+                )}
               </div>
             </div>
-          </EditableContainer>
-        </SiteContentScope>
+          </section>
+        )}
       </div>
     </div>
   )
+}
+
+export function SupportFaqExperience() {
+  return <SupportFaqExperienceContent includeHero />
+}
+
+export function SupportFaqExperienceBody() {
+  return <SupportFaqExperienceContent includeHero={false} />
 }
 
 export const SupportPageContent = SupportFaqExperience

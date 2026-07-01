@@ -9,7 +9,7 @@ import {
   HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type HomeVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
-import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
 import { PublicManagedPage } from "./PublicManagedPage"
 
@@ -24,8 +24,9 @@ function formatReviewDate(value: string) {
 function HomePageContent() {
   const reviewsQuery = useHomepageReviews(6)
   const reviews = reviewsQuery.data ?? []
-  const { document } = useVisualEditorPage()
-  const visualDocument = (document as HomeVisualEditorDocument | undefined) ?? HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const visualEditorPage = useOptionalVisualEditorPage()
+  const visualDocument =
+    (visualEditorPage?.document as HomeVisualEditorDocument | undefined) ?? HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const hero = visualDocument.hero
   const objective = visualDocument.objective
   const featureBlocks = visualDocument.featureBlocks

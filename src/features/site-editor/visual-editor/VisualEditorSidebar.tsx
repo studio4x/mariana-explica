@@ -43,6 +43,14 @@ const LENGTH_UNIT_OPTIONS: Array<{ label: string; value: StyleLengthUnit }> = [
 ]
 
 const HEADING_ONLY_OPTIONS = VISUAL_EDITOR_HEADING_TAG_OPTIONS.filter((option) => option.value !== "p")
+const HEADING_PREVIEW_CLASS_BY_TAG: Record<string, string> = {
+  h1: "font-display text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950 md:text-4xl",
+  h2: "font-display text-2xl font-bold leading-tight tracking-[-0.02em] text-slate-950 md:text-3xl",
+  h3: "font-display text-xl font-bold leading-tight tracking-[-0.02em] text-slate-950 md:text-2xl",
+  h4: "font-display text-lg font-bold leading-tight tracking-[-0.01em] text-slate-950",
+  h5: "font-display text-base font-semibold leading-tight text-slate-950",
+  h6: "font-display text-sm font-semibold leading-tight text-slate-950",
+}
 
 function isTextEditable(selectedEditable: VisualEditorSelectedEditable | null) {
   return selectedEditable?.entryType === "text" || selectedEditable?.entryType === "textarea"
@@ -152,8 +160,8 @@ export function VisualEditorSidebar(props: {
   const [activeTab, setActiveTab] = useState<SidebarTab>("content")
 
   useEffect(() => {
-    setActiveTab("content")
-  }, [selectedEditable?.entryKey])
+    setActiveTab(selectedEditable?.entryType === "container" ? "style" : "content")
+  }, [selectedEditable?.entryKey, selectedEditable?.entryType])
 
   if (!canEdit) {
     return null
@@ -210,22 +218,36 @@ export function VisualEditorSidebar(props: {
     return String(value)
   }
 
-  const renderValuePreviewNode = (value: unknown): ReactNode => {
-    if (
-      typeof value === "string" &&
-      isSelectedTextField &&
-      textPresentationMode === "paragraph"
-    ) {
-      if (isRichTextEmpty(value)) {
-        return <p className="text-sm italic text-slate-400">Vazio</p>
-      }
+  const renderTextPreviewNode = (value: string) => {
+    if (isRichTextEmpty(value)) {
+      return <p className="text-sm italic text-slate-400">Vazio</p>
+    }
 
+    const sanitizedValue = sanitizeRichTextHtml(value)
+
+    if (isSelectedTextField && textPresentationMode === "title") {
       return (
         <div
-          className="rich-text-content break-words text-sm leading-6 text-slate-600"
-          dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value) }}
+          className={cn(
+            "rich-text-content break-words",
+            HEADING_PREVIEW_CLASS_BY_TAG[selectedHeadingTag] ?? HEADING_PREVIEW_CLASS_BY_TAG.h2,
+          )}
+          dangerouslySetInnerHTML={{ __html: sanitizedValue }}
         />
       )
+    }
+
+    return (
+      <div
+        className="rich-text-content break-words text-sm leading-6 text-slate-600"
+        dangerouslySetInnerHTML={{ __html: sanitizedValue }}
+      />
+    )
+  }
+
+  const renderValuePreviewNode = (value: unknown): ReactNode => {
+    if (typeof value === "string" && isSelectedTextField) {
+      return renderTextPreviewNode(value)
     }
 
     return <p className="break-words">{renderValuePreview(value)}</p>
@@ -350,14 +372,6 @@ export function VisualEditorSidebar(props: {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "rounded-full px-3 py-1 text-[11px] font-semibold",
-                isDirty ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700",
-              )}
-            >
-              {isDirty ? "Alteracoes pendentes" : "Tudo sincronizado"}
-            </span>
             <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-semibold text-sky-700">
               {publicPage?.page.page_key ?? pageDefinition?.pageKey ?? "visual"}
             </span>
@@ -497,7 +511,7 @@ export function VisualEditorSidebar(props: {
                               <label className="block text-sm font-semibold text-slate-700">
                                 Editar texto
                                 <input
-                                  value={richTextToPlainText(String(selectedValue ?? ""))}
+                                  value={String(selectedValue ?? "")}
                                   onChange={(event) => setDraftValue(event.target.value)}
                                   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400"
                                 />
@@ -623,22 +637,201 @@ export function VisualEditorSidebar(props: {
                           </label>
                         )}
 
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <Button type="button" className="h-10 rounded-full" onClick={() => void runAction("save", saveEditor)} disabled={!isDirty || busyAction === "save"}>
-                            <Check className="mr-2 h-4 w-4" />
-                            Guardar rascunho
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("publish", publishEditor)} disabled={busyAction === "publish"}>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Publicar
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("cancel", async () => cancelEditor())} disabled={!selectedEditable || busyAction === "cancel"}>
-                            Cancelar
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("reset", async () => resetDocument())} disabled={busyAction === "reset"}>
-                            Reverter pagina
-                          </Button>
-                        </div>
+                        {isFixed ? (
+                          <div className="space-y-5 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800">Estilo rapido</p>
+                              <p className="text-xs text-slate-500">Os controles abaixo ficam sempre visiveis no modo publico.</p>
+                            </div>
+
+                            {styleGroup === "heading" || styleGroup === "text" ? (
+                              <div className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Cor do texto
+                                    <input
+                                      type="color"
+                                      value={String(selectedStyle.color ?? "#000000")}
+                                      onChange={(event) => updateStyle({ color: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                    />
+                                  </label>
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Fonte
+                                    <select
+                                      value={String(selectedStyle.fontFamily ?? "")}
+                                      onChange={(event) => updateStyle({ fontFamily: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                    >
+                                      <option value="">Padrao</option>
+                                      {VISUAL_EDITOR_FONT_PRESETS.map((preset) => (
+                                        <option key={preset.value} value={preset.value}>
+                                          {preset.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <LengthField
+                                    label="Tamanho da fonte"
+                                    value={selectedStyle.fontSize}
+                                    onChange={(nextValue) => updateLengthStyle("fontSize", nextValue.value, nextValue.unit)}
+                                  />
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Peso da fonte
+                                    <select
+                                      value={String(selectedStyle.fontWeight ?? "")}
+                                      onChange={(event) => updateStyle({ fontWeight: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                    >
+                                      <option value="">Padrao</option>
+                                      {VISUAL_EDITOR_FONT_WEIGHT_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                              </div>
+                            ) : styleGroup === "image" ? (
+                              <div className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <LengthField
+                                    label="Border radius"
+                                    value={selectedStyle.borderRadius}
+                                    onChange={(nextValue) => updateLengthStyle("borderRadius", nextValue.value, nextValue.unit)}
+                                  />
+                                  <LengthField
+                                    label="Largura"
+                                    value={selectedStyle.width}
+                                    onChange={(nextValue) => updateLengthStyle("width", nextValue.value, nextValue.unit)}
+                                  />
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <LengthField
+                                    label="Altura"
+                                    value={selectedStyle.height}
+                                    onChange={(nextValue) => updateLengthStyle("height", nextValue.value, nextValue.unit)}
+                                  />
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Object fit
+                                    <select
+                                      value={String(selectedStyle.objectFit ?? "")}
+                                      onChange={(event) => updateStyle({ objectFit: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                    >
+                                      <option value="">Padrao</option>
+                                      {VISUAL_EDITOR_OBJECT_FIT_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                              </div>
+                            ) : styleGroup === "container" ? (
+                              <div className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Cor de fundo
+                                    <input
+                                      type="color"
+                                      value={String(selectedStyle.backgroundColor ?? "#ffffff")}
+                                      onChange={(event) => updateStyle({ backgroundColor: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                    />
+                                  </label>
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Cor do texto
+                                    <input
+                                      type="color"
+                                      value={String(selectedStyle.color ?? "#000000")}
+                                      onChange={(event) => updateStyle({ color: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                    />
+                                  </label>
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <LengthField
+                                    label="Border radius"
+                                    value={selectedStyle.borderRadius}
+                                    onChange={(nextValue) => updateLengthStyle("borderRadius", nextValue.value, nextValue.unit)}
+                                  />
+                                  <LengthField
+                                    label="Border width"
+                                    value={selectedStyle.borderWidth}
+                                    onChange={(nextValue) => updateLengthStyle("borderWidth", nextValue.value, nextValue.unit)}
+                                  />
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Border style
+                                    <select
+                                      value={String(selectedStyle.borderStyle ?? "")}
+                                      onChange={(event) => updateStyle({ borderStyle: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                    >
+                                      <option value="">Padrao</option>
+                                      {VISUAL_EDITOR_BORDER_STYLE_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Cor da borda
+                                    <input
+                                      type="color"
+                                      value={String(selectedStyle.borderColor ?? "#000000")}
+                                      onChange={(event) => updateStyle({ borderColor: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            ) : styleGroup === "interactive" ? (
+                              <div className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Cor de fundo
+                                    <input
+                                      type="color"
+                                      value={String(selectedStyle.backgroundColor ?? "#ffffff")}
+                                      onChange={(event) => updateStyle({ backgroundColor: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                    />
+                                  </label>
+                                  <label className="block text-sm font-semibold text-slate-700">
+                                    Cor do texto
+                                    <input
+                                      type="color"
+                                      value={String(selectedStyle.color ?? "#000000")}
+                                      onChange={(event) => updateStyle({ color: event.target.value })}
+                                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white p-1"
+                                    />
+                                  </label>
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <LengthField
+                                    label="Border radius"
+                                    value={selectedStyle.borderRadius}
+                                    onChange={(nextValue) => updateLengthStyle("borderRadius", nextValue.value, nextValue.unit)}
+                                  />
+                                  <LengthField
+                                    label="Border width"
+                                    value={selectedStyle.borderWidth}
+                                    onChange={(nextValue) => updateLengthStyle("borderWidth", nextValue.value, nextValue.unit)}
+                                  />
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+
                       </>
                     ) : activeTab === "style" ? (
                       <>
@@ -1257,22 +1450,6 @@ export function VisualEditorSidebar(props: {
                           </div>
                         )}
 
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <Button type="button" className="h-10 rounded-full" onClick={() => void runAction("save", saveEditor)} disabled={!isDirty || busyAction === "save"}>
-                            <Check className="mr-2 h-4 w-4" />
-                            Guardar rascunho
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("publish", publishEditor)} disabled={busyAction === "publish"}>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Publicar
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("cancel", async () => cancelEditor())} disabled={!selectedEditable || busyAction === "cancel"}>
-                            Cancelar
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("reset", async () => resetDocument())} disabled={busyAction === "reset"}>
-                            Reverter pagina
-                          </Button>
-                        </div>
                       </>
                     ) : (
                       <>
@@ -1303,20 +1480,6 @@ export function VisualEditorSidebar(props: {
                           ) : null}
                           <Button type="button" variant="outline" className="h-10 rounded-full" onClick={restoreStyleFallback}>
                             Resetar estilo
-                          </Button>
-                          <Button type="button" className="h-10 rounded-full" onClick={() => void runAction("save", saveEditor)} disabled={!isDirty || busyAction === "save"}>
-                            <Check className="mr-2 h-4 w-4" />
-                            Guardar rascunho
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("publish", publishEditor)} disabled={busyAction === "publish"}>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Publicar
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("cancel", async () => cancelEditor())} disabled={!selectedEditable || busyAction === "cancel"}>
-                            Cancelar
-                          </Button>
-                          <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => void runAction("reset", async () => resetDocument())} disabled={busyAction === "reset"}>
-                            Reverter pagina
                           </Button>
                         </div>
                       </>
@@ -1386,7 +1549,7 @@ export function VisualEditorSidebar(props: {
               </>
             )}
 
-            {statusMessage ? (
+            {!isFixed && statusMessage ? (
               <section className="rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950">
                 {statusMessage}
               </section>
