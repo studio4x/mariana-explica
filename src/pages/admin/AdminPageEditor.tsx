@@ -41,6 +41,7 @@ import {
 import { ROUTES } from "@/lib/constants"
 import { createSitePagePreviewUrl, storeSitePagePreview } from "@/lib/site-page-preview"
 import {
+  composeManagedPageCss,
   createDefaultBlock,
   getDefaultDocumentForSlug,
   getDefaultStyleCss,
@@ -55,6 +56,7 @@ import {
 } from "@/lib/site-page-builder"
 import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
+import { ExplicacoesFormExperience } from "../public/ExplicacoesFormExperience"
 
 const PAGE_OPTIONS: Array<{ slug: SitePageSlug; label: string; publicPath: string }> = [
   { slug: "home", label: "Home", publicPath: "/" },
@@ -129,6 +131,20 @@ type EditorStructureNode = {
   children: EditorStructureNode[]
 }
 
+type ManagedPagePadding = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+const DEFAULT_MANAGED_PAGE_PADDING: ManagedPagePadding = {
+  top: 56,
+  right: 20,
+  bottom: 76,
+  left: 20,
+}
+
 function getPublicPathForSlug(slug: SitePageSlug | string) {
   return PAGE_OPTIONS.find((item) => item.slug === slug)?.publicPath ?? "/"
 }
@@ -164,6 +180,11 @@ function resolveInitialVersion(versions: AdminSitePageVersion[], publishedId: st
 
 function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVersion | null): SitePageBuilderDocument {
   return resolveBuilderDocumentFromLayoutJson(slug, version?.layout_json)
+}
+
+function extractStyleCssFromVersion(version: AdminSitePageVersion | null) {
+  const css = version?.style_json?.css
+  return typeof css === "string" ? css.trim() : ""
 }
 
 const EDITABLE_RICH_TEXT_TAGS = [
@@ -661,6 +682,165 @@ function getHtmlForBlockInsertion(block: PageBlock): string {
   return "<p>Novo bloco</p>"
 }
 
+function clampManagedPagePadding(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(320, Math.round(value)))
+}
+
+function buildManagedPagePaddingCss(padding: ManagedPagePadding) {
+  return `padding: ${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px !important`
+}
+
+function parseManagedPagePaddingValue(rawValue: string) {
+  const normalized = rawValue.trim().replace(/\s*!important$/i, "")
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)(px)?$/i)
+  if (!match) return null
+  return clampManagedPagePadding(Number(match[1]))
+}
+
+function parseManagedPagePaddingShorthand(rawValue: string) {
+  const values = rawValue
+    .trim()
+    .replace(/\s*!important$/i, "")
+    .split(/\s+/)
+    .map((token) => parseManagedPagePaddingValue(token))
+
+  if (values.some((value) => value === null)) return null
+
+  if (values.length === 1 && values[0] !== null) {
+    return {
+      top: values[0],
+      right: values[0],
+      bottom: values[0],
+      left: values[0],
+    }
+  }
+
+  if (values.length === 2 && values[0] !== null && values[1] !== null) {
+    return {
+      top: values[0],
+      right: values[1],
+      bottom: values[0],
+      left: values[1],
+    }
+  }
+
+  if (values.length === 3 && values[0] !== null && values[1] !== null && values[2] !== null) {
+    return {
+      top: values[0],
+      right: values[1],
+      bottom: values[2],
+      left: values[1],
+    }
+  }
+
+  if (values.length === 4 && values.every((value) => value !== null)) {
+    return {
+      top: values[0] as number,
+      right: values[1] as number,
+      bottom: values[2] as number,
+      left: values[3] as number,
+    }
+  }
+
+  return null
+}
+
+function normalizeManagedAdditionalCss(rawCss: string) {
+  const css = rawCss.trim()
+  if (!css) return ""
+
+  const baseCss = getDefaultStyleCss().trim()
+  if (css === baseCss) return ""
+  if (css.startsWith(baseCss)) return css.slice(baseCss.length).trim()
+
+  return css
+}
+
+function splitManagedPageRootOverrides(rawCss: string) {
+  const rootRuleRegex = /\.me-managed-page-root\s*\{([\s\S]*?)\}/gi
+  const otherRootDeclarations: string[] = []
+  let padding: ManagedPagePadding = { ...DEFAULT_MANAGED_PAGE_PADDING }
+
+  const cssWithoutRoot = rawCss.replace(rootRuleRegex, (_match, body: string) => {
+    body
+      .split(";")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((declaration) => {
+        const separatorIndex = declaration.indexOf(":")
+        if (separatorIndex <= 0) return
+
+        const property = declaration.slice(0, separatorIndex).trim().toLowerCase()
+        const value = declaration.slice(separatorIndex + 1).trim()
+
+        if (property === "padding") {
+          const shorthand = parseManagedPagePaddingShorthand(value)
+          if (shorthand) {
+            padding = shorthand
+          }
+          return
+        }
+
+        if (property === "padding-top") {
+          const nextValue = parseManagedPagePaddingValue(value)
+          if (nextValue !== null) padding.top = nextValue
+          return
+        }
+
+        if (property === "padding-right") {
+          const nextValue = parseManagedPagePaddingValue(value)
+          if (nextValue !== null) padding.right = nextValue
+          return
+        }
+
+        if (property === "padding-bottom") {
+          const nextValue = parseManagedPagePaddingValue(value)
+          if (nextValue !== null) padding.bottom = nextValue
+          return
+        }
+
+        if (property === "padding-left") {
+          const nextValue = parseManagedPagePaddingValue(value)
+          if (nextValue !== null) padding.left = nextValue
+          return
+        }
+
+        otherRootDeclarations.push(`${property}: ${value}`)
+      })
+
+    return ""
+  })
+
+  return {
+    cssWithoutRoot: cssWithoutRoot.trim(),
+    otherRootDeclarations,
+    padding,
+  }
+}
+
+function buildManagedPersistedCss(extraCss: string, padding: ManagedPagePadding) {
+  const normalizedExtraCss = normalizeManagedAdditionalCss(extraCss)
+  const rootState = splitManagedPageRootOverrides(normalizedExtraCss)
+  const shouldPersistPadding =
+    padding.top !== DEFAULT_MANAGED_PAGE_PADDING.top ||
+    padding.right !== DEFAULT_MANAGED_PAGE_PADDING.right ||
+    padding.bottom !== DEFAULT_MANAGED_PAGE_PADDING.bottom ||
+    padding.left !== DEFAULT_MANAGED_PAGE_PADDING.left
+
+  const rootDeclarations = [...rootState.otherRootDeclarations]
+  if (shouldPersistPadding) {
+    rootDeclarations.push(buildManagedPagePaddingCss(padding))
+  }
+
+  const parts = [rootState.cssWithoutRoot]
+  if (rootDeclarations.length > 0) {
+    parts.push(`.me-managed-page-root {\n  ${rootDeclarations.join(";\n  ")};\n}`)
+  }
+
+  return parts.filter(Boolean).join("\n\n").trim()
+}
+
 function ActionHint({ hint, children }: { hint: string; children: React.ReactNode }) {
   return (
     <div className="relative inline-flex group/action-hint">
@@ -672,13 +852,13 @@ function ActionHint({ hint, children }: { hint: string; children: React.ReactNod
   )
 }
 
-function getCanvasPreviewCss() {
+function getCanvasPreviewCss(baseCss: string, padding: ManagedPagePadding) {
   return `
-${getDefaultStyleCss()}
+${baseCss}
 .me-managed-page-root {
   max-width: none;
   margin: 0;
-  padding: 56px 20px 76px !important;
+  padding: ${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px !important;
   box-sizing: border-box;
   outline: 1px dashed rgba(14, 165, 233, 0.18);
   outline-offset: -1px;
@@ -1254,6 +1434,8 @@ export function AdminPageEditor() {
   const [pendingSelectedSlug, setPendingSelectedSlug] = useState<SitePageSlug>(() => resolveSlugFromSearchParams(searchParams) ?? "home")
   const [pageOpenRequestSlug, setPageOpenRequestSlug] = useState<SitePageSlug | null>(null)
   const [documentDraft, setDocumentDraft] = useState<SitePageBuilderDocument>(getDefaultDocumentForSlug("home"))
+  const [managedPagePadding, setManagedPagePadding] = useState<ManagedPagePadding>({ ...DEFAULT_MANAGED_PAGE_PADDING })
+  const [managedPageExtraCss, setManagedPageExtraCss] = useState("")
   const [selectedVersionId, setSelectedVersionId] = useState<string>("")
   const [selectedBlockId, setSelectedBlockId] = useState<string>("")
   const [isDirty, setIsDirty] = useState(false)
@@ -1287,6 +1469,7 @@ export function AdminPageEditor() {
   const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
   const [isMediaLibraryModalOpen, setIsMediaLibraryModalOpen] = useState(false)
   const [mediaLibraryTargetBlockId, setMediaLibraryTargetBlockId] = useState<string | null>(null)
+  const [explicacoesFormPreviewMountNode, setExplicacoesFormPreviewMountNode] = useState<HTMLElement | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
@@ -1473,7 +1656,14 @@ export function AdminPageEditor() {
     return "Autosave ativo"
   }, [autosaveEnabled, autosaveSavedAt, autosaveStatus])
 
-  const canvasPreviewCss = useMemo(() => getCanvasPreviewCss(), [])
+  const managedPersistedCss = useMemo(
+    () => buildManagedPersistedCss(managedPageExtraCss, managedPagePadding),
+    [managedPageExtraCss, managedPagePadding],
+  )
+  const canvasPreviewCss = useMemo(
+    () => getCanvasPreviewCss(composeManagedPageCss(managedPersistedCss), managedPagePadding),
+    [managedPagePadding, managedPersistedCss],
+  )
   const dragHintLabel = getCanvasDropHintLabel(dragPayloadRef.current)
 
   const isSaving =
@@ -1815,6 +2005,28 @@ export function AdminPageEditor() {
     },
     [snapSpacingToGrid],
   )
+
+  const updateManagedPagePadding = useCallback(
+    (side: keyof ManagedPagePadding, rawValue: number) => {
+      const nextValue = clampManagedPagePadding(snapSpacing(rawValue))
+      setManagedPagePadding((current) => {
+        if (current[side] === nextValue) return current
+        return {
+          ...current,
+          [side]: nextValue,
+        }
+      })
+      setIsDirty(true)
+      setAutosaveStatus((prev) => (prev === "saving" ? prev : "idle"))
+    },
+    [snapSpacing],
+  )
+
+  const resetManagedPagePadding = useCallback(() => {
+    setManagedPagePadding({ ...DEFAULT_MANAGED_PAGE_PADDING })
+    setIsDirty(true)
+    setAutosaveStatus((prev) => (prev === "saving" ? prev : "idle"))
+  }, [])
 
   const updateSelectedBlockLayout = useCallback(
     (partial: Partial<BlockLayoutStyle>) => {
@@ -2585,15 +2797,17 @@ export function AdminPageEditor() {
   const createSnapshot = useCallback(() => {
     const sanitizedDocument = sanitizeDocumentForPersist(documentDraft)
     const html = renderDocumentToHtml(sanitizedDocument)
-    const css = getDefaultStyleCss()
+    const persistedCss = buildManagedPersistedCss(managedPageExtraCss, managedPagePadding)
+    const css = composeManagedPageCss(persistedCss)
     return {
       projectData: {
         blocks: sanitizedDocument.blocks,
       },
       html,
       css,
+      persistedCss,
     }
-  }, [documentDraft, sanitizeDocumentForPersist])
+  }, [documentDraft, managedPageExtraCss, managedPagePadding, sanitizeDocumentForPersist])
 
   const handleSaveDraft = useCallback(
     async (trigger: "manual" | "autosave" = "manual") => {
@@ -2617,7 +2831,7 @@ export function AdminPageEditor() {
             html: snapshot.html,
           },
           styleJson: {
-            css: snapshot.css,
+            css: snapshot.persistedCss,
           },
           metadata: {
             editor: "custom-block-builder",
@@ -2656,6 +2870,8 @@ export function AdminPageEditor() {
     if (isSameLoadedPage && preferredVersionId && !versions.some((version) => version.id === preferredVersionId)) return
     const initialVersion = resolveInitialVersion(versions, publishedVersionId, preferredVersionId)
     const initialDoc = extractDocumentFromVersion(selectedSlug, initialVersion)
+    const initialStyleCss = normalizeManagedAdditionalCss(extractStyleCssFromVersion(initialVersion))
+    const initialRootStyle = splitManagedPageRootOverrides(initialStyleCss)
     const shouldReload = loadedSlugRef.current !== selectedSlug || loadedVersionRef.current !== (initialVersion?.id ?? "")
 
     if (!shouldReload) return
@@ -2664,6 +2880,8 @@ export function AdminPageEditor() {
     loadedVersionRef.current = initialVersion?.id ?? ""
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
+    setManagedPageExtraCss(initialRootStyle.cssWithoutRoot + (initialRootStyle.otherRootDeclarations.length > 0 ? `\n\n.me-managed-page-root {\n  ${initialRootStyle.otherRootDeclarations.join(";\n  ")};\n}` : ""))
+    setManagedPagePadding(initialRootStyle.padding)
     setSelectedBlockId("")
     setSelectedSectionBlockId(null)
     setSelectedContainerColumnTarget(null)
@@ -2675,6 +2893,29 @@ export function AdminPageEditor() {
     setAutosaveStatus("idle")
     setAutosaveSavedAt(null)
   }, [detailQuery.data, publishedVersionId, selectedSlug, selectedVersionId, versions])
+
+  useEffect(() => {
+    if (selectedSlug !== "explicacoes") {
+      setExplicacoesFormPreviewMountNode(null)
+      return
+    }
+
+    const root = canvasAreaRef.current
+    if (!root) {
+      setExplicacoesFormPreviewMountNode(null)
+      return
+    }
+
+    const placeholder = root.querySelector<HTMLElement>(".me-explicacoes-form-placeholder")
+    if (!placeholder) {
+      setExplicacoesFormPreviewMountNode(null)
+      return
+    }
+
+    placeholder.setAttribute("data-me-explicacoes-form-live", "1")
+    placeholder.innerHTML = ""
+    setExplicacoesFormPreviewMountNode(placeholder)
+  }, [documentDraft, selectedSlug])
 
   useEffect(() => {
     if (autosaveTimerRef.current) {
@@ -2937,7 +3178,7 @@ export function AdminPageEditor() {
             html: snapshot.html,
           },
           styleJson: {
-            css: snapshot.css,
+            css: snapshot.persistedCss,
           },
           metadata: {
             editor: "custom-block-builder",
@@ -3019,9 +3260,13 @@ export function AdminPageEditor() {
   const handleLoadVersion = (version: AdminSitePageVersion) => {
     if (!confirmDiscardChanges(`carregar a versão ${version.version_number}`)) return
     const nextDoc = extractDocumentFromVersion(selectedSlug, version)
+    const nextStyleCss = normalizeManagedAdditionalCss(extractStyleCssFromVersion(version))
+    const nextRootStyle = splitManagedPageRootOverrides(nextStyleCss)
     loadedVersionRef.current = version.id
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
+    setManagedPageExtraCss(nextRootStyle.cssWithoutRoot + (nextRootStyle.otherRootDeclarations.length > 0 ? `\n\n.me-managed-page-root {\n  ${nextRootStyle.otherRootDeclarations.join(";\n  ")};\n}` : ""))
+    setManagedPagePadding(nextRootStyle.padding)
     setSelectedBlockId("")
     setSelectedSectionBlockId(null)
     setSelectedContainerColumnTarget(null)
@@ -3615,28 +3860,47 @@ export function AdminPageEditor() {
             ) : null}
 
             <div
-              onDragOver={(event) => onDropZoneDragOver(0, event)}
-              onDrop={(event) => handleDropAtIndex(0, event)}
-              className={[
-                "relative z-10 mb-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
-                isDraggingBlockLike || dragOverIndex === 0 ? "h-12 opacity-100" : "h-5 opacity-80",
-                dragOverIndex === 0 ? "border-sky-500 bg-sky-100 text-sky-900" : "border-slate-300 bg-transparent text-slate-400",
-              ].join(" ")}
+              className="me-managed-page-root relative z-10 rounded-2xl bg-white/70"
+              onClick={(event) => {
+                if (event.target !== event.currentTarget) return
+                setSelectedBlockId("")
+                setSelectedRichNodeIndex(null)
+                setSelectedSectionBlockId(null)
+                setSelectedContainerColumnTarget(null)
+                setPendingContainerInsertPoint(null)
+                setPendingRichInsertPoint(null)
+                setIsLayoutCardVisible(false)
+                setIsSectionLayoutMode(false)
+                setSidebarTab("inspector")
+              }}
             >
-              <span className="pointer-events-none">{dragHintLabel}</span>
-            </div>
+              <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-sky-200 bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-800 shadow-sm">
+                Espaçamento da página
+              </div>
 
-            {documentDraft.blocks.length === 0 ? (
               <div
                 onDragOver={(event) => onDropZoneDragOver(0, event)}
                 onDrop={(event) => handleDropAtIndex(0, event)}
-                className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-600"
+                className={[
+                  "relative z-10 mb-2 flex items-center justify-center rounded-xl border border-dashed text-[11px] font-bold uppercase tracking-[0.14em] transition",
+                  isDraggingBlockLike || dragOverIndex === 0 ? "h-12 opacity-100" : "h-5 opacity-80",
+                  dragOverIndex === 0 ? "border-sky-500 bg-sky-100 text-sky-900" : "border-slate-300 bg-transparent text-slate-400",
+                ].join(" ")}
               >
-                Arrasta blocos da esquerda para montar a página.
+                <span className="pointer-events-none">{dragHintLabel}</span>
               </div>
-            ) : (
-              <div className="relative z-10 space-y-2">
-                {documentDraft.blocks.map((block, index) => {
+
+              {documentDraft.blocks.length === 0 ? (
+                <div
+                  onDragOver={(event) => onDropZoneDragOver(0, event)}
+                  onDrop={(event) => handleDropAtIndex(0, event)}
+                  className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-600"
+                >
+                  Arrasta blocos da esquerda para montar a página.
+                </div>
+              ) : (
+                <div className="relative z-10 space-y-2">
+                  {documentDraft.blocks.map((block, index) => {
                   const isSelected = selectedBlockId === block.id
                   const isInlineEditing = inlineEditingBlockId === block.id
                   const backgroundImageUrl = block.layout.backgroundImageUrl.trim()
@@ -4288,9 +4552,10 @@ export function AdminPageEditor() {
                       </div>
                     </div>
                   )
-                })}
-              </div>
-            )}
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </article>
 
@@ -4576,12 +4841,70 @@ export function AdminPageEditor() {
             ) : null}
 
             {sidebarTab === "inspector" ? (
-              !selectedBlock ? (
-                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                  Seleciona um bloco no canvas para editar.
-                </p>
-              ) : (
-                <div className="space-y-3">
+              <div className="space-y-3">
+                <InspectorCollapsibleGroup
+                  title="Espacamento da pagina"
+                  description="Controla o espaço geral entre o header e o primeiro bloco, e também o respiro final da página."
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Topo (px)
+                      <input
+                        type="number"
+                        min={0}
+                        max={320}
+                        value={managedPagePadding.top}
+                        onChange={(event) => updateManagedPagePadding("top", Number(event.target.value) || 0)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Direita (px)
+                      <input
+                        type="number"
+                        min={0}
+                        max={320}
+                        value={managedPagePadding.right}
+                        onChange={(event) => updateManagedPagePadding("right", Number(event.target.value) || 0)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Base (px)
+                      <input
+                        type="number"
+                        min={0}
+                        max={320}
+                        value={managedPagePadding.bottom}
+                        onChange={(event) => updateManagedPagePadding("bottom", Number(event.target.value) || 0)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Esquerda (px)
+                      <input
+                        type="number"
+                        min={0}
+                        max={320}
+                        value={managedPagePadding.left}
+                        onChange={(event) => updateManagedPagePadding("left", Number(event.target.value) || 0)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={resetManagedPagePadding}>
+                      Restaurar padrao
+                    </Button>
+                  </div>
+                </InspectorCollapsibleGroup>
+
+                {!selectedBlock ? (
+                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    Seleciona um bloco no canvas para editar o conteúdo dele.
+                  </p>
+                ) : (
+                  <>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-bold text-slate-900">
                       {showSectionLayoutOnlyInspector ? "Secao" : selectedInspectorTitle}
@@ -6735,8 +7058,9 @@ export function AdminPageEditor() {
                       </label>
                     </InspectorCollapsibleGroup>
                   ) : null}
-                </div>
-              )
+                  </>
+                )}
+              </div>
             ) : null}
 
           </div>
@@ -6749,6 +7073,15 @@ export function AdminPageEditor() {
           <span className="text-[10px] font-medium tracking-[0.06em] text-[#5F7077]">Build {BUILD_VERSION}</span>
         </div>
       </footer>
+
+      {selectedSlug === "explicacoes" && explicacoesFormPreviewMountNode
+        ? createPortal(
+            <div className="pointer-events-none" data-me-admin-explicacoes-form-preview="1">
+              <ExplicacoesFormExperience />
+            </div>,
+            explicacoesFormPreviewMountNode,
+          )
+        : null}
 
       {(pendingRichInsertPoint || pendingContainerInsertPoint) && typeof document !== "undefined"
         ? createPortal(
