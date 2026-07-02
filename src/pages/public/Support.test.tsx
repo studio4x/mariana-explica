@@ -150,14 +150,14 @@ function renderSupport(pathname = "/suporte") {
   )
 }
 
-async function clickEditableField(user: ReturnType<typeof userEvent.setup>, fieldKey: string) {
+async function clickEditableField(_user: ReturnType<typeof userEvent.setup>, fieldKey: string) {
   const field = await waitFor(() => {
     const element = document.querySelector<HTMLElement>(`[data-visual-editor-field="${fieldKey}"]`)
     expect(element).not.toBeNull()
     return element as HTMLElement
   })
 
-  await user.click(field)
+  fireEvent.click(field)
 }
 
 describe("Support", () => {
@@ -366,6 +366,49 @@ describe("Support", () => {
       expect(container?.style.borderRadius).toBe("28px")
     })
     expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
+  })
+
+  it("persists text decoration edits for support titles", async () => {
+    const user = userEvent.setup()
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    const initialRender = renderSupport()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    await clickEditableField(user, "hero.title")
+    await user.click(screen.getByRole("button", { name: "Estilo" }))
+
+    fireEvent.change(screen.getByLabelText("Decoração"), { target: { value: "underline" } })
+
+    await user.click(screen.getByRole("button", { name: "Publicar" }))
+
+    expect(mockSaveVisualEditorPageDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageKey: "support",
+        styles: expect.objectContaining({
+          fields: expect.objectContaining({
+            "hero.title": expect.objectContaining({
+              textDecoration: "underline",
+            }),
+          }),
+        }),
+      }),
+    )
+
+    initialRender.unmount()
+    mockUseAuth.mockReturnValue({ isAdmin: false, loading: false })
+    mockFetchPublicVisualEditorPage.mockResolvedValueOnce(buildSupportPublicPayload())
+
+    renderSupport()
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Como podemos ajudar?" })).toHaveStyle({
+        textDecoration: "underline",
+      })
+    })
   })
 
   it("restores the support CTA container fallback style", async () => {

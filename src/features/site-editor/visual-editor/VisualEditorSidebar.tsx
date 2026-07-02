@@ -22,6 +22,7 @@ import {
   VISUAL_EDITOR_HEADING_TAG_OPTIONS,
   VISUAL_EDITOR_OBJECT_FIT_OPTIONS,
   VISUAL_EDITOR_TEXT_ALIGN_OPTIONS,
+  VISUAL_EDITOR_TEXT_DECORATION_OPTIONS,
   VISUAL_EDITOR_TEXT_TRANSFORM_OPTIONS,
   getVisualEditorContainerStyle,
   getVisualEditorStyleGroup,
@@ -457,6 +458,13 @@ export function VisualEditorSidebar(props: {
                           </div>
                         ) : isSelectedTextField && textPresentationMode ? (
                           <div className="space-y-4">
+                            <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-4">
+                              <p className="text-sm font-semibold text-slate-800">Formatação de texto</p>
+                              <p className="text-xs text-slate-500">
+                                Ajuste tipografia, tamanho, entrelinha e decoração sem mexer na estrutura do conteúdo.
+                              </p>
+                            </div>
+
                             <div className="grid gap-4 md:grid-cols-2">
                               <label className="block text-sm font-semibold text-slate-700">
                                 Tipo de texto
@@ -906,6 +914,25 @@ export function VisualEditorSidebar(props: {
                                 value={selectedStyle.letterSpacing}
                                 onChange={(nextValue) => updateLengthStyle("letterSpacing", nextValue.value, nextValue.unit)}
                               />
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block text-sm font-semibold text-slate-700">
+                                Decoração
+                                <select
+                                  value={String(selectedStyle.textDecoration ?? "")}
+                                  onChange={(event) => updateStyle({ textDecoration: event.target.value })}
+                                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400"
+                                >
+                                  <option value="">Padrão</option>
+                                  {VISUAL_EDITOR_TEXT_DECORATION_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="hidden md:block" />
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">

@@ -129,6 +129,7 @@ export interface VisualEditorFieldStyleValue extends Record<string, unknown> {
   textAlign?: "left" | "center" | "right" | "justify"
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize"
   fontStyle?: "normal" | "italic"
+  textDecoration?: "none" | "underline" | "line-through" | "overline"
   headingTag?: VisualEditorTextSemanticTag
   borderRadius?: string
   borderWidth?: string

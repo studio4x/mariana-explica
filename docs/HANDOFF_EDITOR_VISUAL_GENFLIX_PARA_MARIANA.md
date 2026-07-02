@@ -114,6 +114,7 @@ Motivos:
 - peso da fonte;
 - altura da linha;
 - espacamento entre letras;
+- decoracao do texto;
 - alinhamento;
 - transformacao de texto;
 - estilo tipografico normal ou italico;

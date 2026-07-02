@@ -274,6 +274,10 @@ function buildVisualEditorTextStyleOverrides(
     }
   }
 
+  if (source.textDecoration) {
+    style.textDecoration = source.textDecoration
+  }
+
   return style as CSSProperties
 }
 

@@ -57,6 +57,13 @@ export const VISUAL_EDITOR_FONT_STYLE_OPTIONS = [
   { label: "Italico", value: "italic" },
 ]
 
+export const VISUAL_EDITOR_TEXT_DECORATION_OPTIONS = [
+  { label: "Nenhuma", value: "none" },
+  { label: "Sublinhado", value: "underline" },
+  { label: "Riscado", value: "line-through" },
+  { label: "Sobrelinha", value: "overline" },
+]
+
 export const VISUAL_EDITOR_BORDER_STYLE_OPTIONS = [
   { label: "None", value: "none" },
   { label: "Solid", value: "solid" },
@@ -214,6 +221,10 @@ function normalizeTextStyle(rawValue: unknown): VisualEditorFieldStyleValue {
   const fontStyle = normalizePresetValue(record.fontStyle, VISUAL_EDITOR_FONT_STYLE_OPTIONS.map((option) => option.value)) as
     | VisualEditorFieldStyleValue["fontStyle"]
     | undefined
+  const textDecoration = normalizePresetValue(
+    record.textDecoration,
+    VISUAL_EDITOR_TEXT_DECORATION_OPTIONS.map((option) => option.value),
+  ) as VisualEditorFieldStyleValue["textDecoration"] | undefined
   const headingTag =
     normalizeVisualEditorTextSemanticTag(record.headingTag) ?? normalizeVisualEditorTextSemanticTag(record.textTag)
 
@@ -241,6 +252,7 @@ function normalizeTextStyle(rawValue: unknown): VisualEditorFieldStyleValue {
   if (textAlign) next.textAlign = textAlign
   if (textTransform) next.textTransform = textTransform
   if (fontStyle) next.fontStyle = fontStyle
+  if (textDecoration) next.textDecoration = textDecoration
   if (headingTag) next.headingTag = headingTag
 
   return next
@@ -268,6 +280,11 @@ function normalizeInteractiveStyle(rawValue: unknown): VisualEditorFieldStyleVal
     VISUAL_EDITOR_FONT_WEIGHT_OPTIONS.map((option) => option.value),
   )
   if (fontWeight) next.fontWeight = fontWeight
+  const textDecoration = normalizePresetValue(
+    record.textDecoration,
+    VISUAL_EDITOR_TEXT_DECORATION_OPTIONS.map((option) => option.value),
+  ) as VisualEditorFieldStyleValue["textDecoration"] | undefined
+  if (textDecoration) next.textDecoration = textDecoration
   const borderRadius = normalizeLengthValue(record.borderRadius, "px")
   if (borderRadius) next.borderRadius = borderRadius
   const borderWidth = normalizeLengthValue(record.borderWidth, "px")
@@ -520,6 +537,7 @@ export function getVisualEditorTextStyle(value: VisualEditorFieldStyleValue | nu
   if (value.textAlign) style.textAlign = value.textAlign
   if (value.textTransform) style.textTransform = value.textTransform
   if (value.fontStyle) style.fontStyle = value.fontStyle
+  if (value.textDecoration) style.textDecoration = value.textDecoration
 
   return {
     style,
@@ -542,6 +560,7 @@ export function getVisualEditorInteractiveStyle(value: VisualEditorFieldStyleVal
   if (value.borderColor) style.borderColor = value.borderColor
   if (value.boxShadow) style.boxShadow = value.boxShadow
   if (value.textAlign) style.textAlign = value.textAlign
+  if (value.textDecoration) style.textDecoration = value.textDecoration
 
   const paddingY = value.paddingY
   const paddingX = value.paddingX
@@ -618,6 +637,7 @@ export function getVisualEditorStyleSummary(value: VisualEditorFieldStyleValue |
   if (value.fontFamily) parts.push("fonte personalizada")
   if (value.fontSize) parts.push(`tamanho ${value.fontSize}`)
   if (value.fontWeight) parts.push(`peso ${value.fontWeight}`)
+  if (value.textDecoration) parts.push(`decoração ${value.textDecoration}`)
   if (value.borderRadius) parts.push(`raio ${value.borderRadius}`)
   if (value.boxShadow) parts.push("sombra")
   if (value.objectFit) parts.push(`imagem ${value.objectFit}`)

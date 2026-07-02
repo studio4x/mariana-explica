@@ -174,14 +174,14 @@ function createDeferredPromise<T>() {
   return { promise, resolve }
 }
 
-async function clickEditableField(user: ReturnType<typeof userEvent.setup>, fieldKey: string) {
+async function clickEditableField(_user: ReturnType<typeof userEvent.setup>, fieldKey: string) {
   const field = await waitFor(() => {
     const element = document.querySelector<HTMLElement>(`[data-visual-editor-field="${fieldKey}"]`)
     expect(element).not.toBeNull()
     return element as HTMLElement
   })
 
-  await user.click(field)
+  fireEvent.click(field)
 }
 
 describe("Products", () => {
