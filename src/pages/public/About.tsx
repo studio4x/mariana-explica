@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom"
 import {
   ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type AboutVisualEditorDocument,
@@ -8,6 +9,7 @@ import {
   VisualEditorProvider,
   useOptionalVisualEditorPage,
 } from "@/features/site-editor/visual-editor"
+import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
 import { PublicManagedPage } from "./PublicManagedPage"
 
 function AboutPageContent() {
@@ -183,14 +185,17 @@ function AboutPageContent() {
   )
 }
 
-function LegacyAbout() {
+export function About() {
+  const location = useLocation()
+  const previewPayload = readSitePagePreviewFromSearch("sobre", location.search)
+
+  if (previewPayload) {
+    return <PublicManagedPage slug="sobre" />
+  }
+
   return (
     <VisualEditorProvider pageKey="about">
       <AboutPageContent />
     </VisualEditorProvider>
   )
-}
-
-export function About() {
-  return <PublicManagedPage slug="sobre" fallback={<LegacyAbout />} />
 }
