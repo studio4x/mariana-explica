@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
 import { createCheckoutAutologin } from "@/services"
-import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { EditableContainer, VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutSuccessVisualEditorDocument,
@@ -74,7 +74,7 @@ function CheckoutSuccessPageContent() {
   }
 
   return (
-    <div className="bg-[#f5fafc] px-4 py-14 text-[#171c1e] md:py-20">
+    <EditableContainer fieldKey="layout.pageFrame" as="div" className="bg-[#f5fafc] px-4 py-14 text-[#171c1e] md:py-20">
       <section
         className="container"
         data-conversion-event="checkout_success"
@@ -145,7 +145,7 @@ function CheckoutSuccessPageContent() {
           </div>
         </div>
       </section>
-    </div>
+    </EditableContainer>
   )
 }
 

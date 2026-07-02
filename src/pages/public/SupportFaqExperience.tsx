@@ -116,7 +116,11 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
   }, [activeFaqs])
 
   return (
-    <div className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14">
+    <EditableContainer
+      fieldKey="layout.pageFrame"
+      as="div"
+      className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14"
+    >
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
         <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
@@ -410,7 +414,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           </section>
         )}
       </div>
-    </div>
+    </EditableContainer>
   )
 }
 

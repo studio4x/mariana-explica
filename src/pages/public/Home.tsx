@@ -9,7 +9,7 @@ import {
   HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type HomeVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
-import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { EditableContainer, VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import homeHeroIllustration from "@/assets/home-hero-illustration.svg"
 import { PublicManagedPage } from "./PublicManagedPage"
 
@@ -35,7 +35,7 @@ function HomePageContent() {
   const reviewsCopy = visualDocument.reviews
 
   return (
-    <div className="flex flex-col">
+    <EditableContainer fieldKey="layout.pageFrame" as="div" className="flex flex-col">
       <header className="bg-[#f5fafc] py-20 lg:py-32">
         <div className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-16 px-6 lg:grid-cols-2">
           <div className="order-2 lg:order-1">
@@ -249,7 +249,7 @@ function HomePageContent() {
           ) : null}
         </div>
       </section>
-    </div>
+    </EditableContainer>
   )
 }
 

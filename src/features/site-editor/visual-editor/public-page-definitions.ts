@@ -215,6 +215,14 @@ function buildFields(keys: Array<Pick<VisualEditorFieldDefinition, "key" | "labe
   return keys
 }
 
+const PAGE_FRAME_FIELD: VisualEditorFieldDefinition = {
+  key: "layout.pageFrame",
+  label: "Espaço da página",
+  kind: "container",
+  styleGroup: "container",
+  description: "Ajusta o espaço entre o header e o início do conteúdo.",
+}
+
 export const HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT: HomeVisualEditorDocument = {
   hero: {
     eyebrow: "Estudo claro e direto",
@@ -449,6 +457,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
     description: "Hero, objetivo, blocos de oferta, passos, confianca e reviews da home publica.",
     defaultDocument: HOME_VISUAL_EDITOR_DEFAULT_DOCUMENT,
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda do topo", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo principal", kind: "text", styleGroup: "heading" },
       { key: "hero.subtitle", label: "Subtitulo", kind: "text", styleGroup: "text" },
@@ -495,6 +504,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
     description: "Hero, retrato, introducao e pilares da pagina Sobre.",
     defaultDocument: ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.title", label: "Titulo principal", kind: "text", styleGroup: "heading" },
       { key: "hero.subtitle", label: "Subtitulo", kind: "text", styleGroup: "text" },
       { key: "portrait.src", label: "Imagem", kind: "image", styleGroup: "image" },
@@ -521,6 +531,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
     description: "Hero, notas e destaque do formulario de explicacoes.",
     defaultDocument: EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT,
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda do topo", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo principal", kind: "text", styleGroup: "heading" },
       { key: "hero.lead", label: "Texto introdutorio", kind: "textarea", styleGroup: "text" },
@@ -540,6 +551,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
     description: "Cabecalho e bloco de apoio da politica de privacidade.",
     defaultDocument: LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT,
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo", kind: "text", styleGroup: "heading" },
       { key: "hero.intro", label: "Introducao", kind: "textarea", styleGroup: "text" },
@@ -567,6 +579,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
       },
     },
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo", kind: "text", styleGroup: "heading" },
       { key: "hero.intro", label: "Introducao", kind: "textarea", styleGroup: "text" },
@@ -594,6 +607,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
       },
     },
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo", kind: "text", styleGroup: "heading" },
       { key: "hero.intro", label: "Introducao", kind: "textarea", styleGroup: "text" },
@@ -612,6 +626,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
     description: "Mensagem principal, badge e textos de apoio do checkout.",
     defaultDocument: CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo principal", kind: "text", styleGroup: "heading" },
       { key: "hero.lead", label: "Texto de apoio", kind: "textarea", styleGroup: "text" },
@@ -637,6 +652,7 @@ export const PUBLIC_VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[]
     description: "Hero, proximos passos e botoes de acesso apos o checkout.",
     defaultDocument: CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
     fields: buildFields([
+      PAGE_FRAME_FIELD,
       { key: "hero.eyebrow", label: "Legenda", kind: "text", styleGroup: "text" },
       { key: "hero.title", label: "Titulo principal", kind: "text", styleGroup: "heading" },
       { key: "hero.lead", label: "Texto de apoio", kind: "textarea", styleGroup: "text" },

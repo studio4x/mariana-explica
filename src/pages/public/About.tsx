@@ -3,7 +3,7 @@ import {
   ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type AboutVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
-import { EditableText, SiteContentScope } from "@/features/site-editor/visual-editor"
+import { EditableContainer, EditableText, SiteContentScope } from "@/features/site-editor/visual-editor"
 import { PublicManagedPage } from "./PublicManagedPage"
 
 function AboutPageContent() {
@@ -16,7 +16,7 @@ function AboutPageContent() {
   const pillars = visualDocument.pillars
 
   return (
-    <section className="bg-[#d8e8ef] py-14 md:py-20">
+    <EditableContainer fieldKey="layout.pageFrame" as="section" className="bg-[#d8e8ef] py-14 md:py-20">
       <div className="mx-auto max-w-[1200px] px-6">
         <SiteContentScope title="Hero" description="Título, subtítulo e retrato">
           <div className="mx-auto max-w-[860px] text-center">
@@ -174,7 +174,7 @@ function AboutPageContent() {
           </SiteContentScope>
         </div>
       </div>
-    </section>
+    </EditableContainer>
   )
 }
 

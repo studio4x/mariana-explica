@@ -23,7 +23,7 @@ import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
-import { VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
+import { EditableContainer, VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutVisualEditorDocument,
@@ -511,7 +511,7 @@ function CheckoutPageContent() {
   return (
     <>
       <div className="bg-[#f5fafc] text-[#171c1e]">
-        <div className="container py-12 md:py-20">
+        <EditableContainer fieldKey="layout.pageFrame" as="div" className="container py-12 md:py-20">
           <div className="mb-10 flex flex-col gap-4 border-b border-[#dee3e5]/50 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>
@@ -997,7 +997,7 @@ function CheckoutPageContent() {
               </div>
             </aside>
           </div>
-        </div>
+        </EditableContainer>
         <footer className="border-t border-slate-200/70 bg-[#f5fafc]">
           <div className="container py-6">
             <FooterCopyright className="border-t-0 pt-0" />

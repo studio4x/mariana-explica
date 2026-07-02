@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { EditableContainer } from "@/features/site-editor/visual-editor"
 import { APP_NAME, ROUTES } from "@/lib/constants"
 
 export type LegalSection = {
@@ -44,7 +45,7 @@ export function LegalPageLayout({
 
   return (
     <div className="bg-white">
-      <section className="container py-10 sm:py-14 lg:py-16">
+      <EditableContainer fieldKey="layout.pageFrame" as="section" className="container py-10 sm:py-14 lg:py-16">
         <div className="mx-auto max-w-4xl">
           <Link
             to={ROUTES.HOME}
@@ -99,7 +100,7 @@ export function LegalPageLayout({
             </div>
           </div>
         </div>
-      </section>
+      </EditableContainer>
     </div>
   )
 }

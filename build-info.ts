@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "168"
-export const BUILD_COMMIT = "editable-rich-elements"
+export const BUILD_DEPLOY_NUMBER = "169"
+export const BUILD_COMMIT = "editable-page-frame"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

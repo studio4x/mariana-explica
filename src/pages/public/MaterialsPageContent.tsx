@@ -166,7 +166,11 @@ export function MaterialsPageContent() {
         <div className="absolute bottom-[-8rem] left-1/3 h-72 w-72 rounded-full bg-white/35 blur-3xl" />
       </div>
 
-      <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
+      <EditableContainer
+        fieldKey="layout.pageFrame"
+        as="main"
+        className="relative mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16"
+      >
         <SiteContentScope title="Hero principal" description="Legenda, título, texto e CTA inicial">
           <header className="mx-auto max-w-4xl text-center">
             <EditableText
@@ -403,7 +407,7 @@ export function MaterialsPageContent() {
             </div>
           </section>
         </SiteContentScope>
-      </main>
+      </EditableContainer>
     </div>
   )
 }
