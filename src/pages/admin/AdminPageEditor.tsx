@@ -841,6 +841,15 @@ function buildManagedPersistedCss(extraCss: string, padding: ManagedPagePadding)
   return parts.filter(Boolean).join("\n\n").trim()
 }
 
+function serializeManagedExtraCssFromRootState(rootState: ReturnType<typeof splitManagedPageRootOverrides>) {
+  return (
+    rootState.cssWithoutRoot +
+    (rootState.otherRootDeclarations.length > 0
+      ? `\n\n.me-managed-page-root {\n  ${rootState.otherRootDeclarations.join(";\n  ")};\n}`
+      : "")
+  )
+}
+
 function ActionHint({ hint, children }: { hint: string; children: React.ReactNode }) {
   return (
     <div className="relative inline-flex group/action-hint">
@@ -2880,7 +2889,7 @@ export function AdminPageEditor() {
     loadedVersionRef.current = initialVersion?.id ?? ""
     setSelectedVersionId(initialVersion?.id ?? "")
     setDocumentDraft(initialDoc)
-    setManagedPageExtraCss(initialRootStyle.cssWithoutRoot + (initialRootStyle.otherRootDeclarations.length > 0 ? `\n\n.me-managed-page-root {\n  ${initialRootStyle.otherRootDeclarations.join(";\n  ")};\n}` : ""))
+    setManagedPageExtraCss(serializeManagedExtraCssFromRootState(initialRootStyle))
     setManagedPagePadding(initialRootStyle.padding)
     setSelectedBlockId("")
     setSelectedSectionBlockId(null)
@@ -2900,22 +2909,31 @@ export function AdminPageEditor() {
       return
     }
 
-    const root = canvasAreaRef.current
-    if (!root) {
-      setExplicacoesFormPreviewMountNode(null)
-      return
-    }
+    let frameId = 0
+    frameId = window.requestAnimationFrame(() => {
+      const root = canvasAreaRef.current
+      if (!root) {
+        setExplicacoesFormPreviewMountNode(null)
+        return
+      }
 
-    const placeholder = root.querySelector<HTMLElement>(".me-explicacoes-form-placeholder")
-    if (!placeholder) {
-      setExplicacoesFormPreviewMountNode(null)
-      return
-    }
+      const placeholder = root.querySelector<HTMLElement>(".me-explicacoes-form-placeholder")
+      if (!placeholder) {
+        setExplicacoesFormPreviewMountNode(null)
+        return
+      }
 
-    placeholder.setAttribute("data-me-explicacoes-form-live", "1")
-    placeholder.innerHTML = ""
-    setExplicacoesFormPreviewMountNode(placeholder)
-  }, [documentDraft, selectedSlug])
+      placeholder.setAttribute("data-me-explicacoes-form-live", "1")
+      placeholder.innerHTML = ""
+      setExplicacoesFormPreviewMountNode(placeholder)
+    })
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId)
+      }
+    }
+  }, [documentDraft, isDraggingCanvasBlock, pendingRichInsertPoint, selectedBlockId, selectedRichNodeIndex, selectedSlug])
 
   useEffect(() => {
     if (autosaveTimerRef.current) {
@@ -3265,7 +3283,7 @@ export function AdminPageEditor() {
     loadedVersionRef.current = version.id
     setSelectedVersionId(version.id)
     setDocumentDraft(nextDoc)
-    setManagedPageExtraCss(nextRootStyle.cssWithoutRoot + (nextRootStyle.otherRootDeclarations.length > 0 ? `\n\n.me-managed-page-root {\n  ${nextRootStyle.otherRootDeclarations.join(";\n  ")};\n}` : ""))
+    setManagedPageExtraCss(serializeManagedExtraCssFromRootState(nextRootStyle))
     setManagedPagePadding(nextRootStyle.padding)
     setSelectedBlockId("")
     setSelectedSectionBlockId(null)
@@ -3876,6 +3894,16 @@ export function AdminPageEditor() {
             >
               <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-sky-200 bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-800 shadow-sm">
                 Espaçamento da página
+              </div>
+              <div
+                className="pointer-events-none absolute inset-x-4 bottom-4 z-20 overflow-visible rounded-xl border border-dashed border-sky-200/90 bg-sky-50/85"
+                style={{ height: `${managedPagePadding.bottom}px` }}
+              >
+                <div className="flex h-full items-end justify-center px-3 pb-2">
+                  <span className="rounded-full border border-sky-200 bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-800 shadow-sm">
+                    Espaçamento final da página
+                  </span>
+                </div>
               </div>
 
               <div
