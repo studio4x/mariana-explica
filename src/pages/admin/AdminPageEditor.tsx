@@ -1049,6 +1049,81 @@ function getHeadingCanvasStyle(level: 1 | 2 | 3 | 4, color: string, align: "left
   }
 }
 
+const RICH_TEXT_FONT_FAMILY_OPTIONS = [
+  { value: "", label: "Tema da página" },
+  { value: "Inter, sans-serif", label: "Inter" },
+  { value: "\"DM Sans\", sans-serif", label: "DM Sans" },
+  { value: "\"Playfair Display\", serif", label: "Playfair Display" },
+  { value: "Georgia, serif", label: "Georgia" },
+  { value: "Arial, sans-serif", label: "Arial" },
+] as const
+
+const RICH_TEXT_FONT_WEIGHT_OPTIONS = [
+  { value: "", label: "Tema da página" },
+  { value: "300", label: "300" },
+  { value: "400", label: "400" },
+  { value: "500", label: "500" },
+  { value: "600", label: "600" },
+  { value: "700", label: "700" },
+  { value: "800", label: "800" },
+] as const
+
+const RICH_TEXT_FONT_STYLE_OPTIONS = [
+  { value: "", label: "Tema da página" },
+  { value: "normal", label: "Normal" },
+  { value: "italic", label: "Itálico" },
+] as const
+
+const RICH_TEXT_TEXT_DECORATION_OPTIONS = [
+  { value: "", label: "Tema da página" },
+  { value: "none", label: "Sem decoração" },
+  { value: "underline", label: "Sublinhado" },
+  { value: "line-through", label: "Riscado" },
+  { value: "overline", label: "Sobrelinha" },
+] as const
+
+const RICH_TEXT_TEXT_TRANSFORM_OPTIONS = [
+  { value: "", label: "Tema da página" },
+  { value: "none", label: "Normal" },
+  { value: "uppercase", label: "Maiúsculas" },
+  { value: "lowercase", label: "Minúsculas" },
+  { value: "capitalize", label: "Capitalizar" },
+] as const
+
+const RICH_TEXT_TEXT_ALIGN_OPTIONS = [
+  { value: "left", label: "Esquerda" },
+  { value: "center", label: "Centro" },
+  { value: "right", label: "Direita" },
+  { value: "justify", label: "Justificado" },
+] as const
+
+function isSafeTypographyMetricValue(
+  value: string,
+  options?: {
+    allowUnitless?: boolean
+    allowNegative?: boolean
+    allowNormal?: boolean
+  },
+) {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return false
+  if (options?.allowNormal && normalized === "normal") return true
+
+  const sign = options?.allowNegative ? "-?" : ""
+  const unitlessPattern = `${sign}\\d+(?:\\.\\d+)?`
+  const pattern = options?.allowUnitless
+    ? new RegExp(`^${unitlessPattern}(?:px|rem|em|%)?$`)
+    : new RegExp(`^${unitlessPattern}(?:px|rem|em|%)$`)
+
+  return pattern.test(normalized)
+}
+
+function sanitizeFontFamilyValue(value: string) {
+  const normalized = value.trim()
+  if (!normalized) return ""
+  return /^[a-z0-9\s"',-]+$/i.test(normalized) ? normalized : ""
+}
+
 function buildBlockStructureNode(block: PageBlock, nodeId: string): EditorStructureNode {
   if (block.type !== "container") {
     const richChildren: EditorStructureNode[] =
@@ -1554,6 +1629,7 @@ export function AdminPageEditor() {
     const tagName = element.tagName.toLowerCase()
     const marginLeft = element.style.marginLeft.trim()
     const marginRight = element.style.marginRight.trim()
+    const defaultTextAlign = tagName === "a" ? "center" : "left"
     const buttonAlign: "left" | "center" | "right" =
       marginLeft === "auto" && marginRight === "auto" ? "center" : marginLeft === "auto" ? "right" : "left"
     const visualBackgroundTarget = getRichTextVisualBackgroundTarget(element)
@@ -1618,10 +1694,18 @@ export function AdminPageEditor() {
       paddingY: parsePxValue(element.style.paddingTop, 14),
       paddingX: parsePxValue(element.style.paddingLeft, 24),
       fontSizePx: parsePxValue(element.style.fontSize, 12),
-      textAlign: (["left", "center", "right"].includes(element.style.textAlign) ? element.style.textAlign : "center") as
+      fontFamily: element.style.fontFamily.trim(),
+      fontWeight: element.style.fontWeight.trim(),
+      lineHeight: element.style.lineHeight.trim(),
+      letterSpacing: element.style.letterSpacing.trim(),
+      textTransform: element.style.textTransform.trim(),
+      fontStyle: element.style.fontStyle.trim(),
+      textDecoration: element.style.textDecoration.trim(),
+      textAlign: (["left", "center", "right", "justify"].includes(element.style.textAlign) ? element.style.textAlign : defaultTextAlign) as
         | "left"
         | "center"
-        | "right",
+        | "right"
+        | "justify",
       buttonAlign,
       widthPercent: Math.max(0, Math.min(100, parsePercentValue(element.style.width, 0))),
       fullWidth: element.style.width === "100%",
@@ -2509,7 +2593,19 @@ export function AdminPageEditor() {
   )
 
   const applyRichNodeTextStyleEdit = useCallback(
-    (partial: { color?: string; backgroundColor?: string }) => {
+    (partial: {
+      color?: string
+      backgroundColor?: string
+      fontFamily?: string
+      fontWeight?: string
+      lineHeight?: string
+      letterSpacing?: string
+      textTransform?: string
+      fontStyle?: string
+      textDecoration?: string
+      textAlign?: "left" | "center" | "right" | "justify"
+      fontSizePx?: number
+    }) => {
       if (!selectedBlock || selectedBlock.type !== "rich_text") return
       if (selectedRichNodeIndex === null) return
       if (typeof window === "undefined" || typeof DOMParser === "undefined") return
@@ -2525,6 +2621,63 @@ export function AdminPageEditor() {
       }
       if (typeof partial.backgroundColor === "string") {
         targetNode.style.backgroundColor = partial.backgroundColor
+      }
+      if (typeof partial.fontFamily === "string") {
+        const nextFontFamily = sanitizeFontFamilyValue(partial.fontFamily)
+        if (nextFontFamily) {
+          targetNode.style.fontFamily = nextFontFamily
+        } else {
+          targetNode.style.removeProperty("font-family")
+        }
+      }
+      if (typeof partial.fontWeight === "string") {
+        if (partial.fontWeight.trim()) {
+          targetNode.style.fontWeight = partial.fontWeight
+        } else {
+          targetNode.style.removeProperty("font-weight")
+        }
+      }
+      if (typeof partial.lineHeight === "string") {
+        if (isSafeTypographyMetricValue(partial.lineHeight, { allowUnitless: true, allowNormal: true })) {
+          targetNode.style.lineHeight = partial.lineHeight.trim()
+        } else if (!partial.lineHeight.trim()) {
+          targetNode.style.removeProperty("line-height")
+        }
+      }
+      if (typeof partial.letterSpacing === "string") {
+        if (isSafeTypographyMetricValue(partial.letterSpacing, { allowNegative: true, allowNormal: true })) {
+          targetNode.style.letterSpacing = partial.letterSpacing.trim()
+        } else if (!partial.letterSpacing.trim()) {
+          targetNode.style.removeProperty("letter-spacing")
+        }
+      }
+      if (typeof partial.textTransform === "string") {
+        if (partial.textTransform.trim()) {
+          targetNode.style.textTransform = partial.textTransform
+        } else {
+          targetNode.style.removeProperty("text-transform")
+        }
+      }
+      if (typeof partial.fontStyle === "string") {
+        if (partial.fontStyle.trim()) {
+          targetNode.style.fontStyle = partial.fontStyle
+        } else {
+          targetNode.style.removeProperty("font-style")
+        }
+      }
+      if (typeof partial.textDecoration === "string") {
+        if (partial.textDecoration.trim()) {
+          targetNode.style.textDecoration = partial.textDecoration
+        } else {
+          targetNode.style.removeProperty("text-decoration")
+        }
+      }
+      if (typeof partial.textAlign === "string") {
+        targetNode.style.textAlign = partial.textAlign
+      }
+      if (typeof partial.fontSizePx === "number") {
+        const safeFontSize = Math.max(10, Math.min(96, partial.fontSizePx))
+        targetNode.style.fontSize = `${safeFontSize}px`
       }
 
       updateSelectedBlock((block) => (block.type === "rich_text" ? { ...block, content: parsed.body.innerHTML } : block))
@@ -5488,6 +5641,145 @@ export function AdminPageEditor() {
                                   </select>
                                 </label>
                               ) : null}
+                              <InspectorCollapsibleGroup title="Formatação de texto" defaultOpen={true}>
+                                <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-5 text-sky-900">
+                                  Ajuste tipografia, tamanho, entrelinha, decoração e alinhamento do trecho selecionado.
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Tipografia
+                                    <select
+                                      value={selectedRichNodeDescriptor.fontFamily}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ fontFamily: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    >
+                                      {RICH_TEXT_FONT_FAMILY_OPTIONS.map((option) => (
+                                        <option key={option.value || "default"} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Peso
+                                    <select
+                                      value={selectedRichNodeDescriptor.fontWeight}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ fontWeight: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    >
+                                      {RICH_TEXT_FONT_WEIGHT_OPTIONS.map((option) => (
+                                        <option key={option.value || "default"} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Tamanho da fonte (px)
+                                    <input
+                                      type="number"
+                                      min={10}
+                                      max={96}
+                                      value={selectedRichNodeDescriptor.fontSizePx}
+                                      onChange={(event) =>
+                                        applyRichNodeTextStyleEdit({
+                                          fontSizePx: Math.max(10, Math.min(96, Number(event.target.value) || 10)),
+                                        })
+                                      }
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    />
+                                  </label>
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Alinhamento
+                                    <select
+                                      value={selectedRichNodeDescriptor.textAlign}
+                                      onChange={(event) =>
+                                        applyRichNodeTextStyleEdit({
+                                          textAlign: event.target.value as "left" | "center" | "right" | "justify",
+                                        })
+                                      }
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    >
+                                      {RICH_TEXT_TEXT_ALIGN_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Entrelinha
+                                    <input
+                                      value={selectedRichNodeDescriptor.lineHeight}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ lineHeight: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                      placeholder="1.6 ou 32px"
+                                    />
+                                  </label>
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Espaçamento entre letras
+                                    <input
+                                      value={selectedRichNodeDescriptor.letterSpacing}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ letterSpacing: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                      placeholder="0.02em"
+                                    />
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Estilo
+                                    <select
+                                      value={selectedRichNodeDescriptor.fontStyle}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ fontStyle: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    >
+                                      {RICH_TEXT_FONT_STYLE_OPTIONS.map((option) => (
+                                        <option key={option.value || "default"} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Decoração
+                                    <select
+                                      value={selectedRichNodeDescriptor.textDecoration}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ textDecoration: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    >
+                                      {RICH_TEXT_TEXT_DECORATION_OPTIONS.map((option) => (
+                                        <option key={option.value || "default"} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="block text-xs font-semibold text-slate-600">
+                                    Transformação
+                                    <select
+                                      value={selectedRichNodeDescriptor.textTransform}
+                                      onChange={(event) => applyRichNodeTextStyleEdit({ textTransform: event.target.value })}
+                                      className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                    >
+                                      {RICH_TEXT_TEXT_TRANSFORM_OPTIONS.map((option) => (
+                                        <option key={option.value || "default"} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-500">
+                                    Deixe um campo vazio para voltar ao estilo padrão do tema da página.
+                                  </div>
+                                </div>
+                              </InspectorCollapsibleGroup>
                               <div className="grid grid-cols-2 gap-2">
                                 <label className="block text-xs font-semibold text-slate-600">
                                   Cor do texto
