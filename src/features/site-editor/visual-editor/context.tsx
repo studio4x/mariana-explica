@@ -1,4 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, Link2, PencilLine, Sparkles } from "lucide-react"
@@ -326,6 +336,8 @@ export function VisualEditorProvider(props: {
     staleTime: 30_000,
     enabled: Boolean(pageKey) && (isAdminEditorRoute || isPublicEditorRoute),
   })
+  const shouldResolveAdminSource = Boolean(isAdminEditorRoute || isPublicEditorRoute)
+  const shouldDeferInitialContentPaint = Boolean(pageDefinition?.publicPath)
 
   const pageDetail = adminQuery.data ?? null
   const publicPage = pageQuery.data ?? null
@@ -361,8 +373,11 @@ export function VisualEditorProvider(props: {
   const [isPublicEditorPanelOpen, setIsPublicEditorPanelOpen] = useState(false)
   const [isPublicEditorCollapsed, setIsPublicEditorCollapsed] = useState(false)
   const [isEditingUnlocked, setIsEditingUnlocked] = useState(false)
+  const [readyPaintPageKey, setReadyPaintPageKey] = useState<string | null>(() =>
+    shouldDeferInitialContentPaint ? null : String(pageKey),
+  )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isDeepEqual(document, baselineDocument)) {
       return
     }
@@ -375,7 +390,7 @@ export function VisualEditorProvider(props: {
     setBaselineDocument(cloneVisualEditorDocument(baseDocument))
   }, [baseDocument, baselineDocument, document])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isVisualEditorStyleDocumentEqual(styles, baselineStyles)) {
       return
     }
@@ -387,6 +402,46 @@ export function VisualEditorProvider(props: {
     setStyles(cloneVisualEditorStyleDocument(baseStyleDocument))
     setBaselineStyles(cloneVisualEditorStyleDocument(baseStyleDocument))
   }, [baseStyleDocument, baselineStyles, styles])
+
+  const hasResolvedInitialSource = Boolean(pageDetail?.latestDraft || pageDetail?.publishedVersion || publicPage?.version)
+  const isAwaitingInitialPageSource =
+    shouldDeferInitialContentPaint &&
+    !hasResolvedInitialSource &&
+    (pageQuery.isLoading || (shouldResolveAdminSource && adminQuery.isLoading))
+
+  useLayoutEffect(() => {
+    if (!shouldDeferInitialContentPaint) {
+      if (readyPaintPageKey !== String(pageKey)) {
+        setReadyPaintPageKey(String(pageKey))
+      }
+      return
+    }
+
+    if (isAwaitingInitialPageSource) {
+      return
+    }
+
+    if (!isDeepEqual(document, baseDocument)) {
+      return
+    }
+
+    if (!isVisualEditorStyleDocumentEqual(styles, baseStyleDocument)) {
+      return
+    }
+
+    if (readyPaintPageKey !== String(pageKey)) {
+      setReadyPaintPageKey(String(pageKey))
+    }
+  }, [
+    baseDocument,
+    baseStyleDocument,
+    document,
+    isAwaitingInitialPageSource,
+    pageKey,
+    readyPaintPageKey,
+    shouldDeferInitialContentPaint,
+    styles,
+  ])
 
   useEffect(() => {
     setSelectedFieldKey(null)
@@ -500,6 +555,7 @@ export function VisualEditorProvider(props: {
   const isStyleDirty = !isVisualEditorStyleDocumentEqual(styles, baselineStyles)
   const isDirty = isDocumentDirty || isStyleDirty
   const isLoading = pageQuery.isLoading || ((isAdminEditorRoute || isPublicEditorRoute) && adminQuery.isLoading)
+  const isInitialContentPaintReady = !shouldDeferInitialContentPaint || readyPaintPageKey === String(pageKey)
 
   const getFieldValue = (fieldKey: string, fallback?: unknown) => {
     const value = getVisualEditorPathValue(document, fieldKey)
@@ -994,7 +1050,13 @@ export function VisualEditorProvider(props: {
           toggleCollapsed={togglePublicEditorCollapsed}
         />
       ) : null}
-      <div className={cn(showPublicPanel && "lg:pr-[448px]")}>{children}</div>
+      <div
+        data-visual-editor-initial-paint={isInitialContentPaintReady ? "ready" : "pending"}
+        className={cn(showPublicPanel && "lg:pr-[448px]")}
+        style={isInitialContentPaintReady ? undefined : { opacity: 0, pointerEvents: "none" }}
+      >
+        {children}
+      </div>
     </VisualEditorContext.Provider>
   )
 }

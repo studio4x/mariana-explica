@@ -103,6 +103,8 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
 
     return canonicalPayload
   }, [canonicalPayload, pageQuery.data?.version, previewPayload, slug])
+  const shouldHideInitialManagedPaint =
+    !previewPayload && pageQuery.isLoading && !pageQuery.data && !pageQuery.isError
 
   function prepareMountNode(selector: string, markerName: string) {
     const root = managedRootRef.current
@@ -192,7 +194,11 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
   }
 
   const pageContent = (
-    <div className="w-full bg-white">
+    <div
+      data-public-managed-page-paint={shouldHideInitialManagedPaint ? "pending" : "ready"}
+      className="w-full bg-white"
+      style={shouldHideInitialManagedPaint ? { opacity: 0, pointerEvents: "none" } : undefined}
+    >
       {managedPayload.css ? <style>{managedPayload.css}</style> : null}
       {previewPayload ? (
         <style>{`

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 import { render, screen } from "@testing-library/react"
+import type { ReactNode } from "react"
 import { PublicManagedPage } from "./PublicManagedPage"
 import { storeSitePagePreview } from "@/lib/site-page-preview"
 
@@ -11,6 +13,18 @@ vi.mock("@/hooks/usePublicSitePage", () => ({
 }))
 
 describe("PublicManagedPage AI preview", () => {
+  function renderManagedPage(pathname: string, element: ReactNode) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[pathname]}>{element}</MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
   beforeEach(() => {
     window.localStorage.clear()
     mockUsePublicSitePage.mockReturnValue({
@@ -72,15 +86,25 @@ describe("PublicManagedPage AI preview", () => {
       highlightSelectors: ["[data-block-id='hero']"],
     })
 
-    render(
-      <MemoryRouter initialEntries={[`/?builder-preview=${token}`]}>
-        <PublicManagedPage slug="home" fallback={<div>fallback</div>} />
-      </MemoryRouter>,
-    )
+    renderManagedPage(`/?builder-preview=${token}`, <PublicManagedPage slug="home" fallback={<div>fallback</div>} />)
 
     expect(screen.getByText("Pré-visualização IA")).toBeInTheDocument()
     expect(screen.getByText("Remover padding superior do hero")).toBeInTheDocument()
     expect(screen.getByText(/1 alvo\(s\) destacados/i)).toBeInTheDocument()
     expect(document.querySelector("[data-block-id='hero']")?.getAttribute("data-me-ai-preview-highlight")).toBe("1")
+  })
+
+  it("keeps the managed page visually hidden until the first published payload resolves", () => {
+    mockUsePublicSitePage.mockReturnValue({
+      data: null,
+      isLoading: true,
+      isError: false,
+    })
+
+    const { container } = renderManagedPage("/", <PublicManagedPage slug="home" fallback={<div>fallback</div>} />)
+
+    const managedPage = container.querySelector("[data-public-managed-page-paint='pending']")
+    expect(managedPage).not.toBeNull()
+    expect(screen.queryByText("fallback")).not.toBeInTheDocument()
   })
 })

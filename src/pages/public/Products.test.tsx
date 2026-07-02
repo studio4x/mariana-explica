@@ -164,6 +164,16 @@ function renderProducts(pathname = "/materiais") {
   )
 }
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    void rej
+  })
+
+  return { promise, resolve }
+}
+
 async function clickEditableField(user: ReturnType<typeof userEvent.setup>, fieldKey: string) {
   const field = await waitFor(() => {
     const element = document.querySelector<HTMLElement>(`[data-visual-editor-field="${fieldKey}"]`)
@@ -352,6 +362,21 @@ describe("Products", () => {
     expect(screen.getByText("Pergunta de teste")).toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
+  })
+
+  it("keeps the visual-editor page hidden until the first published document resolves", async () => {
+    const deferred = createDeferredPromise<ReturnType<typeof buildMaterialsPublicPayload> | null>()
+    mockFetchPublicVisualEditorPage.mockReturnValueOnce(deferred.promise)
+
+    const { container } = renderProducts()
+
+    expect(container.querySelector('[data-visual-editor-initial-paint="pending"]')).not.toBeNull()
+
+    deferred.resolve(buildMaterialsPublicPayload())
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-visual-editor-initial-paint="ready"]')).not.toBeNull()
+    })
   })
 
   it("shows editor controls to an admin on the public materials page", async () => {
