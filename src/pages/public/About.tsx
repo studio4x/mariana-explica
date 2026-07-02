@@ -16,8 +16,9 @@ function AboutPageContent() {
   const pillars = visualDocument.pillars
 
   return (
-    <EditableContainer fieldKey="layout.pageFrame" as="section" className="bg-[#d8e8ef] py-14 md:py-20">
-      <div className="mx-auto max-w-[1200px] px-6">
+    <SiteContentScope title="Espaco da pagina" description="Ajusta o respiro entre o header e o conteudo">
+      <EditableContainer fieldKey="layout.pageFrame" as="section" className="bg-[#d8e8ef] py-14 md:py-20">
+        <div className="mx-auto max-w-[1200px] px-6">
         <SiteContentScope title="Hero" description="Título, subtítulo e retrato">
           <div className="mx-auto max-w-[860px] text-center">
             <EditableText
@@ -173,8 +174,9 @@ function AboutPageContent() {
             </div>
           </SiteContentScope>
         </div>
-      </div>
-    </EditableContainer>
+        </div>
+      </EditableContainer>
+    </SiteContentScope>
   )
 }
 

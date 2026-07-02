@@ -3,7 +3,12 @@ import { MessageCircleHeart, Send } from "lucide-react"
 import { OperationFeedbackModal } from "@/components/common"
 import { Button } from "@/components/ui"
 import { submitPublicForm } from "@/services"
-import { EditableContainer, VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  EditableContainer,
+  SiteContentScope,
+  VisualEditorProvider,
+  useOptionalVisualEditorPage,
+} from "@/features/site-editor/visual-editor"
 import {
   EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type ExplicacoesVisualEditorDocument,
@@ -64,8 +69,9 @@ function ExplicacoesPageContent() {
   }
 
   return (
-    <EditableContainer fieldKey="layout.pageFrame" as="div" className="bg-[#f6fafc] py-10 text-slate-900 md:py-14">
-      <div className="container mx-auto max-w-5xl space-y-8">
+    <SiteContentScope title="Espaco da pagina" description="Ajusta o respiro entre o header e o conteudo">
+      <EditableContainer fieldKey="layout.pageFrame" as="div" className="bg-[#f6fafc] py-10 text-slate-900 md:py-14">
+        <div className="container mx-auto max-w-5xl space-y-8">
         <header className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#e7f3fb] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#114866]">
             <MessageCircleHeart className="h-4 w-4" />
@@ -161,7 +167,7 @@ function ExplicacoesPageContent() {
             ) : null}
           </form>
         </section>
-      </div>
+        </div>
 
       <OperationFeedbackModal
         open={isSuccessModalOpen}
@@ -171,7 +177,8 @@ function ExplicacoesPageContent() {
         message="Obrigada pelo teu contacto! Recebi o teu pedido com sucesso. Em breve, receberás uma resposta da minha parte! Fica atento/a. Beijinho, Mariana."
         onClose={() => setIsSuccessModalOpen(false)}
       />
-    </EditableContainer>
+      </EditableContainer>
+    </SiteContentScope>
   )
 }
 

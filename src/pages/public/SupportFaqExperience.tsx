@@ -116,18 +116,19 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
   }, [activeFaqs])
 
   return (
-    <EditableContainer
-      fieldKey="layout.pageFrame"
-      as="div"
-      className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14"
-    >
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
-        <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
-        <div className="absolute bottom-[-10rem] left-1/4 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
-      </div>
+    <SiteContentScope title="Espaco da pagina" description="Ajusta o respiro entre o header e o conteudo">
+      <EditableContainer
+        fieldKey="layout.pageFrame"
+        as="div"
+        className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14"
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
+          <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
+          <div className="absolute bottom-[-10rem] left-1/4 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
+        </div>
 
-      <div className="container relative space-y-12">
+        <div className="container relative space-y-12">
         {includeHero ? (
           visualEditorPage ? (
             <SiteContentScope title="Hero principal" description="Texto, CTAs e imagem de abertura">
@@ -213,26 +214,45 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           )
         ) : null}
 
-        <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
-          <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulario:</h2>
-          <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
-            <p>
-              <span className="font-black text-white">Planeamento Previo:</span> Devido a agenda preenchida, todos os
-              pedidos para explicacoes devem ser efetuados com um minimo de 3 semanas de antecedencia.
-            </p>
-            <p>
-              <span className="font-black text-white">Nao Garante Reserva:</span> O envio e submissao deste formulario
-              funciona estritamente como um pedido de informacoes e consulta de disponibilidade. Nao constitui, de
-              forma alguma, uma marcacao automatica ou garantia de vaga.
-            </p>
-          </div>
-        </section>
+        <SiteContentScope title="Formulario de suporte" description="Avisos e campos do pedido">
+          <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
+            <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulario:</h2>
+            <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
+              <p>
+                <span className="font-black text-white">Planeamento Previo:</span> Devido a agenda preenchida, todos os
+                pedidos para explicacoes devem ser efetuados com um minimo de 3 semanas de antecedencia.
+              </p>
+              <p>
+                <span className="font-black text-white">Nao Garante Reserva:</span> O envio e submissao deste formulario
+                funciona estritamente como um pedido de informacoes e consulta de disponibilidade. Nao constitui, de
+                forma alguma, uma marcacao automatica ou garantia de vaga.
+              </p>
+            </div>
+          </section>
 
-        <section className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
-          <form className="space-y-5">
-            <div className="grid gap-5 md:grid-cols-2">
+          <section className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
+            <form className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                  Nome
+                  <input
+                    required
+                    className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                  Email
+                  <input
+                    required
+                    type="email"
+                    className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                  />
+                </label>
+              </div>
+
               <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                Nome
+                Assunto
                 <input
                   required
                   className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
@@ -240,45 +260,28 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                Email
-                <input
+                Mensagem
+                <textarea
                   required
-                  type="email"
-                  className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                  rows={7}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
                 />
               </label>
-            </div>
 
-            <label className="grid gap-2 text-sm font-semibold text-slate-700">
-              Assunto
-              <input
-                required
-                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
-              />
-            </label>
+              <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
+                <p className="font-black">Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:</p>
+                <p className="mt-1">O Ano Escolar do Aluno (ex: 10.0, 11.0 ou 12.0 ano)</p>
+                <p>A Disciplina pretendida (Filosofia ou Portugues)</p>
+              </div>
 
-            <label className="grid gap-2 text-sm font-semibold text-slate-700">
-              Mensagem
-              <textarea
-                required
-                rows={7}
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
-              />
-            </label>
-
-            <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-              <p className="font-black">Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:</p>
-              <p className="mt-1">O Ano Escolar do Aluno (ex: 10.0, 11.0 ou 12.0 ano)</p>
-              <p>A Disciplina pretendida (Filosofia ou Portugues)</p>
-            </div>
-
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
-                Enviar formulario
-              </Button>
-            </div>
-          </form>
-        </section>
+              <div className="flex flex-wrap justify-end gap-3">
+                <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
+                  Enviar formulario
+                </Button>
+              </div>
+            </form>
+          </section>
+        </SiteContentScope>
 
         <section className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
@@ -413,8 +416,9 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             </div>
           </section>
         )}
-      </div>
-    </EditableContainer>
+        </div>
+      </EditableContainer>
+    </SiteContentScope>
   )
 }
 

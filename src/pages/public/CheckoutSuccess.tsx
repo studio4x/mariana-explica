@@ -6,7 +6,12 @@ import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
 import { createCheckoutAutologin } from "@/services"
-import { EditableContainer, VisualEditorProvider, useOptionalVisualEditorPage } from "@/features/site-editor/visual-editor"
+import {
+  EditableContainer,
+  SiteContentScope,
+  VisualEditorProvider,
+  useOptionalVisualEditorPage,
+} from "@/features/site-editor/visual-editor"
 import {
   CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutSuccessVisualEditorDocument,
@@ -74,8 +79,9 @@ function CheckoutSuccessPageContent() {
   }
 
   return (
-    <EditableContainer fieldKey="layout.pageFrame" as="div" className="bg-[#f5fafc] px-4 py-14 text-[#171c1e] md:py-20">
-      <section
+    <SiteContentScope title="Espaco da pagina" description="Ajusta o respiro entre o header e o conteudo">
+      <EditableContainer fieldKey="layout.pageFrame" as="div" className="bg-[#f5fafc] px-4 py-14 text-[#171c1e] md:py-20">
+        <section
         className="container"
         data-conversion-event="checkout_success"
         data-checkout-provider={mode === "free" ? "internal" : "stripe"}
@@ -144,8 +150,9 @@ function CheckoutSuccessPageContent() {
             </aside>
           </div>
         </div>
-      </section>
-    </EditableContainer>
+        </section>
+      </EditableContainer>
+    </SiteContentScope>
   )
 }
 
