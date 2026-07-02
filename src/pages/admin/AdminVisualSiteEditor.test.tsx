@@ -189,6 +189,8 @@ describe("AdminVisualSiteEditor", () => {
     expect(screen.getByRole("link", { name: "Materiais" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /guardar rascunho/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /publicar/i })).toBeInTheDocument()
+    expect(await screen.findByText("Legenda do topo")).toBeInTheDocument()
+    expect(await screen.findByText("Formatação de texto")).toBeInTheDocument()
     expect(await screen.findByText("Versao 2")).toBeInTheDocument()
     expect(screen.getByText("Como podemos ajudar?")).toBeInTheDocument()
   })

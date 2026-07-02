@@ -5,6 +5,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -28,6 +29,7 @@ import { getVisualEditorPageDefinition } from "./page-definitions"
 import type {
   VisualEditorDocument,
   VisualEditorFieldDefinition,
+  VisualEditorFieldKind,
   VisualEditorFieldStyleValue,
   VisualEditorImageValue,
   VisualEditorLinkValue,
@@ -315,6 +317,19 @@ function resolveEditableValue(document: VisualEditorDocument, field: VisualEdito
   return normalizeEditableValue(field, getVisualEditorPathValue(document, field.key))
 }
 
+function pickPreferredInitialField(fieldDefinitions: VisualEditorFieldDefinition[]) {
+  const preferredKinds: VisualEditorFieldKind[] = ["text", "textarea", "link", "image", "container", "list", "json"]
+
+  for (const kind of preferredKinds) {
+    const field = fieldDefinitions.find((definition) => definition.kind === kind)
+    if (field) {
+      return field
+    }
+  }
+
+  return fieldDefinitions[0] ?? null
+}
+
 export function VisualEditorProvider(props: {
   pageKey: VisualEditorPageKey | string
   children: ReactNode
@@ -380,6 +395,7 @@ export function VisualEditorProvider(props: {
   const [readyPaintPageKey, setReadyPaintPageKey] = useState<string | null>(() =>
     shouldDeferInitialContentPaint ? null : String(pageKey),
   )
+  const autoSelectedPageKeyRef = useRef<string | null>(null)
 
   useLayoutEffect(() => {
     if (!isDeepEqual(document, baselineDocument)) {
@@ -518,6 +534,7 @@ export function VisualEditorProvider(props: {
 
   const fieldDefinitions = pageDefinition?.fields ?? []
   const currentField = selectedFieldKey ? fieldDefinitions.find((field) => field.key === selectedFieldKey) : undefined
+  const preferredInitialField = useMemo(() => pickPreferredInitialField(fieldDefinitions), [fieldDefinitions])
   const registerTextFieldTag = useCallback((fieldKey: string, tag: string) => {
     setRegisteredTextTags((current) => {
       if (current[fieldKey] === tag) {
@@ -560,6 +577,37 @@ export function VisualEditorProvider(props: {
   const isDirty = isDocumentDirty || isStyleDirty
   const isLoading = pageQuery.isLoading || ((isAdminEditorRoute || isPublicEditorRoute) && adminQuery.isLoading)
   const isInitialContentPaintReady = !shouldDeferInitialContentPaint || readyPaintPageKey === String(pageKey)
+
+  useEffect(() => {
+    if (!canInteractWithEditable || !isEditingActive) {
+      autoSelectedPageKeyRef.current = null
+      return
+    }
+
+    if (selectedFieldKey) {
+      return
+    }
+
+    if (autoSelectedPageKeyRef.current === String(pageKey)) {
+      return
+    }
+
+    if (!preferredInitialField) {
+      return
+    }
+
+    autoSelectedPageKeyRef.current = String(pageKey)
+    setSelectedFieldKey(preferredInitialField.key)
+    setDraftValueState(resolveEditableValue(document, preferredInitialField))
+    setStatusMessage(null)
+  }, [
+    canInteractWithEditable,
+    document,
+    isEditingActive,
+    pageKey,
+    preferredInitialField,
+    selectedFieldKey,
+  ])
 
   const getFieldValue = (fieldKey: string, fallback?: unknown) => {
     const value = getVisualEditorPathValue(document, fieldKey)
