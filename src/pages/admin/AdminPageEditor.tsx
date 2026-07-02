@@ -178,6 +178,7 @@ const EDITABLE_RICH_TEXT_SELECTOR = [
   "li",
   "blockquote",
   "img",
+  "hr",
   ".me-home-eyebrow",
   ".me-home-chip-title",
   ".me-home-pill",
@@ -732,6 +733,7 @@ function getSemanticTextLabel(tagName: string) {
     li: "Item de lista",
     blockquote: "Citação",
     img: "Imagem",
+    hr: "Divisor",
     span: "Texto",
   }
 

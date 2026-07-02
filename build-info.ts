@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "166"
-export const BUILD_COMMIT = "visual-editor-no-flash"
+export const BUILD_DEPLOY_NUMBER = "167"
+export const BUILD_COMMIT = "about-divider-removable"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
