@@ -4,6 +4,7 @@ import {
   type AboutVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
 import { EditableText, SiteContentScope } from "@/features/site-editor/visual-editor"
+import { PublicManagedPage } from "./PublicManagedPage"
 
 function AboutPageContent() {
   const { document } = useVisualEditorPage()
@@ -177,10 +178,14 @@ function AboutPageContent() {
   )
 }
 
-export function About() {
+function LegacyAbout() {
   return (
     <VisualEditorProvider pageKey="about">
       <AboutPageContent />
     </VisualEditorProvider>
   )
+}
+
+export function About() {
+  return <PublicManagedPage slug="sobre" fallback={<LegacyAbout />} />
 }

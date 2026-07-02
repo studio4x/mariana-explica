@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "164"
-export const BUILD_COMMIT = "about-reference-exact"
+export const BUILD_DEPLOY_NUMBER = "165"
+export const BUILD_COMMIT = "about-managed-public-page"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
