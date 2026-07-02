@@ -28,6 +28,7 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { ErrorState, LoadingState } from "@/components/feedback"
 import { RichTextEditor, type RichTextEditorHandle } from "@/components/common/RichTextEditor"
 import { Button } from "@/components/ui"
+import { HomeReviewsFeed } from "@/components/reviews"
 import { BUILD_VERSION } from "@/lib/build"
 import {
   useAdminSitePageDetail,
@@ -57,6 +58,8 @@ import {
 import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
 import { ExplicacoesFormExperience } from "../public/ExplicacoesFormExperience"
+import { ProductsCatalogExperience } from "../public/ProductsCatalogExperience"
+import { SupportFaqExperience } from "../public/SupportFaqExperience"
 
 const PAGE_OPTIONS: Array<{ slug: SitePageSlug; label: string; publicPath: string }> = [
   { slug: "home", label: "Home", publicPath: "/" },
@@ -1478,7 +1481,10 @@ export function AdminPageEditor() {
   const [isMoreActionsMenuOpen, setIsMoreActionsMenuOpen] = useState(false)
   const [isMediaLibraryModalOpen, setIsMediaLibraryModalOpen] = useState(false)
   const [mediaLibraryTargetBlockId, setMediaLibraryTargetBlockId] = useState<string | null>(null)
+  const [homeReviewsPreviewMountNode, setHomeReviewsPreviewMountNode] = useState<HTMLElement | null>(null)
   const [explicacoesFormPreviewMountNode, setExplicacoesFormPreviewMountNode] = useState<HTMLElement | null>(null)
+  const [productsExperiencePreviewMountNode, setProductsExperiencePreviewMountNode] = useState<HTMLElement | null>(null)
+  const [supportExperiencePreviewMountNode, setSupportExperiencePreviewMountNode] = useState<HTMLElement | null>(null)
 
   const richTextRef = useRef<RichTextEditorHandle | null>(null)
   const moreActionsMenuRef = useRef<HTMLDivElement | null>(null)
@@ -2904,28 +2910,45 @@ export function AdminPageEditor() {
   }, [detailQuery.data, publishedVersionId, selectedSlug, selectedVersionId, versions])
 
   useEffect(() => {
-    if (selectedSlug !== "explicacoes") {
-      setExplicacoesFormPreviewMountNode(null)
-      return
-    }
-
     let frameId = 0
     frameId = window.requestAnimationFrame(() => {
       const root = canvasAreaRef.current
       if (!root) {
+        setHomeReviewsPreviewMountNode(null)
         setExplicacoesFormPreviewMountNode(null)
+        setProductsExperiencePreviewMountNode(null)
+        setSupportExperiencePreviewMountNode(null)
         return
       }
 
-      const placeholder = root.querySelector<HTMLElement>(".me-explicacoes-form-placeholder")
-      if (!placeholder) {
-        setExplicacoesFormPreviewMountNode(null)
-        return
+      const prepareMountNode = (selector: string, markerName: string) => {
+        const placeholder = root.querySelector<HTMLElement>(selector)
+        if (!placeholder) return null
+        placeholder.setAttribute(markerName, "1")
+        placeholder.innerHTML = ""
+        return placeholder
       }
 
-      placeholder.setAttribute("data-me-explicacoes-form-live", "1")
-      placeholder.innerHTML = ""
-      setExplicacoesFormPreviewMountNode(placeholder)
+      setHomeReviewsPreviewMountNode(
+        selectedSlug === "home"
+          ? prepareMountNode(".me-home-review-placeholder", "data-me-home-reviews-live")
+          : null,
+      )
+      setExplicacoesFormPreviewMountNode(
+        selectedSlug === "explicacoes"
+          ? prepareMountNode(".me-explicacoes-form-placeholder", "data-me-explicacoes-form-live")
+          : null,
+      )
+      setProductsExperiencePreviewMountNode(
+        selectedSlug === "materiais"
+          ? prepareMountNode(".me-products-experience-placeholder", "data-me-products-experience-live")
+          : null,
+      )
+      setSupportExperiencePreviewMountNode(
+        selectedSlug === "suporte"
+          ? prepareMountNode(".me-support-shell", "data-me-support-shell-live")
+          : null,
+      )
     })
 
     return () => {
@@ -7102,12 +7125,39 @@ export function AdminPageEditor() {
         </div>
       </footer>
 
+      {selectedSlug === "home" && homeReviewsPreviewMountNode
+        ? createPortal(
+            <div className="pointer-events-none" data-me-admin-home-reviews-preview="1">
+              <HomeReviewsFeed className="!mt-0" />
+            </div>,
+            homeReviewsPreviewMountNode,
+          )
+        : null}
+
       {selectedSlug === "explicacoes" && explicacoesFormPreviewMountNode
         ? createPortal(
             <div className="pointer-events-none" data-me-admin-explicacoes-form-preview="1">
               <ExplicacoesFormExperience />
             </div>,
             explicacoesFormPreviewMountNode,
+          )
+        : null}
+
+      {selectedSlug === "materiais" && productsExperiencePreviewMountNode
+        ? createPortal(
+            <div className="pointer-events-none" data-me-admin-products-experience-preview="1">
+              <ProductsCatalogExperience />
+            </div>,
+            productsExperiencePreviewMountNode,
+          )
+        : null}
+
+      {selectedSlug === "suporte" && supportExperiencePreviewMountNode
+        ? createPortal(
+            <div className="pointer-events-none" data-me-admin-support-experience-preview="1">
+              <SupportFaqExperience />
+            </div>,
+            supportExperiencePreviewMountNode,
           )
         : null}
 
