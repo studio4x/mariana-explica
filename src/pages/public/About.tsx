@@ -1,21 +1,13 @@
-import { useLocation } from "react-router-dom"
+import { VisualEditorProvider, useVisualEditorPage } from "@/features/site-editor/visual-editor"
 import {
   ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type AboutVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
-import {
-  EditableText,
-  SiteContentScope,
-  VisualEditorProvider,
-  useOptionalVisualEditorPage,
-} from "@/features/site-editor/visual-editor"
-import { readSitePagePreviewFromSearch } from "@/lib/site-page-preview"
-import { PublicManagedPage } from "./PublicManagedPage"
+import { EditableText, SiteContentScope } from "@/features/site-editor/visual-editor"
 
 function AboutPageContent() {
-  const visualEditorPage = useOptionalVisualEditorPage()
-  const visualDocument =
-    (visualEditorPage?.document as AboutVisualEditorDocument | undefined) ?? ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const { document } = useVisualEditorPage()
+  const visualDocument = (document as AboutVisualEditorDocument | undefined) ?? ABOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const hero = visualDocument.hero
   const portrait = visualDocument.portrait
   const intro = visualDocument.intro
@@ -186,13 +178,6 @@ function AboutPageContent() {
 }
 
 export function About() {
-  const location = useLocation()
-  const previewPayload = readSitePagePreviewFromSearch("sobre", location.search)
-
-  if (previewPayload) {
-    return <PublicManagedPage slug="sobre" />
-  }
-
   return (
     <VisualEditorProvider pageKey="about">
       <AboutPageContent />
