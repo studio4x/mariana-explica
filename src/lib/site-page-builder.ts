@@ -1722,61 +1722,27 @@ function buildTypographyCssRule(selectors: string[], token: string) {
 }
 
 function getManagedSemanticTypographyCss() {
+  const richTextScope = ".me-managed-page-root .me-managed-richtext:not(.me-managed-canonical-richtext)"
+
   return [
-    buildTypographyCssRule([".me-managed-page-root h1"], "h1"),
-    buildTypographyCssRule([".me-managed-page-root h2"], "h2"),
-    buildTypographyCssRule([".me-managed-page-root h3"], "h3"),
-    buildTypographyCssRule([".me-managed-page-root h4"], "h4"),
-    buildTypographyCssRule([".me-managed-page-root h5"], "h5"),
-    buildTypographyCssRule([".me-managed-page-root h6"], "h6"),
-    buildTypographyCssRule([".me-managed-page-root p", ".me-managed-page-root blockquote", ".me-managed-richtext"], "paragraph"),
-    buildTypographyCssRule([".me-managed-page-root li"], "list-item"),
-    buildTypographyCssRule([".me-managed-page-root label"], "label"),
-    buildTypographyCssRule([".me-managed-page-root small"], "small"),
+    buildTypographyCssRule([`${richTextScope} h1`], "h1"),
+    buildTypographyCssRule([`${richTextScope} h2`], "h2"),
+    buildTypographyCssRule([`${richTextScope} h3`], "h3"),
+    buildTypographyCssRule([`${richTextScope} h4`], "h4"),
+    buildTypographyCssRule([`${richTextScope} h5`], "h5"),
+    buildTypographyCssRule([`${richTextScope} h6`], "h6"),
+    buildTypographyCssRule([`${richTextScope} p`, `${richTextScope} blockquote`, richTextScope], "paragraph"),
+    buildTypographyCssRule([`${richTextScope} li`], "list-item"),
+    buildTypographyCssRule([`${richTextScope} label`], "label"),
+    buildTypographyCssRule([`${richTextScope} small`], "small"),
     buildTypographyCssRule(
       [
-        ".me-managed-page-root .me-home-display-copy",
-        ".me-managed-page-root .me-about-copy .me-about-lead",
-      ],
-      "h3",
-    ),
-    buildTypographyCssRule(
-      [
-        ".me-managed-page-root .me-home-chip-title",
-        ".me-managed-page-root .me-about-pillar-tag p",
-      ],
-      "h4",
-    ),
-    buildTypographyCssRule(
-      [
-        ".me-managed-page-root .me-home-eyebrow",
-        ".me-managed-page-root .me-home-pill",
-        ".me-managed-page-root .me-explicacoes-pill",
-        ".me-managed-page-root .me-materiais-eyebrow",
-        ".me-managed-page-root .me-materiais-helper-label",
-        ".me-managed-page-root .me-support-helper-label",
-        ".me-managed-page-root .me-support-icon-badge",
-        ".me-managed-page-root .me-legal-eyebrow",
-        ".me-managed-page-root .me-legal-updated",
-      ],
-      "label",
-    ),
-    buildTypographyCssRule(
-      [
-        ".me-managed-page-root .me-managed-richtext a",
-        ".me-managed-page-root p a",
-        ".me-managed-page-root li a",
-        ".me-managed-page-root blockquote a",
-        ".me-managed-page-root .me-legal-back",
+        `${richTextScope} a`,
       ],
       "link",
     ),
     `
-.me-managed-page-root .me-managed-richtext a:hover,
-.me-managed-page-root p a:hover,
-.me-managed-page-root li a:hover,
-.me-managed-page-root blockquote a:hover,
-.me-managed-page-root .me-legal-back:hover {
+${richTextScope} a:hover {
   color: var(--site-link-hover-color) !important;
 }
     `.trim(),
@@ -1795,7 +1761,13 @@ function renderSingleBlockToHtml(block: PageBlock): string {
       }
 
       if (block.type === "rich_text") {
-        const classAttribute = buildClassAttribute("me-managed-richtext", block.customClassName)
+        const isCanonicalRichText =
+          block.content.includes(`${PAGE_CANONICAL_MARKER}=`) || block.content.includes(HOME_CANONICAL_MARKER)
+        const classAttribute = buildClassAttribute(
+          "me-managed-richtext",
+          isCanonicalRichText ? "me-managed-canonical-richtext" : "",
+          block.customClassName,
+        )
         return `<div${classAttribute}${contentIdentityAttributes}>${sanitizeRichText(block.content)}</div>`
       }
 
