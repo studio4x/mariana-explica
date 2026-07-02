@@ -166,7 +166,7 @@ function extractDocumentFromVersion(slug: SitePageSlug, version: AdminSitePageVe
   return resolveBuilderDocumentFromLayoutJson(slug, version?.layout_json)
 }
 
-const EDITABLE_RICH_TEXT_SELECTOR = [
+const EDITABLE_RICH_TEXT_TAGS = [
   "h1",
   "h2",
   "h3",
@@ -179,6 +179,40 @@ const EDITABLE_RICH_TEXT_SELECTOR = [
   "blockquote",
   "img",
   "hr",
+  "div",
+  "section",
+  "article",
+  "main",
+  "header",
+  "footer",
+  "aside",
+  "nav",
+  "figure",
+  "figcaption",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "td",
+  "th",
+  "ul",
+  "ol",
+  "span",
+  "strong",
+  "em",
+  "u",
+  "small",
+  "code",
+  "pre",
+  "label",
+  "mark",
+  "sup",
+  "sub",
+].join(",")
+
+const EDITABLE_RICH_TEXT_SELECTOR = [
+  EDITABLE_RICH_TEXT_TAGS,
   ".me-home-eyebrow",
   ".me-home-chip-title",
   ".me-home-pill",
@@ -192,7 +226,28 @@ function getEditableRichNodesFromHtml(html: string) {
 }
 
 function isRichTextNodeTextEditable(tagName: string) {
-  return ["h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "span"].includes(tagName)
+  return [
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "a",
+    "li",
+    "blockquote",
+    "span",
+    "strong",
+    "em",
+    "u",
+    "small",
+    "code",
+    "mark",
+    "sup",
+    "sub",
+    "label",
+  ].includes(tagName)
 }
 
 function isSemanticRichTextTag(tagName: string) {
@@ -734,7 +789,36 @@ function getSemanticTextLabel(tagName: string) {
     blockquote: "Citação",
     img: "Imagem",
     hr: "Divisor",
+    div: "Caixa",
+    section: "Seção",
+    article: "Artigo",
+    main: "Conteúdo principal",
+    header: "Cabeçalho",
+    footer: "Rodapé",
+    aside: "Lateral",
+    nav: "Navegação",
+    figure: "Figura",
+    figcaption: "Legenda",
+    table: "Tabela",
+    thead: "Cabeçalho da tabela",
+    tbody: "Corpo da tabela",
+    tfoot: "Rodapé da tabela",
+    tr: "Linha",
+    td: "Célula",
+    th: "Cabeçalho da célula",
+    ul: "Lista",
+    ol: "Lista ordenada",
     span: "Texto",
+    strong: "Negrito",
+    em: "Itálico",
+    u: "Sublinhado",
+    small: "Texto pequeno",
+    code: "Código",
+    pre: "Bloco de código",
+    label: "Rótulo",
+    mark: "Destaque",
+    sup: "Sobrescrito",
+    sub: "Subscrito",
   }
 
   return tagLabelMap[normalizedTagName] ?? normalizedTagName.toUpperCase()
