@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "170"
-export const BUILD_COMMIT = "page-frame-form-scope"
+export const BUILD_DEPLOY_NUMBER = "171"
+export const BUILD_COMMIT = "canvas-page-frame-visible"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

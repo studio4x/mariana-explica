@@ -678,7 +678,10 @@ ${getDefaultStyleCss()}
 .me-managed-page-root {
   max-width: none;
   margin: 0;
-  padding: 0;
+  padding: 56px 20px 76px !important;
+  box-sizing: border-box;
+  outline: 1px dashed rgba(14, 165, 233, 0.18);
+  outline-offset: -1px;
 }
 .me-managed-block {
   width: 100% !important;
