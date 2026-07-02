@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { HelpCircle, LifeBuoy } from "lucide-react"
 import { Button } from "@/components/ui"
@@ -41,6 +41,59 @@ function renderSupportLink(link: { label: string; href: string }, className: str
   )
 }
 
+function OptionalSiteContentScope(props: {
+  editable: boolean
+  title: string
+  description?: string
+  children: ReactNode
+}) {
+  const { editable, title, description, children } = props
+
+  if (!editable) {
+    return <>{children}</>
+  }
+
+  return (
+    <SiteContentScope title={title} description={description}>
+      {children}
+    </SiteContentScope>
+  )
+}
+
+function SupportPageFrame(props: { editable: boolean; children: ReactNode }) {
+  const { editable, children } = props
+
+  if (!editable) {
+    return (
+      <div className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
+          <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
+          <div className="absolute bottom-[-10rem] left-1/4 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
+        </div>
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <SiteContentScope title="Espaco da pagina" description="Ajusta o respiro entre o header e o conteudo">
+      <EditableContainer
+        fieldKey="layout.pageFrame"
+        as="div"
+        className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14"
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
+          <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
+          <div className="absolute bottom-[-10rem] left-1/4 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
+        </div>
+        {children}
+      </EditableContainer>
+    </SiteContentScope>
+  )
+}
+
 function SupportFaqExperienceContent(props: { includeHero: boolean }) {
   const { includeHero } = props
   const [query, setQuery] = useState("")
@@ -52,6 +105,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
   const visualDocument =
     (visualEditorPage?.document as unknown as SupportVisualEditorDocument | undefined) ??
     SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const isVisualEditing = Boolean(visualEditorPage)
   const hero = visualDocument.hero
   const supportCta = visualDocument.supportCta
 
@@ -116,21 +170,10 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
   }, [activeFaqs])
 
   return (
-    <SiteContentScope title="Espaco da pagina" description="Ajusta o respiro entre o header e o conteudo">
-      <EditableContainer
-        fieldKey="layout.pageFrame"
-        as="div"
-        className="relative overflow-hidden bg-[#f6fafc] py-10 text-slate-900 md:py-14"
-      >
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-[#d7eef9] blur-3xl" />
-          <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-[#c7e3f1] blur-3xl" />
-          <div className="absolute bottom-[-10rem] left-1/4 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
-        </div>
-
+    <SupportPageFrame editable={isVisualEditing}>
         <div className="container relative space-y-12">
         {includeHero ? (
-          visualEditorPage ? (
+          isVisualEditing ? (
             <SiteContentScope title="Hero principal" description="Texto, CTAs e imagem de abertura">
               <section className="grid gap-8 overflow-hidden rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] md:p-10">
                 <div className="space-y-5">
@@ -214,7 +257,11 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           )
         ) : null}
 
-        <SiteContentScope title="Formulario de suporte" description="Avisos e campos do pedido">
+        <OptionalSiteContentScope
+          editable={isVisualEditing}
+          title="Formulario de suporte"
+          description="Avisos e campos do pedido"
+        >
           <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
             <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulario:</h2>
             <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
@@ -281,7 +328,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
               </div>
             </form>
           </section>
-        </SiteContentScope>
+        </OptionalSiteContentScope>
 
         <section className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
@@ -356,7 +403,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           </div>
         </section>
 
-        {visualEditorPage ? (
+        {isVisualEditing ? (
           <SiteContentScope title="Suporte rapido" description="Bloco final com apoio e redirecionamento">
             <EditableContainer
               fieldKey="supportCta.container"
@@ -417,8 +464,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           </section>
         )}
         </div>
-      </EditableContainer>
-    </SiteContentScope>
+    </SupportPageFrame>
   )
 }
 

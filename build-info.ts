@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "177"
-export const BUILD_COMMIT = "legacy-editor-text-formatting-card"
+export const BUILD_DEPLOY_NUMBER = "178"
+export const BUILD_COMMIT = "support-visual-editor-provider-fix"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
