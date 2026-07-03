@@ -1426,6 +1426,11 @@ export function EditableImage(props: {
   const styleValue = getStyleValue(fieldKey)
   const wrapperStyle = getVisualEditorImageWrapperStyle(styleValue)
   const imageStyle = getVisualEditorImageStyle(styleValue)
+  const [resolvedSrc, setResolvedSrc] = useState(value.src || fallback.src)
+
+  useEffect(() => {
+    setResolvedSrc(value.src || fallback.src)
+  }, [fallback.src, value.src])
 
   return (
     <button
@@ -1440,7 +1445,17 @@ export function EditableImage(props: {
       )}
       onClick={isEditingActive ? select : undefined}
     >
-      <img src={value.src} alt={value.alt} className="h-full w-full object-cover" style={imageStyle} />
+      <img
+        src={resolvedSrc}
+        alt={value.alt}
+        className="h-full w-full object-cover"
+        style={imageStyle}
+        onError={() => {
+          if (resolvedSrc !== fallback.src) {
+            setResolvedSrc(fallback.src)
+          }
+        }}
+      />
       {isEditingActive ? (
         <EditableMarker
           label="Editar"

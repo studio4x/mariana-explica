@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { HelpCircle, LifeBuoy } from "lucide-react"
 import { Button } from "@/components/ui"
@@ -23,6 +23,29 @@ import {
 type SupportFaq = FaqSummary & {
   ctaLabel?: string
   ctaTo?: string
+}
+
+function SupportHeroImage(props: { src: string; alt: string; className?: string }) {
+  const { src, alt, className } = props
+  const fallbackSrc = SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT.hero.image.src
+  const [resolvedSrc, setResolvedSrc] = useState(src || fallbackSrc)
+
+  useEffect(() => {
+    setResolvedSrc(src || fallbackSrc)
+  }, [fallbackSrc, src])
+
+  return (
+    <img
+      src={resolvedSrc}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (resolvedSrc !== fallbackSrc) {
+          setResolvedSrc(fallbackSrc)
+        }
+      }}
+    />
+  )
 }
 
 function renderSupportLink(link: { label: string; href: string }, className: string) {
@@ -252,7 +275,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
               </div>
 
               <div className="flex items-center justify-center">
-                <img
+                <SupportHeroImage
                   src={hero.image.src}
                   alt={hero.image.alt}
                   className="w-full max-w-[360px] rounded-[2rem] border border-slate-200 bg-white shadow-sm"
@@ -622,13 +645,13 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                     fieldKey="supportCta.title"
                     as="h2"
                     fallback={supportCta.title}
-                    className="mt-3 font-display text-3xl font-black"
+                    className="mt-3 font-display text-3xl font-black text-white"
                   />
                   <EditableText
                     fieldKey="supportCta.lead"
                     as="p"
                     fallback={supportCta.lead}
-                    className="mt-2 text-sm leading-7 text-white/70"
+                    className="mt-2 text-sm leading-7 text-white/85"
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -652,8 +675,8 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <HelpCircle className="h-7 w-7 text-sky-200" />
-                <h2 className="mt-3 font-display text-3xl font-black">{supportCta.title}</h2>
-                <p className="mt-2 text-sm leading-7 text-white/70">{supportCta.lead}</p>
+                <h2 className="mt-3 font-display text-3xl font-black text-white">{supportCta.title}</h2>
+                <p className="mt-2 text-sm leading-7 text-white/85">{supportCta.lead}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {renderSupportLink(

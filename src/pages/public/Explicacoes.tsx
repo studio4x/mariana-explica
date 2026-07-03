@@ -84,8 +84,8 @@ function ExplicacoesPageContent() {
         </header>
 
         <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
-          <h2 className="text-2xl font-black md:text-3xl">{notes.title}</h2>
-          <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
+          <h2 className="text-2xl font-black text-white md:text-3xl">{notes.title}</h2>
+          <div className="mt-5 space-y-4 text-base leading-8 text-white/90">
             <p>
               <span className="font-black text-white">{notes.paragraph1.split(":")[0]}:</span>{" "}
               {notes.paragraph1.split(":").slice(1).join(":").trim()}
