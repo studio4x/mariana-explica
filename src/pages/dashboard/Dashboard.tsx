@@ -22,12 +22,6 @@ function isCompleted(product: DashboardProductSummary) {
   return product.lesson_count > 0 && product.progress_percent >= 100
 }
 
-function getCourseActionLabel(product: DashboardProductSummary) {
-  if (isCompleted(product)) return "Revisar aprendizado"
-  if (product.completed_lessons > 0 || product.progress_percent > 0) return "Continuar aprendizado"
-  return "Iniciar aprendizado"
-}
-
 function MetricCard({
   label,
   value,
@@ -35,12 +29,11 @@ function MetricCard({
 }: {
   label: string
   value: number
-  tone: "slate" | "blue" | "amber" | "emerald"
+  tone: "slate" | "blue" | "emerald"
 }) {
   const toneClasses = {
     slate: "border-slate-200 bg-white text-slate-950",
     blue: "border-sky-100 bg-sky-50 text-sky-700",
-    amber: "border-amber-100 bg-amber-50 text-amber-700",
     emerald: "border-emerald-100 bg-emerald-50 text-emerald-700",
   }
 
@@ -120,7 +113,6 @@ export function Dashboard() {
   const products = data?.products ?? []
   const completedCourses = products.filter(isCompleted)
   const inProgressCourses = products.filter((product) => !isCompleted(product))
-  const finalPendingCourses = 0
   const featuredCourse = inProgressCourses[0] ?? products[0] ?? null
   const firstName = profile?.full_name?.split(" ")[0] ?? profile?.email?.split("@")[0] ?? "Aluno"
 
@@ -130,15 +122,12 @@ export function Dashboard() {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-sky-600">
-              <UserRound className="h-4 w-4" />
-              Painel do Aluno
+              <UserRound className="h-4 w-4" />A minha área
             </span>
-            <h1 className="mt-4 font-display text-3xl font-black text-slate-950 sm:text-4xl">
-              Ola, {firstName}!
-            </h1>
+            <h1 className="mt-4 font-display text-3xl font-black text-slate-950 sm:text-4xl">Olá, {firstName}!</h1>
             {profile?.email ? <p className="mt-1 text-sm font-semibold text-slate-500">{profile.email}</p> : null}
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
-              Gerencie sua jornada de estudo, acompanhe sua evolucao e retome seus materiais da Mariana Explica com clareza.
+              Acompanha aqui o teu progresso e acede a todos os teus materiais.
             </p>
           </div>
 
@@ -149,7 +138,7 @@ export function Dashboard() {
             onClick={() => void refetch()}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            Atualizar painel
+            Atualizar
           </Button>
         </div>
 
@@ -160,29 +149,28 @@ export function Dashboard() {
         ) : null}
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Materiais liberados" value={products.length} tone="slate" />
-        <MetricCard label="Em andamento" value={inProgressCourses.length} tone="blue" />
-        <MetricCard label="Prova final pendente" value={finalPendingCourses} tone="amber" />
-        <MetricCard label="Concluidos" value={completedCourses.length} tone="emerald" />
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard label="Os teus materiais" value={products.length} tone="slate" />
+        <MetricCard label="Em curso" value={inProgressCourses.length} tone="blue" />
+        <MetricCard label="Concluídos" value={completedCourses.length} tone="emerald" />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Acesso rápido</p>
-          <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Atalhos do aluno</h2>
+          <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Os teus atalhos</h2>
           <div className="mt-5 grid gap-3">
             <QuickLink
               to={ROUTES.DASHBOARD_PRODUCTS}
               icon={<BookOpen className="h-5 w-5" />}
               title="Explorar meus materiais"
-              description="Acesse todos os materiais liberados para sua conta."
+              description="Acede a todos os materiais disponíveis na tua conta."
             />
             {featuredCourse ? (
               <QuickLink
                 to={`${ROUTES.DASHBOARD_PRODUCT}/${featuredCourse.id}`}
                 icon={<PlayCircle className="h-5 w-5" />}
-                title={getCourseActionLabel(featuredCourse)}
+                title="Continua onde ficaste"
                 description={featuredCourse.title}
                 variant="slate"
               />
@@ -191,7 +179,7 @@ export function Dashboard() {
                 to={ROUTES.COURSES}
                 icon={<GraduationCap className="h-5 w-5" />}
                 title="Conhecer materiais disponíveis"
-                description="Veja o catálogo público e escolha o próximo material."
+                description="Vê o catálogo público e escolhe o próximo material."
                 variant="slate"
               />
             )}
@@ -199,7 +187,7 @@ export function Dashboard() {
         </section>
 
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Situacao da conta</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Situação da conta</p>
           <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Resumo do perfil</h2>
 
           <div className="mt-5 rounded-[24px] border border-emerald-100 bg-emerald-50 p-4">
@@ -209,9 +197,7 @@ export function Dashboard() {
               </span>
               <div>
                 <p className="font-black text-slate-950">Conta ativa para aprendizagem</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Seus materiais liberados estão disponíveis para acesso e estudo.
-                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Os materiais estão disponíveis para acesso.</p>
               </div>
             </div>
           </div>
@@ -229,36 +215,11 @@ export function Dashboard() {
 
           <Button asChild variant="outline" className="mt-5 w-full rounded-full bg-white">
             <Link to={ROUTES.DASHBOARD_PROFILE}>
-              Editar meus dados
+              Editar os teus dados
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </section>
-      </section>
-
-      <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Leitura rápida</p>
-        <h2 className="mt-2 font-display text-2xl font-black text-slate-950">Status da jornada</h2>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          <div className="flex items-center justify-between rounded-[20px] border border-sky-100 bg-sky-50 p-4">
-            <span className="text-sm font-bold text-slate-700">Materiais em andamento</span>
-            <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-black text-sky-700">
-              {inProgressCourses.length}
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-[20px] border border-amber-100 bg-amber-50 p-4">
-            <span className="text-sm font-bold text-slate-700">Aguardando prova final</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-700">
-              {finalPendingCourses}
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-[20px] border border-emerald-100 bg-emerald-50 p-4">
-            <span className="text-sm font-bold text-slate-700">Materiais concluidos</span>
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-700">
-              {completedCourses.length}
-            </span>
-          </div>
-        </div>
       </section>
     </div>
   )

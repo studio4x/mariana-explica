@@ -37,19 +37,19 @@ const items = [
   {
     to: ROUTES.DASHBOARD,
     label: "Inicio",
-    description: "Resumo da tua jornada",
+    description: "Painel principal",
     icon: Home,
   },
   {
     to: ROUTES.DASHBOARD_PRODUCTS,
     label: "Materiais",
-    description: "Materiais liberados",
+    description: "Os teus materiais",
     icon: BookOpen,
   },
   {
     to: ROUTES.DASHBOARD_PAYMENTS,
     label: "Pagamentos",
-    description: "Histórico financeiro",
+    description: "Histórico de compras",
     icon: CreditCard,
   },
   {
@@ -60,14 +60,14 @@ const items = [
   },
   {
     to: ROUTES.DASHBOARD_MESSAGES,
-    label: "Chamados",
-    description: "Chamados e conversas",
+    label: "Suporte",
+    description: "Ajuda e conversas",
     icon: LifeBuoy,
   },
   {
     to: ROUTES.DASHBOARD_PROFILE,
-    label: "Minha conta",
-    description: "Perfil e senha",
+    label: "A minha conta",
+    description: "Segurança",
     icon: User,
   },
 ]
@@ -89,7 +89,12 @@ export function DashboardLayout() {
   const markAsRead = useMarkNotificationAsRead()
   const markAllAsRead = useMarkAllNotificationsAsRead()
   const profilePreferences = profilePreferencesQuery.data
-  const displayName = profilePreferences?.full_name?.trim() || profile?.full_name?.trim() || profilePreferences?.email || profile?.email || "Aluno"
+  const displayName =
+    profilePreferences?.full_name?.trim() ||
+    profile?.full_name?.trim() ||
+    profilePreferences?.email ||
+    profile?.email ||
+    "Aluno"
   const email = profilePreferences?.email || profile?.email || null
   const avatarUrl = profilePreferences?.avatar_url || profile?.avatar_url || null
   const initials = getInitials(profilePreferences?.full_name ?? profile?.full_name, email)
@@ -120,7 +125,7 @@ export function DashboardLayout() {
           </Link>
 
           <p className="hidden text-sm font-black uppercase tracking-[0.28em] text-[#5f7077] md:block">
-            Meu aprendizado
+            A minha área
           </p>
 
           <div className="flex items-center gap-2">
@@ -135,7 +140,7 @@ export function DashboardLayout() {
               to={ROUTES.DASHBOARD_PROFILE}
               className="hidden rounded-2xl border border-[#D8E6EB] bg-white px-4 py-2 text-sm font-bold text-[#163138] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:inline-flex"
             >
-              Minha conta
+              A minha conta
             </Link>
             <Button
               type="button"
@@ -175,9 +180,7 @@ export function DashboardLayout() {
                 </p>
               </div>
             </div>
-            {email ? (
-              <p className="mt-3 truncate text-xs font-medium text-[#5f7077]">{email}</p>
-            ) : null}
+            {email ? <p className="mt-3 truncate text-xs font-medium text-[#5f7077]">{email}</p> : null}
           </div>
 
           <nav className="mt-4 grid gap-1">
@@ -219,12 +222,24 @@ export function DashboardLayout() {
           <footer className="mt-5 rounded-[24px] border border-[#D8E6EB] bg-white px-5 py-4 text-xs text-[#5f7077] shadow-[0_20px_50px_rgba(22,49,56,0.04)]">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-3 font-bold">
-                <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">Site público</Link>
-                <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">Chamados</Link>
-                <Link to={ROUTES.DASHBOARD_PROFILE} className="hover:text-[#1398B7]">Conta</Link>
-                <Link to={ROUTES.PRIVACY} className="hover:text-[#1398B7]">Privacidade</Link>
-                <Link to={ROUTES.COOKIES} className="hover:text-[#1398B7]">Cookies</Link>
-                <Link to={ROUTES.TERMS} className="hover:text-[#1398B7]">Termos de uso</Link>
+                <Link to={ROUTES.HOME} className="hover:text-[#1398B7]">
+                  Site público
+                </Link>
+                <Link to={ROUTES.DASHBOARD_MESSAGES} className="hover:text-[#1398B7]">
+                  Suporte
+                </Link>
+                <Link to={ROUTES.DASHBOARD_PROFILE} className="hover:text-[#1398B7]">
+                  Conta
+                </Link>
+                <Link to={ROUTES.PRIVACY} className="hover:text-[#1398B7]">
+                  Privacidade
+                </Link>
+                <Link to={ROUTES.COOKIES} className="hover:text-[#1398B7]">
+                  Cookies
+                </Link>
+                <Link to={ROUTES.TERMS} className="hover:text-[#1398B7]">
+                  Termos de uso
+                </Link>
               </div>
               <span className="font-semibold">Build {BUILD_VERSION}</span>
             </div>

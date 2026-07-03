@@ -3,10 +3,39 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { ROUTES } from "@/lib/constants"
-import { formatDate } from "@/utils/date"
 import { getEnrolledCourseAction } from "@/lib/course-cta"
+import { ROUTES } from "@/lib/constants"
 import { getDashboardProductNote } from "@/lib/product-presentation"
+import { richTextToPlainText } from "@/lib/rich-text"
+import type { DashboardProductSummary } from "@/types/app.types"
+import { formatDate } from "@/utils/date"
+
+function normalize(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+}
+
+function getStudentProductDescription(product: DashboardProductSummary) {
+  const haystack = normalize(
+    `${product.title} ${product.slug} ${richTextToPlainText(product.short_description)} ${richTextToPlainText(product.description)}`,
+  )
+
+  if (haystack.includes("filosof")) {
+    return "Sebenta completa com todos os temas lecionados"
+  }
+
+  if (haystack.includes("gramatic")) {
+    return "Apoio focado nas regras gramaticais para testes e exames"
+  }
+
+  if (haystack.includes("liter") || haystack.includes("organiz")) {
+    return "Resumo completo das obras obrigatórias"
+  }
+
+  return getDashboardProductNote(product)
+}
 
 export function DashboardProducts() {
   const { data, isLoading, isError, error, refetch } = useMyProducts()
@@ -26,11 +55,6 @@ export function DashboardProducts() {
   }
 
   const products = data ?? []
-  const freeProducts = products.filter((product) => product.product_type === "free").length
-  const totalModules = products.reduce((sum, product) => sum + product.module_count, 0)
-  const totalDownloads = products.reduce((sum, product) => sum + product.download_count, 0)
-  const totalLessons = products.reduce((sum, product) => sum + product.lesson_count, 0)
-  const completedLessons = products.reduce((sum, product) => sum + product.completed_lessons, 0)
 
   if (products.length === 0) {
     return (
@@ -51,31 +75,16 @@ export function DashboardProducts() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Meus materiais"
-        description="Todos os materiais e conteúdos disponíveis na tua conta, organizados para ser fácil retomar o estudo."
+        title="Os teus materiais"
+        description="Todos os teus conteúdos e materiais de estudo organizados num só lugar"
       />
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="max-w-sm">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Materiais ativos</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{products.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Tudo o que tens pronto para abrir agora.</p>
-        </div>
-        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Materiais gratuitos</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{freeProducts}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Materiais de entrada para consulta e rotina de estudo.</p>
-        </div>
-        <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Módulos organizados</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{totalModules}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Estrutura pronta para retomares sem perder contexto.</p>
-        </div>
-        <div className="rounded-[1.75rem] border bg-slate-900 p-5 text-white shadow-sm">
-          <p className="text-sm font-medium text-white/70">Progresso acumulado</p>
-          <p className="mt-3 text-3xl font-bold">{completedLessons}</p>
-          <p className="mt-2 text-sm leading-6 text-white/82">
-            Aulas concluídas em {totalLessons} no total, com {totalDownloads} downloads protegidos liberados.
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Os materiais que tens disponíveis para começar a estudar agora.
           </p>
         </div>
       </div>
@@ -85,55 +94,52 @@ export function DashboardProducts() {
           const courseAction = getEnrolledCourseAction(product)
 
           return (
-          <div key={product.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Material disponível</p>
-                <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{product.title}</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-600">{getDashboardProductNote(product)}</p>
-              </div>
-              <StatusBadge
-                label={product.product_type === "free" ? "Gratuito" : "Ativo"}
-                tone={product.product_type === "free" ? "info" : "success"}
-              />
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-slate-50/80 p-4 text-sm text-slate-700">
-              <p>Disponível desde {formatDate(product.granted_at)}</p>
-              <p className="mt-2">Organizado para continuares sem perder o contexto do estudo.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <StatusBadge label={`${product.module_count} módulos`} tone="info" />
-                <StatusBadge label={`${product.lesson_count} aulas`} tone="warning" />
-                <StatusBadge label={`${product.asset_count} materiais`} tone="neutral" />
-                {product.preview_count > 0 ? (
-                  <StatusBadge label={`${product.preview_count} previews`} tone="warning" />
-                ) : null}
-                {product.download_count > 0 ? (
-                  <StatusBadge label={`${product.download_count} downloads`} tone="success" />
-                ) : null}
-              </div>
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-500">
-                  <span>Progresso</span>
-                  <span>{product.progress_percent}%</span>
+            <div key={product.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Material disponível</p>
+                  <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">{product.title}</h2>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{getStudentProductDescription(product)}</p>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                  <div className="h-full rounded-full bg-slate-900" style={{ width: `${product.progress_percent}%` }} />
+                <StatusBadge
+                  label={product.product_type === "free" ? "Gratuito" : "Ativo"}
+                  tone={product.product_type === "free" ? "info" : "success"}
+                />
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-slate-50/80 p-4 text-sm text-slate-700">
+                <p>Disponível desde {formatDate(product.granted_at)}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <StatusBadge label={`${product.module_count} módulos`} tone="info" />
+                  <StatusBadge label={`${product.lesson_count} aulas`} tone="warning" />
+                  <StatusBadge label={`${product.asset_count} materiais`} tone="neutral" />
+                  {product.preview_count > 0 ? (
+                    <StatusBadge label={`${product.preview_count} previews`} tone="warning" />
+                  ) : null}
+                  {product.download_count > 0 ? (
+                    <StatusBadge label={`${product.download_count} downloads`} tone="success" />
+                  ) : null}
                 </div>
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
-                  {product.completed_lessons} de {product.lesson_count} aulas concluídas
-                </p>
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-500">
+                    <span>Progresso</span>
+                    <span>{product.progress_percent}%</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div className="h-full rounded-full bg-slate-900" style={{ width: `${product.progress_percent}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
+                    {product.completed_lessons} de {product.lesson_count} aulas concluídas
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button asChild className="flex-1 rounded-full">
+                  <Link to={courseAction?.to ?? `${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>ver curso</Link>
+                </Button>
               </div>
             </div>
-
-            <div className="mt-6 flex gap-3">
-              <Button asChild className="flex-1 rounded-full">
-                <Link to={courseAction?.to ?? `${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>
-                  {courseAction?.label ?? "Iniciar aprendizado"}
-                </Link>
-              </Button>
-            </div>
-          </div>
           )
         })}
       </div>
