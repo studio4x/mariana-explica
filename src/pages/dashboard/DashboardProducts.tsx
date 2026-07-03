@@ -120,7 +120,7 @@ export function DashboardProducts() {
                     <StatusBadge label={`${product.download_count} downloads`} tone="success" />
                   ) : null}
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-500">
                     <span>Progresso</span>
                     <span>{product.progress_percent}%</span>
