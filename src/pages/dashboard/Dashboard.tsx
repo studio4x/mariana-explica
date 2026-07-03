@@ -163,7 +163,7 @@ export function Dashboard() {
             <QuickLink
               to={ROUTES.DASHBOARD_PRODUCTS}
               icon={<BookOpen className="h-5 w-5" />}
-              title="Explorar meus materiais"
+              title="Explorar os meus materiais"
               description="Acede a todos os materiais disponíveis na tua conta."
             />
             {featuredCourse ? (
@@ -196,7 +196,7 @@ export function Dashboard() {
                 <CheckCircle2 className="h-5 w-5" />
               </span>
               <div>
-                <p className="font-black text-slate-950">Conta ativa para aprendizagem</p>
+                <p className="font-black text-slate-950">Conta Ativa</p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">Os materiais estão disponíveis para acesso.</p>
               </div>
             </div>
@@ -215,7 +215,7 @@ export function Dashboard() {
 
           <Button asChild variant="outline" className="mt-5 w-full rounded-full bg-white">
             <Link to={ROUTES.DASHBOARD_PROFILE}>
-              Editar os teus dados
+              Editar os meus dados
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

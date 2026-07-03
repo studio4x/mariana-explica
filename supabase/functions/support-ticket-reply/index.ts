@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
         type: "support",
         title: body.status === "closed" ? "O teu ticket foi encerrado" : "O suporte respondeu ao teu ticket",
         message: preview,
-        link: `/aluno/chamados/${ticket.id}`,
+        link: `/aluno/suporte/${ticket.id}`,
         status: "unread",
         sent_via_email: Boolean(userProfile?.email),
         sent_via_in_app: true,
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
           fullName: userProfile.full_name,
           subject: ticket.subject,
           messagePreview: preview,
-          supportUrl: `/aluno/chamados/${ticket.id}`,
+          supportUrl: `/aluno/suporte/${ticket.id}`,
         })
 
         await queueEmailDelivery(context.serviceClient, {

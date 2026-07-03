@@ -73,7 +73,7 @@ function buildPageDetail(pageKey: string) {
             lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
             primaryCta: {
               label: "Abrir um chamado",
-              href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+              href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
             },
             secondaryCta: {
               label: "Entrar na conta",
@@ -89,7 +89,7 @@ function buildPageDetail(pageKey: string) {
             lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
             primaryCta: {
               label: "Abrir um chamado",
-              href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+              href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
             },
             secondaryCta: {
               label: "Entrar na conta",

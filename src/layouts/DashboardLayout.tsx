@@ -67,7 +67,7 @@ const items = [
   {
     to: ROUTES.DASHBOARD_PROFILE,
     label: "A minha conta",
-    description: "Segurança",
+    description: "Perfil e Segurança",
     icon: User,
   },
 ]

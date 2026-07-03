@@ -87,7 +87,7 @@ export const SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT: SupportVisualEditorDocument
       "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.",
     primaryCta: {
       label: "Abrir um chamado",
-      href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+      href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
     },
     secondaryCta: {
       label: "Entrar na conta",
@@ -103,7 +103,7 @@ export const SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT: SupportVisualEditorDocument
     lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
     primaryCta: {
       label: "Abrir um chamado",
-      href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+      href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
     },
     secondaryCta: {
       label: "Entrar na conta",

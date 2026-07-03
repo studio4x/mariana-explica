@@ -39,7 +39,7 @@ function buildSupportDocument(title: string) {
       lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
       primaryCta: {
         label: "Abrir um chamado",
-        href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+        href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
       },
       secondaryCta: {
         label: "Entrar na conta",
@@ -55,7 +55,7 @@ function buildSupportDocument(title: string) {
       lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
       primaryCta: {
         label: "Abrir um chamado",
-        href: "/aluno/chamados?openTicketModal=1&ticketStep=form",
+        href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
       },
       secondaryCta: {
         label: "Entrar na conta",
@@ -284,7 +284,7 @@ describe("Support", () => {
     expect(screen.getByRole("heading", { name: "Como podemos ajudar?" })).toBeInTheDocument()
     expect(screen.getAllByRole("link", { name: "Abrir um chamado" })[0]).toHaveAttribute(
       "href",
-      "/aluno/chamados?openTicketModal=1&ticketStep=form",
+      "/aluno/suporte?openTicketModal=1&ticketStep=form",
     )
     expect(screen.getByText("Pergunta de teste")).toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()

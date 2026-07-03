@@ -892,7 +892,7 @@ export function buildSupportTicketCreatedEmail(input: {
       "Quando houver resposta, vais receber notificacao no painel.",
     ],
     ctaLabel: "Abrir suporte",
-    ctaUrl: input.supportUrl ?? "/dashboard/suporte",
+    ctaUrl: input.supportUrl ?? "/aluno/suporte",
   })
 
   return {
@@ -914,7 +914,7 @@ export function buildSupportTicketRepliedEmail(input: {
     intro: `O pedido "${input.subject}" recebeu uma nova resposta da equipa Mariana Explica.`,
     bullets: [input.messagePreview],
     ctaLabel: "Ver conversa no suporte",
-    ctaUrl: input.supportUrl ?? "/dashboard/suporte",
+    ctaUrl: input.supportUrl ?? "/aluno/suporte",
   })
 
   return {

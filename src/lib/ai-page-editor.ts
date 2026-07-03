@@ -76,7 +76,7 @@ export const AI_PAGE_EDITOR_ROUTE_OPTIONS: AiPageEditorRouteOption[] = [
   { slug: null, label: "Área do aluno · Downloads", path: "/aluno/downloads" },
   { slug: null, label: "Área do aluno · Pagamentos", path: "/aluno/pagamentos" },
   { slug: null, label: "Área do aluno · Notificações", path: "/aluno/notificacoes" },
-  { slug: null, label: "Área do aluno · Chamados", path: "/aluno/chamados" },
+  { slug: null, label: "Área do aluno · Suporte", path: "/aluno/suporte" },
   { slug: null, label: "Área do aluno · Perfil", path: "/aluno/perfil" },
 ]
 
