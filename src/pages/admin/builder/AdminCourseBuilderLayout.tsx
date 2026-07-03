@@ -78,6 +78,16 @@ function triggerJsonDownload(filename: string, payload: unknown) {
   URL.revokeObjectURL(url)
 }
 
+function getBuilderMenuLinkClassName(isActive: boolean, isSidebarOpen: boolean) {
+  return [
+    "flex items-center rounded-xl border text-sm font-semibold shadow-sm transition",
+    isSidebarOpen ? "gap-2.5 px-3 py-3.5" : "justify-center px-2 py-3",
+    isActive
+      ? "border-sky-300 bg-sky-50 text-sky-800 shadow-[0_8px_24px_rgba(14,165,233,0.14)]"
+      : "border-slate-100 bg-white text-slate-600 hover:bg-slate-50",
+  ].join(" ")
+}
+
 function ImportFeedbackModal({
   open,
   message,
@@ -974,39 +984,53 @@ export function AdminCourseBuilderLayout() {
             <div className="grid gap-2">
               <NavLink
                 to={adminCourseSettingsPath(courseId)}
-                className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
-                  isSidebarOpen ? "gap-2.5" : "justify-center"
-                }`}
+                className={({ isActive }) => getBuilderMenuLinkClassName(isActive, isSidebarOpen)}
               >
-                <Cog className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Configurações do Material" : null}
+                {({ isActive }) => (
+                  <>
+                    <Cog className={isActive ? "h-4 w-4 shrink-0 text-sky-600" : "h-4 w-4 shrink-0 text-slate-400"} />
+                    {isSidebarOpen ? (
+                      <span className={isActive ? "font-bold text-sky-800" : undefined}>Configurações do Material</span>
+                    ) : null}
+                  </>
+                )}
               </NavLink>
               <NavLink
                 to={adminCoursePublicPagePath(courseId)}
-                className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
-                  isSidebarOpen ? "gap-2.5" : "justify-center"
-                }`}
+                className={({ isActive }) => getBuilderMenuLinkClassName(isActive, isSidebarOpen)}
               >
-                <Globe2 className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Página Pública" : null}
+                {({ isActive }) => (
+                  <>
+                    <Globe2 className={isActive ? "h-4 w-4 shrink-0 text-sky-600" : "h-4 w-4 shrink-0 text-slate-400"} />
+                    {isSidebarOpen ? <span className={isActive ? "font-bold text-sky-800" : undefined}>Página Pública</span> : null}
+                  </>
+                )}
               </NavLink>
               <NavLink
                 to={adminCourseReleasesPath(courseId)}
-                className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
-                  isSidebarOpen ? "gap-2.5" : "justify-center"
-                }`}
+                className={({ isActive }) => getBuilderMenuLinkClassName(isActive, isSidebarOpen)}
               >
-                <UsersRound className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Atribuir a Alunos e Grupos" : null}
+                {({ isActive }) => (
+                  <>
+                    <UsersRound className={isActive ? "h-4 w-4 shrink-0 text-sky-600" : "h-4 w-4 shrink-0 text-slate-400"} />
+                    {isSidebarOpen ? (
+                      <span className={isActive ? "font-bold text-sky-800" : undefined}>Atribuir a Alunos e Grupos</span>
+                    ) : null}
+                  </>
+                )}
               </NavLink>
               <NavLink
                 to={adminCourseAssessmentsPath(courseId)}
-                className={`flex items-center rounded-xl border border-slate-100 bg-white px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 ${
-                  isSidebarOpen ? "gap-2.5" : "justify-center"
-                }`}
+                className={({ isActive }) => getBuilderMenuLinkClassName(isActive, isSidebarOpen)}
               >
-                <ClipboardCheck className="h-4 w-4 shrink-0 text-slate-400" />
-                {isSidebarOpen ? "Gerenciar Avaliações" : null}
+                {({ isActive }) => (
+                  <>
+                    <ClipboardCheck className={isActive ? "h-4 w-4 shrink-0 text-sky-600" : "h-4 w-4 shrink-0 text-slate-400"} />
+                    {isSidebarOpen ? (
+                      <span className={isActive ? "font-bold text-sky-800" : undefined}>Gerenciar Avaliações</span>
+                    ) : null}
+                  </>
+                )}
               </NavLink>
               <button
                 type="button"
