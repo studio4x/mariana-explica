@@ -59,7 +59,7 @@ import type { AdminSitePageAsset, AdminSitePageVersion, SitePageSlug } from "@/t
 import { formatDateTime } from "@/utils/date"
 import { ExplicacoesFormExperience } from "../public/ExplicacoesFormExperience"
 import { ProductsCatalogExperience } from "../public/ProductsCatalogExperience"
-import { SupportFaqExperience } from "../public/SupportFaqExperience"
+import { SupportFaqExperienceBody } from "../public/SupportFaqExperience"
 
 const PAGE_OPTIONS: Array<{ slug: SitePageSlug; label: string; publicPath: string }> = [
   { slug: "home", label: "Home", publicPath: "/" },
@@ -3099,7 +3099,7 @@ export function AdminPageEditor() {
       )
       setSupportExperiencePreviewMountNode(
         selectedSlug === "suporte"
-          ? prepareMountNode(".me-support-shell", "data-me-support-shell-live")
+          ? prepareMountNode(".me-support-experience-placeholder", "data-me-support-experience-live")
           : null,
       )
     })
@@ -7447,7 +7447,7 @@ export function AdminPageEditor() {
       {selectedSlug === "suporte" && supportExperiencePreviewMountNode
         ? createPortal(
             <div className="pointer-events-none" data-me-admin-support-experience-preview="1">
-              <SupportFaqExperience />
+              <SupportFaqExperienceBody />
             </div>,
             supportExperiencePreviewMountNode,
           )

@@ -16,7 +16,7 @@ import { usePublicSitePage } from "@/hooks/usePublicSitePage"
 import type { PublicSitePagePayload, SitePageSlug } from "@/types/app.types"
 import { ExplicacoesFormExperience } from "./ExplicacoesFormExperience"
 import { ProductsCatalogExperience } from "./ProductsCatalogExperience"
-import { SupportFaqExperience } from "./SupportFaqExperience"
+import { SupportFaqExperienceBody } from "./SupportFaqExperience"
 
 function normalizeHtml(layoutJson?: Record<string, unknown>) {
   if (!layoutJson || typeof layoutJson !== "object") return ""
@@ -134,7 +134,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
     )
     setSupportExperienceMountNode(
       slug === "suporte"
-        ? prepareMountNode(".me-support-shell", "data-me-support-shell-live")
+        ? prepareMountNode(".me-support-experience-placeholder", "data-me-support-experience-live")
         : null,
     )
   }, [managedPayload?.html, slug])
@@ -231,7 +231,6 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
 
         .me-explicacoes-form-placeholder[data-me-explicacoes-form-live="1"],
         .me-products-experience-placeholder[data-me-products-experience-live="1"],
-        .me-support-shell[data-me-support-shell-live="1"],
         .me-support-experience-placeholder[data-me-support-experience-live="1"] {
           min-height: 0;
         }
@@ -284,7 +283,7 @@ export function PublicManagedPage({ slug, fallback }: PublicManagedPageProps) {
         ? createPortal(<ProductsCatalogExperience />, productsExperienceMountNode)
         : null}
       {slug === "suporte" && supportExperienceMountNode
-        ? createPortal(<SupportFaqExperience />, supportExperienceMountNode)
+        ? createPortal(<SupportFaqExperienceBody />, supportExperienceMountNode)
         : null}
     </div>
   )
