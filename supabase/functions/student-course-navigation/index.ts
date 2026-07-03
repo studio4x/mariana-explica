@@ -1,4 +1,4 @@
-import { requireActiveUser } from "../_shared/auth.ts"
+import { isAdminProfile, requireActiveUser } from "../_shared/auth.ts"
 import { badRequest, forbidden, notFound } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const context = await requireActiveUser(req)
     const body = await readJsonBody<NavigationInput>(req)
     const productId = requireText(body.productId, "productId")
-    const isAdminPreview = context.profile.is_admin === true && context.profile.role === "admin"
+    const isAdminPreview = isAdminProfile(context.profile)
 
     const { data: product, error: productError } = await context.serviceClient
       .from("products")

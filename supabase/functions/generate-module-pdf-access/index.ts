@@ -1,5 +1,5 @@
 import { degrees, PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1"
-import { extractRequestAuditContext, requireActiveUser, writeAuditLog } from "../_shared/mod.ts"
+import { extractRequestAuditContext, isAdminProfile, requireActiveUser, writeAuditLog } from "../_shared/mod.ts"
 import { badRequest, forbidden } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
     const auditMeta = extractRequestAuditContext(req)
     const body = await readJsonBody<Input>(req)
     const moduleId = body.moduleId?.trim()
-    const isAdminPreview = context.profile.is_admin === true && context.profile.role === "admin"
+    const isAdminPreview = isAdminProfile(context.profile)
 
     if (!moduleId) {
       throw badRequest("moduleId e obrigatorio")

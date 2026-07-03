@@ -21,6 +21,10 @@ export interface AuthContext {
   serviceClient: ReturnType<typeof createServiceClient>
 }
 
+export function isAdminProfile(profile: Pick<UserProfile, "is_admin" | "role">) {
+  return profile.is_admin === true && profile.role === "admin"
+}
+
 async function fetchProfile(serviceClient: ReturnType<typeof createServiceClient>, userId: string) {
   const { data, error } = await serviceClient
     .from("profiles")
@@ -84,7 +88,7 @@ export async function requireActiveUser(req: Request) {
 export async function requireAdmin(req: Request) {
   const context = await requireActiveUser(req)
 
-  if (!context.profile.is_admin || context.profile.role !== "admin") {
+  if (!isAdminProfile(context.profile)) {
     throw forbidden("Acesso administrativo negado")
   }
 

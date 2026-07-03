@@ -7,7 +7,7 @@ import {
   readJsonBody,
 } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
-import { getOptionalAuth, requireActiveUser } from "../_shared/auth.ts"
+import { getOptionalAuth, isAdminProfile, requireActiveUser } from "../_shared/auth.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { extractRequestAuditContext, writeAuditLog } from "../_shared/mod.ts"
 
@@ -132,9 +132,7 @@ Deno.serve(async (req) => {
     const module = moduleRow as ModuleRow
     const product = productRow as ProductRow
     const activeContext = optionalContext ? await requireActiveUser(req) : null
-    const isAdminRequester = Boolean(
-      activeContext?.profile.is_admin && activeContext.profile.role === "admin",
-    )
+    const isAdminRequester = Boolean(activeContext && isAdminProfile(activeContext.profile))
 
     if (!isAdminRequester && (asset.status !== "active" || module.status !== "published" || product.status !== "published")) {
       throw forbidden("Conteudo indisponivel")
