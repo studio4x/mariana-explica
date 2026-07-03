@@ -107,7 +107,12 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
     SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT
   const isVisualEditing = Boolean(visualEditorPage)
   const hero = visualDocument.hero
+  const supportForm = visualDocument.supportForm
+  const faqSection = visualDocument.faqSection
   const supportCta = visualDocument.supportCta
+  const searchPlaceholder =
+    (visualEditorPage?.getFieldValue("faqSection.searchPlaceholder", faqSection.searchPlaceholder) as string | undefined) ??
+    faqSection.searchPlaceholder
 
   const faqCategories = useMemo(() => {
     return faqCategoriesFromDb && faqCategoriesFromDb.length > 0
@@ -262,26 +267,90 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           title="Formulario de suporte"
           description="Avisos e campos do pedido"
         >
-          <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
-            <h2 className="text-2xl font-black md:text-3xl">Notas importantes antes de enviares o teu formulario:</h2>
-            <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
-              <p>
-                <span className="font-black text-white">Planeamento Previo:</span> Devido a agenda preenchida, todos os
-                pedidos para explicacoes devem ser efetuados com um minimo de 3 semanas de antecedencia.
-              </p>
-              <p>
-                <span className="font-black text-white">Nao Garante Reserva:</span> O envio e submissao deste formulario
-                funciona estritamente como um pedido de informacoes e consulta de disponibilidade. Nao constitui, de
-                forma alguma, uma marcacao automatica ou garantia de vaga.
-              </p>
-            </div>
-          </section>
+          {isVisualEditing ? (
+            <EditableContainer
+              fieldKey="supportForm.noticeContainer"
+              as="section"
+              className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10"
+            >
+              <EditableText
+                fieldKey="supportForm.noticeTitle"
+                as="h2"
+                fallback={supportForm.noticeTitle}
+                className="text-2xl font-black md:text-3xl"
+              />
+              <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
+                <p>
+                  <EditableText
+                    fieldKey="supportForm.planningLabel"
+                    as="span"
+                    fallback={supportForm.planningLabel}
+                    className="font-black text-white"
+                  />{" "}
+                  <EditableText
+                    fieldKey="supportForm.planningText"
+                    as="span"
+                    fallback={supportForm.planningText}
+                  />
+                </p>
+                <p>
+                  <EditableText
+                    fieldKey="supportForm.reservationLabel"
+                    as="span"
+                    fallback={supportForm.reservationLabel}
+                    className="font-black text-white"
+                  />{" "}
+                  <EditableText
+                    fieldKey="supportForm.reservationText"
+                    as="span"
+                    fallback={supportForm.reservationText}
+                  />
+                </p>
+              </div>
+            </EditableContainer>
+          ) : (
+            <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
+              <h2 className="text-2xl font-black md:text-3xl">{supportForm.noticeTitle}</h2>
+              <div className="mt-5 space-y-4 text-sm leading-7 text-white/90 md:text-base">
+                <p>
+                  <span className="font-black text-white">{supportForm.planningLabel}</span> {supportForm.planningText}
+                </p>
+                <p>
+                  <span className="font-black text-white">{supportForm.reservationLabel}</span>{" "}
+                  {supportForm.reservationText}
+                </p>
+              </div>
+            </section>
+          )}
 
-          <section className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
-            <form className="space-y-5">
-              <div className="grid gap-5 md:grid-cols-2">
+          {isVisualEditing ? (
+            <EditableContainer
+              fieldKey="supportForm.formContainer"
+              as="section"
+              className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10"
+            >
+              <form className="space-y-5">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Nome
+                    <input
+                      required
+                      className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                    />
+                  </label>
+
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Email
+                    <input
+                      required
+                      type="email"
+                      className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                    />
+                  </label>
+                </div>
+
                 <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                  Nome
+                  Assunto
                   <input
                     required
                     className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
@@ -289,47 +358,178 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                 </label>
 
                 <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                  Email
+                  Mensagem
+                  <textarea
+                    required
+                    rows={7}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                  />
+                </label>
+
+                <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
+                  <EditableText
+                    fieldKey="supportForm.hintTitle"
+                    as="p"
+                    fallback={supportForm.hintTitle}
+                    className="font-black"
+                  />
+                  <EditableText
+                    fieldKey="supportForm.hintYear"
+                    as="p"
+                    fallback={supportForm.hintYear}
+                    className="mt-1"
+                  />
+                  <EditableText
+                    fieldKey="supportForm.hintSubject"
+                    as="p"
+                    fallback={supportForm.hintSubject}
+                  />
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
+                    <EditableText
+                      fieldKey="supportForm.submitLabel"
+                      as="span"
+                      fallback={supportForm.submitLabel}
+                    />
+                  </Button>
+                </div>
+              </form>
+            </EditableContainer>
+          ) : (
+            <section className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10">
+              <form className="space-y-5">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Nome
+                    <input
+                      required
+                      className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                    />
+                  </label>
+
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Email
+                    <input
+                      required
+                      type="email"
+                      className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                    />
+                  </label>
+                </div>
+
+                <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                  Assunto
                   <input
                     required
-                    type="email"
                     className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
                   />
                 </label>
-              </div>
 
-              <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                Assunto
-                <input
-                  required
-                  className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
-                />
-              </label>
+                <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                  Mensagem
+                  <textarea
+                    required
+                    rows={7}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
+                  />
+                </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                Mensagem
-                <textarea
-                  required
-                  rows={7}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
-                />
-              </label>
+                <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
+                  <p className="font-black">{supportForm.hintTitle}</p>
+                  <p className="mt-1">{supportForm.hintYear}</p>
+                  <p>{supportForm.hintSubject}</p>
+                </div>
 
-              <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-                <p className="font-black">Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:</p>
-                <p className="mt-1">O Ano Escolar do Aluno (ex: 10.0, 11.0 ou 12.0 ano)</p>
-                <p>A Disciplina pretendida (Filosofia ou Portugues)</p>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-3">
-                <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
-                  Enviar formulario
-                </Button>
-              </div>
-            </form>
-          </section>
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
+                    {supportForm.submitLabel}
+                  </Button>
+                </div>
+              </form>
+            </section>
+          )}
         </OptionalSiteContentScope>
 
+        {isVisualEditing ? (
+          <EditableContainer
+            fieldKey="faqSection.container"
+            as="section"
+            className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]"
+          >
+            <aside className="hidden lg:block">
+              <div className="sticky top-24 grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory("all")}
+                  className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
+                    activeCategory === "all" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  Todas
+                </button>
+                {faqCategories.map((category) => (
+                  <button
+                    key={category.slug}
+                    type="button"
+                    onClick={() => setActiveCategory(category.slug)}
+                    className={`rounded-full px-4 py-2 text-left text-sm font-bold ${
+                      activeCategory === category.slug ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {category.title}
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <div>
+              <label className="relative block">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="mb-4 h-14 w-full rounded-full border border-slate-200 bg-slate-50 px-5 text-base outline-none focus:border-sky-500 focus:bg-white"
+                />
+              </label>
+
+              <select
+                value={activeCategory}
+                onChange={(event) => setActiveCategory(event.target.value)}
+                className="mb-4 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm lg:hidden"
+              >
+                <option value="all">Todas</option>
+                {faqCategories.map((category) => (
+                  <option key={category.slug} value={category.slug}>
+                    {category.title}
+                  </option>
+                ))}
+              </select>
+
+              <div className="space-y-3">
+                {filteredFaqs.map((faq) => (
+                  <details key={faq.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <summary className="cursor-pointer font-black text-slate-950">{faq.question}</summary>
+                    <div className="mt-3 space-y-4 text-sm leading-7 text-slate-600">
+                      <p>{faq.answer}</p>
+                      {faq.ctaTo ? (
+                        <Button asChild className="rounded-full">
+                          <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir chamado"}</Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                  </details>
+                ))}
+                {filteredFaqs.length === 0 ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+                    Nenhuma pergunta encontrada para esta busca.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </EditableContainer>
+        ) : (
         <section className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
             <div className="sticky top-24 grid gap-2">
@@ -362,7 +562,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Pesquisar no suporte..."
+                placeholder={searchPlaceholder}
                 className="mb-4 h-14 w-full rounded-full border border-slate-200 bg-slate-50 px-5 text-base outline-none focus:border-sky-500 focus:bg-white"
               />
             </label>
@@ -402,6 +602,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             </div>
           </div>
         </section>
+        )}
 
         {isVisualEditing ? (
           <SiteContentScope title="Suporte rapido" description="Bloco final com apoio e redirecionamento">

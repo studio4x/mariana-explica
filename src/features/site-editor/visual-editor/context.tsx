@@ -360,22 +360,20 @@ export function VisualEditorProvider(props: {
 
   const pageDetail = adminQuery.data ?? null
   const publicPage = pageQuery.data ?? null
+  const preferredAdminDocumentSource = isPublicEditorRoute
+    ? pageDetail?.publishedVersion?.entries_json ?? pageDetail?.latestDraft?.entries_json ?? null
+    : pageDetail?.latestDraft?.entries_json ?? pageDetail?.publishedVersion?.entries_json ?? null
+  const preferredAdminStyleSource = isPublicEditorRoute
+    ? pageDetail?.publishedVersion?.style_json ?? pageDetail?.latestDraft?.style_json ?? null
+    : pageDetail?.latestDraft?.style_json ?? pageDetail?.publishedVersion?.style_json ?? null
   const baseDocument = useMemo(() => {
-    const sourceDocument =
-      pageDetail?.latestDraft?.entries_json ??
-      pageDetail?.publishedVersion?.entries_json ??
-      publicPage?.version.entries_json ??
-      null
+    const sourceDocument = preferredAdminDocumentSource ?? publicPage?.version.entries_json ?? null
     return mergeVisualEditorDocuments(pageDefinition?.defaultDocument ?? {}, sourceDocument)
-  }, [pageDefinition?.defaultDocument, pageDetail?.latestDraft?.entries_json, pageDetail?.publishedVersion?.entries_json, publicPage?.version.entries_json])
+  }, [pageDefinition?.defaultDocument, preferredAdminDocumentSource, publicPage?.version.entries_json])
   const baseStyleDocument = useMemo(() => {
-    const sourceStyles =
-      pageDetail?.latestDraft?.style_json ??
-      pageDetail?.publishedVersion?.style_json ??
-      publicPage?.version.style_json ??
-      null
+    const sourceStyles = preferredAdminStyleSource ?? publicPage?.version.style_json ?? null
     return normalizeVisualEditorStyleDocument(sourceStyles, pageDefinition?.fields ?? [])
-  }, [pageDefinition?.fields, pageDetail?.latestDraft?.style_json, pageDetail?.publishedVersion?.style_json, publicPage?.version.style_json])
+  }, [pageDefinition?.fields, preferredAdminStyleSource, publicPage?.version.style_json])
 
   const [document, setDocument] = useState<VisualEditorDocument>(() => cloneVisualEditorDocument(baseDocument))
   const [baselineDocument, setBaselineDocument] = useState<VisualEditorDocument>(() =>

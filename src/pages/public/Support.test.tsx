@@ -313,6 +313,45 @@ describe("Support", () => {
     expect(await screen.findByText("Botao principal")).toBeInTheDocument()
     expect(screen.getByLabelText("Rotulo")).toBeInTheDocument()
     expect(screen.getByLabelText("Destino")).toBeInTheDocument()
+
+    await clickEditableField(user, "supportForm.formContainer")
+    expect(await screen.findByText("Card do formulario")).toBeInTheDocument()
+
+    await clickEditableField(user, "faqSection.container")
+    expect(await screen.findByText("Bloco da FAQ")).toBeInTheDocument()
+  })
+
+  it("uses the published support version as the public editor baseline when a stale draft exists", async () => {
+    const user = userEvent.setup()
+
+    supportPageDetail = {
+      ...buildSupportDetail(),
+      latestDraft: {
+        id: "support-version-draft",
+        page_id: "support-page-1",
+        version_number: 3,
+        status: "draft",
+        entries_json: buildSupportDocument("Como podemos ajudar? | Draft visivel so no admin"),
+        style_json: {},
+        metadata: {},
+        created_by: null,
+        created_at: "2026-01-03T00:00:00.000Z",
+      },
+    }
+
+    mockUseAuth.mockReturnValue({ isAdmin: true, loading: false })
+    mockFetchAdminVisualEditorPageDetail.mockImplementation(async () => supportPageDetail)
+
+    renderSupport()
+
+    expect(await screen.findByRole("heading", { name: "Como podemos ajudar?" })).toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Como podemos ajudar? | Draft visivel so no admin" }),
+    ).not.toBeInTheDocument()
+
+    await user.click(await screen.findByRole("button", { name: "Abrir editor visual" }))
+    await user.click(await screen.findByRole("button", { name: "Ativar edicao" }))
+    expect(screen.getByRole("button", { name: "Como podemos ajudar?" })).toBeInTheDocument()
   })
 
   it("saves and reloads the support CTA container style", async () => {
