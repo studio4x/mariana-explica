@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, BadgeCheck, Clock3, LockKeyhole } from "lucide-react"
+import { ArrowRight, BadgeCheck, Info, LockKeyhole } from "lucide-react"
 import { Button } from "@/components/ui"
 import { formatProductPrice } from "@/utils/currency"
 import type { ProductSummary } from "@/types/product.types"
+import { buildCourseCatalogCardView } from "@/lib/course-public-page"
 import {
   getProductFamilyLabel,
-  getProductNarrative,
   getProductTypeLabel,
 } from "@/lib/product-presentation"
 import { publicCoursePath } from "@/lib/routes"
@@ -27,9 +27,9 @@ export function ProductCard({
   isBusy = false,
   compact = false,
 }: ProductCardProps) {
-  const narrative = getProductNarrative(product)
   const typeLabel = getProductTypeLabel(product.product_type)
   const familyLabel = getProductFamilyLabel(product)
+  const cardView = buildCourseCatalogCardView(product)
   const priceLabel =
     product.product_type === "free"
       ? "Acesso gratuito"
@@ -73,32 +73,33 @@ export function ProductCard({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#567085]">{familyLabel}</p>
             <h3 className="font-display text-2xl font-bold tracking-tight text-[#13364b]">{product.title}</h3>
           </div>
-          <p className="text-sm leading-7 text-[#4f6f83]">{narrative.cardSummary}</p>
+          {cardView.summary ? <p className="text-sm leading-7 text-[#4f6f83]">{cardView.summary}</p> : null}
         </div>
 
-        <div className="grid gap-3">
-          <div className="flex items-start gap-3 rounded-2xl bg-[#f4f9fc] px-4 py-3">
-            <BadgeCheck className="mt-0.5 h-4 w-4 text-[#154764]" />
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">Beneficio principal</p>
-              <p className="mt-1 text-sm leading-6 text-[#3e6177]">{narrative.benefit}</p>
-            </div>
+        {cardView.items.length > 0 ? (
+          <div className="grid gap-3">
+            {cardView.items.map((item, index) =>
+              item.tone === "outline" ? (
+                <div key={`${item.title}-${index}`} className="rounded-2xl border border-[#d7e8f0] bg-white p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#3e6177]">{item.description}</p>
+                </div>
+              ) : (
+                <div key={`${item.title}-${index}`} className="flex items-start gap-3 rounded-2xl bg-[#f4f9fc] px-4 py-3">
+                  {index === 0 ? (
+                    <BadgeCheck className="mt-0.5 h-4 w-4 text-[#154764]" />
+                  ) : (
+                    <Info className="mt-0.5 h-4 w-4 text-[#154764]" />
+                  )}
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">{item.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-[#3e6177]">{item.description}</p>
+                  </div>
+                </div>
+              ),
+            )}
           </div>
-          <div className="flex items-start gap-3 rounded-2xl bg-[#f4f9fc] px-4 py-3">
-            <Clock3 className="mt-0.5 h-4 w-4 text-[#154764]" />
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">Formato e entrega</p>
-              <p className="mt-1 text-sm leading-6 text-[#3e6177]">{narrative.formatLabel}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-[#d7e8f0] bg-white p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-[#567085]">Como acedes</p>
-          <p className="mt-2 text-sm leading-6 text-[#3e6177]">
-            {narrative.accessLabel}
-          </p>
-        </div>
+        ) : null}
 
         <div className="mt-auto flex items-end justify-between gap-4 pt-2">
           <div className="space-y-1">

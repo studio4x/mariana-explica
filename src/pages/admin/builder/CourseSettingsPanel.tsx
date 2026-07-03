@@ -1,12 +1,14 @@
-import { ImagePlus, Link2 } from "lucide-react"
+import { ArrowDown, ArrowUp, ImagePlus, Link2, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
 import { OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
+import { buildCourseCatalogCardView, sanitizeCourseCatalogCardContent } from "@/lib/course-public-page"
 import { ROUTES } from "@/lib/constants"
 import { adminCourseBuilderPath } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
+import type { CourseCatalogCardItem, CourseCatalogCardMode } from "@/types/product.types"
 
 function slugify(value: string) {
   return value
@@ -58,11 +60,34 @@ function Field({
   )
 }
 
+function TextArea({
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  rows?: number
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm leading-6 outline-none focus:border-slate-400 focus:bg-white"
+    />
+  )
+}
+
 export function CourseSettingsPanel() {
   const { product } = useAdminCourseBuilderContext()
   const { data: categories = [] } = useAdminProductCategories()
   const updateProduct = useUpdateAdminProduct()
   const uploadCover = useUploadAdminProductCover()
+  const initialCardView = useMemo(() => buildCourseCatalogCardView(product), [product])
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [form, setForm] = useState({
@@ -89,9 +114,13 @@ export function CourseSettingsPanel() {
     isPublic: product.is_public,
     hasLinearProgression: product.has_linear_progression,
     quizSingleChoice: product.quiz_type_settings?.single_choice !== false,
+    catalogCardMode: initialCardView.mode as CourseCatalogCardMode,
+    catalogCardSummary: initialCardView.summary,
+    catalogCardItems: initialCardView.items as CourseCatalogCardItem[],
   })
 
   useEffect(() => {
+    const nextCardView = buildCourseCatalogCardView(product)
     setForm({
       title: product.title,
       slug: product.slug,
@@ -116,11 +145,32 @@ export function CourseSettingsPanel() {
       isPublic: product.is_public,
       hasLinearProgression: product.has_linear_progression,
       quizSingleChoice: product.quiz_type_settings?.single_choice !== false,
+      catalogCardMode: nextCardView.mode,
+      catalogCardSummary: nextCardView.summary,
+      catalogCardItems: nextCardView.items,
     })
     setUploadMessage(null)
   }, [product])
 
   const coverStoragePath = useMemo(() => extractCoverStoragePath(form.coverImageUrl), [form.coverImageUrl])
+
+  const moveCatalogCardItem = (index: number, direction: -1 | 1) => {
+    setForm((prev) => {
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= prev.catalogCardItems.length) {
+        return prev
+      }
+
+      const items = [...prev.catalogCardItems]
+      const [item] = items.splice(index, 1)
+      items.splice(nextIndex, 0, item)
+
+      return {
+        ...prev,
+        catalogCardItems: items,
+      }
+    })
+  }
 
   const handleCoverSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
@@ -162,6 +212,19 @@ export function CourseSettingsPanel() {
     setFeedback(null)
 
     try {
+      const nextPublicPageContent = { ...(product.public_page_content ?? {}) }
+      delete nextPublicPageContent.catalogCardMode
+      delete nextPublicPageContent.catalogCardSummary
+      delete nextPublicPageContent.catalogCardItems
+      Object.assign(
+        nextPublicPageContent,
+        sanitizeCourseCatalogCardContent({
+          mode: form.catalogCardMode,
+          summary: form.catalogCardSummary,
+          items: form.catalogCardItems,
+        }),
+      )
+
       const updatedProduct = await updateProduct.mutateAsync({
         productId: product.id,
         title: form.title.trim(),
@@ -188,6 +251,7 @@ export function CourseSettingsPanel() {
           essay_ai: false,
           case_study_ai: false,
         },
+        publicPageContent: nextPublicPageContent,
       })
       const selectedCategoryId = form.categoryId.trim()
       setForm((prev) => ({
@@ -318,6 +382,206 @@ export function CourseSettingsPanel() {
               minHeightPx={180}
             />
           </Field>
+        </section>
+
+        <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Card do catalogo</p>
+            <h2 className="mt-2 text-lg font-bold text-slate-950">Informacoes exibidas em `/materiais`</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              Controla o resumo e os blocos informativos mostrados no card publico deste material. Tambem podes ocultar tudo e deixar o card mais enxuto.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            {([
+              {
+                value: "default",
+                title: "Usar padrao",
+                description: "Mantem os textos automáticos gerados pela narrativa atual do material.",
+              },
+              {
+                value: "custom",
+                title: "Personalizar",
+                description: "Define manualmente o resumo e os blocos que aparecem no card.",
+              },
+              {
+                value: "none",
+                title: "Nao mostrar",
+                description: "Oculta o resumo e todos os blocos informativos do card publico.",
+              },
+            ] as Array<{ value: CourseCatalogCardMode; title: string; description: string }>).map((option) => {
+              const active = form.catalogCardMode === option.value
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, catalogCardMode: option.value }))}
+                  className={[
+                    "rounded-[1.35rem] border p-4 text-left transition",
+                    active
+                      ? "border-sky-300 bg-sky-50/80 shadow-[0_0_0_1px_rgba(14,165,233,0.14)]"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  <p className="text-sm font-black text-slate-950">{option.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{option.description}</p>
+                </button>
+              )
+            })}
+          </div>
+
+          {form.catalogCardMode === "default" ? (
+            <div className="mt-5 rounded-[1.35rem] border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-950">Pre-visualizacao do padrao atual</p>
+              <div className="mt-4 space-y-3">
+                {form.catalogCardSummary ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Resumo</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{form.catalogCardSummary}</p>
+                  </div>
+                ) : null}
+                {form.catalogCardItems.map((item, index) => (
+                  <div key={`${item.title}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{item.title || `Bloco ${index + 1}`}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {form.catalogCardMode === "custom" ? (
+            <div className="mt-5 space-y-4">
+              <Field
+                label="Resumo do card"
+                helper="Texto curto logo abaixo do titulo. Se deixares vazio, o resumo nao aparece."
+              >
+                <TextArea
+                  value={form.catalogCardSummary}
+                  onChange={(catalogCardSummary) => setForm((prev) => ({ ...prev, catalogCardSummary }))}
+                  placeholder="Escreve um resumo curto para o card do catalogo."
+                  rows={4}
+                />
+              </Field>
+
+              <div className="space-y-3">
+                {form.catalogCardItems.map((item, index) => (
+                  <div key={`${index}-${item.title}`} className="rounded-[1.35rem] border border-slate-200 bg-white p-4">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,0.55fr)_minmax(0,1fr)_180px_auto]">
+                      <Field label={`Titulo ${index + 1}`}>
+                        <input
+                          value={item.title}
+                          onChange={(event) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              catalogCardItems: prev.catalogCardItems.map((current, currentIndex) =>
+                                currentIndex === index ? { ...current, title: event.target.value } : current,
+                              ),
+                            }))
+                          }
+                          placeholder="Ex.: Beneficio principal"
+                          className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+                        />
+                      </Field>
+                      <Field label="Descricao">
+                        <TextArea
+                          value={item.description}
+                          onChange={(description) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              catalogCardItems: prev.catalogCardItems.map((current, currentIndex) =>
+                                currentIndex === index ? { ...current, description } : current,
+                              ),
+                            }))
+                          }
+                          placeholder="Explica o que este bloco comunica no card."
+                          rows={4}
+                        />
+                      </Field>
+                      <Field label="Estilo visual">
+                        <select
+                          value={item.tone ?? "soft"}
+                          onChange={(event) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              catalogCardItems: prev.catalogCardItems.map((current, currentIndex) =>
+                                currentIndex === index
+                                  ? { ...current, tone: event.target.value === "outline" ? "outline" : "soft" }
+                                  : current,
+                              ),
+                            }))
+                          }
+                          className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+                        >
+                          <option value="soft">Cartao suave</option>
+                          <option value="outline">Cartao contornado</option>
+                        </select>
+                      </Field>
+                      <div className="flex items-start gap-2 pt-8">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="rounded-xl"
+                          onClick={() => moveCatalogCardItem(index, -1)}
+                          disabled={index === 0}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="rounded-xl"
+                          onClick={() => moveCatalogCardItem(index, 1)}
+                          disabled={index === form.catalogCardItems.length - 1}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="rounded-xl"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              catalogCardItems: prev.catalogCardItems.filter((_, currentIndex) => currentIndex !== index),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    catalogCardItems: [...prev.catalogCardItems, { title: "", description: "", tone: "soft" }],
+                  }))
+                }
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar bloco informativo
+              </Button>
+            </div>
+          ) : null}
+
+          {form.catalogCardMode === "none" ? (
+            <div className="mt-5 rounded-[1.35rem] border border-dashed border-slate-300 bg-white px-4 py-4 text-sm leading-6 text-slate-600">
+              Este material vai mostrar apenas imagem, etiquetas principais, titulo, preco e CTA no card do catalogo.
+            </div>
+          ) : null}
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5">

@@ -17,6 +17,15 @@ export interface CoursePublicPageFeature {
   description: string
 }
 
+export type CourseCatalogCardMode = "default" | "custom" | "none"
+export type CourseCatalogCardItemTone = "soft" | "outline"
+
+export interface CourseCatalogCardItem {
+  title: string
+  description: string
+  tone?: CourseCatalogCardItemTone
+}
+
 export type CoursePublicPageCurriculumMode = "real" | "custom"
 
 export interface CoursePublicPageCurriculumItem {
@@ -30,6 +39,9 @@ export interface CoursePublicPageContent {
   eyebrow?: string
   headline?: string
   intro?: string
+  catalogCardMode?: CourseCatalogCardMode
+  catalogCardSummary?: string
+  catalogCardItems?: CourseCatalogCardItem[]
   aboutTitle?: string
   aboutParagraphs?: string[]
   learnTitle?: string

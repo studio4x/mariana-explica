@@ -2,6 +2,9 @@ import { getProductNarrative } from "@/lib/product-presentation"
 import { isRichTextEmpty, richTextToPlainText, sanitizeRichTextHtml } from "@/lib/rich-text"
 import type { ProductAssessmentSummary, ProductModuleSummary, ProductLessonSummary } from "@/types/app.types"
 import type {
+  CourseCatalogCardItem,
+  CourseCatalogCardItemTone,
+  CourseCatalogCardMode,
   CoursePublicPageContent,
   CoursePublicPageCurriculumMode,
   CoursePublicPageCurriculumItem,
@@ -22,6 +25,12 @@ export interface CoursePublicPageCurriculumSection {
   description: string
   countLabel: string
   items: CoursePublicPageCurriculumEntry[]
+}
+
+export interface CourseCatalogCardView {
+  mode: CourseCatalogCardMode
+  summary: string
+  items: CourseCatalogCardItem[]
 }
 
 export interface CoursePublicPageView {
@@ -84,6 +93,22 @@ function normalizeFeatures(value: unknown, fallback: CoursePublicPageFeature[]) 
   return items.length ? items : fallback
 }
 
+function normalizeCatalogCardItems(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .map((item) => {
+          const entry = item && typeof item === "object" ? (item as Record<string, unknown>) : {}
+          const tone = entry.tone === "outline" ? "outline" : "soft"
+          return {
+            title: cleanText(entry.title),
+            description: cleanText(entry.description),
+            tone,
+          } satisfies CourseCatalogCardItem
+        })
+        .filter((item) => item.title || item.description)
+    : []
+}
+
 function normalizeCurriculumItems(value: unknown, fallback: CoursePublicPageCurriculumItem[]) {
   const items = Array.isArray(value)
     ? value
@@ -100,6 +125,28 @@ function normalizeCurriculumItems(value: unknown, fallback: CoursePublicPageCurr
     : []
 
   return items.length ? items : fallback
+}
+
+function buildDefaultCatalogCardItems(
+  narrative: ReturnType<typeof getProductNarrative>,
+): CourseCatalogCardItem[] {
+  return [
+    {
+      title: "Beneficio principal",
+      description: narrative.benefit,
+      tone: "soft",
+    },
+    {
+      title: "Formato e entrega",
+      description: narrative.formatLabel,
+      tone: "soft",
+    },
+    {
+      title: "Como acedes",
+      description: narrative.accessLabel,
+      tone: "outline",
+    },
+  ]
 }
 
 function formatItemCount(count: number) {
@@ -263,6 +310,36 @@ export function buildCoursePublicPageView(
   }
 }
 
+export function buildCourseCatalogCardView(product: ProductSummary): CourseCatalogCardView {
+  const narrative = getProductNarrative(product)
+  const content = product.public_page_content ?? {}
+  const defaultItems = buildDefaultCatalogCardItems(narrative)
+  const hasSummaryOverride = Object.prototype.hasOwnProperty.call(content, "catalogCardSummary")
+  const hasItemsOverride = Object.prototype.hasOwnProperty.call(content, "catalogCardItems")
+
+  if (content.catalogCardMode === "none") {
+    return {
+      mode: "none",
+      summary: "",
+      items: [],
+    }
+  }
+
+  if (content.catalogCardMode === "custom") {
+    return {
+      mode: "custom",
+      summary: hasSummaryOverride ? cleanText(content.catalogCardSummary) : narrative.cardSummary,
+      items: hasItemsOverride ? normalizeCatalogCardItems(content.catalogCardItems) : defaultItems,
+    }
+  }
+
+  return {
+    mode: "default",
+    summary: narrative.cardSummary,
+    items: defaultItems,
+  }
+}
+
 export function sanitizeCoursePublicPageContent(
   content: CoursePublicPageView,
 ): CoursePublicPageContent {
@@ -297,5 +374,34 @@ export function sanitizeCoursePublicPageContent(
     sidebarFeatures: content.sidebarFeatures.map(cleanText).filter(Boolean),
     previewTitle: cleanText(content.previewTitle),
     previewText: cleanRichText(content.previewText),
+  }
+}
+
+export function sanitizeCourseCatalogCardContent(input: CourseCatalogCardView): Pick<
+  CoursePublicPageContent,
+  "catalogCardMode" | "catalogCardSummary" | "catalogCardItems"
+> {
+  if (input.mode === "default") {
+    return {}
+  }
+
+  if (input.mode === "none") {
+    return {
+      catalogCardMode: "none",
+      catalogCardSummary: "",
+      catalogCardItems: [],
+    }
+  }
+
+  return {
+    catalogCardMode: "custom",
+    catalogCardSummary: cleanText(input.summary),
+    catalogCardItems: input.items
+      .map((item) => ({
+        title: cleanText(item.title),
+        description: cleanText(item.description),
+        tone: (item.tone === "outline" ? "outline" : "soft") as CourseCatalogCardItemTone,
+      }))
+      .filter((item) => item.title || item.description),
   }
 }
