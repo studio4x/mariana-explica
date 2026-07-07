@@ -42,6 +42,10 @@ import type {
   AdminCronScheduleSummary,
   AdminCronStatusOverview,
   AdminEmailStatus,
+  AdminPlatformEmailTemplateContent,
+  AdminPlatformEmailTemplatePreview,
+  AdminPlatformEmailTemplatesConfig,
+  AdminPlatformEmailTemplateKey,
   AdminLegacyPageEditorConfig,
   AdminPendingInfoConfig,
   AdminPublicFormNotificationsConfig,
@@ -1654,6 +1658,59 @@ export async function fetchAdminPendingInfoConfig() {
 export async function fetchAdminEmailStatus() {
   const response = await invokeAdminFunction<{ success: true; email: AdminEmailStatus }>("admin-email-status", {})
   return response.email
+}
+
+export async function fetchAdminEmailTemplates() {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminPlatformEmailTemplatesConfig
+  }>("admin-email-templates", {
+    action: "list",
+  })
+
+  return response.config
+}
+
+export async function previewAdminEmailTemplate(input: {
+  templateKey: AdminPlatformEmailTemplateKey
+  content?: AdminPlatformEmailTemplateContent
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    preview: AdminPlatformEmailTemplatePreview
+  }>("admin-email-templates", {
+    action: "preview",
+    ...input,
+  })
+
+  return response.preview
+}
+
+export async function updateAdminEmailTemplate(input: {
+  templateKey: AdminPlatformEmailTemplateKey
+  content: AdminPlatformEmailTemplateContent
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminPlatformEmailTemplatesConfig
+  }>("admin-email-templates", {
+    action: "update",
+    ...input,
+  })
+
+  return response.config
+}
+
+export async function resetAdminEmailTemplate(templateKey: AdminPlatformEmailTemplateKey) {
+  const response = await invokeAdminFunction<{
+    success: true
+    config: AdminPlatformEmailTemplatesConfig
+  }>("admin-email-templates", {
+    action: "reset",
+    templateKey,
+  })
+
+  return response.config
 }
 
 export async function fetchAdminCronStatus(): Promise<AdminCronStatusOverview> {

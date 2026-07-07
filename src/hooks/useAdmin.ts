@@ -38,6 +38,7 @@ import {
   fetchAdminAiPageEditorUsageMetrics,
   fetchAdminLegacyPageEditorConfig,
   fetchAdminEmailStatus,
+  fetchAdminEmailTemplates,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
   fetchAdminPublicFormNotificationsConfig,
@@ -80,6 +81,7 @@ import {
   revokeAdminCourseRelease,
   refreshAdminAiCodeEditorTaskPreview,
   refreshAdminAiCodeEditorTaskStatus,
+  resetAdminEmailTemplate,
   rollbackAdminAiCodeEditorTask,
   replyAdminSupportTicket,
   replyAdminPublicFormSubmission,
@@ -94,6 +96,7 @@ import {
   uploadAdminWatermarkLogoFile,
   updateAdminAffiliate,
   updateAdminCoupon,
+  updateAdminEmailTemplate,
   updateAdminModulePdfWatermarkConfig,
   updateAdminPendingInfoConfig,
   updateAdminPublicFormNotificationsConfig,
@@ -125,6 +128,7 @@ import {
   updateAdminProductModule,
   updateAdminUser,
   updateAdminUserPassword,
+  previewAdminEmailTemplate,
 } from "@/services"
 import type {
   AdminAiCodeEditorTask,
@@ -241,6 +245,14 @@ export function useAdminEmailStatus() {
   return useQuery({
     queryKey: ["admin", "email-status"],
     queryFn: fetchAdminEmailStatus,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminEmailTemplates() {
+  return useQuery({
+    queryKey: ["admin", "email-templates"],
+    queryFn: fetchAdminEmailTemplates,
     ...getAdminQueryOptions(),
   })
 }
@@ -1291,6 +1303,36 @@ export function useUpdateAdminModulePdfWatermarkConfig() {
 export function useUpdateAdminPendingInfoConfig() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: updateAdminPendingInfoConfig, onSuccess: invalidate })
+}
+
+export function usePreviewAdminEmailTemplate() {
+  return useMutation({ mutationFn: previewAdminEmailTemplate })
+}
+
+export function useUpdateAdminEmailTemplate() {
+  const invalidate = useAdminInvalidation()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminEmailTemplate,
+    onSuccess: (config) => {
+      queryClient.setQueryData(["admin", "email-templates"], config)
+      invalidate()
+    },
+  })
+}
+
+export function useResetAdminEmailTemplate() {
+  const invalidate = useAdminInvalidation()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: resetAdminEmailTemplate,
+    onSuccess: (config) => {
+      queryClient.setQueryData(["admin", "email-templates"], config)
+      invalidate()
+    },
+  })
 }
 
 export function useUpdateAdminPublicFormNotificationsConfig() {

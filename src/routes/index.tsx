@@ -80,6 +80,7 @@ const AdminAffiliates = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAffiliates })),
 )
 const AdminCoupons = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminCoupons })))
+const AdminEmails = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminEmails })))
 const AdminFaq = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminFaq })))
 const AdminNotifications = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminNotifications })),
@@ -515,6 +516,10 @@ export const router = createBrowserRouter(
         {
           path: "notificacoes",
           element: withSuspense(<AdminNotifications />),
+        },
+        {
+          path: "emails",
+          element: withSuspense(<AdminEmails />),
         },
         {
           path: "cursos",

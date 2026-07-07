@@ -1,12 +1,14 @@
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
+﻿import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
 import { getAppBaseUrl } from "./supabase.ts"
 
-type PlatformTemplateKey =
+export type PlatformTemplateKey =
   | "purchase_confirmed"
   | "free_product_claimed"
   | "support_ticket_created"
   | "support_ticket_replied"
   | "manual_notification"
+  | "public_form_submission_admin"
+  | "public_form_reply"
 
 interface EmailContent {
   subject: string
@@ -30,6 +32,55 @@ interface EmailOperationalConfig {
   senderName: string | null
   senderAddress: string | null
   replyTo: string | null
+}
+
+export interface PlatformEmailTemplateContent {
+  subject: string
+  eyebrow: string
+  title: string
+  greeting: string
+  intro: string
+  bullets: string[]
+  ctaLabel: string
+  ctaUrl: string
+  footer: string
+}
+
+interface PlatformEmailTemplateDefinition {
+  key: PlatformTemplateKey
+  label: string
+  description: string
+  category: string
+  availableVariables: string[]
+  defaultContent: PlatformEmailTemplateContent
+  sampleData: Record<string, string>
+}
+
+export interface PlatformEmailTemplateSummary {
+  key: PlatformTemplateKey
+  label: string
+  description: string
+  category: string
+  availableVariables: string[]
+  sampleData: Record<string, string>
+  content: PlatformEmailTemplateContent
+  isCustomized: boolean
+}
+
+export interface PlatformEmailTemplatesConfig {
+  config_key: string
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+  templates: PlatformEmailTemplateSummary[]
+}
+
+export interface PlatformEmailTemplatePreview {
+  templateKey: PlatformTemplateKey
+  subject: string
+  html: string
+  text: string
+  sampleData: Record<string, string>
 }
 
 export interface EmailEnvironmentStatus {
@@ -71,6 +122,203 @@ interface SendTransactionalEmailResult {
 }
 
 const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
+const PLATFORM_EMAIL_TEMPLATES_KEY = "platform_email_templates"
+const PLATFORM_EMAIL_TEMPLATES_DESCRIPTION =
+  "Conteudo editavel dos emails transacionais da plataforma, excluindo emails geridos pelo Supabase Auth."
+
+const PLATFORM_EMAIL_TEMPLATE_DEFINITIONS: PlatformEmailTemplateDefinition[] = [
+  {
+    key: "purchase_confirmed",
+    label: "Compra confirmada",
+    description: "Enviado quando um pagamento e confirmado e o acesso ao material fica disponivel.",
+    category: "Comercial",
+    availableVariables: ["greeting_name", "material_label", "product_title", "dashboard_url"],
+    defaultContent: {
+      subject: "Pagamento confirmado | Mariana Explica",
+      eyebrow: "Compra confirmada",
+      title: "O teu acesso ja esta pronto!",
+      greeting: "Ola{{greeting_name}}.",
+      intro:
+        'O teu pagamento foi confirmado com sucesso e o {{material_label}} "{{product_title}}" ja esta disponivel na tua area do aluno.',
+      bullets: [
+        "Os teus materiais ficam disponiveis no mesmo sitio, dentro da tua area do aluno.",
+        "Se o acesso demorar a aparecer, basta atualizares a pagina.",
+      ],
+      ctaLabel: "Abrir area do aluno",
+      ctaUrl: "{{dashboard_url}}",
+      footer: "Se precisares, responde a este email ou fala connosco pela area de suporte.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      material_label: "material",
+      product_title: "Pack Exame Nacional de Filosofia",
+      dashboard_url: "/aluno/dashboard",
+    },
+  },
+  {
+    key: "free_product_claimed",
+    label: "Acesso gratuito",
+    description: "Enviado quando um material gratuito e associado ao perfil do aluno.",
+    category: "Comercial",
+    availableVariables: ["greeting_name", "material_label", "product_title", "dashboard_url"],
+    defaultContent: {
+      subject: "O teu material gratuito ja esta disponivel | Mariana Explica",
+      eyebrow: "Acesso gratuito",
+      title: "O teu material gratuito ja esta disponivel!",
+      greeting: "Ola{{greeting_name}}.",
+      intro:
+        'O teu acesso a "{{product_title}}" ja esta ativo e podes comecar a estudar atraves da tua area do aluno.',
+      bullets: [
+        "O {{material_label}} ficou ligado ao teu perfil com sucesso.",
+        "Se houver downloads permitidos, eles aparecem dentro do material.",
+      ],
+      ctaLabel: "Aceder ao material",
+      ctaUrl: "{{dashboard_url}}",
+      footer: "Guarda este email se quiseres ter uma referencia rapida para o teu acesso.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      material_label: "material gratuito",
+      product_title: "Guia de estudo gratis",
+      dashboard_url: "/aluno/cursos",
+    },
+  },
+  {
+    key: "support_ticket_created",
+    label: "Ticket criado",
+    description: "Enviado ao aluno quando um novo ticket de suporte e registado.",
+    category: "Suporte",
+    availableVariables: ["greeting_name", "ticket_subject", "support_url"],
+    defaultContent: {
+      subject: "Pedido de suporte recebido | Mariana Explica",
+      eyebrow: "Suporte recebido",
+      title: "Recebemos o teu pedido de suporte",
+      greeting: "Ola{{greeting_name}}.",
+      intro:
+        'O teu pedido "{{ticket_subject}}" foi registado com sucesso. Vamos acompanhar a partir da area de suporte.',
+      bullets: [
+        "Podes consultar o historico completo dentro da plataforma.",
+        "Quando houver resposta, vais receber notificacao no painel.",
+      ],
+      ctaLabel: "Abrir suporte",
+      ctaUrl: "{{support_url}}",
+      footer: "Mantem este email como referencia do teu pedido, se te der jeito.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      ticket_subject: "Nao consigo abrir o material",
+      support_url: "/aluno/suporte/ticket-exemplo",
+    },
+  },
+  {
+    key: "support_ticket_replied",
+    label: "Resposta no ticket",
+    description: "Enviado ao aluno quando a equipa responde ou encerra um ticket de suporte.",
+    category: "Suporte",
+    availableVariables: ["greeting_name", "ticket_subject", "message_preview", "support_url"],
+    defaultContent: {
+      subject: "Nova resposta de suporte | Mariana Explica",
+      eyebrow: "Atualizacao de suporte",
+      title: "Ja tens uma nova resposta no suporte",
+      greeting: "Ola{{greeting_name}}.",
+      intro: 'O pedido "{{ticket_subject}}" recebeu uma nova resposta da equipa Mariana Explica.',
+      bullets: ["{{message_preview}}"],
+      ctaLabel: "Ver conversa no suporte",
+      ctaUrl: "{{support_url}}",
+      footer: "Se ainda precisares de ajuda, responde diretamente no ticket para manter o historico organizado.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      ticket_subject: "Nao consigo abrir o material",
+      message_preview: "Ja validamos o teu acesso e deixamos um passo a passo no ticket.",
+      support_url: "/aluno/suporte/ticket-exemplo",
+    },
+  },
+  {
+    key: "manual_notification",
+    label: "Notificacao manual",
+    description: "Usado em comunicacoes manuais enviadas pelo admin para usuarios da plataforma.",
+    category: "Comunicacao",
+    availableVariables: ["greeting_name", "notification_title", "notification_message", "cta_label", "cta_url"],
+    defaultContent: {
+      subject: "{{notification_title}} | Mariana Explica",
+      eyebrow: "Comunicacao Mariana Explica",
+      title: "{{notification_title}}",
+      greeting: "Ola{{greeting_name}}.",
+      intro: "{{notification_message}}",
+      bullets: [],
+      ctaLabel: "{{cta_label}}",
+      ctaUrl: "{{cta_url}}",
+      footer: "Se precisares, responde a este email ou entra em contacto pelo painel da plataforma.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      notification_title: "Nova data de sessao em direto",
+      notification_message: "Abrimos uma nova sessao de apoio para o teu grupo. Entra na plataforma para ver os detalhes.",
+      cta_label: "Abrir plataforma",
+      cta_url: "/aluno/notificacoes",
+    },
+  },
+  {
+    key: "public_form_submission_admin",
+    label: "Alerta de formulario publico",
+    description: "Enviado ao endereco operacional quando um formulario publico chega pelo site.",
+    category: "Formularios",
+    availableVariables: ["source_page", "form_type", "full_name", "email", "message_subject", "message_body", "cta_url"],
+    defaultContent: {
+      subject: "Novo formulario publico recebido | Mariana Explica",
+      eyebrow: "Comunicacao Mariana Explica",
+      title: "Novo formulario publico recebido",
+      greeting: "Ola,",
+      intro: "Chegou um novo formulario publico e o registo ja esta disponivel no painel admin.",
+      bullets: [
+        "Origem: {{source_page}}",
+        "Tipo: {{form_type}}",
+        "Nome: {{full_name}}",
+        "Email: {{email}}",
+        "Assunto: {{message_subject}}",
+        "Mensagem: {{message_body}}",
+      ],
+      ctaLabel: "Abrir plataforma",
+      ctaUrl: "{{cta_url}}",
+      footer: "Este email e apenas operacional e serve para acelerar o acompanhamento do formulario.",
+    },
+    sampleData: {
+      source_page: "/explicacoes",
+      form_type: "explicacoes",
+      full_name: "Mariana Silva",
+      email: "mariana@example.com",
+      message_subject: "Preciso de apoio para o exame",
+      message_body: "Gostava de saber qual e o material mais indicado para a minha situacao.",
+      cta_url: "/admin/formularios",
+    },
+  },
+  {
+    key: "public_form_reply",
+    label: "Resposta a formulario",
+    description: "Enviado quando o admin responde a um formulario recebido pelo site.",
+    category: "Formularios",
+    availableVariables: ["greeting_name", "original_subject", "reply_message", "cta_label", "cta_url"],
+    defaultContent: {
+      subject: "Resposta ao teu formulario | Mariana Explica",
+      eyebrow: "Resposta da equipa Mariana Explica",
+      title: "Respondemos ao teu formulario",
+      greeting: "Ola{{greeting_name}}.",
+      intro: 'Recebemos o teu contacto "{{original_subject}}" e enviamos a nossa resposta abaixo.',
+      bullets: ["{{reply_message}}"],
+      ctaLabel: "{{cta_label}}",
+      ctaUrl: "{{cta_url}}",
+      footer: "Se precisares de contexto adicional, responde ao email ou volta a submeter o formulario com mais detalhe.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      original_subject: "Preciso de apoio para o exame",
+      reply_message: "Recomendamos comecares pelo material base e, se quiseres, podemos ajudar-te a escolher o proximo passo.",
+      cta_label: "Abrir explicacoes",
+      cta_url: "/explicacoes",
+    },
+  },
+]
 
 interface EmailLayoutInput {
   eyebrow: string
@@ -745,6 +993,291 @@ async function sendWithSendgrid(
   }
 }
 
+function getPlatformEmailTemplateDefinition(templateKey: PlatformTemplateKey) {
+  const definition = PLATFORM_EMAIL_TEMPLATE_DEFINITIONS.find((item) => item.key === templateKey)
+  if (!definition) {
+    throw new Error(`Template de email nao suportado: ${templateKey}`)
+  }
+
+  return definition
+}
+
+function normalizePlatformTemplateText(value: unknown, fallback: string) {
+  if (value === null || value === undefined) {
+    return fallback
+  }
+
+  return String(value)
+}
+
+function normalizePlatformTemplateBullets(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) {
+    return fallback
+  }
+
+  return value.map((item) => String(item ?? "")).slice(0, 12)
+}
+
+function normalizePlatformEmailTemplateContent(
+  value: unknown,
+  fallback: PlatformEmailTemplateContent,
+): PlatformEmailTemplateContent {
+  const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
+
+  return {
+    subject: normalizePlatformTemplateText(input.subject, fallback.subject),
+    eyebrow: normalizePlatformTemplateText(input.eyebrow, fallback.eyebrow),
+    title: normalizePlatformTemplateText(input.title, fallback.title),
+    greeting: normalizePlatformTemplateText(input.greeting, fallback.greeting),
+    intro: normalizePlatformTemplateText(input.intro, fallback.intro),
+    bullets: normalizePlatformTemplateBullets(input.bullets, fallback.bullets),
+    ctaLabel: normalizePlatformTemplateText(input.ctaLabel, fallback.ctaLabel),
+    ctaUrl: normalizePlatformTemplateText(input.ctaUrl, fallback.ctaUrl),
+    footer: normalizePlatformTemplateText(input.footer, fallback.footer),
+  }
+}
+
+function normalizePlatformEmailTemplateOverrides(value: unknown) {
+  const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
+  const templatesValue =
+    input.templates && typeof input.templates === "object" && !Array.isArray(input.templates)
+      ? input.templates as Record<string, unknown>
+      : {}
+
+  const overrides: Partial<Record<PlatformTemplateKey, PlatformEmailTemplateContent>> = {}
+
+  for (const definition of PLATFORM_EMAIL_TEMPLATE_DEFINITIONS) {
+    const candidate = templatesValue[definition.key]
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      continue
+    }
+
+    overrides[definition.key] = normalizePlatformEmailTemplateContent(candidate, definition.defaultContent)
+  }
+
+  return overrides
+}
+
+async function readPlatformEmailTemplatesRow(client: SupabaseClient) {
+  const { data, error } = await client
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", PLATFORM_EMAIL_TEMPLATES_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+function applyTemplateVariables(template: string, variables: Record<string, string>) {
+  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, token) => variables[token] ?? "")
+}
+
+function renderPlatformTemplateContent(
+  content: PlatformEmailTemplateContent,
+  variables: Record<string, string>,
+): PlatformEmailTemplateContent {
+  return {
+    subject: applyTemplateVariables(content.subject, variables).trim(),
+    eyebrow: applyTemplateVariables(content.eyebrow, variables).trim(),
+    title: applyTemplateVariables(content.title, variables).trim(),
+    greeting: applyTemplateVariables(content.greeting, variables).trim(),
+    intro: applyTemplateVariables(content.intro, variables).trim(),
+    bullets: content.bullets.map((bullet) => applyTemplateVariables(bullet, variables).trim()).filter(Boolean),
+    ctaLabel: applyTemplateVariables(content.ctaLabel, variables).trim(),
+    ctaUrl: applyTemplateVariables(content.ctaUrl, variables).trim(),
+    footer: applyTemplateVariables(content.footer, variables).trim(),
+  }
+}
+
+function buildEmailContentFromPlatformTemplate(
+  content: PlatformEmailTemplateContent,
+  variables: Record<string, string>,
+): EmailContent {
+  const rendered = renderPlatformTemplateContent(content, variables)
+  const email = renderEmailLayout({
+    eyebrow: rendered.eyebrow,
+    title: rendered.title,
+    greeting: rendered.greeting,
+    intro: rendered.intro,
+    bullets: rendered.bullets,
+    ctaLabel: rendered.ctaLabel || null,
+    ctaUrl: rendered.ctaUrl || null,
+    footer: rendered.footer || null,
+  })
+
+  return {
+    subject: rendered.subject || email.subject,
+    html: email.html,
+    text: email.text,
+  }
+}
+
+function buildPlatformEmailTemplateSummary(
+  definition: PlatformEmailTemplateDefinition,
+  overrides: Partial<Record<PlatformTemplateKey, PlatformEmailTemplateContent>>,
+): PlatformEmailTemplateSummary {
+  const override = overrides[definition.key]
+
+  return {
+    key: definition.key,
+    label: definition.label,
+    description: definition.description,
+    category: definition.category,
+    availableVariables: definition.availableVariables,
+    sampleData: definition.sampleData,
+    content: override ? normalizePlatformEmailTemplateContent(override, definition.defaultContent) : definition.defaultContent,
+    isCustomized: Boolean(override),
+  }
+}
+
+function buildPlatformEmailTemplatesPayload(
+  overrides: Partial<Record<PlatformTemplateKey, PlatformEmailTemplateContent>>,
+) {
+  return {
+    version: 1,
+    templates: overrides,
+  }
+}
+
+export async function fetchPlatformEmailTemplatesConfig(
+  client: SupabaseClient,
+): Promise<PlatformEmailTemplatesConfig> {
+  const row = await readPlatformEmailTemplatesRow(client)
+  const overrides = normalizePlatformEmailTemplateOverrides(row?.config_value ?? null)
+
+  return {
+    config_key: row?.config_key ?? PLATFORM_EMAIL_TEMPLATES_KEY,
+    description: row?.description ?? PLATFORM_EMAIL_TEMPLATES_DESCRIPTION,
+    is_public: row?.is_public ?? false,
+    updated_at: row?.updated_at ?? null,
+    templates: PLATFORM_EMAIL_TEMPLATE_DEFINITIONS.map((definition) =>
+      buildPlatformEmailTemplateSummary(definition, overrides)
+    ),
+  }
+}
+
+async function upsertPlatformEmailTemplatesConfig(
+  client: SupabaseClient,
+  overrides: Partial<Record<PlatformTemplateKey, PlatformEmailTemplateContent>>,
+) {
+  const siteConfigTable = client.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{
+          data: {
+            config_key: string
+            description: string | null
+            is_public: boolean
+            updated_at: string | null
+          } | null
+          error: Error | null
+        }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: PLATFORM_EMAIL_TEMPLATES_KEY,
+        config_value: buildPlatformEmailTemplatesPayload(overrides),
+        description: PLATFORM_EMAIL_TEMPLATES_DESCRIPTION,
+        is_public: false,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,description,is_public,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function savePlatformEmailTemplate(
+  client: SupabaseClient,
+  templateKey: PlatformTemplateKey,
+  content: PlatformEmailTemplateContent,
+) {
+  const row = await readPlatformEmailTemplatesRow(client)
+  const overrides = normalizePlatformEmailTemplateOverrides(row?.config_value ?? null)
+  const definition = getPlatformEmailTemplateDefinition(templateKey)
+  overrides[templateKey] = normalizePlatformEmailTemplateContent(content, definition.defaultContent)
+  await upsertPlatformEmailTemplatesConfig(client, overrides)
+
+  const config = await fetchPlatformEmailTemplatesConfig(client)
+  const template = config.templates.find((item) => item.key === templateKey)
+  if (!template) {
+    throw new Error("Template atualizado nao encontrado")
+  }
+
+  return {
+    config,
+    template,
+  }
+}
+
+export async function resetPlatformEmailTemplate(client: SupabaseClient, templateKey: PlatformTemplateKey) {
+  const row = await readPlatformEmailTemplatesRow(client)
+  const overrides = normalizePlatformEmailTemplateOverrides(row?.config_value ?? null)
+  delete overrides[templateKey]
+  await upsertPlatformEmailTemplatesConfig(client, overrides)
+
+  const config = await fetchPlatformEmailTemplatesConfig(client)
+  const template = config.templates.find((item) => item.key === templateKey)
+  if (!template) {
+    throw new Error("Template reposto nao encontrado")
+  }
+
+  return {
+    config,
+    template,
+  }
+}
+
+export async function previewPlatformEmailTemplate(
+  client: SupabaseClient,
+  templateKey: PlatformTemplateKey,
+  contentOverride?: PlatformEmailTemplateContent,
+): Promise<PlatformEmailTemplatePreview> {
+  const definition = getPlatformEmailTemplateDefinition(templateKey)
+  const config = await fetchPlatformEmailTemplatesConfig(client)
+  const storedTemplate = config.templates.find((item) => item.key === templateKey)
+  const mergedContent = contentOverride
+    ? normalizePlatformEmailTemplateContent(contentOverride, definition.defaultContent)
+    : storedTemplate?.content ?? definition.defaultContent
+  const preview = buildEmailContentFromPlatformTemplate(mergedContent, definition.sampleData)
+
+  return {
+    templateKey,
+    subject: preview.subject,
+    html: preview.html,
+    text: preview.text,
+    sampleData: definition.sampleData,
+  }
+}
+
+async function buildPlatformManagedEmail(
+  client: SupabaseClient,
+  templateKey: PlatformTemplateKey,
+  variables: Record<string, string>,
+) {
+  const config = await fetchPlatformEmailTemplatesConfig(client)
+  const template = config.templates.find((item) => item.key === templateKey)
+
+  if (!template) {
+    throw new Error(`Template de email nao encontrado: ${templateKey}`)
+  }
+
+  return buildEmailContentFromPlatformTemplate(template.content, variables)
+}
+
 function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   const ctaUrl = normalizeUrl(input.ctaUrl)
   const greeting = input.greeting
@@ -829,128 +1362,76 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   }
 }
 
-export function buildPurchaseConfirmedEmail(input: {
+export async function buildPurchaseConfirmedEmail(client: SupabaseClient, input: {
   fullName?: string | null
   productTitle: string
   productType?: "paid" | "free" | "hybrid" | "external_service" | null
   dashboardUrl?: string | null
 }) {
-  const isExternalService = input.productType === "external_service"
-  const materialLabel = isExternalService ? "apoio" : "material"
-  const content = renderEmailLayout({
-    eyebrow: "Compra confirmada",
-    title: "O teu acesso já está pronto!",
-    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `O teu pagamento foi confirmado com sucesso e o ${materialLabel} "${input.productTitle}" ja esta disponivel na tua area do aluno.`,
-    bullets: [
-      "Os teus materiais ficam disponiveis no mesmo sitio, dentro da tua area do aluno.",
-      "Se o acesso demorar a aparecer, basta atualizares a pagina.",
-    ],
-    ctaLabel: "Abrir area do aluno",
-    ctaUrl: input.dashboardUrl ?? "/aluno/dashboard",
+  return await buildPlatformManagedEmail(client, "purchase_confirmed", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    material_label: input.productType === "external_service" ? "apoio" : "material",
+    product_title: input.productTitle,
+    dashboard_url: input.dashboardUrl ?? "/aluno/dashboard",
   })
-
-  return {
-    ...content,
-    subject: "Pagamento confirmado | Mariana Explica",
-  }
 }
 
-export function buildFreeProductClaimedEmail(input: {
+export async function buildFreeProductClaimedEmail(client: SupabaseClient, input: {
   fullName?: string | null
   productTitle: string
   productType?: "paid" | "free" | "hybrid" | "external_service" | null
   dashboardUrl?: string | null
 }) {
-  const isExternalService = input.productType === "external_service"
-  const materialLabel = isExternalService ? "apoio gratuito" : "material gratuito"
-  const content = renderEmailLayout({
-    eyebrow: "Acesso gratuito",
-    title: "O teu material gratuito ja esta disponivel!",
-    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `O teu acesso a "${input.productTitle}" ja esta ativo e podes comecar a estudar atraves da tua area do aluno.`,
-    bullets: [
-      `O ${materialLabel} ficou ligado ao teu perfil com sucesso.`,
-      "Se houver downloads permitidos, eles aparecem dentro do material.",
-    ],
-    ctaLabel: "Aceder ao material",
-    ctaUrl: input.dashboardUrl ?? "/aluno/cursos",
+  return await buildPlatformManagedEmail(client, "free_product_claimed", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    material_label: input.productType === "external_service" ? "apoio gratuito" : "material gratuito",
+    product_title: input.productTitle,
+    dashboard_url: input.dashboardUrl ?? "/aluno/cursos",
   })
-
-  return {
-    ...content,
-    subject: "O teu material gratuito ja esta disponivel | Mariana Explica",
-  }
 }
 
-export function buildSupportTicketCreatedEmail(input: {
+export async function buildSupportTicketCreatedEmail(client: SupabaseClient, input: {
   fullName?: string | null
   subject: string
   supportUrl?: string | null
 }) {
-  const content = renderEmailLayout({
-    eyebrow: "Suporte recebido",
-    title: "Recebemos o teu pedido de suporte",
-    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `O teu pedido "${input.subject}" foi registado com sucesso. Vamos acompanhar a partir da area de suporte.`,
-    bullets: [
-      "Podes consultar o historico completo dentro da plataforma.",
-      "Quando houver resposta, vais receber notificacao no painel.",
-    ],
-    ctaLabel: "Abrir suporte",
-    ctaUrl: input.supportUrl ?? "/aluno/suporte",
+  return await buildPlatformManagedEmail(client, "support_ticket_created", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    ticket_subject: input.subject,
+    support_url: input.supportUrl ?? "/aluno/suporte",
   })
-
-  return {
-    ...content,
-    subject: "Pedido de suporte recebido | Mariana Explica",
-  }
 }
 
-export function buildSupportTicketRepliedEmail(input: {
+export async function buildSupportTicketRepliedEmail(client: SupabaseClient, input: {
   fullName?: string | null
   subject: string
   messagePreview: string
   supportUrl?: string | null
 }) {
-  const content = renderEmailLayout({
-    eyebrow: "Atualizacao de suporte",
-    title: "Ja tens uma nova resposta no suporte",
-    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `O pedido "${input.subject}" recebeu uma nova resposta da equipa Mariana Explica.`,
-    bullets: [input.messagePreview],
-    ctaLabel: "Ver conversa no suporte",
-    ctaUrl: input.supportUrl ?? "/aluno/suporte",
+  return await buildPlatformManagedEmail(client, "support_ticket_replied", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    ticket_subject: input.subject,
+    message_preview: input.messagePreview,
+    support_url: input.supportUrl ?? "/aluno/suporte",
   })
-
-  return {
-    ...content,
-    subject: "Nova resposta de suporte | Mariana Explica",
-  }
 }
 
-export function buildManualNotificationEmail(input: {
+export async function buildManualNotificationEmail(client: SupabaseClient, input: {
   fullName?: string | null
   title: string
   message: string
   ctaUrl?: string | null
 }) {
-  const content = renderEmailLayout({
-    eyebrow: "Comunicacao Mariana Explica",
-    title: input.title,
-    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: input.message,
-    ctaLabel: input.ctaUrl ? "Abrir plataforma" : null,
-    ctaUrl: input.ctaUrl ?? null,
+  return await buildPlatformManagedEmail(client, "manual_notification", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    notification_title: input.title,
+    notification_message: input.message,
+    cta_label: input.ctaUrl ? "Abrir plataforma" : "",
+    cta_url: input.ctaUrl ?? "",
   })
-
-  return {
-    ...content,
-    subject: `${input.title} | Mariana Explica`,
-  }
 }
 
-export function buildPublicFormSubmissionAdminEmail(input: {
+export async function buildPublicFormSubmissionAdminEmail(client: SupabaseClient, input: {
   sourcePage: string
   formType: string
   fullName: string
@@ -959,49 +1440,30 @@ export function buildPublicFormSubmissionAdminEmail(input: {
   message: string
   ctaUrl?: string | null
 }) {
-  const content = renderEmailLayout({
-    eyebrow: "Comunicacao Mariana Explica",
-    title: "Novo formulario publico recebido",
-    greeting: "Ola,",
-    intro: "Chegou um novo formulario publico e o registo ja esta disponivel no painel admin.",
-    bullets: [
-      `Origem: ${input.sourcePage}`,
-      `Tipo: ${input.formType}`,
-      `Nome: ${input.fullName}`,
-      `Email: ${input.email}`,
-      `Assunto: ${input.subject}`,
-      `Mensagem: ${input.message.slice(0, 900)}`,
-    ],
-    ctaLabel: "Abrir plataforma",
-    ctaUrl: input.ctaUrl ?? "/admin/formularios",
+  return await buildPlatformManagedEmail(client, "public_form_submission_admin", {
+    source_page: input.sourcePage,
+    form_type: input.formType,
+    full_name: input.fullName,
+    email: input.email,
+    message_subject: input.subject,
+    message_body: input.message.slice(0, 900),
+    cta_url: input.ctaUrl ?? "/admin/formularios",
   })
-
-  return {
-    ...content,
-    subject: "Novo formulario publico recebido | Mariana Explica",
-  }
 }
 
-export function buildPublicFormReplyEmail(input: {
+export async function buildPublicFormReplyEmail(client: SupabaseClient, input: {
   fullName?: string | null
   originalSubject: string
   message: string
   ctaUrl?: string | null
 }) {
-  const content = renderEmailLayout({
-    eyebrow: "Resposta da equipa Mariana Explica",
-    title: "Respondemos ao teu formulario",
-    greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `Recebemos o teu contacto "${input.originalSubject}" e enviamos a nossa resposta abaixo.`,
-    bullets: [input.message],
-    ctaLabel: input.ctaUrl ? "Abrir plataforma" : null,
-    ctaUrl: input.ctaUrl ?? null,
+  return await buildPlatformManagedEmail(client, "public_form_reply", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    original_subject: input.originalSubject,
+    reply_message: input.message,
+    cta_label: input.ctaUrl ? "Abrir explicacoes" : "",
+    cta_url: input.ctaUrl ?? "",
   })
-
-  return {
-    ...content,
-    subject: `Resposta ao teu formulario | Mariana Explica`,
-  }
 }
 
 export async function fetchEmailOperationalConfig(client: SupabaseClient) {

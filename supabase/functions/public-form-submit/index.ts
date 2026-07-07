@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
     const notificationEmail = resolveNotificationEmail(configRow?.config_value ?? null)
 
     if (notificationEmail) {
-      const delivery = buildPublicFormSubmissionAdminEmail({
+      const delivery = await buildPublicFormSubmissionAdminEmail(serviceClient, {
         sourcePage,
         formType,
         fullName,
@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
         userId: null,
         notificationId: null,
         emailTo: notificationEmail,
-        templateKey: "manual_notification",
+        templateKey: "public_form_submission_admin",
         subject: delivery.subject,
         html: delivery.html,
         text: delivery.text,

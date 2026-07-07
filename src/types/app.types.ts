@@ -970,6 +970,54 @@ export interface PublicSitePagePayload {
   >
 }
 
+export type AdminPlatformEmailTemplateKey =
+  | "purchase_confirmed"
+  | "free_product_claimed"
+  | "support_ticket_created"
+  | "support_ticket_replied"
+  | "manual_notification"
+  | "public_form_submission_admin"
+  | "public_form_reply"
+
+export interface AdminPlatformEmailTemplateContent {
+  subject: string
+  eyebrow: string
+  title: string
+  greeting: string
+  intro: string
+  bullets: string[]
+  ctaLabel: string
+  ctaUrl: string
+  footer: string
+}
+
+export interface AdminPlatformEmailTemplateSummary {
+  key: AdminPlatformEmailTemplateKey
+  label: string
+  description: string
+  category: string
+  availableVariables: string[]
+  sampleData: Record<string, string>
+  content: AdminPlatformEmailTemplateContent
+  isCustomized: boolean
+}
+
+export interface AdminPlatformEmailTemplatesConfig {
+  config_key: string
+  description: string | null
+  is_public: boolean
+  updated_at: string | null
+  templates: AdminPlatformEmailTemplateSummary[]
+}
+
+export interface AdminPlatformEmailTemplatePreview {
+  templateKey: AdminPlatformEmailTemplateKey
+  subject: string
+  html: string
+  text: string
+  sampleData: Record<string, string>
+}
+
 export interface AdminEmailStatus {
   providerName: string | null
   transport: "smtp" | "resend" | "postmark" | "sendgrid" | null

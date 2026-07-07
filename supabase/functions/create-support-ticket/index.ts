@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     }
 
     if (context.profile.email) {
-      const email = buildSupportTicketCreatedEmail({
+      const email = await buildSupportTicketCreatedEmail(context.serviceClient, {
         fullName: context.profile.full_name,
         subject,
         supportUrl: `/aluno/suporte/${ticket.id}`,

@@ -109,11 +109,11 @@ Deno.serve(async (req) => {
           continue
         }
 
-        const email = buildManualNotificationEmail({
+        const email = await buildManualNotificationEmail(context.serviceClient, {
           fullName: recipient.full_name,
           title: body.title.trim(),
           message: body.message.trim(),
-          ctaUrl: body.link?.trim() || "/dashboard/notificacoes",
+          ctaUrl: body.link?.trim() || "/aluno/notificacoes",
         })
 
         await queueEmailDelivery(context.serviceClient, {

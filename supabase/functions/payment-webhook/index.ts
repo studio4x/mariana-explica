@@ -223,7 +223,7 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
   }
 
   if (profile?.email) {
-    const email = buildPurchaseConfirmedEmail({
+    const email = await buildPurchaseConfirmedEmail(client, {
       fullName: profile.full_name,
       productTitle: product?.title ?? "o teu produto",
       productType: product?.product_type ?? "paid",

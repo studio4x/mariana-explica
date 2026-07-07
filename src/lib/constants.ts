@@ -48,6 +48,7 @@ export const ROUTES = {
   ADMIN: "/admin",
   ADMIN_OPERATIONS: "/admin/configuracoes?tab=operacoes",
   ADMIN_PAYMENTS: "/admin/pagamentos",
+  ADMIN_EMAILS: "/admin/emails",
   ADMIN_SETTINGS: "/admin/configuracoes",
   ADMIN_ACCOUNT: "/admin/minha-conta",
   ADMIN_NOTIFICATIONS: "/admin/notificacoes",

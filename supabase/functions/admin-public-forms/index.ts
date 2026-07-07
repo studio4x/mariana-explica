@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       throw notFound("Formulario nao encontrado")
     }
 
-    const delivery = buildPublicFormReplyEmail({
+    const delivery = await buildPublicFormReplyEmail(context.serviceClient, {
       fullName: submission.full_name,
       originalSubject: submission.subject,
       message: replyMessage,
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       userId: null,
       notificationId: null,
       emailTo: submission.email,
-      templateKey: "manual_notification",
+      templateKey: "public_form_reply",
       subject,
       html: delivery.html,
       text: delivery.text,

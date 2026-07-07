@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
     }
 
     if (context.profile.email) {
-      const email = buildFreeProductClaimedEmail({
+      const email = await buildFreeProductClaimedEmail(context.serviceClient, {
         fullName: context.profile.full_name,
         productTitle: product.title,
         productType: product.product_type,

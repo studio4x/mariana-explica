@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
       if (notificationError) throw notificationError
 
       if (userProfile?.email) {
-        const email = buildSupportTicketRepliedEmail({
+        const email = await buildSupportTicketRepliedEmail(context.serviceClient, {
           fullName: userProfile.full_name,
           subject: ticket.subject,
           messagePreview: preview,
