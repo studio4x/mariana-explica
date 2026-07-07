@@ -23,10 +23,19 @@ vi.mock("@/hooks/useAdmin", () => ({
 }))
 
 vi.mock("@/components/common", () => ({
-  PageHeader: ({ title, description }: { title: string; description: string }) => (
+  PageHeader: ({
+    title,
+    description,
+    actions,
+  }: {
+    title: string
+    description: string
+    actions?: React.ReactNode
+  }) => (
     <div>
       <h1>{title}</h1>
       <p>{description}</p>
+      <div>{actions}</div>
     </div>
   ),
   StatusBadge: ({ label }: { label: string }) => <span>{label}</span>,
@@ -337,6 +346,8 @@ describe("AdminNotifications", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Fila de envio" }))
 
+    expect(screen.queryByText("Criar campanha administrativa")).not.toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Fila de envio" })).toBeInTheDocument()
     expect(screen.getByText("SMTP timeout")).toBeInTheDocument()
     expect(screen.getByText("failed")).toBeInTheDocument()
 

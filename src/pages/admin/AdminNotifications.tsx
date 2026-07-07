@@ -27,7 +27,7 @@ import { formatDateTime } from "@/utils/date"
 type Audience = AdminNotificationCampaignInput["audience"]
 type NotificationType = AdminNotificationCampaignInput["type"]
 type TagTarget = "title" | "emailSubject" | "messageHtml" | "ctaLabel" | "ctaUrl"
-type NotificationsSideTab = "campaigns" | "queue"
+type NotificationsPageTab = "campaigns" | "queue"
 
 const BASE_TAG_OPTIONS: AdminNotificationCampaignTagOption[] = [
   {
@@ -282,7 +282,7 @@ export function AdminNotifications() {
   const [sentViaEmail, setSentViaEmail] = useState(true)
   const [sentViaInApp, setSentViaInApp] = useState(true)
   const [tagTarget, setTagTarget] = useState<TagTarget>("messageHtml")
-  const [activeSideTab, setActiveSideTab] = useState<NotificationsSideTab>("campaigns")
+  const [activeTab, setActiveTab] = useState<NotificationsPageTab>("campaigns")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [preview, setPreview] = useState<AdminNotificationCampaignPreview | null>(null)
 
@@ -487,7 +487,7 @@ export function AdminNotifications() {
         tone: "success",
         message: "Email reenfileirado com sucesso para nova tentativa de envio.",
       })
-      setActiveSideTab("queue")
+      setActiveTab("queue")
     } catch (error) {
       setFeedback({
         tone: "danger",
@@ -568,6 +568,30 @@ export function AdminNotifications() {
       <PageHeader
         title="Notificacoes"
         description="Cria campanhas administrativas com notificacao in-app, email ou ambos, sempre com segmentacao resolvida no backend."
+        actions={
+          <div className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab("campaigns")}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-semibold transition",
+                activeTab === "campaigns" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950",
+              ].join(" ")}
+            >
+              Campanhas
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("queue")}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-semibold transition",
+                activeTab === "queue" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950",
+              ].join(" ")}
+            >
+              Fila de envio
+            </button>
+          </div>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -585,8 +609,9 @@ export function AdminNotifications() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <form ref={formRef} onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+      {activeTab === "campaigns" ? (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+          <form ref={formRef} onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Composer de campanhas</p>
           <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar campanha administrativa</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
@@ -912,51 +937,20 @@ export function AdminNotifications() {
               {sendMutation.isPending ? "A enviar..." : "Enviar campanha"}
             </Button>
           </div>
-        </form>
+          </form>
 
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">
-                {activeSideTab === "campaigns" ? "Historico de campanhas" : "Fila de envio"}
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {activeSideTab === "campaigns"
-                  ? "Listagem agregada a partir dos registos de auditoria do backend."
-                  : "Acompanha aqui o estado dos emails enfileirados e entregues pela camada operacional."}
-              </p>
+          <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl font-bold text-slate-950">Historico de campanhas</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Listagem agregada a partir dos registos de auditoria do backend.
+                </p>
+              </div>
+              <StatusBadge label={`${campaigns.length} disparos`} tone="neutral" />
             </div>
-            <StatusBadge
-              label={activeSideTab === "campaigns" ? `${campaigns.length} disparos` : `${emailDeliveries.length} emails`}
-              tone="neutral"
-            />
-          </div>
 
-          <div className="mt-5 inline-flex rounded-full border border-slate-200 bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setActiveSideTab("campaigns")}
-              className={[
-                "rounded-full px-4 py-2 text-sm font-semibold transition",
-                activeSideTab === "campaigns" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950",
-              ].join(" ")}
-            >
-              Campanhas
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSideTab("queue")}
-              className={[
-                "rounded-full px-4 py-2 text-sm font-semibold transition",
-                activeSideTab === "queue" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950",
-              ].join(" ")}
-            >
-              Fila de envio
-            </button>
-          </div>
-
-          {activeSideTab === "campaigns" ? (
-            campaigns.length === 0 ? (
+            {campaigns.length === 0 ? (
               <div className="mt-6">
                 <EmptyState
                   title="Sem campanhas"
@@ -1024,8 +1018,22 @@ export function AdminNotifications() {
                   </div>
                 ))}
               </div>
-            )
-          ) : operationsQuery.isLoading ? (
+            )}
+          </section>
+        </div>
+      ) : (
+        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Fila de envio</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Acompanha aqui o estado dos emails enfileirados e entregues pela camada operacional.
+              </p>
+            </div>
+            <StatusBadge label={`${emailDeliveries.length} emails`} tone="neutral" />
+          </div>
+
+          {operationsQuery.isLoading ? (
             <div className="mt-5 space-y-3">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
@@ -1114,7 +1122,7 @@ export function AdminNotifications() {
             </div>
           )}
         </section>
-      </div>
+      )}
     </div>
   )
 }
