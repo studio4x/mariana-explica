@@ -354,6 +354,10 @@ Quando um ajuste for concluído e validado, o fluxo de encerramento deve incluir
 3. deploy quando a mudança exigir publicação remota;
 4. confirmação da versão publicada e do identificador de build.
 
+Regra obrigatória de encerramento:
+
+- toda entrega concluída com alteração de código, docs, migrations ou conteúdo do projeto deve terminar com `commit` e `push`, salvo se o usuário pedir explicitamente para não fazer isso.
+
 Se o usuário pedir explicitamente para não commitar, não fazer push ou não fazer deploy, essa ordem deve ser respeitada.
 
 ---

@@ -636,22 +636,24 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             <EditableContainer
               fieldKey="supportCta.container"
               as="section"
-              className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm"
+              className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm [&_*]:!text-white"
             >
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <HelpCircle className="h-7 w-7 text-sky-200" />
+              <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-2xl">
+                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sky-200">
+                    <HelpCircle className="h-6 w-6" />
+                  </div>
                   <EditableText
                     fieldKey="supportCta.title"
                     as="h2"
                     fallback={supportCta.title}
-                    className="mt-3 font-display text-3xl font-black text-white"
+                    className="font-display text-3xl font-black text-white"
                   />
                   <EditableText
                     fieldKey="supportCta.lead"
                     as="p"
                     fallback={supportCta.lead}
-                    className="mt-2 text-sm leading-7 text-white/85"
+                    className="mt-3 text-sm leading-7 text-white/85"
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -671,12 +673,14 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             </EditableContainer>
           </SiteContentScope>
         ) : (
-          <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <HelpCircle className="h-7 w-7 text-sky-200" />
-                <h2 className="mt-3 font-display text-3xl font-black text-white">{supportCta.title}</h2>
-                <p className="mt-2 text-sm leading-7 text-white/85">{supportCta.lead}</p>
+          <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm [&_*]:!text-white">
+            <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+              <div className="max-w-2xl">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sky-200">
+                  <HelpCircle className="h-6 w-6" />
+                </div>
+                <h2 className="font-display text-3xl font-black text-white">{supportCta.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-white/85">{supportCta.lead}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {renderSupportLink(
