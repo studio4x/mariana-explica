@@ -3,6 +3,7 @@ import { Button } from "@/components/ui"
 import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom"
 import { BadgeCheck, BookOpenCheck, CheckCircle2, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
+import { resolveCheckoutSuccessCopy } from "@/lib/checkout-copy"
 import { ROUTES } from "@/lib/constants"
 import { studentCoursePath } from "@/lib/routes"
 import { createCheckoutAutologin } from "@/services"
@@ -35,6 +36,7 @@ function CheckoutSuccessPageContent() {
   const [autologinInProgress, setAutologinInProgress] = useState(false)
   const [autologinAttempted, setAutologinAttempted] = useState(false)
   const shouldTryAutologin = !session && mode === "stripe" && Boolean(sessionId)
+  const successCopy = resolveCheckoutSuccessCopy(visualDocument, mode)
 
   useEffect(() => {
     if (loading || (session && profile?.status === "active")) {
@@ -93,12 +95,12 @@ function CheckoutSuccessPageContent() {
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#e9bf94]">
-                  {visualDocument.hero.eyebrow}
+                  {successCopy.hero.eyebrow}
                 </p>
                 <h1 className="mt-4 font-display text-4xl font-bold leading-tight md:text-5xl">
-                  {visualDocument.hero.title}
+                  {successCopy.hero.title}
                 </h1>
-                <p className="mt-4 max-w-2xl text-base leading-8 text-white/78">{visualDocument.hero.lead}</p>
+                <p className="mt-4 max-w-2xl text-base leading-8 text-white/78">{successCopy.hero.lead}</p>
               </div>
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#e9bf94]">
                 <CheckCircle2 className="h-10 w-10" />
@@ -113,9 +115,9 @@ function CheckoutSuccessPageContent() {
                   <BadgeCheck className="mt-1 h-5 w-5 shrink-0 text-[#3a618b]" />
                   <div>
                     <h2 className="font-display text-xl font-bold text-[#0f122c]">
-                      {visualDocument.nextStep.title}
+                      {successCopy.nextStep.title}
                     </h2>
-                    <p className="mt-2 text-sm leading-7 text-[#46464d]">{visualDocument.nextStep.lead}</p>
+                    <p className="mt-2 text-sm leading-7 text-[#46464d]">{successCopy.nextStep.lead}</p>
                   </div>
                 </div>
               </div>
@@ -123,30 +125,30 @@ function CheckoutSuccessPageContent() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-[#dee3e5] p-4">
                   <BookOpenCheck className="h-5 w-5 text-[#3a618b]" />
-                  <p className="mt-3 text-sm font-bold text-[#0f122c]">{visualDocument.benefits.firstTitle}</p>
-                  <p className="mt-1 text-sm leading-6 text-[#46464d]">{visualDocument.benefits.firstLead}</p>
+                  <p className="mt-3 text-sm font-bold text-[#0f122c]">{successCopy.benefits.firstTitle}</p>
+                  <p className="mt-1 text-sm leading-6 text-[#46464d]">{successCopy.benefits.firstLead}</p>
                 </div>
                 <div className="rounded-lg border border-[#dee3e5] p-4">
                   <ShieldCheck className="h-5 w-5 text-[#3a618b]" />
-                  <p className="mt-3 text-sm font-bold text-[#0f122c]">{visualDocument.benefits.secondTitle}</p>
-                  <p className="mt-1 text-sm leading-6 text-[#46464d]">{visualDocument.benefits.secondLead}</p>
+                  <p className="mt-3 text-sm font-bold text-[#0f122c]">{successCopy.benefits.secondTitle}</p>
+                  <p className="mt-1 text-sm leading-6 text-[#46464d]">{successCopy.benefits.secondLead}</p>
                 </div>
               </div>
             </div>
 
             <aside className="rounded-lg bg-[#eef4f6] p-6">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#46464d]">
-                {visualDocument.access.eyebrow}
+                {successCopy.access.eyebrow}
               </p>
               <div className="mt-5 space-y-3">
                 <Button asChild className="h-12 w-full rounded-lg bg-[#B8926A] text-white hover:bg-[#a6825d]">
-                  <Link to={courseHref}>{visualDocument.access.primaryCtaLabel}</Link>
+                  <Link to={courseHref}>{successCopy.access.primaryCtaLabel}</Link>
                 </Button>
                 <Button asChild variant="secondary" className="h-12 w-full rounded-lg bg-white">
-                  <Link to={ROUTES.DASHBOARD}>{visualDocument.access.secondaryCtaLabel}</Link>
+                  <Link to={ROUTES.DASHBOARD}>{successCopy.access.secondaryCtaLabel}</Link>
                 </Button>
               </div>
-              <p className="mt-5 text-xs leading-6 text-[#46464d]">{visualDocument.access.note}</p>
+              <p className="mt-5 text-xs leading-6 text-[#46464d]">{successCopy.access.note}</p>
             </aside>
           </div>
         </div>

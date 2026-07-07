@@ -129,12 +129,12 @@ export function Register() {
     <>
       <div className="space-y-6">
         <div className="space-y-3 text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Criar conta</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Cria aqui a tua conta</p>
           <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
             Abre a tua conta na {APP_NAME}
           </h1>
           <p className="text-sm leading-7 text-muted-foreground">
-            Cria a tua conta para comprar, receber acesso aos materiais e acompanhar tudo num Único lugar.
+            Garante o acesso imediato aos teus materiais de estudo e acompanha o teu progresso num só lugar.
           </p>
         </div>
 
@@ -230,7 +230,7 @@ export function Register() {
             <p className="mt-4 text-sm leading-7 text-slate-600">
               A conta foi criada e ficou pendente de verificacao. Enviamos um email para{" "}
               <span className="font-semibold text-slate-950">{pendingVerificationEmail}</span>.
-              Clica no botão de validação desse email para ativares a conta e entrares automaticamente no dashboard.
+              Clica no botão de validação desse email para ativares a conta e entrares automaticamente na tua área do aluno.
             </p>
             <div className="mt-6 space-y-3">
               <Button asChild className="w-full rounded-full" size="lg">

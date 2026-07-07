@@ -14,6 +14,7 @@ import { Button } from "@/components/ui"
 import { FooterCopyright } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
+import { resolveCheckoutCopy } from "@/lib/checkout-copy"
 import { ROUTES } from "@/lib/constants"
 import { formatNif, isValidNif, stripNifDigits } from "@/lib/nif"
 import { supabase } from "@/integrations/supabase"
@@ -110,12 +111,6 @@ function buildAuthCallbackUrl(nextPath: string) {
   const callbackUrl = new URL(`${window.location.origin}${callbackPath}`)
   callbackUrl.searchParams.set("next", nextPath)
   return callbackUrl.toString()
-}
-
-function getCheckoutBadge(productType: string) {
-  if (productType === "free") return "MATERIAL GRATUITO"
-  if (productType === "external_service") return "APOIO PERSONALIZADO"
-  return "CURSO COMPLETO"
 }
 
 function isValidEmail(value: string) {
@@ -512,6 +507,7 @@ function CheckoutPageContent() {
     richTextToPlainText(product.short_description) ||
     richTextToPlainText(product.description) ||
     "Conteúdo digital pronto para ser ativado na tua conta Mariana Explica."
+  const checkoutCopy = resolveCheckoutCopy(visualDocument, product.product_type)
 
   return (
     <>
@@ -538,12 +534,12 @@ function CheckoutPageContent() {
             <section className="space-y-8 lg:col-span-7">
               <div className="space-y-3">
                 <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
-                  {visualDocument.hero.eyebrow}
+                  {checkoutCopy.hero.eyebrow}
                 </span>
                 <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
-                  {visualDocument.hero.title}
+                  {checkoutCopy.hero.title}
                 </h1>
-                <p className="max-w-xl text-lg leading-8 text-[#46464d]">{visualDocument.hero.lead}</p>
+                <p className="max-w-xl text-lg leading-8 text-[#46464d]">{checkoutCopy.hero.lead}</p>
               </div>
 
               <div className="relative flex flex-col gap-8 overflow-hidden rounded-lg border border-[#dee3e5]/40 bg-white p-6 shadow-[0_4px_20px_-2px_rgba(15,18,44,0.05)] md:flex-row">
@@ -559,7 +555,7 @@ function CheckoutPageContent() {
                 <div className="flex flex-1 flex-col justify-center space-y-4">
                   <div>
                     <span className="mb-2 inline-block rounded-full bg-[#d1e4ff]/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[#315882]">
-                      {visualDocument.productCard.badge || getCheckoutBadge(product.product_type)}
+                      {checkoutCopy.productBadge}
                     </span>
                     <h2 className="font-display text-3xl font-bold leading-tight text-[#0f122c]">{product.title}</h2>
                   </div>
@@ -589,14 +585,14 @@ function CheckoutPageContent() {
                 <div className="mb-6 flex items-start justify-between gap-4">
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#8c8eae]">
-                      {visualDocument.authPanel.eyebrow}
+                      {checkoutCopy.authPanelEyebrow}
                     </p>
                       <h3 className="font-display text-2xl font-bold text-white">
                         {hasSession
                           ? "Confirma os teus dados"
                           : activeAuthTab === "login"
-                            ? visualDocument.authPanel.titleLogin
-                            : visualDocument.authPanel.titleRegister}
+                            ? checkoutCopy.authTitleLogin
+                            : checkoutCopy.authTitleRegister}
                       </h3>
                     </div>
                     <Lock className="h-10 w-10 text-[#af8962]" />
@@ -620,7 +616,7 @@ function CheckoutPageContent() {
                             }`}
                           >
                             <LogIn className="h-4 w-4" />
-                            JÁ tenho conta
+                            Já tenho conta
                           </button>
                           <button
                             type="button"
@@ -636,7 +632,7 @@ function CheckoutPageContent() {
                             }`}
                           >
                             <UserPlus className="h-4 w-4" />
-                            Quero me cadastrar
+                            Criar conta
                           </button>
                         </div>
                       </div>
@@ -783,9 +779,17 @@ function CheckoutPageContent() {
 
                             {pendingVerificationEmail ? (
                               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm leading-6 text-white/75">
-                                Criámos a conta para{" "}
-                                <span className="font-semibold text-white">{pendingVerificationEmail}</span> e enviámos
-                                o email de confirmação sem travar o checkout.
+                                {checkoutCopy.pendingVerificationMessage
+                                  .replace("{email}", pendingVerificationEmail)
+                                  .split(pendingVerificationEmail)
+                                  .map((chunk, index, parts) => (
+                                    <span key={`${chunk}-${index}`}>
+                                      {chunk}
+                                      {index < parts.length - 1 ? (
+                                        <span className="font-semibold text-white">{pendingVerificationEmail}</span>
+                                      ) : null}
+                                    </span>
+                                  ))}
                               </div>
                             ) : null}
                           </div>
@@ -841,15 +845,15 @@ function CheckoutPageContent() {
                           {authLoading
                             ? "A processar..."
                             : activeAuthTab === "login"
-                              ? "Entrar e continuar"
-                              : "Criar conta e continuar"}
+                              ? checkoutCopy.authSubmitLoginLabel
+                              : checkoutCopy.authSubmitRegisterLabel}
                           <ArrowRight className="ml-2 h-5 w-5" />
                         </Button>
 
                         <p className="text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
                           {activeAuthTab === "login"
-                            ? "Ao entrar, usaremos a tua conta para abrir o checkout."
-                            : "Ao criar a conta, avançamos para o pagamento sem sair desta página."}
+                            ? checkoutCopy.authSubmitLoginHint
+                            : checkoutCopy.authSubmitRegisterHint}
                         </p>
                       </form>
                     </>
@@ -991,11 +995,11 @@ function CheckoutPageContent() {
                         onClick={() => void continueCheckout()}
                         disabled={submitting || !canSubmitCheckout}
                       >
-                        {submitting ? "A processar..." : "Ir para pagamento"}
+                        {submitting ? "A processar..." : checkoutCopy.checkoutSubmitLabel}
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
                       <p className="text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8c8eae]">
-                        {visualDocument.productCard.buttonHint}
+                        {checkoutCopy.checkoutSubmitHint}
                       </p>
                     </form>
                   )}

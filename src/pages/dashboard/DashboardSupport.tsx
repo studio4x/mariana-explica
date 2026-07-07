@@ -13,12 +13,15 @@ import {
 import { ROUTES } from "@/lib/constants"
 import {
   getSupportCategoryMeta,
+  getSupportFirstResponseWindowLabel,
+  getSupportTicketCountLabel,
   getSupportDueLabel,
   getSupportPriorityMeta,
   getSupportSlaStatusMeta,
   getSupportStatusMeta,
   supportBusinessHours,
   supportCategories,
+  supportFirstResponseSummary,
   supportPublicNote,
 } from "@/lib/support-sla"
 import type { SupportTicketSummary } from "@/types/app.types"
@@ -82,12 +85,12 @@ export function DashboardSupport() {
     navigate(`${ROUTES.DASHBOARD_SUPPORT}/${created.id}`)
   }
 
-  if (ticketsQuery.isLoading) return <LoadingState message="A carregar suporte..." />
+  if (ticketsQuery.isLoading) return <LoadingState message="A carregar tickets..." />
 
   if (ticketsQuery.isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar os chamados"
+        title="Não foi possível carregar os tickets"
         message={ticketsQuery.error instanceof Error ? ticketsQuery.error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void ticketsQuery.refetch()}
       />
@@ -98,8 +101,8 @@ export function DashboardSupport() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
-          title="Chamados"
-          description="Acompanha conversas com o suporte, prazos de primeira resposta e histórico de atendimento."
+          title="Suporte"
+          description="Acompanha tickets, prazos de primeira resposta e o histórico das conversas com a equipa."
         />
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" className="rounded-full">
@@ -113,7 +116,7 @@ export function DashboardSupport() {
             setModalStep("choice")
           }}>
             <Plus className="mr-2 h-4 w-4" />
-            Novo chamado
+            Novo ticket
           </Button>
         </div>
       </div>
@@ -121,12 +124,12 @@ export function DashboardSupport() {
       <section className="rounded-[1.75rem] border border-sky-100 bg-sky-50 p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-display text-xl font-black text-slate-950">SLA público de primeira resposta</h2>
+            <h2 className="font-display text-xl font-black text-slate-950">Prazos para obtenção de resposta</h2>
             <p className="mt-2 text-sm leading-7 text-slate-700">
-              Pagamentos em ate 2 horas uteis. Demais categorias em ate 24 horas uteis. {supportBusinessHours}
+              {supportFirstResponseSummary} {supportBusinessHours}
             </p>
           </div>
-          <StatusBadge label="Não e prazo de resolução final" tone="info" />
+          <StatusBadge label="Não é prazo de resolução final" tone="info" />
         </div>
       </section>
 
@@ -140,7 +143,7 @@ export function DashboardSupport() {
                 </div>
                 <h2 className="mt-4 text-center font-display text-2xl font-black text-slate-950">Como podemos ajudar?</h2>
                 <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-7 text-slate-600">
-                  As perguntas frequentes resolvem boa parte dos casos. Se precisares de acompanhamento, abre um chamado.
+                  As perguntas frequentes resolvem boa parte dos casos. Se precisares de acompanhamento, abre um ticket.
                 </p>
                 <div className="mt-6 grid gap-3">
                   <Link
@@ -159,7 +162,7 @@ export function DashboardSupport() {
                     }}
                     className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left transition hover:bg-sky-100"
                   >
-                    <p className="font-black text-slate-950">Abrir um chamado</p>
+                    <p className="font-black text-slate-950">Abrir um ticket</p>
                     <p className="mt-1 text-sm text-slate-600">Enviar o caso para acompanhamento da equipe.</p>
                   </button>
                 </div>
@@ -172,10 +175,10 @@ export function DashboardSupport() {
                 <div className="bg-sky-50 p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Novo chamado</p>
-                      <h2 className="mt-1 font-display text-2xl font-black text-slate-950">Novo chamado</h2>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Novo ticket</p>
+                      <h2 className="mt-1 font-display text-2xl font-black text-slate-950">Novo ticket</h2>
                       <p className="mt-2 text-sm leading-7 text-slate-600">
-                        {selectedCategory.label}: primeira resposta em ate {selectedCategory.firstResponseHours} horas uteis.
+                        {selectedCategory.label}: primeira resposta em até {selectedCategory.firstResponseHours} horas úteis.
                       </p>
                     </div>
                     <button type="button" onClick={closeModal} className="rounded-full p-2 text-slate-500 hover:bg-white">
@@ -226,9 +229,9 @@ export function DashboardSupport() {
                   </label>
                   <div className="mt-4">
                     <input ref={fileInputRef} type="file" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-bold text-slate-700 hover:bg-slate-100">
-                      <Paperclip className="mr-2 h-4 w-4" />
-                      {attachment ? attachment.name : "Anexo (opcional)"}
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-bold text-slate-700 hover:bg-slate-100">
+                        <Paperclip className="mr-2 h-4 w-4" />
+                        {attachment ? attachment.name : "Anexo (opcional)"}
                     </button>
                     {attachment ? (
                       <button type="button" onClick={() => setAttachment(null)} className="mt-2 inline-flex items-center text-xs font-bold text-red-700">
@@ -250,7 +253,7 @@ export function DashboardSupport() {
                       Voltar
                     </Button>
                     <Button type="submit" className="rounded-full" disabled={isSubmitting}>
-                      {isSubmitting ? "A enviar..." : "Enviar chamado"}
+                      {isSubmitting ? "A enviar..." : "Enviar ticket"}
                     </Button>
                   </div>
                 </div>
@@ -263,14 +266,14 @@ export function DashboardSupport() {
       <section className="overflow-hidden rounded-[1.75rem] border bg-white shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
           <h2 className="font-display text-xl font-black text-slate-950">Histórico</h2>
-          <StatusBadge label={`${tickets.length} chamados`} tone="neutral" />
+          <StatusBadge label={getSupportTicketCountLabel(tickets.length)} tone="neutral" />
         </div>
 
         {tickets.length === 0 ? (
           <div className="p-8">
             <EmptyState
-              title="Você ainda não abriu nenhum chamado."
-              message="Quando precisares de ajuda, abre um chamado e acompanha a conversa por aqui."
+              title="Ainda não falaste connosco."
+              message="Quando precisares de ajuda, abre um ticket e acompanha a conversa por aqui."
             />
           </div>
         ) : (
@@ -300,7 +303,7 @@ export function DashboardSupport() {
                       </td>
                       <td className="px-5 py-4">
                         <StatusBadge label={ticketCategory.label} tone="info" />
-                        <p className="mt-1 text-xs text-slate-500">Ate {ticketCategory.firstResponseHours}h uteis</p>
+                        <p className="mt-1 text-xs text-slate-500">{getSupportFirstResponseWindowLabel(ticket.category)}</p>
                       </td>
                       <td className="px-5 py-4"><StatusBadge label={statusMeta.label} tone={statusMeta.tone} /></td>
                       <td className="px-5 py-4"><StatusBadge label={slaMeta.label} tone={slaMeta.tone} /></td>
@@ -309,7 +312,7 @@ export function DashboardSupport() {
                         <Button asChild variant="outline" className="rounded-full">
                           <Link to={`${ROUTES.DASHBOARD_SUPPORT}/${ticket.id}`}>
                             <MessageSquare className="mr-2 h-4 w-4" />
-                            Ver detalhes
+                            Ver ticket
                           </Link>
                         </Button>
                       </td>

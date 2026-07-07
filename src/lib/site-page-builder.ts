@@ -779,7 +779,7 @@ function createCanonicalSuporteDocument(): SitePageBuilderDocument {
         <div class="me-support-hero">
           <p class="me-support-icon-badge">Suporte</p>
           <h1>Como podemos ajudar?</h1>
-          <p>Encontre respostas rápidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.</p>
+          <p>Encontre respostas rápidas na FAQ e, se ainda precisar, abra um ticket para a equipa acompanhar o seu caso.</p>
         </div>
       </div>
     </section>
@@ -790,7 +790,7 @@ function createCanonicalSuporteDocument(): SitePageBuilderDocument {
       <div class="me-support-shell">
         <div class="me-support-helper-copy">
           <p class="me-support-helper-label">Ajuda contínua</p>
-          <h2>A pesquisa, os filtros da FAQ e os atalhos para chamado continuam ativos aqui.</h2>
+          <h2>A pesquisa, os filtros da FAQ e os atalhos para ticket continuam ativos aqui.</h2>
           <p>Esta secção usa renderização gerida como base e mantém o comportamento dinâmico do frontend público através de uma ilha React segura.</p>
         </div>
         <div class="me-support-experience-placeholder"></div>

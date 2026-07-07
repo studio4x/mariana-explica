@@ -3,14 +3,14 @@ import type { SupportTicketSummary } from "@/types/app.types"
 export const supportCategories = [
   {
     key: "payment",
-    label: "Pagamentos",
-    description: "Compra, checkout, fatura ou acesso após pagamento.",
-    firstResponseHours: 2,
+    label: "Pagamentos e acesso",
+    description: "Compra, checkout, fatura, ativação ou acesso após pagamento.",
+    firstResponseHours: 5,
   },
   {
     key: "technical",
-    label: "Problema técnico",
-    description: "Erro no dashboard, visualizador, downloads ou login.",
+    label: "Apoio técnico",
+    description: "Erro na área do aluno, visualizador, downloads ou login.",
     firstResponseHours: 24,
   },
   {
@@ -21,20 +21,32 @@ export const supportCategories = [
   },
   {
     key: "general",
-    label: "Dúvida geral",
+    label: "Dúvidas gerais",
     description: "Perguntas sobre materiais ou funcionamento.",
     firstResponseHours: 24,
   },
 ] as const
 
+export const supportFirstResponseSummary =
+  "Pagamentos e acesso: até 5 horas úteis. Dúvidas e apoio técnico: até 24 horas úteis."
+
 export const supportPublicNote =
   "Os prazos indicam a primeira resposta humana da equipa. Não representam prazo de resolução final."
 
 export const supportBusinessHours =
-  "Atendimento em dias uteis, das 8h as 18h."
+  "Atendimento em dias úteis, das 8h às 18h."
 
 export function getSupportCategoryMeta(category: SupportTicketSummary["category"] | string | null | undefined) {
   return supportCategories.find((item) => item.key === category) ?? supportCategories[3]
+}
+
+export function getSupportTicketCountLabel(count: number) {
+  return `${count} ticket${count === 1 ? "" : "s"}`
+}
+
+export function getSupportFirstResponseWindowLabel(category: SupportTicketSummary["category"] | string | null | undefined) {
+  const meta = getSupportCategoryMeta(category)
+  return `Até ${meta.firstResponseHours} horas úteis`
 }
 
 export function getSupportStatusMeta(status: SupportTicketSummary["status"]) {

@@ -249,15 +249,15 @@ export function AuthCallback() {
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Validação da conta</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Verificação da conta</p>
         <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
-          {status === "error" ? "Não foi possível concluir a validação" : "A confirmar o teu acesso"}
+          {status === "error" ? "Não foi possível concluir a verificação" : "Confirma o teu email"}
         </h1>
         <p className="text-sm leading-7 text-muted-foreground">
           {status === "verifying"
             ? "Estamos a validar o link enviado para o teu email."
             : status === "finalizing"
-              ? "A tua conta foi confirmada. Estamos a preparar a sessão para entrares diretamente no dashboard."
+              ? "A tua conta na Mariana Explica está quase pronta. Estamos a preparar a sessão para entrares automaticamente na tua área do aluno."
               : error}
         </p>
       </div>
@@ -273,7 +273,7 @@ export function AuthCallback() {
         </div>
       ) : (
         <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50/80 p-5 text-sm leading-7 text-slate-600">
-          Não precisas de fazer login manualmente. Assim que a validação terminar, vais entrar automaticamente.
+          Não precisas de fazer login manualmente. Assim que a verificação terminar, vais entrar automaticamente na tua área do aluno.
         </div>
       )}
     </div>

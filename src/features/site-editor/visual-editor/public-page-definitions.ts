@@ -397,18 +397,18 @@ export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocume
   hero: {
     eyebrow: "Confirma\u00e7\u00e3o de pedido",
     title: "Quase l\u00e1! Vamos finalizar a tua inscri\u00e7\u00e3o.",
-    lead: "Preenche os dados de checkout e segue para o pagamento com seguran\u00e7a.",
+    lead: "Preenche os teus dados e avan\u00e7a para o pagamento de forma 100% segura.",
   },
   productCard: {
-    badge: "CURSO COMPLETO",
+    badge: "",
     accessLabel: "Acesso na conta",
-    secureLabel: "Ambiente seguro",
-    buttonHint: "Segue para o pagamento",
+    secureLabel: "Pagamento seguro",
+    buttonHint: "Preenche os teus dados e avan\u00e7a para o pagamento de forma 100% segura.",
   },
   authPanel: {
     eyebrow: "Acesso e pagamento",
     titleLogin: "J\u00e1 tenho conta",
-    titleRegister: "Quero me cadastrar",
+    titleRegister: "Criar conta",
   },
   termsModal: {
     title: "Antes de avan\u00e7ar",
@@ -424,7 +424,7 @@ export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocume
 
 export const CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutSuccessVisualEditorDocument = {
   hero: {
-    eyebrow: "Checkout conclu\u00eddo",
+    eyebrow: "Pedido conclu\u00eddo com sucesso",
     title: "A tua inscri\u00e7\u00e3o foi recebida com sucesso.",
     lead:
       "O acesso ao material ser\u00e1 apresentado na \u00e1rea do aluno assim que a confirma\u00e7\u00e3o de pagamento estiver refletida na plataforma.",
@@ -432,20 +432,20 @@ export const CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutSuccessVis
   nextStep: {
     title: "Pr\u00f3ximo passo",
     lead:
-      "Entra diretamente no material para verificar o acesso e continuar a tua jornada de estudo.",
+      "Entra diretamente no material para consultares o acesso e come\u00e7ares a estudar.",
   },
   benefits: {
     firstTitle: "Material organizado",
-    firstLead: "Aulas e materiais ficam reunidos na \u00e1rea do aluno.",
+    firstLead: "Todos os teus materiais ficam reunidos na \u00e1rea do aluno.",
     secondTitle: "Acesso protegido",
-    secondLead: "A liberta\u00e7\u00e3o \u00e9 validada pelo backend e pelo Stripe.",
+    secondLead: "A tua compra foi processada e os teus dados est\u00e3o protegidos.",
   },
   access: {
     eyebrow: "Acesso r\u00e1pido",
     primaryCtaLabel: "Ir para o material",
     secondaryCtaLabel: "Abrir \u00e1rea do aluno",
     note:
-      "Se o material ainda n\u00e3o aparecer, aguarda alguns segundos e atualiza a \u00e1rea do aluno. A confirma\u00e7\u00e3o depende do retorno do Stripe.",
+      "Se o material demorar a aparecer, basta atualizares a p\u00e1gina. A confirma\u00e7\u00e3o depende do retorno do Stripe.",
   },
 }
 

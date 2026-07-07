@@ -164,12 +164,12 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
       category_id: supportCategory?.id ?? "support-escalation",
       question: "A FAQ ainda nao resolveu a minha duvida. O que faco?",
       answer:
-        "Se a resposta nao foi suficiente, abre um chamado e a equipa acompanha o caso no dashboard do aluno.",
+        "Se a resposta nao foi suficiente, abre um ticket e a equipa acompanha o caso na area do aluno.",
       sort_order: 999,
       is_active: true,
       created_at: "2026-01-01T00:00:00.000Z",
       updated_at: "2026-01-01T00:00:00.000Z",
-      ctaLabel: "Abrir chamado",
+      ctaLabel: "Abrir ticket",
       ctaTo: `${ROUTES.DASHBOARD_SUPPORT}?openTicketModal=1&ticketStep=form`,
     }
   }, [faqCategories])
@@ -542,7 +542,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                       <p>{faq.answer}</p>
                       {faq.ctaTo ? (
                         <Button asChild className="rounded-full">
-                          <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir chamado"}</Link>
+                          <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir ticket"}</Link>
                         </Button>
                       ) : null}
                     </div>
@@ -615,7 +615,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                     <p>{faq.answer}</p>
                     {faq.ctaTo ? (
                       <Button asChild className="rounded-full">
-                        <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir chamado"}</Link>
+                        <Link to={faq.ctaTo}>{faq.ctaLabel ?? "Abrir ticket"}</Link>
                       </Button>
                     ) : null}
                   </div>

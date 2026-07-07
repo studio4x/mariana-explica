@@ -83,9 +83,9 @@ export const SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT: SupportVisualEditorDocument
     eyebrow: "Suporte e FAQ",
     title: "Como podemos ajudar?",
     lead:
-      "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado para a equipa acompanhar o seu caso.",
+      "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um ticket para a equipa acompanhar o seu caso.",
     primaryCta: {
-      label: "Abrir um chamado",
+      label: "Abrir um ticket",
       href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
     },
     secondaryCta: {
@@ -99,9 +99,9 @@ export const SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT: SupportVisualEditorDocument
   },
   supportCta: {
     title: "Ainda precisa de ajuda?",
-    lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
+    lead: "Abra um ticket autenticado para receber acompanhamento pela area do aluno.",
     primaryCta: {
-      label: "Abrir um chamado",
+      label: "Abrir um ticket",
       href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
     },
     secondaryCta: {

@@ -156,8 +156,8 @@ Deno.serve(async (req) => {
         user_id: context.user.id,
         type: "transactional",
         title: "Produto gratuito ativado",
-        message: `O produto "${product.title}" ja esta disponivel no teu dashboard.`,
-        link: "/dashboard/produtos",
+        message: `O produto "${product.title}" ja esta disponivel na tua area do aluno.`,
+        link: "/aluno/cursos",
         status: "unread",
         sent_via_email: Boolean(context.profile.email),
         sent_via_in_app: true,
@@ -173,7 +173,8 @@ Deno.serve(async (req) => {
       const email = buildFreeProductClaimedEmail({
         fullName: context.profile.full_name,
         productTitle: product.title,
-        dashboardUrl: "/dashboard/produtos",
+        productType: product.product_type,
+        dashboardUrl: "/aluno/cursos",
       })
 
       await queueEmailDelivery(context.serviceClient, {

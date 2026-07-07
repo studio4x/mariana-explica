@@ -23,11 +23,13 @@ import { useAuth } from "@/hooks/useAuth"
 import { ROUTES } from "@/lib/constants"
 import {
   getSupportCategoryMeta,
+  getSupportFirstResponseWindowLabel,
   getSupportDueLabel,
   getSupportPriorityMeta,
   getSupportSlaStatusMeta,
   getSupportStatusMeta,
   supportBusinessHours,
+  supportFirstResponseSummary,
 } from "@/lib/support-sla"
 import type { SupportTicketSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
@@ -131,12 +133,12 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
     window.open(result.signed_url, "_blank", "noopener,noreferrer")
   }
 
-  if (isLoading) return <LoadingState message="A carregar chamado..." />
+  if (isLoading) return <LoadingState message="A carregar ticket..." />
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar este chamado"
+        title="Não foi possível carregar este ticket"
         message="Tenta novamente dentro de instantes."
         onRetry={() => window.location.reload()}
       />
@@ -144,7 +146,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
   }
 
   if (!ticket) {
-    return <EmptyState title="Chamado não encontrado" message="Este ticket não existe ou não esta acessivel." />
+    return <EmptyState title="Ticket não encontrado" message="Este ticket não existe ou não está acessível." />
   }
 
   const category = getSupportCategoryMeta(ticket.category)
@@ -268,7 +270,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
           <form onSubmit={handleReply} className="border-t bg-white p-4">
             {isClosedForStudent ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-                Este chamado foi encerrado.
+                Este ticket foi encerrado.
               </div>
             ) : (
               <div className="space-y-3">
@@ -325,7 +327,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
               </div>
               <div>
                 <dt className="font-black text-slate-500">SLA da primeira resposta</dt>
-                <dd className="mt-1">{category.firstResponseHours} horas uteis</dd>
+                <dd className="mt-1">{getSupportFirstResponseWindowLabel(ticket.category)}</dd>
               </div>
               <div>
                 <dt className="font-black text-slate-500">Prazo previsto</dt>
@@ -342,13 +344,13 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
             </dl>
           </div>
           <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            {category.label}: primeira resposta em ate {category.firstResponseHours} horas uteis. {supportBusinessHours}
+            {supportFirstResponseSummary} {supportBusinessHours}
           </div>
           <div className="rounded-[1.5rem] border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-900">
-            Em casos de fraude, pagamento indevido ou risco de acesso, mantenha o chamado ativo e detalhe o máximo possível.
+            Em casos de fraude, pagamento indevido ou risco de acesso, mantém o ticket ativo e detalha o máximo possível.
           </div>
           <Link to={backTo} className="inline-flex text-sm font-bold text-sky-700 underline underline-offset-4">
-            Ver todos os chamados
+            Ver todos os tickets
           </Link>
         </aside>
       </div>

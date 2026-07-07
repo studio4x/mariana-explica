@@ -195,7 +195,7 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
 
   const { data: product, error: productError } = await client
     .from("products")
-    .select("title")
+    .select("title,product_type")
     .eq("id", paidOrder.product_id)
     .maybeSingle()
 
@@ -210,7 +210,7 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
       type: "transactional",
       title: "Pagamento confirmado",
       message: "O teu acesso foi liberado com sucesso.",
-      link: "/dashboard",
+      link: "/aluno/dashboard",
       status: "unread",
       sent_via_email: Boolean(profile?.email),
       sent_via_in_app: true,
@@ -226,7 +226,8 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
     const email = buildPurchaseConfirmedEmail({
       fullName: profile.full_name,
       productTitle: product?.title ?? "o teu produto",
-      dashboardUrl: "/dashboard",
+      productType: product?.product_type ?? "paid",
+      dashboardUrl: "/aluno/dashboard",
     })
 
     await queueEmailDelivery(client, {

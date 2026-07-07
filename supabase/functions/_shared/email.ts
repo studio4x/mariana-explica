@@ -832,19 +832,22 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
 export function buildPurchaseConfirmedEmail(input: {
   fullName?: string | null
   productTitle: string
+  productType?: "paid" | "free" | "hybrid" | "external_service" | null
   dashboardUrl?: string | null
 }) {
+  const isExternalService = input.productType === "external_service"
+  const materialLabel = isExternalService ? "apoio" : "material"
   const content = renderEmailLayout({
     eyebrow: "Compra confirmada",
-    title: "Pagamento confirmado e acesso liberado",
+    title: "O teu acesso já está pronto!",
     greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `O teu pagamento foi confirmado com sucesso e o produto "${input.productTitle}" ja esta disponivel na tua area do aluno.`,
+    intro: `O teu pagamento foi confirmado com sucesso e o ${materialLabel} "${input.productTitle}" ja esta disponivel na tua area do aluno.`,
     bullets: [
-      "O acesso foi validado no backend e o grant ja esta ativo.",
-      "Os teus materiais protegidos ficam disponiveis no dashboard.",
+      "Os teus materiais ficam disponiveis no mesmo sitio, dentro da tua area do aluno.",
+      "Se o acesso demorar a aparecer, basta atualizares a pagina.",
     ],
-    ctaLabel: "Abrir dashboard",
-    ctaUrl: input.dashboardUrl ?? "/dashboard",
+    ctaLabel: "Abrir area do aluno",
+    ctaUrl: input.dashboardUrl ?? "/aluno/dashboard",
   })
 
   return {
@@ -856,24 +859,27 @@ export function buildPurchaseConfirmedEmail(input: {
 export function buildFreeProductClaimedEmail(input: {
   fullName?: string | null
   productTitle: string
+  productType?: "paid" | "free" | "hybrid" | "external_service" | null
   dashboardUrl?: string | null
 }) {
+  const isExternalService = input.productType === "external_service"
+  const materialLabel = isExternalService ? "apoio gratuito" : "material gratuito"
   const content = renderEmailLayout({
     eyebrow: "Acesso gratuito",
-    title: "Produto gratuito ativado com sucesso",
+    title: "O teu material gratuito ja esta disponivel!",
     greeting: input.fullName ? `Ola, ${input.fullName}.` : "Ola,",
-    intro: `O produto "${input.productTitle}" foi ativado na tua conta e ja pode ser consultado no dashboard.`,
+    intro: `O teu acesso a "${input.productTitle}" ja esta ativo e podes comecar a estudar atraves da tua area do aluno.`,
     bullets: [
-      "O acesso ficou ligado ao teu perfil.",
-      "Se houver downloads permitidos, eles aparecem dentro do produto.",
+      `O ${materialLabel} ficou ligado ao teu perfil com sucesso.`,
+      "Se houver downloads permitidos, eles aparecem dentro do material.",
     ],
-    ctaLabel: "Ver produto no dashboard",
-    ctaUrl: input.dashboardUrl ?? "/dashboard/produtos",
+    ctaLabel: "Aceder ao material",
+    ctaUrl: input.dashboardUrl ?? "/aluno/cursos",
   })
 
   return {
     ...content,
-    subject: "Produto gratuito ativado | Mariana Explica",
+    subject: "O teu material gratuito ja esta disponivel | Mariana Explica",
   }
 }
 

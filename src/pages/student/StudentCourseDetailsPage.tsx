@@ -202,11 +202,6 @@ export function StudentCourseDetailsPage() {
         </section>
 
         <div className="space-y-12">
-          <div className="flex items-center gap-4">
-            <h3 className="text-3xl font-black tracking-tight text-slate-900">Grade curricular</h3>
-            <div className="h-px flex-1 bg-slate-100" />
-          </div>
-
           <div className="space-y-8">
             {data.modules.map((module, moduleIndex) => {
               const moduleLessons = data.lessons.filter((lesson) => lesson.module_id === module.id)
@@ -374,20 +369,6 @@ export function StudentCourseDetailsPage() {
             })}
           </div>
         </div>
-
-        <section className="space-y-6">
-          <div className="flex items-center gap-4">
-            <h3 className="text-3xl font-black tracking-tight text-slate-900">Minhas anotacoes</h3>
-            <div className="h-px flex-1 bg-slate-100" />
-          </div>
-          <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
-            <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
-              <p className="text-sm font-medium text-slate-500">
-                Você ainda não criou anotacoes neste material. Abra uma aula e use o bloco de notas ao final da página.
-              </p>
-            </div>
-          </div>
-        </section>
       </div>
     </section>
   )

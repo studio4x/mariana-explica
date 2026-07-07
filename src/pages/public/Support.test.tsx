@@ -36,9 +36,9 @@ function buildSupportDocument(title: string) {
     hero: {
       eyebrow: "Suporte e FAQ",
       title,
-      lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um chamado.",
+      lead: "Encontre respostas rapidas na FAQ e, se ainda precisar, abra um ticket.",
       primaryCta: {
-        label: "Abrir um chamado",
+        label: "Abrir um ticket",
         href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
       },
       secondaryCta: {
@@ -52,9 +52,9 @@ function buildSupportDocument(title: string) {
     },
     supportCta: {
       title: "Ainda precisa de ajuda?",
-      lead: "Abra um chamado autenticado para receber acompanhamento pelo dashboard.",
+      lead: "Abra um ticket autenticado para receber acompanhamento pela area do aluno.",
       primaryCta: {
-        label: "Abrir um chamado",
+        label: "Abrir um ticket",
         href: "/aluno/suporte?openTicketModal=1&ticketStep=form",
       },
       secondaryCta: {
@@ -282,7 +282,7 @@ describe("Support", () => {
     renderSupport()
 
     expect(screen.getByRole("heading", { name: "Como podemos ajudar?" })).toBeInTheDocument()
-    expect(screen.getAllByRole("link", { name: "Abrir um chamado" })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Abrir um ticket" })[0]).toHaveAttribute(
       "href",
       "/aluno/suporte?openTicketModal=1&ticketStep=form",
     )
