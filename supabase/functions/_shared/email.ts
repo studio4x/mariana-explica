@@ -1307,71 +1307,68 @@ async function buildPlatformManagedEmail(
 function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   const ctaUrl = normalizeUrl(input.ctaUrl)
   const greeting = input.greeting
-    ? `<p style="margin:0 0 16px;color:#24324a;font-size:16px;line-height:1.7;">${escapeHtml(input.greeting)}</p>`
+    ? `<p style="margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;">${escapeHtml(input.greeting)}</p>`
     : ""
   const introHtml = input.introHtml?.trim()
-    ? `<div style="margin:0;color:#24324a;font-size:16px;line-height:1.8;">
+    ? `<div style="margin:0;font-size:17px;line-height:1.8;color:#43546a;">
         ${sanitizeRichTextHtml(input.introHtml)}
       </div>`
-    : `<p style="margin:0;color:#24324a;font-size:16px;line-height:1.8;white-space:pre-line;">${escapeHtml(input.intro)}</p>`
+    : `<p style="margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;white-space:pre-line;">${escapeHtml(input.intro)}</p>`
   const bullets = input.bullets?.length
-    ? `<div style="margin:24px 0;padding:18px 20px;border:1px solid #d9e8f0;border-radius:20px;background:#f7fbfd;">
+    ? `<div style="margin:24px 0;padding:20px 22px;border:1px solid #d9e8f0;border-radius:24px;background:#f7fbfd;">
         ${input.bullets
           .map(
             (bullet) =>
-              `<p style="margin:0 0 10px;color:#24324a;font-size:15px;line-height:1.7;">- ${escapeHtml(bullet)}</p>`,
+              `<p style="margin:0 0 12px;font-size:16px;line-height:1.8;color:#43546a;">- ${escapeHtml(bullet)}</p>`,
           )
           .join("")}
       </div>`
     : ""
   const cta =
     ctaUrl && input.ctaLabel
-      ? `<div style="margin:28px 0 12px;">
-        <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;border-radius:999px;background:#242742;color:#ffffff;text-decoration:none;padding:14px 26px;font-weight:700;font-size:15px;">
+      ? `<div style="padding:6px 0 10px;">
+        <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:16px 30px;border-radius:999px;background:#242742;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;">
           ${escapeHtml(input.ctaLabel)}
         </a>
       </div>`
-      : ""
+    : ""
   const footer =
     input.footer ??
     "Se precisares, responde a este email ou entra em contacto pelo painel da plataforma."
 
   const html = `<!doctype html>
 <html lang="pt">
-  <body style="margin:0;padding:0;background:#dff2f8;font-family:Inter,Segoe UI,Arial,sans-serif;color:#18202f;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dff2f8;padding:24px 12px;">
+  <body style="margin:0;padding:0;background:#dff2f8;font-family:Inter,Arial,sans-serif;color:#24324a;">
+    <div style="margin:0;padding:32px 16px;background:#dff2f8;font-family:Inter,Arial,sans-serif;color:#24324a;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;">
       <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;border-collapse:separate;border-spacing:0;">
-            <tr>
-              <td style="padding:0 0 16px 0;text-align:left;">
-                <div style="display:inline-block;border-radius:999px;background:#ffffff;padding:10px 16px;border:1px solid #d6e8f1;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
-                  Mariana Explica
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#ffffff;border:1px solid #d6e8f1;border-radius:28px;padding:32px 28px;box-shadow:0 18px 45px rgba(36,39,66,0.08);">
-                <p style="margin:0 0 12px;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;">${escapeHtml(input.eyebrow)}</p>
-                <h1 style="margin:0;color:#242742;font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:1.15;">${escapeHtml(input.title)}</h1>
-                <div style="margin:24px 0 0;">
-                  ${greeting}
-                  ${introHtml}
-                  ${bullets}
-                  ${cta}
-                  <p style="margin:28px 0 0;color:#5b6d84;font-size:13px;line-height:1.7;white-space:pre-line;">${escapeHtml(footer)}</p>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:18px 10px 0;text-align:center;color:#5b6d84;font-size:12px;line-height:1.7;">
-                Mariana Explica | Materiais claros para exames nacionais, compra simples e area do aluno organizada.
-              </td>
-            </tr>
-          </table>
+        <td>
+          <div style="display:inline-block;padding:12px 22px;border-radius:999px;background:#ffffff;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
+            Mariana Explica
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top:20px;">
+          <div style="border-radius:32px;background:#ffffff;padding:40px 32px;box-shadow:0 24px 60px rgba(36,39,66,0.10);">
+            <p style="margin:0 0 16px;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
+              ${escapeHtml(input.eyebrow)}
+            </p>
+            <h1 style="margin:0 0 20px;font-family:Arvo,Georgia,serif;font-size:44px;line-height:1.08;color:#242742;">
+              ${escapeHtml(input.title)}
+            </h1>
+            ${greeting}
+            ${introHtml}
+            ${bullets}
+            ${cta}
+            <p style="margin:18px 0 0;font-size:15px;line-height:1.8;color:#6b7c8f;white-space:pre-line;">
+              ${escapeHtml(footer)}
+            </p>
+          </div>
         </td>
       </tr>
     </table>
+    </div>
   </body>
 </html>`
 
