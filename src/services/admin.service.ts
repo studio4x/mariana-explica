@@ -27,6 +27,9 @@ import type {
   AdminEmailDeliverySummary,
   AdminJobRunSummary,
   AdminNotificationSummary,
+  AdminNotificationCampaignInput,
+  AdminNotificationCampaignPreview,
+  AdminNotificationCampaignSummary,
   AdminOperationsOverview,
   AdminOrderViewSummary,
   AdminOrderSummary,
@@ -3450,6 +3453,31 @@ export function createAdminNotification(input: {
   sentViaInApp?: boolean
 }) {
   return invokeAdminFunction<{ success: true; inserted_count: number }>("admin-notifications", input)
+}
+
+export function previewAdminNotificationCampaign(input: Omit<AdminNotificationCampaignInput, "action">) {
+  return invokeAdminFunction<{ success: true; preview: AdminNotificationCampaignPreview }>("admin-notifications", {
+    ...input,
+    action: "preview",
+  }).then((response) => response.preview)
+}
+
+export function sendAdminNotificationCampaign(input: Omit<AdminNotificationCampaignInput, "action">) {
+  return invokeAdminFunction<{
+    success: true
+    inserted_count: number
+    email_recipient_count: number
+    notification_count: number
+  }>("admin-notifications", {
+    ...input,
+    action: "send",
+  })
+}
+
+export function fetchAdminNotificationCampaigns() {
+  return invokeAdminFunction<{ success: true; campaigns: AdminNotificationCampaignSummary[] }>("admin-notifications", {
+    action: "list_campaigns",
+  }).then((response) => response.campaigns ?? [])
 }
 
 export function createAdminAffiliate(input: {

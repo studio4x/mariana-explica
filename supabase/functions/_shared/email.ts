@@ -1,4 +1,5 @@
 ﻿import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
+import { richTextToPlainText, sanitizeRichTextHtml } from "./rich-text.ts"
 import { getAppBaseUrl } from "./supabase.ts"
 
 export type PlatformTemplateKey =
@@ -325,6 +326,8 @@ interface EmailLayoutInput {
   title: string
   greeting?: string | null
   intro: string
+  introHtml?: string | null
+  introText?: string | null
   bullets?: string[]
   ctaLabel?: string | null
   ctaUrl?: string | null
@@ -1267,6 +1270,11 @@ async function buildPlatformManagedEmail(
   client: SupabaseClient,
   templateKey: PlatformTemplateKey,
   variables: Record<string, string>,
+  options?: {
+    introHtml?: string | null
+    introText?: string | null
+    subjectOverride?: string | null
+  },
 ) {
   const config = await fetchPlatformEmailTemplatesConfig(client)
   const template = config.templates.find((item) => item.key === templateKey)
@@ -1275,7 +1283,25 @@ async function buildPlatformManagedEmail(
     throw new Error(`Template de email nao encontrado: ${templateKey}`)
   }
 
-  return buildEmailContentFromPlatformTemplate(template.content, variables)
+  const rendered = renderPlatformTemplateContent(template.content, variables)
+  const email = renderEmailLayout({
+    eyebrow: rendered.eyebrow,
+    title: rendered.title,
+    greeting: rendered.greeting,
+    intro: rendered.intro,
+    introHtml: options?.introHtml ?? null,
+    introText: options?.introText ?? null,
+    bullets: rendered.bullets,
+    ctaLabel: rendered.ctaLabel || null,
+    ctaUrl: rendered.ctaUrl || null,
+    footer: rendered.footer || null,
+  })
+
+  return {
+    subject: options?.subjectOverride?.trim() || rendered.subject || email.subject,
+    html: email.html,
+    text: email.text,
+  }
 }
 
 function renderEmailLayout(input: EmailLayoutInput): EmailContent {
@@ -1283,6 +1309,11 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   const greeting = input.greeting
     ? `<p style="margin:0 0 16px;color:#24324a;font-size:16px;line-height:1.7;">${escapeHtml(input.greeting)}</p>`
     : ""
+  const introHtml = input.introHtml?.trim()
+    ? `<div style="margin:0;color:#24324a;font-size:16px;line-height:1.8;">
+        ${sanitizeRichTextHtml(input.introHtml)}
+      </div>`
+    : `<p style="margin:0;color:#24324a;font-size:16px;line-height:1.8;white-space:pre-line;">${escapeHtml(input.intro)}</p>`
   const bullets = input.bullets?.length
     ? `<div style="margin:24px 0;padding:18px 20px;border:1px solid #d9e8f0;border-radius:20px;background:#f7fbfd;">
         ${input.bullets
@@ -1325,7 +1356,7 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
                 <h1 style="margin:0;color:#242742;font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:1.15;">${escapeHtml(input.title)}</h1>
                 <div style="margin:24px 0 0;">
                   ${greeting}
-                  <p style="margin:0;color:#24324a;font-size:16px;line-height:1.8;white-space:pre-line;">${escapeHtml(input.intro)}</p>
+                  ${introHtml}
                   ${bullets}
                   ${cta}
                   <p style="margin:28px 0 0;color:#5b6d84;font-size:13px;line-height:1.7;white-space:pre-line;">${escapeHtml(footer)}</p>
@@ -1349,7 +1380,7 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
     input.eyebrow.toUpperCase(),
     input.title,
     input.greeting ?? "",
-    input.intro,
+    input.introText ?? input.intro,
     ...(input.bullets ?? []).map((bullet) => `- ${bullet}`),
     ctaUrl && input.ctaLabel ? `${input.ctaLabel}: ${ctaUrl}` : "",
     footer,
@@ -1419,15 +1450,25 @@ export async function buildSupportTicketRepliedEmail(client: SupabaseClient, inp
 export async function buildManualNotificationEmail(client: SupabaseClient, input: {
   fullName?: string | null
   title: string
-  message: string
+  emailSubject?: string | null
+  messageHtml?: string | null
+  messageText?: string | null
+  ctaLabel?: string | null
   ctaUrl?: string | null
 }) {
+  const messageHtml = sanitizeRichTextHtml(input.messageHtml)
+  const messageText = input.messageText?.trim() || richTextToPlainText(messageHtml)
+
   return await buildPlatformManagedEmail(client, "manual_notification", {
     greeting_name: input.fullName ? `, ${input.fullName}` : "",
     notification_title: input.title,
-    notification_message: input.message,
-    cta_label: input.ctaUrl ? "Abrir plataforma" : "",
+    notification_message: messageText,
+    cta_label: input.ctaUrl && input.ctaLabel ? input.ctaLabel : "",
     cta_url: input.ctaUrl ?? "",
+  }, {
+    introHtml: messageHtml || null,
+    introText: messageText,
+    subjectOverride: input.emailSubject ?? null,
   })
 }
 

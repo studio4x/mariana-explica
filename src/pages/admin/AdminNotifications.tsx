@@ -1,19 +1,69 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { EmptyState, ErrorState } from "@/components/feedback"
-import { PageHeader, StatusBadge } from "@/components/common"
+import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { useAdminNotifications, useAdminUsers, useCreateAdminNotification } from "@/hooks/useAdmin"
-import type { AdminNotificationSummary, AdminUserSummary } from "@/types/app.types"
+import {
+  useAdminNotificationCampaigns,
+  useAdminProductCategories,
+  useAdminProducts,
+  useAdminUsers,
+  usePreviewAdminNotificationCampaign,
+  useSendAdminNotificationCampaign,
+} from "@/hooks/useAdmin"
+import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text"
+import type {
+  AdminNotificationCampaignInput,
+  AdminNotificationCampaignPreview,
+  AdminNotificationCampaignSummary,
+  AdminNotificationCampaignTagOption,
+  AdminUserSummary,
+} from "@/types/app.types"
+import type { ProductCategorySummary, ProductSummary } from "@/types/product.types"
 import { formatDateTime } from "@/utils/date"
 
-type Audience = "single" | "role" | "all"
+type Audience = AdminNotificationCampaignInput["audience"]
+type NotificationType = AdminNotificationCampaignInput["type"]
+type TagTarget = "title" | "emailSubject" | "messageHtml" | "ctaLabel" | "ctaUrl"
+
+const BASE_TAG_OPTIONS: AdminNotificationCampaignTagOption[] = [
+  {
+    key: "greeting_name",
+    token: "{{greeting_name}}",
+    description: "Saudacao curta para o aluno.",
+    category: "identity",
+  },
+  {
+    key: "full_name",
+    token: "{{full_name}}",
+    description: "Nome completo do destinatario.",
+    category: "identity",
+  },
+  {
+    key: "first_name",
+    token: "{{first_name}}",
+    description: "Primeiro nome do destinatario.",
+    category: "identity",
+  },
+  {
+    key: "dashboard_url",
+    token: "{{dashboard_url}}",
+    description: "Link para a area do aluno.",
+    category: "navigation",
+  },
+  {
+    key: "notifications_url",
+    token: "{{notifications_url}}",
+    description: "Link direto para as notificacoes.",
+    category: "navigation",
+  },
+]
 
 function AdminNotificationsSkeleton() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notificações"
-        description="Comunicação operacional para alunos e segmentos específicos, sempre a partir do backend."
+        title="Notificacoes"
+        description="Composer administrativo para campanhas segmentadas na plataforma e por email."
       />
       <div className="grid gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
@@ -23,20 +73,21 @@ function AdminNotificationsSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="h-4 w-44 animate-pulse rounded-full bg-slate-200" />
-          <div className="mt-4 grid gap-4">
-            {Array.from({ length: 6 }).map((_, index) => (
+          <div className="mt-4 space-y-4">
+            {Array.from({ length: 7 }).map((_, index) => (
               <div key={index} className="h-11 animate-pulse rounded-xl bg-slate-100" />
             ))}
+            <div className="h-64 animate-pulse rounded-3xl bg-slate-100" />
           </div>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
+          <div className="h-4 w-40 animate-pulse rounded-full bg-slate-200" />
           <div className="mt-4 space-y-3">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+              <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
             ))}
           </div>
         </div>
@@ -45,51 +96,312 @@ function AdminNotificationsSkeleton() {
   )
 }
 
+function appendTokenToValue(value: string, token: string) {
+  if (!value.trim()) {
+    return token
+  }
+
+  const needsSpace = !value.endsWith(" ") && !value.endsWith(">") && !value.endsWith("/")
+  return `${value}${needsSpace ? " " : ""}${token}`
+}
+
+function appendTokenToHtml(value: string, token: string) {
+  const normalized = sanitizeRichTextHtml(value)
+  if (!normalized) {
+    return `<p>${token}</p>`
+  }
+
+  if (/<\/p>\s*$/i.test(normalized)) {
+    return normalized.replace(/<\/p>\s*$/i, ` ${token}</p>`)
+  }
+
+  return `${normalized}<p>${token}</p>`
+}
+
+function getToneForType(type: NotificationType) {
+  switch (type) {
+    case "marketing":
+      return "warning"
+    case "support":
+      return "info"
+    case "transactional":
+      return "success"
+    default:
+      return "neutral"
+  }
+}
+
+function getAudienceLabel(campaign: AdminNotificationCampaignSummary) {
+  if (campaign.audience === "single") {
+    return "Utilizador especifico"
+  }
+
+  if (campaign.audience === "segment") {
+    return "Segmento"
+  }
+
+  return "Todos"
+}
+
+function buildTagOptions(
+  selectedProduct: ProductSummary | null,
+  selectedCategory: ProductCategorySummary | null,
+): AdminNotificationCampaignTagOption[] {
+  const options = [...BASE_TAG_OPTIONS]
+
+  if (selectedProduct) {
+    options.push({
+      key: "product_title",
+      token: "{{product_title}}",
+      description: "Titulo do material selecionado.",
+      category: "product",
+    })
+  }
+
+  if (selectedCategory) {
+    options.push({
+      key: "category_title",
+      token: "{{category_title}}",
+      description: "Titulo da categoria selecionada.",
+      category: "product",
+    })
+  }
+
+  return options
+}
+
+function buildCampaignPayload(input: {
+  audience: Audience
+  userId: string
+  role: AdminUserSummary["role"] | ""
+  status: AdminUserSummary["status"] | ""
+  productCategoryId: string
+  productId: string
+  type: NotificationType
+  title: string
+  emailSubject: string
+  messageHtml: string
+  ctaLabel: string
+  ctaUrl: string
+  sentViaEmail: boolean
+  sentViaInApp: boolean
+}): Omit<AdminNotificationCampaignInput, "action"> {
+  return {
+    audience: input.audience,
+    userId: input.audience === "single" ? input.userId || undefined : undefined,
+    role: input.audience === "segment" && input.role ? input.role : undefined,
+    status: input.audience === "segment" && input.status ? input.status : undefined,
+    productCategoryId: input.audience === "segment" ? input.productCategoryId || null : null,
+    productId: input.audience === "segment" ? input.productId || null : null,
+    purchaseBasis: "active_grants",
+    type: input.type,
+    title: input.title.trim(),
+    emailSubject: input.emailSubject.trim() || null,
+    messageHtml: sanitizeRichTextHtml(input.messageHtml),
+    ctaLabel: input.ctaLabel.trim() || null,
+    ctaUrl: input.ctaUrl.trim() || null,
+    sentViaEmail: input.sentViaEmail,
+    sentViaInApp: input.sentViaInApp,
+  }
+}
+
+function validateCampaignPayload(payload: Omit<AdminNotificationCampaignInput, "action">) {
+  if (payload.audience === "single" && !payload.userId) {
+    return "Seleciona o utilizador que vai receber a campanha."
+  }
+
+  if (!payload.title.trim()) {
+    return "O titulo da campanha e obrigatorio."
+  }
+
+  if (isRichTextEmpty(payload.messageHtml)) {
+    return "A mensagem da campanha nao pode ficar vazia."
+  }
+
+  if (!payload.sentViaEmail && !payload.sentViaInApp) {
+    return "Ativa pelo menos um canal de entrega."
+  }
+
+  return null
+}
+
 export function AdminNotifications() {
   const [audience, setAudience] = useState<Audience>("all")
   const [userId, setUserId] = useState("")
-  const [role, setRole] = useState<AdminUserSummary["role"]>("student")
-  const [status, setStatus] = useState<AdminUserSummary["status"]>("active")
-  const [type, setType] = useState<AdminNotificationSummary["type"]>("informational")
+  const [role, setRole] = useState<AdminUserSummary["role"] | "">("")
+  const [status, setStatus] = useState<AdminUserSummary["status"] | "">("")
+  const [productCategoryId, setProductCategoryId] = useState("")
+  const [productId, setProductId] = useState("")
+  const [type, setType] = useState<NotificationType>("informational")
   const [title, setTitle] = useState("")
-  const [message, setMessage] = useState("")
-  const [link, setLink] = useState("")
-  const [sentViaEmail, setSentViaEmail] = useState(false)
+  const [emailSubject, setEmailSubject] = useState("")
+  const [messageHtml, setMessageHtml] = useState("")
+  const [ctaLabel, setCtaLabel] = useState("")
+  const [ctaUrl, setCtaUrl] = useState("")
+  const [sentViaEmail, setSentViaEmail] = useState(true)
   const [sentViaInApp, setSentViaInApp] = useState(true)
+  const [tagTarget, setTagTarget] = useState<TagTarget>("messageHtml")
+  const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
+  const [preview, setPreview] = useState<AdminNotificationCampaignPreview | null>(null)
 
-  const notificationsQuery = useAdminNotifications(true)
+  const campaignsQuery = useAdminNotificationCampaigns()
   const usersQuery = useAdminUsers()
-  const createNotification = useCreateAdminNotification()
+  const productsQuery = useAdminProducts()
+  const categoriesQuery = useAdminProductCategories()
+  const previewMutation = usePreviewAdminNotificationCampaign()
+  const sendMutation = useSendAdminNotificationCampaign()
 
-  const isLoading = notificationsQuery.isLoading || usersQuery.isLoading
-  const isError = notificationsQuery.isError || usersQuery.isError
+  const isLoading =
+    campaignsQuery.isLoading || usersQuery.isLoading || productsQuery.isLoading || categoriesQuery.isLoading
+  const isError = campaignsQuery.isError || usersQuery.isError || productsQuery.isError || categoriesQuery.isError
 
-  const userMap = useMemo(
-    () => new Map((usersQuery.data ?? []).map((user) => [user.id, user])),
-    [usersQuery.data],
+  const users = usersQuery.data ?? []
+  const products = productsQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
+  const campaigns = campaignsQuery.data ?? []
+
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.id === productCategoryId) ?? null,
+    [categories, productCategoryId],
+  )
+  const filteredProducts = useMemo(
+    () => (productCategoryId ? products.filter((product) => product.category_id === productCategoryId) : products),
+    [productCategoryId, products],
+  )
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === productId) ?? null,
+    [productId, products],
+  )
+  const tagOptions = useMemo(
+    () => buildTagOptions(selectedProduct, selectedCategory),
+    [selectedCategory, selectedProduct],
   )
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const totals = useMemo(
+    () => ({
+      campaigns: campaigns.length,
+      emailEnabled: campaigns.filter((campaign) => campaign.sent_via_email).length,
+      inAppEnabled: campaigns.filter((campaign) => campaign.sent_via_in_app).length,
+    }),
+    [campaigns],
+  )
 
-    await createNotification.mutateAsync({
+  useEffect(() => {
+    setPreview(null)
+    setFeedback(null)
+  }, [
+    audience,
+    userId,
+    role,
+    status,
+    productCategoryId,
+    productId,
+    type,
+    title,
+    emailSubject,
+    messageHtml,
+    ctaLabel,
+    ctaUrl,
+    sentViaEmail,
+    sentViaInApp,
+  ])
+
+  useEffect(() => {
+    if (!productCategoryId) {
+      return
+    }
+
+    const stillValid = filteredProducts.some((product) => product.id === productId)
+    if (!stillValid) {
+      setProductId("")
+    }
+  }, [filteredProducts, productCategoryId, productId])
+
+  const insertTag = (token: string) => {
+    setFeedback(null)
+
+    switch (tagTarget) {
+      case "title":
+        setTitle((current) => appendTokenToValue(current, token))
+        return
+      case "emailSubject":
+        setEmailSubject((current) => appendTokenToValue(current, token))
+        return
+      case "ctaLabel":
+        setCtaLabel((current) => appendTokenToValue(current, token))
+        return
+      case "ctaUrl":
+        setCtaUrl((current) => appendTokenToValue(current, token))
+        return
+      default:
+        setMessageHtml((current) => appendTokenToHtml(current, token))
+    }
+  }
+
+  const buildPayload = () =>
+    buildCampaignPayload({
       audience,
-      userId: audience === "single" ? userId : undefined,
-      role: audience === "role" ? role : undefined,
-      status: audience !== "single" ? status : undefined,
+      userId,
+      role,
+      status,
+      productCategoryId,
+      productId,
       type,
       title,
-      message,
-      link: link.trim() || null,
+      emailSubject,
+      messageHtml,
+      ctaLabel,
+      ctaUrl,
       sentViaEmail,
       sentViaInApp,
     })
 
-    setTitle("")
-    setMessage("")
-    setLink("")
-    setSentViaEmail(false)
-    setSentViaInApp(true)
+  const handlePreview = async () => {
+    const payload = buildPayload()
+    const validationError = validateCampaignPayload(payload)
+
+    if (validationError) {
+      setFeedback({ tone: "danger", message: validationError })
+      return
+    }
+
+    try {
+      const response = await previewMutation.mutateAsync(payload)
+      setPreview(response)
+      setFeedback(null)
+    } catch (error) {
+      setPreview(null)
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel gerar a preview da campanha.",
+      })
+    }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const payload = buildPayload()
+    const validationError = validateCampaignPayload(payload)
+
+    if (validationError) {
+      setFeedback({ tone: "danger", message: validationError })
+      return
+    }
+
+    try {
+      const result = await sendMutation.mutateAsync(payload)
+      setFeedback({
+        tone: "success",
+        message: `Campanha enviada para ${result.inserted_count} destinatarios. In-app: ${result.notification_count}. Email: ${result.email_recipient_count}.`,
+      })
+      setPreview(null)
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel enviar a campanha.",
+      })
+    }
   }
 
   if (isLoading) {
@@ -99,196 +411,427 @@ export function AdminNotifications() {
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível carregar as notificações"
+        title="Nao foi possivel carregar a central de campanhas"
         message="Tenta novamente dentro de instantes."
         onRetry={() => {
-          void notificationsQuery.refetch()
+          void campaignsQuery.refetch()
           void usersQuery.refetch()
+          void productsQuery.refetch()
+          void categoriesQuery.refetch()
         }}
       />
     )
   }
 
-  const notifications = notificationsQuery.data ?? []
-  const unreadCount = notifications.filter((notification) => notification.status === "unread").length
-  const supportCount = notifications.filter((notification) => notification.type === "support").length
-
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notificações"
-        description="Comunicação operacional para alunos e segmentos específicos, sempre validada e criada pelo backend."
+        title="Notificacoes"
+        description="Cria campanhas administrativas com notificacao in-app, email ou ambos, sempre com segmentacao resolvida no backend."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Total enviadas</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{notifications.length}</p>
+          <p className="text-sm font-medium text-slate-500">Campanhas auditadas</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{totals.campaigns}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Ainda por ler</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{unreadCount}</p>
+          <p className="text-sm font-medium text-slate-500">Com email ativo</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{totals.emailEnabled}</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Tipo suporte</p>
-          <p className="mt-3 text-3xl font-bold text-slate-950">{supportCount}</p>
+          <p className="text-sm font-medium text-slate-500">Com in-app ativo</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{totals.inAppEnabled}</p>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <form onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Disparo controlado</p>
-          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar notificação</h2>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Composer de campanhas</p>
+          <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar campanha administrativa</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            Usa esta Área para alertas operacionais, comunicações de suporte ou mensagens segmentadas.
+            A composicao e feita uma vez e o backend trata a derivacao para notificacao em texto e email com HTML sanitizado.
           </p>
 
-          <div className="mt-5 grid gap-4">
-            <select
-              value={audience}
-              onChange={(event) => setAudience(event.target.value as Audience)}
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            >
-              <option value="all">Todos os utilizadores ativos</option>
-              <option value="role">Por papel</option>
-              <option value="single">Utilizador específico</option>
-            </select>
+          <div className="mt-6 grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Audiencia
+                </span>
+                <select
+                  value={audience}
+                  onChange={(event) => setAudience(event.target.value as Audience)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                >
+                  <option value="all">Todos os utilizadores elegiveis</option>
+                  <option value="segment">Segmento com filtros</option>
+                  <option value="single">Utilizador especifico</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Tipo
+                </span>
+                <select
+                  value={type}
+                  onChange={(event) => setType(event.target.value as NotificationType)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                >
+                  <option value="informational">Informativa</option>
+                  <option value="transactional">Transacional</option>
+                  <option value="support">Suporte</option>
+                  <option value="marketing">Marketing</option>
+                </select>
+              </label>
+            </div>
 
             {audience === "single" ? (
-              <select
-                value={userId}
-                onChange={(event) => setUserId(event.target.value)}
-                className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-              >
-                <option value="">Seleciona um utilizador</option>
-                {(usersQuery.data ?? []).map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name} - {user.email}
-                  </option>
-                ))}
-              </select>
-            ) : (
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Destinatario
+                </span>
+                <select
+                  value={userId}
+                  onChange={(event) => setUserId(event.target.value)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                >
+                  <option value="">Seleciona um utilizador</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.full_name} - {user.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            {audience === "segment" ? (
               <div className="grid gap-4 md:grid-cols-2">
-                <select
-                  value={role}
-                  onChange={(event) => setRole(event.target.value as AdminUserSummary["role"])}
-                  disabled={audience !== "role"}
-                  className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white disabled:opacity-60"
-                >
-                  <option value="student">Alunos</option>
-                  <option value="affiliate">Afiliados</option>
-                  <option value="admin">Admins</option>
-                </select>
-                <select
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value as AdminUserSummary["status"])}
-                  className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-                >
-                  <option value="active">Apenas ativos</option>
-                  <option value="inactive">Inativos</option>
-                  <option value="blocked">Bloqueados</option>
-                  <option value="pending_review">Em revisão</option>
-                </select>
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                    Papel
+                  </span>
+                  <select
+                    value={role}
+                    onChange={(event) => setRole(event.target.value as AdminUserSummary["role"] | "")}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                  >
+                    <option value="">Todos os papeis</option>
+                    <option value="student">Alunos</option>
+                    <option value="affiliate">Afiliados</option>
+                    <option value="admin">Admins</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                    Estado
+                  </span>
+                  <select
+                    value={status}
+                    onChange={(event) => setStatus(event.target.value as AdminUserSummary["status"] | "")}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                  >
+                    <option value="">Todos os estados</option>
+                    <option value="active">Ativos</option>
+                    <option value="inactive">Inativos</option>
+                    <option value="blocked">Bloqueados</option>
+                    <option value="pending_review">Em revisao</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                    Categoria comprada
+                  </span>
+                  <select
+                    value={productCategoryId}
+                    onChange={(event) => setProductCategoryId(event.target.value)}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                  >
+                    <option value="">Todas as categorias</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                    Material comprado
+                  </span>
+                  <select
+                    value={productId}
+                    onChange={(event) => setProductId(event.target.value)}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                  >
+                    <option value="">Todos os materiais</option>
+                    {filteredProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            )}
+            ) : null}
 
-            <select
-              value={type}
-              onChange={(event) => setType(event.target.value as AdminNotificationSummary["type"])}
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            >
-              <option value="informational">Informativa</option>
-              <option value="transactional">Transacional</option>
-              <option value="support">Suporte</option>
-              <option value="marketing">Marketing</option>
-            </select>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Titulo
+                </span>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Ex.: Sessao extra disponivel"
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
 
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Título"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            />
-            <textarea
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              rows={5}
-              placeholder="Mensagem"
-              className="rounded-2xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            />
-            <input
-              value={link}
-              onChange={(event) => setLink(event.target.value)}
-              placeholder="Link interno opcional"
-              className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            />
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Assunto do email
+                </span>
+                <input
+                  value={emailSubject}
+                  onChange={(event) => setEmailSubject(event.target.value)}
+                  placeholder="Opcional. Se vazio, o backend usa o titulo."
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Tags dinamicas</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    As tags abaixo podem ser usadas no titulo, assunto, mensagem e CTA.
+                  </p>
+                </div>
+                <label className="flex min-w-[210px] items-center gap-3 text-sm text-slate-600">
+                  <span>Inserir em</span>
+                  <select
+                    value={tagTarget}
+                    onChange={(event) => setTagTarget(event.target.value as TagTarget)}
+                    className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400"
+                  >
+                    <option value="messageHtml">Mensagem</option>
+                    <option value="title">Titulo</option>
+                    <option value="emailSubject">Assunto do email</option>
+                    <option value="ctaLabel">Label do CTA</option>
+                    <option value="ctaUrl">URL do CTA</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {tagOptions.map((tag) => (
+                  <button
+                    key={tag.key}
+                    type="button"
+                    onClick={() => insertTag(tag.token)}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                    title={tag.description}
+                  >
+                    {tag.token}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                Mensagem da campanha
+              </span>
+              <RichTextEditor
+                value={messageHtml}
+                onChange={setMessageHtml}
+                placeholder="Escreve aqui o conteudo principal da campanha..."
+                toolbarVariant="compact"
+                minHeightPx={240}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Label do CTA
+                </span>
+                <input
+                  value={ctaLabel}
+                  onChange={(event) => setCtaLabel(event.target.value)}
+                  placeholder="Ex.: Ver material"
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  URL do CTA
+                </span>
+                <input
+                  value={ctaUrl}
+                  onChange={(event) => setCtaUrl(event.target.value)}
+                  placeholder="/aluno/notificacoes"
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
+                />
+              </label>
+            </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="flex items-center gap-3 rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                <input type="checkbox" checked={sentViaInApp} onChange={(event) => setSentViaInApp(event.target.checked)} />
-                Entregar no painel
+              <label className="flex items-center gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={sentViaInApp}
+                  onChange={(event) => setSentViaInApp(event.target.checked)}
+                />
+                Criar notificacao in-app
               </label>
-              <label className="flex items-center gap-3 rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                <input type="checkbox" checked={sentViaEmail} onChange={(event) => setSentViaEmail(event.target.checked)} />
-                Marcar para email
+              <label className="flex items-center gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={sentViaEmail}
+                  onChange={(event) => setSentViaEmail(event.target.checked)}
+                />
+                Enfileirar email
               </label>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Base de compra</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Compradores sao resolvidos por grants ativos, que sao a fonte canonica de acesso real.
+                  </p>
+                </div>
+                <StatusBadge label="active_grants" tone="info" />
+              </div>
+
+              {preview ? (
+                <div className="mt-4 rounded-[1.25rem] border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-900">Preview de destinatarios pronta</p>
+                      <p className="mt-1 text-sm text-emerald-800">
+                        {preview.totalRecipients} destinatarios encontrados para esta campanha.
+                      </p>
+                    </div>
+                    <StatusBadge label={`${preview.totalRecipients} destinatarios`} tone="success" />
+                  </div>
+
+                  {preview.sampleRecipients.length > 0 ? (
+                    <div className="mt-4 grid gap-3">
+                      {preview.sampleRecipients.map((recipient) => (
+                        <div key={recipient.id} className="rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm">
+                          <p className="font-medium text-slate-950">{recipient.full_name ?? "Utilizador"}</p>
+                          <p className="text-slate-600">{recipient.email ?? recipient.id}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-slate-600">
+                  Usa a preview para confirmar o tamanho da audiencia antes do envio.
+                </p>
+              )}
             </div>
           </div>
 
-          {createNotification.error instanceof Error ? (
-            <p className="mt-4 text-sm text-red-600">{createNotification.error.message}</p>
+          {feedback ? (
+            <div
+              className={[
+                "mt-5 rounded-2xl border px-4 py-3 text-sm font-medium",
+                feedback.tone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-rose-200 bg-rose-50 text-rose-900",
+              ].join(" ")}
+            >
+              {feedback.message}
+            </div>
           ) : null}
 
-          <Button type="submit" className="mt-4 rounded-full" disabled={createNotification.isPending}>
-            {createNotification.isPending ? "A enviar..." : "Enviar notificação"}
-          </Button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => void handlePreview()}
+              disabled={previewMutation.isPending || sendMutation.isPending}
+            >
+              {previewMutation.isPending ? "A calcular..." : "Preview de destinatarios"}
+            </Button>
+            <Button type="submit" className="rounded-full" disabled={sendMutation.isPending || previewMutation.isPending}>
+              {sendMutation.isPending ? "A enviar..." : "Enviar campanha"}
+            </Button>
+          </div>
         </form>
 
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Fila recente</h2>
-              <p className="mt-1 text-sm text-slate-600">Histórico das comunicações mais recentes.</p>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Historico de campanhas</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Listagem agregada a partir dos registos de auditoria do backend.
+              </p>
             </div>
-            <StatusBadge label={`${notifications.length} registos`} tone="neutral" />
+            <StatusBadge label={`${campaigns.length} disparos`} tone="neutral" />
           </div>
 
-          {notifications.length === 0 ? (
+          {campaigns.length === 0 ? (
             <div className="mt-6">
               <EmptyState
-                title="Sem notificações"
-                message="As mensagens disparadas pelo admin vao aparecer aqui."
+                title="Sem campanhas"
+                message="Quando o admin enviar comunicacoes por esta area, o historico agregado vai aparecer aqui."
               />
             </div>
           ) : (
             <div className="mt-5 space-y-3">
-              {notifications.slice(0, 10).map((notification) => {
-                const user = notification.user_id ? userMap.get(notification.user_id) : null
-
-                return (
-                  <div key={notification.id} className="rounded-2xl border bg-slate-50/70 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-slate-950">{notification.title}</p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {user?.full_name ?? "Utilizador"} · {user?.email ?? notification.user_id}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <StatusBadge label={notification.type} tone="info" />
-                        <StatusBadge
-                          label={notification.status === "unread" ? "Por ler" : "Lida"}
-                          tone={notification.status === "unread" ? "warning" : "neutral"}
-                        />
-                      </div>
+              {campaigns.map((campaign) => (
+                <div key={campaign.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-slate-950">{campaign.title}</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {campaign.actor_name ?? "Admin"}{campaign.actor_email ? ` - ${campaign.actor_email}` : ""}
+                      </p>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{notification.message}</p>
-                    <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">
-                      {formatDateTime(notification.created_at)}
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge label={campaign.type} tone={getToneForType(campaign.type)} />
+                      <StatusBadge label={getAudienceLabel(campaign)} tone="neutral" />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {campaign.sent_via_in_app ? <StatusBadge label="In-app" tone="info" /> : null}
+                    {campaign.sent_via_email ? <StatusBadge label="Email" tone="success" /> : null}
+                    {campaign.product_category_title ? (
+                      <StatusBadge label={campaign.product_category_title} tone="neutral" />
+                    ) : null}
+                    {campaign.product_title ? <StatusBadge label={campaign.product_title} tone="neutral" /> : null}
+                  </div>
+
+                  {campaign.message_excerpt ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-700">{campaign.message_excerpt}</p>
+                  ) : null}
+
+                  <div className="mt-4 grid gap-2 text-xs uppercase tracking-[0.16em] text-slate-500 sm:grid-cols-2">
+                    <p>{formatDateTime(campaign.created_at)}</p>
+                    <p className="sm:text-right">
+                      {campaign.recipient_count} destinatarios
+                      {campaign.sent_via_email ? ` - ${campaign.email_recipient_count} email` : ""}
+                      {campaign.sent_via_in_app ? ` - ${campaign.notification_count} in-app` : ""}
                     </p>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           )}
         </section>

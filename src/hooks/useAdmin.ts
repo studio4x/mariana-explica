@@ -11,6 +11,7 @@ import {
   createAdminCoupon,
   createAdminCourseRelease,
   createAdminNotification,
+  fetchAdminNotificationCampaigns,
   fetchAdminModuleAssetUploadLimit,
   createAdminModuleAssetSignedUpload,
   deleteAdminSupportTicket,
@@ -108,8 +109,10 @@ import {
   testAdminAiPageEditorProviders,
   generateAdminAiPageEditorProposal,
   publishAdminSitePageVersion,
+  previewAdminNotificationCampaign,
   rollbackAdminSitePageVersion,
   saveAdminSitePageDraft,
+  sendAdminNotificationCampaign,
   unpublishAdminSitePage,
   uploadAdminSitePageAssetFile,
   updateAdminProduct,
@@ -132,6 +135,8 @@ import {
 } from "@/services"
 import type {
   AdminAiCodeEditorTask,
+  AdminNotificationCampaignInput,
+  AdminNotificationCampaignPreview,
   AdminSitePageDetail,
   AdminNotificationSummary,
   AdminSupportTicketSummary,
@@ -382,6 +387,14 @@ export function useAdminProductCategories() {
   return useQuery({
     queryKey: ["admin", "product-categories"],
     queryFn: fetchAdminProductCategories,
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useAdminNotificationCampaigns() {
+  return useQuery({
+    queryKey: ["admin", "notification-campaigns"],
+    queryFn: fetchAdminNotificationCampaigns,
     ...getAdminQueryOptions(),
   })
 }
@@ -1236,6 +1249,25 @@ export function useReconcileAdminOrder() {
 export function useCreateAdminNotification() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: createAdminNotification, onSuccess: invalidate })
+}
+
+export function usePreviewAdminNotificationCampaign() {
+  return useMutation<AdminNotificationCampaignPreview, Error, Omit<AdminNotificationCampaignInput, "action">>({
+    mutationFn: previewAdminNotificationCampaign,
+  })
+}
+
+export function useSendAdminNotificationCampaign() {
+  const invalidate = useAdminInvalidation()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: sendAdminNotificationCampaign,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "notification-campaigns"] })
+      invalidate()
+    },
+  })
 }
 
 export function useMarkAdminNotificationAsRead() {

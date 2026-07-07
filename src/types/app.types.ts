@@ -1010,6 +1010,71 @@ export interface AdminPlatformEmailTemplatesConfig {
   templates: AdminPlatformEmailTemplateSummary[]
 }
 
+export type AdminNotificationCampaignAudience = "single" | "segment" | "all"
+export type AdminNotificationCampaignPurchaseBasis = "active_grants"
+
+export interface AdminNotificationCampaignRecipientPreview {
+  id: string
+  full_name: string | null
+  email: string | null
+}
+
+export interface AdminNotificationCampaignInput {
+  action: "preview" | "send"
+  audience: AdminNotificationCampaignAudience
+  userId?: string
+  role?: AdminUserSummary["role"]
+  status?: AdminUserSummary["status"]
+  productCategoryId?: string | null
+  productId?: string | null
+  purchaseBasis: AdminNotificationCampaignPurchaseBasis
+  type: NotificationItem["type"]
+  title: string
+  emailSubject?: string | null
+  messageHtml: string
+  ctaLabel?: string | null
+  ctaUrl?: string | null
+  sentViaEmail: boolean
+  sentViaInApp: boolean
+}
+
+export interface AdminNotificationCampaignPreview {
+  totalRecipients: number
+  sampleRecipients: AdminNotificationCampaignRecipientPreview[]
+}
+
+export interface AdminNotificationCampaignSummary {
+  id: string
+  actor_user_id: string | null
+  actor_name: string | null
+  actor_email: string | null
+  created_at: string
+  audience: AdminNotificationCampaignAudience
+  purchase_basis: AdminNotificationCampaignPurchaseBasis
+  role: AdminUserSummary["role"] | null
+  status: AdminUserSummary["status"] | null
+  type: NotificationItem["type"]
+  title: string
+  email_subject: string | null
+  message_excerpt: string | null
+  product_id: string | null
+  product_title: string | null
+  product_category_id: string | null
+  product_category_title: string | null
+  sent_via_email: boolean
+  sent_via_in_app: boolean
+  recipient_count: number
+  email_recipient_count: number
+  notification_count: number
+}
+
+export interface AdminNotificationCampaignTagOption {
+  key: string
+  token: string
+  description: string
+  category: "identity" | "navigation" | "product"
+}
+
 export interface AdminPlatformEmailTemplatePreview {
   templateKey: AdminPlatformEmailTemplateKey
   subject: string
