@@ -15,7 +15,9 @@ const ALLOWED_TAGS = new Set([
   "ul",
 ])
 
-const BLOCK_TAGS = new Set(["blockquote", "h1", "h2", "h3", "h4", "li", "ol", "p", "ul"])
+const SELF_CLOSING_TAGS = new Set(["br"])
+const REMOVABLE_BLOCK_TAGS = ["p", "li", "blockquote", "h1", "h2", "h3", "h4", "ul", "ol"]
+const DANGEROUS_BLOCKS = ["script", "style", "iframe", "object", "embed", "svg", "math", "template"]
 
 function sanitizeHref(value: string | null) {
   if (!value) {
@@ -38,69 +40,78 @@ function sanitizeHref(value: string | null) {
   return null
 }
 
-function unwrapNode(node: Element) {
-  const parent = node.parentNode
-  if (!parent) {
-    return
-  }
-
-  while (node.firstChild) {
-    parent.insertBefore(node.firstChild, node)
-  }
-
-  parent.removeChild(node)
+function escapeHtmlAttribute(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
 }
 
-function sanitizeNode(node: Node) {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return
+function stripDangerousBlocks(value: string) {
+  return DANGEROUS_BLOCKS.reduce((current, tagName) => {
+    const pattern = new RegExp(`<${tagName}\\b[^>]*>[\\s\\S]*?<\\/${tagName}>`, "gi")
+    return current.replace(pattern, "")
+  }, value)
+}
+
+function sanitizeTag(rawTag: string, tagName: string, attributeSource: string) {
+  const normalizedTag = tagName.toLowerCase()
+
+  if (!ALLOWED_TAGS.has(normalizedTag)) {
+    return ""
   }
 
-  if (!(node instanceof Element)) {
-    node.parentNode?.removeChild(node)
-    return
+  const isClosingTag = /^<\//.test(rawTag)
+  if (isClosingTag) {
+    return SELF_CLOSING_TAGS.has(normalizedTag) ? "" : `</${normalizedTag}>`
   }
 
-  const tagName = node.tagName.toLowerCase()
-
-  if (!ALLOWED_TAGS.has(tagName)) {
-    unwrapNode(node)
-    return
+  if (SELF_CLOSING_TAGS.has(normalizedTag)) {
+    return "<br>"
   }
 
-  const attributes = Array.from(node.attributes)
-  for (const attribute of attributes) {
-    const name = attribute.name.toLowerCase()
-    if (tagName === "a" && name === "href") {
-      const href = sanitizeHref(attribute.value)
-      if (!href) {
-        node.removeAttribute(attribute.name)
-      } else {
-        node.setAttribute("href", href)
-        node.setAttribute("target", "_blank")
-        node.setAttribute("rel", "noreferrer noopener")
-      }
-      continue
+  if (normalizedTag === "a") {
+    const hrefMatch = attributeSource.match(/href\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i)
+    const rawHref = hrefMatch?.[2] ?? hrefMatch?.[3] ?? hrefMatch?.[4] ?? null
+    const safeHref = sanitizeHref(rawHref)
+
+    if (!safeHref) {
+      return "<a>"
     }
 
-    node.removeAttribute(attribute.name)
+    return `<a href="${escapeHtmlAttribute(safeHref)}" target="_blank" rel="noreferrer noopener">`
   }
 
-  const children = Array.from(node.childNodes)
-  for (const child of children) {
-    sanitizeNode(child)
+  return `<${normalizedTag}>`
+}
+
+function removeEmptyBlocks(value: string) {
+  let current = value
+
+  for (const tagName of REMOVABLE_BLOCK_TAGS) {
+    const pattern = new RegExp(`<${tagName}>\\s*(<br>\\s*)*<\\/${tagName}>`, "gi")
+    current = current.replace(pattern, "")
   }
 
-  if (BLOCK_TAGS.has(tagName) && !node.textContent?.trim() && node.querySelectorAll("br").length === 0) {
-    node.remove()
-  }
+  return current
 }
 
 function normalizeHtml(html: string) {
-  return html
+  let current = html
+    .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/&nbsp;/gi, " ")
+    .replace(/\r\n?/g, "\n")
     .replace(/\s+(<\/(p|li|blockquote|h1|h2|h3|h4|ul|ol)>)/gi, "$1")
     .trim()
+
+  let previous = ""
+  while (current !== previous) {
+    previous = current
+    current = removeEmptyBlocks(current).trim()
+  }
+
+  return current
 }
 
 export function sanitizeRichTextHtml(value: string | null | undefined) {
@@ -108,19 +119,13 @@ export function sanitizeRichTextHtml(value: string | null | undefined) {
     return ""
   }
 
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(`<div>${value}</div>`, "text/html")
-  const root = doc.body.firstElementChild
-  if (!root) {
-    return ""
-  }
+  const withoutDangerousBlocks = stripDangerousBlocks(value)
+  const sanitized = withoutDangerousBlocks.replace(
+    /<\s*(\/?)\s*([a-z0-9]+)\b([^>]*)>/gi,
+    (match, _slash, tagName, attributes) => sanitizeTag(match, String(tagName).toLowerCase(), attributes),
+  )
 
-  const children = Array.from(root.childNodes)
-  for (const child of children) {
-    sanitizeNode(child)
-  }
-
-  return normalizeHtml(root.innerHTML)
+  return normalizeHtml(sanitized)
 }
 
 export function richTextToPlainText(value: string | null | undefined) {
