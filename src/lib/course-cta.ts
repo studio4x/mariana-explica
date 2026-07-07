@@ -9,8 +9,19 @@ export function getLearningActionLabel(course: EnrolledCourseState) {
     : "Aceder"
 }
 
-export function getStudentProductAccessLabel(productType: DashboardProductSummary["product_type"]) {
-  return productType === "external_service" ? "Ver curso" : "Ver material"
+export function getStudentProductAccessLabel(
+  productType: DashboardProductSummary["product_type"],
+  categorySlug?: string | null,
+) {
+  if (productType === "external_service") {
+    return "Ver curso"
+  }
+
+  if (categorySlug === "sebentas-individuais") {
+    return "Ver material"
+  }
+
+  return "Ver material"
 }
 
 export function getEnrolledCourseAction(course: EnrolledCourseState | null | undefined) {

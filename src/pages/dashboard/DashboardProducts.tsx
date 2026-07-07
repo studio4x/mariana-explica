@@ -5,10 +5,12 @@ import { Button } from "@/components/ui"
 import { useMyProducts } from "@/hooks/useDashboard"
 import { getEnrolledCourseAction, getStudentProductAccessLabel } from "@/lib/course-cta"
 import { ROUTES } from "@/lib/constants"
+import { inferProductCategorySlug } from "@/lib/product-categories"
 import { getDashboardProductNote } from "@/lib/product-presentation"
 import { richTextToPlainText } from "@/lib/rich-text"
 import type { DashboardProductSummary } from "@/types/app.types"
 import { formatDate } from "@/utils/date"
+import { usePublishedProductCategories } from "@/hooks/useProducts"
 
 function normalize(value: string | null | undefined) {
   return (value ?? "")
@@ -39,6 +41,12 @@ function getStudentProductDescription(product: DashboardProductSummary) {
 
 export function DashboardProducts() {
   const { data, isLoading, isError, error, refetch } = useMyProducts()
+  const { data: categoriesFromDb } = usePublishedProductCategories()
+
+  const categoriesById = useMemo(
+    () => new Map((categoriesFromDb ?? []).map((category) => [category.id, category.slug] as const)),
+    [categoriesFromDb],
+  )
 
   if (isLoading) {
     return <LoadingState message="A carregar os teus materiais..." />
@@ -92,6 +100,9 @@ export function DashboardProducts() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {products.map((product) => {
           const courseAction = getEnrolledCourseAction(product)
+          const categorySlug =
+            (product.category_id ? categoriesById.get(product.category_id) : null) ??
+            inferProductCategorySlug(product)
 
           return (
             <div key={product.id} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
@@ -137,7 +148,7 @@ export function DashboardProducts() {
               <div className="mt-6 flex gap-3">
                 <Button asChild className="flex-1 rounded-full">
                   <Link to={courseAction?.to ?? `${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>
-                    {getStudentProductAccessLabel(product.product_type)}
+                    {getStudentProductAccessLabel(product.product_type, categorySlug)}
                   </Link>
                 </Button>
               </div>

@@ -24,10 +24,11 @@ describe("course-cta", () => {
   })
 
   it("maps dashboard access labels by product type", () => {
-    expect(getStudentProductAccessLabel("external_service")).toBe("Ver curso")
-    expect(getStudentProductAccessLabel("paid")).toBe("Ver material")
-    expect(getStudentProductAccessLabel("free")).toBe("Ver material")
-    expect(getStudentProductAccessLabel("hybrid")).toBe("Ver material")
+    expect(getStudentProductAccessLabel("external_service", "sebentas-individuais")).toBe("Ver curso")
+    expect(getStudentProductAccessLabel("paid", "sebentas-individuais")).toBe("Ver material")
+    expect(getStudentProductAccessLabel("free", "sebentas-individuais")).toBe("Ver material")
+    expect(getStudentProductAccessLabel("hybrid", "sebentas-individuais")).toBe("Ver material")
+    expect(getStudentProductAccessLabel("paid", "packs-poupanca")).toBe("Ver material")
   })
 
   it("creates enrolled actions with the access label and student route", () => {
