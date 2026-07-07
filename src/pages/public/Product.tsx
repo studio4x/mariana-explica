@@ -236,7 +236,7 @@ export function Product() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Investimento</p>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Valor</p>
                   <p className="mt-2 text-4xl font-black text-slate-950">
                     {formatProductPrice(product.price_cents, product.currency)}
                   </p>

@@ -35,7 +35,7 @@ export function ProductCard({
       ? "Acesso gratuito"
       : product.product_type === "external_service"
         ? "Pedido orientado"
-        : "Investimento"
+        : "Valor"
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-[#d6e7ef] bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">

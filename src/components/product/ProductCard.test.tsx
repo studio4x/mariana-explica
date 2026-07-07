@@ -50,7 +50,7 @@ describe("ProductCard", () => {
     expect(screen.getByText("Beneficio principal")).toBeInTheDocument()
     expect(screen.getByText("Formato e entrega")).toBeInTheDocument()
     expect(screen.getByText("Como acedes")).toBeInTheDocument()
-    expect(screen.getByText(/Investimento|Acesso gratuito|Pedido orientado/)).toBeInTheDocument()
+    expect(screen.getByText(/Valor|Acesso gratuito|Pedido orientado/)).toBeInTheDocument()
   })
 
   it("renders custom catalog information blocks from product settings", () => {

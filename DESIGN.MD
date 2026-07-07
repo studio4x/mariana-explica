@@ -607,7 +607,7 @@ Estrutura:
    - nome
    - papel
 4. Preco:
-   - label "Investimento"
+   - label "Valor"
    - preco formatado
    - nota de preco
 5. CTA principal:
