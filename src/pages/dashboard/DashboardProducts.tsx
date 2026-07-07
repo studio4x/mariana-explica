@@ -3,7 +3,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { useMyProducts } from "@/hooks/useDashboard"
-import { getEnrolledCourseAction } from "@/lib/course-cta"
+import { getEnrolledCourseAction, getStudentProductAccessLabel } from "@/lib/course-cta"
 import { ROUTES } from "@/lib/constants"
 import { getDashboardProductNote } from "@/lib/product-presentation"
 import { richTextToPlainText } from "@/lib/rich-text"
@@ -136,7 +136,9 @@ export function DashboardProducts() {
 
               <div className="mt-6 flex gap-3">
                 <Button asChild className="flex-1 rounded-full">
-                  <Link to={courseAction?.to ?? `${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>ver curso</Link>
+                  <Link to={courseAction?.to ?? `${ROUTES.DASHBOARD_PRODUCT}/${product.id}`}>
+                    {getStudentProductAccessLabel(product.product_type)}
+                  </Link>
                 </Button>
               </div>
             </div>

@@ -18,6 +18,7 @@ import {
   findNextLesson,
   getLessonProgressState,
 } from "@/lib/course-helpers"
+import { getLearningActionLabel } from "@/lib/course-cta"
 import { getModuleTypeLabel } from "@/lib/product-presentation"
 import {
   studentCourseLessonPath,
@@ -106,6 +107,11 @@ export function StudentCourseDetailsPage() {
     richTextToPlainText(product.description) ||
     richTextToPlainText(product.short_description) ||
     "Material pronto para continuares o estudo com clareza."
+  const primaryActionLabel = getLearningActionLabel({
+    id: product.id,
+    completed_lessons: completedLessons,
+    progress_percent: progressPercent,
+  })
 
   return (
     <section className="rounded-[34px] border border-[#D8E6EB] bg-white p-5 shadow-[0_20px_50px_rgba(22,49,56,0.04)] sm:p-7">
@@ -153,7 +159,7 @@ export function StudentCourseDetailsPage() {
             <div className="pt-4">
               <Button asChild className="h-16 rounded-2xl bg-white px-10 text-lg font-black text-slate-900 shadow-xl hover:bg-slate-100">
                 <Link to={startPath}>
-                  {progressPercent > 0 ? "Continuar aprendizado" : "Iniciar aprendizado"}
+                  {primaryActionLabel}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
