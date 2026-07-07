@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -225,7 +225,32 @@ function validateCampaignPayload(payload: Omit<AdminNotificationCampaignInput, "
   return null
 }
 
+function getReusablePayload(campaign: AdminNotificationCampaignSummary): Omit<AdminNotificationCampaignInput, "action"> | null {
+  if (!campaign.can_reuse || !campaign.message_html) {
+    return null
+  }
+
+  return {
+    audience: campaign.audience,
+    userId: campaign.audience === "single" ? campaign.user_id ?? undefined : undefined,
+    role: campaign.audience === "segment" ? campaign.role ?? undefined : undefined,
+    status: campaign.audience === "segment" ? campaign.status ?? undefined : undefined,
+    productCategoryId: campaign.audience === "segment" ? campaign.product_category_id ?? null : null,
+    productId: campaign.audience === "segment" ? campaign.product_id ?? null : null,
+    purchaseBasis: campaign.purchase_basis,
+    type: campaign.type,
+    title: campaign.title,
+    emailSubject: campaign.email_subject ?? null,
+    messageHtml: campaign.message_html,
+    ctaLabel: campaign.cta_label ?? null,
+    ctaUrl: campaign.cta_url ?? null,
+    sentViaEmail: campaign.sent_via_email,
+    sentViaInApp: campaign.sent_via_in_app,
+  }
+}
+
 export function AdminNotifications() {
+  const formRef = useRef<HTMLFormElement | null>(null)
   const [audience, setAudience] = useState<Audience>("all")
   const [userId, setUserId] = useState("")
   const [role, setRole] = useState<AdminUserSummary["role"] | "">("")
@@ -356,6 +381,76 @@ export function AdminNotifications() {
       sentViaInApp,
     })
 
+  const applyPayloadToComposer = (payload: Omit<AdminNotificationCampaignInput, "action">) => {
+    setAudience(payload.audience)
+    setUserId(payload.userId ?? "")
+    setRole(payload.role ?? "")
+    setStatus(payload.status ?? "")
+    setProductCategoryId(payload.productCategoryId ?? "")
+    setProductId(payload.productId ?? "")
+    setType(payload.type)
+    setTitle(payload.title)
+    setEmailSubject(payload.emailSubject ?? "")
+    setMessageHtml(payload.messageHtml)
+    setCtaLabel(payload.ctaLabel ?? "")
+    setCtaUrl(payload.ctaUrl ?? "")
+    setSentViaEmail(payload.sentViaEmail)
+    setSentViaInApp(payload.sentViaInApp)
+    setPreview(null)
+  }
+
+  const handleReuseCampaign = (campaign: AdminNotificationCampaignSummary) => {
+    const payload = getReusablePayload(campaign)
+
+    if (!payload) {
+      setFeedback({
+        tone: "danger",
+        message: "Esta campanha nao tem payload completo guardado para reaproveitamento.",
+      })
+      return
+    }
+
+    applyPayloadToComposer(payload)
+    setFeedback({
+      tone: "success",
+      message: "Campanha carregada no composer. Podes ajustar o conteudo antes de enviar.",
+    })
+    if (typeof formRef.current?.scrollIntoView === "function") {
+      formRef.current.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
+  const handleResendCampaign = async (campaign: AdminNotificationCampaignSummary) => {
+    const payload = getReusablePayload(campaign)
+
+    if (!payload) {
+      setFeedback({
+        tone: "danger",
+        message: "Esta campanha nao tem payload completo guardado para reenvio direto.",
+      })
+      return
+    }
+
+    const validationError = validateCampaignPayload(payload)
+    if (validationError) {
+      setFeedback({ tone: "danger", message: validationError })
+      return
+    }
+
+    try {
+      const result = await sendMutation.mutateAsync(payload)
+      setFeedback({
+        tone: "success",
+        message: `Campanha reenviada para ${result.inserted_count} destinatarios. In-app: ${result.notification_count}. Email: ${result.email_recipient_count}.`,
+      })
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel reenviar a campanha.",
+      })
+    }
+  }
+
   const handlePreview = async () => {
     const payload = buildPayload()
     const validationError = validateCampaignPayload(payload)
@@ -446,7 +541,7 @@ export function AdminNotifications() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <form onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <form ref={formRef} onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Composer de campanhas</p>
           <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar campanha administrativa</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
@@ -821,6 +916,26 @@ export function AdminNotifications() {
                   {campaign.message_excerpt ? (
                     <p className="mt-3 text-sm leading-6 text-slate-700">{campaign.message_excerpt}</p>
                   ) : null}
+
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => handleReuseCampaign(campaign)}
+                      disabled={!campaign.can_reuse || sendMutation.isPending}
+                    >
+                      Reaproveitar
+                    </Button>
+                    <Button
+                      type="button"
+                      className="rounded-full"
+                      onClick={() => void handleResendCampaign(campaign)}
+                      disabled={!campaign.can_reuse || sendMutation.isPending}
+                    >
+                      {sendMutation.isPending ? "A reenviar..." : "Reenviar"}
+                    </Button>
+                  </div>
 
                   <div className="mt-4 grid gap-2 text-xs uppercase tracking-[0.16em] text-slate-500 sm:grid-cols-2">
                     <p>{formatDateTime(campaign.created_at)}</p>

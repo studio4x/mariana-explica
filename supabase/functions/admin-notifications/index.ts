@@ -72,6 +72,7 @@ interface CampaignResolution {
 
 interface AuditCampaignSummary {
   audience: Audience
+  user_id: string | null
   purchase_basis: PurchaseBasis
   role: UserRole | null
   status: UserStatus | null
@@ -79,12 +80,16 @@ interface AuditCampaignSummary {
   title: string
   email_subject: string | null
   message_excerpt: string | null
+  message_html: string | null
   product_id: string | null
   product_title: string | null
   product_category_id: string | null
   product_category_title: string | null
+  cta_label: string | null
+  cta_url: string | null
   sent_via_email: boolean
   sent_via_in_app: boolean
+  can_reuse: boolean
   recipient_count: number
   email_recipient_count: number
   notification_count: number
@@ -391,6 +396,7 @@ async function listCampaigns(client: SupabaseClient) {
       actor_email: actor?.email ?? null,
       created_at: String(row.created_at),
       audience: metadata.audience ?? "all",
+      user_id: metadata.user_id ?? null,
       purchase_basis: metadata.purchase_basis ?? "active_grants",
       role: metadata.role ?? null,
       status: metadata.status ?? null,
@@ -398,12 +404,16 @@ async function listCampaigns(client: SupabaseClient) {
       title: metadata.title ?? "Campanha sem titulo",
       email_subject: metadata.email_subject ?? null,
       message_excerpt: metadata.message_excerpt ?? null,
+      message_html: metadata.message_html ?? null,
       product_id: metadata.product_id ?? null,
       product_title: metadata.product_title ?? null,
       product_category_id: metadata.product_category_id ?? null,
       product_category_title: metadata.product_category_title ?? null,
+      cta_label: metadata.cta_label ?? null,
+      cta_url: metadata.cta_url ?? null,
       sent_via_email: Boolean(metadata.sent_via_email),
       sent_via_in_app: Boolean(metadata.sent_via_in_app),
+      can_reuse: Boolean(metadata.can_reuse ?? metadata.message_html),
       recipient_count: Number(metadata.recipient_count ?? 0),
       email_recipient_count: Number(metadata.email_recipient_count ?? 0),
       notification_count: Number(metadata.notification_count ?? 0),
@@ -559,6 +569,7 @@ Deno.serve(async (req) => {
 
     const auditSummary: AuditCampaignSummary = {
       audience: input.audience,
+      user_id: input.audience === "single" ? input.userId ?? null : null,
       purchase_basis: input.purchaseBasis ?? "active_grants",
       role: input.role ?? null,
       status: input.status ?? null,
@@ -566,12 +577,16 @@ Deno.serve(async (req) => {
       title: input.title,
       email_subject: input.emailSubject ?? null,
       message_excerpt: buildMessageExcerpt(richTextToPlainText(baseMessageHtml)),
+      message_html: baseMessageHtml || null,
       product_id: resolution.product?.id ?? null,
       product_title: resolution.product?.title ?? null,
       product_category_id: resolution.category?.id ?? null,
       product_category_title: resolution.category?.title ?? null,
+      cta_label: input.ctaLabel ?? null,
+      cta_url: input.ctaUrl ?? null,
       sent_via_email: input.sentViaEmail,
       sent_via_in_app: input.sentViaInApp,
+      can_reuse: true,
       recipient_count: renderedRecipients.length,
       email_recipient_count: emailRecipientCount,
       notification_count: notificationCount,

@@ -1050,6 +1050,7 @@ export interface AdminNotificationCampaignSummary {
   actor_email: string | null
   created_at: string
   audience: AdminNotificationCampaignAudience
+  user_id: string | null
   purchase_basis: AdminNotificationCampaignPurchaseBasis
   role: AdminUserSummary["role"] | null
   status: AdminUserSummary["status"] | null
@@ -1057,12 +1058,16 @@ export interface AdminNotificationCampaignSummary {
   title: string
   email_subject: string | null
   message_excerpt: string | null
+  message_html: string | null
   product_id: string | null
   product_title: string | null
   product_category_id: string | null
   product_category_title: string | null
+  cta_label: string | null
+  cta_url: string | null
   sent_via_email: boolean
   sent_via_in_app: boolean
+  can_reuse: boolean
   recipient_count: number
   email_recipient_count: number
   notification_count: number

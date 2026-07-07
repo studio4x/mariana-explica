@@ -72,7 +72,40 @@ function renderPage() {
     notification_count: 2,
   })
 
-  mockUseAdminNotificationCampaigns.mockReturnValue(buildHookState())
+  mockUseAdminNotificationCampaigns.mockReturnValue({
+    ...buildHookState(),
+    data: [
+      {
+        id: "campaign-1",
+        actor_user_id: "admin-1",
+        actor_name: "Admin Mariana",
+        actor_email: "admin@example.com",
+        created_at: "2026-07-07T19:00:00.000Z",
+        audience: "segment",
+        user_id: null,
+        purchase_basis: "active_grants",
+        role: "student",
+        status: "active",
+        type: "informational",
+        title: "Campanha guardada",
+        email_subject: "Assunto guardado",
+        message_excerpt: "Resumo guardado",
+        message_html: "<p>Mensagem guardada</p>",
+        product_id: "prod-1",
+        product_title: "Sebenta de Filosofia",
+        product_category_id: "cat-1",
+        product_category_title: "Sebentas individuais",
+        cta_label: "Ver material",
+        cta_url: "{{notifications_url}}",
+        sent_via_email: true,
+        sent_via_in_app: true,
+        can_reuse: true,
+        recipient_count: 2,
+        email_recipient_count: 2,
+        notification_count: 2,
+      },
+    ],
+  })
   mockUseAdminUsers.mockReturnValue({
     ...buildHookState(),
     data: [
@@ -196,6 +229,46 @@ describe("AdminNotifications", () => {
         title: "Atualizacao {{product_title}}",
         emailSubject: "Assunto {{product_title}}",
         messageHtml: "<p>Nova aula disponivel</p>",
+        ctaLabel: "Ver material",
+        ctaUrl: "{{notifications_url}}",
+        sentViaEmail: true,
+        sentViaInApp: true,
+      }),
+    )
+  })
+
+  it("fills the composer with the saved campaign when clicking reuse", async () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole("button", { name: "Reaproveitar" }))
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Ex.: Sessao extra disponivel")).toHaveValue("Campanha guardada")
+      expect(screen.getByPlaceholderText("Opcional. Se vazio, o backend usa o titulo.")).toHaveValue("Assunto guardado")
+      expect(screen.getByLabelText("Mensagem da campanha")).toHaveValue("<p>Mensagem guardada</p>")
+      expect(screen.getByPlaceholderText("Ex.: Ver material")).toHaveValue("Ver material")
+      expect(screen.getByPlaceholderText("/aluno/notificacoes")).toHaveValue("{{notifications_url}}")
+    })
+  })
+
+  it("re-sends a saved campaign directly from history", async () => {
+    const { sendSpy } = renderPage()
+
+    fireEvent.click(screen.getByRole("button", { name: "Reenviar" }))
+
+    await waitFor(() =>
+      expect(sendSpy).toHaveBeenCalledWith({
+        audience: "segment",
+        userId: undefined,
+        role: "student",
+        status: "active",
+        productCategoryId: "cat-1",
+        productId: "prod-1",
+        purchaseBasis: "active_grants",
+        type: "informational",
+        title: "Campanha guardada",
+        emailSubject: "Assunto guardado",
+        messageHtml: "<p>Mensagem guardada</p>",
         ctaLabel: "Ver material",
         ctaUrl: "{{notifications_url}}",
         sentViaEmail: true,
