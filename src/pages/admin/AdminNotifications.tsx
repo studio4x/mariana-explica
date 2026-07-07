@@ -4,14 +4,17 @@ import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAdminNotificationCampaigns,
+  useAdminOperations,
   useAdminProductCategories,
   useAdminProducts,
   useAdminUsers,
   usePreviewAdminNotificationCampaign,
+  useRetryAdminEmailDelivery,
   useSendAdminNotificationCampaign,
 } from "@/hooks/useAdmin"
 import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text"
 import type {
+  AdminEmailDeliverySummary,
   AdminNotificationCampaignInput,
   AdminNotificationCampaignPreview,
   AdminNotificationCampaignSummary,
@@ -24,6 +27,7 @@ import { formatDateTime } from "@/utils/date"
 type Audience = AdminNotificationCampaignInput["audience"]
 type NotificationType = AdminNotificationCampaignInput["type"]
 type TagTarget = "title" | "emailSubject" | "messageHtml" | "ctaLabel" | "ctaUrl"
+type NotificationsSideTab = "campaigns" | "queue"
 
 const BASE_TAG_OPTIONS: AdminNotificationCampaignTagOption[] = [
   {
@@ -129,6 +133,18 @@ function getToneForType(type: NotificationType) {
     default:
       return "neutral"
   }
+}
+
+function getEmailTone(status: AdminEmailDeliverySummary["status"]) {
+  if (status === "sent" || status === "delivered") {
+    return "success"
+  }
+
+  if (status === "failed" || status === "bounced") {
+    return "danger"
+  }
+
+  return "warning"
 }
 
 function getAudienceLabel(campaign: AdminNotificationCampaignSummary) {
@@ -266,14 +282,17 @@ export function AdminNotifications() {
   const [sentViaEmail, setSentViaEmail] = useState(true)
   const [sentViaInApp, setSentViaInApp] = useState(true)
   const [tagTarget, setTagTarget] = useState<TagTarget>("messageHtml")
+  const [activeSideTab, setActiveSideTab] = useState<NotificationsSideTab>("campaigns")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [preview, setPreview] = useState<AdminNotificationCampaignPreview | null>(null)
 
   const campaignsQuery = useAdminNotificationCampaigns()
+  const operationsQuery = useAdminOperations()
   const usersQuery = useAdminUsers()
   const productsQuery = useAdminProducts()
   const categoriesQuery = useAdminProductCategories()
   const previewMutation = usePreviewAdminNotificationCampaign()
+  const retryEmailMutation = useRetryAdminEmailDelivery()
   const sendMutation = useSendAdminNotificationCampaign()
 
   const isLoading =
@@ -284,6 +303,16 @@ export function AdminNotifications() {
   const products = productsQuery.data ?? []
   const categories = categoriesQuery.data ?? []
   const campaigns = campaignsQuery.data ?? []
+  const emailDeliveries = operationsQuery.data?.emailDeliveries ?? []
+
+  const emailQueueSummary = useMemo(
+    () => ({
+      queued: emailDeliveries.filter((delivery) => delivery.status === "queued").length,
+      failed: emailDeliveries.filter((delivery) => delivery.status === "failed" || delivery.status === "bounced").length,
+      sent: emailDeliveries.filter((delivery) => delivery.status === "sent" || delivery.status === "delivered").length,
+    }),
+    [emailDeliveries],
+  )
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === productCategoryId) ?? null,
@@ -447,6 +476,22 @@ export function AdminNotifications() {
       setFeedback({
         tone: "danger",
         message: error instanceof Error ? error.message : "Nao foi possivel reenviar a campanha.",
+      })
+    }
+  }
+
+  const handleRetryEmailDelivery = async (deliveryId: string) => {
+    try {
+      await retryEmailMutation.mutateAsync(deliveryId)
+      setFeedback({
+        tone: "success",
+        message: "Email reenfileirado com sucesso para nova tentativa de envio.",
+      })
+      setActiveSideTab("queue")
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel reenfileirar este email.",
       })
     }
   }
@@ -872,79 +917,198 @@ export function AdminNotifications() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Historico de campanhas</h2>
+              <h2 className="font-display text-2xl font-bold text-slate-950">
+                {activeSideTab === "campaigns" ? "Historico de campanhas" : "Fila de envio"}
+              </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Listagem agregada a partir dos registos de auditoria do backend.
+                {activeSideTab === "campaigns"
+                  ? "Listagem agregada a partir dos registos de auditoria do backend."
+                  : "Acompanha aqui o estado dos emails enfileirados e entregues pela camada operacional."}
               </p>
             </div>
-            <StatusBadge label={`${campaigns.length} disparos`} tone="neutral" />
+            <StatusBadge
+              label={activeSideTab === "campaigns" ? `${campaigns.length} disparos` : `${emailDeliveries.length} emails`}
+              tone="neutral"
+            />
           </div>
 
-          {campaigns.length === 0 ? (
+          <div className="mt-5 inline-flex rounded-full border border-slate-200 bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setActiveSideTab("campaigns")}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-semibold transition",
+                activeSideTab === "campaigns" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950",
+              ].join(" ")}
+            >
+              Campanhas
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSideTab("queue")}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-semibold transition",
+                activeSideTab === "queue" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950",
+              ].join(" ")}
+            >
+              Fila de envio
+            </button>
+          </div>
+
+          {activeSideTab === "campaigns" ? (
+            campaigns.length === 0 ? (
+              <div className="mt-6">
+                <EmptyState
+                  title="Sem campanhas"
+                  message="Quando o admin enviar comunicacoes por esta area, o historico agregado vai aparecer aqui."
+                />
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3">
+                {campaigns.map((campaign) => (
+                  <div key={campaign.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-slate-950">{campaign.title}</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {campaign.actor_name ?? "Admin"}{campaign.actor_email ? ` - ${campaign.actor_email}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <StatusBadge label={campaign.type} tone={getToneForType(campaign.type)} />
+                        <StatusBadge label={getAudienceLabel(campaign)} tone="neutral" />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {campaign.sent_via_in_app ? <StatusBadge label="In-app" tone="info" /> : null}
+                      {campaign.sent_via_email ? <StatusBadge label="Email" tone="success" /> : null}
+                      {campaign.product_category_title ? (
+                        <StatusBadge label={campaign.product_category_title} tone="neutral" />
+                      ) : null}
+                      {campaign.product_title ? <StatusBadge label={campaign.product_title} tone="neutral" /> : null}
+                    </div>
+
+                    {campaign.message_excerpt ? (
+                      <p className="mt-3 text-sm leading-6 text-slate-700">{campaign.message_excerpt}</p>
+                    ) : null}
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => handleReuseCampaign(campaign)}
+                        disabled={!campaign.can_reuse || sendMutation.isPending}
+                      >
+                        Reaproveitar
+                      </Button>
+                      <Button
+                        type="button"
+                        className="rounded-full"
+                        onClick={() => void handleResendCampaign(campaign)}
+                        disabled={!campaign.can_reuse || sendMutation.isPending}
+                      >
+                        {sendMutation.isPending ? "A reenviar..." : "Reenviar"}
+                      </Button>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 text-xs uppercase tracking-[0.16em] text-slate-500 sm:grid-cols-2">
+                      <p>{formatDateTime(campaign.created_at)}</p>
+                      <p className="sm:text-right">
+                        {campaign.recipient_count} destinatarios
+                        {campaign.sent_via_email ? ` - ${campaign.email_recipient_count} email` : ""}
+                        {campaign.sent_via_in_app ? ` - ${campaign.notification_count} in-app` : ""}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : operationsQuery.isLoading ? (
+            <div className="mt-5 space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+              ))}
+            </div>
+          ) : operationsQuery.isError ? (
+            <div className="mt-6">
+              <ErrorState
+                title="Nao foi possivel carregar a fila de envio"
+                message={operationsQuery.error instanceof Error ? operationsQuery.error.message : "Tenta novamente dentro de instantes."}
+                onRetry={() => void operationsQuery.refetch()}
+              />
+            </div>
+          ) : emailDeliveries.length === 0 ? (
             <div className="mt-6">
               <EmptyState
-                title="Sem campanhas"
-                message="Quando o admin enviar comunicacoes por esta area, o historico agregado vai aparecer aqui."
+                title="Sem emails na fila"
+                message="Quando as campanhas criarem envios por email, os estados vao aparecer aqui."
               />
             </div>
           ) : (
             <div className="mt-5 space-y-3">
-              {campaigns.map((campaign) => (
-                <div key={campaign.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Em fila</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{emailQueueSummary.queued}</p>
+                </div>
+                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Entregues</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{emailQueueSummary.sent}</p>
+                </div>
+                <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Falhas</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{emailQueueSummary.failed}</p>
+                </div>
+              </div>
+
+              {emailDeliveries.slice(0, 10).map((delivery) => (
+                <div key={delivery.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-slate-950">{campaign.title}</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        {campaign.actor_name ?? "Admin"}{campaign.actor_email ? ` - ${campaign.actor_email}` : ""}
-                      </p>
+                      <p className="font-medium text-slate-950">{delivery.subject ?? "Email sem assunto"}</p>
+                      <p className="mt-1 text-sm text-slate-600">{delivery.email_to}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <StatusBadge label={campaign.type} tone={getToneForType(campaign.type)} />
-                      <StatusBadge label={getAudienceLabel(campaign)} tone="neutral" />
+                      <StatusBadge label={delivery.status} tone={getEmailTone(delivery.status)} />
+                      <StatusBadge label={delivery.template_key} tone="neutral" />
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {campaign.sent_via_in_app ? <StatusBadge label="In-app" tone="info" /> : null}
-                    {campaign.sent_via_email ? <StatusBadge label="Email" tone="success" /> : null}
-                    {campaign.product_category_title ? (
-                      <StatusBadge label={campaign.product_category_title} tone="neutral" />
-                    ) : null}
-                    {campaign.product_title ? <StatusBadge label={campaign.product_title} tone="neutral" /> : null}
-                  </div>
-
-                  {campaign.message_excerpt ? (
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{campaign.message_excerpt}</p>
-                  ) : null}
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => handleReuseCampaign(campaign)}
-                      disabled={!campaign.can_reuse || sendMutation.isPending}
-                    >
-                      Reaproveitar
-                    </Button>
-                    <Button
-                      type="button"
-                      className="rounded-full"
-                      onClick={() => void handleResendCampaign(campaign)}
-                      disabled={!campaign.can_reuse || sendMutation.isPending}
-                    >
-                      {sendMutation.isPending ? "A reenviar..." : "Reenviar"}
-                    </Button>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 text-xs uppercase tracking-[0.16em] text-slate-500 sm:grid-cols-2">
-                    <p>{formatDateTime(campaign.created_at)}</p>
-                    <p className="sm:text-right">
-                      {campaign.recipient_count} destinatarios
-                      {campaign.sent_via_email ? ` - ${campaign.email_recipient_count} email` : ""}
-                      {campaign.sent_via_in_app ? ` - ${campaign.notification_count} in-app` : ""}
+                  <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                    <p>
+                      <span className="font-semibold text-slate-800">Criado:</span> {formatDateTime(delivery.created_at)}
                     </p>
+                    <p>
+                      <span className="font-semibold text-slate-800">Enviado:</span>{" "}
+                      {delivery.sent_at ? formatDateTime(delivery.sent_at) : "Ainda pendente"}
+                    </p>
+                    {delivery.provider ? (
+                      <p>
+                        <span className="font-semibold text-slate-800">Provider:</span> {delivery.provider}
+                      </p>
+                    ) : null}
+                    {delivery.error_message ? (
+                      <p className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+                        {delivery.error_message}
+                      </p>
+                    ) : null}
                   </div>
+
+                  {delivery.status === "failed" || delivery.status === "bounced" ? (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => void handleRetryEmailDelivery(delivery.id)}
+                        disabled={retryEmailMutation.isPending}
+                      >
+                        {retryEmailMutation.isPending ? "A reenfileirar..." : "Reenfileirar email"}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

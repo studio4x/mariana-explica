@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "193"
-export const BUILD_COMMIT = "edge-richtext-fix"
+export const BUILD_DEPLOY_NUMBER = "194"
+export const BUILD_COMMIT = "notifications-queue-tab"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

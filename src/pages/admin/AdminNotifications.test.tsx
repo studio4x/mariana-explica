@@ -3,18 +3,22 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { AdminNotifications } from "./AdminNotifications"
 
 const mockUseAdminNotificationCampaigns = vi.fn()
+const mockUseAdminOperations = vi.fn()
 const mockUseAdminUsers = vi.fn()
 const mockUseAdminProducts = vi.fn()
 const mockUseAdminProductCategories = vi.fn()
 const mockUsePreviewAdminNotificationCampaign = vi.fn()
+const mockUseRetryAdminEmailDelivery = vi.fn()
 const mockUseSendAdminNotificationCampaign = vi.fn()
 
 vi.mock("@/hooks/useAdmin", () => ({
   useAdminNotificationCampaigns: () => mockUseAdminNotificationCampaigns(),
+  useAdminOperations: () => mockUseAdminOperations(),
   useAdminUsers: () => mockUseAdminUsers(),
   useAdminProducts: () => mockUseAdminProducts(),
   useAdminProductCategories: () => mockUseAdminProductCategories(),
   usePreviewAdminNotificationCampaign: () => mockUsePreviewAdminNotificationCampaign(),
+  useRetryAdminEmailDelivery: () => mockUseRetryAdminEmailDelivery(),
   useSendAdminNotificationCampaign: () => mockUseSendAdminNotificationCampaign(),
 }))
 
@@ -71,6 +75,13 @@ function renderPage() {
     email_recipient_count: 2,
     notification_count: 2,
   })
+  const retrySpy = vi.fn().mockResolvedValue({
+    success: true,
+    emailDelivery: {
+      id: "delivery-1",
+      status: "queued",
+    },
+  })
 
   mockUseAdminNotificationCampaigns.mockReturnValue({
     ...buildHookState(),
@@ -105,6 +116,46 @@ function renderPage() {
         notification_count: 2,
       },
     ],
+  })
+  mockUseAdminOperations.mockReturnValue({
+    ...buildHookState(),
+    data: {
+      queuedEmails: 1,
+      failedEmails: 1,
+      failedJobs: 0,
+      deliveredEmails: 2,
+      emailDeliveries: [
+        {
+          id: "delivery-1",
+          user_id: "user-1",
+          notification_id: "notification-1",
+          email_to: "mariana@example.com",
+          template_key: "manual_notification",
+          provider: "smtp",
+          provider_message_id: "provider-1",
+          subject: "Assunto guardado",
+          status: "failed",
+          error_message: "SMTP timeout",
+          sent_at: null,
+          created_at: "2026-07-07T18:50:00.000Z",
+        },
+        {
+          id: "delivery-2",
+          user_id: "user-1",
+          notification_id: "notification-2",
+          email_to: "mariana@example.com",
+          template_key: "manual_notification",
+          provider: "smtp",
+          provider_message_id: "provider-2",
+          subject: "Outro email",
+          status: "queued",
+          error_message: null,
+          sent_at: null,
+          created_at: "2026-07-07T18:40:00.000Z",
+        },
+      ],
+      jobRuns: [],
+    },
   })
   mockUseAdminUsers.mockReturnValue({
     ...buildHookState(),
@@ -150,6 +201,10 @@ function renderPage() {
     isPending: false,
     mutateAsync: previewSpy,
   })
+  mockUseRetryAdminEmailDelivery.mockReturnValue({
+    isPending: false,
+    mutateAsync: retrySpy,
+  })
   mockUseSendAdminNotificationCampaign.mockReturnValue({
     isPending: false,
     mutateAsync: sendSpy,
@@ -157,7 +212,7 @@ function renderPage() {
 
   render(<AdminNotifications />)
 
-  return { previewSpy, sendSpy }
+  return { previewSpy, retrySpy, sendSpy }
 }
 
 describe("AdminNotifications", () => {
@@ -275,5 +330,18 @@ describe("AdminNotifications", () => {
         sentViaInApp: true,
       }),
     )
+  })
+
+  it("shows the sending queue tab with delivery statuses and retry action", async () => {
+    const { retrySpy } = renderPage()
+
+    fireEvent.click(screen.getByRole("button", { name: "Fila de envio" }))
+
+    expect(screen.getByText("SMTP timeout")).toBeInTheDocument()
+    expect(screen.getByText("failed")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Reenfileirar email" }))
+
+    await waitFor(() => expect(retrySpy).toHaveBeenCalledWith("delivery-1"))
   })
 })
