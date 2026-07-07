@@ -1,0 +1,77 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ilustração de apoio e contacto">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="840" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAF7FD" />
+      <stop offset="1" stop-color="#D6EAF6" />
+    </linearGradient>
+    <linearGradient id="panel" x1="240" y1="180" x2="720" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#F7FBFE" />
+    </linearGradient>
+    <linearGradient id="accent" x1="300" y1="430" x2="660" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#123F59" />
+      <stop offset="1" stop-color="#2E77A8" />
+    </linearGradient>
+    <linearGradient id="chat" x1="570" y1="280" x2="770" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#EFF8FD" />
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="960" height="720" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#123F59" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <rect width="960" height="720" rx="48" fill="url(#bg)" />
+
+  <circle cx="178" cy="132" r="84" fill="#FFFFFF" opacity="0.45" />
+  <circle cx="802" cy="120" r="94" fill="#FFFFFF" opacity="0.32" />
+  <circle cx="804" cy="588" r="130" fill="#FFFFFF" opacity="0.28" />
+
+  <g filter="url(#shadow)">
+    <rect x="116" y="92" width="728" height="536" rx="40" fill="url(#panel)" />
+  </g>
+
+  <rect x="166" y="150" width="182" height="36" rx="18" fill="#E7F3FB" />
+  <circle cx="184" cy="168" r="8" fill="#123F59" />
+  <rect x="200" y="160" width="118" height="16" rx="8" fill="#123F59" opacity="0.7" />
+
+  <rect x="166" y="218" width="332" height="28" rx="14" fill="#123F59" opacity="0.12" />
+  <rect x="166" y="264" width="250" height="16" rx="8" fill="#123F59" opacity="0.10" />
+  <rect x="166" y="292" width="280" height="16" rx="8" fill="#123F59" opacity="0.10" />
+
+  <rect x="166" y="350" width="220" height="58" rx="18" fill="url(#chat)" stroke="#D9E8F2" />
+  <circle cx="194" cy="379" r="12" fill="#E5F4FB" />
+  <path d="M188 379C188 374.582 191.582 371 196 371C200.418 371 204 374.582 204 379C204 382.627 201.545 385.694 198.214 386.617L197.2 390H194.8L193.786 386.617C190.455 385.694 188 382.627 188 379Z" fill="#123F59" />
+  <rect x="218" y="370" width="116" height="14" rx="7" fill="#123F59" opacity="0.78" />
+  <rect x="218" y="390" width="90" height="10" rx="5" fill="#123F59" opacity="0.38" />
+
+  <rect x="166" y="440" width="262" height="112" rx="28" fill="url(#accent)" />
+  <circle cx="216" cy="498" r="24" fill="#FFFFFF" opacity="0.16" />
+  <path d="M202 498C202 490.268 208.268 484 216 484C223.732 484 230 490.268 230 498C230 504.45 225.665 509.877 219.7 511.593L217.9 517H214.1L212.3 511.593C206.335 509.877 202 504.45 202 498Z" fill="#FFFFFF" />
+  <rect x="252" y="478" width="124" height="14" rx="7" fill="#FFFFFF" opacity="0.92" />
+  <rect x="252" y="500" width="88" height="10" rx="5" fill="#FFFFFF" opacity="0.7" />
+  <rect x="252" y="520" width="106" height="10" rx="5" fill="#FFFFFF" opacity="0.7" />
+
+  <g>
+    <rect x="548" y="184" width="224" height="118" rx="28" fill="#FFFFFF" stroke="#DCE9F3" />
+    <circle cx="592" cy="244" r="24" fill="#EAF7FD" />
+    <path d="M578 244C578 236.268 584.268 230 592 230C599.732 230 606 236.268 606 244C606 250.45 601.665 255.877 595.7 257.593L593.9 263H590.1L588.3 257.593C582.335 255.877 578 250.45 578 244Z" fill="#123F59" />
+    <rect x="628" y="228" width="102" height="14" rx="7" fill="#123F59" opacity="0.8" />
+    <rect x="628" y="250" width="84" height="10" rx="5" fill="#123F59" opacity="0.36" />
+  </g>
+
+  <g>
+    <rect x="606" y="334" width="206" height="102" rx="28" fill="#FFFFFF" stroke="#DCE9F3" />
+    <circle cx="646" cy="386" r="20" fill="#E7F3FB" />
+    <path d="M634 386C634 379.373 639.373 374 646 374C652.627 374 658 379.373 658 386C658 391.524 654.309 396.159 649.3 397.625L647.8 402H644.2L642.7 397.625C637.691 396.159 634 391.524 634 386Z" fill="#123F59" />
+    <rect x="676" y="372" width="96" height="14" rx="7" fill="#123F59" opacity="0.8" />
+    <rect x="676" y="394" width="66" height="10" rx="5" fill="#123F59" opacity="0.36" />
+  </g>
+
+  <path d="M470 516C522 488 586 472 654 472C700 472 744 480 782 494" stroke="#7DBCE2" stroke-width="12" stroke-linecap="round" />
+  <path d="M452 548C510 522 578 508 650 508C694 508 736 514 772 526" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.88" />
+
+  <circle cx="482" cy="238" r="14" fill="#123F59" opacity="0.12" />
+  <circle cx="516" cy="238" r="14" fill="#123F59" opacity="0.12" />
+  <circle cx="550" cy="238" r="14" fill="#123F59" opacity="0.12" />
+</svg>

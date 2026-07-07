@@ -76,8 +76,7 @@ const PAGE_FRAME_FIELD: VisualEditorPageDefinition["fields"][number] = {
   description: "Ajusta o espaço entre o header e o início do conteúdo.",
 }
 
-const SUPPORT_IMAGE_SRC =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 960 720'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%' stop-color='#e0f2fe'/><stop offset='100%' stop-color='#bae6fd'/></linearGradient></defs><rect width='960' height='720' rx='48' fill='url(#g)'/><rect x='70' y='70' width='820' height='580' rx='36' fill='#ffffff' opacity='0.9'/><circle cx='320' cy='280' r='92' fill='#0f172a' opacity='0.08'/><rect x='424' y='200' width='240' height='26' rx='13' fill='#0f172a' opacity='0.16'/><rect x='424' y='246' width='180' height='18' rx='9' fill='#0f172a' opacity='0.12'/><rect x='200' y='440' width='560' height='120' rx='28' fill='#0f172a' opacity='0.05'/><path d='M286 506h388' stroke='#0284c7' stroke-width='18' stroke-linecap='round'/><path d='M408 506l48-48 42 42 70-86 78 70' fill='none' stroke='#0284c7' stroke-width='18' stroke-linecap='round' stroke-linejoin='round'/></svg>"
+const SUPPORT_IMAGE_SRC = "/support-hero-illustration.svg"
 
 export const SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT: SupportVisualEditorDocument = {
   hero: {

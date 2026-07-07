@@ -295,7 +295,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
               <EditableContainer
                 fieldKey="supportForm.noticeContainer"
                 as="section"
-                className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10"
+                className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10 [&_*]:!text-white"
               >
                 <EditableText
                   fieldKey="supportForm.noticeTitle"
@@ -335,9 +335,9 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                 </div>
               </EditableContainer>
             ) : (
-              <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10">
+              <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10 [&_*]:!text-white">
                 <h2 className="text-2xl font-black text-white md:text-3xl">{supportForm.noticeTitle}</h2>
-                <div className="mt-5 space-y-4 text-base leading-8 text-white/90">
+                <div className="mt-5 space-y-4 text-base leading-8 text-white">
                   <p>
                     <span className="font-black text-white">{supportForm.planningLabel}</span> {supportForm.planningText}
                   </p>
