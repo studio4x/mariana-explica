@@ -970,6 +970,50 @@ export function AdminNotifications() {
                       ))}
                     </div>
                   ) : null}
+
+                  {preview.emailPreview ? (
+                    <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+                      <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">Preview do email</p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              Renderizacao com o template padrao usado no envio manual da plataforma.
+                            </p>
+                          </div>
+                          <StatusBadge label="Template padrao" tone="success" />
+                        </div>
+
+                        <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
+                          <iframe
+                            title="preview-email-notification"
+                            srcDoc={preview.emailPreview.html}
+                            className="h-[560px] w-full bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                            Assunto renderizado
+                          </p>
+                          <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                            {preview.emailPreview.subject}
+                          </p>
+                        </div>
+
+                        <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                            Texto puro
+                          </p>
+                          <pre className="mt-3 max-h-[260px] overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                            {preview.emailPreview.text}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-600">

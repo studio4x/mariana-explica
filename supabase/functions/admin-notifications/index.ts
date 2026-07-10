@@ -70,6 +70,16 @@ interface CampaignResolution {
   category: CampaignCategory | null
 }
 
+interface RenderedCampaignRecipient {
+  recipient: CampaignRecipient
+  title: string
+  emailSubject: string
+  messageHtml: string
+  messageText: string
+  ctaLabel: string | null
+  ctaUrl: string | null
+}
+
 interface AuditCampaignSummary {
   audience: Audience
   user_id: string | null
@@ -220,6 +230,32 @@ function sortRecipients(items: CampaignRecipient[]) {
     const rightName = normalizePlainValue(right.full_name || right.email || right.id).toLowerCase()
     return leftName.localeCompare(rightName)
   })
+}
+
+function renderCampaignForRecipient(
+  recipient: CampaignRecipient,
+  input: Omit<AdminNotificationCampaignInput, "action">,
+  product: CampaignProduct | null,
+  category: CampaignCategory | null,
+): RenderedCampaignRecipient {
+  const baseMessageHtml = sanitizeRichTextHtml(input.messageHtml ?? "")
+  const variables = buildTemplateVariables(recipient, product, category)
+  const renderedTitle = normalizePlainValue(replaceCampaignTags(input.title, variables))
+  const renderedEmailSubject = normalizePlainValue(replaceCampaignTags(input.emailSubject ?? input.title, variables))
+  const renderedMessageHtml = sanitizeRichTextHtml(replaceCampaignTags(baseMessageHtml, variables))
+  const renderedMessageText = richTextToPlainText(renderedMessageHtml)
+  const renderedCtaLabel = normalizePlainValue(replaceCampaignTags(input.ctaLabel, variables)) || null
+  const renderedCtaUrl = normalizePlainValue(replaceCampaignTags(input.ctaUrl, variables)) || null
+
+  return {
+    recipient,
+    title: renderedTitle,
+    emailSubject: renderedEmailSubject || renderedTitle,
+    messageHtml: renderedMessageHtml,
+    messageText: renderedMessageText,
+    ctaLabel: renderedCtaLabel,
+    ctaUrl: renderedCtaUrl,
+  }
 }
 
 async function fetchSingleProduct(client: SupabaseClient, productId: string) {
@@ -454,6 +490,21 @@ Deno.serve(async (req) => {
 
     if (action === "preview") {
       const resolution = await resolveRecipients(context.serviceClient, input)
+      const previewRecipient = resolution.recipients[0]
+      const renderedPreviewRecipient = previewRecipient
+        ? renderCampaignForRecipient(previewRecipient, input, resolution.product, resolution.category)
+        : null
+      const emailPreview = input.sentViaEmail && renderedPreviewRecipient
+        ? await buildManualNotificationEmail(context.serviceClient, {
+          fullName: renderedPreviewRecipient.recipient.full_name,
+          title: renderedPreviewRecipient.title,
+          emailSubject: renderedPreviewRecipient.emailSubject,
+          messageHtml: renderedPreviewRecipient.messageHtml,
+          messageText: renderedPreviewRecipient.messageText,
+          ctaLabel: renderedPreviewRecipient.ctaLabel,
+          ctaUrl: renderedPreviewRecipient.ctaUrl,
+        })
+        : null
 
       return jsonResponse({
         success: true,
@@ -465,6 +516,13 @@ Deno.serve(async (req) => {
             full_name: recipient.full_name,
             email: recipient.email,
           })),
+          emailPreview: emailPreview
+            ? {
+              subject: emailPreview.subject,
+              html: emailPreview.html,
+              text: emailPreview.text,
+            }
+            : null,
         },
       })
     }
@@ -475,26 +533,9 @@ Deno.serve(async (req) => {
 
     const resolution = await resolveRecipients(context.serviceClient, input)
     const baseMessageHtml = sanitizeRichTextHtml(input.messageHtml ?? "")
-
-    const renderedRecipients = resolution.recipients.map((recipient) => {
-      const variables = buildTemplateVariables(recipient, resolution.product, resolution.category)
-      const renderedTitle = normalizePlainValue(replaceCampaignTags(input.title, variables))
-      const renderedEmailSubject = normalizePlainValue(replaceCampaignTags(input.emailSubject ?? input.title, variables))
-      const renderedMessageHtml = sanitizeRichTextHtml(replaceCampaignTags(baseMessageHtml, variables))
-      const renderedMessageText = richTextToPlainText(renderedMessageHtml)
-      const renderedCtaLabel = normalizePlainValue(replaceCampaignTags(input.ctaLabel, variables)) || null
-      const renderedCtaUrl = normalizePlainValue(replaceCampaignTags(input.ctaUrl, variables)) || null
-
-      return {
-        recipient,
-        title: renderedTitle,
-        emailSubject: renderedEmailSubject || renderedTitle,
-        messageHtml: renderedMessageHtml,
-        messageText: renderedMessageText,
-        ctaLabel: renderedCtaLabel,
-        ctaUrl: renderedCtaUrl,
-      }
-    })
+    const renderedRecipients = resolution.recipients.map((recipient) =>
+      renderCampaignForRecipient(recipient, input, resolution.product, resolution.category)
+    )
 
     if (input.sentViaEmail && renderedRecipients.every((item) => !normalizePlainValue(item.recipient.email))) {
       throw notFound("Nenhum destinatario com email disponivel para esta campanha")

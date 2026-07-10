@@ -78,6 +78,11 @@ function renderPage() {
         email: "mariana@example.com",
       },
     ],
+    emailPreview: {
+      subject: "Preview da campanha",
+      html: "<html><body><p>Email preview</p></body></html>",
+      text: "Email preview",
+    },
   })
   const sendSpy = vi.fn().mockResolvedValue({
     inserted_count: 2,
@@ -359,6 +364,25 @@ describe("AdminNotifications", () => {
     fireEvent.click(screen.getByRole("button", { name: "Visual" }))
 
     await waitFor(() => expect(screen.getByLabelText("Mensagem da campanha")).toHaveValue("<p>Mensagem HTML</p>"))
+  })
+
+  it("shows the email preview using the standard template when the campaign preview is generated", async () => {
+    const { previewSpy } = renderPage()
+
+    fireEvent.change(screen.getByPlaceholderText("Ex.: Sessao extra disponivel"), {
+      target: { value: "Nova campanha" },
+    })
+    fireEvent.change(screen.getByLabelText("Mensagem da campanha"), {
+      target: { value: "<p>Mensagem com preview</p>" },
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview de destinatarios" }))
+
+    await waitFor(() => expect(previewSpy).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTitle("preview-email-notification")).toBeInTheDocument())
+    expect(screen.getByText("Preview do email")).toBeInTheDocument()
+    expect(screen.getByText("Preview da campanha")).toBeInTheDocument()
+    expect(screen.getByText("Email preview")).toBeInTheDocument()
   })
 
   it("shows the sending queue tab with delivery statuses and retry action", async () => {

@@ -1041,6 +1041,11 @@ export interface AdminNotificationCampaignInput {
 export interface AdminNotificationCampaignPreview {
   totalRecipients: number
   sampleRecipients: AdminNotificationCampaignRecipientPreview[]
+  emailPreview: {
+    subject: string
+    html: string
+    text: string
+  } | null
 }
 
 export interface AdminNotificationCampaignSummary {
