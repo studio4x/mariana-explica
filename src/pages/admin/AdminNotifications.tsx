@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui"
 import {
   useAdminNotificationCampaigns,
   useAdminOperations,
   useAdminProductCategories,
+  usePreviewAdminNotificationEmail,
   useAdminProducts,
   useAdminUsers,
   usePreviewAdminNotificationCampaign,
   useRetryAdminEmailDelivery,
+  useSendAdminNotificationTestEmail,
   useSendAdminNotificationCampaign,
 } from "@/hooks/useAdmin"
 import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text"
@@ -17,6 +20,7 @@ import type {
   AdminEmailDeliverySummary,
   AdminNotificationCampaignInput,
   AdminNotificationCampaignPreview,
+  AdminNotificationEmailPreview,
   AdminNotificationCampaignSummary,
   AdminNotificationCampaignTagOption,
   AdminUserSummary,
@@ -268,6 +272,8 @@ function getReusablePayload(campaign: AdminNotificationCampaignSummary): Omit<Ad
 
 export function AdminNotifications() {
   const formRef = useRef<HTMLFormElement | null>(null)
+  const livePreviewRequestRef = useRef(0)
+  const { profile } = useAuth()
   const [audience, setAudience] = useState<Audience>("all")
   const [userId, setUserId] = useState("")
   const [role, setRole] = useState<AdminUserSummary["role"] | "">("")
@@ -287,6 +293,9 @@ export function AdminNotifications() {
   const [messageEditorTab, setMessageEditorTab] = useState<MessageEditorTab>("visual")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [preview, setPreview] = useState<AdminNotificationCampaignPreview | null>(null)
+  const [emailPreview, setEmailPreview] = useState<AdminNotificationEmailPreview | null>(null)
+  const [emailPreviewState, setEmailPreviewState] = useState<"idle" | "loading" | "ready" | "error">("idle")
+  const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null)
   const shouldLoadUserDirectory = audience === "single"
   const shouldLoadSegmentFilters = audience === "segment"
   const shouldLoadQueue = activeTab === "queue"
@@ -297,7 +306,9 @@ export function AdminNotifications() {
   const productsQuery = useAdminProducts(shouldLoadSegmentFilters)
   const categoriesQuery = useAdminProductCategories(shouldLoadSegmentFilters)
   const previewMutation = usePreviewAdminNotificationCampaign()
+  const emailPreviewMutation = usePreviewAdminNotificationEmail()
   const retryEmailMutation = useRetryAdminEmailDelivery()
+  const sendTestEmailMutation = useSendAdminNotificationTestEmail()
   const sendMutation = useSendAdminNotificationCampaign()
 
   const isLoading = campaignsQuery.isLoading
@@ -334,6 +345,7 @@ export function AdminNotifications() {
     () => buildTagOptions(selectedProduct, selectedCategory),
     [selectedCategory, selectedProduct],
   )
+  const canRenderEmailPreview = Boolean(title.trim()) && !isRichTextEmpty(messageHtml)
 
   const totals = useMemo(
     () => ({
@@ -374,6 +386,68 @@ export function AdminNotifications() {
       setProductId("")
     }
   }, [filteredProducts, productCategoryId, productId])
+
+  useEffect(() => {
+    if (activeTab !== "campaigns") {
+      return
+    }
+
+    if (!canRenderEmailPreview) {
+      setEmailPreview(null)
+      setEmailPreviewState("idle")
+      setEmailPreviewError(null)
+      return
+    }
+
+    const requestId = livePreviewRequestRef.current + 1
+    livePreviewRequestRef.current = requestId
+    setEmailPreviewState("loading")
+    setEmailPreviewError(null)
+
+    const timeoutId = window.setTimeout(() => {
+      void emailPreviewMutation
+        .mutateAsync(buildPayload())
+        .then((response) => {
+          if (livePreviewRequestRef.current !== requestId) {
+            return
+          }
+
+          setEmailPreview(response)
+          setEmailPreviewState("ready")
+          setEmailPreviewError(null)
+        })
+        .catch((error) => {
+          if (livePreviewRequestRef.current !== requestId) {
+            return
+          }
+
+          setEmailPreviewState("error")
+          setEmailPreviewError(error instanceof Error ? error.message : "Nao foi possivel atualizar o preview do email.")
+        })
+    }, 450)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [
+    activeTab,
+    audience,
+    userId,
+    role,
+    status,
+    productCategoryId,
+    productId,
+    type,
+    title,
+    emailSubject,
+    messageHtml,
+    ctaLabel,
+    ctaUrl,
+    sentViaEmail,
+    sentViaInApp,
+    canRenderEmailPreview,
+    emailPreviewMutation,
+  ])
 
   const insertTag = (token: string) => {
     setFeedback(null)
@@ -522,6 +596,35 @@ export function AdminNotifications() {
     }
   }
 
+  const handleSendTestEmail = async () => {
+    const payload = buildPayload()
+
+    if (!payload.title.trim()) {
+      setFeedback({ tone: "danger", message: "Preenche o titulo antes de enviares um email de teste." })
+      return
+    }
+
+    if (isRichTextEmpty(payload.messageHtml)) {
+      setFeedback({ tone: "danger", message: "Preenche a mensagem antes de enviares um email de teste." })
+      return
+    }
+
+    try {
+      const result = await sendTestEmailMutation.mutateAsync(payload)
+      setFeedback({
+        tone: "success",
+        message: result.processedNow
+          ? `Email de teste enviado para ${result.emailTo}.`
+          : `Email de teste enfileirado para ${result.emailTo}.`,
+      })
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message: error instanceof Error ? error.message : "Nao foi possivel enviar o email de teste.",
+      })
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -611,7 +714,8 @@ export function AdminNotifications() {
       </div>
 
       {activeTab === "campaigns" ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-6">
           <form ref={formRef} onSubmit={handleSubmit} className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Composer de campanhas</p>
           <h2 className="mt-3 font-display text-2xl font-bold text-slate-950">Criar campanha administrativa</h2>
@@ -970,50 +1074,6 @@ export function AdminNotifications() {
                       ))}
                     </div>
                   ) : null}
-
-                  {preview.emailPreview ? (
-                    <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-                      <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-950">Preview do email</p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              Renderizacao com o template padrao usado no envio manual da plataforma.
-                            </p>
-                          </div>
-                          <StatusBadge label="Template padrao" tone="success" />
-                        </div>
-
-                        <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
-                          <iframe
-                            title="preview-email-notification"
-                            srcDoc={preview.emailPreview.html}
-                            className="h-[560px] w-full bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                            Assunto renderizado
-                          </p>
-                          <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
-                            {preview.emailPreview.subject}
-                          </p>
-                        </div>
-
-                        <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                            Texto puro
-                          </p>
-                          <pre className="mt-3 max-h-[260px] overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                            {preview.emailPreview.text}
-                          </pre>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-600">
@@ -1042,11 +1102,24 @@ export function AdminNotifications() {
               variant="outline"
               className="rounded-full"
               onClick={() => void handlePreview()}
-              disabled={previewMutation.isPending || sendMutation.isPending}
+              disabled={previewMutation.isPending || sendMutation.isPending || sendTestEmailMutation.isPending}
             >
               {previewMutation.isPending ? "A calcular..." : "Preview de destinatarios"}
             </Button>
-            <Button type="submit" className="rounded-full" disabled={sendMutation.isPending || previewMutation.isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => void handleSendTestEmail()}
+              disabled={sendMutation.isPending || previewMutation.isPending || sendTestEmailMutation.isPending || !profile?.email}
+            >
+              {sendTestEmailMutation.isPending ? "A enviar teste..." : "Enviar email de teste"}
+            </Button>
+            <Button
+              type="submit"
+              className="rounded-full"
+              disabled={sendMutation.isPending || previewMutation.isPending || sendTestEmailMutation.isPending}
+            >
               {sendMutation.isPending ? "A enviar..." : "Enviar campanha"}
             </Button>
           </div>
@@ -1133,6 +1206,85 @@ export function AdminNotifications() {
               </div>
             )}
           </section>
+          </div>
+
+          <aside className="self-start xl:sticky xl:top-24">
+            <section className="rounded-[1.75rem] border bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-2xl font-bold text-slate-950">Preview do email</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Este card atualiza automaticamente enquanto preenches o composer.
+                  </p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Preview com o admin logado{profile?.email ? ` - ${profile.email}` : ""}
+                  </p>
+                </div>
+                <StatusBadge
+                  label={
+                    emailPreviewState === "loading"
+                      ? "A atualizar"
+                      : emailPreviewState === "ready"
+                        ? "Pronto"
+                        : emailPreviewState === "error"
+                          ? "Erro"
+                          : "Em espera"
+                  }
+                  tone={
+                    emailPreviewState === "ready"
+                      ? "success"
+                      : emailPreviewState === "error"
+                        ? "danger"
+                        : "warning"
+                  }
+                />
+              </div>
+
+              {canRenderEmailPreview ? (
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Assunto</p>
+                    <p className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700">
+                      {emailPreview?.subject ?? (emailSubject.trim() || title.trim() || "Sem assunto")}
+                    </p>
+                  </div>
+
+                  {emailPreviewError ? (
+                    <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {emailPreviewError}
+                    </div>
+                  ) : null}
+
+                  <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
+                    {emailPreview ? (
+                      <iframe
+                        title="preview-email-notification-live"
+                        srcDoc={emailPreview.html}
+                        className="h-[620px] w-full bg-white"
+                      />
+                    ) : (
+                      <div className="flex h-[320px] items-center justify-center px-6 text-sm text-slate-500">
+                        {emailPreviewState === "loading"
+                          ? "A gerar o preview do email..."
+                          : "O preview do email vai aparecer aqui automaticamente."}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Texto puro</p>
+                    <pre className="mt-3 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
+                      {emailPreview?.text ?? "O fallback em texto puro vai aparecer aqui."}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm leading-7 text-slate-600">
+                  Preenche pelo menos o titulo e a mensagem para veres aqui, em tempo real, como o email final vai ficar.
+                </div>
+              )}
+            </section>
+          </aside>
         </div>
       ) : (
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">

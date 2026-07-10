@@ -16,7 +16,7 @@ import {
 } from "../_shared/mod.ts"
 import { logError } from "../_shared/logger.ts"
 
-type CampaignAction = "preview" | "send" | "list_campaigns"
+type CampaignAction = "preview" | "send" | "list_campaigns" | "preview_email" | "send_test_email"
 type Audience = "single" | "segment" | "all"
 type LegacyAudience = "single" | "role" | "all"
 type NotificationType = "transactional" | "informational" | "marketing" | "support"
@@ -66,6 +66,11 @@ interface CampaignCategory {
 
 interface CampaignResolution {
   recipients: CampaignRecipient[]
+  product: CampaignProduct | null
+  category: CampaignCategory | null
+}
+
+interface CampaignSelectionContext {
   product: CampaignProduct | null
   category: CampaignCategory | null
 }
@@ -132,7 +137,12 @@ function normalizeAudience(value: Audience | LegacyAudience): Audience {
   return value === "role" ? "segment" : value
 }
 
-function ensureCampaignInput(body: unknown): Omit<AdminNotificationCampaignInput, "action"> {
+function ensureCampaignInput(
+  body: unknown,
+  options?: {
+    requireAudienceTarget?: boolean
+  },
+): Omit<AdminNotificationCampaignInput, "action"> {
   if (!body || typeof body !== "object") {
     throw badRequest("Payload invalido para campanha")
   }
@@ -161,7 +171,7 @@ function ensureCampaignInput(body: unknown): Omit<AdminNotificationCampaignInput
   const sentViaEmail = input.sentViaEmail ?? false
   const sentViaInApp = input.sentViaInApp ?? true
 
-  if (audience === "single" && !normalizePlainValue(input.userId)) {
+  if ((options?.requireAudienceTarget ?? true) && audience === "single" && !normalizePlainValue(input.userId)) {
     throw badRequest("userId e obrigatorio para audience=single")
   }
 
@@ -307,16 +317,25 @@ async function fetchProductIdsForCategory(client: SupabaseClient, categoryId: st
   return (data ?? []).map((item) => String(item.id))
 }
 
-async function resolveRecipients(
+async function resolveSelectionContext(
   client: SupabaseClient,
   input: Omit<AdminNotificationCampaignInput, "action">,
-): Promise<CampaignResolution> {
+): Promise<CampaignSelectionContext> {
   const product = input.productId ? await fetchSingleProduct(client, input.productId) : null
   const category = input.productCategoryId ? await fetchSingleCategory(client, input.productCategoryId) : null
 
   if (product && category && product.category_id !== category.id) {
     throw badRequest("O material selecionado nao pertence a categoria escolhida")
   }
+
+  return { product, category }
+}
+
+async function resolveRecipients(
+  client: SupabaseClient,
+  input: Omit<AdminNotificationCampaignInput, "action">,
+): Promise<CampaignResolution> {
+  const { product, category } = await resolveSelectionContext(client, input)
 
   let query = client.from("profiles").select("id,full_name,email,role,status")
 
@@ -382,6 +401,92 @@ async function resolveRecipients(
     product,
     category,
   }
+}
+
+function buildCampaignRecipientFromProfile(profile: {
+  id: string
+  full_name: string | null
+  email: string | null
+  role: UserRole
+  status: UserStatus
+}): CampaignRecipient {
+  return {
+    id: profile.id,
+    full_name: profile.full_name,
+    email: profile.email,
+    role: profile.role,
+    status: profile.status,
+  }
+}
+
+async function buildCampaignEmailPreview(
+  client: SupabaseClient,
+  input: Omit<AdminNotificationCampaignInput, "action">,
+  recipient: CampaignRecipient,
+  selection: CampaignSelectionContext,
+) {
+  const renderedPreviewRecipient = renderCampaignForRecipient(recipient, input, selection.product, selection.category)
+  const emailPreview = await buildManualNotificationEmail(client, {
+    fullName: renderedPreviewRecipient.recipient.full_name,
+    title: renderedPreviewRecipient.title,
+    emailSubject: renderedPreviewRecipient.emailSubject,
+    messageHtml: renderedPreviewRecipient.messageHtml,
+    messageText: renderedPreviewRecipient.messageText,
+    ctaLabel: renderedPreviewRecipient.ctaLabel,
+    ctaUrl: renderedPreviewRecipient.ctaUrl,
+  })
+
+  return {
+    subject: emailPreview.subject,
+    html: emailPreview.html,
+    text: emailPreview.text,
+    sampleRecipient: {
+      id: recipient.id,
+      full_name: recipient.full_name,
+      email: recipient.email,
+    },
+  }
+}
+
+function readCronSecret() {
+  return (
+    Deno.env.get("CRON_SECRET")?.trim() ||
+    Deno.env.get("INTERNAL_CRON_SECRET")?.trim() ||
+    Deno.env.get("JOB_RUNNER_SECRET")?.trim() ||
+    null
+  )
+}
+
+function readSupabaseProjectUrl() {
+  return (
+    Deno.env.get("SUPABASE_URL")?.trim() ||
+    Deno.env.get("PROJECT_URL")?.trim() ||
+    null
+  )
+}
+
+async function triggerEmailProcessingNow(input: { requestId: string; batchSize?: number }) {
+  const cronSecret = readCronSecret()
+  const projectUrl = readSupabaseProjectUrl()
+
+  if (!cronSecret || !projectUrl) {
+    return false
+  }
+
+  const targetUrl = `${projectUrl.replace(/\/$/, "")}/functions/v1/cron-process-email-deliveries`
+  const response = await fetch(targetUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-cron-secret": cronSecret,
+      "x-request-id": input.requestId,
+    },
+    body: JSON.stringify({
+      batchSize: Math.max(1, Math.min(10, Math.trunc(input.batchSize ?? 1))),
+    }),
+  })
+
+  return response.ok
 }
 
 async function listCampaigns(client: SupabaseClient) {
@@ -471,7 +576,12 @@ Deno.serve(async (req) => {
 
     const context = await requireAdmin(req)
     const body = await readJsonBody<Record<string, unknown>>(req)
-    const action = body.action === "preview" || body.action === "send" || body.action === "list_campaigns"
+    const action =
+      body.action === "preview" ||
+        body.action === "send" ||
+        body.action === "list_campaigns" ||
+        body.action === "preview_email" ||
+        body.action === "send_test_email"
       ? body.action
       : "send"
     const auditMeta = extractRequestAuditContext(req)
@@ -486,24 +596,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    const input = ensureCampaignInput(body)
+    const input = ensureCampaignInput(body, {
+      requireAudienceTarget: action !== "preview_email" && action !== "send_test_email",
+    })
 
     if (action === "preview") {
       const resolution = await resolveRecipients(context.serviceClient, input)
-      const previewRecipient = resolution.recipients[0]
-      const renderedPreviewRecipient = previewRecipient
-        ? renderCampaignForRecipient(previewRecipient, input, resolution.product, resolution.category)
-        : null
-      const emailPreview = input.sentViaEmail && renderedPreviewRecipient
-        ? await buildManualNotificationEmail(context.serviceClient, {
-          fullName: renderedPreviewRecipient.recipient.full_name,
-          title: renderedPreviewRecipient.title,
-          emailSubject: renderedPreviewRecipient.emailSubject,
-          messageHtml: renderedPreviewRecipient.messageHtml,
-          messageText: renderedPreviewRecipient.messageText,
-          ctaLabel: renderedPreviewRecipient.ctaLabel,
-          ctaUrl: renderedPreviewRecipient.ctaUrl,
-        })
+      const emailPreview = input.sentViaEmail && resolution.recipients[0]
+        ? await buildCampaignEmailPreview(context.serviceClient, input, resolution.recipients[0], resolution)
         : null
 
       return jsonResponse({
@@ -523,6 +623,73 @@ Deno.serve(async (req) => {
               text: emailPreview.text,
             }
             : null,
+        },
+      })
+    }
+
+    if (action === "preview_email") {
+      const selection = await resolveSelectionContext(context.serviceClient, input)
+      const previewRecipient = buildCampaignRecipientFromProfile(context.profile)
+      const preview = await buildCampaignEmailPreview(context.serviceClient, input, previewRecipient, selection)
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        preview,
+      })
+    }
+
+    if (action === "send_test_email") {
+      if (!normalizePlainValue(context.profile.email)) {
+        throw badRequest("O admin autenticado nao tem email disponivel para teste")
+      }
+
+      const selection = await resolveSelectionContext(context.serviceClient, input)
+      const previewRecipient = buildCampaignRecipientFromProfile(context.profile)
+      const preview = await buildCampaignEmailPreview(context.serviceClient, input, previewRecipient, selection)
+
+      await queueEmailDelivery(context.serviceClient, {
+        userId: context.profile.id,
+        notificationId: null,
+        emailTo: context.profile.email ?? "",
+        templateKey: "manual_notification",
+        subject: preview.subject,
+        html: preview.html,
+        text: preview.text,
+        metadata: {
+          is_test_email: true,
+          triggered_by_admin_id: context.profile.id,
+          audience: input.audience,
+          purchase_basis: input.purchaseBasis,
+          type: input.type,
+          product_id: input.productId,
+          product_category_id: input.productCategoryId,
+        },
+      })
+
+      const processedNow = await triggerEmailProcessingNow({ requestId, batchSize: 1 }).catch(() => false)
+
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.notification_test_email_sent",
+        entityType: "notification_campaign_test_email",
+        entityId: null,
+        metadata: {
+          email_to: context.profile.email,
+          processed_now: processedNow,
+          title: input.title,
+          email_subject: input.emailSubject ?? input.title,
+          product_id: input.productId,
+          product_category_id: input.productCategoryId,
+        },
+        ...auditMeta,
+      })
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        result: {
+          emailTo: context.profile.email,
+          processedNow,
         },
       })
     }

@@ -124,6 +124,7 @@ interface SendTransactionalEmailResult {
 
 const ADMIN_PENDING_INFO_KEY = "admin_pending_information"
 const PLATFORM_EMAIL_TEMPLATES_KEY = "platform_email_templates"
+const PLATFORM_BRANDING_KEY = "site_branding"
 const PLATFORM_EMAIL_TEMPLATES_DESCRIPTION =
   "Conteudo editavel dos emails transacionais da plataforma, excluindo emails geridos pelo Supabase Auth."
 
@@ -322,6 +323,7 @@ const PLATFORM_EMAIL_TEMPLATE_DEFINITIONS: PlatformEmailTemplateDefinition[] = [
 ]
 
 interface EmailLayoutInput {
+  headerLogoUrl?: string | null
   eyebrow: string
   title: string
   greeting?: string | null
@@ -332,6 +334,11 @@ interface EmailLayoutInput {
   ctaLabel?: string | null
   ctaUrl?: string | null
   footer?: string | null
+}
+
+interface PlatformBrandingConfig {
+  logo_light: { public_url: string | null }
+  logo_dark: { public_url: string | null }
 }
 
 function escapeHtml(value: string) {
@@ -1061,6 +1068,28 @@ function normalizePlatformEmailTemplateOverrides(value: unknown) {
   return overrides
 }
 
+function normalizeBrandingLogoUrl(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return null
+  }
+
+  const publicUrl = String((value as { public_url?: unknown }).public_url ?? "").trim()
+  return publicUrl || null
+}
+
+function normalizePlatformBrandingConfig(value: unknown): PlatformBrandingConfig {
+  const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
+
+  return {
+    logo_light: {
+      public_url: normalizeBrandingLogoUrl(input.logo_light),
+    },
+    logo_dark: {
+      public_url: normalizeBrandingLogoUrl(input.logo_dark),
+    },
+  }
+}
+
 async function readPlatformEmailTemplatesRow(client: SupabaseClient) {
   const { data, error } = await client
     .from("site_config")
@@ -1073,6 +1102,21 @@ async function readPlatformEmailTemplatesRow(client: SupabaseClient) {
   }
 
   return data
+}
+
+async function fetchPlatformBrandingLogoUrl(client: SupabaseClient) {
+  const { data, error } = await client
+    .from("site_config")
+    .select("config_value")
+    .eq("config_key", PLATFORM_BRANDING_KEY)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  const branding = normalizePlatformBrandingConfig(data?.config_value ?? null)
+  return branding.logo_dark.public_url ?? branding.logo_light.public_url ?? null
 }
 
 function applyTemplateVariables(template: string, variables: Record<string, string>) {
@@ -1096,12 +1140,15 @@ function renderPlatformTemplateContent(
   }
 }
 
-function buildEmailContentFromPlatformTemplate(
+async function buildEmailContentFromPlatformTemplate(
+  client: SupabaseClient,
   content: PlatformEmailTemplateContent,
   variables: Record<string, string>,
-): EmailContent {
+): Promise<EmailContent> {
   const rendered = renderPlatformTemplateContent(content, variables)
+  const headerLogoUrl = await fetchPlatformBrandingLogoUrl(client)
   const email = renderEmailLayout({
+    headerLogoUrl,
     eyebrow: rendered.eyebrow,
     title: rendered.title,
     greeting: rendered.greeting,
@@ -1255,7 +1302,7 @@ export async function previewPlatformEmailTemplate(
   const mergedContent = contentOverride
     ? normalizePlatformEmailTemplateContent(contentOverride, definition.defaultContent)
     : storedTemplate?.content ?? definition.defaultContent
-  const preview = buildEmailContentFromPlatformTemplate(mergedContent, definition.sampleData)
+  const preview = await buildEmailContentFromPlatformTemplate(client, mergedContent, definition.sampleData)
 
   return {
     templateKey,
@@ -1284,7 +1331,9 @@ async function buildPlatformManagedEmail(
   }
 
   const rendered = renderPlatformTemplateContent(template.content, variables)
+  const headerLogoUrl = await fetchPlatformBrandingLogoUrl(client)
   const email = renderEmailLayout({
+    headerLogoUrl,
     eyebrow: rendered.eyebrow,
     title: rendered.title,
     greeting: rendered.greeting,
@@ -1306,6 +1355,14 @@ async function buildPlatformManagedEmail(
 
 function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   const ctaUrl = normalizeUrl(input.ctaUrl)
+  const headerLogo =
+    input.headerLogoUrl?.trim()
+      ? `<div style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:999px;background:#ffffff;">
+        <img src="${escapeHtml(input.headerLogoUrl)}" alt="Mariana Explica" style="display:block;max-width:220px;max-height:46px;height:auto;width:auto;" />
+      </div>`
+      : `<div style="display:inline-block;padding:12px 22px;border-radius:999px;background:#ffffff;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
+        Mariana Explica
+      </div>`
   const greeting = input.greeting
     ? `<p style="margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;">${escapeHtml(input.greeting)}</p>`
     : ""
@@ -1343,9 +1400,7 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;">
       <tr>
         <td>
-          <div style="display:inline-block;padding:12px 22px;border-radius:999px;background:#ffffff;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
-            Mariana Explica
-          </div>
+          ${headerLogo}
         </td>
       </tr>
       <tr>

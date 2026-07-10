@@ -110,8 +110,10 @@ import {
   generateAdminAiPageEditorProposal,
   publishAdminSitePageVersion,
   previewAdminNotificationCampaign,
+  previewAdminNotificationEmail,
   rollbackAdminSitePageVersion,
   saveAdminSitePageDraft,
+  sendAdminNotificationTestEmail,
   sendAdminNotificationCampaign,
   unpublishAdminSitePage,
   uploadAdminSitePageAssetFile,
@@ -137,8 +139,10 @@ import type {
   AdminAiCodeEditorTask,
   AdminNotificationCampaignInput,
   AdminNotificationCampaignPreview,
+  AdminNotificationEmailPreview,
   AdminSitePageDetail,
   AdminNotificationSummary,
+  AdminNotificationTestEmailResult,
   AdminSupportTicketSummary,
   ProductLessonSummary,
   ProductModuleSummary,
@@ -1257,6 +1261,20 @@ export function useCreateAdminNotification() {
 export function usePreviewAdminNotificationCampaign() {
   return useMutation<AdminNotificationCampaignPreview, Error, Omit<AdminNotificationCampaignInput, "action">>({
     mutationFn: previewAdminNotificationCampaign,
+  })
+}
+
+export function usePreviewAdminNotificationEmail() {
+  return useMutation<AdminNotificationEmailPreview, Error, Omit<AdminNotificationCampaignInput, "action">>({
+    mutationFn: previewAdminNotificationEmail,
+  })
+}
+
+export function useSendAdminNotificationTestEmail() {
+  const invalidate = useAdminInvalidation()
+  return useMutation<AdminNotificationTestEmailResult, Error, Omit<AdminNotificationCampaignInput, "action">>({
+    mutationFn: sendAdminNotificationTestEmail,
+    onSuccess: invalidate,
   })
 }
 

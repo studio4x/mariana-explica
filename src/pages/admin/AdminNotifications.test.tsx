@@ -2,14 +2,21 @@ import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { AdminNotifications } from "./AdminNotifications"
 
+const mockUseAuth = vi.fn()
 const mockUseAdminNotificationCampaigns = vi.fn()
 const mockUseAdminOperations = vi.fn()
 const mockUseAdminUsers = vi.fn()
 const mockUseAdminProducts = vi.fn()
 const mockUseAdminProductCategories = vi.fn()
 const mockUsePreviewAdminNotificationCampaign = vi.fn()
+const mockUsePreviewAdminNotificationEmail = vi.fn()
 const mockUseRetryAdminEmailDelivery = vi.fn()
+const mockUseSendAdminNotificationTestEmail = vi.fn()
 const mockUseSendAdminNotificationCampaign = vi.fn()
+
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => mockUseAuth(),
+}))
 
 vi.mock("@/hooks/useAdmin", () => ({
   useAdminNotificationCampaigns: () => mockUseAdminNotificationCampaigns(),
@@ -18,7 +25,9 @@ vi.mock("@/hooks/useAdmin", () => ({
   useAdminProducts: () => mockUseAdminProducts(),
   useAdminProductCategories: () => mockUseAdminProductCategories(),
   usePreviewAdminNotificationCampaign: () => mockUsePreviewAdminNotificationCampaign(),
+  usePreviewAdminNotificationEmail: () => mockUsePreviewAdminNotificationEmail(),
   useRetryAdminEmailDelivery: () => mockUseRetryAdminEmailDelivery(),
+  useSendAdminNotificationTestEmail: () => mockUseSendAdminNotificationTestEmail(),
   useSendAdminNotificationCampaign: () => mockUseSendAdminNotificationCampaign(),
 }))
 
@@ -84,10 +93,24 @@ function renderPage() {
       text: "Email preview",
     },
   })
+  const previewEmailSpy = vi.fn().mockResolvedValue({
+    subject: "Preview da campanha",
+    html: "<html><body><p>Email preview live</p></body></html>",
+    text: "Email preview live",
+    sampleRecipient: {
+      id: "admin-1",
+      full_name: "Admin Mariana",
+      email: "admin@example.com",
+    },
+  })
   const sendSpy = vi.fn().mockResolvedValue({
     inserted_count: 2,
     email_recipient_count: 2,
     notification_count: 2,
+  })
+  const sendTestSpy = vi.fn().mockResolvedValue({
+    emailTo: "admin@example.com",
+    processedNow: true,
   })
   const retrySpy = vi.fn().mockResolvedValue({
     success: true,
@@ -130,6 +153,16 @@ function renderPage() {
         notification_count: 2,
       },
     ],
+  })
+  mockUseAuth.mockReturnValue({
+    profile: {
+      id: "admin-1",
+      full_name: "Admin Mariana",
+      email: "admin@example.com",
+      role: "admin",
+      is_admin: true,
+      status: "active",
+    },
   })
   mockUseAdminOperations.mockReturnValue({
     ...buildHookState(),
@@ -215,9 +248,17 @@ function renderPage() {
     isPending: false,
     mutateAsync: previewSpy,
   })
+  mockUsePreviewAdminNotificationEmail.mockReturnValue({
+    isPending: false,
+    mutateAsync: previewEmailSpy,
+  })
   mockUseRetryAdminEmailDelivery.mockReturnValue({
     isPending: false,
     mutateAsync: retrySpy,
+  })
+  mockUseSendAdminNotificationTestEmail.mockReturnValue({
+    isPending: false,
+    mutateAsync: sendTestSpy,
   })
   mockUseSendAdminNotificationCampaign.mockReturnValue({
     isPending: false,
@@ -226,7 +267,7 @@ function renderPage() {
 
   render(<AdminNotifications />)
 
-  return { previewSpy, retrySpy, sendSpy }
+  return { previewSpy, previewEmailSpy, retrySpy, sendSpy, sendTestSpy }
 }
 
 describe("AdminNotifications", () => {
@@ -366,8 +407,8 @@ describe("AdminNotifications", () => {
     await waitFor(() => expect(screen.getByLabelText("Mensagem da campanha")).toHaveValue("<p>Mensagem HTML</p>"))
   })
 
-  it("shows the email preview using the standard template when the campaign preview is generated", async () => {
-    const { previewSpy } = renderPage()
+  it("keeps a live email preview card updated while the admin fills the form", async () => {
+    const { previewEmailSpy } = renderPage()
 
     fireEvent.change(screen.getByPlaceholderText("Ex.: Sessao extra disponivel"), {
       target: { value: "Nova campanha" },
@@ -376,13 +417,35 @@ describe("AdminNotifications", () => {
       target: { value: "<p>Mensagem com preview</p>" },
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview de destinatarios" }))
-
-    await waitFor(() => expect(previewSpy).toHaveBeenCalled())
-    await waitFor(() => expect(screen.getByTitle("preview-email-notification")).toBeInTheDocument())
+    await waitFor(() => expect(previewEmailSpy).toHaveBeenCalled(), { timeout: 3000 })
+    await waitFor(() => expect(screen.getByTitle("preview-email-notification-live")).toBeInTheDocument(), {
+      timeout: 3000,
+    })
     expect(screen.getByText("Preview do email")).toBeInTheDocument()
     expect(screen.getByText("Preview da campanha")).toBeInTheDocument()
-    expect(screen.getByText("Email preview")).toBeInTheDocument()
+    expect(screen.getByText("Email preview live")).toBeInTheDocument()
+  })
+
+  it("sends a test email to the logged admin", async () => {
+    const { sendTestSpy } = renderPage()
+
+    fireEvent.change(screen.getByPlaceholderText("Ex.: Sessao extra disponivel"), {
+      target: { value: "Nova campanha" },
+    })
+    fireEvent.change(screen.getByLabelText("Mensagem da campanha"), {
+      target: { value: "<p>Mensagem com preview</p>" },
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar email de teste" }))
+
+    await waitFor(() =>
+      expect(sendTestSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Nova campanha",
+          messageHtml: "<p>Mensagem com preview</p>",
+        }),
+      ),
+    )
   })
 
   it("shows the sending queue tab with delivery statuses and retry action", async () => {

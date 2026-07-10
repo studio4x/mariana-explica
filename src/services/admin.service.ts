@@ -29,7 +29,9 @@ import type {
   AdminNotificationSummary,
   AdminNotificationCampaignInput,
   AdminNotificationCampaignPreview,
+  AdminNotificationEmailPreview,
   AdminNotificationCampaignSummary,
+  AdminNotificationTestEmailResult,
   AdminOperationsOverview,
   AdminOrderViewSummary,
   AdminOrderSummary,
@@ -3460,6 +3462,20 @@ export function previewAdminNotificationCampaign(input: Omit<AdminNotificationCa
     ...input,
     action: "preview",
   }).then((response) => response.preview)
+}
+
+export function previewAdminNotificationEmail(input: Omit<AdminNotificationCampaignInput, "action">) {
+  return invokeAdminFunction<{ success: true; preview: AdminNotificationEmailPreview }>("admin-notifications", {
+    ...input,
+    action: "preview_email",
+  }).then((response) => response.preview)
+}
+
+export function sendAdminNotificationTestEmail(input: Omit<AdminNotificationCampaignInput, "action">) {
+  return invokeAdminFunction<{ success: true; result: AdminNotificationTestEmailResult }>("admin-notifications", {
+    ...input,
+    action: "send_test_email",
+  }).then((response) => response.result)
 }
 
 export function sendAdminNotificationCampaign(input: Omit<AdminNotificationCampaignInput, "action">) {

@@ -1048,6 +1048,18 @@ export interface AdminNotificationCampaignPreview {
   } | null
 }
 
+export interface AdminNotificationEmailPreview {
+  subject: string
+  html: string
+  text: string
+  sampleRecipient: AdminNotificationCampaignRecipientPreview | null
+}
+
+export interface AdminNotificationTestEmailResult {
+  emailTo: string
+  processedNow: boolean
+}
+
 export interface AdminNotificationCampaignSummary {
   id: string
   actor_user_id: string | null
