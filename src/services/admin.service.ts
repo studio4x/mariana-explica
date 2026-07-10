@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase"
+import { prepareStorageUpload, uploadStorageFile, type PreparedStorageUploadTicket } from "@/features/storage/r2-upload"
 import {
   ensureAdminAiPageEditorConversationResponse,
   ensureAdminAiFooterCopyProposalResponse,
@@ -414,17 +415,14 @@ const DEFAULT_AI_CODE_EDITOR_CONFIG: AdminAiCodeEditorConfig["config_value"] = {
 export interface AdminModuleAssetSignedUploadResult {
   bucket: string
   path: string
+  storage_provider?: "supabase" | "r2" | null
   file_name: string
   mime_type: string | null
   file_size_bytes: number | null
   max_file_size_bytes?: number | null
   uploaded_at: string | null
   public_url?: string | null
-  signed_upload: {
-    path: string
-    token: string
-    signed_url: string
-  }
+  ticket: PreparedStorageUploadTicket
 }
 
 export interface AdminModuleAssetUploadLimitResult {
@@ -1056,41 +1054,17 @@ export async function uploadAdminModulePdf(input: {
   file: File
   replacePath?: string | null
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "module_pdf")
-  formData.append("moduleId", input.moduleId)
-  formData.append("file", input.file)
-  if (input.replacePath) {
-    formData.append("replacePath", input.replacePath)
-  }
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const upload = await uploadStorageFile({
+    upload_kind: "module_pdf",
+    entity_id: input.moduleId,
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "application/pdf",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
   })
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
-
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
-
-    throw new Error(message)
-  }
-
-  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+  return upload satisfies AdminStorageUploadResult
 }
 
 export async function uploadAdminProductCover(input: {
@@ -1098,41 +1072,31 @@ export async function uploadAdminProductCover(input: {
   file: File
   replacePath?: string | null
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "product_cover")
-  formData.append("productId", input.productId)
-  formData.append("file", input.file)
-  if (input.replacePath) {
-    formData.append("replacePath", input.replacePath)
-  }
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const upload = await uploadStorageFile({
+    upload_kind: "product_cover",
+    entity_id: input.productId,
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "image/webp",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
   })
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
+  const { error } = await supabase
+    .from("products")
+    .update({
+      cover_image_url: upload.public_url ?? null,
+      cover_image_storage_bucket: upload.bucket,
+      cover_image_storage_path: upload.path,
+      cover_image_storage_provider: upload.storage_provider ?? "r2",
+    })
+    .eq("id", input.productId)
 
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
-
-    throw new Error(message)
+  if (error) {
+    throw error
   }
 
-  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+  return upload satisfies AdminStorageUploadResult
 }
 
 export async function uploadAdminModuleAssetFile(input: {
@@ -1140,41 +1104,17 @@ export async function uploadAdminModuleAssetFile(input: {
   file: File
   replacePath?: string | null
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "module_asset")
-  formData.append("moduleId", input.moduleId)
-  formData.append("file", input.file)
-  if (input.replacePath) {
-    formData.append("replacePath", input.replacePath)
-  }
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const upload = await uploadStorageFile({
+    upload_kind: "module_asset",
+    entity_id: input.moduleId,
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "application/octet-stream",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
   })
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
-
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
-
-    throw new Error(message)
-  }
-
-  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+  return upload satisfies AdminStorageUploadResult
 }
 
 export async function createAdminModuleAssetSignedUpload(input: {
@@ -1182,54 +1122,42 @@ export async function createAdminModuleAssetSignedUpload(input: {
   fileName: string
   mimeType: string
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "module_asset_signed_url")
-  formData.append("moduleId", input.moduleId)
-  formData.append("fileName", input.fileName)
-  formData.append("mimeType", input.mimeType)
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const ticket = await prepareStorageUpload({
+    upload_kind: "module_asset",
+    entity_id: input.moduleId,
+    file_name: input.fileName,
+    mime_type: input.mimeType,
+    file_size_bytes: 1,
   })
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
-
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
-
-    throw new Error(message)
-  }
-
-  return (data as { success: true; upload: AdminModuleAssetSignedUploadResult }).upload
+  return {
+    bucket: ticket.storage_bucket,
+    path: ticket.upload_path,
+    storage_provider: ticket.storage_provider,
+    file_name: input.fileName,
+    mime_type: input.mimeType,
+    file_size_bytes: null,
+    max_file_size_bytes: ticket.max_file_size_bytes ?? null,
+    uploaded_at: null,
+    public_url: ticket.public_url ?? null,
+    ticket,
+  } satisfies AdminModuleAssetSignedUploadResult
 }
 
 export async function fetchAdminModuleAssetUploadLimit(moduleId: string) {
   const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "module_asset_limits")
-  formData.append("moduleId", moduleId)
-
   const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
     method: "POST",
     headers: {
       apikey: SUPABASE_ANON_KEY,
       Authorization: auth.headers.Authorization,
+      "Content-Type": "application/json",
     },
-    body: formData,
+    body: JSON.stringify({
+      operation: "get_upload_limits",
+      entity_id: moduleId,
+      access_token: auth.accessToken,
+    }),
   })
 
   const contentType = response.headers.get("content-type") ?? ""
@@ -1263,40 +1191,16 @@ export async function uploadAdminWatermarkLogoFile(input: {
   file: File
   replacePath?: string | null
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "watermark_logo")
-  formData.append("file", input.file)
-  if (input.replacePath) {
-    formData.append("replacePath", input.replacePath)
-  }
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const upload = await uploadStorageFile({
+    upload_kind: "watermark_logo",
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "image/png",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
   })
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
-
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
-
-    throw new Error(message)
-  }
-
-  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+  return upload satisfies AdminStorageUploadResult
 }
 
 export async function uploadAdminBrandingAssetFile(input: {
@@ -1304,41 +1208,17 @@ export async function uploadAdminBrandingAssetFile(input: {
   file: File
   replacePath?: string | null
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("kind", "branding_asset")
-  formData.append("assetRole", input.role)
-  formData.append("file", input.file)
-  if (input.replacePath) {
-    formData.append("replacePath", input.replacePath)
-  }
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/admin-storage-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const upload = await uploadStorageFile({
+    upload_kind: "branding_asset",
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "image/png",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
+    asset_role: input.role,
   })
 
-  const contentType = response.headers.get("content-type") ?? ""
-  const data = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "")
-
-  if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : typeof data === "string" && data
-          ? data
-          : `Edge Function returned ${response.status}`
-
-    throw new Error(message)
-  }
-
-  return (data as { success: true; upload: AdminStorageUploadResult }).upload
+  return upload satisfies AdminStorageUploadResult
 }
 
 export async function fetchAdminUsers() {
@@ -1350,9 +1230,9 @@ export async function fetchAdminUsers() {
 
 export async function fetchAdminProducts() {
   const selectWithCategories =
-    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,category_id,published_at"
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,category_id,published_at"
   const selectLegacy =
-    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at"
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at"
 
   const { data, error } = await supabase
     .from("products")
@@ -2736,6 +2616,7 @@ export async function createAdminProductModule(input: {
   ends_at?: string | null
   release_days_after_enrollment?: number | null
   module_pdf_storage_path?: string | null
+  module_pdf_storage_provider?: "supabase" | "r2" | null
   module_pdf_file_name?: string | null
   module_pdf_uploaded_at?: string | null
   status?: ProductModuleSummary["status"]
@@ -2762,6 +2643,7 @@ export async function updateAdminProductModule(input: {
   ends_at?: string | null
   release_days_after_enrollment?: number | null
   module_pdf_storage_path?: string | null
+  module_pdf_storage_provider?: "supabase" | "r2" | null
   module_pdf_file_name?: string | null
   module_pdf_uploaded_at?: string | null
   status?: ProductModuleSummary["status"]
@@ -2797,6 +2679,7 @@ export async function createAdminModuleAsset(input: {
   sort_order_asset?: number
   storage_bucket?: string | null
   storage_path?: string | null
+  storage_provider?: "supabase" | "r2" | null
   external_url?: string | null
   mime_type?: string | null
   file_size_bytes?: number | null
@@ -2820,6 +2703,7 @@ export async function updateAdminModuleAsset(input: {
   sort_order_asset?: number
   storage_bucket?: string | null
   storage_path?: string | null
+  storage_provider?: "supabase" | "r2" | null
   external_url?: string | null
   mime_type?: string | null
   file_size_bytes?: number | null
@@ -2848,6 +2732,7 @@ export async function deleteAdminLessonStorageObject(input: {
   moduleId?: string | null
   mediaBucket: string
   mediaPath: string
+  mediaStorageProvider?: "supabase" | "r2" | null
 }) {
   await invokeAdminFunction<{ success: true }>("admin-content", {
     action: "delete_storage_object",
@@ -2855,6 +2740,7 @@ export async function deleteAdminLessonStorageObject(input: {
     moduleId: input.moduleId ?? null,
     media_bucket: input.mediaBucket,
     media_path: input.mediaPath,
+    media_storage_provider: input.mediaStorageProvider ?? null,
   })
 }
 
@@ -3033,7 +2919,7 @@ export async function revokeAdminCourseRelease(input: {
 export async function fetchAdminSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,user_id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+    .select("id,user_id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -3080,7 +2966,7 @@ export async function replyAdminPublicFormSubmission(input: {
 export async function fetchAdminSupportTicket(ticketId: string) {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,user_id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+    .select("id,user_id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .eq("id", ticketId)
     .single()
 
@@ -3199,7 +3085,7 @@ export async function fetchAdminCouponUsages() {
 export async function fetchAdminSupportTicketMessages(ticketId: string) {
   const { data, error } = await supabase
     .from("support_ticket_messages")
-    .select("id,ticket_id,sender_user_id,sender_role,message,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at")
+    .select("id,ticket_id,sender_user_id,sender_role,message,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at")
     .eq("ticket_id", ticketId)
     .order("created_at", { ascending: true })
 

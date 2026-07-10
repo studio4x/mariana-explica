@@ -122,16 +122,16 @@ export function resolveCheckoutSuccessCopy(
     return {
       hero: {
         eyebrow: "Acesso gratuito ativado",
-        title: "O teu material gratuito já está disponível.",
-        lead: "O acesso foi ativado com sucesso e já podes começar a explorar os conteúdos a partir da tua área do aluno.",
+        title: "Obrigada pela confiança! <3",
+        lead: "O teu material já está disponível. Poder começar a explorar os conteúdos imediatamente a partir da tua área de aluno.",
       },
       nextStep: {
         title: "Próximo passo",
-        lead: "Entra diretamente no material para confirmares o acesso e começares a estudar.",
+        lead: "Entra diretamente na tua área para consultares o material e começares a estudar.",
       },
       benefits: {
-        firstTitle: "Tudo no mesmo sítio",
-        firstLead: "Os teus materiais ficam reunidos na área do aluno para continuares o estudo com clareza.",
+        firstTitle: "Organização",
+        firstLead: "Todos os teus materiais ficam disponíveis no mesmo sítio.",
         secondTitle: "Acesso imediato",
         secondLead: "O acesso já está ativo e os teus dados continuam protegidos.",
       },

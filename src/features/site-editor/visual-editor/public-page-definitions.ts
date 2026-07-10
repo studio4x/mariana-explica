@@ -425,27 +425,25 @@ export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocume
 export const CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutSuccessVisualEditorDocument = {
   hero: {
     eyebrow: "Pedido conclu\u00eddo com sucesso",
-    title: "A tua inscri\u00e7\u00e3o foi recebida com sucesso.",
+    title: "Obrigada pela confiança! <3",
     lead:
-      "O acesso ao material ser\u00e1 apresentado na \u00e1rea do aluno assim que a confirma\u00e7\u00e3o de pagamento estiver refletida na plataforma.",
+      "O teu material j\u00e1 est\u00e1 dispon\u00edvel. Poder come\u00e7ar a explorar os conte\u00fados imediatamente a partir da tua \u00e1rea de aluno.",
   },
   nextStep: {
     title: "Pr\u00f3ximo passo",
-    lead:
-      "Entra diretamente no material para consultares o acesso e come\u00e7ares a estudar.",
+    lead: "Entra diretamente na tua \u00e1rea para consultares o material e come\u00e7ares a estudar.",
   },
   benefits: {
-    firstTitle: "Material organizado",
-    firstLead: "Todos os teus materiais ficam reunidos na \u00e1rea do aluno.",
-    secondTitle: "Acesso protegido",
+    firstTitle: "Organiza\u00e7\u00e3o",
+    firstLead: "Todos os teus materiais ficam dispon\u00edveis no mesmo s\u00edtio.",
+    secondTitle: "Acesso imediato",
     secondLead: "A tua compra foi processada e os teus dados est\u00e3o protegidos.",
   },
   access: {
     eyebrow: "Acesso r\u00e1pido",
     primaryCtaLabel: "Ir para o material",
     secondaryCtaLabel: "Abrir \u00e1rea do aluno",
-    note:
-      "Se o material demorar a aparecer, basta atualizares a p\u00e1gina. A confirma\u00e7\u00e3o depende do retorno do Stripe.",
+    note: "Se o material demorar a aparecer, basta atualizares a p\u00e1gina.",
   },
 }
 
