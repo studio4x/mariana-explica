@@ -2,6 +2,7 @@ import { badRequest, forbidden, notFound } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import { requireActiveUser } from "../_shared/mod.ts"
+import { createSignedReadUrl } from "../_shared/storage-provider.ts"
 
 interface AttachmentAccessInput {
   ticketId: string
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await context.serviceClient
       .from("support_tickets")
-      .select("id,user_id,attachment_bucket,attachment_path")
+      .select("id,user_id,attachment_bucket,attachment_path,attachment_storage_provider")
       .eq("id", ticketId)
       .maybeSingle()
 
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     const isTicketAttachment = ticket.attachment_bucket === bucket && ticket.attachment_path === path
     const { data: messageAttachment, error: messageError } = await context.serviceClient
       .from("support_ticket_messages")
-      .select("id")
+      .select("id,attachment_storage_provider")
       .eq("ticket_id", ticketId)
       .eq("attachment_bucket", bucket)
       .eq("attachment_path", path)
@@ -57,18 +58,21 @@ Deno.serve(async (req) => {
       throw notFound("Anexo nao encontrado neste ticket")
     }
 
-    const { data: signed, error: signedError } = await context.serviceClient.storage
-      .from(bucket)
-      .createSignedUrl(path, 600, { download: true })
-
-    if (signedError) {
-      throw signedError
-    }
+    const storageProvider =
+      (isTicketAttachment ? ticket.attachment_storage_provider : messageAttachment?.attachment_storage_provider) ?? "supabase"
+    const signedUrl = await createSignedReadUrl({
+      serviceClient: context.serviceClient,
+      logicalBucket: bucket,
+      storagePath: path,
+      provider: storageProvider,
+      expiresInSeconds: 600,
+      downloadFileName: path.split("/").at(-1) ?? "anexo",
+    })
 
     return jsonResponse({
       success: true,
       request_id: requestId,
-      signed_url: signed.signedUrl,
+      signed_url: signedUrl,
       expires_in: 600,
     })
   } catch (error) {

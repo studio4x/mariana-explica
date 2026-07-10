@@ -53,6 +53,7 @@ export function createUserClient(token: string): SupabaseClient {
 
 export function getAppBaseUrl() {
   return (
+    Deno.env.get("APP_PUBLIC_URL") ??
     Deno.env.get("APP_BASE_URL") ??
     Deno.env.get("SITE_URL") ??
     Deno.env.get("VITE_APP_URL") ??

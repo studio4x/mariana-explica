@@ -25,6 +25,9 @@ verify_jwt = false
 [functions.admin-page-assets]
 verify_jwt = false
 
+[functions.admin-r2-usage]
+verify_jwt = false
+
 [functions.admin-ai-page-editor]
 verify_jwt = false
 
@@ -76,7 +79,19 @@ verify_jwt = false
 [functions.profile-avatar-upload]
 verify_jwt = false
 
+[functions.public-site-asset]
+verify_jwt = false
+
+[functions.public-course-media]
+verify_jwt = false
+
+[functions.public-profile-avatar]
+verify_jwt = false
+
 [functions.admin-support-ticket-delete]
+verify_jwt = false
+
+[functions.admin-backfill-storage-r2]
 verify_jwt = false
 
 [functions.create-review]

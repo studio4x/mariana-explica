@@ -160,6 +160,7 @@ export function Admin() {
     try {
       let logoBucket = watermarkConfig?.config_value.logo_bucket ?? null
       let logoPath = watermarkConfig?.config_value.logo_path ?? null
+      let logoStorageProvider = watermarkConfig?.config_value.logo_storage_provider ?? null
 
       if (logoFile) {
         const upload = await uploadWatermarkLogo.mutateAsync({
@@ -168,12 +169,14 @@ export function Admin() {
         })
         logoBucket = upload.bucket
         logoPath = upload.path
+        logoStorageProvider = upload.storage_provider ?? "r2"
       }
 
       await updateWatermarkConfig.mutateAsync({
         siteName: siteName.trim() || APP_NAME,
         logoBucket,
         logoPath,
+        logoStorageProvider,
       })
 
       setLogoFile(null)

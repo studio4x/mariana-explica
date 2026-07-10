@@ -1,4 +1,5 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
+import { uploadStorageFile } from "@/features/storage/r2-upload"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type { SupportAttachmentUploadResult } from "@/types/app.types"
 
@@ -42,32 +43,23 @@ export async function uploadSupportAttachment(input: {
   file: File
   ticketId?: string | null
 }) {
-  const auth = await requireFreshAuth()
-  const formData = new FormData()
-  formData.append("file", input.file)
-  if (input.ticketId) {
-    formData.append("ticketId", input.ticketId)
-  }
-
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/support-attachment-upload`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: auth.headers.Authorization,
-    },
-    body: formData,
+  const upload = await uploadStorageFile({
+    upload_kind: "support_attachment",
+    entity_id: input.ticketId ?? "draft",
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "application/octet-stream",
+    file_size_bytes: input.file.size,
   })
 
-  const data = await response.json().catch(() => null)
-  if (!response.ok) {
-    const message =
-      data && typeof data === "object" && "message" in data
-        ? String((data as { message?: unknown }).message ?? `Edge Function returned ${response.status}`)
-        : `Edge Function returned ${response.status}`
-    throw new Error(message)
-  }
-
-  return (data as { success: true; upload: SupportAttachmentUploadResult }).upload
+  return {
+    bucket: upload.bucket,
+    path: upload.path,
+    storage_provider: upload.storage_provider ?? "r2",
+    file_name: upload.file_name,
+    mime_type: upload.mime_type,
+    file_size_bytes: upload.file_size_bytes,
+  } satisfies SupportAttachmentUploadResult
 }
 
 export function fetchSupportAttachmentUrl(input: {

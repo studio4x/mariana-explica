@@ -40,6 +40,7 @@ export interface ProductModuleSummary {
   ends_at: string | null
   release_days_after_enrollment: number | null
   module_pdf_storage_path: string | null
+  module_pdf_storage_provider?: "supabase" | "r2" | null
   module_pdf_file_name: string | null
   module_pdf_uploaded_at: string | null
   status: "draft" | "published" | "archived"
@@ -60,6 +61,7 @@ export interface ModuleAssetSummary {
   sort_order: number
   storage_bucket: string | null
   storage_path: string | null
+  storage_provider?: "supabase" | "r2" | null
   external_url: string | null
   mime_type: string | null
   file_size_bytes: number | null
@@ -72,6 +74,7 @@ export interface ModuleAssetSummary {
 export interface AdminStorageUploadResult {
   bucket: string
   path: string
+  storage_provider?: "supabase" | "r2" | null
   file_name: string
   mime_type: string | null
   file_size_bytes: number | null
@@ -85,6 +88,7 @@ export interface AdminModulePdfWatermarkConfig {
     site_name: string
     logo_bucket: string | null
     logo_path: string | null
+    logo_storage_provider?: "supabase" | "r2" | null
   }
   description: string | null
   is_public: boolean
@@ -94,6 +98,7 @@ export interface AdminModulePdfWatermarkConfig {
 export interface AdminBrandingAsset {
   bucket: string | null
   path: string | null
+  storage_provider?: "supabase" | "r2" | null
   public_url: string | null
   file_name: string | null
   uploaded_at: string | null
@@ -946,6 +951,7 @@ export interface AdminSitePageAsset {
   page_id: string
   bucket: string
   path: string
+  storage_provider?: "supabase" | "r2" | null
   public_url: string
   file_name: string
   mime_type: string | null
@@ -1291,6 +1297,7 @@ export interface SupportTicketSummary {
   sla_status: "on_time" | "at_risk" | "overdue" | "answered"
   attachment_bucket: string | null
   attachment_path: string | null
+  attachment_storage_provider?: "supabase" | "r2" | null
   attachment_name: string | null
   attachment_mime_type: string | null
   attachment_size_bytes: number | null
@@ -1306,6 +1313,7 @@ export interface SupportTicketMessage {
   message: string
   attachment_bucket: string | null
   attachment_path: string | null
+  attachment_storage_provider?: "supabase" | "r2" | null
   attachment_name: string | null
   attachment_mime_type: string | null
   attachment_size_bytes: number | null
@@ -1315,6 +1323,7 @@ export interface SupportTicketMessage {
 export interface SupportAttachmentUploadResult {
   bucket: string
   path: string
+  storage_provider?: "supabase" | "r2" | null
   file_name: string
   mime_type: string | null
   file_size_bytes: number | null
@@ -1323,6 +1332,7 @@ export interface SupportAttachmentUploadResult {
 export interface ProfileAvatarUploadResult {
   bucket: string
   path: string
+  storage_provider?: "supabase" | "r2" | null
   public_url: string
   file_name: string
   mime_type: string | null

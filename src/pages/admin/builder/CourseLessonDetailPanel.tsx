@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { LessonContentBlocksEditor, LessonPrimaryMedia, OperationFeedbackModal, StatusBadge } from "@/components/common"
 import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
+import { uploadFileWithPreparedTicket } from "@/features/storage/r2-upload"
 import {
   useAdminModuleAssetUploadLimit,
   useCreateAdminModuleAssetSignedUpload,
@@ -13,7 +14,6 @@ import {
   useUpdateAdminProductLesson,
   useUploadAdminModuleAssetFile,
 } from "@/hooks/useAdmin"
-import { supabase } from "@/integrations/supabase"
 import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { adminCourseLessonMaterialsPath, adminCourseModulePath } from "@/lib/routes"
 import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
@@ -365,6 +365,7 @@ export function CourseLessonDetailPanel() {
         sort_order_asset: buildAssetSortOrder(),
         storage_bucket: upload.bucket,
         storage_path: upload.path,
+        storage_provider: upload.storage_provider ?? "r2",
         external_url: null,
         mime_type: upload.mime_type,
         file_size_bytes: upload.file_size_bytes,
@@ -445,17 +446,10 @@ export function CourseLessonDetailPanel() {
       ) {
         throw new Error(buildProtectedVideoTooLargeMessage(signedUpload.max_file_size_bytes))
       }
-      const signed = signedUpload.signed_upload
-      const { error: signedUploadError } = await supabase.storage
-        .from(signedUpload.bucket)
-        .uploadToSignedUrl(signed.path, signed.token, file, {
-          contentType: file.type || "video/mp4",
-          upsert: false,
-        })
-
-      if (signedUploadError) {
-        throw signedUploadError
-      }
+      await uploadFileWithPreparedTicket({
+        file,
+        ticket: signedUpload.ticket,
+      })
 
       const asset = await createAsset.mutateAsync({
         moduleId,
@@ -464,6 +458,7 @@ export function CourseLessonDetailPanel() {
         sort_order_asset: buildAssetSortOrder(),
         storage_bucket: signedUpload.bucket,
         storage_path: signedUpload.path,
+        storage_provider: signedUpload.storage_provider ?? "r2",
         external_url: null,
         mime_type: file.type || signedUpload.mime_type,
         file_size_bytes: file.size,

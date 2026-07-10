@@ -503,6 +503,7 @@ function ImageBlockEditor({
       normalizeLessonImageBlockContent({
         storage_bucket: upload.bucket,
         storage_path: upload.path,
+        storage_provider: upload.storage_provider ?? "r2",
         public_url: upload.public_url ?? null,
         alt: normalized.alt || file.name.replace(/\.[^.]+$/, ""),
         caption: normalized.caption,
@@ -956,6 +957,7 @@ function VideoBlockEditor({
         sort_order_asset: Math.floor(Date.now() / 1000),
         storage_bucket: upload.bucket,
         storage_path: upload.path,
+        storage_provider: upload.storage_provider ?? "r2",
         external_url: null,
         mime_type: (upload.mime_type ?? file.type) || "video/mp4",
         file_size_bytes: upload.file_size_bytes ?? file.size,

@@ -62,6 +62,7 @@ export const ROUTES = {
   ADMIN_FAQ: "/admin/perguntas-frequentes",
   ADMIN_AFFILIATES: "/admin/afiliados",
   ADMIN_COUPONS: "/admin/cupons",
+  ADMIN_STORAGE_R2: "/admin/storage-r2",
   ADMIN_PAGE_EDITOR: "/admin/editor-paginas",
   ADMIN_AI_PAGE_EDITOR: "/admin/editor-ia",
   ADMIN_VISUAL_EDITOR: "/admin/editor-visual",

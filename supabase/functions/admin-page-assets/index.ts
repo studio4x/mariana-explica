@@ -3,6 +3,7 @@ import { badRequest } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
+import { buildStoragePublicUrl, uploadStorageObject } from "../_shared/storage-provider.ts"
 
 const ASSET_BUCKET = "site-pages-public"
 const MAX_FILE_SIZE_BYTES = 12 * 1024 * 1024
@@ -35,18 +36,6 @@ function sanitizeFileName(value: string) {
   return normalized || "asset"
 }
 
-async function ensureBucket(serviceClient: ReturnType<typeof createServiceClient>) {
-  const { data: bucket } = await serviceClient.storage.getBucket(ASSET_BUCKET)
-  if (bucket) return
-  const { error } = await serviceClient.storage.createBucket(ASSET_BUCKET, {
-    public: true,
-    fileSizeLimit: `${MAX_FILE_SIZE_BYTES}`,
-  })
-  if (error && !String(error.message ?? "").toLowerCase().includes("already exists")) {
-    throw error
-  }
-}
-
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
 
@@ -77,23 +66,21 @@ Deno.serve(async (req) => {
     if (pageError) throw pageError
     if (!page) throw badRequest("Pagina nao encontrada")
 
-    await ensureBucket(serviceClient)
-
     const extension = file.name.includes(".") ? file.name.split(".").pop() ?? "bin" : "bin"
     const normalizedFileName = sanitizeFileName(file.name.replace(/\.[^.]+$/, ""))
     const storagePath = `pages/${slug}/${Date.now()}-${crypto.randomUUID()}-${normalizedFileName}.${extension}`
 
-    const { error: uploadError } = await serviceClient.storage
-      .from(ASSET_BUCKET)
-      .upload(storagePath, file, {
-        contentType: file.type,
-        cacheControl: "3600",
-        upsert: false,
-      })
-    if (uploadError) throw uploadError
+    await uploadStorageObject({
+      serviceClient,
+      logicalBucket: ASSET_BUCKET,
+      storagePath,
+      provider: "r2",
+      body: file,
+      contentType: file.type,
+      cacheControl: "3600",
+    })
 
-    const { data: publicData } = serviceClient.storage.from(ASSET_BUCKET).getPublicUrl(storagePath)
-    const publicUrl = String(publicData.publicUrl ?? "").trim()
+    const publicUrl = buildStoragePublicUrl("site_asset", storagePath)
     if (!publicUrl) throw badRequest("Nao foi possivel gerar URL publica do asset")
 
     const { data: asset, error: assetError } = await serviceClient
@@ -102,13 +89,14 @@ Deno.serve(async (req) => {
         page_id: page.id,
         bucket: ASSET_BUCKET,
         path: storagePath,
+        storage_provider: "r2",
         public_url: publicUrl,
         file_name: file.name,
         mime_type: file.type || null,
         file_size_bytes: file.size,
         uploaded_by: context.user.id,
       })
-      .select("id,page_id,bucket,path,public_url,file_name,mime_type,file_size_bytes,uploaded_by,created_at")
+      .select("id,page_id,bucket,path,storage_provider,public_url,file_name,mime_type,file_size_bytes,uploaded_by,created_at")
       .single()
     if (assetError) throw assetError
 

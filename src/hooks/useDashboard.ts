@@ -513,6 +513,7 @@ export function useReplySupportTicket() {
         message: variables.message,
         attachment_bucket: variables.attachment?.bucket ?? null,
         attachment_path: variables.attachment?.path ?? null,
+        attachment_storage_provider: variables.attachment?.storage_provider ?? null,
         attachment_name: variables.attachment?.file_name ?? null,
         attachment_mime_type: variables.attachment?.mime_type ?? null,
         attachment_size_bytes: variables.attachment?.file_size_bytes ?? null,

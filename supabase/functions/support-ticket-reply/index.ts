@@ -24,6 +24,7 @@ interface SupportReplyInput {
   attachment?: {
     bucket: string
     path: string
+    storage_provider?: "supabase" | "r2" | null
     file_name: string
     mime_type?: string | null
     file_size_bytes?: number | null
@@ -85,6 +86,7 @@ Deno.serve(async (req) => {
         message: replyMessage,
         attachment_bucket: body.attachment?.bucket ?? null,
         attachment_path: body.attachment?.path ?? null,
+        attachment_storage_provider: body.attachment?.storage_provider === "r2" ? "r2" : "supabase",
         attachment_name: body.attachment?.file_name ?? null,
         attachment_mime_type: body.attachment?.mime_type ?? null,
         attachment_size_bytes: body.attachment?.file_size_bytes ?? null,

@@ -6,6 +6,7 @@ import {
   CircleHelp,
   ClipboardList,
   CreditCard,
+  Database,
   CheckCircle2,
   ExternalLink,
   LayoutDashboard,
@@ -82,6 +83,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_FAQ, label: "Perguntas frequentes", icon: CircleHelp },
   { to: ROUTES.ADMIN_AFFILIATES, label: "Afiliados", icon: Percent },
   { to: ROUTES.ADMIN_COUPONS, label: "Cupons", icon: TicketPercent },
+  { to: ROUTES.ADMIN_STORAGE_R2, label: "Storage R2", icon: Database },
   { to: ROUTES.ADMIN_ACCOUNT, label: "Minha Conta", icon: UserCircle2 },
   { to: ROUTES.ADMIN_SETTINGS, label: "Configuracoes", icon: Settings },
 ]

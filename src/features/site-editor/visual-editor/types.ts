@@ -55,6 +55,7 @@ export interface VisualEditorPageAsset {
   page_id: string
   bucket: string
   path: string
+  storage_provider?: "supabase" | "r2" | null
   public_url: string
   file_name: string
   mime_type: string | null

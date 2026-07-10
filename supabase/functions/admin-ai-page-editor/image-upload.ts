@@ -1,3 +1,5 @@
+import { buildStoragePublicUrl, uploadStorageObject } from "../_shared/storage-provider.ts"
+
 const ASSET_BUCKET = "site-pages-public"
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024
 const ALLOWED_MIME_TYPES = new Set([
@@ -52,23 +54,6 @@ function ensureAllowedMimeType(mimeType: string) {
   return normalized
 }
 
-async function ensureBucket(serviceClient: {
-  storage: {
-    getBucket: (bucket: string) => Promise<{ data: unknown }>
-    createBucket: (bucket: string, options: Record<string, unknown>) => Promise<{ error: { message?: string } | null }>
-  }
-}) {
-  const { data: bucket } = await serviceClient.storage.getBucket(ASSET_BUCKET)
-  if (bucket) return
-  const { error } = await serviceClient.storage.createBucket(ASSET_BUCKET, {
-    public: true,
-    fileSizeLimit: `${MAX_IMAGE_BYTES}`,
-  })
-  if (error && !String(error.message ?? "").toLowerCase().includes("already exists")) {
-    throw error
-  }
-}
-
 function extensionFromMimeType(mimeType: string) {
   switch (mimeType) {
     case "image/png":
@@ -100,18 +85,7 @@ function extractFileNameFromUrl(url: string) {
 
 async function uploadPersistedImage(input: {
   serviceClient: {
-    storage: {
-      getBucket: (bucket: string) => Promise<{ data: unknown }>
-      createBucket: (bucket: string, options: Record<string, unknown>) => Promise<{ error: { message?: string } | null }>
-      from: (bucket: string) => {
-        upload: (
-          path: string,
-          body: Uint8Array,
-          options: { contentType: string; cacheControl: string; upsert: boolean },
-        ) => Promise<{ error: unknown }>
-        getPublicUrl: (path: string) => { data: { publicUrl?: string | null } }
-      }
-    }
+    storage: unknown
     from: (table: string) => {
       insert: (value: Record<string, unknown>) => {
         select: (columns: string) => {
@@ -134,23 +108,23 @@ async function uploadPersistedImage(input: {
     throw new Error("A imagem excede o limite de 12MB.")
   }
 
-  await ensureBucket(input.serviceClient)
   const safeMimeType = ensureAllowedMimeType(input.mimeType)
   const slug = sanitizeSlug(input.slug)
   const baseName = sanitizeFileName(input.fileName.replace(/\.[^.]+$/, ""))
   const extension = extensionFromMimeType(safeMimeType)
   const storagePath = `pages/${slug}/${Date.now()}-${crypto.randomUUID()}-${baseName}.${extension}`
 
-  const { error: uploadError } = await input.serviceClient.storage
-    .from(ASSET_BUCKET)
-    .upload(storagePath, input.bytes, {
-      contentType: safeMimeType,
-      cacheControl: "3600",
-      upsert: false,
-    })
-  if (uploadError) throw uploadError
+  await uploadStorageObject({
+    serviceClient: input.serviceClient as never,
+    logicalBucket: ASSET_BUCKET,
+    storagePath,
+    provider: "r2",
+    body: input.bytes,
+    contentType: safeMimeType,
+    cacheControl: "3600",
+  })
 
-  const publicUrl = normalizeText(input.serviceClient.storage.from(ASSET_BUCKET).getPublicUrl(storagePath).data.publicUrl)
+  const publicUrl = buildStoragePublicUrl("site_asset", storagePath)
   if (!publicUrl) {
     throw new Error("Nao foi possivel gerar a URL publica da imagem.")
   }
@@ -161,13 +135,14 @@ async function uploadPersistedImage(input: {
       page_id: input.pageId,
       bucket: ASSET_BUCKET,
       path: storagePath,
+      storage_provider: "r2",
       public_url: publicUrl,
       file_name: input.fileName,
       mime_type: safeMimeType,
       file_size_bytes: input.bytes.byteLength,
       uploaded_by: input.userId,
     })
-    .select("id,page_id,bucket,path,public_url,file_name,mime_type,file_size_bytes,uploaded_by,created_at")
+    .select("id,page_id,bucket,path,storage_provider,public_url,file_name,mime_type,file_size_bytes,uploaded_by,created_at")
     .single()
   if (assetError) throw assetError
 

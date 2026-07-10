@@ -45,8 +45,18 @@ function extractCoverStoragePath(url: string | null | undefined) {
 
   try {
     const parsed = new URL(url)
+    if (parsed.pathname === "/api/public/course-media") {
+      const canonicalPath = parsed.searchParams.get("storage_path")
+      return canonicalPath ? decodeURIComponent(canonicalPath) : null
+    }
+
     const match = parsed.pathname.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/)
-    return match?.[1] ? decodeURIComponent(match[1]) : null
+    if (match?.[1]) {
+      return decodeURIComponent(match[1])
+    }
+
+    const r2Match = parsed.pathname.match(/\/course-cover-public\/(.+)$/)
+    return r2Match?.[1] ? decodeURIComponent(r2Match[1]) : null
   } catch {
     return null
   }

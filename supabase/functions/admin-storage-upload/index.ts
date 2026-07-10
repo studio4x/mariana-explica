@@ -1,13 +1,56 @@
-import { extractRequestAuditContext, requireAdmin, writeAuditLog } from "../_shared/mod.ts"
-import { badRequest } from "../_shared/errors.ts"
-import { corsResponse, errorResponse, getRequestId, jsonResponse } from "../_shared/http.ts"
-import { logError } from "../_shared/logger.ts"
-import { createServiceClient } from "../_shared/supabase.ts"
+import {
+  badRequest,
+  corsResponse,
+  errorResponse,
+  extractRequestAuditContext,
+  getRequestId,
+  isAdminProfile,
+  jsonResponse,
+  logError,
+  readJsonBody,
+  requireActiveUser,
+  writeAuditLog,
+} from "../_shared/mod.ts"
+import {
+  createSignedUploadTicket,
+  deleteStorageObject,
+  getStorageLimits,
+  type PublicProxyKind,
+  type StorageProvider,
+} from "../_shared/storage-provider.ts"
+
+type UploadKind =
+  | "module_pdf"
+  | "module_asset"
+  | "product_cover"
+  | "branding_asset"
+  | "watermark_logo"
+  | "profile_avatar"
+  | "support_attachment"
+  | "site_page_asset"
+
+interface Body {
+  operation: "prepare_upload" | "delete_object" | "get_upload_limits"
+  upload_kind?: UploadKind
+  entity_id?: string | null
+  file_name?: string | null
+  mime_type?: string | null
+  file_size_bytes?: number | null
+  replace_path?: string | null
+  asset_role?: string | null
+  storage_bucket?: string | null
+  storage_path?: string | null
+  storage_provider?: StorageProvider | null
+}
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
 const COURSE_COVER_BUCKET = "course-cover-public"
 const SITE_BRANDING_BUCKET = "site-branding-public"
-const COURSE_COVER_ALLOWED_MIME_TYPES = [
+const PROFILE_AVATAR_BUCKET = "profile-avatars-public"
+const SUPPORT_BUCKET = "support-attachments"
+const SITE_PAGE_BUCKET = "site-pages-public"
+
+const COURSE_COVER_ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/jpg",
@@ -15,15 +58,16 @@ const COURSE_COVER_ALLOWED_MIME_TYPES = [
   "image/webp",
   "image/gif",
   "image/avif",
-]
-const BRANDING_ALLOWED_MIME_TYPES = [
+])
+
+const BRANDING_ALLOWED_MIME_TYPES = new Set([
   ...COURSE_COVER_ALLOWED_MIME_TYPES,
   "image/svg+xml",
   "image/x-icon",
   "image/vnd.microsoft.icon",
-]
-const BRANDING_ALLOWED_EXTENSIONS = new Set(["svg", "png", "jpg", "jpeg", "webp", "gif", "avif", "ico"])
-const PRIVATE_ASSET_ALLOWED_MIME_TYPES = [
+])
+
+const PRIVATE_ASSET_ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
   "video/mp4",
   "video/webm",
@@ -32,98 +76,30 @@ const PRIVATE_ASSET_ALLOWED_MIME_TYPES = [
   "video/x-m4v",
   "image/png",
   "image/jpeg",
-]
-const BRANDING_FILE_SIZE_LIMIT_BYTES = 5 * 1024 * 1024
-const COURSE_COVER_FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024
-const PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES = 50 * 1024 * 1024
-const STORAGE_SETTINGS_CACHE_MS = 60_000
-let cachedGlobalStorageFileSizeLimitBytes: number | null = null
-let cachedGlobalStorageFileSizeLimitReadAt = 0
+])
 
-function toPositiveNumber(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return null
-  }
+const SUPPORT_ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+])
 
-  return Math.trunc(value)
-}
-
-function readBucketFileSizeLimitBytes(bucket: unknown) {
-  if (!bucket || typeof bucket !== "object") {
-    return null
-  }
-
-  const asRecord = bucket as Record<string, unknown>
-  return toPositiveNumber(asRecord.file_size_limit ?? asRecord.fileSizeLimit ?? null)
-}
-
-function getProjectRefFromSupabaseUrl() {
-  const rawUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("PROJECT_URL") ?? ""
-
-  try {
-    const host = new URL(rawUrl).hostname
-    return host.split(".")[0] ?? ""
-  } catch {
-    return ""
-  }
-}
-
-async function resolveGlobalStorageFileSizeLimitBytes() {
-  const now = Date.now()
-  if (
-    cachedGlobalStorageFileSizeLimitBytes
-    && now - cachedGlobalStorageFileSizeLimitReadAt < STORAGE_SETTINGS_CACHE_MS
-  ) {
-    return cachedGlobalStorageFileSizeLimitBytes
-  }
-
-  const managementToken =
-    Deno.env.get("MANAGEMENT_API_ACCESS_TOKEN")
-    ?? Deno.env.get("SUPABASE_MANAGEMENT_ACCESS_TOKEN")
-    ?? Deno.env.get("SUPABASE_ACCESS_TOKEN")
-    ?? ""
-  const projectRef = getProjectRefFromSupabaseUrl()
-
-  if (!managementToken || !projectRef) {
-    cachedGlobalStorageFileSizeLimitBytes = PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
-    cachedGlobalStorageFileSizeLimitReadAt = now
-    return cachedGlobalStorageFileSizeLimitBytes
-  }
-
-  try {
-    const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/config/storage`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${managementToken}`,
-      },
-    })
-
-    if (!response.ok) {
-      logError("Supabase storage settings fetch failed", {
-        status: response.status,
-        project_ref: projectRef,
-      })
-      cachedGlobalStorageFileSizeLimitBytes = PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
-      cachedGlobalStorageFileSizeLimitReadAt = now
-      return cachedGlobalStorageFileSizeLimitBytes
-    }
-
-    const payload = await response.json().catch(() => null)
-    const parsedLimit = toPositiveNumber((payload as Record<string, unknown> | null)?.fileSizeLimit ?? null)
-
-    cachedGlobalStorageFileSizeLimitBytes = parsedLimit ?? PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
-    cachedGlobalStorageFileSizeLimitReadAt = now
-    return cachedGlobalStorageFileSizeLimitBytes
-  } catch (error) {
-    logError("Supabase storage settings request exception", {
-      error: String(error),
-      project_ref: projectRef,
-    })
-    cachedGlobalStorageFileSizeLimitBytes = PRIVATE_ASSET_FILE_SIZE_LIMIT_FALLBACK_BYTES
-    cachedGlobalStorageFileSizeLimitReadAt = now
-    return cachedGlobalStorageFileSizeLimitBytes
-  }
-}
+const PUBLIC_PAGE_ALLOWED_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/svg+xml",
+])
 
 function sanitizeSegment(value: string) {
   return value
@@ -131,6 +107,16 @@ function sanitizeSegment(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+}
+
+function sanitizeSlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "")
 }
@@ -181,57 +167,243 @@ function normalizeBrandingMimeType(rawMimeType: string | null, extension: string
   return normalized
 }
 
-async function ensureStorageBucket(
-  serviceClient: ReturnType<typeof createServiceClient>,
-  bucketName: string,
-  options: { public: boolean; fileSizeLimit: number; allowedMimeTypes: string[] },
+function asPositiveInteger(value: unknown) {
+  const parsed = Number(value ?? null)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw badRequest("file_size_bytes invalido")
+  }
+
+  return Math.trunc(parsed)
+}
+
+function ensureMimeType(value: unknown, fileName: string) {
+  const raw = String(value ?? "").trim().toLowerCase()
+  return raw || inferImageMimeType(getFileExtension(fileName)) || "application/octet-stream"
+}
+
+function requireAdminUpload(context: Awaited<ReturnType<typeof requireActiveUser>>) {
+  if (!isAdminProfile(context.profile)) {
+    throw badRequest("Acesso administrativo obrigatorio para este upload")
+  }
+}
+
+async function resolveModulePathMeta(
+  context: Awaited<ReturnType<typeof requireActiveUser>>,
+  moduleId: string,
+  fileNameBase: string,
+  extension: string,
+  kind: "module_pdf" | "module_asset",
 ) {
-  const { data: buckets, error: bucketsError } = await serviceClient.storage.listBuckets()
-  if (bucketsError) throw bucketsError
+  const { data: moduleRow, error } = await context.serviceClient
+    .from("product_modules")
+    .select("id,product_id,title")
+    .eq("id", moduleId)
+    .maybeSingle()
 
-  const existingBucket = (buckets ?? []).find((bucket) => bucket.name === bucketName)
+  if (error) throw error
+  if (!moduleRow) throw badRequest("Modulo nao encontrado")
 
-  if (existingBucket) {
-    const { error: updateBucketError } = await serviceClient.storage.updateBucket(bucketName, options)
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+  const storagePath =
+    kind === "module_pdf"
+      ? `products/${moduleRow.product_id}/modules/${moduleId}/module-pdf/${timestamp}-${fileNameBase}${extension ? `.${extension}` : ""}`
+      : `products/${moduleRow.product_id}/modules/${moduleId}/assets/${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`
 
-    if (updateBucketError) {
-      logError("Admin storage bucket update failed", {
-        bucket: bucketName,
-        error: String(updateBucketError),
-        requested_file_size_limit: options.fileSizeLimit,
-      })
+  return {
+    logicalBucket: COURSE_STORAGE_BUCKET,
+    storagePath,
+    publicProxyKind: null as PublicProxyKind | null,
+    auditEntityType: "product_module",
+    auditEntityId: moduleId,
+    metadata: {
+      module_id: moduleId,
+      product_id: moduleRow.product_id,
+    },
+  }
+}
+
+async function resolveUploadTarget(
+  context: Awaited<ReturnType<typeof requireActiveUser>>,
+  body: Body,
+) {
+  const uploadKind = body.upload_kind
+  if (!uploadKind) {
+    throw badRequest("upload_kind e obrigatorio")
+  }
+
+  const fileName = String(body.file_name ?? "").trim()
+  if (!fileName) {
+    throw badRequest("file_name e obrigatorio")
+  }
+
+  const fileSizeBytes = asPositiveInteger(body.file_size_bytes)
+  const extension = getFileExtension(fileName)
+  const fileNameBase = sanitizeSegment(fileName.replace(/\.[^.]+$/, "")) || "arquivo"
+  let mimeType = ensureMimeType(body.mime_type, fileName)
+  const { maxFileSizeBytes } = getStorageLimits()
+
+  if (fileSizeBytes > maxFileSizeBytes) {
+    throw badRequest(`O ficheiro excede o limite configurado de ${maxFileSizeBytes} bytes.`)
+  }
+
+  if (uploadKind === "module_pdf" || uploadKind === "module_asset") {
+    requireAdminUpload(context)
+    if (!PRIVATE_ASSET_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de ficheiro privado invalido.")
     }
 
-    const { data: refreshedBucket, error: refreshedBucketError } = await serviceClient.storage.getBucket(bucketName)
+    return {
+      ...(await resolveModulePathMeta(context, String(body.entity_id ?? "").trim(), fileNameBase, extension, uploadKind)),
+      mimeType,
+      fileName,
+      fileSizeBytes,
+    }
+  }
 
-    if (refreshedBucketError) {
-      logError("Admin storage bucket read failed", {
-        bucket: bucketName,
-        error: String(refreshedBucketError),
-      })
-      return readBucketFileSizeLimitBytes(existingBucket)
+  if (uploadKind === "product_cover") {
+    requireAdminUpload(context)
+    const productId = String(body.entity_id ?? "").trim()
+    if (!productId) throw badRequest("entity_id do produto e obrigatorio")
+
+    const { data: productRow, error } = await context.serviceClient
+      .from("products")
+      .select("id,slug")
+      .eq("id", productId)
+      .maybeSingle()
+
+    if (error) throw error
+    if (!productRow) throw badRequest("Material nao encontrado")
+    if (!COURSE_COVER_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de capa invalido.")
     }
 
-    return readBucketFileSizeLimitBytes(refreshedBucket) ?? readBucketFileSizeLimitBytes(existingBucket)
+    return {
+      logicalBucket: COURSE_COVER_BUCKET,
+      storagePath: `products/${productId}/cover/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+      publicProxyKind: "course_media" as PublicProxyKind,
+      auditEntityType: "product",
+      auditEntityId: productId,
+      metadata: {
+        product_id: productId,
+        product_slug: productRow.slug,
+      },
+      mimeType,
+      fileName,
+      fileSizeBytes,
+    }
   }
 
-  const { error: createBucketError } = await serviceClient.storage.createBucket(bucketName, options)
+  if (uploadKind === "branding_asset") {
+    requireAdminUpload(context)
+    const assetRole = sanitizeSegment(String(body.asset_role ?? "").trim())
+    if (!["logo_light", "logo_dark", "favicon"].includes(assetRole)) {
+      throw badRequest("asset_role invalido")
+    }
 
-  if (createBucketError && !String(createBucketError.message).toLowerCase().includes("already exists")) {
-    throw createBucketError
+    mimeType = normalizeBrandingMimeType(mimeType, extension) ?? mimeType
+    if (!BRANDING_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de branding invalido.")
+    }
+
+    return {
+      logicalBucket: SITE_BRANDING_BUCKET,
+      storagePath: `${assetRole}/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+      publicProxyKind: "site_asset" as PublicProxyKind,
+      auditEntityType: "site_config",
+      auditEntityId: null,
+      metadata: {
+        asset_role: assetRole,
+        config_key: "site_branding",
+      },
+      mimeType,
+      fileName,
+      fileSizeBytes,
+    }
   }
 
-  const { data: createdBucket, error: createdBucketError } = await serviceClient.storage.getBucket(bucketName)
+  if (uploadKind === "watermark_logo") {
+    requireAdminUpload(context)
+    if (!BRANDING_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de watermark invalido.")
+    }
 
-  if (createdBucketError) {
-    logError("Admin storage bucket post-create read failed", {
-      bucket: bucketName,
-      error: String(createdBucketError),
-    })
-    return null
+    return {
+      logicalBucket: COURSE_STORAGE_BUCKET,
+      storagePath: `site-config/module-pdf-watermark/logo/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+      publicProxyKind: null as PublicProxyKind | null,
+      auditEntityType: "site_config",
+      auditEntityId: null,
+      metadata: {
+        config_key: "module_pdf_watermark",
+      },
+      mimeType,
+      fileName,
+      fileSizeBytes,
+    }
   }
 
-  return readBucketFileSizeLimitBytes(createdBucket)
+  if (uploadKind === "profile_avatar") {
+    if (!COURSE_COVER_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de avatar invalido.")
+    }
+
+    return {
+      logicalBucket: PROFILE_AVATAR_BUCKET,
+      storagePath: `profiles/${context.user.id}/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+      publicProxyKind: "profile_avatar" as PublicProxyKind,
+      auditEntityType: "profile",
+      auditEntityId: context.user.id,
+      metadata: {
+        user_id: context.user.id,
+      },
+      mimeType,
+      fileName,
+      fileSizeBytes,
+    }
+  }
+
+  if (uploadKind === "support_attachment") {
+    if (!SUPPORT_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de anexo invalido.")
+    }
+
+    const scope = sanitizeSegment(String(body.entity_id ?? "").trim()) || "draft"
+    return {
+      logicalBucket: SUPPORT_BUCKET,
+      storagePath: `support/${context.user.id}/${scope}/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+      publicProxyKind: null as PublicProxyKind | null,
+      auditEntityType: "support_attachment",
+      auditEntityId: context.user.id,
+      metadata: {
+        user_id: context.user.id,
+        scope,
+      },
+      mimeType,
+      fileName,
+      fileSizeBytes,
+    }
+  }
+
+  requireAdminUpload(context)
+  const slug = sanitizeSlug(String(body.entity_id ?? "").trim())
+  if (!slug) throw badRequest("entity_id da pagina e obrigatorio")
+  if (!PUBLIC_PAGE_ALLOWED_MIME_TYPES.has(mimeType)) {
+    throw badRequest("Formato de asset publico invalido.")
+  }
+
+  return {
+    logicalBucket: SITE_PAGE_BUCKET,
+    storagePath: `pages/${slug}/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+    publicProxyKind: "site_asset" as PublicProxyKind,
+    auditEntityType: "site_page_asset_upload",
+    auditEntityId: slug,
+    metadata: {
+      slug,
+    },
+    mimeType,
+    fileName,
+    fileSizeBytes,
+  }
 }
 
 Deno.serve(async (req) => {
@@ -246,311 +418,90 @@ Deno.serve(async (req) => {
       throw badRequest("Metodo nao suportado")
     }
 
-    const context = await requireAdmin(req)
+    const context = await requireActiveUser(req)
     const auditMeta = extractRequestAuditContext(req)
-    const formData = await req.formData()
-    const kind = String(formData.get("kind") ?? "").trim()
-    const moduleId = String(formData.get("moduleId") ?? "").trim()
-    const productId = String(formData.get("productId") ?? "").trim()
-    const assetRole = sanitizeSegment(String(formData.get("assetRole") ?? "").trim())
-    const requestedFileName = String(formData.get("fileName") ?? "").trim()
-    const requestedMimeType = String(formData.get("mimeType") ?? "").trim().toLowerCase()
-    const replacePath = String(formData.get("replacePath") ?? "").trim() || null
-    const file = formData.get("file")
-    const isSignedUploadRequest = kind === "module_asset_signed_url"
-    const isModuleLimitRequest = kind === "module_asset_limits"
-    const privateAssetFileSizeLimitBytes = await resolveGlobalStorageFileSizeLimitBytes()
+    const body = await readJsonBody<Body>(req)
 
-    if (!["module_pdf", "module_asset", "watermark_logo", "product_cover", "branding_asset", "module_asset_signed_url", "module_asset_limits"].includes(kind)) {
-      throw badRequest("kind invalido")
-    }
-    if (!isSignedUploadRequest && !isModuleLimitRequest && !(file instanceof File)) {
-      throw badRequest("file e obrigatorio")
-    }
-    if (!isSignedUploadRequest && !isModuleLimitRequest && file.size === 0) {
-      throw badRequest("O ficheiro enviado esta vazio")
-    }
-
-    const fileNameForSanitization =
-      isSignedUploadRequest
-        ? requestedFileName || "video.mp4"
-        : isModuleLimitRequest
-          ? "video.mp4"
-          : file.name
-    const safeExtension = getFileExtension(fileNameForSanitization)
-    const rawContentType =
-      isSignedUploadRequest
-        ? (requestedMimeType || null)
-        : isModuleLimitRequest
-          ? "video/mp4"
-          : (file.type || null)
-    let contentType = rawContentType || inferImageMimeType(safeExtension) || null
-    const fileNameBase = sanitizeSegment(fileNameForSanitization.replace(/\.[^.]+$/, "")) || "arquivo"
-    const timeStamp = new Date().toISOString().replace(/[:.]/g, "-")
-    let objectPath = ""
-    let auditAction = ""
-    let auditEntityType = ""
-    let auditEntityId = moduleId || productId || context.user.id
-    let targetBucket = COURSE_STORAGE_BUCKET
-    let targetBucketFileSizeLimitBytes: number | null = null
-    let auditMetadata: Record<string, unknown> = {
-      file_name: fileNameForSanitization,
-      mime_type: contentType,
-      file_size_bytes: isSignedUploadRequest || isModuleLimitRequest ? null : file.size,
-    }
-
-    if (kind === "watermark_logo") {
-      objectPath = `site-config/module-pdf-watermark/logo/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
-      auditAction = "admin.watermark_logo_uploaded"
-      auditEntityType = "site_config"
-      auditEntityId = null
-      targetBucketFileSizeLimitBytes = await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
-        public: false,
-        fileSizeLimit: privateAssetFileSizeLimitBytes,
-        allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
-      }) ?? privateAssetFileSizeLimitBytes
-      auditMetadata = {
-        ...auditMetadata,
-        config_key: "module_pdf_watermark",
-      }
-    } else if (kind === "branding_asset") {
-      if (!["logo_light", "logo_dark", "favicon"].includes(assetRole)) {
-        throw badRequest("assetRole invalido")
-      }
-
-      if (!BRANDING_ALLOWED_EXTENSIONS.has(safeExtension)) {
-        throw badRequest("Formato de branding invalido. Use SVG, PNG, JPG, WEBP, GIF, AVIF ou ICO.")
-      }
-
-      contentType = normalizeBrandingMimeType(rawContentType, safeExtension)
-
-      await ensureStorageBucket(context.serviceClient, SITE_BRANDING_BUCKET, {
-        public: true,
-        fileSizeLimit: BRANDING_FILE_SIZE_LIMIT_BYTES,
-        allowedMimeTypes: BRANDING_ALLOWED_MIME_TYPES,
-      })
-
-      if (!contentType || !BRANDING_ALLOWED_MIME_TYPES.includes(contentType)) {
-        throw badRequest("Formato de branding invalido. Use SVG, PNG, JPG, WEBP, GIF, AVIF ou ICO.")
-      }
-
-      targetBucket = SITE_BRANDING_BUCKET
-      objectPath = `${assetRole}/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
-      auditAction = "admin.branding_asset_uploaded"
-      auditEntityType = "site_config"
-      auditEntityId = null
-      auditMetadata = {
-        ...auditMetadata,
-        config_key: "site_branding",
-        asset_role: assetRole,
-      }
-    } else if (kind === "product_cover") {
-      if (!productId) throw badRequest("productId e obrigatorio")
-
-      const { data: productRow, error: productError } = await context.serviceClient
-        .from("products")
-        .select("id,slug,title")
-        .eq("id", productId)
-        .maybeSingle()
-
-      if (productError) throw productError
-      if (!productRow) throw badRequest("Material nao encontrado")
-
-      await ensureStorageBucket(context.serviceClient, COURSE_COVER_BUCKET, {
-        public: true,
-        fileSizeLimit: COURSE_COVER_FILE_SIZE_LIMIT_BYTES,
-        allowedMimeTypes: COURSE_COVER_ALLOWED_MIME_TYPES,
-      })
-
-      if (!contentType || !COURSE_COVER_ALLOWED_MIME_TYPES.includes(contentType)) {
-        throw badRequest("Formato de capa invalido. Use PNG, JPG, WEBP, GIF ou AVIF.")
-      }
-
-      targetBucket = COURSE_COVER_BUCKET
-      objectPath = `products/${productId}/cover/${timeStamp}-${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
-      auditAction = "admin.product_cover_uploaded"
-      auditEntityType = "product"
-      auditEntityId = productId
-      auditMetadata = {
-        ...auditMetadata,
-        product_id: productId,
-        product_slug: productRow.slug,
-      }
-    } else {
-      if (!moduleId) throw badRequest("moduleId e obrigatorio")
-
-      const { data: moduleRow, error: moduleError } = await context.serviceClient
-        .from("product_modules")
-        .select("id,product_id,title")
-        .eq("id", moduleId)
-        .maybeSingle()
-
-      if (moduleError) throw moduleError
-      if (!moduleRow) throw badRequest("Modulo nao encontrado")
-
-      targetBucketFileSizeLimitBytes = await ensureStorageBucket(context.serviceClient, COURSE_STORAGE_BUCKET, {
-        public: false,
-        fileSizeLimit: privateAssetFileSizeLimitBytes,
-        allowedMimeTypes: PRIVATE_ASSET_ALLOWED_MIME_TYPES,
-      }) ?? privateAssetFileSizeLimitBytes
-
-      objectPath =
-        kind === "module_pdf"
-          ? `products/${moduleRow.product_id}/modules/${moduleId}/module-pdf/${timeStamp}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
-          : `products/${moduleRow.product_id}/modules/${moduleId}/assets/${crypto.randomUUID()}-${fileNameBase}${safeExtension ? `.${safeExtension}` : ""}`
-
-      auditAction =
-        kind === "module_pdf"
-          ? "admin.module_pdf_uploaded"
-          : kind === "module_asset_signed_url"
-            ? "admin.module_asset_signed_url_created"
-            : "admin.module_asset_uploaded"
-      auditEntityType =
-        kind === "module_pdf"
-          ? "product_module"
-          : kind === "module_asset_signed_url"
-            ? "module_asset_upload_url"
-            : "module_asset_upload"
-      auditMetadata = {
-        ...auditMetadata,
-        module_id: moduleId,
-        product_id: moduleRow.product_id,
-      }
-    }
-
-    if (kind === "module_asset_limits") {
+    if (body.operation === "get_upload_limits") {
+      const { maxFileSizeBytes } = getStorageLimits()
       return jsonResponse({
         success: true,
         request_id: requestId,
         upload: {
-          bucket: targetBucket,
-          path: "",
-          file_name: null,
-          mime_type: null,
-          file_size_bytes: null,
-          max_file_size_bytes: targetBucketFileSizeLimitBytes,
-          uploaded_at: null,
-          public_url: null,
+          bucket: COURSE_STORAGE_BUCKET,
+          max_file_size_bytes: maxFileSizeBytes,
         },
       })
     }
 
-    if (kind === "module_asset_signed_url") {
-      if (!contentType || !PRIVATE_ASSET_ALLOWED_MIME_TYPES.includes(contentType)) {
-        throw badRequest("Formato de video invalido. Use MP4, WEBM, OGG, MOV ou M4V.")
+    if (body.operation === "delete_object") {
+      requireAdminUpload(context)
+      const storageBucket = String(body.storage_bucket ?? "").trim()
+      const storagePath = String(body.storage_path ?? "").trim()
+
+      if (!storageBucket || !storagePath) {
+        throw badRequest("storage_bucket e storage_path sao obrigatorios")
       }
 
-      const { data: signedUpload, error: signedUploadError } = await context.serviceClient.storage
-        .from(targetBucket)
-        .createSignedUploadUrl(objectPath)
-
-      if (signedUploadError) {
-        throw signedUploadError
-      }
+      await deleteStorageObject({
+        serviceClient: context.serviceClient,
+        logicalBucket: storageBucket,
+        storagePath,
+        provider: body.storage_provider ?? null,
+      })
 
       await writeAuditLog(context.serviceClient, context, {
-        action: auditAction,
-        entityType: auditEntityType,
-        entityId: auditEntityId,
+        action: "admin.storage_object_deleted",
+        entityType: "storage_object",
+        entityId: null,
         metadata: {
-          ...auditMetadata,
-          bucket: targetBucket,
-          path: objectPath,
+          bucket: storageBucket,
+          path: storagePath,
+          provider: body.storage_provider ?? null,
         },
         ...auditMeta,
       })
 
-      return jsonResponse({
-        success: true,
-        request_id: requestId,
-        upload: {
-          bucket: targetBucket,
-          path: objectPath,
-          file_name: fileNameForSanitization,
-          mime_type: contentType,
-          file_size_bytes: null,
-          max_file_size_bytes: targetBucketFileSizeLimitBytes,
-          uploaded_at: null,
-          public_url: null,
-          signed_upload: {
-            path: signedUpload.path,
-            token: signedUpload.token,
-            signed_url: signedUpload.signedUrl,
-          },
-        },
-      })
+      return jsonResponse({ success: true, request_id: requestId })
     }
 
-    const arrayBuffer = await file.arrayBuffer()
-    const { error: uploadError } = await context.serviceClient.storage
-      .from(targetBucket)
-      .upload(objectPath, arrayBuffer, {
-        upsert: false,
-        contentType: contentType || undefined,
-      })
-
-    if (uploadError) {
-      const uploadMessage = String(uploadError.message ?? uploadError)
-
-      if (kind === "branding_asset") {
-        if (/mime|content[- ]?type|format|file type|extension/i.test(uploadMessage)) {
-          throw badRequest("Formato de branding invalido. Use SVG, PNG, JPG, WEBP, GIF, AVIF ou ICO.", {
-            mime_type: contentType,
-            extension: safeExtension,
-          })
-        }
-
-        if (/size limit|payload too large|entity too large|file too large/i.test(uploadMessage)) {
-          throw badRequest("O ficheiro de branding excede o limite de 5MB.")
-        }
-      }
-
-      throw uploadError
+    if (body.operation !== "prepare_upload") {
+      throw badRequest("operation invalida")
     }
 
-    if (replacePath && replacePath !== objectPath) {
-      const { error: removeError } = await context.serviceClient.storage
-        .from(targetBucket)
-        .remove([replacePath])
-
-      if (removeError) {
-        logError("Admin storage replace cleanup failed", {
-        request_id: requestId,
-        replace_path: replacePath,
-        bucket: targetBucket,
-        error: String(removeError),
-      })
-      }
-    }
+    const target = await resolveUploadTarget(context, body)
+    const ticket = await createSignedUploadTicket({
+      serviceClient: context.serviceClient,
+      logicalBucket: target.logicalBucket,
+      storagePath: target.storagePath,
+      mimeType: target.mimeType,
+      provider: body.storage_provider ?? undefined,
+      publicProxyKind: target.publicProxyKind,
+    })
 
     await writeAuditLog(context.serviceClient, context, {
-      action: auditAction,
-      entityType: auditEntityType,
-      entityId: auditEntityId,
+      action: `storage.${body.upload_kind}.prepare_upload`,
+      entityType: target.auditEntityType,
+      entityId: target.auditEntityId,
       metadata: {
-        ...auditMetadata,
-        bucket: targetBucket,
-        path: objectPath,
+        ...target.metadata,
+        bucket: target.logicalBucket,
+        path: target.storagePath,
+        provider: ticket.storage_provider,
+        file_name: target.fileName,
+        mime_type: target.mimeType,
+        file_size_bytes: target.fileSizeBytes,
+        replace_path: body.replace_path ?? null,
       },
       ...auditMeta,
     })
-
-    const publicUploadUrl =
-      targetBucket === COURSE_COVER_BUCKET || targetBucket === SITE_BRANDING_BUCKET
-        ? context.serviceClient.storage.from(targetBucket).getPublicUrl(objectPath).data.publicUrl
-        : null
 
     return jsonResponse({
       success: true,
       request_id: requestId,
       upload: {
-        bucket: targetBucket,
-        path: objectPath,
-        file_name: file.name,
-        mime_type: contentType,
-        file_size_bytes: file.size,
-        uploaded_at: new Date().toISOString(),
-        public_url: publicUploadUrl,
+        ...ticket,
+        max_file_size_bytes: getStorageLimits().maxFileSizeBytes,
       },
     })
   } catch (error) {

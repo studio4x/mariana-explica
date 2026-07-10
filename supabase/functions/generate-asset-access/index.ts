@@ -10,6 +10,7 @@ import { logError, logInfo } from "../_shared/logger.ts"
 import { getOptionalAuth, isAdminProfile, requireActiveUser } from "../_shared/auth.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { extractRequestAuditContext, writeAuditLog } from "../_shared/mod.ts"
+import { createSignedReadUrl } from "../_shared/storage-provider.ts"
 
 interface GenerateAssetAccessInput {
   assetId?: string
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
     const { data: asset, error: assetError } = await client
       .from("module_assets")
       .select(
-        "id,module_id,asset_type,title,storage_bucket,storage_path,external_url,allow_download,allow_stream,watermark_enabled,status",
+        "id,module_id,asset_type,title,storage_bucket,storage_path,storage_provider,external_url,allow_download,allow_stream,watermark_enabled,status",
       )
       .eq("id", body.assetId)
       .maybeSingle()
@@ -191,18 +192,17 @@ Deno.serve(async (req) => {
       throw forbidden("Asset sem origem de armazenamento")
     }
 
-    const signed = await client.storage
-      .from(asset.storage_bucket)
-      .createSignedUrl(asset.storage_path, 300, {
-        download:
-          asset.allow_download && activeContext
-            ? sanitizeSegment(`${product.title}-${asset.title}-${activeContext.user.id.slice(0, 8)}`)
-            : undefined,
-      })
-
-    if (signed.error || !signed.data?.signedUrl) {
-      throw signed.error ?? forbidden("Nao foi possivel gerar acesso temporario")
-    }
+    const signedUrl = await createSignedReadUrl({
+      serviceClient: client,
+      logicalBucket: asset.storage_bucket,
+      storagePath: asset.storage_path,
+      provider: asset.storage_provider ?? "supabase",
+      expiresInSeconds: 300,
+      downloadFileName:
+        asset.allow_download && activeContext
+          ? sanitizeSegment(`${product.title}-${asset.title}-${activeContext.user.id.slice(0, 8)}`)
+          : null,
+    })
 
     if (activeContext) {
       await writeAuditLog(client, activeContext, {
@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
       success: true,
       request_id: requestId,
       mode: "signed_url",
-      url: signed.data.signedUrl,
+      url: signedUrl,
       expires_in_seconds: 300,
       allow_download: asset.allow_download,
       allow_stream: asset.allow_stream,

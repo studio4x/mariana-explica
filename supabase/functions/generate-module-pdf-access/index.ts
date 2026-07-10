@@ -4,6 +4,7 @@ import { badRequest, forbidden } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
+import { createSignedReadUrl, downloadStorageObject, uploadStorageObject } from "../_shared/storage-provider.ts"
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
 const MODULE_PDF_WATERMARK_KEY = "module_pdf_watermark"
@@ -17,6 +18,7 @@ interface WatermarkConfigValue {
   site_name: string
   logo_bucket: string | null
   logo_path: string | null
+  logo_storage_provider: "supabase" | "r2" | null
 }
 
 function sanitizeSegment(value: string) {
@@ -33,11 +35,13 @@ function normalizeWatermarkConfig(value: unknown): WatermarkConfigValue {
   const siteName = String(input.site_name ?? DEFAULT_SITE_NAME).trim() || DEFAULT_SITE_NAME
   const logoBucket = String(input.logo_bucket ?? "").trim() || null
   const logoPath = String(input.logo_path ?? "").trim() || null
+  const logoStorageProvider = String(input.logo_storage_provider ?? "").trim() === "r2" ? "r2" : logoPath ? "supabase" : null
 
   return {
     site_name: siteName,
     logo_bucket: logoPath ? (logoBucket ?? COURSE_STORAGE_BUCKET) : null,
     logo_path: logoPath,
+    logo_storage_provider: logoStorageProvider,
   }
 }
 
@@ -63,13 +67,16 @@ async function readStorageObject(
   serviceClient: ReturnType<typeof createServiceClient>,
   bucket: string,
   path: string,
+  provider: "supabase" | "r2" | null = "supabase",
 ) {
-  const download = await serviceClient.storage.from(bucket).download(path)
-  if (download.error || !download.data) {
-    throw download.error ?? forbidden("Nao foi possivel ler o ficheiro protegido")
-  }
-
-  return new Uint8Array(await download.data.arrayBuffer())
+  return await downloadStorageObject({
+    serviceClient,
+    logicalBucket: bucket,
+    storagePath: path,
+    provider: provider ?? "supabase",
+  }).catch((error) => {
+    throw error ?? forbidden("Nao foi possivel ler o ficheiro protegido")
+  })
 }
 
 async function getWatermarkConfig(
@@ -176,7 +183,7 @@ Deno.serve(async (req) => {
     const { data: moduleRow, error: moduleError } = await context.serviceClient
       .from("product_modules")
       .select(
-        "id,product_id,title,module_pdf_storage_path,module_pdf_file_name,status,access_type,is_preview,starts_at,ends_at,release_days_after_enrollment",
+        "id,product_id,title,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,status,access_type,is_preview,starts_at,ends_at,release_days_after_enrollment",
       )
       .eq("id", moduleId)
       .maybeSingle()
@@ -213,6 +220,7 @@ Deno.serve(async (req) => {
       context.serviceClient,
       COURSE_STORAGE_BUCKET,
       moduleRow.module_pdf_storage_path,
+      moduleRow.module_pdf_storage_provider ?? "supabase",
     )
 
     let logoBytes: Uint8Array | null = null
@@ -222,6 +230,7 @@ Deno.serve(async (req) => {
           context.serviceClient,
           watermarkConfig.logo_bucket,
           watermarkConfig.logo_path,
+          watermarkConfig.logo_storage_provider ?? "supabase",
         )
       } catch (error) {
         logError("Module PDF watermark logo load failed", {
@@ -248,26 +257,23 @@ Deno.serve(async (req) => {
     ) || moduleRow.module_pdf_file_name
     const derivedPath = `derived-watermarks/module-pdfs/${context.user.id}/${moduleId}/${sanitizeSegment(downloadName) || "material"}.pdf`
 
-    const upload = await context.serviceClient.storage
-      .from(COURSE_STORAGE_BUCKET)
-      .upload(derivedPath, watermarkedPdfBytes, {
-        upsert: true,
-        contentType: "application/pdf",
-      })
+    await uploadStorageObject({
+      serviceClient: context.serviceClient,
+      logicalBucket: COURSE_STORAGE_BUCKET,
+      storagePath: derivedPath,
+      provider: "r2",
+      body: watermarkedPdfBytes,
+      contentType: "application/pdf",
+    })
 
-    if (upload.error) {
-      throw upload.error
-    }
-
-    const signed = await context.serviceClient.storage
-      .from(COURSE_STORAGE_BUCKET)
-      .createSignedUrl(derivedPath, 300, {
-        download: downloadName,
-      })
-
-    if (signed.error || !signed.data?.signedUrl) {
-      throw signed.error ?? forbidden("Nao foi possivel gerar acesso temporario")
-    }
+    const signedUrl = await createSignedReadUrl({
+      serviceClient: context.serviceClient,
+      logicalBucket: COURSE_STORAGE_BUCKET,
+      storagePath: derivedPath,
+      provider: "r2",
+      expiresInSeconds: 300,
+      downloadFileName: downloadName,
+    })
 
     await writeAuditLog(context.serviceClient, context, {
       action: "student.module_pdf_access_requested",
@@ -282,6 +288,7 @@ Deno.serve(async (req) => {
         licensed_file_name: downloadName,
         watermark_site_name: watermarkConfig.site_name,
         watermark_logo_path: watermarkConfig.logo_path,
+        storage_provider: moduleRow.module_pdf_storage_provider ?? "supabase",
       },
       ...auditMeta,
     })
@@ -290,7 +297,7 @@ Deno.serve(async (req) => {
       success: true,
       request_id: requestId,
       mode: "signed_url",
-      url: signed.data.signedUrl,
+      url: signedUrl,
       expires_in_seconds: 300,
       file_name: downloadName,
     })

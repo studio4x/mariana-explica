@@ -1,19 +1,21 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert"
+import { describe, expect, it } from "vitest"
 import { richTextToPlainText, sanitizeRichTextHtml } from "./rich-text.ts"
 
-Deno.test("sanitizeRichTextHtml removes unsafe markup and keeps allowed links", () => {
-  const html = sanitizeRichTextHtml(
-    '<p>Ola <strong>aluno</strong></p><script>alert("x")</script><p><a href="/aluno/notificacoes" onclick="evil()">Ver</a></p>',
-  )
+describe("rich-text helpers", () => {
+  it("sanitizeRichTextHtml removes unsafe markup and keeps allowed links", () => {
+    const html = sanitizeRichTextHtml(
+      '<p>Ola <strong>aluno</strong></p><script>alert("x")</script><p><a href="/aluno/notificacoes" onclick="evil()">Ver</a></p>',
+    )
 
-  assertStringIncludes(html, "<strong>aluno</strong>")
-  assertStringIncludes(html, 'href="/aluno/notificacoes"')
-  assertEquals(html.includes("<script"), false)
-  assertEquals(html.includes("onclick"), false)
-})
+    expect(html).toContain("<strong>aluno</strong>")
+    expect(html).toContain('href="/aluno/notificacoes"')
+    expect(html.includes("<script")).toBe(false)
+    expect(html.includes("onclick")).toBe(false)
+  })
 
-Deno.test("richTextToPlainText creates readable fallback text", () => {
-  const text = richTextToPlainText("<p>Primeira linha</p><p>Segunda linha</p><ul><li>Item</li></ul>")
+  it("richTextToPlainText creates readable fallback text", () => {
+    const text = richTextToPlainText("<p>Primeira linha</p><p>Segunda linha</p><ul><li>Item</li></ul>")
 
-  assertEquals(text, "Primeira linha\nSegunda linha\n- Item")
+    expect(text).toBe("Primeira linha\nSegunda linha\n- Item")
+  })
 })

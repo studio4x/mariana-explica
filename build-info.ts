@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "207"
-export const BUILD_COMMIT = "remove-notification-purchase-card"
+export const BUILD_DEPLOY_NUMBER = "208"
+export const BUILD_COMMIT = "local"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

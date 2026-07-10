@@ -430,12 +430,35 @@ export interface AdminModuleAssetUploadLimitResult {
   max_file_size_bytes: number | null
 }
 
+export interface AdminR2UsageOverview {
+  bucket: string
+  prefix: string | null
+  object_count: number
+  total_size_bytes: number
+  provider_default: string
+}
+
+export interface AdminR2ListedObject {
+  key: string
+  logical_bucket: string
+  storage_path: string
+  size_bytes: number
+  last_modified: string | null
+}
+
+export interface AdminR2ObjectsPage {
+  objects: AdminR2ListedObject[]
+  next_cursor: string | null
+  has_more: boolean
+}
+
 function normalizeBrandingAsset(value: unknown): AdminBrandingAsset {
   const asset = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
 
   return {
     bucket: String(asset.bucket ?? "").trim() || null,
     path: String(asset.path ?? "").trim() || null,
+    storage_provider: asset.storage_provider === "r2" ? "r2" : asset.path ? "supabase" : null,
     public_url: String(asset.public_url ?? "").trim() || null,
     file_name: String(asset.file_name ?? "").trim() || null,
     uploaded_at: String(asset.uploaded_at ?? "").trim() || null,
@@ -453,6 +476,7 @@ function normalizeModulePdfWatermarkConfig(
   const siteName = String(value.site_name ?? DEFAULT_WATERMARK_SITE_NAME).trim() || DEFAULT_WATERMARK_SITE_NAME
   const logoPath = String(value.logo_path ?? "").trim() || null
   const logoBucket = logoPath ? String(value.logo_bucket ?? "course-assets-private").trim() || "course-assets-private" : null
+  const logoStorageProvider = value.logo_storage_provider === "r2" ? "r2" : logoPath ? "supabase" : null
 
   return {
     config_key: row?.config_key ?? MODULE_PDF_WATERMARK_KEY,
@@ -460,6 +484,7 @@ function normalizeModulePdfWatermarkConfig(
       site_name: siteName,
       logo_bucket: logoBucket,
       logo_path: logoPath,
+      logo_storage_provider: logoStorageProvider,
     },
     description: row?.description ?? "Configuração do watermark aplicado ao PDF base dos módulos.",
     is_public: row?.is_public ?? false,
@@ -1483,6 +1508,52 @@ export async function fetchPublicSiteMaintenanceConfig() {
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
 }
 
+export async function fetchAdminR2UsageOverview(prefix?: string | null) {
+  const response = await invokeAdminFunction<{ success: true; overview: AdminR2UsageOverview }>("admin-r2-usage", {
+    action: "overview",
+    prefix: prefix ?? null,
+  })
+
+  return response.overview
+}
+
+export async function fetchAdminR2Objects(input?: {
+  prefix?: string | null
+  cursor?: string | null
+  limit?: number | null
+}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    objects: AdminR2ListedObject[]
+    next_cursor: string | null
+    has_more: boolean
+  }>("admin-r2-usage", {
+    action: "list_objects",
+    prefix: input?.prefix ?? null,
+    cursor: input?.cursor ?? null,
+    limit: input?.limit ?? null,
+  })
+
+  return {
+    objects: response.objects ?? [],
+    next_cursor: response.next_cursor ?? null,
+    has_more: response.has_more ?? false,
+  } satisfies AdminR2ObjectsPage
+}
+
+export async function deleteAdminR2Object(input: {
+  logicalBucket: string
+  storagePath: string
+  storageProvider?: "supabase" | "r2" | null
+}) {
+  await invokeAdminFunction<{ success: true }>("admin-r2-usage", {
+    action: "delete_object",
+    logical_bucket: input.logicalBucket,
+    storage_path: input.storagePath,
+    storage_provider: input.storageProvider ?? "r2",
+  })
+}
+
 export async function fetchAdminSiteThemeConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -1675,6 +1746,7 @@ export async function updateAdminModulePdfWatermarkConfig(input: {
   siteName: string
   logoBucket?: string | null
   logoPath?: string | null
+  logoStorageProvider?: "supabase" | "r2" | null
 }) {
   const payload = normalizeModulePdfWatermarkConfig({
     config_key: MODULE_PDF_WATERMARK_KEY,
@@ -1682,6 +1754,7 @@ export async function updateAdminModulePdfWatermarkConfig(input: {
       site_name: input.siteName,
       logo_bucket: input.logoBucket ?? null,
       logo_path: input.logoPath ?? null,
+      logo_storage_provider: input.logoStorageProvider ?? null,
     },
     description: "Configuração do watermark aplicado ao PDF base dos módulos.",
     is_public: false,

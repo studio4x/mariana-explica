@@ -70,6 +70,9 @@ export interface ProductSummary {
   price_cents: number
   currency: string
   cover_image_url: string | null
+  cover_image_storage_bucket?: string | null
+  cover_image_storage_path?: string | null
+  cover_image_storage_provider?: "supabase" | "r2" | null
   launch_date: string | null
   is_public: boolean
   creator_id: string | null

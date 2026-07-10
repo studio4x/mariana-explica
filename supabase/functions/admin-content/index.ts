@@ -3,6 +3,7 @@ import { badRequest } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
+import { deleteStorageObject } from "../_shared/storage-provider.ts"
 
 type Action =
   | "list_modules"
@@ -57,6 +58,7 @@ interface Body {
   ends_at?: string | null
   release_days_after_enrollment?: number | null
   module_pdf_storage_path?: string | null
+  module_pdf_storage_provider?: "supabase" | "r2" | null
   module_pdf_file_name?: string | null
   module_pdf_uploaded_at?: string | null
   status?: ModuleStatus
@@ -77,6 +79,7 @@ interface Body {
   sort_order_asset?: number
   storage_bucket?: string | null
   storage_path?: string | null
+  storage_provider?: "supabase" | "r2" | null
   external_url?: string | null
   mime_type?: string | null
   file_size_bytes?: number | null
@@ -87,6 +90,7 @@ interface Body {
 
   media_bucket?: string | null
   media_path?: string | null
+  media_storage_provider?: "supabase" | "r2" | null
 }
 
 function requireUuid(value: string | undefined, label: string) {
@@ -132,7 +136,7 @@ function normalizeNullableTimestamp(value: unknown) {
 }
 
 const moduleSelect =
-  "id,product_id,title,description,module_type,access_type,position,sort_order,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_file_name,module_pdf_uploaded_at,status,created_at,updated_at"
+  "id,product_id,title,description,module_type,access_type,position,sort_order,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,module_pdf_uploaded_at,status,created_at,updated_at"
 
 const lessonSelect =
   "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
@@ -221,6 +225,7 @@ function validateAssetSource(body: Body) {
     external_url: externalUrl,
     storage_bucket: hasStorage ? bucket : null,
     storage_path: hasStorage ? path : null,
+    storage_provider: hasStorage ? (body.storage_provider === "r2" ? "r2" : "supabase") : null,
   }
 }
 
@@ -264,21 +269,33 @@ function validateLessonMediaRemovalTarget(body: Body) {
     }
   }
 
-  return { bucket, path }
+  return {
+    bucket,
+    path,
+    provider: body.media_storage_provider === "r2" ? "r2" : "supabase",
+  }
 }
 
 async function removeStorageObjectIfPresent(
   serviceClient: ReturnType<typeof createServiceClient>,
   bucket: string | null | undefined,
   path: string | null | undefined,
+  provider: "supabase" | "r2" | null | undefined = "supabase",
 ) {
   if (!bucket || !path) return
 
-  const { error } = await serviceClient.storage.from(bucket).remove([path])
-  if (error) {
+  try {
+    await deleteStorageObject({
+      serviceClient,
+      logicalBucket: bucket,
+      storagePath: path,
+      provider: provider ?? "supabase",
+    })
+  } catch (error) {
     logError("Admin content storage cleanup failed", {
       bucket,
       path,
+      provider,
       error: String(error),
     })
   }
@@ -340,6 +357,7 @@ Deno.serve(async (req) => {
           ends_at: normalizeNullableTimestamp(body.ends_at),
           release_days_after_enrollment: normalizeNullableNumber(body.release_days_after_enrollment),
           module_pdf_storage_path: normalizeNullableText(body.module_pdf_storage_path),
+          module_pdf_storage_provider: body.module_pdf_storage_provider === "r2" ? "r2" : "supabase",
           module_pdf_file_name: normalizeNullableText(body.module_pdf_file_name),
           module_pdf_uploaded_at: normalizeNullableTimestamp(body.module_pdf_uploaded_at),
           status: body.status ?? "published",
@@ -357,7 +375,7 @@ Deno.serve(async (req) => {
       const moduleId = requireUuid(body.moduleId, "moduleId")
       const { data: existingModule, error: existingModuleError } = await serviceClient
         .from("product_modules")
-        .select("id,module_pdf_storage_path")
+        .select("id,module_pdf_storage_path,module_pdf_storage_provider")
         .eq("id", moduleId)
         .maybeSingle()
 
@@ -381,6 +399,9 @@ Deno.serve(async (req) => {
       if (body.module_pdf_storage_path !== undefined) {
         payload.module_pdf_storage_path = normalizeNullableText(body.module_pdf_storage_path)
       }
+      if (body.module_pdf_storage_provider !== undefined) {
+        payload.module_pdf_storage_provider = body.module_pdf_storage_provider === "r2" ? "r2" : "supabase"
+      }
       if (body.module_pdf_file_name !== undefined) {
         payload.module_pdf_file_name = normalizeNullableText(body.module_pdf_file_name)
       }
@@ -402,7 +423,12 @@ Deno.serve(async (req) => {
         existingModule.module_pdf_storage_path &&
         data.module_pdf_storage_path !== existingModule.module_pdf_storage_path
       ) {
-        await removeStorageObjectIfPresent(serviceClient, "course-assets-private", existingModule.module_pdf_storage_path)
+        await removeStorageObjectIfPresent(
+          serviceClient,
+          "course-assets-private",
+          existingModule.module_pdf_storage_path,
+          existingModule.module_pdf_storage_provider,
+        )
       }
 
       return jsonResponse({ success: true, request_id: requestId, module: data })
@@ -412,14 +438,14 @@ Deno.serve(async (req) => {
       const moduleId = requireUuid(body.moduleId, "moduleId")
       const { data: existingModule, error: existingModuleError } = await serviceClient
         .from("product_modules")
-        .select("id,module_pdf_storage_path")
+        .select("id,module_pdf_storage_path,module_pdf_storage_provider")
         .eq("id", moduleId)
         .maybeSingle()
       if (existingModuleError) throw existingModuleError
 
       const { data: existingAssets, error: existingAssetsError } = await serviceClient
         .from("module_assets")
-        .select("id,storage_bucket,storage_path")
+        .select("id,storage_bucket,storage_path,storage_provider")
         .eq("module_id", moduleId)
 
       if (existingAssetsError) throw existingAssetsError
@@ -431,9 +457,10 @@ Deno.serve(async (req) => {
         serviceClient,
         "course-assets-private",
         existingModule?.module_pdf_storage_path,
+        existingModule?.module_pdf_storage_provider,
       )
       for (const asset of existingAssets ?? []) {
-        await removeStorageObjectIfPresent(serviceClient, asset.storage_bucket, asset.storage_path)
+        await removeStorageObjectIfPresent(serviceClient, asset.storage_bucket, asset.storage_path, asset.storage_provider)
       }
       return jsonResponse({ success: true, request_id: requestId })
     }
@@ -681,7 +708,7 @@ Deno.serve(async (req) => {
       const moduleId = requireUuid(body.moduleId, "moduleId")
       const { data, error } = await serviceClient
         .from("module_assets")
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status,created_at,updated_at")
+        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status,created_at,updated_at")
         .eq("module_id", moduleId)
         .order("sort_order", { ascending: true })
 
@@ -712,7 +739,7 @@ Deno.serve(async (req) => {
           watermark_enabled: Boolean(body.watermark_enabled),
           status: body.asset_status ?? "active",
         })
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
+        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
         .single()
 
       if (error) throw error
@@ -724,7 +751,7 @@ Deno.serve(async (req) => {
       const assetId = requireUuid(body.assetId, "assetId")
       const { data: existingAsset, error: existingAssetError } = await serviceClient
         .from("module_assets")
-        .select("id,storage_bucket,storage_path")
+        .select("id,storage_bucket,storage_path,storage_provider")
         .eq("id", assetId)
         .maybeSingle()
 
@@ -753,7 +780,7 @@ Deno.serve(async (req) => {
         .from("module_assets")
         .update(payload)
         .eq("id", assetId)
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
+        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
         .single()
 
       if (error) throw error
@@ -769,6 +796,7 @@ Deno.serve(async (req) => {
           serviceClient,
           existingAsset.storage_bucket,
           existingAsset.storage_path,
+          existingAsset.storage_provider,
         )
       }
       return jsonResponse({ success: true, request_id: requestId, asset: data })
@@ -778,7 +806,7 @@ Deno.serve(async (req) => {
       const assetId = requireUuid(body.assetId, "assetId")
       const { data: existingAsset, error: existingAssetError } = await serviceClient
         .from("module_assets")
-        .select("id,storage_bucket,storage_path")
+        .select("id,storage_bucket,storage_path,storage_provider")
         .eq("id", assetId)
         .maybeSingle()
 
@@ -789,6 +817,7 @@ Deno.serve(async (req) => {
         serviceClient,
         existingAsset?.storage_bucket,
         existingAsset?.storage_path,
+        existingAsset?.storage_provider,
       )
       return jsonResponse({ success: true, request_id: requestId })
     }
@@ -796,7 +825,7 @@ Deno.serve(async (req) => {
     if (body.action === "delete_storage_object") {
       const target = validateLessonMediaRemovalTarget(body)
 
-      await removeStorageObjectIfPresent(serviceClient, target.bucket, target.path)
+      await removeStorageObjectIfPresent(serviceClient, target.bucket, target.path, target.provider)
 
       await writeAuditLog(serviceClient, context, {
         action: "admin.storage_object_deleted",

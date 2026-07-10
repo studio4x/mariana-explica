@@ -257,6 +257,7 @@ export function AdminSettings() {
         [role]: {
           bucket: upload.bucket,
           path: upload.path,
+          storage_provider: upload.storage_provider ?? "r2",
           public_url: upload.public_url ?? null,
           file_name: upload.file_name,
           uploaded_at: upload.uploaded_at,

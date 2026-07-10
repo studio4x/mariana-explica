@@ -25,6 +25,7 @@ interface CreateSupportTicketInput {
   attachment?: {
     bucket: string
     path: string
+    storage_provider?: "supabase" | "r2" | null
     file_name: string
     mime_type?: string | null
     file_size_bytes?: number | null
@@ -106,11 +107,12 @@ Deno.serve(async (req) => {
         user_id: context.user.id,
         attachment_bucket: body.attachment?.bucket ?? null,
         attachment_path: body.attachment?.path ?? null,
+        attachment_storage_provider: body.attachment?.storage_provider === "r2" ? "r2" : "supabase",
         attachment_name: body.attachment?.file_name ?? null,
         attachment_mime_type: body.attachment?.mime_type ?? null,
         attachment_size_bytes: body.attachment?.file_size_bytes ?? null,
       })
-      .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+      .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
       .single()
 
     if (error) {

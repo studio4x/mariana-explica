@@ -21,6 +21,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/public/site-asset",
+      "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset"
+    },
+    {
+      "source": "/api/public/course-media",
+      "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media"
+    },
+    {
+      "source": "/api/public/profile-avatar",
+      "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar"
+    },
+    {
       "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|icons/).*)",
       "destination": "/"
     }

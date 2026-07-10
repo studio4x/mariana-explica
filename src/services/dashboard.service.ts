@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase"
+import { uploadStorageFile } from "@/features/storage/r2-upload"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
 import { isValidNif, stripNifDigits } from "@/lib/nif"
 import { getFreshFunctionAuthContext, getFunctionAuthHeaders } from "@/services/supabase-auth"
@@ -67,7 +68,7 @@ async function fetchProductsByIds(productIds: string[]) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
     )
     .in("id", productIds)
 
@@ -85,7 +86,7 @@ async function fetchModulesByProductIds(productIds: string[]) {
 
   const { data, error } = await supabase
     .from("product_modules")
-    .select("id,product_id,title,description,module_type,access_type,sort_order,position,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_file_name,module_pdf_uploaded_at,status")
+    .select("id,product_id,title,description,module_type,access_type,sort_order,position,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,module_pdf_uploaded_at,status")
     .in("product_id", productIds)
     .order("position", { ascending: true })
     .order("sort_order", { ascending: true })
@@ -224,7 +225,7 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
     const { data, error } = await supabase
       .from("products")
       .select(
-        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at,updated_at",
+        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at,updated_at",
       )
       .eq("status", "published")
       .order("published_at", { ascending: false })
@@ -373,7 +374,7 @@ export async function fetchDashboardOverview(): Promise<DashboardOverviewData> {
 export async function fetchProductModules(productId: string) {
   const { data, error } = await supabase
     .from("product_modules")
-    .select("id,product_id,title,description,module_type,access_type,sort_order,position,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_file_name,module_pdf_uploaded_at,status")
+    .select("id,product_id,title,description,module_type,access_type,sort_order,position,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,module_pdf_uploaded_at,status")
     .eq("product_id", productId)
     .order("position", { ascending: true })
     .order("sort_order", { ascending: true })
@@ -652,7 +653,7 @@ export async function fetchModuleAssets(moduleIds: string[]) {
   const { data, error } = await supabase
     .from("module_assets")
     .select(
-      "id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
+      "id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
     )
     .in("module_id", moduleIds)
     .order("sort_order", { ascending: true })
@@ -960,7 +961,7 @@ export async function markAllNotificationsAsRead() {
 export async function fetchSupportTickets() {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+    .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -973,7 +974,7 @@ export async function fetchSupportTickets() {
 export async function fetchSupportTicket(ticketId: string) {
   const { data, error } = await supabase
     .from("support_tickets")
-    .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
+    .select("id,product_id,subject,message,status,priority,category,assigned_admin_id,last_reply_at,first_response_due_at,first_response_at,sla_status,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at,updated_at")
     .eq("id", ticketId)
     .single()
 
@@ -987,7 +988,7 @@ export async function fetchSupportTicket(ticketId: string) {
 export async function fetchSupportTicketMessages(ticketId: string) {
   const { data, error } = await supabase
     .from("support_ticket_messages")
-    .select("id,ticket_id,sender_user_id,sender_role,message,attachment_bucket,attachment_path,attachment_name,attachment_mime_type,attachment_size_bytes,created_at")
+    .select("id,ticket_id,sender_user_id,sender_role,message,attachment_bucket,attachment_path,attachment_storage_provider,attachment_name,attachment_mime_type,attachment_size_bytes,created_at")
     .eq("ticket_id", ticketId)
     .order("created_at", { ascending: true })
 
@@ -1098,19 +1099,32 @@ export async function uploadProfileAvatar(input: {
     throw new Error("Sessão expirada")
   }
 
-  const formData = new FormData()
-  formData.append("file", input.file)
-  if (input.replacePath) {
-    formData.append("replacePath", input.replacePath)
-  }
+  const upload = await uploadStorageFile({
+    upload_kind: "profile_avatar",
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "image/png",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
+  })
 
   const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/profile-avatar-upload`, {
     method: "POST",
     headers: {
       apikey: SUPABASE_ANON_KEY,
       Authorization: auth.headers.Authorization,
+      "Content-Type": "application/json",
     },
-    body: formData,
+    body: JSON.stringify({
+      bucket: upload.bucket,
+      path: upload.path,
+      storage_provider: upload.storage_provider ?? "r2",
+      public_url: upload.public_url ?? null,
+      file_name: upload.file_name,
+      mime_type: upload.mime_type,
+      file_size_bytes: upload.file_size_bytes,
+      access_token: auth.accessToken,
+    }),
   })
 
   const contentType = response.headers.get("content-type") ?? ""

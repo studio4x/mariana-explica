@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
 
       const { data: assets, error: assetsError } = await serviceClient
         .from("site_page_assets")
-        .select("id,page_id,bucket,path,public_url,file_name,mime_type,file_size_bytes,uploaded_by,created_at")
+        .select("id,page_id,bucket,path,storage_provider,public_url,file_name,mime_type,file_size_bytes,uploaded_by,created_at")
         .eq("page_id", page.id)
         .order("created_at", { ascending: false })
         .limit(100)

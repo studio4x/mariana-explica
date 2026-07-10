@@ -169,6 +169,9 @@ const AdminUsers = lazy(() => import("@/pages/admin").then((module) => ({ defaul
 const AdminPageEditor = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPageEditor })),
 )
+const AdminStorageR2 = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminStorageR2 })),
+)
 const AdminAiCodeEditorDisabled = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminAiCodeEditorDisabled })),
 )
@@ -572,6 +575,10 @@ export const router = createBrowserRouter(
         {
           path: "cupons",
           element: withSuspense(<AdminCoupons />),
+        },
+        {
+          path: "storage-r2",
+          element: withSuspense(<AdminStorageR2 />),
         },
         {
           path: "editor-paginas",
