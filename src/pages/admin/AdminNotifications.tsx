@@ -1045,46 +1045,32 @@ export function AdminNotifications() {
               </label>
             </div>
 
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Base de compra</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Compradores sao resolvidos por grants ativos, que sao a fonte canonica de acesso real.
-                  </p>
-                </div>
-                <StatusBadge label="active_grants" tone="info" />
-              </div>
-
-              {preview ? (
-                <div className="mt-4 rounded-[1.25rem] border border-emerald-200 bg-emerald-50 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-emerald-900">Preview de destinatarios pronta</p>
-                      <p className="mt-1 text-sm text-emerald-800">
-                        {preview.totalRecipients} destinatarios encontrados para esta campanha.
-                      </p>
-                    </div>
-                    <StatusBadge label={`${preview.totalRecipients} destinatarios`} tone="success" />
+            {preview ? (
+              <div className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-900">Preview de destinatarios pronta</p>
+                    <p className="mt-1 text-sm text-emerald-800">
+                      {preview.totalRecipients} destinatarios encontrados para esta campanha.
+                    </p>
                   </div>
-
-                  {preview.sampleRecipients.length > 0 ? (
-                    <div className="mt-4 grid gap-3">
-                      {preview.sampleRecipients.map((recipient) => (
-                        <div key={recipient.id} className="rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm">
-                          <p className="font-medium text-slate-950">{recipient.full_name ?? "Utilizador"}</p>
-                          <p className="text-slate-600">{recipient.email ?? recipient.id}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
+                  <StatusBadge label={`${preview.totalRecipients} destinatarios`} tone="success" />
                 </div>
-              ) : (
-                <p className="mt-4 text-sm text-slate-600">
-                  Usa a preview para confirmar o tamanho da audiencia antes do envio.
-                </p>
-              )}
-            </div>
+
+                {preview.sampleRecipients.length > 0 ? (
+                  <div className="mt-4 grid gap-3">
+                    {preview.sampleRecipients.map((recipient) => (
+                      <div key={recipient.id} className="rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm">
+                        <p className="font-medium text-slate-950">{recipient.full_name ?? "Utilizador"}</p>
+                        <p className="text-slate-600">{recipient.email ?? recipient.id}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600">Usa a preview para confirmar o tamanho da audiencia antes do envio.</p>
+            )}
           </div>
 
           {feedback ? (
