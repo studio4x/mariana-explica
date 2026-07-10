@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
-import { ROUTES, APP_NAME } from "@/lib/constants"
+import { ROUTES } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 
@@ -129,9 +129,8 @@ export function Register() {
     <>
       <div className="space-y-6">
         <div className="space-y-3 text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Cria aqui a tua conta</p>
           <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
-            Abre a tua conta na {APP_NAME}
+            Cria aqui a tua conta
           </h1>
           <p className="text-sm leading-7 text-muted-foreground">
             Garante o acesso imediato aos teus materiais de estudo e acompanha o teu progresso num só lugar.
@@ -209,7 +208,7 @@ export function Register() {
         </form>
 
         <div className="text-center text-sm text-slate-600">
-          JÁ tens conta?{" "}
+          Já tens conta?{" "}
           <Link
             to={buildAuthRedirectHref(ROUTES.LOGIN, redirectPath)}
             state={{ from: redirectPath }}

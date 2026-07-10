@@ -26,11 +26,8 @@ export function AuthLayout() {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/14">
               <GraduationCap className="h-6 w-6" />
             </div>
-            <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-[#d8e7ff]">
-              O teu espaço de estudo simples e sem distrações
-            </p>
             <h1 className="mt-8 max-w-lg font-display text-4xl font-bold leading-tight">
-              A tua Área de estudo com acesso simples, seguro e organizado.
+              O teu espaço de estudo simples e sem distrações
             </h1>
             <p className="mt-5 max-w-xl text-base leading-8 text-white/80">
               Acede às tuas sebentas e acompanha os teus cursos numa plataforma feita para te ajudar a estruturar a
