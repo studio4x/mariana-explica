@@ -444,6 +444,8 @@ export interface AdminR2ListedObject {
   storage_path: string
   size_bytes: number
   last_modified: string | null
+  file_type: "image" | "video" | "audio" | "document" | "archive" | "other"
+  preview_url: string | null
 }
 
 export interface AdminR2ObjectsPage {
@@ -1521,6 +1523,8 @@ export async function fetchAdminR2Objects(input?: {
   prefix?: string | null
   cursor?: string | null
   limit?: number | null
+  search?: string | null
+  fileType?: "all" | "image" | "video" | "audio" | "document" | "archive" | "other" | null
 }) {
   const response = await invokeAdminFunction<{
     success: true
@@ -1532,6 +1536,8 @@ export async function fetchAdminR2Objects(input?: {
     prefix: input?.prefix ?? null,
     cursor: input?.cursor ?? null,
     limit: input?.limit ?? null,
+    search: input?.search ?? null,
+    file_type: input?.fileType ?? null,
   })
 
   return {
