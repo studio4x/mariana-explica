@@ -103,10 +103,9 @@ export function StudentCourseDetailsPage() {
     : firstUnlockedEntry?.type === "assessment"
       ? studentCourseAssessmentPath(product.id, firstUnlockedEntry.id)
       : studentCoursePlayerPath(product.id)
-  const description =
-    richTextToPlainText(product.description) ||
+  const aboutSummary =
     richTextToPlainText(product.short_description) ||
-    "Material pronto para continuares o estudo com clareza."
+    "Resumo do material ainda nao definido."
   const primaryActionLabel = getLearningActionLabel({
     id: product.id,
     completed_lessons: completedLessons,
@@ -201,8 +200,8 @@ export function StudentCourseDetailsPage() {
             <div className="h-px flex-1 bg-slate-100" />
           </div>
           <RichTextContent
-            value={product.description}
-            fallback={description}
+            value={product.short_description}
+            fallback={aboutSummary}
             className="text-lg font-medium leading-relaxed text-slate-600"
           />
         </section>
