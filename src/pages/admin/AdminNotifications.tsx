@@ -287,19 +287,21 @@ export function AdminNotifications() {
   const [messageEditorTab, setMessageEditorTab] = useState<MessageEditorTab>("visual")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [preview, setPreview] = useState<AdminNotificationCampaignPreview | null>(null)
+  const shouldLoadUserDirectory = audience === "single"
+  const shouldLoadSegmentFilters = audience === "segment"
+  const shouldLoadQueue = activeTab === "queue"
 
   const campaignsQuery = useAdminNotificationCampaigns()
-  const operationsQuery = useAdminOperations()
-  const usersQuery = useAdminUsers()
-  const productsQuery = useAdminProducts()
-  const categoriesQuery = useAdminProductCategories()
+  const operationsQuery = useAdminOperations(shouldLoadQueue)
+  const usersQuery = useAdminUsers(shouldLoadUserDirectory)
+  const productsQuery = useAdminProducts(shouldLoadSegmentFilters)
+  const categoriesQuery = useAdminProductCategories(shouldLoadSegmentFilters)
   const previewMutation = usePreviewAdminNotificationCampaign()
   const retryEmailMutation = useRetryAdminEmailDelivery()
   const sendMutation = useSendAdminNotificationCampaign()
 
-  const isLoading =
-    campaignsQuery.isLoading || usersQuery.isLoading || productsQuery.isLoading || categoriesQuery.isLoading
-  const isError = campaignsQuery.isError || usersQuery.isError || productsQuery.isError || categoriesQuery.isError
+  const isLoading = campaignsQuery.isLoading
+  const isError = campaignsQuery.isError
 
   const users = usersQuery.data ?? []
   const products = productsQuery.data ?? []
@@ -557,9 +559,6 @@ export function AdminNotifications() {
         message="Tenta novamente dentro de instantes."
         onRetry={() => {
           void campaignsQuery.refetch()
-          void usersQuery.refetch()
-          void productsQuery.refetch()
-          void categoriesQuery.refetch()
         }}
       />
     )
@@ -662,9 +661,16 @@ export function AdminNotifications() {
                 <select
                   value={userId}
                   onChange={(event) => setUserId(event.target.value)}
+                  disabled={usersQuery.isLoading || usersQuery.isError}
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                 >
-                  <option value="">Seleciona um utilizador</option>
+                  <option value="">
+                    {usersQuery.isError
+                      ? "Nao foi possivel carregar utilizadores"
+                      : usersQuery.isLoading
+                        ? "A carregar utilizadores..."
+                        : "Seleciona um utilizador"}
+                  </option>
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.full_name} - {user.email}
@@ -716,9 +722,16 @@ export function AdminNotifications() {
                   <select
                     value={productCategoryId}
                     onChange={(event) => setProductCategoryId(event.target.value)}
+                    disabled={categoriesQuery.isLoading || categoriesQuery.isError}
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                   >
-                    <option value="">Todas as categorias</option>
+                    <option value="">
+                      {categoriesQuery.isError
+                        ? "Nao foi possivel carregar categorias"
+                        : categoriesQuery.isLoading
+                          ? "A carregar categorias..."
+                          : "Todas as categorias"}
+                    </option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.title}
@@ -734,9 +747,16 @@ export function AdminNotifications() {
                   <select
                     value={productId}
                     onChange={(event) => setProductId(event.target.value)}
+                    disabled={productsQuery.isLoading || productsQuery.isError}
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition focus:border-sky-400 focus:bg-white"
                   >
-                    <option value="">Todos os materiais</option>
+                    <option value="">
+                      {productsQuery.isError
+                        ? "Nao foi possivel carregar materiais"
+                        : productsQuery.isLoading
+                          ? "A carregar materiais..."
+                          : "Todos os materiais"}
+                    </option>
                     {filteredProducts.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.title}

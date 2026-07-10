@@ -375,18 +375,20 @@ export function useAdminUsers(enabled = true) {
   })
 }
 
-export function useAdminProducts() {
+export function useAdminProducts(enabled = true) {
   return useQuery({
     queryKey: ["admin", "products"],
     queryFn: fetchAdminProducts,
+    enabled,
     ...getAdminQueryOptions(),
   })
 }
 
-export function useAdminProductCategories() {
+export function useAdminProductCategories(enabled = true) {
   return useQuery({
     queryKey: ["admin", "product-categories"],
     queryFn: fetchAdminProductCategories,
+    enabled,
     ...getAdminQueryOptions(),
   })
 }
@@ -651,10 +653,11 @@ export function useAdminNotifications(includeArchived = false) {
   return query
 }
 
-export function useAdminOperations() {
+export function useAdminOperations(enabled = true) {
   return useQuery({
     queryKey: ["admin", "operations"],
     queryFn: fetchAdminOperations,
+    enabled,
     ...getAdminQueryOptions(),
   })
 }
