@@ -54,7 +54,9 @@ async function main() {
   }
 
   if (!args.section) {
-    throw new Error("Usa --section <module_assets|module_pdfs|product_covers|branding|site_page_assets|profile_avatars|support_attachments>")
+    throw new Error(
+      "Usa --section <module_assets|module_pdfs|module_pdf_watermark|product_covers|branding|site_page_assets|profile_avatars|support_attachments>",
+    )
   }
 
   const response = await fetch(`${functionBase}/functions/v1/admin-backfill-storage-r2`, {

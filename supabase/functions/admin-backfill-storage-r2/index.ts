@@ -15,6 +15,7 @@ import {
 type BackfillSection =
   | "module_assets"
   | "module_pdfs"
+  | "module_pdf_watermark"
   | "product_covers"
   | "branding"
   | "site_page_assets"
@@ -256,6 +257,43 @@ async function processBranding(serviceClient: ReturnType<typeof createServiceCli
   return items
 }
 
+async function processModulePdfWatermark(serviceClient: ReturnType<typeof createServiceClient>, dryRun: boolean) {
+  const { data, error } = await serviceClient
+    .from("site_config")
+    .select("id,config_value")
+    .eq("config_key", "module_pdf_watermark")
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data?.config_value || typeof data.config_value !== "object") return []
+
+  const currentValue = data.config_value as Record<string, unknown>
+  const nextValue = structuredClone(currentValue)
+  const logicalBucket = trimPath(String(currentValue.logo_bucket ?? "")) || "course-assets-private"
+  const storagePath = trimPath(String(currentValue.logo_path ?? ""))
+  const provider = String(currentValue.logo_storage_provider ?? "").trim() === "r2" ? "r2" : storagePath ? "supabase" : null
+
+  if (!storagePath || provider !== "supabase") {
+    return []
+  }
+
+  await copyObjectToR2({ serviceClient, logicalBucket, storagePath, dryRun })
+
+  nextValue.logo_bucket = logicalBucket
+  nextValue.logo_path = storagePath
+  nextValue.logo_storage_provider = "r2"
+
+  if (!dryRun) {
+    const { error: updateError } = await serviceClient
+      .from("site_config")
+      .update({ config_value: nextValue })
+      .eq("id", data.id)
+    if (updateError) throw updateError
+  }
+
+  return [{ logical_bucket: logicalBucket, storage_path: storagePath }]
+}
+
 async function processSitePageAssets(serviceClient: ReturnType<typeof createServiceClient>, limit: number, dryRun: boolean) {
   const items: Array<Record<string, unknown>> = []
 
@@ -432,6 +470,8 @@ Deno.serve(async (req) => {
       items = await processModuleAssets(access.serviceClient, limit, dryRun)
     } else if (section === "module_pdfs") {
       items = await processModulePdfs(access.serviceClient, limit, dryRun)
+    } else if (section === "module_pdf_watermark") {
+      items = await processModulePdfWatermark(access.serviceClient, dryRun)
     } else if (section === "product_covers") {
       items = await processProductCovers(access.serviceClient, limit, dryRun)
     } else if (section === "branding") {
