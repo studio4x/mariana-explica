@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui"
 import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom"
-import { BadgeCheck, BookOpenCheck, CheckCircle2, ShieldCheck } from "lucide-react"
+import { BadgeCheck, BookOpenCheck, CheckCircle2, Loader2, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { resolveCheckoutSuccessCopy } from "@/lib/checkout-copy"
 import { ROUTES } from "@/lib/constants"
@@ -17,6 +17,34 @@ import {
   CHECKOUT_SUCCESS_VISUAL_EDITOR_DEFAULT_DOCUMENT,
   type CheckoutSuccessVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
+
+function CheckoutProcessingModal() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f122c]/55 px-4 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkout-processing-title"
+        aria-describedby="checkout-processing-description"
+        className="w-full max-w-md rounded-[2rem] border border-white/70 bg-white p-6 text-center shadow-[0_24px_80px_-40px_rgba(15,18,44,0.7)] sm:p-8"
+      >
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#242742]/10 text-[#242742]">
+          <Loader2 className="h-7 w-7 animate-spin" />
+        </div>
+        <p className="mt-5 text-xs font-bold uppercase tracking-[0.24em] text-[#8c6a45]">
+          Compra em processamento
+        </p>
+        <h2 id="checkout-processing-title" className="mt-3 font-display text-2xl font-bold text-[#0f122c]">
+          A tua compra está a ser processada
+        </h2>
+        <p id="checkout-processing-description" className="mt-3 text-sm leading-7 text-[#46464d]">
+          Estamos a confirmar o pagamento e a preparar o teu acesso. Mantém esta página aberta enquanto tudo fica
+          pronto.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function CheckoutSuccessPageContent() {
   const location = useLocation()
@@ -36,6 +64,7 @@ function CheckoutSuccessPageContent() {
   const [autologinInProgress, setAutologinInProgress] = useState(false)
   const [autologinAttempted, setAutologinAttempted] = useState(false)
   const shouldTryAutologin = !session && mode === "stripe" && Boolean(sessionId)
+  const isProcessingCheckout = loading || autologinInProgress || (shouldTryAutologin && !autologinAttempted)
   const successCopy = resolveCheckoutSuccessCopy(visualDocument, mode)
 
   useEffect(() => {
@@ -72,8 +101,8 @@ function CheckoutSuccessPageContent() {
     })()
   }, [loading, mode, productId, profile?.status, redirectPath, session, sessionId])
 
-  if (loading || autologinInProgress || (shouldTryAutologin && !autologinAttempted)) {
-    return <div className="min-h-[35vh]" aria-hidden="true" />
+  if (isProcessingCheckout) {
+    return <CheckoutProcessingModal />
   }
 
   if (!session || !profile || profile.status !== "active") {
