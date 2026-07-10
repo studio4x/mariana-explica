@@ -2,13 +2,13 @@ import { AwsClient } from "npm:aws4fetch@1.0.20"
 import {
   badRequest,
   corsResponse,
-  createServiceClient,
   deleteStorageObject,
   errorResponse,
   getRequestId,
   jsonResponse,
   requireAdmin,
 } from "../_shared/mod.ts"
+import { parseListObjectsXml } from "./xml.ts"
 
 type AdminAction = "overview" | "list_objects" | "delete_object"
 
@@ -20,14 +20,6 @@ interface AdminBody {
   logical_bucket?: string | null
   storage_path?: string | null
   storage_provider?: "supabase" | "r2" | null
-}
-
-interface ListedObject {
-  key: string
-  logical_bucket: string
-  storage_path: string
-  size_bytes: number
-  last_modified: string | null
 }
 
 function readEnv(name: string, fallback?: string) {
@@ -68,40 +60,6 @@ function parsePositiveInteger(value: number | null | undefined, fallback: number
 
 function trimPath(value: string | null | undefined) {
   return String(value ?? "").trim().replace(/^\/+/, "")
-}
-
-function parseListObjectsXml(xmlText: string): {
-  objects: ListedObject[]
-  nextCursor: string | null
-  isTruncated: boolean
-} {
-  const document = new DOMParser().parseFromString(xmlText, "application/xml")
-  if (!document) {
-    throw new Error("Nao foi possivel interpretar a resposta do R2")
-  }
-
-  const objectNodes = Array.from(document.querySelectorAll("Contents"))
-  const objects = objectNodes.map((node) => {
-    const key = node.querySelector("Key")?.textContent?.trim() ?? ""
-    const size = Number(node.querySelector("Size")?.textContent ?? "0")
-    const lastModified = node.querySelector("LastModified")?.textContent?.trim() ?? null
-    const parts = key.split("/")
-    const logicalBucket = parts.shift() ?? ""
-    const storagePath = parts.join("/")
-
-    return {
-      key,
-      logical_bucket: logicalBucket,
-      storage_path: storagePath,
-      size_bytes: Number.isFinite(size) ? size : 0,
-      last_modified: lastModified,
-    }
-  })
-
-  const nextCursor = document.querySelector("NextContinuationToken")?.textContent?.trim() ?? null
-  const isTruncated = (document.querySelector("IsTruncated")?.textContent?.trim() ?? "").toLowerCase() === "true"
-
-  return { objects, nextCursor, isTruncated }
 }
 
 async function listObjectsPage(prefix?: string | null, cursor?: string | null, limit?: number | null) {
