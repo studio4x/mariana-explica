@@ -1117,7 +1117,9 @@ export function AdminNotifications() {
               onClick={() => void handleSendTestEmail()}
               disabled={sendMutation.isPending || previewMutation.isPending || sendTestEmailMutation.isPending || !profile?.email}
             >
-              {sendTestEmailMutation.isPending ? "A enviar teste..." : "Enviar email de teste"}
+              {sendTestEmailMutation.isPending
+                ? "A enviar teste para o admin..."
+                : "Enviar email de teste para o admin logado"}
             </Button>
             <Button
               type="submit"
@@ -1127,6 +1129,9 @@ export function AdminNotifications() {
               {sendMutation.isPending ? "A enviar..." : "Enviar campanha"}
             </Button>
           </div>
+          <p className="mt-3 text-sm text-slate-500">
+            O email de teste sera enviado para o endereco do admin autenticado{profile?.email ? ` (${profile.email})` : ""}.
+          </p>
           </form>
 
           <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">

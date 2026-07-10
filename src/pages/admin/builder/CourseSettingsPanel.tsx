@@ -8,7 +8,7 @@ import { buildCourseCatalogCardView, sanitizeCourseCatalogCardContent } from "@/
 import { ROUTES } from "@/lib/constants"
 import { adminCourseBuilderPath } from "@/lib/routes"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
-import type { CourseCatalogCardItem, CourseCatalogCardMode } from "@/types/product.types"
+import type { CourseCatalogCardItem, CourseCatalogCardMode, ProductSummary } from "@/types/product.types"
 
 function slugify(value: string) {
   return value
@@ -26,6 +26,18 @@ function formatPriceInput(priceCents: number) {
 function parsePriceInput(value: string) {
   const parsed = Number(value.replace(",", ".").trim() || "0")
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0
+}
+
+function normalizeProductPricing(productType: ProductSummary["product_type"], priceCents: number) {
+  if (productType === "paid" && priceCents === 0) {
+    return { productType: "free" as const, priceCents: 0, convertedToFree: true }
+  }
+
+  if (productType === "free") {
+    return { productType: "free" as const, priceCents: 0, convertedToFree: false }
+  }
+
+  return { productType, priceCents, convertedToFree: false }
 }
 
 function extractCoverStoragePath(url: string | null | undefined) {
@@ -153,6 +165,8 @@ export function CourseSettingsPanel() {
   }, [product])
 
   const coverStoragePath = useMemo(() => extractCoverStoragePath(form.coverImageUrl), [form.coverImageUrl])
+  const priceCents = parsePriceInput(form.price)
+  const shouldConvertToFree = form.productType === "paid" && priceCents === 0
 
   const moveCatalogCardItem = (index: number, direction: -1 | 1) => {
     setForm((prev) => {
@@ -225,6 +239,8 @@ export function CourseSettingsPanel() {
         }),
       )
 
+      const normalizedPricing = normalizeProductPricing(form.productType, priceCents)
+
       const updatedProduct = await updateProduct.mutateAsync({
         productId: product.id,
         title: form.title.trim(),
@@ -234,10 +250,10 @@ export function CourseSettingsPanel() {
         launchDate: form.launchDate || null,
         workloadMinutes: Number(form.workloadMinutes || 0),
         creatorCommissionPercent: form.creatorCommissionPercent ? Number(form.creatorCommissionPercent) : null,
-        productType: form.productType,
+        productType: normalizedPricing.productType,
         status: form.status,
         categoryId: form.categoryId.trim() || null,
-        priceCents: parsePriceInput(form.price),
+        priceCents: normalizedPricing.priceCents,
         currency: form.currency.trim().toUpperCase() || "EUR",
         salesPageEnabled: form.salesPageEnabled,
         requiresAuth: form.requiresAuth,
@@ -258,6 +274,12 @@ export function CourseSettingsPanel() {
         ...prev,
         categoryId: updatedProduct.product.category_id ?? selectedCategoryId,
       }))
+      setFeedback({
+        tone: "success",
+        message: normalizedPricing.convertedToFree
+          ? "Preço 0,00 convertido automaticamente para Gratuito para evitar erro de validação."
+          : "Configurações do material guardadas com sucesso.",
+      })
     } catch (err) {
       setFeedback({
         tone: "error",
@@ -265,8 +287,6 @@ export function CourseSettingsPanel() {
       })
       return
     }
-
-    setFeedback({ tone: "success", message: "Configurações do material guardadas com sucesso." })
   }
 
   return (
@@ -630,6 +650,12 @@ export function CourseSettingsPanel() {
                 className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               />
             </Field>
+            {shouldConvertToFree ? (
+              <div className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                O preço está em <span className="font-semibold">0,00</span>. Ao guardar, este material vai ser convertido automaticamente para{" "}
+                <span className="font-semibold">Gratuito</span>.
+              </div>
+            ) : null}
             <Field label="Moeda" helper="Código ISO usado pelo checkout.">
               <input
                 value={form.currency}

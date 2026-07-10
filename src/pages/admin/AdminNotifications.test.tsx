@@ -436,7 +436,7 @@ describe("AdminNotifications", () => {
       target: { value: "<p>Mensagem com preview</p>" },
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Enviar email de teste" }))
+    fireEvent.click(screen.getByRole("button", { name: "Enviar email de teste para o admin logado" }))
 
     await waitFor(() =>
       expect(sendTestSpy).toHaveBeenCalledWith(
@@ -446,6 +446,7 @@ describe("AdminNotifications", () => {
         }),
       ),
     )
+    expect(screen.getByText("O email de teste sera enviado para o endereco do admin autenticado (admin@example.com).")).toBeInTheDocument()
   })
 
   it("shows the sending queue tab with delivery statuses and retry action", async () => {

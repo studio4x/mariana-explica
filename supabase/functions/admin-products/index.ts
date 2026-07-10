@@ -82,6 +82,34 @@ function mapPayload(payload: Partial<ProductPayload>) {
   return updates
 }
 
+function normalizePricingFields(
+  updates: Record<string, unknown>,
+  fallback?: { product_type: ProductType; price_cents: number },
+) {
+  const productType =
+    typeof updates.product_type === "string"
+      ? (updates.product_type as ProductType)
+      : fallback?.product_type ?? null
+  const priceCents =
+    typeof updates.price_cents === "number" ? updates.price_cents : fallback?.price_cents ?? null
+
+  if (!productType || priceCents === null) {
+    return updates
+  }
+
+  if (productType === "paid" && priceCents === 0) {
+    updates.product_type = "free"
+    updates.price_cents = 0
+    return updates
+  }
+
+  if (productType === "free") {
+    updates.price_cents = 0
+  }
+
+  return updates
+}
+
 async function requireExistingCategoryId(serviceClient: SupabaseClient, categoryId: string | null | undefined) {
   if (!categoryId) return
 
@@ -122,6 +150,11 @@ Deno.serve(async (req) => {
       if (!payload.slug || !payload.title) {
         throw badRequest("slug e title sÃ£o obrigatÃ³rios")
       }
+
+      normalizePricingFields(payload, {
+        product_type: body.productType,
+        price_cents: body.priceCents,
+      })
 
       const { data, error } = await context.serviceClient
         .from("products")
@@ -230,12 +263,24 @@ Deno.serve(async (req) => {
 
     const updates = mapPayload(body)
     await requireExistingCategoryId(context.serviceClient, body.categoryId?.trim() || null)
+    const { data: currentProduct, error: currentProductError } = await context.serviceClient
+      .from("products")
+      .select("product_type,price_cents")
+      .eq("id", body.productId)
+      .maybeSingle()
+
+    if (currentProductError) {
+      throw currentProductError
+    }
+
     if (body.status) {
       updates.status = body.status
       if (body.status === "published") {
         updates.published_at = new Date().toISOString()
       }
     }
+
+    normalizePricingFields(updates, currentProduct ?? undefined)
 
     const { data, error } = await context.serviceClient
       .from("products")
