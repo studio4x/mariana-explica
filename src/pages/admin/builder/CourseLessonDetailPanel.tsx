@@ -433,6 +433,7 @@ export function CourseLessonDetailPanel() {
         moduleId,
         fileName: file.name,
         mimeType: file.type || "video/mp4",
+        fileSizeBytes: file.size,
       })
       setResolvedProtectedVideoMaxBytes(
         typeof signedUpload.max_file_size_bytes === "number" && Number.isFinite(signedUpload.max_file_size_bytes)
@@ -449,6 +450,14 @@ export function CourseLessonDetailPanel() {
       await uploadFileWithPreparedTicket({
         file,
         ticket: signedUpload.ticket,
+        onProgress: ({ loaded, total, percent }) => {
+          const totalLabel = total ? ` de ${formatBytes(total)}` : ""
+          const percentLabel = percent !== null ? ` (${percent}%)` : ""
+          setVideoUploadStatus({
+            tone: "info",
+            message: `A enviar "${file.name}"${percentLabel}${totalLabel}... ${formatBytes(loaded)} enviados.`,
+          })
+        },
       })
 
       const asset = await createAsset.mutateAsync({

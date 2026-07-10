@@ -1148,13 +1148,14 @@ export async function createAdminModuleAssetSignedUpload(input: {
   moduleId: string
   fileName: string
   mimeType: string
+  fileSizeBytes?: number
 }) {
   const ticket = await prepareStorageUpload({
     upload_kind: "module_asset",
     entity_id: input.moduleId,
     file_name: input.fileName,
     mime_type: input.mimeType,
-    file_size_bytes: 1,
+    file_size_bytes: input.fileSizeBytes ?? 1,
   })
 
   return {

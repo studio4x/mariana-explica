@@ -36,6 +36,28 @@ interface PrepareStorageUploadPayload {
   asset_role?: string | null
 }
 
+export interface UploadProgressInfo {
+  loaded: number
+  total: number | null
+  percent: number | null
+}
+
+interface UploadFileWithPreparedTicketInput {
+  file: File
+  ticket: PreparedStorageUploadTicket
+  onProgress?: (progress: UploadProgressInfo) => void
+}
+
+class RetryableUploadError extends Error {
+  retryable: boolean
+
+  constructor(message: string, retryable: boolean) {
+    super(message)
+    this.name = "RetryableUploadError"
+    this.retryable = retryable
+  }
+}
+
 async function requireFreshAuth() {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
@@ -73,10 +95,99 @@ export async function prepareStorageUpload(payload: PrepareStorageUploadPayload)
   return (data as { success: true; upload: PreparedStorageUploadTicket }).upload
 }
 
-export async function uploadFileWithPreparedTicket(input: {
-  file: File
-  ticket: PreparedStorageUploadTicket
-}) {
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+function isRetryableR2UploadError(error: unknown) {
+  if (error instanceof RetryableUploadError) {
+    return error.retryable
+  }
+
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  const normalized = error.message.toLowerCase()
+  return (
+    normalized.includes("failed to fetch")
+    || normalized.includes("networkerror")
+    || normalized.includes("network error")
+    || normalized.includes("timeout")
+    || normalized.includes("temporarily unavailable")
+  )
+}
+
+function normalizeR2UploadError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return new Error("Falha no upload para R2.")
+  }
+
+  const normalized = error.message.toLowerCase()
+  if (
+    normalized.includes("failed to fetch")
+    || normalized.includes("networkerror")
+    || normalized.includes("network error")
+    || normalized.includes("timeout")
+  ) {
+    return new Error("Falha de rede ao enviar o ficheiro para o storage. Tenta novamente.")
+  }
+
+  return error
+}
+
+function uploadToR2WithXhr(input: UploadFileWithPreparedTicketInput) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("PUT", input.ticket.upload_url, true)
+    xhr.responseType = "text"
+
+    for (const [header, value] of Object.entries(input.ticket.upload_headers)) {
+      xhr.setRequestHeader(header, value)
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!input.onProgress) return
+      const total = event.lengthComputable ? event.total : null
+      const percent = event.lengthComputable && event.total > 0 ? Math.round((event.loaded / event.total) * 100) : null
+      input.onProgress({
+        loaded: event.loaded,
+        total,
+        percent,
+      })
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve()
+        return
+      }
+
+      const responseText = String(xhr.responseText ?? "").trim()
+      const message = responseText || `Falha no upload para R2 (${xhr.status}).`
+      const retryable = xhr.status === 408 || xhr.status === 429 || xhr.status >= 500
+      reject(new RetryableUploadError(message, retryable))
+    }
+
+    xhr.onerror = () => {
+      reject(new RetryableUploadError("Failed to fetch", true))
+    }
+
+    xhr.onabort = () => {
+      reject(new RetryableUploadError("Upload cancelado.", false))
+    }
+
+    xhr.ontimeout = () => {
+      reject(new RetryableUploadError("Timeout no upload para R2.", true))
+    }
+
+    xhr.send(input.file)
+  })
+}
+
+export async function uploadFileWithPreparedTicket(input: UploadFileWithPreparedTicketInput) {
   if (input.ticket.upload_method === "supabase_signed_upload") {
     if (!input.ticket.upload_token) {
       throw new Error("Ticket de upload incompleto para Supabase.")
@@ -96,16 +207,25 @@ export async function uploadFileWithPreparedTicket(input: {
     return
   }
 
-  const response = await fetch(input.ticket.upload_url, {
-    method: "PUT",
-    headers: input.ticket.upload_headers,
-    body: input.file,
-  })
+  const maxAttempts = 3
+  let lastError: unknown = null
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "")
-    throw new Error(text || `Falha no upload para R2 (${response.status}).`)
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await uploadToR2WithXhr(input)
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt < maxAttempts && isRetryableR2UploadError(error)) {
+        await wait(250 * attempt)
+        continue
+      }
+
+      throw normalizeR2UploadError(error)
+    }
   }
+
+  throw normalizeR2UploadError(lastError)
 }
 
 export async function uploadStorageFile(input: PrepareStorageUploadPayload & { file: File }) {
