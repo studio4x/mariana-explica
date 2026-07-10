@@ -395,13 +395,13 @@ export const LEGAL_VISUAL_EDITOR_DEFAULT_DOCUMENT: LegalVisualEditorDocument = {
 
 export const CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT: CheckoutVisualEditorDocument = {
   hero: {
-    eyebrow: "Confirma\u00e7\u00e3o de pedido",
-    title: "Quase l\u00e1! Vamos finalizar a tua inscri\u00e7\u00e3o.",
+    eyebrow: "",
+    title: "Quase l\u00e1! Finaliza o teu pedido abaixo!",
     lead: "Preenche os teus dados e avan\u00e7a para o pagamento de forma 100% segura.",
   },
   productCard: {
     badge: "",
-    accessLabel: "Acesso na conta",
+    accessLabel: "Acesso imediato",
     secureLabel: "Pagamento seguro",
     buttonHint: "Preenche os teus dados e avan\u00e7a para o pagamento de forma 100% segura.",
   },

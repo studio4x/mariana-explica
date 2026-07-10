@@ -2,12 +2,15 @@ import type {
   CheckoutSuccessVisualEditorDocument,
   CheckoutVisualEditorDocument,
 } from "@/features/site-editor/visual-editor/public-page-definitions"
-import type { ProductType } from "@/types/product.types"
+import type { ProductSummary, ProductType } from "@/types/product.types"
 
 export interface ResolvedCheckoutCopy {
   hero: CheckoutVisualEditorDocument["hero"]
   productBadge: string
+  productAccessLabel: string
+  productSecureLabel: string
   authPanelEyebrow: string
+  authenticatedTitle: string
   authTitleLogin: string
   authTitleRegister: string
   authSubmitLoginLabel: string
@@ -32,11 +35,39 @@ function resolveProductBadge(productType: ProductType) {
   return "MATERIAL DE APOIO"
 }
 
+function isFreeCheckoutProduct(product: Pick<ProductSummary, "product_type" | "price_cents">) {
+  return product.product_type === "free" || product.price_cents === 0
+}
+
+export function normalizeCheckoutVisualDocument(
+  document: CheckoutVisualEditorDocument,
+): CheckoutVisualEditorDocument {
+  return {
+    ...document,
+    hero: {
+      ...document.hero,
+      eyebrow: document.hero.eyebrow === "Confirmação de pedido" ? "" : document.hero.eyebrow,
+      title:
+        document.hero.title === "Quase lá! Vamos finalizar a tua inscrição."
+          ? "Quase lá! Finaliza o teu pedido abaixo!"
+          : document.hero.title,
+    },
+    productCard: {
+      ...document.productCard,
+      accessLabel:
+        document.productCard.accessLabel === "Acesso na conta"
+          ? "Acesso imediato"
+          : document.productCard.accessLabel,
+    },
+  }
+}
+
 export function resolveCheckoutCopy(
   document: CheckoutVisualEditorDocument,
-  productType: ProductType,
+  product: Pick<ProductSummary, "product_type" | "price_cents">,
 ): ResolvedCheckoutCopy {
-  const isFree = productType === "free"
+  const normalizedDocument = normalizeCheckoutVisualDocument(document)
+  const isFree = isFreeCheckoutProduct(product)
 
   if (isFree) {
     return {
@@ -45,8 +76,11 @@ export function resolveCheckoutCopy(
         title: "Quase lá! Vamos ativar o teu acesso.",
         lead: "Confirma os teus dados abaixo para entrares na tua área do aluno e começares a estudar sem demoras.",
       },
-      productBadge: resolveProductBadge(productType),
+      productBadge: resolveProductBadge(product.product_type),
+      productAccessLabel: "Acesso imediato",
+      productSecureLabel: "Acesso protegido",
       authPanelEyebrow: "Acesso gratuito",
+      authenticatedTitle: "Aceder gratuitamente",
       authTitleLogin: "Já tenho conta",
       authTitleRegister: "Criar conta",
       authSubmitLoginLabel: "Entrar e ativar acesso",
@@ -61,17 +95,20 @@ export function resolveCheckoutCopy(
   }
 
   return {
-    hero: document.hero,
-    productBadge: resolveProductBadge(productType),
-    authPanelEyebrow: document.authPanel.eyebrow,
-    authTitleLogin: document.authPanel.titleLogin,
-    authTitleRegister: document.authPanel.titleRegister,
+    hero: normalizedDocument.hero,
+    productBadge: resolveProductBadge(product.product_type),
+    productAccessLabel: normalizedDocument.productCard.accessLabel,
+    productSecureLabel: normalizedDocument.productCard.secureLabel,
+    authPanelEyebrow: normalizedDocument.authPanel.eyebrow,
+    authenticatedTitle: "Confirma os teus dados",
+    authTitleLogin: normalizedDocument.authPanel.titleLogin,
+    authTitleRegister: normalizedDocument.authPanel.titleRegister,
     authSubmitLoginLabel: "Entrar e continuar",
     authSubmitRegisterLabel: "Criar conta e continuar",
     authSubmitLoginHint: "Ao entrar, usamos a tua conta para avançar para o pagamento.",
     authSubmitRegisterHint: "Ao criar a conta, avançamos para o pagamento sem sair desta página.",
     checkoutSubmitLabel: "Ir para pagamento",
-    checkoutSubmitHint: document.productCard.buttonHint,
+    checkoutSubmitHint: normalizedDocument.productCard.buttonHint,
     pendingVerificationMessage:
       "Criámos a conta para {email} e enviámos o email de confirmação sem travar o checkout.",
   }

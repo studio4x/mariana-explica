@@ -14,7 +14,7 @@ import { Button } from "@/components/ui"
 import { FooterCopyright } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
-import { resolveCheckoutCopy } from "@/lib/checkout-copy"
+import { normalizeCheckoutVisualDocument, resolveCheckoutCopy } from "@/lib/checkout-copy"
 import { ROUTES } from "@/lib/constants"
 import { formatNif, isValidNif, stripNifDigits } from "@/lib/nif"
 import { supabase } from "@/integrations/supabase"
@@ -194,6 +194,7 @@ function CheckoutPageContent() {
   const visualEditorPage = useOptionalVisualEditorPage()
   const visualDocument =
     (visualEditorPage?.document as CheckoutVisualEditorDocument | undefined) ?? CHECKOUT_VISUAL_EDITOR_DEFAULT_DOCUMENT
+  const normalizedVisualDocument = normalizeCheckoutVisualDocument(visualDocument)
 
   const profile = profileQuery.data ?? authProfile
 
@@ -507,7 +508,10 @@ function CheckoutPageContent() {
     richTextToPlainText(product.short_description) ||
     richTextToPlainText(product.description) ||
     "Conteúdo digital pronto para ser ativado na tua conta Mariana Explica."
-  const checkoutCopy = resolveCheckoutCopy(visualDocument, product.product_type)
+  const checkoutCopy = resolveCheckoutCopy(normalizedVisualDocument, {
+    product_type: product.product_type,
+    price_cents: product.price_cents,
+  })
 
   return (
     <>
@@ -517,9 +521,11 @@ function CheckoutPageContent() {
           <div className="mb-10 flex flex-col gap-4 border-b border-[#dee3e5]/50 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-display text-2xl font-bold tracking-tight text-[#0f122c]">Mariana Explica</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]">
-                {visualDocument.hero.eyebrow}
-              </p>
+              {normalizedVisualDocument.hero.eyebrow.trim() ? (
+                <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-[#46464d]">
+                  {normalizedVisualDocument.hero.eyebrow}
+                </p>
+              ) : null}
             </div>
             <Link
               to={`${ROUTES.COURSE}/${product.slug}`}
@@ -533,9 +539,11 @@ function CheckoutPageContent() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-7">
               <div className="space-y-3">
-                <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
-                  {checkoutCopy.hero.eyebrow}
-                </span>
+                {checkoutCopy.hero.eyebrow.trim() ? (
+                  <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#af8962]">
+                    {checkoutCopy.hero.eyebrow}
+                  </span>
+                ) : null}
                 <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight text-[#0f122c] md:text-5xl">
                   {checkoutCopy.hero.title}
                 </h1>
@@ -563,15 +571,11 @@ function CheckoutPageContent() {
                   <div className="flex flex-wrap items-center gap-4 border-t border-[#dee3e5]/40 py-3">
                     <div className="flex items-center gap-2">
                       <BadgeCheck className="h-5 w-5 text-[#af8962]" />
-                      <span className="text-xs font-bold uppercase tracking-[0.12em]">
-                        {visualDocument.productCard.accessLabel}
-                      </span>
+                      <span className="text-xs font-bold uppercase tracking-[0.12em]">{checkoutCopy.productAccessLabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="h-5 w-5 text-[#af8962]" />
-                      <span className="text-xs font-bold uppercase tracking-[0.12em]">
-                        {visualDocument.productCard.secureLabel}
-                      </span>
+                      <span className="text-xs font-bold uppercase tracking-[0.12em]">{checkoutCopy.productSecureLabel}</span>
                     </div>
                   </div>
                 </div>
@@ -589,7 +593,7 @@ function CheckoutPageContent() {
                     </p>
                       <h3 className="font-display text-2xl font-bold text-white">
                         {hasSession
-                          ? "Confirma os teus dados"
+                          ? checkoutCopy.authenticatedTitle
                           : activeAuthTab === "login"
                             ? checkoutCopy.authTitleLogin
                             : checkoutCopy.authTitleRegister}
@@ -956,7 +960,7 @@ function CheckoutPageContent() {
                             className="mt-1 h-4 w-4 accent-[#e9bf94]"
                           />
                           <span className="leading-6">
-                            Quero saber quando os resumos são melhorados ou saem novas disciplinas e recursos.
+                            Quero receber atualizações de materiais, novos recursos e disciplinas.
                           </span>
                         </label>
 
@@ -1019,7 +1023,7 @@ function CheckoutPageContent() {
       <TermsModal
         open={termsOpen}
         onClose={() => setTermsOpen(false)}
-        document={visualDocument.termsModal}
+        document={normalizedVisualDocument.termsModal}
       />
     </>
   )
