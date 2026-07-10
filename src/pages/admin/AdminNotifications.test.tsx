@@ -341,6 +341,26 @@ describe("AdminNotifications", () => {
     )
   })
 
+  it("keeps the visual and html message tabs in sync", async () => {
+    renderPage()
+
+    fireEvent.change(screen.getByLabelText("Mensagem da campanha"), {
+      target: { value: "<p>Mensagem visual</p>" },
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "HTML" }))
+
+    expect(screen.getByLabelText("Mensagem da campanha HTML")).toHaveValue("<p>Mensagem visual</p>")
+
+    fireEvent.change(screen.getByLabelText("Mensagem da campanha HTML"), {
+      target: { value: "<p>Mensagem HTML</p>" },
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Visual" }))
+
+    await waitFor(() => expect(screen.getByLabelText("Mensagem da campanha")).toHaveValue("<p>Mensagem HTML</p>"))
+  })
+
   it("shows the sending queue tab with delivery statuses and retry action", async () => {
     const { retrySpy } = renderPage()
 

@@ -28,6 +28,7 @@ type Audience = AdminNotificationCampaignInput["audience"]
 type NotificationType = AdminNotificationCampaignInput["type"]
 type TagTarget = "title" | "emailSubject" | "messageHtml" | "ctaLabel" | "ctaUrl"
 type NotificationsPageTab = "campaigns" | "queue"
+type MessageEditorTab = "visual" | "html"
 
 const BASE_TAG_OPTIONS: AdminNotificationCampaignTagOption[] = [
   {
@@ -283,6 +284,7 @@ export function AdminNotifications() {
   const [sentViaInApp, setSentViaInApp] = useState(true)
   const [tagTarget, setTagTarget] = useState<TagTarget>("messageHtml")
   const [activeTab, setActiveTab] = useState<NotificationsPageTab>("campaigns")
+  const [messageEditorTab, setMessageEditorTab] = useState<MessageEditorTab>("visual")
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
   const [preview, setPreview] = useState<AdminNotificationCampaignPreview | null>(null)
 
@@ -811,16 +813,63 @@ export function AdminNotifications() {
             </div>
 
             <div>
-              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-                Mensagem da campanha
-              </span>
-              <RichTextEditor
-                value={messageHtml}
-                onChange={setMessageHtml}
-                placeholder="Escreve aqui o conteudo principal da campanha..."
-                toolbarVariant="compact"
-                minHeightPx={240}
-              />
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <span className="block text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
+                  Mensagem da campanha
+                </span>
+                <div className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setMessageEditorTab("visual")}
+                    className={[
+                      "rounded-full px-4 py-2 text-sm font-semibold transition",
+                      messageEditorTab === "visual"
+                        ? "bg-white text-slate-950 shadow-sm"
+                        : "text-slate-600 hover:text-slate-950",
+                    ].join(" ")}
+                  >
+                    Visual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMessageEditorTab("html")}
+                    className={[
+                      "rounded-full px-4 py-2 text-sm font-semibold transition",
+                      messageEditorTab === "html"
+                        ? "bg-white text-slate-950 shadow-sm"
+                        : "text-slate-600 hover:text-slate-950",
+                    ].join(" ")}
+                  >
+                    HTML
+                  </button>
+                </div>
+              </div>
+
+              <p className="mb-3 text-sm text-slate-600">
+                A edicao visual e a edicao HTML usam o mesmo conteudo e ficam sincronizadas quando alternas entre abas.
+              </p>
+
+              {messageEditorTab === "visual" ? (
+                <RichTextEditor
+                  value={messageHtml}
+                  onChange={setMessageHtml}
+                  placeholder="Escreve aqui o conteudo principal da campanha..."
+                  toolbarVariant="compact"
+                  minHeightPx={240}
+                />
+              ) : (
+                <label className="block">
+                  <span className="sr-only">Mensagem da campanha HTML</span>
+                  <textarea
+                    aria-label="Mensagem da campanha HTML"
+                    value={messageHtml}
+                    onChange={(event) => setMessageHtml(event.target.value)}
+                    placeholder="<p>Escreve aqui o HTML da campanha...</p>"
+                    spellCheck={false}
+                    className="min-h-[294px] w-full rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 font-mono text-sm leading-7 text-slate-100 outline-none transition focus:border-sky-400"
+                  />
+                </label>
+              )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
