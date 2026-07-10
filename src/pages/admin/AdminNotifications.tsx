@@ -310,6 +310,7 @@ export function AdminNotifications() {
   const retryEmailMutation = useRetryAdminEmailDelivery()
   const sendTestEmailMutation = useSendAdminNotificationTestEmail()
   const sendMutation = useSendAdminNotificationCampaign()
+  const emailPreviewMutateAsyncRef = useRef(emailPreviewMutation.mutateAsync)
 
   const isLoading = campaignsQuery.isLoading
   const isError = campaignsQuery.isError
@@ -388,6 +389,10 @@ export function AdminNotifications() {
   }, [filteredProducts, productCategoryId, productId])
 
   useEffect(() => {
+    emailPreviewMutateAsyncRef.current = emailPreviewMutation.mutateAsync
+  }, [emailPreviewMutation.mutateAsync])
+
+  useEffect(() => {
     if (activeTab !== "campaigns") {
       return
     }
@@ -405,8 +410,8 @@ export function AdminNotifications() {
     setEmailPreviewError(null)
 
     const timeoutId = window.setTimeout(() => {
-      void emailPreviewMutation
-        .mutateAsync(buildPayload())
+      void emailPreviewMutateAsyncRef
+        .current(buildPayload())
         .then((response) => {
           if (livePreviewRequestRef.current !== requestId) {
             return
@@ -446,7 +451,6 @@ export function AdminNotifications() {
     sentViaEmail,
     sentViaInApp,
     canRenderEmailPreview,
-    emailPreviewMutation,
   ])
 
   const insertTag = (token: string) => {

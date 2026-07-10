@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "200"
-export const BUILD_COMMIT = "checkout-copy-refresh"
+export const BUILD_DEPLOY_NUMBER = "201"
+export const BUILD_COMMIT = "notifications-live-preview-loop-fix"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

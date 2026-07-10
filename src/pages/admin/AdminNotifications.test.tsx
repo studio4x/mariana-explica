@@ -417,7 +417,7 @@ describe("AdminNotifications", () => {
       target: { value: "<p>Mensagem com preview</p>" },
     })
 
-    await waitFor(() => expect(previewEmailSpy).toHaveBeenCalled(), { timeout: 3000 })
+    await waitFor(() => expect(previewEmailSpy).toHaveBeenCalledTimes(1), { timeout: 3000 })
     await waitFor(() => expect(screen.getByTitle("preview-email-notification-live")).toBeInTheDocument(), {
       timeout: 3000,
     })
