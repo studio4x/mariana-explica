@@ -225,7 +225,7 @@ function validateAssetSource(body: Body) {
     external_url: externalUrl,
     storage_bucket: hasStorage ? bucket : null,
     storage_path: hasStorage ? path : null,
-    storage_provider: hasStorage ? (body.storage_provider === "r2" ? "r2" : "supabase") : null,
+    storage_provider: hasStorage ? (body.storage_provider === "supabase" ? "supabase" : "r2") : null,
   }
 }
 
@@ -357,7 +357,7 @@ Deno.serve(async (req) => {
           ends_at: normalizeNullableTimestamp(body.ends_at),
           release_days_after_enrollment: normalizeNullableNumber(body.release_days_after_enrollment),
           module_pdf_storage_path: normalizeNullableText(body.module_pdf_storage_path),
-          module_pdf_storage_provider: body.module_pdf_storage_provider === "r2" ? "r2" : "supabase",
+          module_pdf_storage_provider: body.module_pdf_storage_provider === "supabase" ? "supabase" : "r2",
           module_pdf_file_name: normalizeNullableText(body.module_pdf_file_name),
           module_pdf_uploaded_at: normalizeNullableTimestamp(body.module_pdf_uploaded_at),
           status: body.status ?? "published",
@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
         payload.module_pdf_storage_path = normalizeNullableText(body.module_pdf_storage_path)
       }
       if (body.module_pdf_storage_provider !== undefined) {
-        payload.module_pdf_storage_provider = body.module_pdf_storage_provider === "r2" ? "r2" : "supabase"
+        payload.module_pdf_storage_provider = body.module_pdf_storage_provider === "supabase" ? "supabase" : "r2"
       }
       if (body.module_pdf_file_name !== undefined) {
         payload.module_pdf_file_name = normalizeNullableText(body.module_pdf_file_name)

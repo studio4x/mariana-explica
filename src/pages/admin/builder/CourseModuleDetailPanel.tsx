@@ -128,7 +128,7 @@ export function CourseModuleDetailPanel() {
     release_days_after_enrollment:
       form.release_days_after_enrollment ?? module.release_days_after_enrollment ?? "",
     module_pdf_storage_path: form.module_pdf_storage_path ?? module.module_pdf_storage_path ?? "",
-    module_pdf_storage_provider: form.module_pdf_storage_provider ?? module.module_pdf_storage_provider ?? "supabase",
+    module_pdf_storage_provider: form.module_pdf_storage_provider ?? module.module_pdf_storage_provider ?? "r2",
     module_pdf_file_name: form.module_pdf_file_name ?? module.module_pdf_file_name ?? "",
     is_preview: form.is_preview ?? module.is_preview,
     is_required: form.is_required ?? module.is_required,
@@ -154,7 +154,7 @@ export function CourseModuleDetailPanel() {
             ? null
             : Number(values.release_days_after_enrollment),
         module_pdf_storage_path: values.module_pdf_storage_path?.trim() || null,
-        module_pdf_storage_provider: values.module_pdf_storage_provider ?? "supabase",
+        module_pdf_storage_provider: values.module_pdf_storage_provider ?? "r2",
         module_pdf_file_name: values.module_pdf_file_name?.trim() || null,
         module_pdf_uploaded_at:
           values.module_pdf_storage_path || values.module_pdf_file_name ? new Date().toISOString() : null,

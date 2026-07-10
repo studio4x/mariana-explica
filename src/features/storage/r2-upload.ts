@@ -34,6 +34,7 @@ interface PrepareStorageUploadPayload {
   file_size_bytes: number
   replace_path?: string | null
   asset_role?: string | null
+  storage_provider?: StorageProvider | null
 }
 
 export interface UploadProgressInfo {
@@ -79,6 +80,7 @@ export async function prepareStorageUpload(payload: PrepareStorageUploadPayload)
     body: JSON.stringify({
       operation: "prepare_upload",
       ...payload,
+      storage_provider: payload.storage_provider ?? "r2",
       access_token: auth.accessToken,
     }),
   })

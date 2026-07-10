@@ -81,20 +81,20 @@ function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
     const maxMb = limitBytes / (1024 * 1024)
     const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
-    return `O vídeo excede o limite permitido (${mbLabel} MB). Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase.`
+    return `O vídeo excede o limite permitido (${mbLabel} MB). Reduz o ficheiro ou ajusta o limite global de upload protegido configurado para o R2 neste projeto.`
   }
 
-  return "O vídeo excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou aumenta o limite global de upload em Storage > Settings no Supabase."
+  return "O vídeo excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou ajusta o limite global de upload protegido configurado para o R2 neste projeto."
 }
 
 function getProtectedVideoLimitInstruction(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
     const maxMb = limitBytes / (1024 * 1024)
     const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
-    return `Limite máximo atual no Supabase: ${mbLabel} MB por ficheiro.`
+    return `Limite máximo atual no R2: ${mbLabel} MB por ficheiro.`
   }
 
-  return "Limite máximo por ficheiro definido no Storage do Supabase. O valor pode variar por configuração do projeto."
+  return "Limite máximo por ficheiro definido para o upload protegido no R2. O valor pode variar por configuração do projeto."
 }
 
 function normalizeProtectedVideoUploadErrorMessage(error: unknown, limitBytes?: number | null) {

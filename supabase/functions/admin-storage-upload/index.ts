@@ -475,7 +475,7 @@ Deno.serve(async (req) => {
       logicalBucket: target.logicalBucket,
       storagePath: target.storagePath,
       mimeType: target.mimeType,
-      provider: body.storage_provider ?? undefined,
+      provider: "r2",
       publicProxyKind: target.publicProxyKind,
     })
 
