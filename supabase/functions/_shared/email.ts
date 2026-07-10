@@ -350,6 +350,20 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;")
 }
 
+function styleEmailRichText(html: string) {
+  return sanitizeRichTextHtml(html)
+    .replace(/<a\b([^>]*)>/gi, '<a$1 style="color:#204b8f;text-decoration:underline;">')
+    .replace(/<p>/gi, '<p style="Margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;">')
+    .replace(/<blockquote>/gi, '<blockquote style="Margin:0 0 18px;padding:0 0 0 16px;border-left:4px solid #d9e8f0;color:#5b6d84;">')
+    .replace(/<h1>/gi, '<h1 style="Margin:0 0 18px;font-family:Georgia,serif;font-size:30px;line-height:1.2;color:#242742;">')
+    .replace(/<h2>/gi, '<h2 style="Margin:0 0 18px;font-family:Georgia,serif;font-size:26px;line-height:1.25;color:#242742;">')
+    .replace(/<h3>/gi, '<h3 style="Margin:0 0 16px;font-family:Georgia,serif;font-size:22px;line-height:1.3;color:#242742;">')
+    .replace(/<h4>/gi, '<h4 style="Margin:0 0 14px;font-family:Arial,sans-serif;font-size:18px;line-height:1.4;color:#242742;">')
+    .replace(/<ul>/gi, '<ul style="Margin:0 0 18px;padding-left:22px;color:#43546a;">')
+    .replace(/<ol>/gi, '<ol style="Margin:0 0 18px;padding-left:22px;color:#43546a;">')
+    .replace(/<li>/gi, '<li style="Margin:0 0 12px;font-size:17px;line-height:1.8;color:#43546a;">')
+}
+
 function normalizeUrl(url?: string | null) {
   if (!url) {
     return null
@@ -1357,37 +1371,51 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   const ctaUrl = normalizeUrl(input.ctaUrl)
   const headerLogo =
     input.headerLogoUrl?.trim()
-      ? `<div style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:999px;background:#ffffff;">
-        <img src="${escapeHtml(input.headerLogoUrl)}" alt="Mariana Explica" style="display:block;max-width:220px;max-height:46px;height:auto;width:auto;" />
-      </div>`
-      : `<div style="display:inline-block;padding:12px 22px;border-radius:999px;background:#ffffff;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
-        Mariana Explica
-      </div>`
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+        <tr>
+          <td bgcolor="#ffffff" style="padding:14px 18px;background-color:#ffffff;">
+            <img src="${escapeHtml(input.headerLogoUrl)}" alt="Mariana Explica" width="280" style="display:block;width:280px;max-width:280px;height:auto;border:0;outline:none;text-decoration:none;" />
+          </td>
+        </tr>
+      </table>`
+      : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+        <tr>
+          <td bgcolor="#ffffff" style="padding:12px 22px;background-color:#ffffff;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;font-family:Arial,sans-serif;">
+            Mariana Explica
+          </td>
+        </tr>
+      </table>`
   const greeting = input.greeting
-    ? `<p style="margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;">${escapeHtml(input.greeting)}</p>`
+    ? `<p style="Margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;">${escapeHtml(input.greeting)}</p>`
     : ""
   const introHtml = input.introHtml?.trim()
-    ? `<div style="margin:0;font-size:17px;line-height:1.8;color:#43546a;">
-        ${sanitizeRichTextHtml(input.introHtml)}
-      </div>`
-    : `<p style="margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;white-space:pre-line;">${escapeHtml(input.intro)}</p>`
+    ? styleEmailRichText(input.introHtml)
+    : `<p style="Margin:0 0 18px;font-size:17px;line-height:1.8;color:#43546a;white-space:pre-line;">${escapeHtml(input.intro)}</p>`
   const bullets = input.bullets?.length
-    ? `<div style="margin:24px 0;padding:20px 22px;border:1px solid #d9e8f0;border-radius:24px;background:#f7fbfd;">
-        ${input.bullets
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 18px;border-collapse:separate;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+        <tr>
+          <td style="padding:20px 22px;border:1px solid #d9e8f0;background-color:#f7fbfd;">
+            ${input.bullets
           .map(
             (bullet) =>
-              `<p style="margin:0 0 12px;font-size:16px;line-height:1.8;color:#43546a;">- ${escapeHtml(bullet)}</p>`,
+              `<p style="Margin:0 0 12px;font-size:16px;line-height:1.8;color:#43546a;">- ${escapeHtml(bullet)}</p>`,
           )
           .join("")}
-      </div>`
+          </td>
+        </tr>
+      </table>`
     : ""
   const cta =
     ctaUrl && input.ctaLabel
-      ? `<div style="padding:6px 0 10px;">
-        <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:16px 30px;border-radius:999px;background:#242742;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;">
-          ${escapeHtml(input.ctaLabel)}
-        </a>
-      </div>`
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+        <tr>
+          <td bgcolor="#242742" style="background-color:#242742;">
+            <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:16px 30px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">
+              ${escapeHtml(input.ctaLabel)}
+            </a>
+          </td>
+        </tr>
+      </table>`
     : ""
   const footer =
     input.footer ??
@@ -1395,35 +1423,48 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
 
   const html = `<!doctype html>
 <html lang="pt">
-  <body style="margin:0;padding:0;background:#dff2f8;font-family:Inter,Arial,sans-serif;color:#24324a;">
-    <div style="margin:0;padding:32px 16px;background:#dff2f8;font-family:Inter,Arial,sans-serif;color:#24324a;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  </head>
+  <body style="margin:0;padding:0;background-color:#dff2f8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#dff2f8" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;background-color:#dff2f8;">
       <tr>
-        <td>
-          ${headerLogo}
-        </td>
-      </tr>
-      <tr>
-        <td style="padding-top:20px;">
-          <div style="border-radius:32px;background:#ffffff;padding:40px 32px;box-shadow:0 24px 60px rgba(36,39,66,0.10);">
-            <p style="margin:0 0 16px;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;">
-              ${escapeHtml(input.eyebrow)}
-            </p>
-            <h1 style="margin:0 0 20px;font-family:Arvo,Georgia,serif;font-size:44px;line-height:1.08;color:#242742;">
-              ${escapeHtml(input.title)}
-            </h1>
-            ${greeting}
-            ${introHtml}
-            ${bullets}
-            ${cta}
-            <p style="margin:18px 0 0;font-size:15px;line-height:1.8;color:#6b7c8f;white-space:pre-line;">
-              ${escapeHtml(footer)}
-            </p>
-          </div>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+            <tr>
+              <td align="left">
+                ${headerLogo}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="width:100%;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;background-color:#ffffff;">
+                  <tr>
+                    <td style="padding:40px 32px;font-family:Arial,sans-serif;color:#24324a;">
+                      <p style="Margin:0 0 16px;color:#5b6d84;font-size:12px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;font-family:Arial,sans-serif;">
+                        ${escapeHtml(input.eyebrow)}
+                      </p>
+                      <h1 style="Margin:0 0 20px;font-family:Georgia,serif;font-size:44px;line-height:1.08;color:#242742;">
+                        ${escapeHtml(input.title)}
+                      </h1>
+                      ${greeting}
+                      ${introHtml}
+                      ${bullets}
+                      ${cta}
+                      <p style="Margin:18px 0 0;font-size:15px;line-height:1.8;color:#6b7c8f;white-space:pre-line;font-family:Arial,sans-serif;">
+                        ${escapeHtml(footer)}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
-    </div>
   </body>
 </html>`
 
