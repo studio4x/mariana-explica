@@ -1,0 +1,13 @@
+.agents
+.github
+.vscode
+artifacts
+docs
+scripts
+supabase
+tests
+AGENTS.md
+DESIGN.MD
+README.md
+.vite-dev.err.log
+.vite-dev.out.log
