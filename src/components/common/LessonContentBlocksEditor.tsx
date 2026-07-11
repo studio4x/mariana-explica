@@ -52,6 +52,17 @@ type InsertAction = {
   iconToneClassName: string
 }
 
+type ResolvedUrlState = {
+  key: string | null
+  status: "idle" | "resolved" | "error"
+  url: string | null
+}
+
+type BlockDraftState = {
+  sourceValue: string
+  blocks: LessonContentBlock[]
+}
+
 const INSERT_ACTIONS: InsertAction[] = [
   {
     type: "rich-text",
@@ -130,6 +141,20 @@ function buildVideoTooLargeMessage(limitBytes?: number | null) {
   return "O vídeo excede o limite de tamanho permitido neste projeto. Envia um ficheiro menor ou ajusta o limite global de upload protegido configurado para o R2 neste projeto."
 }
 
+function createEmptyResolvedUrlState(): ResolvedUrlState {
+  return {
+    key: null,
+    status: "idle",
+    url: null,
+  }
+}
+
+function buildStorageResolveKey(bucket: string | null | undefined, path: string) {
+  const trimmedPath = path.trim()
+  if (!trimmedPath) return null
+  return `${bucket?.trim() || LESSON_PRIVATE_MEDIA_BUCKET}:${trimmedPath}`
+}
+
 function getVideoUploadLimitInstruction(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
     return `Limite máximo por ficheiro: ${formatBytes(limitBytes)}.`
@@ -165,25 +190,32 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
   disabled = false,
   allowBlockInsertion = true,
 }: LessonContentBlocksEditorProps, ref) {
-  const [blocks, setBlocks] = useState<LessonContentBlock[]>(() => splitLessonContent(value))
-  const blocksRef = useRef<LessonContentBlock[]>(splitLessonContent(value))
+  const normalizedValue = value ?? ""
+  const [blockState, setBlockState] = useState<BlockDraftState>(() => ({
+    sourceValue: normalizedValue,
+    blocks: splitLessonContent(normalizedValue),
+  }))
+  const blocksRef = useRef<LessonContentBlock[]>(blockState.blocks)
   const editorRefs = useRef<Record<string, RichTextEditorHandle | null>>({})
-  const lastCommittedValueRef = useRef(value ?? "")
+  const currentValueRef = useRef(normalizedValue)
+  const currentBlocks = normalizedValue === blockState.sourceValue ? blockState.blocks : splitLessonContent(normalizedValue)
 
   useEffect(() => {
-    const nextValue = value ?? ""
-    if (nextValue === lastCommittedValueRef.current) return
-    const nextBlocks = splitLessonContent(nextValue)
-    blocksRef.current = nextBlocks
-    setBlocks(nextBlocks)
-    lastCommittedValueRef.current = nextValue
-  }, [value])
+    blocksRef.current = currentBlocks
+  }, [currentBlocks])
+
+  useEffect(() => {
+    currentValueRef.current = normalizedValue
+  }, [normalizedValue])
 
   const commitBlocks = (nextBlocks: LessonContentBlock[]) => {
     const nextValue = mergeLessonContent(nextBlocks)
     blocksRef.current = nextBlocks
-    setBlocks(nextBlocks)
-    lastCommittedValueRef.current = nextValue
+    currentValueRef.current = nextValue
+    setBlockState({
+      sourceValue: nextValue,
+      blocks: nextBlocks,
+    })
     onChange(nextValue)
   }
 
@@ -226,8 +258,12 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
           editor?.flush()
         }
         const nextValue = mergeLessonContent(blocksRef.current)
-        if (nextValue !== lastCommittedValueRef.current) {
-          lastCommittedValueRef.current = nextValue
+        if (nextValue !== currentValueRef.current) {
+          currentValueRef.current = nextValue
+          setBlockState({
+            sourceValue: nextValue,
+            blocks: blocksRef.current,
+          })
           onChange(nextValue)
         }
         return nextValue
@@ -239,7 +275,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
   return (
     <div className={cn("space-y-3", className)}>
       <div className="space-y-4">
-        {blocks.map((block, index) => (
+        {currentBlocks.map((block, index) => (
           <section key={`${block.type}-${index}`} className="space-y-4 py-2">
             <div className="mb-1 flex items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
@@ -371,10 +407,19 @@ function ImageBlockEditor({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
-  const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null)
-  const [resolvingPreviewUrl, setResolvingPreviewUrl] = useState(false)
+  const [resolvedPreviewState, setResolvedPreviewState] = useState<ResolvedUrlState>(() => createEmptyResolvedUrlState())
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonImageBlockContent(value)
+  const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
+  const previewResolveKey = directSource && !isRenderableLessonMediaUrl(directSource)
+    ? buildStorageResolveKey(normalized.storage_bucket, directSource)
+    : null
+  const resolvedPreviewUrl = previewResolveKey
+    ? resolvedPreviewState.key === previewResolveKey
+      ? resolvedPreviewState.url
+      : null
+    : directSource || null
+  const resolvingPreviewUrl = Boolean(previewResolveKey) && resolvedPreviewState.key !== previewResolveKey
   const imageUrl = localPreviewUrl || resolvedPreviewUrl
   const pendingUpload = uploadPublicImage.isPending || deleteLessonStorageObject.isPending || disabled
   const captionAlignClass =
@@ -393,39 +438,32 @@ function ImageBlockEditor({
   }, [localPreviewUrl])
 
   useEffect(() => {
-    const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
-    if (!directSource) {
-      setResolvedPreviewUrl(null)
-      setResolvingPreviewUrl(false)
-      return
-    }
-
-    if (isRenderableLessonMediaUrl(directSource)) {
-      setResolvedPreviewUrl(directSource)
-      setResolvingPreviewUrl(false)
-      return
-    }
+    if (!previewResolveKey || resolvedPreviewState.key === previewResolveKey) return
 
     let active = true
-    setResolvingPreviewUrl(true)
-    setResolvedPreviewUrl(null)
 
     void resolveLessonStorageUrl(normalized.storage_bucket, directSource)
       .then((url) => {
         if (!active) return
-        setResolvedPreviewUrl(url)
-        setResolvingPreviewUrl(false)
+        setResolvedPreviewState({
+          key: previewResolveKey,
+          status: url ? "resolved" : "error",
+          url,
+        })
       })
       .catch(() => {
         if (!active) return
-        setResolvedPreviewUrl(null)
-        setResolvingPreviewUrl(false)
+        setResolvedPreviewState({
+          key: previewResolveKey,
+          status: "error",
+          url: null,
+        })
       })
 
     return () => {
       active = false
     }
-  }, [normalized.public_url, normalized.storage_bucket, normalized.storage_path])
+  }, [directSource, normalized.storage_bucket, previewResolveKey, resolvedPreviewState.key])
 
   const updateAlt = (alt: string) => {
     onChange(
@@ -512,7 +550,7 @@ function ImageBlockEditor({
         width_percent: normalized.width_percent,
       }),
     )
-    setResolvedPreviewUrl(upload.public_url ?? null)
+    setResolvedPreviewState(createEmptyResolvedUrlState())
     setStatus({
       tone: "success",
       message: "Imagem enviada e guardada automaticamente.",
@@ -596,7 +634,7 @@ function ImageBlockEditor({
 
       setSelectedFile(null)
       setLocalPreviewUrl(null)
-      setResolvedPreviewUrl(null)
+      setResolvedPreviewState(createEmptyResolvedUrlState())
       onChange(
         normalizeLessonImageBlockContent({
           storage_bucket: null,
@@ -803,12 +841,31 @@ function VideoBlockEditor({
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonVideoBlockContent(value)
-  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null)
-  const [resolvedAssetUrl, setResolvedAssetUrl] = useState<string | null>(null)
-  const [resolvingAssetUrl, setResolvingAssetUrl] = useState(false)
-  const [resolvingVideoUrl, setResolvingVideoUrl] = useState(false)
+  const [resolvedVideoState, setResolvedVideoState] = useState<ResolvedUrlState>(() => createEmptyResolvedUrlState())
+  const [resolvedAssetState, setResolvedAssetState] = useState<ResolvedUrlState>(() => createEmptyResolvedUrlState())
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
   const assetId = getLessonVideoAssetId(directSource)
+  const assetResolveKey = assetId || null
+  const videoResolveKey =
+    directSource && !assetId && !isRenderableLessonMediaUrl(directSource)
+      ? buildStorageResolveKey(normalized.storage_bucket, directSource)
+      : null
+  const resolvedAssetUrl = assetResolveKey
+    ? resolvedAssetState.key === assetResolveKey
+      ? resolvedAssetState.url
+      : null
+    : null
+  const resolvedVideoUrl = videoResolveKey
+    ? resolvedVideoState.key === videoResolveKey
+      ? resolvedVideoState.url
+      : null
+    : assetId
+      ? null
+      : directSource && isRenderableLessonMediaUrl(directSource)
+        ? directSource
+        : null
+  const resolvingAssetUrl = Boolean(assetResolveKey) && resolvedAssetState.key !== assetResolveKey
+  const resolvingVideoUrl = Boolean(videoResolveKey) && resolvedVideoState.key !== videoResolveKey
   const videoUrl =
     localPreviewUrl ||
     (assetId ? resolvedAssetUrl : isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl)
@@ -835,72 +892,60 @@ function VideoBlockEditor({
   }, [localPreviewUrl])
 
   useEffect(() => {
-    if (!assetId) {
-      setResolvedAssetUrl(null)
-      setResolvingAssetUrl(false)
-      return
-    }
+    if (!assetResolveKey || resolvedAssetState.key === assetResolveKey) return
 
     let active = true
-    setResolvingAssetUrl(true)
-    setResolvedAssetUrl(null)
 
-    void requestAssetAccess(assetId)
+    void requestAssetAccess(assetResolveKey)
       .then((result) => {
         if (!active) return
-        setResolvedAssetUrl(result.url)
-        setResolvingAssetUrl(false)
+        setResolvedAssetState({
+          key: assetResolveKey,
+          status: result.url ? "resolved" : "error",
+          url: result.url,
+        })
       })
       .catch(() => {
         if (!active) return
-        setResolvedAssetUrl(null)
-        setResolvingAssetUrl(false)
+        setResolvedAssetState({
+          key: assetResolveKey,
+          status: "error",
+          url: null,
+        })
       })
 
     return () => {
       active = false
     }
-  }, [assetId])
+  }, [assetResolveKey, resolvedAssetState.key])
 
   useEffect(() => {
-    if (!directSource) {
-      setResolvedVideoUrl(null)
-      setResolvingVideoUrl(false)
-      return
-    }
-
-    if (assetId) {
-      setResolvedVideoUrl(null)
-      setResolvingVideoUrl(false)
-      return
-    }
-
-    if (isRenderableLessonMediaUrl(directSource)) {
-      setResolvedVideoUrl(directSource)
-      setResolvingVideoUrl(false)
-      return
-    }
+    if (!videoResolveKey || resolvedVideoState.key === videoResolveKey) return
 
     let active = true
-    setResolvingVideoUrl(true)
-    setResolvedVideoUrl(null)
 
     void resolveLessonStorageUrl(normalized.storage_bucket, directSource)
       .then((url) => {
         if (!active) return
-        setResolvedVideoUrl(url)
-        setResolvingVideoUrl(false)
+        setResolvedVideoState({
+          key: videoResolveKey,
+          status: url ? "resolved" : "error",
+          url,
+        })
       })
       .catch(() => {
         if (!active) return
-        setResolvedVideoUrl(null)
-        setResolvingVideoUrl(false)
+        setResolvedVideoState({
+          key: videoResolveKey,
+          status: "error",
+          url: null,
+        })
       })
 
     return () => {
       active = false
     }
-  }, [assetId, directSource, normalized.storage_bucket])
+  }, [directSource, normalized.storage_bucket, resolvedVideoState.key, videoResolveKey])
 
   const updateTitle = (title: string) => {
     onChange(
@@ -980,8 +1025,8 @@ function VideoBlockEditor({
           width_percent: normalized.width_percent,
         }),
       )
-      setResolvedAssetUrl(null)
-      setResolvedVideoUrl(null)
+      setResolvedAssetState(createEmptyResolvedUrlState())
+      setResolvedVideoState(createEmptyResolvedUrlState())
       setStatus({
         tone: "success",
         message: "Vídeo enviado e guardado automaticamente.",
@@ -1083,8 +1128,8 @@ function VideoBlockEditor({
 
       setSelectedFile(null)
       setLocalPreviewUrl(null)
-      setResolvedVideoUrl(null)
-      setResolvedAssetUrl(null)
+      setResolvedVideoState(createEmptyResolvedUrlState())
+      setResolvedAssetState(createEmptyResolvedUrlState())
       onChange(
         normalizeLessonVideoBlockContent({
           storage_bucket: null,
