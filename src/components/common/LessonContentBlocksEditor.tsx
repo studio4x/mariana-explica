@@ -125,9 +125,9 @@ function formatBytes(bytes: number) {
 
 function buildVideoTooLargeMessage(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
-    return `O vídeo excede o limite permitido (${formatBytes(limitBytes)}). Envia um ficheiro menor ou ajusta o limite global de upload em Storage > Settings no Supabase.`
+    return `O vídeo excede o limite permitido (${formatBytes(limitBytes)}). Envia um ficheiro menor ou ajusta o limite global de upload protegido configurado para o R2 neste projeto.`
   }
-  return "O vídeo excede o limite de tamanho permitido neste projeto. Envia um ficheiro menor ou ajusta o limite global de upload em Storage > Settings no Supabase."
+  return "O vídeo excede o limite de tamanho permitido neste projeto. Envia um ficheiro menor ou ajusta o limite global de upload protegido configurado para o R2 neste projeto."
 }
 
 function getVideoUploadLimitInstruction(limitBytes?: number | null) {
@@ -135,7 +135,7 @@ function getVideoUploadLimitInstruction(limitBytes?: number | null) {
     return `Limite máximo por ficheiro: ${formatBytes(limitBytes)}.`
   }
 
-  return "O limite de upload é definido pela configuração do Storage do Supabase para este projeto."
+  return "O limite de upload é definido pela configuração do upload protegido no R2 para este projeto."
 }
 
 async function resolveLessonStorageUrl(bucket: string | null | undefined, path: string) {
