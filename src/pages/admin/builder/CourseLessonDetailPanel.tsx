@@ -11,6 +11,7 @@ import {
   useAdminProductLessons,
   useCreateAdminModuleAsset,
   useDeleteAdminProductLesson,
+  useAdminLessonFileAccess,
   useUpdateAdminProductLesson,
   useUploadAdminLessonFile,
 } from "@/hooks/useAdmin"
@@ -161,6 +162,7 @@ export function CourseLessonDetailPanel() {
   const updateLesson = useUpdateAdminProductLesson()
   const deleteLesson = useDeleteAdminProductLesson()
   const uploadLessonFile = useUploadAdminLessonFile()
+  const lessonFileAccess = useAdminLessonFileAccess()
   const moduleAssetUploadLimitQuery = useAdminModuleAssetUploadLimit(moduleId)
   const createSignedVideoUpload = useCreateAdminModuleAssetSignedUpload()
   const createAsset = useCreateAdminModuleAsset()
@@ -178,6 +180,7 @@ export function CourseLessonDetailPanel() {
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [isLessonFileLibraryOpen, setIsLessonFileLibraryOpen] = useState(false)
+  const [lessonFilePreviewUrl, setLessonFilePreviewUrl] = useState<string | null>(null)
   const videoFileInputRef = useRef<HTMLInputElement | null>(null)
   const [resolvedProtectedVideoMaxBytes, setResolvedProtectedVideoMaxBytes] = useState<number | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
@@ -424,6 +427,17 @@ export function CourseLessonDetailPanel() {
     }
   }
 
+  const refreshLessonFilePreview = async (storagePath = values.lesson_file_storage_path) => {
+    if (!storagePath) return
+
+    try {
+      const access = await lessonFileAccess.mutateAsync(lesson.id)
+      setLessonFilePreviewUrl(access.url)
+    } catch (previewError) {
+      setError(previewError instanceof Error ? previewError.message : "Não foi possível abrir a visualização do PDF.")
+    }
+  }
+
   const handleFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     if (!file) return
@@ -507,6 +521,7 @@ export function CourseLessonDetailPanel() {
       lesson_file_mime_type: upload.mime_type ?? "application/pdf",
       lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
     }))
+    await refreshLessonFilePreview(upload.path)
   }
 
   const handleMediaLibraryLessonFileSelect = async (object: AdminR2ListedObject) => {
@@ -539,6 +554,7 @@ export function CourseLessonDetailPanel() {
       lesson_file_mime_type: "application/pdf",
       lesson_file_size_bytes: object.size_bytes,
     }))
+    await refreshLessonFilePreview(object.storage_path)
   }
 
   const handleVideoUploadSelection = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1086,6 +1102,20 @@ export function CourseLessonDetailPanel() {
                 {uploadMessage ? (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                     {uploadMessage}
+                  </div>
+                ) : null}
+                {lessonFileAccess.isPending ? (
+                  <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
+                    A preparar a visualização do PDF...
+                  </div>
+                ) : lessonFilePreviewUrl ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="mb-3 text-sm font-semibold text-slate-950">Visualização do PDF</p>
+                    <iframe
+                      src={lessonFilePreviewUrl}
+                      title={values.lesson_file_name ?? "Visualização do PDF"}
+                      className="h-[min(720px,70vh)] w-full rounded-xl border border-slate-200 bg-white"
+                    />
                   </div>
                 ) : null}
               </div>
