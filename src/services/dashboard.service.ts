@@ -446,7 +446,7 @@ export async function fetchAccessibleLesson(lessonId: string) {
   const { data, error } = await supabase
     .from("product_lessons")
     .select(
-      "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status",
+      "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_storage_managed,lesson_file_name,lesson_file_mime_type,lesson_file_size_bytes,estimated_minutes,starts_at,ends_at,status",
     )
     .eq("id", lessonId)
     .maybeSingle()

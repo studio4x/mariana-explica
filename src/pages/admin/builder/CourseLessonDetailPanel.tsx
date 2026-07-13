@@ -215,7 +215,46 @@ export function CourseLessonDetailPanel() {
     setVideoUrlDraft(hasUploadedVideo ? "" : currentSource)
     setUploadedVideoAssetValue(hasUploadedVideo ? currentSource : null)
     setPendingVideoFile(null)
+    setLessonFilePreviewUrl(null)
   }, [lesson])
+
+  useEffect(() => {
+    if (!lesson) {
+      setLessonFilePreviewUrl(null)
+      return
+    }
+
+    const draftLessonType = form.lesson_type ?? lesson.lesson_type
+    const draftLessonFilePath = form.lesson_file_storage_path ?? lesson.lesson_file_storage_path ?? null
+
+    if (draftLessonType !== "file" || !draftLessonFilePath) {
+      setLessonFilePreviewUrl(null)
+      return
+    }
+
+    if (lessonFilePreviewUrl) {
+      return
+    }
+
+    let isActive = true
+
+    void lessonFileAccess
+      .mutateAsync(lesson.id)
+      .then((access) => {
+        if (isActive) {
+          setLessonFilePreviewUrl(access.url)
+        }
+      })
+      .catch((previewError) => {
+        if (isActive) {
+          setError(previewError instanceof Error ? previewError.message : "NÃ£o foi possÃ­vel abrir a visualizaÃ§Ã£o do PDF.")
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [form.lesson_file_storage_path, form.lesson_type, lesson, lessonFileAccess, lessonFilePreviewUrl])
 
   if (!courseId || !moduleId || !lessonId) {
     return <EmptyState title="Aula inválida" message="Seleciona uma aula válida na Árvore do builder." />
