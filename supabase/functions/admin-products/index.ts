@@ -21,6 +21,9 @@ interface ProductPayload {
   slug: string
   title: string
   coverImageUrl?: string | null
+  coverImageStorageBucket?: string | null
+  coverImageStoragePath?: string | null
+  coverImageStorageProvider?: "supabase" | "r2" | null
   shortDescription?: string | null
   description?: string | null
   productType: ProductType
@@ -55,6 +58,9 @@ function mapPayload(payload: Partial<ProductPayload>) {
   if (payload.slug !== undefined) updates.slug = payload.slug.trim()
   if (payload.title !== undefined) updates.title = payload.title.trim()
   if (payload.coverImageUrl !== undefined) updates.cover_image_url = payload.coverImageUrl
+  if (payload.coverImageStorageBucket !== undefined) updates.cover_image_storage_bucket = payload.coverImageStorageBucket
+  if (payload.coverImageStoragePath !== undefined) updates.cover_image_storage_path = payload.coverImageStoragePath
+  if (payload.coverImageStorageProvider !== undefined) updates.cover_image_storage_provider = payload.coverImageStorageProvider
   if (payload.shortDescription !== undefined) updates.short_description = payload.shortDescription
   if (payload.description !== undefined) updates.description = payload.description
   if (payload.productType !== undefined) updates.product_type = payload.productType

@@ -1,12 +1,13 @@
-import { ArrowDown, ArrowUp, ImagePlus, Link2, Plus, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
-import { OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
+import { MediaLibraryModal, OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
 import { buildCourseCatalogCardView, sanitizeCourseCatalogCardContent } from "@/lib/course-public-page"
 import { ROUTES } from "@/lib/constants"
 import { adminCourseBuilderPath } from "@/lib/routes"
+import type { AdminR2ListedObject } from "@/services/admin.service"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
 import type { CourseCatalogCardItem, CourseCatalogCardMode, ProductSummary } from "@/types/product.types"
 
@@ -109,6 +110,16 @@ export function CourseSettingsPanel() {
   const { data: categories = [] } = useAdminProductCategories()
   const updateProduct = useUpdateAdminProduct()
   const uploadCover = useUploadAdminProductCover()
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
+  const [coverStorage, setCoverStorage] = useState<{
+    bucket: string | null
+    path: string | null
+    provider: "supabase" | "r2" | null
+  }>({
+    bucket: product.cover_image_storage_bucket ?? null,
+    path: product.cover_image_storage_path ?? null,
+    provider: product.cover_image_storage_provider ?? null,
+  })
   const initialCardView = useMemo(() => buildCourseCatalogCardView(product), [product])
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
@@ -172,9 +183,14 @@ export function CourseSettingsPanel() {
       catalogCardItems: nextCardView.items,
     })
     setUploadMessage(null)
+    setCoverStorage({
+      bucket: product.cover_image_storage_bucket ?? null,
+      path: product.cover_image_storage_path ?? null,
+      provider: product.cover_image_storage_provider ?? null,
+    })
   }, [product])
 
-  const coverStoragePath = useMemo(() => extractCoverStoragePath(form.coverImageUrl), [form.coverImageUrl])
+  const coverStoragePath = coverStorage.path ?? extractCoverStoragePath(form.coverImageUrl)
   const priceCents = parsePriceInput(form.price)
   const shouldConvertToFree = form.productType === "paid" && priceCents === 0
 
@@ -196,7 +212,47 @@ export function CourseSettingsPanel() {
     })
   }
 
-  const handleCoverSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleCoverUpload = async (file: File) => {
+    setFeedback(null)
+    setUploadMessage(null)
+
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error("A capa deve ter no máximo 10MB.")
+    }
+
+    const upload = await uploadCover.mutateAsync({
+      productId: product.id,
+      file,
+      replacePath: coverStoragePath,
+    })
+
+    setCoverStorage({
+      bucket: upload.bucket,
+      path: upload.path,
+      provider: upload.storage_provider ?? "r2",
+    })
+    setForm((prev) => ({
+      ...prev,
+      coverImageUrl: upload.public_url ?? prev.coverImageUrl,
+    }))
+    setUploadMessage("Capa enviada e guardada automaticamente.")
+  }
+
+  const handleCoverLibrarySelect = async (object: AdminR2ListedObject) => {
+    const publicUrl = `/api/public/course-media?storage_path=${encodeURIComponent(object.storage_path)}`
+    await updateProduct.mutateAsync({
+      productId: product.id,
+      coverImageUrl: publicUrl,
+      coverImageStorageBucket: object.logical_bucket,
+      coverImageStoragePath: object.storage_path,
+      coverImageStorageProvider: "r2",
+    })
+    setCoverStorage({ bucket: object.logical_bucket, path: object.storage_path, provider: "r2" })
+    setForm((prev) => ({ ...prev, coverImageUrl: publicUrl }))
+    setUploadMessage("Capa selecionada da biblioteca e guardada automaticamente.")
+  }
+
+  const handleCoverSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     if (!file) return
 
@@ -256,6 +312,9 @@ export function CourseSettingsPanel() {
         title: form.title.trim(),
         slug: form.slug.trim(),
         coverImageUrl: form.coverImageUrl.trim() || null,
+        coverImageStorageBucket: coverStorage.bucket,
+        coverImageStoragePath: coverStorage.path,
+        coverImageStorageProvider: coverStorage.provider,
         shortDescription: form.shortDescription.trim() || null,
         launchDate: form.launchDate || null,
         workloadMinutes: Number(form.workloadMinutes || 0),
@@ -385,20 +444,6 @@ export function CourseSettingsPanel() {
               placeholder="Comissão do criador (%)"
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
-          </Field>
-          <Field
-            label="URL manual da capa"
-            helper="Opcional. Pode usar link externo ou deixar apenas a imagem enviada abaixo."
-          >
-            <div className="flex w-full items-center gap-2 rounded-xl border bg-slate-50 px-3">
-              <Link2 className="h-4 w-4 text-slate-400" />
-              <input
-                value={form.coverImageUrl}
-                onChange={(event) => setForm((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
-                placeholder="https://..."
-                className="h-11 flex-1 bg-transparent text-sm outline-none"
-              />
-            </div>
           </Field>
           <Field
             label="Resumo curto / Área de texto"
@@ -773,8 +818,19 @@ export function CourseSettingsPanel() {
                 type="file"
                 accept="image/png,image/jpeg,image/jpg,image/pjpeg,image/webp,image/gif,image/avif"
                 onChange={handleCoverSelection}
-                className="text-sm"
+                className="hidden"
               />
+
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setIsMediaLibraryOpen(true)}
+                disabled={uploadCover.isPending || updateProduct.isPending}
+              >
+                <ImagePlus className="mr-2 h-4 w-4" />
+                Fazer upload ou usar biblioteca
+              </Button>
 
               {uploadMessage ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -783,6 +839,15 @@ export function CourseSettingsPanel() {
               ) : null}
             </div>
           </div>
+          <MediaLibraryModal
+            open={isMediaLibraryOpen}
+            title="Adicionar capa do material"
+            accept="image/png,image/jpeg,image/jpg,image/pjpeg,image/webp,image/gif,image/avif"
+            fileType="image"
+            onClose={() => setIsMediaLibraryOpen(false)}
+            onUpload={handleCoverUpload}
+            onSelect={handleCoverLibrarySelect}
+          />
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">

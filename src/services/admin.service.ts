@@ -3292,6 +3292,9 @@ export function createAdminProduct(input: {
   slug: string
   title: string
   coverImageUrl?: string | null
+  coverImageStorageBucket?: string | null
+  coverImageStoragePath?: string | null
+  coverImageStorageProvider?: "supabase" | "r2" | null
   shortDescription?: string | null
   description?: string | null
   productType: ProductSummary["product_type"]
@@ -3323,6 +3326,9 @@ export function updateAdminProduct(input: {
   slug?: string
   title?: string
   coverImageUrl?: string | null
+  coverImageStorageBucket?: string | null
+  coverImageStoragePath?: string | null
+  coverImageStorageProvider?: "supabase" | "r2" | null
   shortDescription?: string | null
   description?: string | null
   productType?: ProductSummary["product_type"]
