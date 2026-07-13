@@ -87,7 +87,6 @@ function CourseSidebar({
       </div>
 
       <div className="border-b border-slate-100 bg-slate-50 px-4 py-4">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Player LMS</p>
         <h1 className="mt-2 line-clamp-2 font-display text-xl font-black text-slate-950">{product.title}</h1>
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
