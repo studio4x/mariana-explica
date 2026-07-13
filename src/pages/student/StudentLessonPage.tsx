@@ -3,7 +3,13 @@ import { CheckCircle2, FileText, Loader2, StickyNote } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { LessonContentBlocksRenderer, LessonPrimaryMedia, RichTextContent, StatusBadge } from "@/components/common"
+import {
+  LessonAdditionalResources,
+  LessonContentBlocksRenderer,
+  LessonPrimaryMedia,
+  RichTextContent,
+  StatusBadge,
+} from "@/components/common"
 import {
   useAccessibleLesson,
   useLessonNote,
@@ -14,7 +20,7 @@ import {
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
 import { buildCoursePlayerEntries } from "@/lib/course-helpers"
-import { getAssetActionLabel, getAssetTypeLabel, getLessonTypeLabel } from "@/lib/product-presentation"
+import { getLessonTypeLabel } from "@/lib/product-presentation"
 import {
   studentCourseAssessmentPath,
   studentCourseLessonPath,
@@ -246,36 +252,21 @@ export function StudentLessonPage() {
                 </div>
               </div>
             ) : null}
-            {assets.length === 0 ? (
+            {!module.module_pdf_file_name ? (
               <EmptyState
-                title="Sem materiais adicionais"
-                message={
-                  module.module_pdf_file_name
-                    ? "O PDF base do módulo já está disponível acima."
-                    : "Quando houver PDFs, links ou vídeos de apoio, eles aparecem aqui."
-                }
+                title="Sem material base"
+                message="Quando houver um PDF base configurado para o módulo, ele aparece aqui."
               />
-            ) : (
-              assets.map((asset) => (
-                <div key={asset.id} className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-slate-950">{asset.title}</p>
-                        <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
-                      </div>
-                      <p className="mt-2 text-sm text-slate-600">Material protegido ligado ao módulo atual.</p>
-                    </div>
-                    <Button type="button" className="rounded-full" onClick={() => void handleAssetOpen(asset.id)} disabled={assetAccess.isPending}>
-                      {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
+            ) : null}
           </div>
         </section>
       </div>
+
+      <LessonAdditionalResources
+        assets={assets}
+        isOpening={assetAccess.isPending}
+        onOpen={(assetId) => void handleAssetOpen(assetId)}
+      />
 
       <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:px-7 md:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
