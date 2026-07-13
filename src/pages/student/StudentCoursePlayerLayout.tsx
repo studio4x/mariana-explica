@@ -65,7 +65,7 @@ function CourseSidebar({
   onClose,
 }: CourseSidebarProps) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col overflow-x-hidden">
       <div className="min-h-16 border-b border-slate-100 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <Button
@@ -114,7 +114,7 @@ function CourseSidebar({
 
       <div className="no-scrollbar flex-1 space-y-4 overflow-y-auto px-2 py-4">
         {visibleModules.map(({ module, index, lessons, assessments }) => (
-          <section key={module.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3">
+          <section key={module.id} className="min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3">
             <p className="px-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Módulo {index + 1}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 px-1">
               <p className="font-bold text-slate-950">{module.title}</p>
@@ -130,7 +130,7 @@ function CourseSidebar({
                 const isCurrent = locationPath.includes(`/aulas/${lesson.id}`)
                 const isCompleted = state.label.toLocaleLowerCase().includes("concl")
                 const content = (
-                  <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <span
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                         isCompleted
@@ -157,14 +157,14 @@ function CourseSidebar({
                 )
 
                 return lesson.is_locked ? (
-                  <div key={lesson.id} className="block cursor-not-allowed rounded-xl border border-slate-200 bg-white px-3 py-3 opacity-70 grayscale">
+                  <div key={lesson.id} className="block min-w-0 cursor-not-allowed rounded-xl border border-slate-200 bg-white px-3 py-3 opacity-70 grayscale">
                     {content}
                   </div>
                 ) : (
                   <NavLink
                     key={lesson.id}
                     to={studentCourseLessonPath(product.id, lesson.id)}
-                    className={`group block rounded-xl border px-3 py-3 transition ${
+                    className={`group block min-w-0 rounded-xl border px-3 py-3 transition ${
                       isCurrent ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-100"
                     }`}
                   >
@@ -176,7 +176,7 @@ function CourseSidebar({
               {assessments.map((assessment) => {
                 const isCurrent = locationPath.includes(`/avaliacoes/${assessment.id}`)
                 const content = (
-                  <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-slate-950">{assessment.title}</p>
@@ -193,14 +193,14 @@ function CourseSidebar({
                 )
 
                 return assessment.is_locked ? (
-                  <div key={assessment.id} className="block rounded-xl border border-slate-200 bg-white px-3 py-3 opacity-70 grayscale">
+                  <div key={assessment.id} className="block min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 opacity-70 grayscale">
                     {content}
                   </div>
                 ) : (
                   <NavLink
                     key={assessment.id}
                     to={studentCourseAssessmentPath(product.id, assessment.id)}
-                    className={`block rounded-xl border px-3 py-3 transition ${
+                    className={`block min-w-0 rounded-xl border px-3 py-3 transition ${
                       isCurrent ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-100"
                     }`}
                   >
@@ -215,7 +215,7 @@ function CourseSidebar({
         {finalAssessments.map((assessment) => {
           const isCurrent = locationPath.includes(`/avaliacoes/${assessment.id}`)
           const content = (
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold text-slate-950">{assessment.title}</p>
@@ -229,14 +229,14 @@ function CourseSidebar({
           )
 
           return assessment.is_locked ? (
-            <div key={assessment.id} className="block rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 opacity-70 grayscale">
+            <div key={assessment.id} className="block min-w-0 rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 opacity-70 grayscale">
               {content}
             </div>
           ) : (
             <NavLink
               key={assessment.id}
               to={studentCourseAssessmentPath(product.id, assessment.id)}
-              className={`block rounded-[1.5rem] border px-4 py-4 transition ${
+              className={`block min-w-0 rounded-[1.5rem] border px-4 py-4 transition ${
                 isCurrent ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
             >
@@ -348,7 +348,7 @@ export function StudentCoursePlayerLayout() {
         />
       ) : null}
       <aside
-        className={`${sidebarOpen ? "flex lg:w-80" : "hidden lg:flex lg:w-0 lg:overflow-hidden"} fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] shrink-0 border-r border-slate-200 bg-white text-slate-950 shadow-xl transition-all duration-200 lg:relative lg:z-auto lg:shadow-none`}
+        className={`${sidebarOpen ? "flex lg:w-80" : "hidden lg:flex lg:w-0 lg:overflow-hidden"} fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] min-w-0 shrink-0 overflow-x-hidden border-r border-slate-200 bg-white text-slate-950 shadow-xl transition-all duration-200 lg:static lg:z-auto lg:shadow-none`}
       >
         <CourseSidebar
           product={product}
