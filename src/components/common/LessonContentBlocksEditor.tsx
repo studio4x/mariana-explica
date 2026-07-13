@@ -133,6 +133,10 @@ function blockLabel(block: LessonContentBlock) {
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return ""
   const mb = bytes / (1024 * 1024)
+  if (mb >= 1024) {
+    const gb = mb / 1024
+    return `${gb.toFixed(Number.isInteger(gb) ? 0 : 1).replace(/\.0$/, "")} GB`
+  }
   return `${mb.toFixed(mb >= 10 ? 0 : 1).replace(/\.0$/, "")} MB`
 }
 

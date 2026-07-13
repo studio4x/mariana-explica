@@ -74,15 +74,13 @@ function formatBytes(bytes: number) {
   const units = ["B", "KB", "MB", "GB", "TB"]
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
   const value = bytes / 1024 ** exponent
-  const precision = exponent <= 1 ? 0 : exponent === 2 ? 1 : 2
+  const precision = exponent <= 1 || Number.isInteger(value) ? 0 : exponent === 2 ? 1 : 2
   return `${value.toFixed(precision)} ${units[exponent]}`
 }
 
 function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
-    const maxMb = limitBytes / (1024 * 1024)
-    const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
-    return `O vídeo excede o limite permitido (${mbLabel} MB). Reduz o ficheiro ou ajusta o limite global de upload protegido configurado para o R2 neste projeto.`
+    return `O vídeo excede o limite permitido (${formatBytes(limitBytes)}). Reduz o ficheiro ou ajusta o limite global de upload protegido configurado para o R2 neste projeto.`
   }
 
   return "O vídeo excede o limite de tamanho permitido neste projeto. Reduz o ficheiro ou ajusta o limite global de upload protegido configurado para o R2 neste projeto."
@@ -90,9 +88,7 @@ function buildProtectedVideoTooLargeMessage(limitBytes?: number | null) {
 
 function getProtectedVideoLimitInstruction(limitBytes?: number | null) {
   if (limitBytes && Number.isFinite(limitBytes) && limitBytes > 0) {
-    const maxMb = limitBytes / (1024 * 1024)
-    const mbLabel = Number.isInteger(maxMb) ? String(maxMb) : maxMb.toFixed(1)
-    return `Limite máximo atual no R2: ${mbLabel} MB por ficheiro.`
+    return `Limite máximo atual no R2: ${formatBytes(limitBytes)} por ficheiro.`
   }
 
   return "Limite máximo por ficheiro definido para o upload protegido no R2. O valor pode variar por configuração do projeto."
