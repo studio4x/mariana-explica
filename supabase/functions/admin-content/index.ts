@@ -582,6 +582,8 @@ Deno.serve(async (req) => {
         body.lesson_file_mime_type,
         body.lesson_file_size_bytes,
       ].some((value) => value !== undefined)
+      const hasConcreteLessonFilePath =
+        typeof body.lesson_file_storage_path === "string" && body.lesson_file_storage_path.trim().length > 0
       if (hasFileFields && body.lesson_file_storage_path !== undefined && body.lesson_file_storage_path !== null) {
         if (!body.lesson_file_storage_bucket || !body.lesson_file_name || body.lesson_file_mime_type !== "application/pdf") {
           throw badRequest("Os dados do ficheiro principal da aula estao incompletos")
@@ -591,7 +593,20 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (body.lesson_type !== undefined && body.lesson_type !== "file" && !hasFileFields) {
+      // A normal save of an `file` lesson can arrive before the local upload
+      // state has finished hydrating. Empty file fields must not erase a file
+      // that is already persisted; replacement is explicit through a path.
+      if (body.lesson_type === "file" && hasFileFields && !hasConcreteLessonFilePath) {
+        delete payload.lesson_file_storage_bucket
+        delete payload.lesson_file_storage_path
+        delete payload.lesson_file_storage_provider
+        delete payload.lesson_file_storage_managed
+        delete payload.lesson_file_name
+        delete payload.lesson_file_mime_type
+        delete payload.lesson_file_size_bytes
+      }
+
+      if (body.lesson_type !== undefined && body.lesson_type !== "file") {
         payload.lesson_file_storage_bucket = null
         payload.lesson_file_storage_path = null
         payload.lesson_file_storage_provider = null
