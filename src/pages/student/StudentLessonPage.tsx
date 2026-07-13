@@ -277,15 +277,25 @@ export function StudentLessonPage() {
         </section>
       </div>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-2xl font-black text-slate-950">Navegação do player</h2>
-            <p className="mt-1 text-sm text-slate-600">Avança pela trilha respeitando a estrutura do material.</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:px-7 md:py-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            type="button"
+            className="h-11 rounded-xl bg-emerald-600 px-6 font-bold text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700"
+            onClick={() => void handleProgress("completed")}
+            disabled={progressMutation.isPending || isLessonCompleted}
+          >
+            {progressMutation.isPending && progressMutation.variables?.status === "completed" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+            )}
+            {isLessonCompleted ? "Aula concluída" : "Marcar como Concluída"}
+          </Button>
+
+          <div className="flex w-full gap-3 sm:w-auto">
             {previousEntry ? (
-              <Button asChild variant="outline" className="rounded-full">
+              <Button asChild variant="outline" className="h-11 flex-1 rounded-xl border-slate-200 px-5 font-medium text-slate-600 sm:flex-none">
                 <Link
                   to={
                     previousEntry.type === "lesson"
@@ -293,12 +303,19 @@ export function StudentLessonPage() {
                       : studentCourseAssessmentPath(context.courseId, previousEntry.id)
                   }
                 >
+                  <span aria-hidden="true" className="mr-2">‹</span>
                   Anterior
                 </Link>
               </Button>
-            ) : null}
+            ) : (
+              <Button type="button" variant="outline" disabled className="h-11 flex-1 rounded-xl px-5 sm:flex-none">
+                <span aria-hidden="true" className="mr-2">‹</span>
+                Anterior
+              </Button>
+            )}
+
             {nextEntry ? (
-              <Button asChild className="rounded-full">
+              <Button asChild className="h-11 flex-1 rounded-xl bg-[#080b24] px-5 font-bold text-white hover:bg-[#15193b] sm:flex-none">
                 <Link
                   to={
                     nextEntry.type === "lesson"
@@ -306,10 +323,16 @@ export function StudentLessonPage() {
                       : studentCourseAssessmentPath(context.courseId, nextEntry.id)
                   }
                 >
-                  Próximo
+                  Próxima Aula
+                  <span aria-hidden="true" className="ml-2 text-lg leading-none">›</span>
                 </Link>
               </Button>
-            ) : null}
+            ) : (
+              <Button type="button" disabled className="h-11 flex-1 rounded-xl bg-[#080b24] px-5 font-bold text-white sm:flex-none">
+                Próxima Aula
+                <span aria-hidden="true" className="ml-2 text-lg leading-none">›</span>
+              </Button>
+            )}
           </div>
         </div>
       </section>
