@@ -1061,7 +1061,8 @@ export function CourseLessonDetailPanel() {
                   type="file"
                   accept="application/pdf"
                   onChange={handleFileSelection}
-                  className="mt-4 text-sm"
+                  className="hidden"
+                  aria-hidden="true"
                 />
                 <Button
                   type="button"
