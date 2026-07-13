@@ -23,7 +23,7 @@ import {
 import { useMemo, useState, type DragEvent } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { SiteBrandingManager, StatusBadge } from "@/components/common"
 import {
   useCreateAdminProductModule,
   useCreateAdminProductAssessment,
@@ -133,6 +133,15 @@ function ImportFeedbackModal({
 }
 
 export function AdminCourseBuilderLayout() {
+  return (
+    <>
+      <SiteBrandingManager />
+      <AdminCourseBuilderContent />
+    </>
+  )
+}
+
+function AdminCourseBuilderContent() {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
   const location = useLocation()

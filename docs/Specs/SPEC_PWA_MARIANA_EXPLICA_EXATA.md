@@ -17,6 +17,8 @@ O PWA desta base foi montado para:
 
 Nao existe, neste estado atual, um sistema avancado de push notifications, meta tags dinamicas ou manifesto gerado em runtime.
 
+O favicon do navegador e uma excecao: ele e aplicado em runtime a partir do asset `favicon` publicado em `site_config`.
+
 ## 2. Estrutura de arquivos
 
 Arquivos que compoem o PWA nesta base:
@@ -109,7 +111,6 @@ Nao ha, neste momento, variantes PNG 192x192 ou 512x512 no manifesto.
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="description" content="Plataforma de venda e entrega de conteúdos educacionais digitais." />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/icon-app.svg" />
 ```
@@ -120,6 +121,15 @@ Nao ha, neste momento, variantes PNG 192x192 ou 512x512 no manifesto.
 - nao ha `meta` para Twitter Cards
 - nao ha `apple-touch-icon` em PNG
 - nao ha splash screens iOS dedicadas
+- nao ha favicon estatico: o `SiteBrandingManager` aplica o asset configurado em `site_config`
+
+### 4.4 Favicon dinamico
+
+- fonte: `fetchPublicBrandingConfig()` em `site_config`
+- campo: `config_value.favicon.public_url`
+- aplicacao: `src/components/common/SiteBrandingManager.tsx`
+- o builder LMS monta o mesmo manager no seu layout proprio
+- quando nao ha asset configurado, os links de favicon sao removidos e nenhum fallback e recriado
 
 ## 5. Service Worker
 
@@ -139,7 +149,14 @@ const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 ### 5.3 URLs pre-cacheadas
 
 ```js
-const PRECACHE_URLS = ["/", "/offline.html", "/manifest.webmanifest", "/favicon.svg"];
+const PRECACHE_URLS = [
+  "/",
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+];
 ```
 
 ### 5.4 Install
@@ -175,7 +192,14 @@ Regras reais do service worker:
 const CACHE_VERSION = "mariana-explica-pwa-v2";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
-const PRECACHE_URLS = ["/", "/offline.html", "/manifest.webmanifest", "/favicon.svg"];
+const PRECACHE_URLS = [
+  "/",
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+];
 ```
 
 ## 6. Registro do service worker
@@ -356,6 +380,7 @@ Configuracao atual exata:
 - theme color: `#242742`
 - background color: `#f8fbfd`
 - cache version: `mariana-explica-pwa-v2`
-- precache: `/`, `/offline.html`, `/manifest.webmanifest`, `/favicon.svg`
+- precache: `/`, `/offline.html`, `/manifest.webmanifest`, `/icon-192.png`, `/icon-512.png`, `/icon-maskable-512.png`
+- favicon: asset `favicon` de `site_config`, aplicado em runtime
 - icon paths: `/icon-app.svg` e `/icon-maskable.svg`
 - runtime cleanup key: `mariana-explica:runtime-version`

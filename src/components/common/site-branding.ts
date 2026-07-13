@@ -1,4 +1,3 @@
-const DEFAULT_FAVICON = "/favicon.svg"
 const BRANDING_STORAGE_KEY = "mariana-explica:branding-updated"
 export const BRANDING_UPDATED_EVENT = "mariana-explica:branding-updated"
 
@@ -19,13 +18,21 @@ export function buildVersionedAssetUrl(url: string | null | undefined, version: 
 }
 
 function applyFavicon(url: string | null | undefined) {
-  const nextUrl = (url ?? "").trim() || DEFAULT_FAVICON
+  const nextUrl = (url ?? "").trim()
+  if (!nextUrl) {
+    document.head
+      .querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="shortcut icon"]')
+      .forEach((link) => link.remove())
+    return
+  }
+
   const faviconLink = ensureManagedFaviconLink()
-  faviconLink.type = nextUrl.endsWith(".svg")
+  const pathname = new URL(nextUrl, window.location.origin).pathname.toLowerCase()
+  faviconLink.type = pathname.endsWith(".svg")
     ? "image/svg+xml"
-    : nextUrl.endsWith(".png")
+    : pathname.endsWith(".png")
       ? "image/png"
-      : nextUrl.endsWith(".webp")
+      : pathname.endsWith(".webp")
         ? "image/webp"
         : "image/x-icon"
   faviconLink.href = nextUrl
