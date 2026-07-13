@@ -339,7 +339,7 @@ export function CourseModuleDetailPanel() {
           estimated_minutes: lesson.estimated_minutes,
           starts_at: null,
           ends_at: null,
-          status: "draft",
+          status: "published",
         })
       }
 

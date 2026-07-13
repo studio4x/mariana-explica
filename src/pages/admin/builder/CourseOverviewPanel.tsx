@@ -68,7 +68,7 @@ export function CourseOverviewPanel() {
         sort_order: 1,
         is_preview: false,
         is_required: true,
-        status: "draft",
+        status: "published",
       })
 
       setPendingRoute(adminCourseModulePath(courseId, firstModule.id))

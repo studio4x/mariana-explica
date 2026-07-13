@@ -277,7 +277,7 @@ function AdminCourseBuilderContent() {
         sort_order: position,
         is_preview: false,
         is_required: true,
-        status: "draft",
+        status: "published",
       })
 
       navigate(adminCourseModulePath(courseId, createdModule.id))
@@ -302,7 +302,7 @@ function AdminCourseBuilderContent() {
         estimated_minutes: 10,
         starts_at: null,
         ends_at: null,
-        status: "draft",
+        status: "published",
       })
 
       navigate(adminCourseLessonPath(courseId, module.id, createdLesson.id))
@@ -464,7 +464,7 @@ function AdminCourseBuilderContent() {
         estimated_minutes: lesson.estimated_minutes,
         starts_at: lesson.starts_at,
         ends_at: lesson.ends_at,
-        status: lesson.status,
+        status: "published",
       })
     }
 
@@ -578,7 +578,7 @@ function AdminCourseBuilderContent() {
           module_pdf_storage_path: moduleData.module_pdf_storage_path,
           module_pdf_file_name: moduleData.module_pdf_file_name,
           module_pdf_uploaded_at: moduleData.module_pdf_uploaded_at,
-          status: moduleData.status,
+          status: "published",
         })
 
         moduleIdMap.set(moduleData.id, createdModule.id)
