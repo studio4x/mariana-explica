@@ -181,6 +181,7 @@ export function CourseLessonDetailPanel() {
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [isLessonFileLibraryOpen, setIsLessonFileLibraryOpen] = useState(false)
   const [lessonFilePreviewUrl, setLessonFilePreviewUrl] = useState<string | null>(null)
+  const lessonFilePreviewRequestPathRef = useRef<string | null>(null)
   const videoFileInputRef = useRef<HTMLInputElement | null>(null)
   const [resolvedProtectedVideoMaxBytes, setResolvedProtectedVideoMaxBytes] = useState<number | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
@@ -216,11 +217,13 @@ export function CourseLessonDetailPanel() {
     setUploadedVideoAssetValue(hasUploadedVideo ? currentSource : null)
     setPendingVideoFile(null)
     setLessonFilePreviewUrl(null)
+    lessonFilePreviewRequestPathRef.current = null
   }, [lesson])
 
   useEffect(() => {
     if (!lesson) {
       setLessonFilePreviewUrl(null)
+      lessonFilePreviewRequestPathRef.current = null
       return
     }
 
@@ -229,14 +232,16 @@ export function CourseLessonDetailPanel() {
 
     if (draftLessonType !== "file" || !draftLessonFilePath) {
       setLessonFilePreviewUrl(null)
+      lessonFilePreviewRequestPathRef.current = null
       return
     }
 
-    if (lessonFilePreviewUrl) {
+    if (lessonFilePreviewRequestPathRef.current === draftLessonFilePath) {
       return
     }
 
     let isActive = true
+    lessonFilePreviewRequestPathRef.current = draftLessonFilePath
 
     void lessonFileAccess
       .mutateAsync(lesson.id)
@@ -247,6 +252,7 @@ export function CourseLessonDetailPanel() {
       })
       .catch((previewError) => {
         if (isActive) {
+          lessonFilePreviewRequestPathRef.current = null
           setError(previewError instanceof Error ? previewError.message : "NÃ£o foi possÃ­vel abrir a visualizaÃ§Ã£o do PDF.")
         }
       })
@@ -483,17 +489,6 @@ export function CourseLessonDetailPanel() {
     }
   }
 
-  const refreshLessonFilePreview = async (storagePath = values.lesson_file_storage_path) => {
-    if (!storagePath) return
-
-    try {
-      const access = await lessonFileAccess.mutateAsync(lesson.id)
-      setLessonFilePreviewUrl(access.url)
-    } catch (previewError) {
-      setError(previewError instanceof Error ? previewError.message : "Não foi possível abrir a visualização do PDF.")
-    }
-  }
-
   const handleFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     if (!file) return
@@ -577,7 +572,8 @@ export function CourseLessonDetailPanel() {
       lesson_file_mime_type: upload.mime_type ?? "application/pdf",
       lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
     }))
-    await refreshLessonFilePreview(upload.path)
+    setLessonFilePreviewUrl(null)
+    lessonFilePreviewRequestPathRef.current = null
   }
 
   const handleMediaLibraryLessonFileSelect = async (object: AdminR2ListedObject) => {
@@ -610,7 +606,8 @@ export function CourseLessonDetailPanel() {
       lesson_file_mime_type: "application/pdf",
       lesson_file_size_bytes: object.size_bytes,
     }))
-    await refreshLessonFilePreview(object.storage_path)
+    setLessonFilePreviewUrl(null)
+    lessonFilePreviewRequestPathRef.current = null
   }
 
   const handleVideoUploadSelection = (event: ChangeEvent<HTMLInputElement>) => {
