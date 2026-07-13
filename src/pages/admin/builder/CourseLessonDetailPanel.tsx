@@ -61,6 +61,10 @@ function buildAssetSortOrder() {
   return Math.floor(Date.now() / 1000)
 }
 
+function getLibraryObjectName(object: AdminR2ListedObject) {
+  return object.storage_path.split("/").filter(Boolean).pop() || object.key
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
   const units = ["B", "KB", "MB", "GB", "TB"]
@@ -173,6 +177,7 @@ export function CourseLessonDetailPanel() {
   const [uploadedVideoAssetValue, setUploadedVideoAssetValue] = useState<string | null>(null)
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
+  const [isLessonFileLibraryOpen, setIsLessonFileLibraryOpen] = useState(false)
   const videoFileInputRef = useRef<HTMLInputElement | null>(null)
   const [resolvedProtectedVideoMaxBytes, setResolvedProtectedVideoMaxBytes] = useState<number | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
@@ -241,6 +246,7 @@ export function CourseLessonDetailPanel() {
     lesson_file_storage_bucket: form.lesson_file_storage_bucket ?? lesson.lesson_file_storage_bucket ?? null,
     lesson_file_storage_path: form.lesson_file_storage_path ?? lesson.lesson_file_storage_path ?? null,
     lesson_file_storage_provider: form.lesson_file_storage_provider ?? lesson.lesson_file_storage_provider ?? null,
+    lesson_file_storage_managed: form.lesson_file_storage_managed ?? lesson.lesson_file_storage_managed ?? true,
     lesson_file_name: form.lesson_file_name ?? lesson.lesson_file_name ?? null,
     lesson_file_mime_type: form.lesson_file_mime_type ?? lesson.lesson_file_mime_type ?? null,
     lesson_file_size_bytes: form.lesson_file_size_bytes ?? lesson.lesson_file_size_bytes ?? null,
@@ -339,6 +345,7 @@ export function CourseLessonDetailPanel() {
     lesson_file_storage_bucket?: string | null
     lesson_file_storage_path?: string | null
     lesson_file_storage_provider?: "supabase" | "r2" | null
+    lesson_file_storage_managed?: boolean
     lesson_file_name?: string | null
     lesson_file_mime_type?: string | null
     lesson_file_size_bytes?: number | null
@@ -365,12 +372,13 @@ export function CourseLessonDetailPanel() {
       lesson_type: lessonType,
       youtube_url: normalizedYoutube,
       text_content: normalizedText,
-      lesson_file_storage_bucket: overrides.lesson_file_storage_bucket ?? values.lesson_file_storage_bucket,
-      lesson_file_storage_path: overrides.lesson_file_storage_path ?? values.lesson_file_storage_path,
-      lesson_file_storage_provider: overrides.lesson_file_storage_provider ?? values.lesson_file_storage_provider,
-      lesson_file_name: overrides.lesson_file_name ?? values.lesson_file_name,
-      lesson_file_mime_type: overrides.lesson_file_mime_type ?? values.lesson_file_mime_type,
-      lesson_file_size_bytes: overrides.lesson_file_size_bytes ?? values.lesson_file_size_bytes,
+      lesson_file_storage_bucket: overrides.lesson_file_storage_bucket !== undefined ? overrides.lesson_file_storage_bucket : values.lesson_file_storage_bucket,
+      lesson_file_storage_path: overrides.lesson_file_storage_path !== undefined ? overrides.lesson_file_storage_path : values.lesson_file_storage_path,
+      lesson_file_storage_provider: overrides.lesson_file_storage_provider !== undefined ? overrides.lesson_file_storage_provider : values.lesson_file_storage_provider,
+      lesson_file_storage_managed: overrides.lesson_file_storage_managed !== undefined ? overrides.lesson_file_storage_managed : values.lesson_file_storage_managed,
+      lesson_file_name: overrides.lesson_file_name !== undefined ? overrides.lesson_file_name : values.lesson_file_name,
+      lesson_file_mime_type: overrides.lesson_file_mime_type !== undefined ? overrides.lesson_file_mime_type : values.lesson_file_mime_type,
+      lesson_file_size_bytes: overrides.lesson_file_size_bytes !== undefined ? overrides.lesson_file_size_bytes : values.lesson_file_size_bytes,
       estimated_minutes: Number(values.estimated_minutes || 0),
       starts_at: values.starts_at || null,
       ends_at: values.ends_at || null,
@@ -388,6 +396,7 @@ export function CourseLessonDetailPanel() {
       lesson_file_storage_bucket: updatedLesson.lesson_file_storage_bucket,
       lesson_file_storage_path: updatedLesson.lesson_file_storage_path,
       lesson_file_storage_provider: updatedLesson.lesson_file_storage_provider,
+      lesson_file_storage_managed: updatedLesson.lesson_file_storage_managed,
       lesson_file_name: updatedLesson.lesson_file_name,
       lesson_file_mime_type: updatedLesson.lesson_file_mime_type,
       lesson_file_size_bytes: updatedLesson.lesson_file_size_bytes,
@@ -439,6 +448,7 @@ export function CourseLessonDetailPanel() {
         lesson_file_storage_bucket: upload.bucket,
         lesson_file_storage_path: upload.path,
         lesson_file_storage_provider: upload.storage_provider ?? "r2",
+        lesson_file_storage_managed: true,
         lesson_file_name: upload.file_name,
         lesson_file_mime_type: upload.mime_type ?? "application/pdf",
         lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
@@ -451,6 +461,7 @@ export function CourseLessonDetailPanel() {
         lesson_file_storage_bucket: upload.bucket,
         lesson_file_storage_path: upload.path,
         lesson_file_storage_provider: upload.storage_provider ?? "r2",
+        lesson_file_storage_managed: true,
         lesson_file_name: upload.file_name,
         lesson_file_mime_type: upload.mime_type ?? "application/pdf",
         lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
@@ -460,6 +471,74 @@ export function CourseLessonDetailPanel() {
     } finally {
       event.target.value = ""
     }
+  }
+
+  const handleMediaLibraryLessonFileUpload = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      throw new Error("Apenas ficheiros PDF sao aceites como ficheiro principal da aula.")
+    }
+
+    const upload = await uploadLessonFile.mutateAsync({
+      lessonId: lesson.id,
+      file,
+      replacePath: values.lesson_file_storage_path,
+    })
+    await persistLessonAfterUpload({
+      lesson_type: "file",
+      youtube_url: null,
+      text_content: null,
+      lesson_file_storage_bucket: upload.bucket,
+      lesson_file_storage_path: upload.path,
+      lesson_file_storage_provider: upload.storage_provider ?? "r2",
+      lesson_file_storage_managed: true,
+      lesson_file_name: upload.file_name,
+      lesson_file_mime_type: upload.mime_type ?? "application/pdf",
+      lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
+    })
+    setUploadMessage("PDF enviado e guardado diretamente nesta aula. Ele ja esta disponivel no leitor de PDF do player.")
+    setForm((prev) => ({
+      ...prev,
+      lesson_type: "file",
+      lesson_file_storage_bucket: upload.bucket,
+      lesson_file_storage_path: upload.path,
+      lesson_file_storage_provider: upload.storage_provider ?? "r2",
+      lesson_file_storage_managed: true,
+      lesson_file_name: upload.file_name,
+      lesson_file_mime_type: upload.mime_type ?? "application/pdf",
+      lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
+    }))
+  }
+
+  const handleMediaLibraryLessonFileSelect = async (object: AdminR2ListedObject) => {
+    const fileName = getLibraryObjectName(object)
+    if (object.file_type !== "document" || !fileName.toLowerCase().endsWith(".pdf")) {
+      throw new Error("Seleciona um ficheiro PDF da biblioteca.")
+    }
+
+    await persistLessonAfterUpload({
+      lesson_type: "file",
+      youtube_url: null,
+      text_content: null,
+      lesson_file_storage_bucket: object.logical_bucket,
+      lesson_file_storage_path: object.storage_path,
+      lesson_file_storage_provider: "r2",
+      lesson_file_storage_managed: false,
+      lesson_file_name: fileName,
+      lesson_file_mime_type: "application/pdf",
+      lesson_file_size_bytes: object.size_bytes,
+    })
+    setUploadMessage("PDF da biblioteca selecionado e associado diretamente a esta aula.")
+    setForm((prev) => ({
+      ...prev,
+      lesson_type: "file",
+      lesson_file_storage_bucket: object.logical_bucket,
+      lesson_file_storage_path: object.storage_path,
+      lesson_file_storage_provider: "r2",
+      lesson_file_storage_managed: false,
+      lesson_file_name: fileName,
+      lesson_file_mime_type: "application/pdf",
+      lesson_file_size_bytes: object.size_bytes,
+    }))
   }
 
   const handleVideoUploadSelection = (event: ChangeEvent<HTMLInputElement>) => {
@@ -983,6 +1062,25 @@ export function CourseLessonDetailPanel() {
                   accept="application/pdf"
                   onChange={handleFileSelection}
                   className="mt-4 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 rounded-full"
+                  onClick={() => setIsLessonFileLibraryOpen(true)}
+                >
+                  Fazer novo upload ou usar biblioteca
+                </Button>
+                <MediaLibraryModal
+                  open={isLessonFileLibraryOpen}
+                  title="Adicionar PDF principal da aula"
+                  uploadTabLabel="Fazer novo upload"
+                  libraryTabLabel="Usar biblioteca"
+                  accept="application/pdf"
+                  fileType="document"
+                  onClose={() => setIsLessonFileLibraryOpen(false)}
+                  onUpload={handleMediaLibraryLessonFileUpload}
+                  onSelect={handleMediaLibraryLessonFileSelect}
                 />
                 {uploadMessage ? (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

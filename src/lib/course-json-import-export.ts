@@ -404,6 +404,7 @@ function normalizeLessonsFromJson(input: unknown, moduleId: string) {
       lesson_file_storage_bucket: null,
       lesson_file_storage_path: null,
       lesson_file_storage_provider: null,
+      lesson_file_storage_managed: true,
       lesson_file_name: null,
       lesson_file_mime_type: null,
       lesson_file_size_bytes: null,

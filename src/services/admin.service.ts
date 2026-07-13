@@ -2889,6 +2889,7 @@ export async function updateAdminProductLesson(input: {
   lesson_file_storage_bucket?: string | null
   lesson_file_storage_path?: string | null
   lesson_file_storage_provider?: "supabase" | "r2" | null
+  lesson_file_storage_managed?: boolean
   lesson_file_name?: string | null
   lesson_file_mime_type?: string | null
   lesson_file_size_bytes?: number | null

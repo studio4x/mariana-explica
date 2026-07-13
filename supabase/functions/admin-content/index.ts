@@ -69,6 +69,7 @@ interface Body {
   lesson_file_storage_bucket?: string | null
   lesson_file_storage_path?: string | null
   lesson_file_storage_provider?: "supabase" | "r2" | null
+  lesson_file_storage_managed?: boolean
   lesson_file_name?: string | null
   lesson_file_mime_type?: string | null
   lesson_file_size_bytes?: number | null
@@ -146,7 +147,7 @@ const moduleSelect =
   "id,product_id,title,description,module_type,access_type,position,sort_order,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,module_pdf_uploaded_at,status,created_at,updated_at"
 
 const lessonSelect =
-  "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_name,lesson_file_mime_type,lesson_file_size_bytes,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
+  "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_storage_managed,lesson_file_name,lesson_file_mime_type,lesson_file_size_bytes,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
 
 const assessmentSelect =
   "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at"
@@ -288,8 +289,9 @@ async function removeStorageObjectIfPresent(
   bucket: string | null | undefined,
   path: string | null | undefined,
   provider: "supabase" | "r2" | null | undefined = "supabase",
+  managed = true,
 ) {
-  if (!bucket || !path) return
+  if (!bucket || !path || !managed) return
 
   try {
     await deleteStorageObject({
@@ -505,6 +507,7 @@ Deno.serve(async (req) => {
           lesson_file_storage_bucket: normalizeNullableText(body.lesson_file_storage_bucket),
           lesson_file_storage_path: normalizeNullableText(body.lesson_file_storage_path),
           lesson_file_storage_provider: body.lesson_file_storage_provider ?? null,
+          lesson_file_storage_managed: body.lesson_file_storage_managed ?? true,
           lesson_file_name: normalizeNullableText(body.lesson_file_name),
           lesson_file_mime_type: normalizeNullableText(body.lesson_file_mime_type),
           lesson_file_size_bytes: normalizeNullableNumber(body.lesson_file_size_bytes),
@@ -527,7 +530,7 @@ Deno.serve(async (req) => {
 
       const { data: existingLesson, error: existingLessonError } = await serviceClient
         .from("product_lessons")
-        .select("id,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider")
+        .select("id,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_storage_managed")
         .eq("id", lessonId)
         .maybeSingle()
       if (existingLessonError) throw existingLessonError
@@ -549,6 +552,9 @@ Deno.serve(async (req) => {
       }
       if (body.lesson_file_storage_provider !== undefined) {
         payload.lesson_file_storage_provider = body.lesson_file_storage_provider
+      }
+      if (body.lesson_file_storage_managed !== undefined) {
+        payload.lesson_file_storage_managed = Boolean(body.lesson_file_storage_managed)
       }
       if (body.lesson_file_name !== undefined) {
         payload.lesson_file_name = normalizeNullableText(body.lesson_file_name)
@@ -615,6 +621,7 @@ Deno.serve(async (req) => {
           existingLesson.lesson_file_storage_bucket,
           existingLesson.lesson_file_storage_path,
           existingLesson.lesson_file_storage_provider,
+          existingLesson.lesson_file_storage_managed !== false,
         )
       }
       return jsonResponse({ success: true, request_id: requestId, lesson: data })
@@ -624,7 +631,7 @@ Deno.serve(async (req) => {
       const lessonId = requireUuid(body.lessonId, "lessonId")
       const { data: existingLesson, error: existingLessonError } = await serviceClient
         .from("product_lessons")
-        .select("id,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider")
+        .select("id,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_storage_managed")
         .eq("id", lessonId)
         .maybeSingle()
       if (existingLessonError) throw existingLessonError
@@ -635,6 +642,7 @@ Deno.serve(async (req) => {
         existingLesson?.lesson_file_storage_bucket,
         existingLesson?.lesson_file_storage_path,
         existingLesson?.lesson_file_storage_provider,
+        existingLesson?.lesson_file_storage_managed !== false,
       )
       return jsonResponse({ success: true, request_id: requestId })
     }
