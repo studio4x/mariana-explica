@@ -656,8 +656,12 @@ export const router = createBrowserRouter(
           element: withSuspense(<CourseLessonDetailPanel />),
         },
         {
-          path: "modulos/:moduleId/aulas/:lessonId/materiais",
+          path: "modulos/:moduleId/aulas/:lessonId/recursos-adicionais",
           element: withSuspense(<CourseLessonMaterialsPanel />),
+        },
+        {
+          path: "modulos/:moduleId/aulas/:lessonId/materiais",
+          element: <Navigate to="../recursos-adicionais" replace relative="path" />,
         },
         {
           path: "modulos/:moduleId/avaliacoes/:assessmentId",

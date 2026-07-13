@@ -15,7 +15,7 @@ import {
   useUploadAdminModuleAssetFile,
 } from "@/hooks/useAdmin"
 import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
-import { adminCourseLessonMaterialsPath, adminCourseModulePath } from "@/lib/routes"
+import { adminCourseLessonAdditionalResourcesPath, adminCourseModulePath } from "@/lib/routes"
 import type { AdminR2ListedObject } from "@/services/admin.service"
 import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
 
@@ -609,7 +609,9 @@ export function CourseLessonDetailPanel() {
             />
             <StatusBadge label={`${values.estimated_minutes || 0} min`} tone="warning" />
             <Button asChild variant="outline" className="rounded-full">
-              <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>Botões e URLs da Aula</Link>
+              <Link to={adminCourseLessonAdditionalResourcesPath(courseId, moduleId, lesson.id)}>
+                Recursos adicionais da aula
+              </Link>
             </Button>
           </div>
         </div>
@@ -960,8 +962,8 @@ export function CourseLessonDetailPanel() {
                   </div>
                 ) : null}
                 <Button asChild variant="outline" className="mt-4 rounded-full">
-                  <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>
-                    Abrir gestor de materiais
+                  <Link to={adminCourseLessonAdditionalResourcesPath(courseId, moduleId, lesson.id)}>
+                    Abrir recursos adicionais da aula
                   </Link>
                 </Button>
               </div>
@@ -1032,10 +1034,12 @@ export function CourseLessonDetailPanel() {
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
               <p className="font-semibold text-slate-950">Preview dos botões do rodape</p>
               <p className="mt-1">
-                O acesso detalhado a botões e URLs fica na rota dedicada de materiais da aula.
+                O acesso detalhado a botões e URLs fica na rota dedicada de recursos adicionais da aula.
               </p>
               <Button asChild variant="outline" className="mt-4 rounded-full">
-                <Link to={adminCourseLessonMaterialsPath(courseId, moduleId, lesson.id)}>Abrir configuração de materiais</Link>
+                <Link to={adminCourseLessonAdditionalResourcesPath(courseId, moduleId, lesson.id)}>
+                  Abrir configuração de recursos adicionais
+                </Link>
               </Button>
             </div>
           </section>

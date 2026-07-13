@@ -11,10 +11,11 @@ import {
   useUploadAdminModuleAssetFile,
   useUpdateAdminModuleAsset,
 } from "@/hooks/useAdmin"
+import { adminCourseLessonPath } from "@/lib/routes"
 import type { ModuleAssetSummary } from "@/types/app.types"
 
 export function CourseLessonMaterialsPanel() {
-  const { moduleId, lessonId } = useParams<{ moduleId: string; lessonId: string }>()
+  const { courseId, moduleId, lessonId } = useParams<{ courseId: string; moduleId: string; lessonId: string }>()
   const assetsQuery = useAdminModuleAssets(moduleId)
   const lessonsQuery = useAdminProductLessons(moduleId)
   const createAsset = useCreateAdminModuleAsset()
@@ -43,19 +44,19 @@ export function CourseLessonMaterialsPanel() {
     {},
   )
 
-  if (!moduleId || !lessonId) {
-    return <EmptyState title="Rota inválida" message="Seleciona uma aula válida para gerir os materiais." />
+  if (!courseId || !moduleId || !lessonId) {
+    return <EmptyState title="Rota inválida" message="Seleciona uma aula válida para gerir os recursos adicionais." />
   }
 
   if (assetsQuery.isLoading || lessonsQuery.isLoading) {
-    return <LoadingState message="A carregar materiais da aula..." />
+    return <LoadingState message="A carregar recursos adicionais da aula..." />
   }
 
   if (assetsQuery.isError || lessonsQuery.isError) {
     const queryError = assetsQuery.error ?? lessonsQuery.error
     return (
       <ErrorState
-        title="Não foi possível abrir os materiais"
+        title="Não foi possível abrir os recursos adicionais"
         message={queryError instanceof Error ? queryError.message : "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void assetsQuery.refetch()
@@ -112,11 +113,11 @@ export function CourseLessonMaterialsPanel() {
         mime_type: "",
         file_size_bytes: null,
       })
-      setFeedback({ tone: "success", message: "Material criado com sucesso." })
+      setFeedback({ tone: "success", message: "Recurso adicional criado com sucesso." })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Não foi possível criar o material.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível criar o recurso adicional.",
       })
     }
   }
@@ -159,7 +160,7 @@ export function CourseLessonMaterialsPanel() {
         mime_type: "",
         file_size_bytes: null,
       })
-      setFeedback({ tone: "success", message: "Ficheiro enviado e material guardado automaticamente." })
+      setFeedback({ tone: "success", message: "Ficheiro enviado e recurso adicional guardado automaticamente." })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o ficheiro.")
     } finally {
@@ -204,7 +205,7 @@ export function CourseLessonMaterialsPanel() {
       })
       setEditingAssetId(null)
       setEditingAsset({})
-      setFeedback({ tone: "success", message: "Ficheiro substituído e material guardado automaticamente." })
+      setFeedback({ tone: "success", message: "Ficheiro substituído e recurso adicional guardado automaticamente." })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível substituir o ficheiro.")
     } finally {
@@ -233,11 +234,11 @@ export function CourseLessonMaterialsPanel() {
       })
       setEditingAssetId(null)
       setEditingAsset({})
-      setFeedback({ tone: "success", message: "Material guardado com sucesso." })
+      setFeedback({ tone: "success", message: "Recurso adicional guardado com sucesso." })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Não foi possível guardar o material.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível guardar o recurso adicional.",
       })
     }
   }
@@ -248,11 +249,11 @@ export function CourseLessonMaterialsPanel() {
 
     try {
       await deleteAsset.mutateAsync(assetId)
-      setFeedback({ tone: "success", message: "Material removido com sucesso." })
+      setFeedback({ tone: "success", message: "Recurso adicional removido com sucesso." })
     } catch (submitError) {
       setFeedback({
         tone: "error",
-        message: submitError instanceof Error ? submitError.message : "Não foi possível remover o material.",
+        message: submitError instanceof Error ? submitError.message : "Não foi possível remover o recurso adicional.",
       })
     }
   }
@@ -261,15 +262,17 @@ export function CourseLessonMaterialsPanel() {
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <PageHeader
-          title={`Materiais da aula: ${lesson.title}`}
-          description="Gestor dedicado de ficheiros e links do módulo, alinhado ao rodape operacional da aula no player."
+          title={`Recursos adicionais da aula: ${lesson.title}`}
+          description="Gestor dedicado de ficheiros e links exibidos no rodapé operacional da aula no player."
+          backTo={adminCourseLessonPath(courseId, moduleId, lesson.id)}
+          backLabel="Voltar para a aula"
         />
 
         <form onSubmit={handleCreate} className="mt-6 grid gap-4 md:grid-cols-2">
           <input
             value={draft.title}
             onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
-            placeholder="Título do material"
+            placeholder="Título do recurso adicional"
             className="h-11 rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
           />
           <select
@@ -297,7 +300,7 @@ export function CourseLessonMaterialsPanel() {
               <div className="md:col-span-2 rounded-2xl border bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-950">Ficheiro privado</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Faz upload para o storage privado do material. O backend grava bucket e path automaticamente.
+                  Faz upload para o storage privado do recurso. O backend grava bucket e path automaticamente.
                 </p>
                 <input type="file" onChange={handleDraftFileSelection} className="mt-4 text-sm" />
                 {draft.storage_path ? (
@@ -344,7 +347,7 @@ export function CourseLessonMaterialsPanel() {
 
           <div className="md:col-span-2 flex flex-wrap items-center gap-3">
             <Button type="submit" className="rounded-full" disabled={createAsset.isPending}>
-              {createAsset.isPending ? "A criar..." : "Criar material"}
+              {createAsset.isPending ? "A criar..." : "Criar recurso adicional"}
             </Button>
             {error ? <p className="text-sm text-rose-700">{error}</p> : null}
           </div>
@@ -354,15 +357,15 @@ export function CourseLessonMaterialsPanel() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Itens configurados</h2>
-            <p className="mt-1 text-sm text-slate-600">Lista de materiais ligados ao módulo da aula.</p>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Recursos configurados</h2>
+            <p className="mt-1 text-sm text-slate-600">Lista de recursos adicionais ligados à aula.</p>
           </div>
-          <StatusBadge label={`${assets.length} materiais`} tone="info" />
+          <StatusBadge label={`${assets.length} recursos`} tone="info" />
         </div>
 
         <div className="mt-4 space-y-3">
           {assets.length === 0 ? (
-            <EmptyState title="Sem materiais" message="Cria o primeiro material do módulo para ligar no player." />
+            <EmptyState title="Sem recursos adicionais" message="Cria o primeiro recurso adicional para o ligar ao player." />
           ) : (
             assets.map((asset) => {
               const isEditing = editingAssetId === asset.id
@@ -498,7 +501,7 @@ export function CourseLessonMaterialsPanel() {
                       </div>
                       <div className="md:col-span-2 flex flex-wrap gap-2">
                         <Button type="button" className="rounded-full" disabled={updateAsset.isPending} onClick={() => void handleSaveAsset(asset.id)}>
-                          {updateAsset.isPending ? "A guardar..." : "Guardar material"}
+                          {updateAsset.isPending ? "A guardar..." : "Guardar recurso"}
                         </Button>
                         <Button type="button" variant="outline" className="rounded-full" onClick={() => { setEditingAssetId(null); setEditingAsset({}) }}>
                           Cancelar

@@ -6,6 +6,7 @@ interface PageHeaderProps {
   title: string
   description?: string
   backTo?: string
+  backLabel?: string
   actions?: React.ReactNode
 }
 
@@ -13,6 +14,7 @@ export function PageHeader({
   title,
   description,
   backTo,
+  backLabel = "Voltar",
   actions,
 }: PageHeaderProps) {
   return (
@@ -22,7 +24,7 @@ export function PageHeader({
           <Button variant="ghost" size="sm" asChild className="mb-1 -ml-2 w-fit rounded-full">
             <Link to={backTo}>
               <ChevronLeft className="mr-2 h-4 w-4" />
-              Voltar
+              {backLabel}
             </Link>
           </Button>
         ) : null}

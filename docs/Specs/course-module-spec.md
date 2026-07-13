@@ -790,12 +790,12 @@ Bloco de hotspots de imagem:
 - um hotspot aberto por vez;
 - sem pontuacao, sem tentativa e sem nota.
 
-### 10.4 Materiais e botoes da aula
+### 10.4 Recursos adicionais e botoes da aula
 
 Rota:
 
 ```text
-/admin/cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId/materiais
+/admin/cursos/:courseId/builder/modulos/:moduleId/aulas/:lessonId/recursos-adicionais
 ```
 
 Objetivo:

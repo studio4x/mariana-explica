@@ -20,7 +20,7 @@ import {
 } from "@/hooks/useAdmin"
 import {
   adminCourseBuilderPath,
-  adminCourseLessonMaterialsPath,
+  adminCourseLessonAdditionalResourcesPath,
   adminCourseLessonPath,
   adminCourseModuleAssessmentPath,
 } from "@/lib/routes"
@@ -712,7 +712,9 @@ export function CourseModuleDetailPanel() {
                         <Link to={adminCourseLessonPath(courseId, module.id, lesson.id)}>Editar aula</Link>
                       </Button>
                       <Button asChild variant="outline" className="rounded-full">
-                        <Link to={adminCourseLessonMaterialsPath(courseId, module.id, lesson.id)}>Materiais</Link>
+                        <Link to={adminCourseLessonAdditionalResourcesPath(courseId, module.id, lesson.id)}>
+                          Recursos adicionais
+                        </Link>
                       </Button>
                     </div>
                   </div>
@@ -752,7 +754,9 @@ export function CourseModuleDetailPanel() {
               </p>
               {lessons[0] ? (
                 <Button asChild variant="outline" className="mt-4 rounded-full">
-                  <Link to={adminCourseLessonMaterialsPath(courseId, module.id, lessons[0].id)}>Abrir gestor de materiais</Link>
+                  <Link to={adminCourseLessonAdditionalResourcesPath(courseId, module.id, lessons[0].id)}>
+                    Abrir recursos adicionais
+                  </Link>
                 </Button>
               ) : null}
             </div>

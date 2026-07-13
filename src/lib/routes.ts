@@ -61,8 +61,8 @@ export function adminCourseLessonPath(courseId: string, moduleId: string, lesson
   return `${adminCourseModulePath(courseId, moduleId)}/aulas/${lessonId}`
 }
 
-export function adminCourseLessonMaterialsPath(courseId: string, moduleId: string, lessonId: string) {
-  return `${adminCourseLessonPath(courseId, moduleId, lessonId)}/materiais`
+export function adminCourseLessonAdditionalResourcesPath(courseId: string, moduleId: string, lessonId: string) {
+  return `${adminCourseLessonPath(courseId, moduleId, lessonId)}/recursos-adicionais`
 }
 
 export function adminCourseModuleAssessmentPath(courseId: string, moduleId: string, assessmentId: string) {
