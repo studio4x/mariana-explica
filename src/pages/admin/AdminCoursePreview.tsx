@@ -1,25 +1,20 @@
 import { useMemo, useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQueries } from "@tanstack/react-query"
-import { ArrowLeft, FileText, StickyNote } from "lucide-react"
+import { ArrowLeft, FileText } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { LessonContentBlocksRenderer, LessonPrimaryMedia, RichTextContent, StatusBadge } from "@/components/common"
-import { useAdminModuleAssets, useAdminProductAssessments, useAdminProductModules, useAdminProducts } from "@/hooks/useAdmin"
-import { useRequestAssetAccess, useRequestModulePdfAccess } from "@/hooks/useDashboard"
+import { useAdminProductModules, useAdminProducts } from "@/hooks/useAdmin"
 import { adminCourseBuilderPath } from "@/lib/routes"
-import { getAssetActionLabel, getAssetTypeLabel } from "@/lib/product-presentation"
 import { fetchAdminProductLessons } from "@/services"
 
 export function AdminCoursePreview() {
   const { courseId } = useParams<{ courseId: string }>()
   const productsQuery = useAdminProducts()
   const modulesQuery = useAdminProductModules(courseId)
-  const assessmentsQuery = useAdminProductAssessments(courseId)
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
-  const assetAccess = useRequestAssetAccess()
-  const modulePdfAccess = useRequestModulePdfAccess()
 
   const product = useMemo(() => {
     const products = productsQuery.data ?? []
@@ -51,12 +46,9 @@ export function AdminCoursePreview() {
     selectedModuleLessons.find((lesson) => lesson.id === (selectedLessonId ?? selectedModuleLessons[0]?.id ?? null)) ??
     selectedModuleLessons[0] ??
     null
-  const moduleAssetsQuery = useAdminModuleAssets(selectedModule?.id)
-
   const loading =
     productsQuery.isLoading ||
     modulesQuery.isLoading ||
-    assessmentsQuery.isLoading ||
     lessonQueries.some((query) => query.isLoading)
 
   if (!courseId) {
@@ -68,11 +60,10 @@ export function AdminCoursePreview() {
   }
 
   const lessonError = lessonQueries.find((query) => query.isError)?.error
-  const error = productsQuery.error ?? modulesQuery.error ?? assessmentsQuery.error ?? lessonError
+  const error = productsQuery.error ?? modulesQuery.error ?? lessonError
   if (
     productsQuery.isError ||
     modulesQuery.isError ||
-    assessmentsQuery.isError ||
     lessonQueries.some((query) => query.isError)
   ) {
     return (
@@ -82,7 +73,6 @@ export function AdminCoursePreview() {
         onRetry={() => {
           void productsQuery.refetch()
           void modulesQuery.refetch()
-          void assessmentsQuery.refetch()
           lessonQueries.forEach((query) => void query.refetch())
         }}
       />
@@ -91,26 +81,6 @@ export function AdminCoursePreview() {
 
   if (!product) {
     return <EmptyState title="Material não encontrado" message="Este material não esta disponível no admin." />
-  }
-
-  const moduleAssets = moduleAssetsQuery.data ?? []
-  const moduleAssessments = (assessmentsQuery.data ?? []).filter(
-    (assessment) => assessment.module_id === selectedModule?.id && assessment.assessment_type === "module",
-  )
-  const finalAssessments = (assessmentsQuery.data ?? []).filter((assessment) => assessment.assessment_type === "final")
-
-  if (moduleAssetsQuery.isLoading) {
-    return <LoadingState message="A preparar os materiais do módulo..." />
-  }
-
-  if (moduleAssetsQuery.isError) {
-    return (
-      <ErrorState
-        title="Não foi possível carregar os materiais do módulo"
-        message={moduleAssetsQuery.error instanceof Error ? moduleAssetsQuery.error.message : "Tente novamente dentro de instantes."}
-        onRetry={() => void moduleAssetsQuery.refetch()}
-      />
-    )
   }
 
   return (
@@ -219,90 +189,6 @@ export function AdminCoursePreview() {
               </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-              <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <StickyNote className="h-4 w-4 text-slate-900" />
-                  <h3 className="font-display text-2xl font-bold text-slate-950">Avaliações deste módulo</h3>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {moduleAssessments.length === 0 ? (
-                    <EmptyState
-                      title="Sem quiz neste módulo"
-                      message="Quando houver uma avaliação vinculada ao módulo, ela aparecera aqui para referencia."
-                    />
-                  ) : (
-                    moduleAssessments.map((assessment) => (
-                      <div key={assessment.id} className="rounded-2xl border bg-slate-50/70 p-4">
-                        <p className="font-semibold text-slate-950">{assessment.title}</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          {assessment.description ?? "Quiz do módulo."}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                  {finalAssessments.length > 0 ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Avaliação final</p>
-                      <p className="mt-2 font-semibold text-slate-950">{finalAssessments[0]?.title}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-                <h3 className="font-display text-2xl font-bold text-slate-950">Materiais do módulo</h3>
-                <div className="mt-4 space-y-3">
-                  {selectedModule.module_pdf_file_name ? (
-                    <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-semibold text-slate-950">{selectedModule.module_pdf_file_name}</p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">PDF base protegido do módulo.</p>
-                        </div>
-                        <Button
-                          type="button"
-                          className="rounded-full"
-                          onClick={() => void modulePdfAccess.mutateAsync(selectedModule.id).then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))}
-                          disabled={modulePdfAccess.isPending}
-                        >
-                          {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {moduleAssets.length === 0 ? (
-                    <EmptyState
-                      title="Sem materiais adicionais"
-                      message="Os ficheiros, links e vídeos de apoio do módulo aparecerao aqui."
-                    />
-                  ) : (
-                    moduleAssets.map((asset) => (
-                      <div key={asset.id} className="rounded-2xl border bg-slate-50/70 p-4">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-semibold text-slate-950">{asset.title}</p>
-                              <StatusBadge label={getAssetTypeLabel(asset.asset_type)} tone="info" />
-                            </div>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">Material de apoio do módulo atual.</p>
-                          </div>
-                          <Button
-                            type="button"
-                            className="rounded-full"
-                            onClick={() => void assetAccess.mutateAsync(asset.id).then((result) => window.open(result.url, "_blank", "noopener,noreferrer"))}
-                            disabled={assetAccess.isPending}
-                          >
-                            {assetAccess.isPending ? "A abrir..." : getAssetActionLabel(asset)}
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            </div>
           </>
         ) : (
           <EmptyState
