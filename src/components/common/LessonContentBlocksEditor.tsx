@@ -28,6 +28,7 @@ import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
 interface LessonContentBlocksEditorProps {
   value: string
   onChange: (value: string) => void
+  onUploadComplete?: (value: string) => void | Promise<void>
   moduleId: string
   productId?: string | null
   maxVideoUploadBytes?: number | null
@@ -182,6 +183,7 @@ async function resolveLessonStorageUrl(bucket: string | null | undefined, path: 
 export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHandle, LessonContentBlocksEditorProps>(function LessonContentBlocksEditor({
   value,
   onChange,
+  onUploadComplete,
   moduleId,
   productId,
   maxVideoUploadBytes,
@@ -335,6 +337,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
                 onChange={(content) =>
                   updateBlock(index, (current) => (current.type === "image" ? { ...current, content } : current))
                 }
+                onUploadComplete={() => onUploadComplete?.(currentValueRef.current)}
                 disabled={disabled}
               />
             ) : null}
@@ -347,6 +350,7 @@ export const LessonContentBlocksEditor = forwardRef<LessonContentBlocksEditorHan
                 onChange={(content) =>
                   updateBlock(index, (current) => (current.type === "video" ? { ...current, content } : current))
                 }
+                onUploadComplete={() => onUploadComplete?.(currentValueRef.current)}
                 disabled={disabled}
               />
             ) : null}
@@ -394,12 +398,14 @@ function ImageBlockEditor({
   productId,
   value,
   onChange,
+  onUploadComplete,
   disabled,
 }: {
   moduleId: string
   productId?: string | null
   value: LessonImageBlockContent
   onChange: (value: LessonImageBlockContent) => void
+  onUploadComplete?: () => void | Promise<void>
   disabled: boolean
 }) {
   const uploadPublicImage = useUploadAdminProductCover()
@@ -550,6 +556,7 @@ function ImageBlockEditor({
         width_percent: normalized.width_percent,
       }),
     )
+    await onUploadComplete?.()
     setResolvedPreviewState(createEmptyResolvedUrlState())
     setStatus({
       tone: "success",
@@ -824,12 +831,14 @@ function VideoBlockEditor({
   maxVideoUploadBytes,
   value,
   onChange,
+  onUploadComplete,
   disabled,
 }: {
   moduleId: string
   maxVideoUploadBytes?: number | null
   value: LessonVideoBlockContent
   onChange: (value: LessonVideoBlockContent) => void
+  onUploadComplete?: () => void | Promise<void>
   disabled: boolean
 }) {
   const uploadVideo = useUploadAdminModuleAssetFile()
@@ -1025,6 +1034,7 @@ function VideoBlockEditor({
           width_percent: normalized.width_percent,
         }),
       )
+      await onUploadComplete?.()
       setResolvedAssetState(createEmptyResolvedUrlState())
       setResolvedVideoState(createEmptyResolvedUrlState())
       setStatus({

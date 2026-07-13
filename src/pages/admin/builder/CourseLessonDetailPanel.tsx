@@ -334,6 +334,57 @@ export function CourseLessonDetailPanel() {
     }
   }
 
+  const persistLessonAfterUpload = async (overrides: {
+    description?: string | null
+    text_content?: string | null
+    youtube_url?: string | null
+    lesson_type?: ProductLessonSummary["lesson_type"]
+  }) => {
+    const latestDescription = descriptionEditorRef.current?.flush()
+    const latestTextContent = textContentEditorRef.current?.flush()
+    const descriptionToSave = overrides.description !== undefined ? overrides.description : latestDescription ?? values.description
+    const textContentToSave = overrides.text_content !== undefined ? overrides.text_content : latestTextContent ?? values.text_content
+    const lessonType = overrides.lesson_type ?? values.lesson_type
+    const selectedYoutube =
+      overrides.youtube_url !== undefined
+        ? overrides.youtube_url
+        : videoSourceMode === "upload"
+          ? uploadedVideoAssetValue ?? (values.youtube_url?.trim().toLowerCase().startsWith("asset:") ? values.youtube_url.trim() : null)
+          : videoUrlDraft.trim() || null
+    const normalizedYoutube = lessonType === "video" || lessonType === "hybrid" ? selectedYoutube?.trim() || null : null
+    const normalizedText = lessonType === "text" || lessonType === "hybrid" ? textContentToSave?.trim() || null : null
+
+    const updatedLesson = await updateLesson.mutateAsync({
+      lessonId: lesson.id,
+      title: values.title?.trim(),
+      description: descriptionToSave?.trim() || null,
+      position: Number(values.position),
+      lesson_type: lessonType,
+      youtube_url: normalizedYoutube,
+      text_content: normalizedText,
+      estimated_minutes: Number(values.estimated_minutes || 0),
+      starts_at: values.starts_at || null,
+      ends_at: values.ends_at || null,
+      is_required: Boolean(values.is_required),
+      status: values.status,
+    })
+    const savedSource = updatedLesson.youtube_url?.trim() ?? ""
+    const savedSourceIsAsset = savedSource.toLowerCase().startsWith("asset:")
+    setForm((prev) => ({
+      ...prev,
+      youtube_url: savedSource,
+      lesson_type: updatedLesson.lesson_type,
+      description: updatedLesson.description,
+      text_content: updatedLesson.text_content,
+    }))
+    setVideoSourceMode(savedSourceIsAsset ? "upload" : "url")
+    setVideoUrlDraft(savedSourceIsAsset ? "" : savedSource)
+    setUploadedVideoAssetValue(savedSourceIsAsset ? savedSource : null)
+    setPendingVideoFile(null)
+    setFeedback({ tone: "success", message: `A aula "${updatedLesson.title}" foi guardada automaticamente.` })
+    return updatedLesson
+  }
+
   const handleDelete = async () => {
     const confirmed = window.confirm(
       `Excluir a aula "${lesson.title}"? Esta ação remove o conteúdo ligado a ela.`,
@@ -374,7 +425,8 @@ export function CourseLessonDetailPanel() {
         watermark_enabled: false,
         asset_status: "active",
       })
-      setUploadMessage("Ficheiro enviado com sucesso. Ele já esta disponível na Área de materiais deste módulo.")
+      await persistLessonAfterUpload({ lesson_type: "file", youtube_url: null, text_content: null })
+      setUploadMessage("Ficheiro enviado e aula guardada automaticamente. Ele já esta disponível na Área de materiais deste módulo.")
       setForm((prev) => ({ ...prev, lesson_type: "file" }))
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o ficheiro.")
@@ -482,14 +534,15 @@ export function CourseLessonDetailPanel() {
       setUploadedVideoAssetValue(assetValue)
       setVideoSourceMode("upload")
       setPendingVideoFile(null)
-      setUploadMessage("Vídeo protegido enviado. Agora clica em Guardar aula para persistir esta configuração.")
+      await persistLessonAfterUpload({ youtube_url: assetValue })
+      setUploadMessage("Vídeo protegido enviado e aula guardada automaticamente.")
       setFeedback({
         tone: "success",
-        message: "Vídeo protegido inserido com sucesso no preview. Guarda a aula para concluir.",
+        message: "Vídeo protegido inserido no preview e aula guardada automaticamente.",
       })
       setVideoUploadStatus({
         tone: "success",
-        message: "Envio concluido com sucesso. O vídeo protegido já esta pronto no preview desta aula.",
+        message: "Envio concluido com sucesso. O vídeo protegido e a aula foram guardados automaticamente.",
       })
     } catch (uploadError) {
       const uploadErrorMessage = normalizeProtectedVideoUploadErrorMessage(uploadError, protectedVideoMaxBytes)
@@ -588,6 +641,9 @@ export function CourseLessonDetailPanel() {
                 maxVideoUploadBytes={protectedVideoMaxBytes}
                 value={String(values.description)}
                 onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
+                onUploadComplete={async (value) => {
+                  await persistLessonAfterUpload({ description: value })
+                }}
                 placeholder="Resumo rápido da aula."
                 allowBlockInsertion={false}
               />
@@ -805,6 +861,9 @@ export function CourseLessonDetailPanel() {
                   maxVideoUploadBytes={protectedVideoMaxBytes}
                   value={String(values.text_content)}
                   onChange={(value) => setForm((prev) => ({ ...prev, text_content: value }))}
+                  onUploadComplete={async (value) => {
+                    await persistLessonAfterUpload({ text_content: value })
+                  }}
                   placeholder="Escreve o conteúdo textual da aula."
                 />
               </LessonField>

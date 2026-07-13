@@ -172,6 +172,50 @@ export function CourseModuleDetailPanel() {
     }
   }
 
+  const persistModuleAfterUpload = async (overrides: {
+    description?: string | null
+    module_pdf_storage_path?: string | null
+    module_pdf_storage_provider?: ProductModuleSummary["module_pdf_storage_provider"]
+    module_pdf_file_name?: string | null
+    module_pdf_uploaded_at?: string | null
+  }) => {
+    const latestDescription = descriptionEditorRef.current?.flush()
+    const updatedModule = await updateModule.mutateAsync({
+      moduleId: module.id,
+      title: values.title?.trim(),
+      description: (overrides.description ?? latestDescription ?? values.description)?.trim() || null,
+      position: Number(values.position),
+      access_type: values.access_type,
+      starts_at: values.starts_at || null,
+      ends_at: values.ends_at || null,
+      release_days_after_enrollment:
+        values.release_days_after_enrollment === ""
+          ? null
+          : Number(values.release_days_after_enrollment),
+      module_pdf_storage_path:
+        overrides.module_pdf_storage_path !== undefined
+          ? overrides.module_pdf_storage_path?.trim() || null
+          : values.module_pdf_storage_path?.trim() || null,
+      module_pdf_storage_provider: overrides.module_pdf_storage_provider ?? values.module_pdf_storage_provider ?? "r2",
+      module_pdf_file_name:
+        overrides.module_pdf_file_name !== undefined
+          ? overrides.module_pdf_file_name?.trim() || null
+          : values.module_pdf_file_name?.trim() || null,
+      module_pdf_uploaded_at:
+        overrides.module_pdf_uploaded_at !== undefined
+          ? overrides.module_pdf_uploaded_at
+          : values.module_pdf_storage_path || values.module_pdf_file_name
+            ? new Date().toISOString()
+            : null,
+      is_preview: Boolean(values.is_preview),
+      is_required: Boolean(values.is_required),
+      status: values.status,
+    })
+    setForm({})
+    setFeedback({ tone: "success", message: `O módulo "${updatedModule.title}" foi guardado automaticamente.` })
+    return updatedModule
+  }
+
   const handleDelete = async () => {
     const confirmed = window.confirm(
       `Excluir o módulo "${module.title}"? Esta ação remove a estrutura ligada a ele.`,
@@ -207,6 +251,12 @@ export function CourseModuleDetailPanel() {
         module_pdf_file_name: upload.file_name,
         module_pdf_uploaded_at: upload.uploaded_at,
       }))
+      await persistModuleAfterUpload({
+        module_pdf_storage_path: upload.path,
+        module_pdf_storage_provider: upload.storage_provider ?? "r2",
+        module_pdf_file_name: upload.file_name,
+        module_pdf_uploaded_at: upload.uploaded_at,
+      })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o PDF base.")
     } finally {
@@ -431,6 +481,9 @@ export function CourseModuleDetailPanel() {
               maxVideoUploadBytes={maxVideoUploadBytes}
               value={String(values.description)}
               onChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
+              onUploadComplete={async (value) => {
+                await persistModuleAfterUpload({ description: value })
+              }}
               placeholder="Descreve a finalidade do módulo."
             />
           </ModuleField>

@@ -686,6 +686,8 @@ Exemplos:
 
 O admin pode subir um PDF base por modulo.
 
+Ao concluir o upload, o bucket, path, nome e timestamp do PDF sao persistidos automaticamente no modulo.
+
 No aluno:
 
 - se houver PDF base, o download gera copia licenciada;
@@ -718,11 +720,13 @@ Video:
 - aceita URL direta de ficheiro de video;
 - aceita upload de ficheiro com envio automatico ao selecionar o arquivo;
 - registra o video enviado como asset interno para manter preview e acesso apos refresh;
+- depois da conclusao do upload, persiste automaticamente a ligacao do video na aula, sem exigir um segundo clique em `Guardar aula`;
 - exibe o limite maximo de upload no proprio card antes da selecao do ficheiro;
 - quando o ficheiro excede o limite permitido, mostra mensagem com o tamanho maximo aceito;
 - permite excluir o video enviado e limpar o bloco;
 - preserva a resolucao por URL assinada para assets privados quando necessario;
 - aceita ficheiro privado enviado para a plataforma, persistido como `asset:<uuid>`;
+- uploads de imagem ou video dentro dos blocos persistem automaticamente o conteudo atualizado da aula;
 - possui seletor de tamanho com pre-definicao em medio;
 - aplica o tamanho selecionado no editor, no preview e na visao publica;
 - pode ou nao ter descricao;
@@ -812,6 +816,7 @@ Regras:
 - URL nao fica exposta visualmente no card;
 - clique em URL abre nova aba;
 - arquivo usa signed URL;
+- o upload de um arquivo cria ou atualiza automaticamente o material no modulo;
 - template controla aparencia, icone e label padrao.
 
 ## 11. Bloco Interativo de Hotspots de Aula

@@ -128,15 +128,38 @@ export function CourseLessonMaterialsPanel() {
     setError(null)
     try {
       const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
-      setDraft((prev) => ({
-        ...prev,
+      await createAsset.mutateAsync({
+        moduleId,
+        title: draft.title.trim() || upload.file_name.replace(/\.[^.]+$/, ""),
+        asset_type: draft.asset_type,
+        sort_order_asset: nextOrder,
         storage_bucket: upload.bucket,
         storage_path: upload.path,
         storage_provider: upload.storage_provider ?? "r2",
-        mime_type: upload.mime_type ?? "",
+        external_url: null,
+        mime_type: upload.mime_type ?? null,
         file_size_bytes: upload.file_size_bytes,
-        title: prev.title || upload.file_name.replace(/\.[^.]+$/, ""),
-      }))
+        allow_download: draft.allow_download,
+        allow_stream: draft.allow_stream,
+        watermark_enabled: draft.watermark_enabled,
+        asset_status: draft.status,
+      })
+      setDraft({
+        title: "",
+        asset_type: "pdf",
+        source: "storage",
+        storage_bucket: "",
+        storage_path: "",
+        storage_provider: null,
+        external_url: "",
+        allow_download: false,
+        allow_stream: true,
+        watermark_enabled: false,
+        status: "active",
+        mime_type: "",
+        file_size_bytes: null,
+      })
+      setFeedback({ tone: "success", message: "Ficheiro enviado e material guardado automaticamente." })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o ficheiro.")
     } finally {
@@ -155,15 +178,33 @@ export function CourseLessonMaterialsPanel() {
         file,
         replacePath: asset.storage_path,
       })
-      setEditingAsset((prev) => ({
-        ...prev,
+      const nextEditingAsset = {
+        ...editingAsset,
         storage_bucket: upload.bucket,
         storage_path: upload.path,
         storage_provider: upload.storage_provider ?? "r2",
         mime_type: upload.mime_type ?? "",
         file_size_bytes: upload.file_size_bytes,
-        title: String(prev.title ?? asset.title) || upload.file_name.replace(/\.[^.]+$/, ""),
-      }))
+        title: String(editingAsset.title ?? asset.title) || upload.file_name.replace(/\.[^.]+$/, ""),
+        source: "storage" as const,
+      }
+      await updateAsset.mutateAsync({
+        assetId: asset.id,
+        title: nextEditingAsset.title?.trim(),
+        asset_type: nextEditingAsset.asset_type ?? asset.asset_type,
+        sort_order_asset: nextEditingAsset.sort_order ?? asset.sort_order,
+        storage_bucket: nextEditingAsset.storage_bucket ?? null,
+        storage_path: nextEditingAsset.storage_path ?? null,
+        storage_provider: nextEditingAsset.storage_provider ?? "r2",
+        external_url: null,
+        allow_download: nextEditingAsset.allow_download,
+        allow_stream: nextEditingAsset.allow_stream,
+        watermark_enabled: nextEditingAsset.watermark_enabled,
+        asset_status: nextEditingAsset.status ?? asset.status,
+      })
+      setEditingAssetId(null)
+      setEditingAsset({})
+      setFeedback({ tone: "success", message: "Ficheiro substituído e material guardado automaticamente." })
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível substituir o ficheiro.")
     } finally {

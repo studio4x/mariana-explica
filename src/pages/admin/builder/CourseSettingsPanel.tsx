@@ -220,7 +220,7 @@ export function CourseSettingsPanel() {
         ...prev,
         coverImageUrl: upload.public_url ?? prev.coverImageUrl,
       }))
-      setUploadMessage("Capa enviada com sucesso. Guarde as configurações para publicar a nova imagem.")
+      setUploadMessage("Capa enviada e guardada automaticamente. As restantes configurações continuam pendentes até clicares em Guardar.")
     } catch (uploadError) {
       setFeedback({
         tone: "error",
@@ -765,7 +765,7 @@ export function CourseSettingsPanel() {
               <div>
                 <p className="text-sm font-semibold text-slate-950">Enviar nova imagem</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Formatos recomendados: JPG, PNG ou WEBP. Depois do upload, confirme em guardar configurações.
+                  Formatos recomendados: JPG, PNG ou WEBP. A capa é guardada automaticamente após o upload.
                 </p>
               </div>
 
