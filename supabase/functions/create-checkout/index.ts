@@ -32,6 +32,7 @@ import {
   createStripeCheckoutSession,
   getStripeCheckoutSession,
   resolveCheckoutEnvironment,
+  STRIPE_CHECKOUT_PAYMENT_METHODS_VERSION,
 } from "../_shared/payments.ts"
 import { requireActiveUser } from "../_shared/auth.ts"
 import { HttpError } from "../_shared/errors.ts"
@@ -418,7 +419,11 @@ Deno.serve(async (req) => {
           mode: stripeMode,
         })
 
-        if (existingSession.url && existingSession.status === "open") {
+        const isCurrentPaymentMethodsVersion =
+          existingSession.metadata?.checkout_payment_methods_version ===
+          STRIPE_CHECKOUT_PAYMENT_METHODS_VERSION
+
+        if (existingSession.url && existingSession.status === "open" && isCurrentPaymentMethodsVersion) {
           logInfo("Reusing pending checkout session", {
             request_id: requestId,
             user_id: context.user.id,
@@ -477,6 +482,7 @@ Deno.serve(async (req) => {
           payment_environment: stripeMode,
           coupon_id: coupon?.id ?? "",
           affiliate_id: affiliate?.id ?? "",
+          checkout_payment_methods_version: STRIPE_CHECKOUT_PAYMENT_METHODS_VERSION,
         },
         line_items: [
           {

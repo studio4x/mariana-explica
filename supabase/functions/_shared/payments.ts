@@ -25,6 +25,8 @@ export interface StripeCheckoutSessionParams {
   customer_email?: string
 }
 
+export const STRIPE_CHECKOUT_PAYMENT_METHODS_VERSION = "dynamic-2025-10-29-v1"
+
 // MB WAY became available on Checkout Sessions in this Stripe API version.
 // Keep the value configurable so the account can move to a newer API version
 // without requiring another code change.
