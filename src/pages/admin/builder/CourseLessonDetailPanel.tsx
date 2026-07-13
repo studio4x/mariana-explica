@@ -318,6 +318,13 @@ export function CourseLessonDetailPanel() {
         lesson_type: values.lesson_type,
         youtube_url: normalizedYoutube,
         text_content: normalizedText,
+        lesson_file_storage_bucket: values.lesson_file_storage_bucket,
+        lesson_file_storage_path: values.lesson_file_storage_path,
+        lesson_file_storage_provider: values.lesson_file_storage_provider,
+        lesson_file_storage_managed: values.lesson_file_storage_managed,
+        lesson_file_name: values.lesson_file_name,
+        lesson_file_mime_type: values.lesson_file_mime_type,
+        lesson_file_size_bytes: values.lesson_file_size_bytes,
         estimated_minutes: Number(values.estimated_minutes || 0),
         starts_at: values.starts_at || null,
         ends_at: values.ends_at || null,
@@ -326,7 +333,17 @@ export function CourseLessonDetailPanel() {
       })
       const savedSource = updatedLesson.youtube_url?.trim() ?? ""
       const savedSourceIsAsset = savedSource.toLowerCase().startsWith("asset:")
-      setForm({ youtube_url: savedSource })
+      setForm({
+        youtube_url: savedSource,
+        lesson_type: updatedLesson.lesson_type,
+        lesson_file_storage_bucket: updatedLesson.lesson_file_storage_bucket,
+        lesson_file_storage_path: updatedLesson.lesson_file_storage_path,
+        lesson_file_storage_provider: updatedLesson.lesson_file_storage_provider,
+        lesson_file_storage_managed: updatedLesson.lesson_file_storage_managed,
+        lesson_file_name: updatedLesson.lesson_file_name,
+        lesson_file_mime_type: updatedLesson.lesson_file_mime_type,
+        lesson_file_size_bytes: updatedLesson.lesson_file_size_bytes,
+      })
       setFeedback({ tone: "success", message: `A aula "${updatedLesson.title}" foi guardada com sucesso.` })
       setVideoSourceMode(savedSourceIsAsset ? "upload" : "url")
       setVideoUrlDraft(savedSourceIsAsset ? "" : savedSource)
