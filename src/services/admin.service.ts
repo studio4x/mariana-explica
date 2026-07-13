@@ -3392,7 +3392,7 @@ export function markAdminOrderCancelled(orderId: string, reason?: string | null)
 export interface ReconcileAdminOrderResponse {
   success: true
   request_id: string
-  action: "noop" | "mark_paid" | "mark_failed"
+  action: "noop" | "mark_paid" | "mark_pending" | "mark_failed"
   order: AdminOrderSummary
   grants: unknown[]
   stripe: {

@@ -545,8 +545,8 @@ export async function updateOrderStatus(
     .update({
       status: params.status,
       payment_reference: params.paymentReference ?? undefined,
-      paid_at: params.paidAt ?? undefined,
-      refunded_at: params.refundedAt ?? undefined,
+      paid_at: params.paidAt === undefined ? undefined : params.paidAt,
+      refunded_at: params.refundedAt === undefined ? undefined : params.refundedAt,
     })
     .eq("id", params.orderId)
     .select(

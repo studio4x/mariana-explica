@@ -2,6 +2,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
 import { conflict, notFound } from "./errors.ts"
 import { ensureActiveGrant, revokeActiveGrantForOrder, updateOrderStatus } from "./commerce.ts"
 import { getStripeCheckoutSession } from "./payments.ts"
+import { isStripeCheckoutPaymentConfirmed } from "./stripe-checkout.ts"
 
 export interface ReconcilableOrderRow {
   id: string
@@ -21,7 +22,7 @@ export interface ReconciliationResult {
   order: ReconcilableOrderRow
   grants: unknown[]
   stripe: Awaited<ReturnType<typeof getStripeCheckoutSession>>
-  action: "noop" | "mark_paid" | "mark_failed"
+  action: "noop" | "mark_paid" | "mark_pending" | "mark_failed"
 }
 
 export async function findReconcilableOrder(
@@ -75,7 +76,7 @@ export async function reconcileOrderWithStripe(
   let grants: unknown[] = []
   let action: ReconciliationResult["action"] = "noop"
 
-  if (session.payment_status === "paid" && session.status === "complete") {
+  if (isStripeCheckoutPaymentConfirmed(session)) {
     updatedOrder = await updateOrderStatus(client, {
       orderId: order.id,
       status: "paid",
@@ -102,6 +103,21 @@ export async function reconcileOrderWithStripe(
       reason: "Acesso revogado durante reconciliacao de pedido expirado",
     })
     action = "mark_failed"
+  } else {
+    grants = await revokeActiveGrantForOrder(client, {
+      orderId: order.id,
+      reason: "Acesso revogado durante reconciliacao: pagamento Stripe ainda nao confirmado",
+    })
+
+    if (order.status === "paid" || grants.length > 0) {
+      updatedOrder = await updateOrderStatus(client, {
+        orderId: order.id,
+        status: "pending",
+        paymentReference: session.payment_intent ?? session.id,
+        paidAt: null,
+      })
+      action = "mark_pending"
+    }
   }
 
   return {

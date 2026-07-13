@@ -96,7 +96,7 @@ function getOrderActions(order: AdminOrderViewSummary) {
   return actions
 }
 
-function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_failed", stripe: {
+function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_pending" | "mark_failed", stripe: {
   status?: string | null
   payment_status?: string | null
 }) {
@@ -108,6 +108,10 @@ function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_failed", 
 
   if (action === "mark_failed") {
     return "Pedido reconciliado com a Stripe e marcado como falhou porque a sessão externa não confirmou pagamento."
+  }
+
+  if (action === "mark_pending") {
+    return "A Stripe ainda não confirmou o pagamento. O pedido voltou para pendente e qualquer acesso ativo foi revogado."
   }
 
   return `Reconciliação concluída sem mudancas. Estado Stripe: ${stripeState || "sem alteração relevante"}.`

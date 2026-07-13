@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
         grant.source_type === "purchase" &&
         grant.source_order_id &&
         orderStatus &&
-        ["refunded", "cancelled", "failed"].includes(orderStatus)
+        ["pending", "refunded", "cancelled", "failed"].includes(orderStatus)
       ) {
         alerts.push({
           type: "purchase_grant_with_invalid_order_status",

@@ -1,4 +1,4 @@
-import { badRequest } from "../_shared/errors.ts"
+import { badRequest, unprocessable } from "../_shared/errors.ts"
 import {
   corsResponse,
   errorResponse,
@@ -15,6 +15,8 @@ import {
   updateOrderStatus,
   writeAuditLog,
 } from "../_shared/mod.ts"
+import { getStripeCheckoutSession } from "../_shared/payments.ts"
+import { isStripeCheckoutPaymentConfirmed } from "../_shared/stripe-checkout.ts"
 
 type AdminOrdersInput =
   | { action: "mark_paid"; orderId: string; paymentReference?: string | null }
@@ -39,7 +41,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await context.serviceClient
       .from("orders")
-      .select("id,user_id,product_id,status,payment_reference")
+      .select("id,user_id,product_id,status,payment_reference,payment_provider,checkout_session_id,payment_environment")
       .eq("id", body.orderId)
       .single()
 
@@ -48,10 +50,29 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "mark_paid") {
+      const isStripeOrder = order.payment_provider === "stripe" || Boolean(order.checkout_session_id)
+      let confirmedStripePaymentReference: string | null = null
+
+      if (isStripeOrder) {
+        if (!order.checkout_session_id) {
+          throw unprocessable("Pedido Stripe sem sessao de checkout para confirmacao")
+        }
+
+        const session = await getStripeCheckoutSession(order.checkout_session_id, {
+          mode: order.payment_environment ?? undefined,
+        })
+
+        if (!isStripeCheckoutPaymentConfirmed(session)) {
+          throw unprocessable("A Stripe ainda nao confirmou este pagamento. O acesso permanece bloqueado.")
+        }
+
+        confirmedStripePaymentReference = session.payment_intent ?? session.id
+      }
+
       const updatedOrder = await updateOrderStatus(context.serviceClient, {
         orderId: body.orderId,
         status: "paid",
-        paymentReference: body.paymentReference ?? order.payment_reference,
+        paymentReference: confirmedStripePaymentReference ?? body.paymentReference ?? order.payment_reference,
         paidAt: new Date().toISOString(),
       })
 

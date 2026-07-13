@@ -20,6 +20,7 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse } from "../_sha
 import { logError, logInfo } from "../_shared/logger.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { verifyStripeWebhookSignature } from "../_shared/payments.ts"
+import { isStripeCheckoutPaymentConfirmed } from "../_shared/stripe-checkout.ts"
 
 interface StripeEventObject {
   id: string
@@ -124,6 +125,24 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
 
   if (order.status === "paid") {
     return { replayed: true, order_id: order.id }
+  }
+
+  if (!isStripeCheckoutPaymentConfirmed(session)) {
+    logInfo("Checkout completed before payment confirmation", {
+      request_id: requestId,
+      order_id: order.id,
+      checkout_session_id: session.id,
+      checkout_status: session.status ?? null,
+      payment_status: session.payment_status ?? null,
+      stripe_livemode: session.livemode,
+    })
+
+    return {
+      pending: true,
+      order_id: order.id,
+      checkout_status: session.status ?? null,
+      payment_status: session.payment_status ?? null,
+    }
   }
 
   if (session.amount_total !== undefined && session.amount_total !== null) {
@@ -282,6 +301,10 @@ async function handleCheckoutFailed(event: StripeEvent, req: Request) {
 
   assertMatchingEnvironment(order, session.livemode)
 
+  if (order.status === "paid" || order.status === "refunded") {
+    return { replayed: true, order_id: order.id }
+  }
+
   const failedOrder = await markOrderFailed(client, {
     orderId: order.id,
     paymentReference: session.payment_intent ?? session.id,
@@ -319,16 +342,15 @@ async function handleOrderRevocation(params: {
 
   assertMatchingEnvironment(order, params.livemode)
 
-  if (order.status === "refunded") {
-    return { replayed: true, order_id: order.id, revoked_grants: 0, cancelled_referrals: 0 }
-  }
-
-  const refundedOrder = await updateOrderStatus(client, {
-    orderId: order.id,
-    status: "refunded",
-    paymentReference: params.paymentReference,
-    refundedAt: new Date().toISOString(),
-  })
+  const alreadyRefunded = order.status === "refunded"
+  const refundedOrder = alreadyRefunded
+    ? order
+    : await updateOrderStatus(client, {
+        orderId: order.id,
+        status: "refunded",
+        paymentReference: params.paymentReference,
+        refundedAt: new Date().toISOString(),
+      })
 
   const revokedGrants = await revokeActiveGrantForOrder(client, {
     orderId: refundedOrder.id,
@@ -368,7 +390,7 @@ async function handleOrderRevocation(params: {
   })
 
   return {
-    replayed: false,
+    replayed: alreadyRefunded,
     order_id: refundedOrder.id,
     revoked_grants: revokedGrants.length,
     cancelled_referrals: cancelledReferrals.length,
@@ -445,8 +467,13 @@ Deno.serve(async (req) => {
     await verifyStripeWebhookSignature(rawBody, req.headers.get("stripe-signature"))
     const event = JSON.parse(rawBody) as StripeEvent
 
-    if (event.type === "checkout.session.completed") {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const result = await handleCheckoutCompleted(event, requestId, req)
+      return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
+    }
+
+    if (event.type === "checkout.session.async_payment_failed") {
+      const result = await handleCheckoutFailed(event, req)
       return jsonResponse({ success: true, request_id: requestId, event_type: event.type, ...result })
     }
 
