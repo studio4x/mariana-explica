@@ -3,6 +3,7 @@
 export interface LessonImageBlockContent {
   storage_bucket: string | null
   storage_path: string
+  storage_provider?: "supabase" | "r2" | null
   public_url?: string | null
   alt: string
   caption: string
@@ -14,6 +15,7 @@ export interface LessonImageBlockContent {
 export interface LessonVideoBlockContent {
   storage_bucket: string | null
   storage_path: string
+  storage_provider?: "supabase" | "r2" | null
   public_url?: string | null
   title: string
   width_percent: number
@@ -88,6 +90,7 @@ export function normalizeLessonImageBlockContent(input: unknown): LessonImageBlo
   return {
     storage_bucket: asText(assetRaw.storage_bucket) || asText(raw.storage_bucket) || null,
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
+    storage_provider: assetRaw.storage_provider === "supabase" ? "supabase" : assetRaw.storage_provider === "r2" ? "r2" : raw.storage_provider === "supabase" ? "supabase" : raw.storage_provider === "r2" ? "r2" : null,
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     alt: asText(assetRaw.alt) || asText(raw.alt) || "Imagem da aula",
     caption: asRawText(assetRaw.caption) || asRawText(raw.caption) || "",
@@ -107,6 +110,7 @@ export function normalizeLessonVideoBlockContent(input: unknown): LessonVideoBlo
   return {
     storage_bucket: asText(assetRaw.storage_bucket) || asText(raw.storage_bucket) || null,
     storage_path: asText(assetRaw.storage_path) || asText(raw.storage_path),
+    storage_provider: assetRaw.storage_provider === "supabase" ? "supabase" : assetRaw.storage_provider === "r2" ? "r2" : raw.storage_provider === "supabase" ? "supabase" : raw.storage_provider === "r2" ? "r2" : null,
     public_url: asText(assetRaw.public_url) || asText(raw.public_url) || null,
     title: asText(assetRaw.title) || asText(raw.title) || "Vídeo da aula",
     width_percent: clamp(asNumber(assetRaw.width_percent ?? raw.width_percent, 70), 35, 100),

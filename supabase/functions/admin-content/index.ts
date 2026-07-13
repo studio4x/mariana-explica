@@ -28,7 +28,7 @@ type ModuleType = "pdf" | "video" | "external_link" | "mixed"
 type AccessType = "public" | "registered" | "paid_only"
 type ModuleStatus = "draft" | "published" | "archived"
 
-type AssetType = "pdf" | "video_file" | "video_embed" | "external_link"
+type AssetType = "pdf" | "image" | "video_file" | "video_embed" | "external_link"
 type AssetStatus = "active" | "inactive"
 type LessonType = "video" | "text" | "hybrid" | "file"
 type LessonStatus = "draft" | "published" | "archived"
@@ -80,6 +80,7 @@ interface Body {
   storage_bucket?: string | null
   storage_path?: string | null
   storage_provider?: "supabase" | "r2" | null
+  storage_managed?: boolean
   external_url?: string | null
   mime_type?: string | null
   file_size_bytes?: number | null
@@ -445,7 +446,7 @@ Deno.serve(async (req) => {
 
       const { data: existingAssets, error: existingAssetsError } = await serviceClient
         .from("module_assets")
-        .select("id,storage_bucket,storage_path,storage_provider")
+        .select("id,storage_bucket,storage_path,storage_provider,storage_managed")
         .eq("module_id", moduleId)
 
       if (existingAssetsError) throw existingAssetsError
@@ -460,7 +461,9 @@ Deno.serve(async (req) => {
         existingModule?.module_pdf_storage_provider,
       )
       for (const asset of existingAssets ?? []) {
-        await removeStorageObjectIfPresent(serviceClient, asset.storage_bucket, asset.storage_path, asset.storage_provider)
+        if (asset.storage_managed !== false) {
+          await removeStorageObjectIfPresent(serviceClient, asset.storage_bucket, asset.storage_path, asset.storage_provider)
+        }
       }
       return jsonResponse({ success: true, request_id: requestId })
     }
@@ -708,7 +711,7 @@ Deno.serve(async (req) => {
       const moduleId = requireUuid(body.moduleId, "moduleId")
       const { data, error } = await serviceClient
         .from("module_assets")
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status,created_at,updated_at")
+        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status,created_at,updated_at")
         .eq("module_id", moduleId)
         .order("sort_order", { ascending: true })
 
@@ -732,6 +735,7 @@ Deno.serve(async (req) => {
           title,
           sort_order: Number.isFinite(body.sort_order_asset) ? body.sort_order_asset : 0,
           ...source,
+          storage_managed: body.storage_managed !== false,
           mime_type: normalizeNullableText(body.mime_type),
           file_size_bytes: body.file_size_bytes ?? null,
           allow_download: Boolean(body.allow_download),
@@ -739,7 +743,7 @@ Deno.serve(async (req) => {
           watermark_enabled: Boolean(body.watermark_enabled),
           status: body.asset_status ?? "active",
         })
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
+        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
         .single()
 
       if (error) throw error
@@ -751,7 +755,7 @@ Deno.serve(async (req) => {
       const assetId = requireUuid(body.assetId, "assetId")
       const { data: existingAsset, error: existingAssetError } = await serviceClient
         .from("module_assets")
-        .select("id,storage_bucket,storage_path,storage_provider")
+        .select("id,storage_bucket,storage_path,storage_provider,storage_managed")
         .eq("id", assetId)
         .maybeSingle()
 
@@ -771,6 +775,7 @@ Deno.serve(async (req) => {
       }
       if (body.mime_type !== undefined) payload.mime_type = normalizeNullableText(body.mime_type)
       if (body.file_size_bytes !== undefined) payload.file_size_bytes = body.file_size_bytes
+      if (body.storage_managed !== undefined) payload.storage_managed = Boolean(body.storage_managed)
       if (body.allow_download !== undefined) payload.allow_download = Boolean(body.allow_download)
       if (body.allow_stream !== undefined) payload.allow_stream = Boolean(body.allow_stream)
       if (body.watermark_enabled !== undefined) payload.watermark_enabled = Boolean(body.watermark_enabled)
@@ -780,11 +785,12 @@ Deno.serve(async (req) => {
         .from("module_assets")
         .update(payload)
         .eq("id", assetId)
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
+        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
         .single()
 
       if (error) throw error
       if (
+        existingAsset.storage_managed !== false &&
         existingAsset.storage_bucket &&
         existingAsset.storage_path &&
         (
@@ -806,19 +812,21 @@ Deno.serve(async (req) => {
       const assetId = requireUuid(body.assetId, "assetId")
       const { data: existingAsset, error: existingAssetError } = await serviceClient
         .from("module_assets")
-        .select("id,storage_bucket,storage_path,storage_provider")
+        .select("id,storage_bucket,storage_path,storage_provider,storage_managed")
         .eq("id", assetId)
         .maybeSingle()
 
       if (existingAssetError) throw existingAssetError
       const { error } = await serviceClient.from("module_assets").delete().eq("id", assetId)
       if (error) throw error
-      await removeStorageObjectIfPresent(
-        serviceClient,
-        existingAsset?.storage_bucket,
-        existingAsset?.storage_path,
-        existingAsset?.storage_provider,
-      )
+      if (existingAsset?.storage_managed !== false) {
+        await removeStorageObjectIfPresent(
+          serviceClient,
+          existingAsset?.storage_bucket,
+          existingAsset?.storage_path,
+          existingAsset?.storage_provider,
+        )
+      }
       return jsonResponse({ success: true, request_id: requestId })
     }
 

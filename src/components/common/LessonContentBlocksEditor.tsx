@@ -1,5 +1,5 @@
 ﻿import { ImagePlus, Table2, Trash2, Type, Upload, Video } from "lucide-react"
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent, type ComponentType } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ComponentType } from "react"
 import {
   useCreateAdminModuleAsset,
   useDeleteAdminLessonStorageObject,
@@ -21,9 +21,10 @@ import {
   LESSON_PUBLIC_IMAGE_BUCKET,
   isRenderableLessonMediaUrl,
 } from "@/lib/lesson-media"
-import { getExternalVideoUrl, getLessonVideoAssetId, getYoutubeEmbedUrl, makeLessonVideoAssetValue } from "@/lib/lesson-video"
+import { getExternalVideoUrl, getLessonAssetId, getLessonVideoAssetId, getYoutubeEmbedUrl, makeLessonAssetValue, makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { requestAssetAccess } from "@/services"
 import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor"
+import { MediaLibraryModal } from "./MediaLibraryModal"
 
 interface LessonContentBlocksEditorProps {
   value: string
@@ -409,25 +410,38 @@ function ImageBlockEditor({
   disabled: boolean
 }) {
   const uploadPublicImage = useUploadAdminProductCover()
+  const createModuleAsset = useCreateAdminModuleAsset()
+  const deleteModuleAsset = useDeleteAdminModuleAsset()
   const deleteLessonStorageObject = useDeleteAdminLessonStorageObject()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [resolvedPreviewState, setResolvedPreviewState] = useState<ResolvedUrlState>(() => createEmptyResolvedUrlState())
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
   const normalized = normalizeLessonImageBlockContent(value)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const previewResolveKey = directSource && !isRenderableLessonMediaUrl(directSource)
+  const imageAssetId = getLessonAssetId(directSource)
+  const [resolvedAssetState, setResolvedAssetState] = useState<ResolvedUrlState>(() => createEmptyResolvedUrlState())
+  const previewResolveKey = directSource && !imageAssetId && !isRenderableLessonMediaUrl(directSource)
     ? buildStorageResolveKey(normalized.storage_bucket, directSource)
     : null
-  const resolvedPreviewUrl = previewResolveKey
+  const resolvedAssetUrl = imageAssetId
+    ? resolvedAssetState.key === imageAssetId
+      ? resolvedAssetState.url
+      : null
+    : null
+  const resolvedPreviewUrl = imageAssetId
+    ? resolvedAssetUrl
+    : previewResolveKey
     ? resolvedPreviewState.key === previewResolveKey
       ? resolvedPreviewState.url
       : null
     : directSource || null
-  const resolvingPreviewUrl = Boolean(previewResolveKey) && resolvedPreviewState.key !== previewResolveKey
+  const resolvingPreviewUrl = imageAssetId
+    ? resolvedAssetState.key !== imageAssetId
+    : Boolean(previewResolveKey) && resolvedPreviewState.key !== previewResolveKey
   const imageUrl = localPreviewUrl || resolvedPreviewUrl
-  const pendingUpload = uploadPublicImage.isPending || deleteLessonStorageObject.isPending || disabled
+  const pendingUpload = uploadPublicImage.isPending || createModuleAsset.isPending || deleteModuleAsset.isPending || deleteLessonStorageObject.isPending || disabled
   const captionAlignClass =
     normalized.caption_align === "center"
       ? "text-center"
@@ -442,6 +456,25 @@ function ImageBlockEditor({
       }
     }
   }, [localPreviewUrl])
+
+  useEffect(() => {
+    if (!imageAssetId || resolvedAssetState.key === imageAssetId) return
+
+    let active = true
+    void requestAssetAccess(imageAssetId)
+      .then((result) => {
+        if (!active) return
+        setResolvedAssetState({ key: imageAssetId, status: result.url ? "resolved" : "error", url: result.url })
+      })
+      .catch(() => {
+        if (!active) return
+        setResolvedAssetState({ key: imageAssetId, status: "error", url: null })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [imageAssetId, resolvedAssetState.key])
 
   useEffect(() => {
     if (!previewResolveKey || resolvedPreviewState.key === previewResolveKey) return
@@ -564,43 +597,48 @@ function ImageBlockEditor({
     })
   }
 
-  const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
-
-    if (!file.type.startsWith("image/")) {
-      setStatus({
-        tone: "error",
-        message: "Seleciona um ficheiro de imagem válido.",
-      })
-      event.target.value = ""
-      return
-    }
-
+  const handleLibraryUpload = async (file: File) => {
     setSelectedFile(file)
-    setLocalPreviewUrl((previous) => {
-      if (previous?.startsWith("blob:")) {
-        URL.revokeObjectURL(previous)
-      }
-      return URL.createObjectURL(file)
-    })
-    setStatus({
-      tone: "info",
-      message: `Imagem selecionada: ${file.name}. A guardar automaticamente agora...`,
-    })
-    event.target.value = ""
+    setLocalPreviewUrl(URL.createObjectURL(file))
+    try {
+      await uploadSelectedImage(file)
+      setSelectedFile(null)
+      setLocalPreviewUrl(null)
+    } catch (error) {
+      setSelectedFile(null)
+      setLocalPreviewUrl(null)
+      throw error
+    }
+  }
 
-    void uploadSelectedImage(file)
-      .then(() => {
-        setSelectedFile(null)
-        setLocalPreviewUrl(null)
-      })
-      .catch((uploadError) => {
-        setStatus({
-          tone: "error",
-          message: uploadError instanceof Error ? uploadError.message : "Não foi possível enviar a imagem.",
-        })
-      })
+  const handleLibrarySelect = async (object: import("@/services/admin.service").AdminR2ListedObject) => {
+    const asset = await createModuleAsset.mutateAsync({
+      moduleId,
+      asset_type: "image",
+      title: object.storage_path.split("/").filter(Boolean).pop() || "Imagem da biblioteca",
+      sort_order_asset: Math.floor(Date.now() / 1000),
+      storage_bucket: object.logical_bucket,
+      storage_path: object.storage_path,
+      storage_provider: "r2",
+      storage_managed: false,
+      external_url: null,
+      mime_type: "image/*",
+      file_size_bytes: object.size_bytes,
+      allow_download: false,
+      allow_stream: true,
+      watermark_enabled: false,
+      asset_status: "active",
+    })
+    onChange(normalizeLessonImageBlockContent({
+      ...normalized,
+      storage_bucket: null,
+      storage_path: makeLessonAssetValue(asset.id),
+      storage_provider: "r2",
+      public_url: null,
+    }))
+    await onUploadComplete?.()
+    setResolvedAssetState(createEmptyResolvedUrlState())
+    setStatus({ tone: "success", message: "Imagem da biblioteca selecionada e aula guardada automaticamente." })
   }
 
   const handleDeleteImage = async () => {
@@ -611,6 +649,7 @@ function ImageBlockEditor({
     const trimmedProductId = productId?.trim() || null
     const trimmedModuleId = moduleId.trim() || null
 
+    const currentAssetId = getLessonAssetId(currentPath)
     if (!currentPath) {
       setStatus({
         tone: "error",
@@ -628,12 +667,16 @@ function ImageBlockEditor({
     })
 
     try {
-      await deleteLessonStorageObject.mutateAsync({
-        productId: trimmedProductId,
-        moduleId: trimmedModuleId,
-        mediaBucket: currentBucket,
-        mediaPath: currentPath,
-      })
+      if (currentAssetId) {
+        await deleteModuleAsset.mutateAsync(currentAssetId)
+      } else {
+        await deleteLessonStorageObject.mutateAsync({
+          productId: trimmedProductId,
+          moduleId: trimmedModuleId,
+          mediaBucket: currentBucket,
+          mediaPath: currentPath,
+        })
+      }
 
       if (localPreviewUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(localPreviewUrl)
@@ -731,22 +774,14 @@ function ImageBlockEditor({
             <option value="55">55% largura</option>
             <option value="40">40% largura</option>
           </select>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            disabled={pendingUpload}
-            onChange={handleSelectFile}
-            className="hidden"
-          />
           <button
             type="button"
             disabled={pendingUpload}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsMediaLibraryOpen(true)}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
           >
             <Upload className="h-4 w-4" />
-            Selecionar imagem
+            Adicionar imagem
           </button>
           <button
             type="button"
@@ -758,6 +793,16 @@ function ImageBlockEditor({
           </button>
         </div>
       </div>
+
+      <MediaLibraryModal
+        open={isMediaLibraryOpen}
+        title="Adicionar imagem"
+        accept="image/*"
+        fileType="image"
+        onClose={() => setIsMediaLibraryOpen(false)}
+        onUpload={handleLibraryUpload}
+        onSelect={handleLibrarySelect}
+      />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-2">
@@ -845,7 +890,7 @@ function VideoBlockEditor({
   const createModuleAsset = useCreateAdminModuleAsset()
   const deleteModuleAsset = useDeleteAdminModuleAsset()
   const deleteLessonStorageObject = useDeleteAdminLessonStorageObject()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<{ tone: "info" | "success" | "error"; message: string } | null>(null)
@@ -1056,46 +1101,50 @@ function VideoBlockEditor({
     }
   }
 
-  const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
-
-    if (!file.type.startsWith("video/")) {
-      setStatus({
-        tone: "error",
-        message: "Seleciona um ficheiro de vídeo válido.",
-      })
-      event.target.value = ""
-      return
-    }
-
+  const handleLibraryUpload = async (file: File) => {
     setSelectedFile(file)
-    setLocalPreviewUrl((previous) => {
-      if (previous?.startsWith("blob:")) {
-        URL.revokeObjectURL(previous)
-      }
-      return URL.createObjectURL(file)
+    setLocalPreviewUrl(URL.createObjectURL(file))
+    try {
+      await uploadSelectedVideo(file)
+      setSelectedFile(null)
+      setLocalPreviewUrl(null)
+    } catch (error) {
+      setSelectedFile(null)
+      setLocalPreviewUrl(null)
+      throw error
+    }
+  }
+
+  const handleLibrarySelect = async (object: import("@/services/admin.service").AdminR2ListedObject) => {
+    const asset = await createModuleAsset.mutateAsync({
+      moduleId,
+      asset_type: "video_file",
+      title: object.storage_path.split("/").filter(Boolean).pop() || "Vídeo da biblioteca",
+      sort_order_asset: Math.floor(Date.now() / 1000),
+      storage_bucket: object.logical_bucket,
+      storage_path: object.storage_path,
+      storage_provider: "r2",
+      storage_managed: false,
+      external_url: null,
+      mime_type: "video/*",
+      file_size_bytes: object.size_bytes,
+      allow_download: false,
+      allow_stream: true,
+      watermark_enabled: false,
+      asset_status: "active",
     })
-    setStatus({
-      tone: "info",
-      message: `Vídeo selecionado: ${file.name}. A guardar automaticamente agora...`,
-    })
-    event.target.value = ""
-    void uploadSelectedVideo(file)
-      .then(() => {
-        setSelectedFile(null)
-      })
-      .catch((uploadError) => {
-        setStatus({
-          tone: "error",
-          message:
-            uploadError instanceof Error && /compute resources|payload too large|entity too large|file too large|too large/i.test(uploadError.message)
-              ? buildVideoTooLargeMessage(maxVideoUploadBytes)
-              : uploadError instanceof Error
-                ? uploadError.message
-                : "Não foi possível enviar o vídeo.",
-        })
-      })
+    onChange(normalizeLessonVideoBlockContent({
+      storage_bucket: null,
+      storage_path: makeLessonVideoAssetValue(asset.id),
+      storage_provider: "r2",
+      public_url: null,
+      title: normalized.title || "Vídeo da aula",
+      width_percent: normalized.width_percent,
+    }))
+    await onUploadComplete?.()
+    setResolvedAssetState(createEmptyResolvedUrlState())
+    setResolvedVideoState(createEmptyResolvedUrlState())
+    setStatus({ tone: "success", message: "Vídeo da biblioteca selecionado e aula guardada automaticamente." })
   }
 
   const handleDeleteVideo = async () => {
@@ -1234,22 +1283,14 @@ function VideoBlockEditor({
               <option value="50">Pequeno</option>
             </select>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            disabled={pendingUpload}
-            onChange={handleSelectFile}
-            className="hidden"
-          />
           <button
             type="button"
             disabled={pendingUpload}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsMediaLibraryOpen(true)}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
           >
             <Upload className="h-4 w-4" />
-            Selecionar vídeo
+            Adicionar vídeo
           </button>
           <button
             type="button"
@@ -1261,6 +1302,16 @@ function VideoBlockEditor({
           </button>
         </div>
       </div>
+
+      <MediaLibraryModal
+        open={isMediaLibraryOpen}
+        title="Adicionar vídeo"
+        accept="video/*"
+        fileType="video"
+        onClose={() => setIsMediaLibraryOpen(false)}
+        onUpload={handleLibraryUpload}
+        onSelect={handleLibrarySelect}
+      />
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
         <span className="font-bold text-slate-800">Limite do vídeo:</span> {uploadLimitInstruction}

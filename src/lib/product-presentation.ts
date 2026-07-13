@@ -413,6 +413,8 @@ export function getModuleTypeLabel(moduleType: ProductModuleSummary["module_type
 
 export function getAssetTypeLabel(assetType: ModuleAssetSummary["asset_type"]) {
   switch (assetType) {
+    case "image":
+      return "Imagem"
     case "pdf":
       return "PDF"
     case "video_file":
@@ -428,6 +430,8 @@ export function getAssetTypeLabel(assetType: ModuleAssetSummary["asset_type"]) {
 
 export function getAssetActionLabel(asset: ModuleAssetSummary) {
   switch (asset.asset_type) {
+    case "image":
+      return "Ver imagem"
     case "pdf":
       return asset.allow_download ? "Abrir PDF" : "Ler material"
     case "video_file":

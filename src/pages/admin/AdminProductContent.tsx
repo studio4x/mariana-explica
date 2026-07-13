@@ -51,6 +51,7 @@ const accessTypeLabels: Record<ProductModuleSummary["access_type"], string> = {
 
 const assetTypeLabels: Record<ModuleAssetSummary["asset_type"], string> = {
   pdf: "PDF",
+  image: "Imagem",
   video_file: "Vídeo",
   video_embed: "Vídeo embed",
   external_link: "Link externo",

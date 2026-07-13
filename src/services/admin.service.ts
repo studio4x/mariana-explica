@@ -2760,6 +2760,7 @@ export async function createAdminModuleAsset(input: {
   storage_bucket?: string | null
   storage_path?: string | null
   storage_provider?: "supabase" | "r2" | null
+  storage_managed?: boolean
   external_url?: string | null
   mime_type?: string | null
   file_size_bytes?: number | null
@@ -2784,6 +2785,7 @@ export async function updateAdminModuleAsset(input: {
   storage_bucket?: string | null
   storage_path?: string | null
   storage_provider?: "supabase" | "r2" | null
+  storage_managed?: boolean
   external_url?: string | null
   mime_type?: string | null
   file_size_bytes?: number | null

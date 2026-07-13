@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { LessonContentBlocksEditor, LessonPrimaryMedia, OperationFeedbackModal, StatusBadge } from "@/components/common"
+import { LessonContentBlocksEditor, LessonPrimaryMedia, MediaLibraryModal, OperationFeedbackModal, StatusBadge } from "@/components/common"
 import type { LessonContentBlocksEditorHandle } from "@/components/common/LessonContentBlocksEditor"
 import { uploadFileWithPreparedTicket } from "@/features/storage/r2-upload"
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/hooks/useAdmin"
 import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { adminCourseLessonMaterialsPath, adminCourseModulePath } from "@/lib/routes"
+import type { AdminR2ListedObject } from "@/services/admin.service"
 import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
 
 function toDateTimeLocal(value: string | null | undefined) {
@@ -183,6 +184,8 @@ export function CourseLessonDetailPanel() {
   const [videoUrlDraft, setVideoUrlDraft] = useState("")
   const [uploadedVideoAssetValue, setUploadedVideoAssetValue] = useState<string | null>(null)
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null)
   const [resolvedProtectedVideoMaxBytes, setResolvedProtectedVideoMaxBytes] = useState<number | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
   const textContentEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
@@ -462,8 +465,8 @@ export function CourseLessonDetailPanel() {
     event.target.value = ""
   }
 
-  const handleInsertProtectedVideo = async () => {
-    const file = pendingVideoFile
+  const handleInsertProtectedVideo = async (fileOverride?: File) => {
+    const file = fileOverride ?? pendingVideoFile
     if (!file) {
       setFeedback({ tone: "error", message: "Seleciona um ficheiro de vídeo antes de enviar." })
       setVideoUploadStatus({
@@ -553,6 +556,43 @@ export function CourseLessonDetailPanel() {
         message: `Falha no envio: ${uploadErrorMessage}`,
       })
     }
+  }
+
+  const handleMediaLibraryVideoUpload = async (file: File) => {
+    if (protectedVideoMaxBytes && file.size > protectedVideoMaxBytes) {
+      throw new Error(buildProtectedVideoTooLargeMessage(protectedVideoMaxBytes))
+    }
+    setPendingVideoFile(file)
+    await handleInsertProtectedVideo(file)
+  }
+
+  const handleMediaLibraryVideoSelect = async (object: AdminR2ListedObject) => {
+    const asset = await createAsset.mutateAsync({
+      moduleId,
+      asset_type: "video_file",
+      title: `${values.title?.trim() || lesson.title} - vídeo da biblioteca`,
+      sort_order_asset: buildAssetSortOrder(),
+      storage_bucket: object.logical_bucket,
+      storage_path: object.storage_path,
+      storage_provider: "r2",
+      storage_managed: false,
+      external_url: null,
+      mime_type: "video/*",
+      file_size_bytes: object.size_bytes,
+      allow_download: false,
+      allow_stream: true,
+      watermark_enabled: false,
+      asset_status: "active",
+    })
+    const assetValue = makeLessonVideoAssetValue(asset.id)
+    setForm((prev) => ({ ...prev, youtube_url: assetValue }))
+    setUploadedVideoAssetValue(assetValue)
+    setVideoSourceMode("upload")
+    setPendingVideoFile(null)
+    await persistLessonAfterUpload({ youtube_url: assetValue })
+    setUploadMessage("Vídeo da biblioteca selecionado e aula guardada automaticamente.")
+    setFeedback({ tone: "success", message: "Vídeo da biblioteca inserido e aula guardada automaticamente." })
+    setVideoUploadStatus({ tone: "success", message: "Vídeo da biblioteca selecionado com sucesso." })
   }
 
   return (
@@ -796,11 +836,30 @@ export function CourseLessonDetailPanel() {
                   <p className="mt-1 text-xs leading-6 text-slate-500">
                     {getProtectedVideoLimitInstruction(protectedVideoMaxBytes)}
                   </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4 rounded-full"
+                    onClick={() => setIsMediaLibraryOpen(true)}
+                    disabled={createSignedVideoUpload.isPending}
+                  >
+                    Escolher vídeo ou abrir biblioteca
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4 ml-2 rounded-full"
+                    onClick={() => videoFileInputRef.current?.click()}
+                    disabled={createSignedVideoUpload.isPending}
+                  >
+                    Selecionar para enviar depois
+                  </Button>
                   <input
+                    ref={videoFileInputRef}
                     type="file"
-                    accept="v?deo/mp4,v?deo/webm,v?deo/ogg,v?deo/quicktime,v?deo/x-m4v"
+                    accept="video/*"
                     onChange={handleVideoUploadSelection}
-                    className="mt-4 text-sm"
+                    className="hidden"
                   />
                   <Button
                     type="button"
@@ -815,6 +874,15 @@ export function CourseLessonDetailPanel() {
                       Ficheiro selecionado: <span className="font-medium">{pendingVideoFile.name}</span>
                     </p>
                   ) : null}
+                  <MediaLibraryModal
+                    open={isMediaLibraryOpen}
+                    title="Adicionar vídeo protegido"
+                    accept="video/*"
+                    fileType="video"
+                    onClose={() => setIsMediaLibraryOpen(false)}
+                    onUpload={handleMediaLibraryVideoUpload}
+                    onSelect={handleMediaLibraryVideoSelect}
+                  />
                   {videoUploadStatus ? (
                     <p
                       className={[

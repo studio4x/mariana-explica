@@ -1,4 +1,4 @@
-export function getLessonVideoAssetId(value: string | null | undefined) {
+export function getLessonAssetId(value: string | null | undefined) {
   const trimmed = value?.trim() ?? ""
   if (!trimmed.toLowerCase().startsWith("asset:")) {
     return null
@@ -8,9 +8,12 @@ export function getLessonVideoAssetId(value: string | null | undefined) {
   return assetId || null
 }
 
-export function makeLessonVideoAssetValue(assetId: string) {
+export function makeLessonAssetValue(assetId: string) {
   return `asset:${assetId}`
 }
+
+export const getLessonVideoAssetId = getLessonAssetId
+export const makeLessonVideoAssetValue = makeLessonAssetValue
 
 const YOUTUBE_EMBED_BASE_URL = "https://www.youtube-nocookie.com/embed"
 const DIRECT_VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogg", "ogv", "m4v", "mov"])

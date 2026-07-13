@@ -719,6 +719,8 @@ Video:
 - aceita link do YouTube;
 - aceita URL direta de ficheiro de video;
 - aceita upload de ficheiro com envio automatico ao selecionar o arquivo;
+- permite abrir a biblioteca de midia do R2 no mesmo modal do upload;
+- a biblioteca permite pesquisar, paginar e selecionar videos/imagens ja existentes;
 - registra o video enviado como asset interno para manter preview e acesso apos refresh;
 - depois da conclusao do upload, persiste automaticamente a ligacao do video na aula, sem exigir um segundo clique em `Guardar aula`;
 - exibe o limite maximo de upload no proprio card antes da selecao do ficheiro;
@@ -727,6 +729,7 @@ Video:
 - preserva a resolucao por URL assinada para assets privados quando necessario;
 - aceita ficheiro privado enviado para a plataforma, persistido como `asset:<uuid>`;
 - uploads de imagem ou video dentro dos blocos persistem automaticamente o conteudo atualizado da aula;
+- assets escolhidos da biblioteca sao referenciados como assets internos sem assumir a posse do objeto original no storage;
 - possui seletor de tamanho com pre-definicao em medio;
 - aplica o tamanho selecionado no editor, no preview e na visao publica;
 - pode ou nao ter descricao;
@@ -776,6 +779,7 @@ Bloco de imagem simples:
 - controlo de tamanho;
 - prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o imediata no editor;
 - para assets em storage privado, o editor e o player resolvem URL assinada temporÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ria quando necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.
+- o editor oferece as abas `Enviar ficheiro` e `Biblioteca de midia`, com miniatura para imagens listadas no R2.
 
 Bloco de hotspots de imagem:
 

@@ -12,7 +12,7 @@ import {
   LESSON_PUBLIC_IMAGE_BUCKET,
   isRenderableLessonMediaUrl,
 } from "@/lib/lesson-media"
-import { getExternalVideoUrl, getLessonVideoAssetId, getYoutubeEmbedUrl } from "@/lib/lesson-video"
+import { getExternalVideoUrl, getLessonAssetId, getLessonVideoAssetId, getYoutubeEmbedUrl } from "@/lib/lesson-video"
 import { requestAssetAccess } from "@/services"
 import { RichTextContent } from "./RichTextContent"
 
@@ -57,7 +57,8 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null)
   const [resolvingImageUrl, setResolvingImageUrl] = useState(false)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
-  const imageUrl = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedImageUrl
+  const assetId = getLessonAssetId(directSource)
+  const imageUrl = assetId || isRenderableLessonMediaUrl(directSource) ? (assetId ? resolvedImageUrl : directSource) : resolvedImageUrl
   const captionAlignClass =
     normalized.caption_align === "center"
       ? "text-center"
@@ -70,6 +71,26 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
       setResolvedImageUrl(null)
       setResolvingImageUrl(false)
       return
+    }
+
+    if (assetId) {
+      let active = true
+      setResolvingImageUrl(true)
+      setResolvedImageUrl(null)
+      void requestAssetAccess(assetId)
+        .then((result) => {
+          if (!active) return
+          setResolvedImageUrl(result.url)
+          setResolvingImageUrl(false)
+        })
+        .catch(() => {
+          if (!active) return
+          setResolvedImageUrl(null)
+          setResolvingImageUrl(false)
+        })
+      return () => {
+        active = false
+      }
     }
 
     if (isRenderableLessonMediaUrl(directSource)) {
@@ -97,7 +118,7 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
     return () => {
       active = false
     }
-  }, [directSource, normalized.storage_bucket])
+  }, [assetId, directSource, normalized.storage_bucket])
 
   if (!directSource) {
     return (

@@ -56,12 +56,13 @@ export interface CourseModuleNavigationSummary extends ProductModuleSummary {
 export interface ModuleAssetSummary {
   id: string
   module_id: string
-  asset_type: "pdf" | "video_file" | "video_embed" | "external_link"
+  asset_type: "pdf" | "image" | "video_file" | "video_embed" | "external_link"
   title: string
   sort_order: number
   storage_bucket: string | null
   storage_path: string | null
   storage_provider?: "supabase" | "r2" | null
+  storage_managed?: boolean
   external_url: string | null
   mime_type: string | null
   file_size_bytes: number | null
