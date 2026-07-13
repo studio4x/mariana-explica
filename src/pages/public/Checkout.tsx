@@ -24,6 +24,7 @@ import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
+import { openCheckoutUrlInNewTab } from "./checkout-helpers"
 import {
   EditableContainer,
   SiteContentScope,
@@ -327,8 +328,12 @@ function CheckoutPageContent() {
       })
 
       if (result.mode === "stripe" && result.checkout_url) {
+        const opened = openCheckoutUrlInNewTab(result.checkout_url)
+        if (!opened) {
+          setSubmitError("Não foi possível abrir o pagamento. Permite pop-ups e tenta novamente.")
+          return
+        }
         clearCheckoutDraft()
-        window.location.assign(result.checkout_url)
         return
       }
 
