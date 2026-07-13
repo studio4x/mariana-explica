@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
+import { queryClient } from "@/lib/query-client"
 import {
   createSupportTicket,
   fetchAccessibleAssessment,
@@ -37,10 +38,18 @@ import {
   uploadSupportAttachment,
   fetchSupportAttachmentUrl,
 } from "@/services"
-import type { NotificationItem, SupportTicketMessage, SupportTicketSummary } from "@/types/app.types"
+import type {
+  DashboardOverviewData,
+  NotificationItem,
+  SupportTicketMessage,
+  SupportTicketSummary,
+} from "@/types/app.types"
 
 const REALTIME_FALLBACK_INTERVAL_MS = 4_000
 const CHAT_FALLBACK_INTERVAL_MS = 2_500
+const DASHBOARD_QUERY_STALE_TIME = 30_000
+const DASHBOARD_PROGRESS_STALE_TIME = 60_000
+const DASHBOARD_PROFILE_STALE_TIME = 5 * 60_000
 
 type RealtimePayload = {
   eventType?: "INSERT" | "UPDATE" | "DELETE"
@@ -89,6 +98,7 @@ export function useDashboardOverview() {
   return useQuery({
     queryKey: ["dashboard", "overview"],
     queryFn: fetchDashboardOverview,
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 }
 
@@ -100,6 +110,8 @@ export function useMyProducts(options?: { enabled?: boolean }) {
     queryKey: ["dashboard", "products", userId],
     queryFn: fetchMyProducts,
     enabled: (options?.enabled ?? true) && Boolean(userId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
+    placeholderData: () => queryClient.getQueryData<DashboardOverviewData>(["dashboard", "overview"])?.products,
   })
 }
 
@@ -108,6 +120,7 @@ export function useDashboardProductContent(productId: string | undefined) {
     queryKey: ["dashboard", "product", productId],
     queryFn: () => fetchDashboardProductContent(productId ?? ""),
     enabled: Boolean(productId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 
@@ -116,6 +129,7 @@ export function useLessonNote(lessonId: string | undefined) {
     queryKey: ["dashboard", "lesson", lessonId, "note"],
     queryFn: () => fetchLessonNotes(lessonId ?? ""),
     enabled: Boolean(lessonId),
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 }
 
@@ -124,6 +138,7 @@ export function useAccessibleLesson(lessonId: string | undefined) {
     queryKey: ["dashboard", "lesson", lessonId, "content"],
     queryFn: () => fetchAccessibleLesson(lessonId ?? ""),
     enabled: Boolean(lessonId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 
@@ -132,6 +147,7 @@ export function useAccessibleAssessment(assessmentId: string | undefined) {
     queryKey: ["dashboard", "assessment", assessmentId, "content"],
     queryFn: () => fetchAccessibleAssessment(assessmentId ?? ""),
     enabled: Boolean(assessmentId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 
@@ -140,6 +156,7 @@ export function useModuleAssets(moduleId: string | undefined) {
     queryKey: ["dashboard", "module", moduleId, "assets"],
     queryFn: () => fetchModuleAssetsByModule(moduleId ?? ""),
     enabled: Boolean(moduleId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 
@@ -148,6 +165,7 @@ export function useAssessmentAttemptState(assessmentId: string | undefined) {
     queryKey: ["dashboard", "assessment", assessmentId, "attempt"],
     queryFn: () => fetchAssessmentAttemptState(assessmentId ?? ""),
     enabled: Boolean(assessmentId),
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 }
 
@@ -155,6 +173,7 @@ export function useDownloads() {
   return useQuery({
     queryKey: ["dashboard", "downloads"],
     queryFn: fetchDownloads,
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 
@@ -169,6 +188,7 @@ export function useNotifications(includeArchived = false) {
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 
   useEffect(() => {
@@ -230,6 +250,7 @@ export function useUnreadNotificationsCount() {
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 
   useEffect(() => {
@@ -284,6 +305,7 @@ export function usePaymentHistory() {
   return useQuery({
     queryKey: ["dashboard", "payments"],
     queryFn: fetchPaymentHistory,
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 
@@ -316,6 +338,7 @@ export function useSupportTickets() {
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 
   useEffect(() => {
@@ -373,6 +396,7 @@ export function useSupportTicket(ticketId: string | undefined) {
     refetchInterval: REALTIME_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 }
 
@@ -385,6 +409,7 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
     refetchInterval: CHAT_FALLBACK_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
   })
 
   useEffect(() => {
@@ -457,6 +482,7 @@ export function useProfilePreferences(options?: { enabled?: boolean }) {
     queryKey: ["dashboard", "profile"],
     queryFn: fetchProfilePreferences,
     enabled: options?.enabled ?? true,
+    staleTime: DASHBOARD_PROFILE_STALE_TIME,
   })
 }
 
