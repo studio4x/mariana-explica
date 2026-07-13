@@ -10,6 +10,8 @@ export type MediaLibraryFileType = "all" | "image" | "video" | "audio" | "docume
 interface MediaLibraryModalProps {
   open: boolean
   title?: string
+  uploadTabLabel?: string
+  libraryTabLabel?: string
   accept?: string
   fileType?: MediaLibraryFileType
   onClose: () => void
@@ -37,6 +39,8 @@ function ObjectIcon({ fileType }: { fileType: AdminR2ListedObject["file_type"] }
 export function MediaLibraryModal({
   open,
   title = "Biblioteca de mídia",
+  uploadTabLabel = "Enviar ficheiro",
+  libraryTabLabel = "Biblioteca de mídia",
   accept,
   fileType = "all",
   onClose,
@@ -129,7 +133,7 @@ export function MediaLibraryModal({
         <div className="flex border-b border-slate-200 px-5 md:px-7">
           {(["upload", "library"] as const).map((tab) => (
             <button key={tab} type="button" onClick={() => { setActiveTab(tab); setActionError(null) }} className={cn("border-b-2 px-1 py-4 text-sm font-bold transition", activeTab === tab ? "border-sky-600 text-sky-700" : "border-transparent text-slate-500 hover:text-slate-900")}>
-              {tab === "upload" ? "Enviar ficheiro" : "Biblioteca de mídia"}
+              {tab === "upload" ? uploadTabLabel : libraryTabLabel}
             </button>
           ))}
         </div>

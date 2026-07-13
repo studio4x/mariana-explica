@@ -1,8 +1,9 @@
 import { useState, type ChangeEvent, type FormEvent } from "react"
 import { useParams } from "react-router-dom"
+import { UploadCloud } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
+import { MediaLibraryModal, OperationFeedbackModal, PageHeader, StatusBadge } from "@/components/common"
 import {
   useAdminModuleAssets,
   useAdminProductLessons,
@@ -12,7 +13,19 @@ import {
   useUpdateAdminModuleAsset,
 } from "@/hooks/useAdmin"
 import { adminCourseLessonPath } from "@/lib/routes"
+import type { AdminR2ListedObject } from "@/services/admin.service"
 import type { ModuleAssetSummary } from "@/types/app.types"
+
+function getLibraryObjectName(object: AdminR2ListedObject) {
+  return object.storage_path.split("/").filter(Boolean).pop() || object.key
+}
+
+function getLibraryAssetType(object: AdminR2ListedObject, fallback: ModuleAssetSummary["asset_type"]) {
+  if (object.file_type === "image") return "image" as const
+  if (object.file_type === "video") return "video_file" as const
+  if (object.file_type === "document") return "pdf" as const
+  return fallback === "external_link" ? "pdf" : fallback
+}
 
 export function CourseLessonMaterialsPanel() {
   const { courseId, moduleId, lessonId } = useParams<{ courseId: string; moduleId: string; lessonId: string }>()
@@ -22,6 +35,7 @@ export function CourseLessonMaterialsPanel() {
   const updateAsset = useUpdateAdminModuleAsset()
   const deleteAsset = useDeleteAdminModuleAsset()
   const uploadAssetFile = useUploadAdminModuleAssetFile()
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [draft, setDraft] = useState({
@@ -74,6 +88,24 @@ export function CourseLessonMaterialsPanel() {
   }
 
   const nextOrder = assets.length === 0 ? 1 : Math.max(...assets.map((asset) => asset.sort_order)) + 1
+
+  const resetDraft = () => {
+    setDraft({
+      title: "",
+      asset_type: "pdf",
+      source: "storage",
+      storage_bucket: "",
+      storage_path: "",
+      storage_provider: null,
+      external_url: "",
+      allow_download: false,
+      allow_stream: true,
+      watermark_enabled: false,
+      status: "active",
+      mime_type: "",
+      file_size_bytes: null,
+    })
+  }
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -165,6 +197,62 @@ export function CourseLessonMaterialsPanel() {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível subir o ficheiro.")
     } finally {
       event.target.value = ""
+    }
+  }
+
+  const handleMediaLibraryUpload = async (file: File) => {
+    try {
+      const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
+      await createAsset.mutateAsync({
+        moduleId,
+        title: draft.title.trim() || upload.file_name.replace(/\.[^.]+$/, ""),
+        asset_type: draft.asset_type,
+        sort_order_asset: nextOrder,
+        storage_bucket: upload.bucket,
+        storage_path: upload.path,
+        storage_provider: upload.storage_provider ?? "r2",
+        external_url: null,
+        mime_type: upload.mime_type ?? null,
+        file_size_bytes: upload.file_size_bytes,
+        allow_download: draft.allow_download,
+        allow_stream: draft.allow_stream,
+        watermark_enabled: draft.watermark_enabled,
+        asset_status: draft.status,
+      })
+      resetDraft()
+      setFeedback({ tone: "success", message: "Ficheiro enviado e recurso adicional guardado automaticamente." })
+    } catch (uploadError) {
+      const message = uploadError instanceof Error ? uploadError.message : "NÃ£o foi possÃ­vel subir o ficheiro."
+      setError(message)
+      throw uploadError
+    }
+  }
+
+  const handleMediaLibrarySelect = async (object: AdminR2ListedObject) => {
+    try {
+      await createAsset.mutateAsync({
+        moduleId,
+        title: draft.title.trim() || getLibraryObjectName(object).replace(/\.[^.]+$/, ""),
+        asset_type: getLibraryAssetType(object, draft.asset_type),
+        sort_order_asset: nextOrder,
+        storage_bucket: object.logical_bucket,
+        storage_path: object.storage_path,
+        storage_provider: "r2",
+        storage_managed: false,
+        external_url: null,
+        mime_type: null,
+        file_size_bytes: object.size_bytes,
+        allow_download: draft.allow_download,
+        allow_stream: draft.allow_stream,
+        watermark_enabled: draft.watermark_enabled,
+        asset_status: draft.status,
+      })
+      resetDraft()
+      setFeedback({ tone: "success", message: "Recurso da biblioteca adicionado com sucesso." })
+    } catch (selectError) {
+      const message = selectError instanceof Error ? selectError.message : "NÃ£o foi possÃ­vel usar este ficheiro."
+      setError(message)
+      throw selectError
     }
   }
 
@@ -302,7 +390,20 @@ export function CourseLessonMaterialsPanel() {
                 <p className="mt-1 text-sm text-slate-600">
                   Faz upload para o storage privado do recurso. O backend grava bucket e path automaticamente.
                 </p>
-                <input type="file" onChange={handleDraftFileSelection} className="mt-4 text-sm" />
+                <input type="file" onChange={handleDraftFileSelection} className="hidden" aria-hidden="true" tabIndex={-1} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 rounded-full"
+                  onClick={() => setIsMediaLibraryOpen(true)}
+                  disabled={uploadAssetFile.isPending || createAsset.isPending}
+                >
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Fazer novo upload ou usar biblioteca
+                </Button>
+                <p className="mt-3 text-xs text-slate-500">
+                  Escolhe entre enviar um ficheiro novo ou reutilizar uma mídia já guardada no storage.
+                </p>
                 {draft.storage_path ? (
                   <div className="mt-4 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
                     <p className="font-medium text-slate-950">{draft.storage_bucket}</p>
@@ -352,6 +453,26 @@ export function CourseLessonMaterialsPanel() {
             {error ? <p className="text-sm text-rose-700">{error}</p> : null}
           </div>
         </form>
+
+        <MediaLibraryModal
+          open={isMediaLibraryOpen}
+          title="Adicionar recurso adicional"
+          uploadTabLabel="Fazer novo upload"
+          libraryTabLabel="Biblioteca de mídia"
+          accept={
+            draft.asset_type === "image"
+              ? "image/*"
+              : draft.asset_type === "video_file" || draft.asset_type === "video_embed"
+                ? "video/*"
+                : draft.asset_type === "pdf"
+                  ? "application/pdf"
+                  : undefined
+          }
+          fileType={draft.asset_type === "image" ? "image" : draft.asset_type === "video_file" ? "video" : "document"}
+          onClose={() => setIsMediaLibraryOpen(false)}
+          onUpload={handleMediaLibraryUpload}
+          onSelect={handleMediaLibrarySelect}
+        />
       </section>
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
