@@ -1144,6 +1144,24 @@ export async function uploadAdminModuleAssetFile(input: {
   return upload satisfies AdminStorageUploadResult
 }
 
+export async function uploadAdminLessonFile(input: {
+  lessonId: string
+  file: File
+  replacePath?: string | null
+}) {
+  const upload = await uploadStorageFile({
+    upload_kind: "lesson_file",
+    entity_id: input.lessonId,
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "application/pdf",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
+  })
+
+  return upload satisfies AdminStorageUploadResult
+}
+
 export async function createAdminModuleAssetSignedUpload(input: {
   moduleId: string
   fileName: string
@@ -2868,6 +2886,12 @@ export async function updateAdminProductLesson(input: {
   lesson_type?: ProductLessonSummary["lesson_type"]
   youtube_url?: string | null
   text_content?: string | null
+  lesson_file_storage_bucket?: string | null
+  lesson_file_storage_path?: string | null
+  lesson_file_storage_provider?: "supabase" | "r2" | null
+  lesson_file_name?: string | null
+  lesson_file_mime_type?: string | null
+  lesson_file_size_bytes?: number | null
   estimated_minutes?: number
   starts_at?: string | null
   ends_at?: string | null

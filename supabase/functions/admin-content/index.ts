@@ -66,6 +66,12 @@ interface Body {
   lesson_type?: LessonType
   youtube_url?: string | null
   text_content?: string | null
+  lesson_file_storage_bucket?: string | null
+  lesson_file_storage_path?: string | null
+  lesson_file_storage_provider?: "supabase" | "r2" | null
+  lesson_file_name?: string | null
+  lesson_file_mime_type?: string | null
+  lesson_file_size_bytes?: number | null
   estimated_minutes?: number
   lesson_status?: LessonStatus
 
@@ -140,7 +146,7 @@ const moduleSelect =
   "id,product_id,title,description,module_type,access_type,position,sort_order,is_preview,is_required,starts_at,ends_at,release_days_after_enrollment,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,module_pdf_uploaded_at,status,created_at,updated_at"
 
 const lessonSelect =
-  "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
+  "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_name,lesson_file_mime_type,lesson_file_size_bytes,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
 
 const assessmentSelect =
   "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at"
@@ -496,6 +502,12 @@ Deno.serve(async (req) => {
           lesson_type: body.lesson_type ?? "text",
           youtube_url: normalizeNullableText(body.youtube_url),
           text_content: normalizeNullableText(body.text_content),
+          lesson_file_storage_bucket: normalizeNullableText(body.lesson_file_storage_bucket),
+          lesson_file_storage_path: normalizeNullableText(body.lesson_file_storage_path),
+          lesson_file_storage_provider: body.lesson_file_storage_provider ?? null,
+          lesson_file_name: normalizeNullableText(body.lesson_file_name),
+          lesson_file_mime_type: normalizeNullableText(body.lesson_file_mime_type),
+          lesson_file_size_bytes: normalizeNullableNumber(body.lesson_file_size_bytes),
           estimated_minutes: Number.isFinite(body.estimated_minutes) ? body.estimated_minutes : 0,
           starts_at: normalizeNullableTimestamp(body.starts_at),
           ends_at: normalizeNullableTimestamp(body.ends_at),
@@ -513,6 +525,14 @@ Deno.serve(async (req) => {
     if (body.action === "update_lesson") {
       const lessonId = requireUuid(body.lessonId, "lessonId")
 
+      const { data: existingLesson, error: existingLessonError } = await serviceClient
+        .from("product_lessons")
+        .select("id,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider")
+        .eq("id", lessonId)
+        .maybeSingle()
+      if (existingLessonError) throw existingLessonError
+      if (!existingLesson) throw badRequest("Aula nao encontrada")
+
       const payload: Record<string, unknown> = {}
       if (body.title !== undefined) payload.title = normalizeNullableText(body.title)
       if (body.description !== undefined) payload.description = normalizeNullableText(body.description)
@@ -521,6 +541,58 @@ Deno.serve(async (req) => {
       if (body.lesson_type !== undefined) payload.lesson_type = body.lesson_type
       if (body.youtube_url !== undefined) payload.youtube_url = normalizeNullableText(body.youtube_url)
       if (body.text_content !== undefined) payload.text_content = normalizeNullableText(body.text_content)
+      if (body.lesson_file_storage_bucket !== undefined) {
+        payload.lesson_file_storage_bucket = normalizeNullableText(body.lesson_file_storage_bucket)
+      }
+      if (body.lesson_file_storage_path !== undefined) {
+        payload.lesson_file_storage_path = normalizeNullableText(body.lesson_file_storage_path)
+      }
+      if (body.lesson_file_storage_provider !== undefined) {
+        payload.lesson_file_storage_provider = body.lesson_file_storage_provider
+      }
+      if (body.lesson_file_name !== undefined) {
+        payload.lesson_file_name = normalizeNullableText(body.lesson_file_name)
+      }
+      if (body.lesson_file_mime_type !== undefined) {
+        const mimeType = normalizeNullableText(body.lesson_file_mime_type)
+        if (mimeType !== null && mimeType !== "application/pdf") {
+          throw badRequest("O ficheiro principal da aula deve ser um PDF")
+        }
+        payload.lesson_file_mime_type = mimeType
+      }
+      if (body.lesson_file_size_bytes !== undefined) {
+        const fileSizeBytes = normalizeNullableNumber(body.lesson_file_size_bytes)
+        if (fileSizeBytes !== null && (!Number.isInteger(fileSizeBytes) || fileSizeBytes < 0)) {
+          throw badRequest("lesson_file_size_bytes invalido")
+        }
+        payload.lesson_file_size_bytes = fileSizeBytes
+      }
+
+      const hasFileFields = [
+        body.lesson_file_storage_bucket,
+        body.lesson_file_storage_path,
+        body.lesson_file_storage_provider,
+        body.lesson_file_name,
+        body.lesson_file_mime_type,
+        body.lesson_file_size_bytes,
+      ].some((value) => value !== undefined)
+      if (hasFileFields && body.lesson_file_storage_path !== undefined && body.lesson_file_storage_path !== null) {
+        if (!body.lesson_file_storage_bucket || !body.lesson_file_name || body.lesson_file_mime_type !== "application/pdf") {
+          throw badRequest("Os dados do ficheiro principal da aula estao incompletos")
+        }
+        if (body.lesson_file_size_bytes === undefined || body.lesson_file_size_bytes === null) {
+          throw badRequest("O tamanho do ficheiro principal da aula e obrigatorio")
+        }
+      }
+
+      if (body.lesson_type !== undefined && body.lesson_type !== "file" && !hasFileFields) {
+        payload.lesson_file_storage_bucket = null
+        payload.lesson_file_storage_path = null
+        payload.lesson_file_storage_provider = null
+        payload.lesson_file_name = null
+        payload.lesson_file_mime_type = null
+        payload.lesson_file_size_bytes = null
+      }
       if (body.estimated_minutes !== undefined) payload.estimated_minutes = body.estimated_minutes
       if (body.starts_at !== undefined) payload.starts_at = normalizeNullableTimestamp(body.starts_at)
       if (body.ends_at !== undefined) payload.ends_at = normalizeNullableTimestamp(body.ends_at)
@@ -534,13 +606,36 @@ Deno.serve(async (req) => {
         .single()
 
       if (error) throw error
+      if (
+        existingLesson.lesson_file_storage_path
+        && existingLesson.lesson_file_storage_path !== data.lesson_file_storage_path
+      ) {
+        await removeStorageObjectIfPresent(
+          serviceClient,
+          existingLesson.lesson_file_storage_bucket,
+          existingLesson.lesson_file_storage_path,
+          existingLesson.lesson_file_storage_provider,
+        )
+      }
       return jsonResponse({ success: true, request_id: requestId, lesson: data })
     }
 
     if (body.action === "delete_lesson") {
       const lessonId = requireUuid(body.lessonId, "lessonId")
+      const { data: existingLesson, error: existingLessonError } = await serviceClient
+        .from("product_lessons")
+        .select("id,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider")
+        .eq("id", lessonId)
+        .maybeSingle()
+      if (existingLessonError) throw existingLessonError
       const { error } = await serviceClient.from("product_lessons").delete().eq("id", lessonId)
       if (error) throw error
+      await removeStorageObjectIfPresent(
+        serviceClient,
+        existingLesson?.lesson_file_storage_bucket,
+        existingLesson?.lesson_file_storage_path,
+        existingLesson?.lesson_file_storage_provider,
+      )
       return jsonResponse({ success: true, request_id: requestId })
     }
 

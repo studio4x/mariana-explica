@@ -22,6 +22,7 @@ import {
 type UploadKind =
   | "module_pdf"
   | "module_asset"
+  | "lesson_file"
   | "product_cover"
   | "branding_asset"
   | "watermark_logo"
@@ -77,6 +78,8 @@ const PRIVATE_ASSET_ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
 ])
+
+const LESSON_FILE_ALLOWED_MIME_TYPES = new Set(["application/pdf"])
 
 const SUPPORT_ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -222,6 +225,42 @@ async function resolveModulePathMeta(
   }
 }
 
+async function resolveLessonFilePathMeta(
+  context: Awaited<ReturnType<typeof requireActiveUser>>,
+  lessonId: string,
+  fileNameBase: string,
+  extension: string,
+) {
+  const { data: lessonRow, error } = await context.serviceClient
+    .from("product_lessons")
+    .select("id,module_id,title,product_modules!inner(product_id)")
+    .eq("id", lessonId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!lessonRow) throw badRequest("Aula nao encontrada")
+
+  const moduleRow = Array.isArray(lessonRow.product_modules)
+    ? lessonRow.product_modules[0]
+    : lessonRow.product_modules
+  if (!moduleRow?.product_id) throw badRequest("Modulo da aula nao encontrado")
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+
+  return {
+    logicalBucket: COURSE_STORAGE_BUCKET,
+    storagePath: `products/${moduleRow.product_id}/modules/${lessonRow.module_id}/lessons/${lessonId}/file/${timestamp}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+    publicProxyKind: null as PublicProxyKind | null,
+    auditEntityType: "product_lesson",
+    auditEntityId: lessonId,
+    metadata: {
+      lesson_id: lessonId,
+      module_id: lessonRow.module_id,
+      product_id: moduleRow.product_id,
+    },
+  }
+}
+
 async function resolveUploadTarget(
   context: Awaited<ReturnType<typeof requireActiveUser>>,
   body: Body,
@@ -255,6 +294,20 @@ async function resolveUploadTarget(
     return {
       ...(await resolveModulePathMeta(context, String(body.entity_id ?? "").trim(), fileNameBase, extension, uploadKind)),
       mimeType,
+      fileName,
+      fileSizeBytes,
+    }
+  }
+
+  if (uploadKind === "lesson_file") {
+    requireAdminUpload(context)
+    if (!LESSON_FILE_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Apenas ficheiros PDF sao aceites para o ficheiro principal da aula.")
+    }
+
+    return {
+      ...(await resolveLessonFilePathMeta(context, String(body.entity_id ?? "").trim(), fileNameBase, extension)),
+      mimeType: "application/pdf",
       fileName,
       fileSizeBytes,
     }

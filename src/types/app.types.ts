@@ -1136,6 +1136,12 @@ export interface ProductLessonSummary {
   lesson_type: "video" | "text" | "hybrid" | "file"
   youtube_url: string | null
   text_content: string | null
+  lesson_file_storage_bucket: string | null
+  lesson_file_storage_path: string | null
+  lesson_file_storage_provider: "supabase" | "r2" | null
+  lesson_file_name: string | null
+  lesson_file_mime_type: string | null
+  lesson_file_size_bytes: number | null
   estimated_minutes: number
   starts_at: string | null
   ends_at: string | null

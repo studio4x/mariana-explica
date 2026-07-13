@@ -26,6 +26,7 @@ import {
   markAllNotificationsAsRead,
   replySupportTicket,
   requestAssetAccess,
+  requestLessonFileAccess,
   requestModulePdfAccess,
   requestStudentOrderRefund,
   saveAssessmentAttemptDraft,
@@ -635,6 +636,16 @@ export function useSupportAttachmentUrl() {
 export function useRequestAssetAccess() {
   return useMutation({
     mutationFn: requestAssetAccess,
+  })
+}
+
+export function useLessonFileAccess(lessonId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "lesson", lessonId, "file-access"],
+    queryFn: () => requestLessonFileAccess(lessonId ?? ""),
+    enabled: Boolean(lessonId),
+    staleTime: 4 * 60_000,
+    refetchOnWindowFocus: false,
   })
 }
 

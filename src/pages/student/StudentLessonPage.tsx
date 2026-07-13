@@ -12,6 +12,7 @@ import {
 } from "@/components/common"
 import {
   useAccessibleLesson,
+  useLessonFileAccess,
   useLessonNote,
   useModuleAssets,
   useRequestAssetAccess,
@@ -33,6 +34,11 @@ export function StudentLessonPage() {
   const lessonSummary = context.lessons.find((item) => item.id === lessonId) ?? null
   const module = lessonSummary ? context.modules.find((item) => item.id === lessonSummary.module_id) ?? null : null
   const lessonQuery = useAccessibleLesson(lessonSummary && !lessonSummary.is_locked ? lessonSummary.id : undefined)
+  const lessonFileAccess = useLessonFileAccess(
+    lessonQuery.data?.lesson_type === "file" && lessonQuery.data.lesson_file_storage_path
+      ? lessonQuery.data.id
+      : undefined,
+  )
   const assetsQuery = useModuleAssets(module && !module.is_locked ? module.id : undefined)
   const noteQuery = useLessonNote(lessonSummary?.id)
   const saveLessonNote = useSaveLessonNote()
@@ -160,6 +166,39 @@ export function StudentLessonPage() {
 
         <div className="mt-7 space-y-4">
           <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
+          {lesson.lesson_type === "file" && lesson.lesson_file_storage_path ? (
+            <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-4 md:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-slate-900">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <p className="font-semibold">Leitor de PDF</p>
+                </div>
+                {lesson.lesson_file_name ? <p className="text-sm text-slate-500">{lesson.lesson_file_name}</p> : null}
+              </div>
+              {lessonFileAccess.isLoading ? (
+                <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">
+                  A preparar o leitor de PDF...
+                </div>
+              ) : lessonFileAccess.isError ? (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <p>{lessonFileAccess.error instanceof Error ? lessonFileAccess.error.message : "Não foi possível abrir o PDF."}</p>
+                  <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => void lessonFileAccess.refetch()}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : lessonFileAccess.data?.url ? (
+                <iframe
+                  src={lessonFileAccess.data.url}
+                  title={lesson.lesson_file_name ?? lesson.title}
+                  className="mt-4 h-[min(760px,75vh)] w-full rounded-2xl border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                  O PDF principal ainda não está disponível.
+                </div>
+              )}
+            </div>
+          ) : null}
           {lesson.text_content ? (
             <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-6">
               <div className="flex items-center gap-2 text-slate-900">
@@ -168,7 +207,7 @@ export function StudentLessonPage() {
               </div>
               <LessonContentBlocksRenderer value={lesson.text_content} className="mt-3" />
             </div>
-          ) : lesson.lesson_type === "file" ? (
+          ) : lesson.lesson_type === "file" && !lesson.lesson_file_storage_path ? (
             <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-6">
               <div className="flex items-center gap-2 text-slate-900">
                 <FileText className="h-4 w-4" />

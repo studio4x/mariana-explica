@@ -6,6 +6,7 @@ export type StorageProvider = "supabase" | "r2"
 export type StorageUploadKind =
   | "module_pdf"
   | "module_asset"
+  | "lesson_file"
   | "product_cover"
   | "branding_asset"
   | "watermark_logo"

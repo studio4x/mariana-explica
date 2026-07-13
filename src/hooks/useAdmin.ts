@@ -92,6 +92,7 @@ import {
   fetchSupportAttachmentUrl,
   uploadSupportAttachment,
   uploadAdminModuleAssetFile,
+  uploadAdminLessonFile,
   uploadAdminModulePdf,
   uploadAdminProductCover,
   uploadAdminWatermarkLogoFile,
@@ -1204,6 +1205,11 @@ export function useUpdateAdminProductAssessment() {
 export function useDeleteAdminModuleAsset() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminModuleAsset, onSuccess: invalidate })
+}
+
+export function useUploadAdminLessonFile() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({ mutationFn: uploadAdminLessonFile, onSuccess: invalidate })
 }
 
 export function useDeleteAdminLessonStorageObject() {

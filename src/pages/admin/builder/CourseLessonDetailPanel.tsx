@@ -12,12 +12,12 @@ import {
   useCreateAdminModuleAsset,
   useDeleteAdminProductLesson,
   useUpdateAdminProductLesson,
-  useUploadAdminModuleAssetFile,
+  useUploadAdminLessonFile,
 } from "@/hooks/useAdmin"
 import { makeLessonVideoAssetValue } from "@/lib/lesson-video"
 import { adminCourseLessonAdditionalResourcesPath, adminCourseModulePath } from "@/lib/routes"
 import type { AdminR2ListedObject } from "@/services/admin.service"
-import type { ModuleAssetSummary, ProductLessonSummary } from "@/types/app.types"
+import type { ProductLessonSummary } from "@/types/app.types"
 
 function toDateTimeLocal(value: string | null | undefined) {
   if (!value) return ""
@@ -55,14 +55,6 @@ const LESSON_TYPE_OPTIONS: Array<{
   { value: "hybrid", title: "Vídeo + Texto", description: "Combina vídeo, leitura e contexto editorial." },
   { value: "file", title: "Apenas Ficheiro", description: "O consumo principal fica concentrado nos materiais protegidos." },
 ]
-
-function inferAssetType(file: File): ModuleAssetSummary["asset_type"] {
-  if (file.type.startsWith("video/")) {
-    return "video_file"
-  }
-
-  return "pdf"
-}
 
 function buildAssetSortOrder() {
   // `module_assets.sort_order` is an integer column; epoch seconds stay within range.
@@ -164,7 +156,7 @@ export function CourseLessonDetailPanel() {
   const lessonsQuery = useAdminProductLessons(moduleId)
   const updateLesson = useUpdateAdminProductLesson()
   const deleteLesson = useDeleteAdminProductLesson()
-  const uploadAssetFile = useUploadAdminModuleAssetFile()
+  const uploadLessonFile = useUploadAdminLessonFile()
   const moduleAssetUploadLimitQuery = useAdminModuleAssetUploadLimit(moduleId)
   const createSignedVideoUpload = useCreateAdminModuleAssetSignedUpload()
   const createAsset = useCreateAdminModuleAsset()
@@ -246,6 +238,12 @@ export function CourseLessonDetailPanel() {
     lesson_type: form.lesson_type ?? lesson.lesson_type,
     youtube_url: form.youtube_url ?? lesson.youtube_url ?? "",
     text_content: form.text_content ?? lesson.text_content ?? "",
+    lesson_file_storage_bucket: form.lesson_file_storage_bucket ?? lesson.lesson_file_storage_bucket ?? null,
+    lesson_file_storage_path: form.lesson_file_storage_path ?? lesson.lesson_file_storage_path ?? null,
+    lesson_file_storage_provider: form.lesson_file_storage_provider ?? lesson.lesson_file_storage_provider ?? null,
+    lesson_file_name: form.lesson_file_name ?? lesson.lesson_file_name ?? null,
+    lesson_file_mime_type: form.lesson_file_mime_type ?? lesson.lesson_file_mime_type ?? null,
+    lesson_file_size_bytes: form.lesson_file_size_bytes ?? lesson.lesson_file_size_bytes ?? null,
     estimated_minutes: form.estimated_minutes ?? lesson.estimated_minutes,
     starts_at: String(form.starts_at ?? toDateTimeLocal(lesson.starts_at)),
     ends_at: String(form.ends_at ?? toDateTimeLocal(lesson.ends_at)),
@@ -338,6 +336,12 @@ export function CourseLessonDetailPanel() {
     text_content?: string | null
     youtube_url?: string | null
     lesson_type?: ProductLessonSummary["lesson_type"]
+    lesson_file_storage_bucket?: string | null
+    lesson_file_storage_path?: string | null
+    lesson_file_storage_provider?: "supabase" | "r2" | null
+    lesson_file_name?: string | null
+    lesson_file_mime_type?: string | null
+    lesson_file_size_bytes?: number | null
   }) => {
     const latestDescription = descriptionEditorRef.current?.flush()
     const latestTextContent = textContentEditorRef.current?.flush()
@@ -361,6 +365,12 @@ export function CourseLessonDetailPanel() {
       lesson_type: lessonType,
       youtube_url: normalizedYoutube,
       text_content: normalizedText,
+      lesson_file_storage_bucket: overrides.lesson_file_storage_bucket ?? values.lesson_file_storage_bucket,
+      lesson_file_storage_path: overrides.lesson_file_storage_path ?? values.lesson_file_storage_path,
+      lesson_file_storage_provider: overrides.lesson_file_storage_provider ?? values.lesson_file_storage_provider,
+      lesson_file_name: overrides.lesson_file_name ?? values.lesson_file_name,
+      lesson_file_mime_type: overrides.lesson_file_mime_type ?? values.lesson_file_mime_type,
+      lesson_file_size_bytes: overrides.lesson_file_size_bytes ?? values.lesson_file_size_bytes,
       estimated_minutes: Number(values.estimated_minutes || 0),
       starts_at: values.starts_at || null,
       ends_at: values.ends_at || null,
@@ -375,6 +385,12 @@ export function CourseLessonDetailPanel() {
       lesson_type: updatedLesson.lesson_type,
       description: updatedLesson.description,
       text_content: updatedLesson.text_content,
+      lesson_file_storage_bucket: updatedLesson.lesson_file_storage_bucket,
+      lesson_file_storage_path: updatedLesson.lesson_file_storage_path,
+      lesson_file_storage_provider: updatedLesson.lesson_file_storage_provider,
+      lesson_file_name: updatedLesson.lesson_file_name,
+      lesson_file_mime_type: updatedLesson.lesson_file_mime_type,
+      lesson_file_size_bytes: updatedLesson.lesson_file_size_bytes,
     }))
     setVideoSourceMode(savedSourceIsAsset ? "upload" : "url")
     setVideoUrlDraft(savedSourceIsAsset ? "" : savedSource)
@@ -407,26 +423,38 @@ export function CourseLessonDetailPanel() {
     setUploadMessage(null)
 
     try {
-      const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
-      await createAsset.mutateAsync({
-        moduleId,
-        asset_type: inferAssetType(file),
-        title: `${values.title?.trim() || lesson.title} - ${upload.file_name.replace(/\.[^.]+$/, "")}`,
-        sort_order_asset: buildAssetSortOrder(),
-        storage_bucket: upload.bucket,
-        storage_path: upload.path,
-        storage_provider: upload.storage_provider ?? "r2",
-        external_url: null,
-        mime_type: upload.mime_type,
-        file_size_bytes: upload.file_size_bytes,
-        allow_download: !file.type.startsWith("video/"),
-        allow_stream: true,
-        watermark_enabled: false,
-        asset_status: "active",
+      if (file.type !== "application/pdf") {
+        throw new Error("Apenas ficheiros PDF sao aceites como ficheiro principal da aula.")
+      }
+
+      const upload = await uploadLessonFile.mutateAsync({
+        lessonId: lesson.id,
+        file,
+        replacePath: values.lesson_file_storage_path,
       })
-      await persistLessonAfterUpload({ lesson_type: "file", youtube_url: null, text_content: null })
+      await persistLessonAfterUpload({
+        lesson_type: "file",
+        youtube_url: null,
+        text_content: null,
+        lesson_file_storage_bucket: upload.bucket,
+        lesson_file_storage_path: upload.path,
+        lesson_file_storage_provider: upload.storage_provider ?? "r2",
+        lesson_file_name: upload.file_name,
+        lesson_file_mime_type: upload.mime_type ?? "application/pdf",
+        lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
+      })
       setUploadMessage("Ficheiro enviado e aula guardada automaticamente. Ele já esta disponível na Área de materiais deste módulo.")
-      setForm((prev) => ({ ...prev, lesson_type: "file" }))
+      setUploadMessage("PDF enviado e guardado diretamente nesta aula. Ele ja esta disponivel no leitor de PDF do player.")
+      setForm((prev) => ({
+        ...prev,
+        lesson_type: "file",
+        lesson_file_storage_bucket: upload.bucket,
+        lesson_file_storage_path: upload.path,
+        lesson_file_storage_provider: upload.storage_provider ?? "r2",
+        lesson_file_name: upload.file_name,
+        lesson_file_mime_type: upload.mime_type ?? "application/pdf",
+        lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
+      }))
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o ficheiro.")
     } finally {
@@ -948,11 +976,11 @@ export function CourseLessonDetailPanel() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-sm font-semibold text-slate-950">Enviar ficheiro</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  O upload cria um material protegido dentro do módulo atual e a aula passa a depender desse ficheiro no player.
+                  O upload guarda um PDF protegido diretamente nesta aula. O aluno poderá visualizá-lo no leitor de PDF do player.
                 </p>
                 <input
                   type="file"
-                  accept="application/pdf,v?deo/mp4,v?deo/webm,image/png,image/jpeg"
+                  accept="application/pdf"
                   onChange={handleFileSelection}
                   className="mt-4 text-sm"
                 />
@@ -961,11 +989,6 @@ export function CourseLessonDetailPanel() {
                     {uploadMessage}
                   </div>
                 ) : null}
-                <Button asChild variant="outline" className="mt-4 rounded-full">
-                  <Link to={adminCourseLessonAdditionalResourcesPath(courseId, moduleId, lesson.id)}>
-                    Abrir recursos adicionais da aula
-                  </Link>
-                </Button>
               </div>
             </section>
           ) : null}

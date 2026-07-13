@@ -106,7 +106,7 @@ async function fetchLessonsByModuleIds(moduleIds: string[]) {
   const { data, error } = await supabase
     .from("product_lessons")
     .select(
-      "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,estimated_minutes,starts_at,ends_at,status",
+      "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_name,lesson_file_mime_type,lesson_file_size_bytes,estimated_minutes,starts_at,ends_at,status",
     )
     .in("module_id", moduleIds)
     .order("position", { ascending: true })
@@ -921,6 +921,27 @@ export function requestStudentOrderRefund(input: { orderId: string; message?: st
     action: "request_refund",
     ...input,
   })
+}
+
+export async function requestLessonFileAccess(lessonId: string) {
+  const headers = await getFunctionAuthHeaders()
+  const { data, error } = await supabase.functions.invoke("generate-asset-access", {
+    body: { lessonId },
+    headers,
+  })
+
+  if (error) throw error
+
+  return data as {
+    success: true
+    mode: "signed_url"
+    url: string
+    file_name: string | null
+    allow_download: boolean
+    allow_stream: boolean
+    watermark_enabled: boolean
+    expires_in_seconds: number
+  }
 }
 
 export async function markNotificationAsRead(notificationId: string) {

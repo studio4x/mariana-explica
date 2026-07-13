@@ -57,6 +57,12 @@ Campos relevantes:
 - `lesson_type text not null default 'text'`
 - `youtube_url text null`
 - `text_content text null`
+- `lesson_file_storage_bucket text null`
+- `lesson_file_storage_path text null`
+- `lesson_file_storage_provider text null`
+- `lesson_file_name text null`
+- `lesson_file_mime_type text null`
+- `lesson_file_size_bytes bigint null`
 - `estimated_minutes integer not null default 0`
 - `starts_at timestamptz null`
 - `ends_at timestamptz null`
@@ -150,19 +156,19 @@ Persistencia ao salvar:
 
 Comportamento:
 
-- consumo principal orientado para materiais protegidos do modulo.
-- nao usa player de video como fonte principal da aula.
+- consumo principal orientado para um PDF protegido ligado diretamente à aula.
+- nao cria nem reutiliza `module_assets`.
+- o player solicita uma URL assinada e renderiza o PDF num leitor embutido.
 
 Persistencia ao salvar:
 
 - `lesson_type = "file"`
 - `youtube_url = null`
 - `text_content = null`
+- `lesson_file_storage_bucket + lesson_file_storage_path` apontam para o PDF privado
+- `lesson_file_name`, `lesson_file_mime_type` e `lesson_file_size_bytes` guardam os metadados do ficheiro
 
-Observacao importante de modelagem atual:
-
-- `module_assets` pertence ao **modulo**, nao a uma aula especifica.
-- logo, aula `file` consome o conjunto de materiais do modulo.
+`module_assets` continua reservado aos recursos adicionais do modulo; o ficheiro principal da aula nao aparece em `Materiais da aula`.
 
 ---
 
@@ -225,10 +231,10 @@ Comportamento de consumo:
 
 1. sempre tenta renderizar `LessonPrimaryMedia` com `lesson.youtube_url`
 2. se `lesson.text_content` existir, renderiza bloco textual
-3. se `lesson_type === "file"` e sem `text_content`, mostra card informando consumo via materiais
+3. se `lesson_type === "file"` e houver `lesson_file_storage_path`, solicita acesso via `generate-asset-access` e renderiza o leitor de PDF
 4. secao "Materiais da aula" lista:
    - PDF base do modulo (quando houver)
-   - todos os `module_assets` do modulo
+   - recursos adicionais (`module_assets`) do modulo, sem o ficheiro principal da aula
 
 Abertura de material:
 
