@@ -25,6 +25,13 @@ export interface StripeCheckoutSessionParams {
   customer_email?: string
 }
 
+// MB WAY became available on Checkout Sessions in this Stripe API version.
+// Keep the value configurable so the account can move to a newer API version
+// without requiring another code change.
+function getStripeCheckoutApiVersion() {
+  return Deno.env.get("STRIPE_CHECKOUT_API_VERSION")?.trim() || "2025-10-29.clover"
+}
+
 export function getStripeEnvironment(): StripeEnvironment {
   const explicit = Deno.env.get("STRIPE_MODE")?.trim().toLowerCase()
   if (explicit === "test" || explicit === "live") {
@@ -208,7 +215,11 @@ export async function createStripeCheckoutSession(
   form.set("mode", params.mode ?? "payment")
   form.set("success_url", params.success_url)
   form.set("cancel_url", params.cancel_url)
-  form.set("payment_method_types[0]", "card")
+
+  // Leave payment_method_types unset so Stripe Checkout uses the payment
+  // methods enabled in the Dashboard and filters them by currency and other
+  // eligibility rules. This is required for MB WAY to appear for EUR orders
+  // without preventing other eligible methods from being displayed.
 
   params.line_items.forEach((lineItem, index) => {
     form.set(`line_items[${index}][quantity]`, String(lineItem.quantity))
@@ -251,6 +262,7 @@ export async function createStripeCheckoutSession(
     headers: {
       Authorization: `Bearer ${secret}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Version": getStripeCheckoutApiVersion(),
     },
     body: form.toString(),
   })
