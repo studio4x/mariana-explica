@@ -14,7 +14,7 @@ import {
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
 import { buildCoursePlayerEntries } from "@/lib/course-helpers"
-import { getAssetActionLabel, getAssetTypeLabel } from "@/lib/product-presentation"
+import { getAssetActionLabel, getAssetTypeLabel, getLessonTypeLabel } from "@/lib/product-presentation"
 import {
   studentCourseAssessmentPath,
   studentCourseLessonPath,
@@ -132,58 +132,50 @@ export function StudentLessonPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{module.title}</p>
-            <h1 className="mt-2 font-display text-3xl font-bold text-slate-950">{lesson.title}</h1>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">{module.title}</p>
+            <h1 className="mt-2 font-display text-3xl font-black leading-tight text-slate-950 md:text-5xl">{lesson.title}</h1>
             <RichTextContent
               value={lesson.description}
               fallback="Aula pronta para leitura, vídeo e continuidade do estudo."
-              className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
+              className="mt-4 max-w-4xl text-base leading-8 text-slate-600"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             <StatusBadge
-              label={
-                lesson.lesson_type === "hybrid"
-                  ? "Híbrida"
-                  : lesson.lesson_type === "video"
-                    ? "Vídeo"
-                    : lesson.lesson_type === "file"
-                      ? "Ficheiro"
-                      : "Texto"
-              }
+              label={getLessonTypeLabel(lesson.lesson_type)}
               tone="info"
             />
             <StatusBadge label={`${lesson.estimated_minutes} min`} tone="warning" />
           </div>
         </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-7 space-y-4">
           <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
           {lesson.text_content ? (
-            <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
+            <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-6">
               <div className="flex items-center gap-2 text-slate-900">
                 <FileText className="h-4 w-4" />
-                <p className="font-medium">Conteúdo textual</p>
+                <p className="font-semibold">Conteúdo textual</p>
               </div>
               <LessonContentBlocksRenderer value={lesson.text_content} className="mt-3" />
             </div>
           ) : lesson.lesson_type === "file" ? (
-            <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
+            <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-6">
               <div className="flex items-center gap-2 text-slate-900">
                 <FileText className="h-4 w-4" />
-                <p className="font-medium">Conteúdo principal em ficheiro</p>
+                <p className="font-semibold">Conteúdo principal em ficheiro</p>
               </div>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Abra os materiais protegidos abaixo para consumir esta aula.
+                Abre os materiais protegidos abaixo para consumir esta aula.
               </p>
             </div>
           ) : null}
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-7 flex flex-wrap items-end gap-3">
           <div className="mr-auto min-w-[220px]">
             <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
               <span>Progresso da aula</span>
@@ -193,13 +185,13 @@ export function StudentLessonPage() {
               <div className="h-full rounded-full bg-[#1398B7] transition-all duration-300" style={{ width: `${displayedProgress}%` }} />
             </div>
           </div>
-          <Button type="button" className="rounded-full" onClick={() => void handleProgress("in_progress")} disabled={progressMutation.isPending || isLessonCompleted}>
+          <Button type="button" className="h-11 rounded-full bg-[#242742] px-5 font-bold hover:bg-[#1b1d38]" onClick={() => void handleProgress("in_progress")} disabled={progressMutation.isPending || isLessonCompleted}>
             {progressMutation.isPending && progressMutation.variables?.status === "in_progress" ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
             {displayedStatus === "in_progress" ? "Em progresso" : "Marcar em progresso"}
           </Button>
-          <Button type="button" variant={isLessonCompleted ? "default" : "outline"} className="rounded-full" onClick={() => void handleProgress("completed")} disabled={progressMutation.isPending || isLessonCompleted}>
+          <Button type="button" variant={isLessonCompleted ? "default" : "outline"} className="h-11 rounded-full px-5 font-bold" onClick={() => void handleProgress("completed")} disabled={progressMutation.isPending || isLessonCompleted}>
             {progressMutation.isPending && progressMutation.variables?.status === "completed" ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : isLessonCompleted ? (
@@ -211,28 +203,28 @@ export function StudentLessonPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
           <div className="flex items-center gap-2">
             <StickyNote className="h-4 w-4 text-slate-900" />
-            <h2 className="font-display text-2xl font-bold text-slate-950">Anotacoes da aula</h2>
+            <h2 className="font-display text-2xl font-black text-slate-950">Anotações da aula</h2>
           </div>
           <textarea
             rows={10}
             value={currentNote}
             onChange={(event) => setNoteText(event.target.value)}
             placeholder="Regista aqui os pontos importantes desta aula."
-            className="mt-4 w-full rounded-2xl border bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-400"
+            className="mt-4 min-h-56 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
           />
-          <Button type="button" className="mt-4 rounded-full" onClick={() => void handleSaveNote()} disabled={saveLessonNote.isPending}>
-            {saveLessonNote.isPending ? "A guardar..." : "Guardar anotacoes"}
+          <Button type="button" className="mt-4 rounded-full bg-[#242742] font-bold hover:bg-[#1b1d38]" onClick={() => void handleSaveNote()} disabled={saveLessonNote.isPending}>
+            {saveLessonNote.isPending ? "A guardar..." : "Guardar anotações"}
           </Button>
         </section>
 
-        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
-          <h2 className="font-display text-2xl font-bold text-slate-950">Materiais da aula</h2>
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+          <h2 className="font-display text-2xl font-black text-slate-950">Materiais da aula</h2>
           <div className="mt-4 space-y-3">
             {module.module_pdf_file_name ? (
-              <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
+              <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -240,7 +232,7 @@ export function StudentLessonPage() {
                       <StatusBadge label="PDF base do módulo" tone="warning" />
                     </div>
                     <p className="mt-2 text-sm text-slate-600">
-                      Acesso licenciado por aluno com URL temporaria e auditavel.
+                      Material protegido ligado ao módulo atual.
                     </p>
                   </div>
                   <Button
@@ -249,7 +241,7 @@ export function StudentLessonPage() {
                     onClick={() => void handleModulePdfOpen()}
                     disabled={modulePdfAccess.isPending}
                   >
-                    {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF base"}
+                    {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF"}
                   </Button>
                 </div>
               </div>
@@ -259,13 +251,13 @@ export function StudentLessonPage() {
                 title="Sem materiais adicionais"
                 message={
                   module.module_pdf_file_name
-                    ? "O PDF base do módulo já esta disponível acima."
+                    ? "O PDF base do módulo já está disponível acima."
                     : "Quando houver PDFs, links ou vídeos de apoio, eles aparecem aqui."
                 }
               />
             ) : (
               assets.map((asset) => (
-                <div key={asset.id} className="rounded-2xl border bg-slate-50/70 p-4">
+                <div key={asset.id} className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -285,11 +277,11 @@ export function StudentLessonPage() {
         </section>
       </div>
 
-      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Navegação do player</h2>
-            <p className="mt-1 text-sm text-slate-600">Avanca pela trilha respeitando a estrutura do material.</p>
+            <h2 className="font-display text-2xl font-black text-slate-950">Navegação do player</h2>
+            <p className="mt-1 text-sm text-slate-600">Avança pela trilha respeitando a estrutura do material.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             {previousEntry ? (

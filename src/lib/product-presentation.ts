@@ -1,6 +1,7 @@
 ﻿import type {
   DashboardProductSummary,
   ModuleAssetSummary,
+  ProductLessonSummary,
   ProductModuleSummary,
 } from "@/types/app.types"
 import type { ProductSummary, ProductType } from "@/types/product.types"
@@ -408,6 +409,21 @@ export function getModuleTypeLabel(moduleType: ProductModuleSummary["module_type
       return "Módulo misto"
     default:
       return "Módulo"
+  }
+}
+
+export function getLessonTypeLabel(lessonType: ProductLessonSummary["lesson_type"]) {
+  switch (lessonType) {
+    case "video":
+      return "Vídeo"
+    case "text":
+      return "Texto"
+    case "hybrid":
+      return "Híbrida"
+    case "file":
+      return "Ficheiro"
+    default:
+      return "Aula"
   }
 }
 
