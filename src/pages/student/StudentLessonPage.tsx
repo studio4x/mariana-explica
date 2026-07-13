@@ -187,11 +187,23 @@ export function StudentLessonPage() {
                   </Button>
                 </div>
               ) : lessonFileAccess.data?.url ? (
+                <>
+                  <div className="mt-4 flex justify-end">
+                    <a
+                      href={lessonFileAccess.data.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                    >
+                      Abrir PDF em nova aba
+                    </a>
+                  </div>
                 <iframe
                   src={lessonFileAccess.data.url}
                   title={lesson.lesson_file_name ?? lesson.title}
                   className="mt-4 h-[min(760px,75vh)] w-full rounded-2xl border border-slate-200 bg-white"
                 />
+                </>
               ) : (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
                   O PDF principal ainda não está disponível.

@@ -1163,6 +1163,14 @@ export function CourseLessonDetailPanel() {
                   </div>
                 ) : lessonFilePreviewUrl ? (
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <a
+                      href={lessonFilePreviewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mb-3 block text-sm font-semibold text-sky-700 hover:text-sky-900"
+                    >
+                      Abrir PDF em nova aba
+                    </a>
                     <p className="mb-3 text-sm font-semibold text-slate-950">Visualização do PDF</p>
                     <iframe
                       src={lessonFilePreviewUrl}
