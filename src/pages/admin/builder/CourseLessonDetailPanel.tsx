@@ -191,6 +191,7 @@ export function CourseLessonDetailPanel() {
     () => lessons.find((item) => item.id === lessonId) ?? null,
     [lessonId, lessons],
   )
+  const requestLessonFilePreview = lessonFileAccess.mutateAsync
   const pendingVideoPreviewUrl = useMemo(
     () => (pendingVideoFile ? URL.createObjectURL(pendingVideoFile) : null),
     [pendingVideoFile],
@@ -243,8 +244,7 @@ export function CourseLessonDetailPanel() {
     let isActive = true
     lessonFilePreviewRequestPathRef.current = draftLessonFilePath
 
-    void lessonFileAccess
-      .mutateAsync(lesson.id)
+    void requestLessonFilePreview(lesson.id)
       .then((access) => {
         if (isActive) {
           setLessonFilePreviewUrl(access.url)
@@ -260,7 +260,14 @@ export function CourseLessonDetailPanel() {
     return () => {
       isActive = false
     }
-  }, [form.lesson_file_storage_path, form.lesson_type, lesson, lessonFileAccess, lessonFilePreviewUrl])
+  }, [
+    form.lesson_file_storage_path,
+    form.lesson_type,
+    lesson?.id,
+    lesson?.lesson_file_storage_path,
+    lesson?.lesson_type,
+    requestLessonFilePreview,
+  ])
 
   if (!courseId || !moduleId || !lessonId) {
     return <EmptyState title="Aula inválida" message="Seleciona uma aula válida na Árvore do builder." />
@@ -1152,9 +1159,36 @@ export function CourseLessonDetailPanel() {
                   onUpload={handleMediaLibraryLessonFileUpload}
                   onSelect={handleMediaLibraryLessonFileSelect}
                 />
+                {values.lesson_file_storage_path ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-emerald-950">Ficheiro guardado nesta aula</p>
+                      <StatusBadge label="PDF protegido" tone="success" />
+                    </div>
+                    <p className="mt-1 break-all text-sm text-emerald-800">
+                      {values.lesson_file_name ?? "PDF principal da aula"}
+                    </p>
+                    {values.lesson_file_size_bytes ? (
+                      <p className="mt-1 text-xs text-emerald-700">
+                        {formatBytes(values.lesson_file_size_bytes)} · disponível no leitor do player
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Ainda não há um PDF guardado nesta aula.
+                  </div>
+                )}
                 {uploadMessage ? (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                     {uploadMessage}
+                  </div>
+                ) : null}
+                {lessonFileAccess.isError ? (
+                  <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                    Não foi possível preparar o leitor do PDF: {lessonFileAccess.error instanceof Error
+                      ? lessonFileAccess.error.message
+                      : "erro desconhecido"}
                   </div>
                 ) : null}
                 {lessonFileAccess.isPending ? (
