@@ -393,16 +393,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    try {
-      await supabase.auth.signOut()
-    } catch {
-      // Ignore sign-out failures when Supabase is unavailable.
-    }
+    // O logout visual não deve depender da latência da rede. Invalida
+    // qualquer sincronização de sessão em andamento antes de limpar o estado.
+    requestIdRef.current += 1
     clearSessionArtifacts()
     setProfile(null)
     setUser(null)
     setSession(null)
     clearAuthenticatedQueryCache()
+
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // Ignore sign-out failures when Supabase is unavailable.
+    }
   }, [])
 
   const refreshSession = useCallback(async () => {
