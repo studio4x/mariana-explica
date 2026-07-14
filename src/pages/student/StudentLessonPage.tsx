@@ -171,7 +171,7 @@ export function StudentLessonPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 text-slate-900">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  <p className="font-semibold">Leitor de PDF</p>
+                  <p className="font-semibold">Material da Aula</p>
                 </div>
                 {lesson.lesson_file_name ? <p className="text-sm text-slate-500">{lesson.lesson_file_name}</p> : null}
               </div>
