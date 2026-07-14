@@ -29,6 +29,48 @@ import type {
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
 
+async function getFunctionErrorMessage(error: unknown, fallback: string) {
+  const context =
+    error && typeof error === "object" && "context" in error
+      ? (error as { context?: unknown }).context
+      : null
+
+  if (context instanceof Response) {
+    const rawBody = await context.clone().text().catch(() => "")
+
+    if (rawBody) {
+      try {
+        const payload = JSON.parse(rawBody) as {
+          message?: unknown
+          code?: unknown
+          request_id?: unknown
+        }
+        const message = typeof payload.message === "string" ? payload.message.trim() : ""
+        const code = typeof payload.code === "string" ? payload.code.trim() : ""
+        const requestId = typeof payload.request_id === "string" ? payload.request_id.trim() : ""
+
+        if (message) {
+          const diagnostics = [code && `código: ${code}`, requestId && `referência: ${requestId}`]
+            .filter(Boolean)
+            .join("; ")
+          return diagnostics ? `${message} (${diagnostics})` : message
+        }
+      } catch {
+        const message = rawBody.trim()
+        if (message) return message
+      }
+    }
+
+    return `${fallback} (HTTP ${context.status}).`
+  }
+
+  if (error instanceof Error && error.message && !error.message.includes("non-2xx")) {
+    return error.message
+  }
+
+  return fallback
+}
+
 async function getCurrentUserId() {
   const { data } = await supabase.auth.getSession()
   const userId = data.session?.user?.id
@@ -729,7 +771,7 @@ export async function requestAssetAccess(assetId: string) {
   })
 
   if (error) {
-    throw error
+    throw new Error(await getFunctionErrorMessage(error, "Não foi possível autorizar o acesso ao material."))
   }
 
   return data as {
@@ -930,7 +972,9 @@ export async function requestLessonFileAccess(lessonId: string) {
     headers,
   })
 
-  if (error) throw error
+  if (error) {
+    throw new Error(await getFunctionErrorMessage(error, "Não foi possível autorizar o acesso ao ficheiro da aula."))
+  }
 
   return data as {
     success: true
