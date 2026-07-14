@@ -177,7 +177,7 @@ export function StudentLessonPage() {
               </div>
               {lessonFileAccess.isLoading ? (
                 <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">
-                  A preparar o leitor de PDF...
+                  A preparar o Material da Aula...
                 </div>
               ) : lessonFileAccess.isError ? (
                 <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
