@@ -14,6 +14,7 @@ import {
   getStripeChargeByPaymentIntent,
   extractRequestAuditContext,
   getStripeCheckoutSession,
+  getStripeInvoice,
   getStripePaymentIntent,
   revokeActiveGrantForOrder,
   requireActiveUser,
@@ -42,6 +43,7 @@ type StudentOrderRow = {
   payment_reference: string | null
   checkout_session_id: string | null
   payment_environment: "test" | "live"
+  stripe_invoice_id: string | null
   paid_at: string | null
   refunded_at: string | null
   created_at: string
@@ -80,7 +82,7 @@ async function fetchOwnedOrder(
   const { data, error } = await serviceClient
     .from("orders")
     .select(
-      "id,user_id,product_id,status,currency,final_price_cents,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at,created_at,products:product_id(title)",
+      "id,user_id,product_id,status,currency,final_price_cents,payment_reference,checkout_session_id,payment_environment,stripe_invoice_id,paid_at,refunded_at,created_at,products:product_id(title)",
     )
     .eq("id", orderId)
     .eq("user_id", userId)
@@ -98,6 +100,14 @@ async function fetchOwnedOrder(
 }
 
 async function resolveReceiptUrl(order: StudentOrderRow) {
+  if (order.stripe_invoice_id) {
+    const invoice = await getStripeInvoice(order.stripe_invoice_id, {
+      mode: order.payment_environment,
+    })
+    const invoiceUrl = invoice.hosted_invoice_url ?? invoice.invoice_pdf
+    if (invoiceUrl) return invoiceUrl
+  }
+
   let paymentIntentId = order.payment_reference?.startsWith("pi_")
     ? order.payment_reference
     : null

@@ -30,6 +30,10 @@ function isRefundAvailable(payment: StudentPaymentSummary) {
   return Date.now() - timestamp <= 7 * 24 * 60 * 60 * 1000
 }
 
+function getChargedAmount(payment: StudentPaymentSummary) {
+  return payment.total_paid_cents ?? payment.final_price_cents
+}
+
 export function DashboardPayments() {
   const paymentsQuery = usePaymentHistory()
   const receiptMutation = useStudentOrderReceipt()
@@ -56,7 +60,7 @@ export function DashboardPayments() {
   const payments = paymentsQuery.data ?? []
   const totalPaidCents = payments
     .filter((payment) => payment.status === "paid")
-    .reduce((sum, payment) => sum + payment.final_price_cents, 0)
+    .reduce((sum, payment) => sum + getChargedAmount(payment), 0)
   const currency = payments[0]?.currency ?? "EUR"
 
   const openReceipt = async (payment: StudentPaymentSummary) => {
@@ -173,7 +177,7 @@ export function DashboardPayments() {
                       tone={payment.status === "paid" ? "success" : payment.status === "refunded" ? "warning" : "neutral"}
                     />
                     <p className="text-lg font-bold text-slate-950">
-                      {formatProductPrice(payment.final_price_cents, payment.currency)}
+                      {formatProductPrice(getChargedAmount(payment), payment.currency)}
                     </p>
                     <div className="flex flex-wrap justify-start gap-2 md:justify-end">
                       <Button
@@ -228,7 +232,7 @@ export function DashboardPayments() {
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{refundPayment.product_title ?? "Material"}</p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Pedido {refundPayment.id.slice(0, 8)} · {formatProductPrice(refundPayment.final_price_cents, refundPayment.currency)}
+                    Pedido {refundPayment.id.slice(0, 8)} · {formatProductPrice(getChargedAmount(refundPayment), refundPayment.currency)}
                   </p>
                 </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">

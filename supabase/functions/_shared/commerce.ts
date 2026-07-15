@@ -54,6 +54,9 @@ export interface OrderRow {
   payment_reference: string | null
   checkout_session_id: string | null
   payment_environment: "test" | "live"
+  tax_amount_cents: number
+  total_paid_cents: number | null
+  stripe_invoice_id: string | null
 }
 
 export interface OrderTotals {
@@ -338,7 +341,7 @@ export async function createOrderWithItems(
       paid_at: params.paidAt ?? null,
     })
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
     )
     .single()
 
@@ -484,6 +487,9 @@ export async function updateOrderAfterPayment(
     orderId: string
     paymentReference: string
     paidAt: string
+    taxAmountCents?: number
+    totalPaidCents?: number | null
+    stripeInvoiceId?: string | null
   },
 ) {
   const { data, error } = await client
@@ -492,10 +498,13 @@ export async function updateOrderAfterPayment(
       status: "paid",
       payment_reference: params.paymentReference,
       paid_at: params.paidAt,
+      ...(params.taxAmountCents !== undefined ? { tax_amount_cents: params.taxAmountCents } : {}),
+      ...(params.totalPaidCents !== undefined ? { total_paid_cents: params.totalPaidCents } : {}),
+      ...(params.stripeInvoiceId !== undefined ? { stripe_invoice_id: params.stripeInvoiceId } : {}),
     })
     .eq("id", params.orderId)
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
     )
     .single()
 
@@ -538,6 +547,9 @@ export async function updateOrderStatus(
     paymentReference?: string | null
     paidAt?: string | null
     refundedAt?: string | null
+    taxAmountCents?: number
+    totalPaidCents?: number | null
+    stripeInvoiceId?: string | null
   },
 ) {
   const { data, error } = await client
@@ -547,10 +559,13 @@ export async function updateOrderStatus(
       payment_reference: params.paymentReference ?? undefined,
       paid_at: params.paidAt === undefined ? undefined : params.paidAt,
       refunded_at: params.refundedAt === undefined ? undefined : params.refundedAt,
+      ...(params.taxAmountCents !== undefined ? { tax_amount_cents: params.taxAmountCents } : {}),
+      ...(params.totalPaidCents !== undefined ? { total_paid_cents: params.totalPaidCents } : {}),
+      ...(params.stripeInvoiceId !== undefined ? { stripe_invoice_id: params.stripeInvoiceId } : {}),
     })
     .eq("id", params.orderId)
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,paid_at,refunded_at",
     )
     .single()
 
@@ -568,7 +583,7 @@ export async function findOrderForCheckoutSession(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
     )
     .eq("checkout_session_id", checkoutSessionId)
     .maybeSingle()

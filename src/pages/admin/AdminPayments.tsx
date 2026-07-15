@@ -56,6 +56,10 @@ function productTypeLabel(productType: AdminOrderViewSummary["product_type"] | n
   return "Pago"
 }
 
+function getChargedAmount(order: AdminOrderViewSummary) {
+  return order.total_paid_cents ?? order.final_price_cents
+}
+
 function toUiMode(mode: "test" | "live" | null | undefined): CheckoutMode {
   return mode === "live" ? "production" : "sandbox"
 }
@@ -490,7 +494,7 @@ export function AdminPayments() {
                             <StatusBadge label={paymentStatusLabel(order.status)} tone={orderStatusTone(order.status)} />
                           </td>
                           <td className="px-4 py-4 font-semibold text-slate-950">
-                            {formatProductPrice(order.final_price_cents, order.currency)}
+                            {formatProductPrice(getChargedAmount(order), order.currency)}
                           </td>
                           <td className="px-4 py-4">
                             {stripeUrl ? (

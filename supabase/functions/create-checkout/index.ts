@@ -475,6 +475,16 @@ Deno.serve(async (req) => {
         cancel_url: body.cancelUrl ?? buildFallbackCancelUrl(product.slug),
         client_reference_id: order.id,
         customer_email: customerEmail ?? context.profile.email ?? context.user.email ?? undefined,
+        automatic_tax_enabled: true,
+        billing_address_collection: "required",
+        tax_id_collection_enabled: invoiceWithNif,
+        customer_creation: invoiceWithNif ? "always" : undefined,
+        invoice_creation: invoiceWithNif
+          ? {
+              enabled: true,
+              custom_fields: customerNif ? [{ name: "NIF", value: stripDigits(customerNif) }] : undefined,
+            }
+          : undefined,
         metadata: {
           order_id: order.id,
           user_id: context.user.id,

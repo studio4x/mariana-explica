@@ -14,6 +14,9 @@ export interface ReconcilableOrderRow {
   checkout_session_id: string | null
   payment_reference: string | null
   payment_environment?: "test" | "live" | null
+  tax_amount_cents: number
+  total_paid_cents: number | null
+  stripe_invoice_id: string | null
   paid_at?: string | null
   refunded_at?: string | null
 }
@@ -32,7 +35,7 @@ export async function findReconcilableOrder(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,status,currency,final_price_cents,checkout_session_id,payment_reference,payment_environment,paid_at,refunded_at",
+      "id,user_id,product_id,status,currency,final_price_cents,checkout_session_id,payment_reference,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,paid_at,refunded_at",
     )
     .eq("id", orderId)
     .maybeSingle()
@@ -63,9 +66,9 @@ export async function reconcileOrderWithStripe(
   if (
     session.amount_total !== null &&
     session.amount_total !== undefined &&
-    session.amount_total !== order.final_price_cents
+    session.amount_total < order.final_price_cents
   ) {
-    throw conflict("Total externo diverge do pedido interno")
+    throw conflict("Total externo é inferior ao total interno do pedido")
   }
 
   if (session.currency && session.currency.toUpperCase() !== order.currency.toUpperCase()) {
@@ -82,6 +85,9 @@ export async function reconcileOrderWithStripe(
       status: "paid",
       paymentReference: session.payment_intent ?? session.id,
       paidAt: order.paid_at ?? new Date().toISOString(),
+      taxAmountCents: Math.max(session.total_details?.amount_tax ?? 0, 0),
+      totalPaidCents: session.amount_total ?? order.final_price_cents,
+      stripeInvoiceId: session.invoice ?? null,
     })
 
     const grant = await ensureActiveGrant(client, {

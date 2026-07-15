@@ -401,7 +401,7 @@ export function Admin() {
                       />
                     </td>
                     <td className="py-4 pr-4 text-slate-600">
-                      {formatProductPrice(order.final_price_cents, order.currency)}
+                      {formatProductPrice(order.total_paid_cents ?? order.final_price_cents, order.currency)}
                     </td>
                     <td className="py-4 pr-4 text-slate-600">{formatDateTime(order.created_at)}</td>
                   </tr>

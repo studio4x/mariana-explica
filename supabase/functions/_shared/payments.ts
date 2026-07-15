@@ -23,6 +23,14 @@ export interface StripeCheckoutSessionParams {
   metadata?: Record<string, string>
   client_reference_id?: string
   customer_email?: string
+  automatic_tax_enabled?: boolean
+  billing_address_collection?: "auto" | "required"
+  tax_id_collection_enabled?: boolean
+  customer_creation?: "always" | "if_required"
+  invoice_creation?: {
+    enabled: boolean
+    custom_fields?: Array<{ name: string; value: string }>
+  }
 }
 
 export const STRIPE_CHECKOUT_PAYMENT_METHODS_VERSION = "dynamic-2025-10-29-v1"
@@ -259,6 +267,30 @@ export async function createStripeCheckoutSession(
     form.set("customer_email", params.customer_email)
   }
 
+  if (params.automatic_tax_enabled !== undefined) {
+    form.set("automatic_tax[enabled]", String(params.automatic_tax_enabled))
+  }
+
+  if (params.billing_address_collection) {
+    form.set("billing_address_collection", params.billing_address_collection)
+  }
+
+  if (params.tax_id_collection_enabled !== undefined) {
+    form.set("tax_id_collection[enabled]", String(params.tax_id_collection_enabled))
+  }
+
+  if (params.customer_creation) {
+    form.set("customer_creation", params.customer_creation)
+  }
+
+  if (params.invoice_creation) {
+    form.set("invoice_creation[enabled]", String(params.invoice_creation.enabled))
+    params.invoice_creation.custom_fields?.forEach((field, index) => {
+      form.set(`invoice_creation[invoice_data][custom_fields][${index}][name]`, field.name)
+      form.set(`invoice_creation[invoice_data][custom_fields][${index}][value]`, field.value)
+    })
+  }
+
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
@@ -279,6 +311,7 @@ export async function createStripeCheckoutSession(
     url: string | null
     payment_intent: string | null
     livemode: boolean
+    invoice?: string | null
   }
 }
 
@@ -306,6 +339,16 @@ export async function getStripeCheckoutSession(
     status: "open" | "complete" | "expired"
     amount_total: number | null
     currency: string | null
+    total_details?: {
+      amount_tax?: number | null
+    } | null
+    invoice?: string | null
+    customer_details?: {
+      tax_ids?: Array<{
+        type?: string | null
+        value?: string | null
+      }> | null
+    } | null
     metadata?: Record<string, string | undefined>
     client_reference_id?: string | null
   }
@@ -347,6 +390,29 @@ export async function getStripePaymentIntent(
           payment_intent: string | null
         }
       | null
+  }
+}
+
+export async function getStripeInvoice(
+  invoiceId: string,
+  options?: { mode?: StripeEnvironment },
+) {
+  const secret = getStripeSecret(options?.mode)
+  const response = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}`, {
+    headers: {
+      Authorization: `Bearer ${secret}`,
+    },
+  })
+
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Falha ao consultar fatura Stripe")
+  }
+
+  return payload as {
+    id: string
+    hosted_invoice_url: string | null
+    invoice_pdf: string | null
   }
 }
 

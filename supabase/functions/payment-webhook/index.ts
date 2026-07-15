@@ -30,6 +30,10 @@ interface StripeEventObject {
   amount_total?: number | null
   currency?: string | null
   payment_intent?: string | null
+  invoice?: string | null
+  total_details?: {
+    amount_tax?: number | null
+  } | null
   client_reference_id?: string | null
   metadata?: Record<string, string | undefined>
   refunded?: boolean
@@ -62,7 +66,7 @@ async function findOrderByReferenceOrSession(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
+        "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
       )
       .eq("id", reference)
       .maybeSingle()
@@ -86,7 +90,7 @@ async function findOrderByPaymentReference(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
     )
     .eq("payment_reference", paymentReference)
     .maybeSingle()
@@ -146,8 +150,8 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
   }
 
   if (session.amount_total !== undefined && session.amount_total !== null) {
-    if (session.amount_total !== order.final_price_cents) {
-      throw conflict("Total recebido da Stripe diverge do pedido interno")
+    if (session.amount_total < order.final_price_cents) {
+      throw conflict("Total recebido da Stripe é inferior ao total interno do pedido")
     }
   }
 
@@ -161,6 +165,9 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
     orderId: order.id,
     paymentReference,
     paidAt,
+    taxAmountCents: Math.max(session.total_details?.amount_tax ?? 0, 0),
+    totalPaidCents: session.amount_total ?? order.final_price_cents,
+    stripeInvoiceId: session.invoice ?? null,
   })
 
   const grant = await ensureActiveGrant(client, {

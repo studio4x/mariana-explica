@@ -1452,6 +1452,9 @@ export interface AdminOrderSummary {
   base_price_cents: number
   discount_cents: number
   final_price_cents: number
+  tax_amount_cents?: number
+  total_paid_cents?: number | null
+  stripe_invoice_id?: string | null
   payment_provider?: string | null
   payment_reference: string | null
   checkout_session_id: string | null
@@ -1470,6 +1473,9 @@ export interface StudentPaymentSummary {
   base_price_cents: number
   discount_cents: number
   final_price_cents: number
+  tax_amount_cents?: number
+  total_paid_cents?: number | null
+  stripe_invoice_id?: string | null
   payment_provider: string | null
   payment_reference: string | null
   checkout_session_id: string | null
@@ -1496,7 +1502,7 @@ export interface AdminDashboardMetrics {
 export interface AdminDashboardOverview {
   metrics: AdminDashboardMetrics
   recentOrders: Array<
-    Pick<AdminOrderSummary, "id" | "status" | "currency" | "final_price_cents" | "created_at">
+    Pick<AdminOrderSummary, "id" | "status" | "currency" | "final_price_cents" | "total_paid_cents" | "created_at">
   >
   alerts: {
     openSupportTickets: number

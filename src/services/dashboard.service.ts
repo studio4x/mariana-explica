@@ -856,6 +856,9 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
     base_price_cents: number
     discount_cents: number
     final_price_cents: number
+    tax_amount_cents?: number
+    total_paid_cents?: number | null
+    stripe_invoice_id?: string | null
     payment_provider: string | null
     payment_reference: string | null
     checkout_session_id: string | null
@@ -870,7 +873,7 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at,created_at,products:product_id(title)",
+      "id,product_id,status,currency,base_price_cents,discount_cents,final_price_cents,tax_amount_cents,total_paid_cents,stripe_invoice_id,payment_provider,payment_reference,checkout_session_id,payment_environment,paid_at,refunded_at,created_at,products:product_id(title)",
     )
     .eq("user_id", userId)
     .in("status", ["paid", "refunded"])
@@ -892,6 +895,9 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
       base_price_cents: order.base_price_cents,
       discount_cents: order.discount_cents,
       final_price_cents: order.final_price_cents,
+      tax_amount_cents: order.tax_amount_cents ?? 0,
+      total_paid_cents: order.total_paid_cents ?? null,
+      stripe_invoice_id: order.stripe_invoice_id ?? null,
       payment_provider: order.payment_provider,
       payment_reference: order.payment_reference,
       checkout_session_id: order.checkout_session_id,
