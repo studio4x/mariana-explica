@@ -556,15 +556,17 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             >
               <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                 <div className="max-w-2xl">
-                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sky-200">
-                    <HelpCircle className="h-6 w-6" />
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sky-200">
+                      <HelpCircle className="h-6 w-6" />
+                    </div>
+                    <EditableText
+                      fieldKey="supportCta.title"
+                      as="h2"
+                      fallback={supportCta.title}
+                      className="font-display text-3xl font-black leading-tight text-white"
+                    />
                   </div>
-                  <EditableText
-                    fieldKey="supportCta.title"
-                    as="h2"
-                    fallback={supportCta.title}
-                    className="font-display text-3xl font-black text-white"
-                  />
                   <EditableText
                     fieldKey="supportCta.lead"
                     as="p"
@@ -576,7 +578,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                   <EditableButton
                     fieldKey="supportCta.primaryCta"
                     fallback={supportCta.primaryCta}
-                    className="rounded-full bg-white text-slate-950 hover:bg-slate-100"
+                    className="rounded-full bg-white !text-[#123f59] hover:bg-slate-100 hover:!text-[#0f3247]"
                     variant="secondary"
                   />
                   <EditableLink
@@ -592,16 +594,18 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm [&_*]:!text-white">
             <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
               <div className="max-w-2xl">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sky-200">
-                  <HelpCircle className="h-6 w-6" />
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sky-200">
+                    <HelpCircle className="h-6 w-6" />
+                  </div>
+                  <h2 className="font-display text-3xl font-black leading-tight text-white">{supportCta.title}</h2>
                 </div>
-                <h2 className="font-display text-3xl font-black text-white">{supportCta.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-white/85">{supportCta.lead}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {renderSupportLink(
                   supportCta.primaryCta,
-                  "inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100",
+                  "inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-[#123f59] transition hover:bg-slate-100 hover:text-[#0f3247]",
                 )}
                 {renderSupportLink(
                   supportCta.secondaryCta,
