@@ -552,7 +552,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             <EditableContainer
               fieldKey="supportCta.container"
               as="section"
-              className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm [&_*]:!text-white"
+              className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm"
             >
               <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                 <div className="max-w-2xl">
@@ -591,7 +591,7 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
             </EditableContainer>
           </SiteContentScope>
         ) : (
-          <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm [&_*]:!text-white">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-8 text-white shadow-sm">
             <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
               <div className="max-w-2xl">
                 <div className="mb-4 flex items-center gap-3">
