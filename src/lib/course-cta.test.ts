@@ -13,14 +13,14 @@ describe("course-cta", () => {
     ).toBe("Aceder")
   })
 
-  it("keeps the continue label after progress exists", () => {
+  it("uses the short continue label after progress exists", () => {
     expect(
       getLearningActionLabel({
         id: "course-1",
         completed_lessons: 1,
         progress_percent: 20,
       }),
-    ).toBe("Continuar aprendizado")
+    ).toBe("Continuar")
   })
 
   it("maps dashboard access labels by product type", () => {

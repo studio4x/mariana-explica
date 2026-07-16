@@ -5,7 +5,7 @@ type EnrolledCourseState = Pick<DashboardProductSummary, "id" | "completed_lesso
 
 export function getLearningActionLabel(course: EnrolledCourseState) {
   return course.completed_lessons > 0 || course.progress_percent > 0
-    ? "Continuar aprendizado"
+    ? "Continuar"
     : "Aceder"
 }
 
