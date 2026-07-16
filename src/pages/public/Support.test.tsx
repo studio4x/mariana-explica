@@ -287,6 +287,12 @@ describe("Support", () => {
       "/aluno/suporte?openTicketModal=1&ticketStep=form",
     )
     expect(screen.getByText("Pergunta de teste")).toBeInTheDocument()
+    expect(screen.queryByText("Notas importantes antes de enviares o teu formulario:")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:"),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText("O Ano Escolar do Aluno (ex: 10.0, 11.0 ou 12.0 ano)")).not.toBeInTheDocument()
+    expect(screen.queryByText("A Disciplina pretendida (Filosofia ou Portugues)")).not.toBeInTheDocument()
     expect(screen.queryByText("Guardar rascunho")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Abrir editor visual" })).not.toBeInTheDocument()
   })

@@ -293,64 +293,6 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
           <div className="space-y-6">
             {isVisualEditing ? (
               <EditableContainer
-                fieldKey="supportForm.noticeContainer"
-                as="section"
-                className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10 [&_*]:!text-white"
-              >
-                <EditableText
-                  fieldKey="supportForm.noticeTitle"
-                  as="h2"
-                  fallback={supportForm.noticeTitle}
-                  className="text-2xl font-black text-white md:text-3xl"
-                />
-                <div className="mt-5 space-y-4 text-base leading-8 text-white/90">
-                  <p>
-                    <EditableText
-                      fieldKey="supportForm.planningLabel"
-                      as="span"
-                      fallback={supportForm.planningLabel}
-                      className="font-black text-white"
-                    />{" "}
-                    <EditableText
-                      fieldKey="supportForm.planningText"
-                      as="span"
-                      fallback={supportForm.planningText}
-                      className="text-white/90"
-                    />
-                  </p>
-                  <p>
-                    <EditableText
-                      fieldKey="supportForm.reservationLabel"
-                      as="span"
-                      fallback={supportForm.reservationLabel}
-                      className="font-black text-white"
-                    />{" "}
-                    <EditableText
-                      fieldKey="supportForm.reservationText"
-                      as="span"
-                      fallback={supportForm.reservationText}
-                      className="text-white/90"
-                    />
-                  </p>
-                </div>
-              </EditableContainer>
-            ) : (
-              <section className="rounded-3xl border border-[#dbe8ef] bg-[#0f2f45] p-6 text-white shadow-sm md:p-10 [&_*]:!text-white">
-                <h2 className="text-2xl font-black text-white md:text-3xl">{supportForm.noticeTitle}</h2>
-                <div className="mt-5 space-y-4 text-base leading-8 text-white">
-                  <p>
-                    <span className="font-black text-white">{supportForm.planningLabel}</span> {supportForm.planningText}
-                  </p>
-                  <p>
-                    <span className="font-black text-white">{supportForm.reservationLabel}</span>{" "}
-                    {supportForm.reservationText}
-                  </p>
-                </div>
-              </section>
-            )}
-
-            {isVisualEditing ? (
-              <EditableContainer
                 fieldKey="supportForm.formContainer"
                 as="section"
                 className="rounded-3xl border border-[#dbe8ef] bg-white p-6 shadow-sm md:p-10"
@@ -391,26 +333,6 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                       className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
                     />
                   </label>
-
-                  <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-                    <EditableText
-                      fieldKey="supportForm.hintTitle"
-                      as="p"
-                      fallback={supportForm.hintTitle}
-                      className="font-black"
-                    />
-                    <EditableText
-                      fieldKey="supportForm.hintYear"
-                      as="p"
-                      fallback={supportForm.hintYear}
-                      className="mt-1"
-                    />
-                    <EditableText
-                      fieldKey="supportForm.hintSubject"
-                      as="p"
-                      fallback={supportForm.hintSubject}
-                    />
-                  </div>
 
                   <div className="flex flex-wrap justify-end gap-3">
                     <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">
@@ -461,12 +383,6 @@ function SupportFaqExperienceContent(props: { includeHero: boolean }) {
                       className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#2f8fb8] focus:bg-white"
                     />
                   </label>
-
-                  <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-                    <p className="font-black">{supportForm.hintTitle}</p>
-                    <p className="mt-1">{supportForm.hintYear}</p>
-                    <p>{supportForm.hintSubject}</p>
-                  </div>
 
                   <div className="flex flex-wrap justify-end gap-3">
                     <Button type="submit" className="rounded-full bg-[#123f59] px-6 hover:bg-[#0f3247]">

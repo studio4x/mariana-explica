@@ -28,14 +28,6 @@ export interface SupportVisualEditorDocument extends Record<string, unknown> {
     secondaryCta: SupportVisualEditorLinkField
   }
   supportForm: {
-    noticeTitle: string
-    planningLabel: string
-    planningText: string
-    reservationLabel: string
-    reservationText: string
-    hintTitle: string
-    hintYear: string
-    hintSubject: string
     submitLabel: string
   }
   faqSection: {
@@ -110,16 +102,6 @@ export const SUPPORT_VISUAL_EDITOR_DEFAULT_DOCUMENT: SupportVisualEditorDocument
     },
   },
   supportForm: {
-    noticeTitle: "Notas importantes antes de enviares o teu formulario:",
-    planningLabel: "Planeamento Previo:",
-    planningText:
-      "Devido a agenda preenchida, todos os pedidos para explicacoes devem ser efetuados com um minimo de 3 semanas de antecedencia.",
-    reservationLabel: "Nao Garante Reserva:",
-    reservationText:
-      "O envio e submissao deste formulario funciona estritamente como um pedido de informacoes e consulta de disponibilidade. Nao constitui, de forma alguma, uma marcacao automatica ou garantia de vaga.",
-    hintTitle: "Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:",
-    hintYear: "O Ano Escolar do Aluno (ex: 10.0, 11.0 ou 12.0 ano)",
-    hintSubject: "A Disciplina pretendida (Filosofia ou Portugues)",
     submitLabel: "Enviar formulario",
   },
   faqSection: {
@@ -177,16 +159,7 @@ export const VISUAL_EDITOR_PAGE_DEFINITIONS: VisualEditorPageDefinition[] = [
       { key: "hero.primaryCta", label: "Botao principal", kind: "link", styleGroup: "interactive" },
         { key: "hero.secondaryCta", label: "Link secundario", kind: "link", styleGroup: "interactive" },
         { key: "hero.image", label: "Imagem principal", kind: "image", styleGroup: "image" },
-        { key: "supportForm.noticeContainer", label: "Card de notas", kind: "container", styleGroup: "container" },
-        { key: "supportForm.noticeTitle", label: "Titulo das notas", kind: "text", styleGroup: "heading" },
-        { key: "supportForm.planningLabel", label: "Rotulo do planeamento", kind: "text" },
-        { key: "supportForm.planningText", label: "Texto do planeamento", kind: "textarea" },
-        { key: "supportForm.reservationLabel", label: "Rotulo da reserva", kind: "text" },
-        { key: "supportForm.reservationText", label: "Texto da reserva", kind: "textarea" },
         { key: "supportForm.formContainer", label: "Card do formulario", kind: "container", styleGroup: "container" },
-        { key: "supportForm.hintTitle", label: "Titulo do aviso do formulario", kind: "text" },
-        { key: "supportForm.hintYear", label: "Linha do ano escolar", kind: "text" },
-        { key: "supportForm.hintSubject", label: "Linha da disciplina", kind: "text" },
         { key: "supportForm.submitLabel", label: "Rotulo do botao do formulario", kind: "text" },
         { key: "faqSection.container", label: "Bloco da FAQ", kind: "container", styleGroup: "container" },
         { key: "faqSection.searchPlaceholder", label: "Placeholder da pesquisa", kind: "text" },
