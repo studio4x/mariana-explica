@@ -13,7 +13,7 @@ import {
 
 export function AuthLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,rgba(36,39,66,0.18),transparent_28%),linear-gradient(180deg,#f6fbfd_0%,#edf7fb_55%,#ffffff_100%)]">
+    <div className="public-shell flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,rgba(36,39,66,0.18),transparent_28%),linear-gradient(180deg,#f6fbfd_0%,#edf7fb_55%,#ffffff_100%)]">
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteCacheControlManager />
@@ -21,7 +21,7 @@ export function AuthLayout() {
       <SiteTrackingManager />
       <Navbar />
       <main className="flex-1">
-        <div className="container grid min-h-[calc(100vh-8rem)] items-center gap-10 py-10 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="container grid min-h-[calc(100vh-8rem)] items-center gap-10 py-6 sm:py-10 lg:grid-cols-[0.95fr_1.05fr]">
           <section className="hidden rounded-[2rem] border border-white/70 bg-[#242742] p-10 text-white shadow-xl lg:block">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/14">
               <GraduationCap className="h-6 w-6" />
@@ -47,7 +47,7 @@ export function AuthLayout() {
             </div>
           </section>
 
-          <div className="mx-auto w-full max-w-lg rounded-[2rem] border border-white/70 bg-white/92 p-6 shadow-xl backdrop-blur sm:p-8">
+          <div className="mx-auto w-full max-w-lg rounded-[2rem] border border-white/70 bg-white/92 p-5 shadow-xl backdrop-blur sm:p-8">
             <Outlet />
           </div>
         </div>

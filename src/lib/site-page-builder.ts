@@ -2553,11 +2553,40 @@ export function getDefaultStyleCss() {
   color: #334155;
 }
 @media (max-width: 880px) {
+  .me-managed-page-root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 40px 16px 56px;
+    box-sizing: border-box;
+  }
+  .me-managed-block,
+  .me-managed-container,
+  .me-managed-container-column {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .me-managed-container {
+    grid-template-columns: 1fr !important;
+  }
+  .me-managed-richtext {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  .me-managed-richtext img,
+  .me-managed-page-root img {
+    max-width: 100%;
+  }
+  .me-managed-page-root a {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .me-managed-columns {
     grid-template-columns: 1fr !important;
   }
   .me-home-shell {
-    width: min(100vw - 28px, 1200px);
+    width: min(100vw - 32px, 1200px);
   }
   .me-home-hero-grid,
   .me-home-grid-two,
@@ -2566,7 +2595,7 @@ export function getDefaultStyleCss() {
     grid-template-columns: 1fr;
   }
   .me-home-section {
-    padding: 44px 0;
+    padding: 40px 0;
   }
   .me-home-card,
   .me-home-card-centered,
@@ -2574,14 +2603,35 @@ export function getDefaultStyleCss() {
     padding: 24px;
   }
   .me-home-display-copy {
-    font-size: 28px;
+    font-size: 26px;
+  }
+  .me-home-hero-grid,
+  .me-home-grid-two {
+    gap: 28px;
+  }
+  .me-home-hero-copy h1 {
+    font-size: clamp(38px, 11vw, 48px);
+  }
+  .me-home-hero-copy h2 {
+    font-size: clamp(27px, 8vw, 36px);
+  }
+  .me-home-hero-copy p {
+    max-width: none;
+    font-size: 18px;
+  }
+  .me-home-section-intro h2,
+  .me-home-reviews h2 {
+    font-size: clamp(32px, 9vw, 48px);
+  }
+  .me-home-actions a {
+    max-width: 100%;
   }
   .me-about-shell,
   .me-legal-shell,
   .me-explicacoes-shell,
   .me-materiais-shell,
   .me-support-shell {
-    width: min(100vw - 28px, 1200px);
+    width: min(100vw - 32px, 1200px);
   }
   .me-about-grid,
   .me-about-card-grid,
@@ -2590,8 +2640,12 @@ export function getDefaultStyleCss() {
   .me-about-pillar-wide {
     grid-template-columns: 1fr;
   }
+  .me-about-pillar {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
   .me-about-photo {
-    min-height: 260px;
+    min-height: 220px;
   }
   .me-about-copy,
   .me-about-copy p,
@@ -2613,6 +2667,12 @@ export function getDefaultStyleCss() {
   .me-about-card p,
   .me-about-copy p {
     font-size: 18px;
+  }
+  .me-about-copy .me-about-lead {
+    font-size: 26px;
+  }
+  .me-about-pillar-tag p {
+    font-size: 22px;
   }
 }
 

@@ -31,13 +31,13 @@ export function CookieConsentBanner() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[70] px-4 pb-4 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 rounded-[28px] border border-slate-200 bg-white/95 p-4 text-slate-700 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mx-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col gap-4 overflow-y-auto rounded-[28px] border border-slate-200 bg-white/95 p-4 text-slate-700 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur sm:max-h-none sm:overflow-visible sm:p-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">Cookies</p>
-          <h2 className="mt-2 font-display text-2xl text-slate-950">
+          <h2 className="mt-2 font-display text-xl leading-tight text-slate-950 sm:text-2xl">
             Usamos cookies essenciais e, com a tua autorização, cookies opcionais.
           </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-slate-600 sm:leading-7">
             Os cookies essenciais suportam autenticação, segurança e funcionamento da plataforma. Os opcionais ajudam
             a medir desempenho e campanhas. Podes aceitar tudo, manter apenas os essenciais ou personalizar por
             categoria.
@@ -54,7 +54,7 @@ export function CookieConsentBanner() {
           <Button
             type="button"
             variant="outline"
-            className="rounded-full border-slate-300 bg-white px-5 text-slate-700"
+            className="w-full rounded-full border-slate-300 bg-white px-5 text-slate-700 sm:w-auto"
             onClick={() => {
               persistCookieConsent({
                 analytics: false,
@@ -68,14 +68,14 @@ export function CookieConsentBanner() {
           <Button
             type="button"
             variant="outline"
-            className="rounded-full border-slate-300 bg-white px-5 text-slate-700"
+            className="w-full rounded-full border-slate-300 bg-white px-5 text-slate-700 sm:w-auto"
             onClick={() => setIsCustomizing((current) => !current)}
           >
             {isCustomizing ? "Fechar preferências" : "Personalizar"}
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800"
+            className="w-full rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 sm:w-auto"
             onClick={() => {
               persistCookieConsent({
                 analytics: true,

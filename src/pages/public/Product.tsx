@@ -86,7 +86,7 @@ export function Product() {
     <div className="bg-white pb-20 pt-10 text-slate-950">
       <div className="container">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
-          <main className="min-w-0 space-y-12">
+          <main className="order-2 min-w-0 space-y-10 lg:order-1 lg:space-y-12">
             <section className="max-w-4xl">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-slate-600">
@@ -208,7 +208,7 @@ export function Product() {
             <CourseReviews productId={product.id} />
           </main>
 
-          <aside className="lg:sticky lg:top-24">
+          <aside className="order-1 lg:order-2 lg:sticky lg:top-24">
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
               <div className="relative aspect-[1348/736] bg-slate-900">
                 {product.cover_image_url ? (

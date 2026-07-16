@@ -50,10 +50,10 @@ export function Navbar() {
         </div>
       </div>
 
-      <div className="container flex items-center justify-between gap-4 py-3.5">
+      <div className="container flex items-center justify-between gap-3 py-2.5 sm:gap-4 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-4">
           <Link to={ROUTES.HOME} className="min-w-0" onClick={closeMenu}>
-            <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
+            <SiteLogo variant="dark" imageClassName="h-10 max-w-[180px] sm:h-12 sm:max-w-[210px]" />
           </Link>
 
           <nav className="hidden items-center gap-3 lg:flex">
@@ -74,7 +74,7 @@ export function Navbar() {
           </nav>
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           {!isAuthenticated ? (
             <>
               <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 xl:inline-flex">
@@ -125,7 +125,7 @@ export function Navbar() {
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-full border border-slate-200 md:hidden"
+          className="h-10 w-10 rounded-full border border-slate-200 p-0 lg:hidden"
           aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
           onClick={() => setMobileOpen((value) => !value)}
         >
@@ -134,9 +134,9 @@ export function Navbar() {
       </div>
 
       {mobileOpen ? (
-        <div className="border-t border-slate-200/80 bg-white/95 md:hidden">
-          <div className="container space-y-5 py-5">
-            <SiteLogo variant="dark" imageClassName="h-12 max-w-[210px]" />
+        <div className="border-t border-slate-200/80 bg-white/95 lg:hidden">
+          <div className="container max-h-[calc(100dvh-7rem)] space-y-5 overflow-y-auto py-5 pb-6">
+            <SiteLogo variant="dark" imageClassName="h-10 max-w-[180px] sm:h-12 sm:max-w-[210px]" />
 
             <section className="space-y-3">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Menu principal</p>
@@ -147,7 +147,7 @@ export function Navbar() {
                     to={item.to}
                     onClick={closeMenu}
                     className={cn(
-                      "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                      "flex min-h-12 items-center rounded-2xl border px-4 py-3 text-sm font-medium transition",
                       isActiveItem(item.to)
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-slate-200 bg-white text-slate-700",
@@ -162,7 +162,7 @@ export function Navbar() {
                       to={ROUTES.DASHBOARD}
                       onClick={closeMenu}
                       className={cn(
-                        "rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                        "flex min-h-12 items-center rounded-2xl border px-4 py-3 text-sm font-medium transition",
                         isActiveItem(ROUTES.DASHBOARD)
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-slate-200 bg-white text-slate-700",

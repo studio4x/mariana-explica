@@ -16,7 +16,7 @@ export function PublicLayout() {
   const isCheckout = location.pathname === ROUTES.CHECKOUT
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="public-shell flex min-h-screen flex-col">
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteCacheControlManager />
