@@ -15,6 +15,7 @@ import {
 import { getExternalVideoUrl, getLessonAssetId, getLessonVideoAssetId, getYoutubeEmbedUrl } from "@/lib/lesson-video"
 import { requestAssetAccess } from "@/services"
 import { RichTextContent } from "./RichTextContent"
+import { ProtectedVideoPlayer } from "./ProtectedVideoPlayer"
 
 function isPublicLessonMediaBucket(bucket: string | null | undefined) {
   return bucket?.trim() === LESSON_PUBLIC_IMAGE_BUCKET
@@ -68,6 +69,7 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
 
   useEffect(() => {
     if (!directSource) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears stale media state when the block source is removed.
       setResolvedImageUrl(null)
       setResolvingImageUrl(false)
       return
@@ -171,45 +173,16 @@ function BlockImage({ block }: { block: Extract<LessonContentBlock, { type: "ima
 function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "video" }> }) {
   const normalized = normalizeLessonVideoBlockContent(block.content)
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null)
-  const [resolvedAssetUrl, setResolvedAssetUrl] = useState<string | null>(null)
-  const [resolvingAssetUrl, setResolvingAssetUrl] = useState(false)
   const [resolvingVideoUrl, setResolvingVideoUrl] = useState(false)
   const directSource = normalized.public_url?.trim() || normalized.storage_path.trim()
   const assetId = getLessonVideoAssetId(directSource)
-  const videoSource = assetId ? resolvedAssetUrl : isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl
+  const videoSource = isRenderableLessonMediaUrl(directSource) ? directSource : resolvedVideoUrl
   const embedUrl = getYoutubeEmbedUrl(videoSource)
   const externalVideoUrl = getExternalVideoUrl(videoSource)
 
   useEffect(() => {
-    if (!assetId) {
-      setResolvedAssetUrl(null)
-      setResolvingAssetUrl(false)
-      return
-    }
-
-    let active = true
-    setResolvingAssetUrl(true)
-    setResolvedAssetUrl(null)
-
-    void requestAssetAccess(assetId)
-      .then((result) => {
-        if (!active) return
-        setResolvedAssetUrl(result.url)
-        setResolvingAssetUrl(false)
-      })
-      .catch(() => {
-        if (!active) return
-        setResolvedAssetUrl(null)
-        setResolvingAssetUrl(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [assetId])
-
-  useEffect(() => {
     if (!directSource) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears stale video state when the block source is removed.
       setResolvedVideoUrl(null)
       setResolvingVideoUrl(false)
       return
@@ -258,7 +231,14 @@ function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "vid
 
   return (
     <figure className="space-y-3">
-      {videoSource ? (
+      {assetId ? (
+        <ProtectedVideoPlayer
+          assetId={assetId}
+          title={normalized.title || "Vídeo da aula"}
+          className="block aspect-video rounded-lg bg-black object-contain"
+          style={{ width: `${normalized.width_percent}%`, margin: "0 auto" }}
+        />
+      ) : videoSource ? (
         embedUrl ? (
           <div className="aspect-video overflow-hidden rounded-lg bg-black" style={{ width: `${normalized.width_percent}%`, margin: "0 auto" }}>
             <iframe
@@ -289,7 +269,7 @@ function BlockVideo({ block }: { block: Extract<LessonContentBlock, { type: "vid
         )
       ) : (
         <div className="flex min-h-40 items-center justify-center px-4 py-6 text-center text-sm text-slate-300">
-          {resolvingAssetUrl || resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Vídeo sem pré-visualização disponível."}
+          {resolvingVideoUrl ? "A carregar pré-visualização do vídeo..." : "Vídeo sem pré-visualização disponível."}
         </div>
       )}
       <figcaption className="mt-3 px-1 text-sm font-semibold text-slate-800">

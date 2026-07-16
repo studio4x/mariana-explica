@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
-import { AlertCircle, Loader2, PlayCircle } from "lucide-react"
-import { requestAssetAccess } from "@/services"
+import { PlayCircle } from "lucide-react"
 import { getExternalVideoUrl, getLessonVideoAssetId, getYoutubeEmbedUrl } from "@/lib/lesson-video"
+import { ProtectedVideoPlayer } from "./ProtectedVideoPlayer"
 
 interface LessonPrimaryMediaProps {
   source: string | null | undefined
@@ -16,43 +15,6 @@ export function LessonPrimaryMedia({
   const youtubeEmbedUrl = getYoutubeEmbedUrl(source)
   const externalVideoUrl = getExternalVideoUrl(source)
   const localVideoUrl = source?.trim().startsWith("blob:") || source?.trim().startsWith("data:") ? source.trim() : null
-  const [assetUrl, setAssetUrl] = useState<string | null>(null)
-  const [assetError, setAssetError] = useState<string | null>(null)
-  const [isLoadingAsset, setIsLoadingAsset] = useState(false)
-
-  useEffect(() => {
-    if (!assetId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears stale protected-video state when the source switches away from an asset.
-      setAssetUrl(null)
-      setAssetError(null)
-      setIsLoadingAsset(false)
-      return
-    }
-
-    let active = true
-    setAssetUrl(null)
-    setAssetError(null)
-    setIsLoadingAsset(true)
-
-    void requestAssetAccess(assetId)
-      .then((result) => {
-        if (!active) return
-        setAssetUrl(result.url)
-      })
-      .catch((error: unknown) => {
-        if (!active) return
-        setAssetError(error instanceof Error ? error.message : "Não foi possível preparar o vídeo.")
-      })
-      .finally(() => {
-        if (!active) return
-        setIsLoadingAsset(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [assetId])
-
   if (!source?.trim()) {
     return null
   }
@@ -66,7 +28,7 @@ export function LessonPrimaryMedia({
 
       {youtubeEmbedUrl ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-vídeo w-full">
+          <div className="aspect-video w-full">
             <iframe
               src={youtubeEmbedUrl}
               title={title}
@@ -82,7 +44,7 @@ export function LessonPrimaryMedia({
 
       {externalVideoUrl ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-vídeo w-full">
+          <div className="aspect-video w-full">
             <video
               src={externalVideoUrl}
               controls
@@ -98,7 +60,7 @@ export function LessonPrimaryMedia({
 
       {localVideoUrl ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-vídeo w-full">
+          <div className="aspect-video w-full">
             <video
               src={localVideoUrl}
               controls
@@ -114,28 +76,8 @@ export function LessonPrimaryMedia({
 
       {assetId ? (
         <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-950 shadow-sm">
-          <div className="aspect-vídeo w-full">
-            {isLoadingAsset ? (
-              <div className="flex h-full items-center justify-center gap-2 text-sm font-semibold text-white/80">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                A preparar o vídeo...
-              </div>
-            ) : assetError ? (
-              <div className="flex h-full items-center justify-center gap-2 px-6 text-center text-sm font-semibold text-rose-200">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {assetError}
-              </div>
-            ) : assetUrl ? (
-              <video
-                src={assetUrl}
-                controls
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
-                disableRemotePlayback
-                playsInline
-                className="h-full w-full bg-black"
-              />
-            ) : null}
+          <div className="aspect-video w-full">
+            <ProtectedVideoPlayer assetId={assetId} title={title} className="h-full w-full bg-black object-contain" />
           </div>
         </div>
       ) : null}

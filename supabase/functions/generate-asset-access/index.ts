@@ -10,7 +10,7 @@ import { logError, logInfo } from "../_shared/logger.ts"
 import { getOptionalAuth, isAdminProfile, requireActiveUser } from "../_shared/auth.ts"
 import { createServiceClient } from "../_shared/supabase.ts"
 import { extractRequestAuditContext, writeAuditLog } from "../_shared/mod.ts"
-import { createSignedReadUrl } from "../_shared/storage-provider.ts"
+import { createSignedReadUrl, getSignedGetExpiresSeconds, getSignedVideoGetExpiresSeconds } from "../_shared/storage-provider.ts"
 
 interface GenerateAssetAccessInput {
   assetId?: string
@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
       storage_provider: "supabase" | "r2" | null
       file_name: string | null
       resource_type: "module_asset" | "product_lesson"
+      asset_type?: "pdf" | "image" | "video_file" | "video_embed" | "external_link" | null
     }
 
     if (hasAssetId) {
@@ -202,12 +203,16 @@ Deno.serve(async (req) => {
 
     if (!resource.storage_bucket || !resource.storage_path) throw forbidden("Conteudo sem origem de armazenamento")
 
+    const expiresInSeconds =
+      resource.resource_type === "module_asset" && resource.asset_type === "video_file"
+        ? getSignedVideoGetExpiresSeconds()
+        : getSignedGetExpiresSeconds()
     const signedUrl = await createSignedReadUrl({
       serviceClient: client,
       logicalBucket: resource.storage_bucket,
       storagePath: resource.storage_path,
       provider: resource.storage_provider ?? "supabase",
-      expiresInSeconds: 300,
+      expiresInSeconds,
       downloadFileName:
         resource.allow_download && activeContext
           ? sanitizeSegment(`${product.title}-${resource.title}-${activeContext.user.id.slice(0, 8)}`)
@@ -246,7 +251,7 @@ Deno.serve(async (req) => {
       mode: "signed_url",
       url: signedUrl,
       file_name: resource.file_name,
-      expires_in_seconds: 300,
+      expires_in_seconds: expiresInSeconds,
       allow_download: resource.allow_download,
       allow_stream: resource.allow_stream,
       watermark_enabled: resource.watermark_enabled,

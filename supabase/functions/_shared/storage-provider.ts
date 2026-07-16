@@ -102,8 +102,15 @@ function getDefaultStorageProvider(): StorageProvider {
   return normalizeProvider(readOptionalEnv("STORAGE_PROVIDER_DEFAULT")) ?? "r2"
 }
 
-function getSignedGetExpiresSeconds() {
+export function getSignedGetExpiresSeconds() {
   return normalizePositiveInteger(readOptionalEnv("R2_SIGNED_GET_EXPIRES_SECONDS"), 300)
+}
+
+export function getSignedVideoGetExpiresSeconds() {
+  return normalizePositiveInteger(
+    readOptionalEnv("R2_VIDEO_SIGNED_GET_EXPIRES_SECONDS"),
+    Math.max(getSignedGetExpiresSeconds(), 60 * 60),
+  )
 }
 
 function getSignedPutExpiresSeconds() {
@@ -157,6 +164,7 @@ export function getStorageLimits() {
   return {
     defaultProvider: getDefaultStorageProvider(),
     signedGetExpiresSeconds: getSignedGetExpiresSeconds(),
+    signedVideoGetExpiresSeconds: getSignedVideoGetExpiresSeconds(),
     signedPutExpiresSeconds: getSignedPutExpiresSeconds(),
     maxFileSizeBytes: getMaxFileSizeBytes(),
   }
