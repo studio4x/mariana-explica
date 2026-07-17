@@ -1,9 +1,27 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
+import { Mail } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { fetchPublicBrandingConfig } from "@/services"
 import { BUILD_VERSION } from "@/lib/build"
 import { APP_DESCRIPTION, APP_NAME, ROUTES } from "@/lib/constants"
+
+function InstagramIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <rect x="3.25" y="3.25" width="17.5" height="17.5" rx="5" />
+      <circle cx="12" cy="12" r="4.1" />
+      <circle cx="17.45" cy="6.65" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
 
 export function FooterCopyright({ className = "" }: { className?: string }) {
   return (
@@ -50,9 +68,29 @@ export function Footer() {
             <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">{footerDescription}</p>
           </div>
           <p className="text-sm leading-7 text-slate-600">
-            Uma experiencia pensada para explicar melhor, vender com clareza e dar ao aluno um acesso simples e
-            confiavel aos materiais e ao estudo.
+            Uma experiência pensada para simplificar o teu estudo, estruturar a tua preparação para os exames e
+            garantir que tens acesso a resumos confiáveis e diretos ao assunto, a qualquer hora.
           </p>
+          <div className="grid gap-3 pt-1 text-sm text-slate-600">
+            <a
+              href="https://www.instagram.com/mariana.explica/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-fit items-center gap-2 transition hover:text-slate-950"
+              aria-label="Instagram @mariana.explica"
+            >
+              <InstagramIcon className="h-4 w-4" />
+              <span>@mariana.explica</span>
+            </a>
+            <a
+              href="mailto:marianaexplica.online@gmail.com"
+              className="inline-flex w-fit items-center gap-2 transition hover:text-slate-950"
+              aria-label="Enviar e-mail para marianaexplica.online@gmail.com"
+            >
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              <span>marianaexplica.online@gmail.com</span>
+            </a>
+          </div>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
