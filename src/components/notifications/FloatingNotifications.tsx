@@ -16,6 +16,7 @@ interface FloatingNotificationsProps<TNotification extends NotificationItem | Ad
   markAsReadPending?: boolean
   clearAllPending?: boolean
   getAudienceLabel?: (notification: TNotification) => string | null
+  stackedAboveFloatingAction?: boolean
 }
 
 export function FloatingNotifications<TNotification extends NotificationItem | AdminNotificationSummary>({
@@ -27,6 +28,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
   markAsReadPending = false,
   clearAllPending = false,
   getAudienceLabel,
+  stackedAboveFloatingAction = false,
 }: FloatingNotificationsProps<TNotification>) {
   const [isOpen, setIsOpen] = useState(false)
   const effectiveUnreadCount = unreadCount ?? notifications.filter((item) => item.status === "unread").length
@@ -81,7 +83,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-[70]">
+    <div className={`fixed right-5 z-[70] ${stackedAboveFloatingAction ? "bottom-24 md:bottom-28" : "bottom-5 md:bottom-7"}`}>
       {isOpen ? (
         <div className="mb-4 w-[min(calc(100vw-2rem),430px)] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)]">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4">

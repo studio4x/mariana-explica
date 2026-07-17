@@ -256,6 +256,7 @@ export function DashboardLayout() {
         onClearAll={() => void markAllAsRead.mutateAsync()}
         markAsReadPending={markAsRead.isPending}
         clearAllPending={markAllAsRead.isPending}
+        stackedAboveFloatingAction
       />
       <FloatingSupportChat />
       <SiteAiCodeEditorLauncher />
