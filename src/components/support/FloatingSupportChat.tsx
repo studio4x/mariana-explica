@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
-import { BookOpen, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
+import { Archive, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import {
   useCreateSupportTicket,
@@ -55,6 +55,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [isComposerOpen, setIsComposerOpen] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [selectedProductId, setSelectedProductId] = useState("")
   const [message, setMessage] = useState("")
@@ -75,6 +76,9 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     () => (ticketsQuery.data ?? []).filter((ticket) => ticketMatchesContext(ticket, context)),
     [context, ticketsQuery.data],
   )
+  const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "closed"), [tickets])
+  const archivedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "closed"), [tickets])
+  const visibleTickets = showArchived ? archivedTickets : activeTickets
   const products = productsQuery.data ?? []
   const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null
   const activeTicketQuery = useSupportTicket(selectedTicketId ?? undefined)
@@ -101,6 +105,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
 
   const openComposer = () => {
     setSelectedTicketId(null)
+    setShowArchived(false)
     setReply("")
     setMessage("")
     setAttachment(null)
@@ -328,25 +333,32 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex-1 overflow-y-auto p-4">
-                {tickets.length === 0 ? (
+                {visibleTickets.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-5 py-10 text-center">
-                    <BookOpen className="h-8 w-8 text-sky-600" />
-                    <h2 className="mt-4 font-black text-slate-950">Ainda não há conversas</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">Fala com a equipa sobre um curso ou material liberado.</p>
+                    <Archive className="h-8 w-8 text-slate-400" />
+                    <h2 className="mt-4 font-black text-slate-950">{showArchived ? "Ainda não há chats arquivados" : "Ainda não há conversas"}</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{showArchived ? "Quando uma conversa for encerrada, aparecerá aqui." : "Fala com a equipa sobre um curso ou material liberado."}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {tickets.map((ticket) => (
-                      <button key={ticket.id} type="button" onClick={() => selectTicket(ticket.id)} className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-sky-300 hover:bg-sky-50">
+                    {visibleTickets.map((ticket) => (
+                      <button key={ticket.id} type="button" onClick={() => selectTicket(ticket.id)} className={`w-full rounded-2xl border p-4 text-left transition ${showArchived ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white" : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50"}`}>
                         <p className="truncate font-black text-slate-950">{ticket.subject}</p>
                         <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{ticket.message.replace(/^\[Contexto do curso\/material\][\s\S]*?Mensagem do aluno:\n/, "")}</p>
-                        <p className="mt-2 text-[11px] font-semibold text-slate-400">{formatDateTime(ticket.updated_at)}</p>
+                        <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                          {showArchived ? <Archive className="h-3 w-3" /> : null}
+                          {formatDateTime(ticket.updated_at)}
+                        </p>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="border-t border-slate-100 p-4">
+              <div className="space-y-3 border-t border-slate-100 p-4">
+                <button type="button" onClick={() => setShowArchived((value) => !value)} className="mx-auto flex items-center gap-1.5 text-xs font-bold text-slate-500 transition hover:text-slate-800">
+                  <Archive className="h-3.5 w-3.5" />
+                  {showArchived ? "Ver conversas ativas" : `Ver chats arquivados${archivedTickets.length > 0 ? ` (${archivedTickets.length})` : ""}`}
+                </button>
                 <button type="button" onClick={openComposer} className="flex w-full items-center justify-center rounded-xl bg-sky-600 px-4 py-3 text-sm font-black text-white hover:bg-sky-700">
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Nova conversa
@@ -359,7 +371,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
 
       <button type="button" onClick={() => setIsOpen((value) => !value)} className="relative flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-white shadow-[0_16px_35px_rgba(2,132,199,0.35)] transition hover:-translate-y-0.5 hover:bg-sky-700" aria-label={isOpen ? "Fechar chat de suporte" : "Abrir chat de suporte"}>
         {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-        {!isOpen && tickets.length > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-950 px-1 text-[10px] font-black text-white">{tickets.length}</span> : null}
+        {!isOpen && activeTickets.length > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-950 px-1 text-[10px] font-black text-white">{activeTickets.length}</span> : null}
       </button>
     </div>
   )
