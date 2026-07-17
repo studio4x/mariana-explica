@@ -111,6 +111,7 @@ export function AdminLayout() {
   const displayName = profile?.full_name?.trim() || profile?.email || "Admin"
   const initials = getInitials(profile?.full_name, profile?.email)
   const [cacheFeedback, setCacheFeedback] = useState<CacheControlFeedbackPayload | null>(null)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const isLegacyPageEditorRoute = location.pathname.startsWith(ROUTES.ADMIN_PAGE_EDITOR)
   const isPageEditorRoute = isLegacyPageEditorRoute
   const visibleItems = items
@@ -287,10 +288,12 @@ export function AdminLayout() {
               Cache completo
             </Button>
 
-            <Link
-              to={ROUTES.ADMIN_NOTIFICATIONS}
+            <button
+              type="button"
               className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               aria-label="Abrir notificacoes"
+              aria-expanded={isNotificationsOpen}
+              onClick={() => setIsNotificationsOpen(true)}
             >
               <Bell className="h-5 w-5" />
               {unreadNotificationsCount > 0 ? (
@@ -298,7 +301,7 @@ export function AdminLayout() {
                   {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                 </span>
               ) : null}
-            </Link>
+            </button>
 
             <Link
               to={ROUTES.ADMIN_ACCOUNT}
@@ -450,6 +453,8 @@ export function AdminLayout() {
       <FloatingNotifications
         notifications={notificationsQuery.data ?? []}
         isLoading={notificationsQuery.isLoading}
+        isOpen={isNotificationsOpen}
+        onOpenChange={setIsNotificationsOpen}
         unreadCount={unreadNotificationsCount}
         onMarkAsRead={(notificationId) => void markNotificationAsRead.mutateAsync(notificationId)}
         onClearAll={() => void markAllNotificationsAsRead.mutateAsync()}

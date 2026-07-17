@@ -10,6 +10,8 @@ import { Link } from "react-router-dom"
 interface FloatingNotificationsProps<TNotification extends NotificationItem | AdminNotificationSummary> {
   notifications: TNotification[]
   isLoading?: boolean
+  isOpen?: boolean
+  onOpenChange?: (isOpen: boolean) => void
   unreadCount?: number
   onMarkAsRead: (notificationId: string) => void
   onClearAll: () => void
@@ -22,6 +24,8 @@ interface FloatingNotificationsProps<TNotification extends NotificationItem | Ad
 export function FloatingNotifications<TNotification extends NotificationItem | AdminNotificationSummary>({
   notifications,
   isLoading = false,
+  isOpen: isOpenProp,
+  onOpenChange,
   unreadCount,
   onMarkAsRead,
   onClearAll,
@@ -30,10 +34,15 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
   getAudienceLabel,
   alignWithFloatingChat = false,
 }: FloatingNotificationsProps<TNotification>) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalIsOpen, setInternalIsOpen] = useState(false)
+  const isOpen = isOpenProp ?? internalIsOpen
   const effectiveUnreadCount = unreadCount ?? notifications.filter((item) => item.status === "unread").length
   const visibleNotifications = useMemo(() => notifications.slice(0, 30), [notifications])
   const canClearAll = visibleNotifications.length > 0
+  const setIsOpen = (nextIsOpen: boolean) => {
+    setInternalIsOpen(nextIsOpen)
+    onOpenChange?.(nextIsOpen)
+  }
 
   const renderActionButton = (notification: TNotification) => {
     if (!notification.link) return null
@@ -174,7 +183,7 @@ export function FloatingNotifications<TNotification extends NotificationItem | A
 
       <button
         type="button"
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => setIsOpen(!isOpen)}
         className="relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_18px_45px_rgba(15,23,42,0.35)] transition hover:-translate-y-1 hover:bg-sky-700"
         aria-label={`Notificações${effectiveUnreadCount > 0 ? `, ${effectiveUnreadCount} não lidas` : ""}`}
       >
