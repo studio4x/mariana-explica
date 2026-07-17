@@ -199,9 +199,6 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                     {!productsQuery.isLoading && products.length === 0 ? <span className="mt-2 block text-xs font-medium text-amber-700">Não tens materiais liberados para selecionar.</span> : null}
                   </label>
                 )}
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-                  Categoria: <strong className="text-slate-950">Chat do curso</strong>. O curso/material selecionado será anexado à mensagem.
-                </div>
                 <label className="block text-sm font-black text-slate-700">
                   Mensagem
                   <textarea

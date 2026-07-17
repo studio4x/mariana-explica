@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "258"
-export const BUILD_COMMIT = "chat-attachments-dedupe"
+export const BUILD_DEPLOY_NUMBER = "259"
+export const BUILD_COMMIT = "chat-card-removed"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
