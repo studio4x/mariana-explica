@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 import { queryClient } from "@/lib/query-client"
+import { removeMatchingOptimisticSupportMessage } from "@/lib/support-messages"
 import {
   createSupportTicket,
   fetchAccessibleAssessment,
@@ -432,7 +433,7 @@ export function useSupportTicketMessages(ticketId: string | undefined) {
           if (nextMessage?.id) {
             queryClient.setQueryData<SupportTicketMessage[]>(
               ["dashboard", "support", "messages", ticketId],
-              (current) => upsertById(current, nextMessage, sortMessages),
+              (current) => upsertById(removeMatchingOptimisticSupportMessage(current, nextMessage), nextMessage, sortMessages),
             )
           }
 
@@ -566,7 +567,7 @@ export function useReplySupportTicket() {
         ["dashboard", "support", "messages", result.message.ticket_id],
         (current) => {
           const withoutTemp = (current ?? []).filter((message) => message.id !== context?.tempId)
-          return upsertById(withoutTemp, result.message, sortMessages)
+          return upsertById(removeMatchingOptimisticSupportMessage(withoutTemp, result.message), result.message, sortMessages)
         },
       )
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })

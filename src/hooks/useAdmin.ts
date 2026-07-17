@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
+import { removeMatchingOptimisticSupportMessage } from "@/lib/support-messages"
 import {
   archiveAdminProduct,
   approveAdminAiCodeEditorTask,
@@ -812,7 +813,7 @@ export function useAdminSupportTicketMessages(ticketId: string | undefined) {
           if (nextMessage?.id) {
             queryClient.setQueryData<SupportTicketMessage[]>(
               ["admin", "support", "messages", ticketId],
-              (current) => upsertById(current, nextMessage, sortMessages),
+              (current) => upsertById(removeMatchingOptimisticSupportMessage(current, nextMessage), nextMessage, sortMessages),
             )
           }
 
@@ -1638,7 +1639,7 @@ export function useReplyAdminSupportTicket() {
         ["admin", "support", "messages", result.message.ticket_id],
         (current) => {
           const withoutTemp = (current ?? []).filter((message) => message.id !== context?.tempId)
-          return upsertById(withoutTemp, result.message, sortMessages)
+          return upsertById(removeMatchingOptimisticSupportMessage(withoutTemp, result.message), result.message, sortMessages)
         },
       )
       invalidate()
