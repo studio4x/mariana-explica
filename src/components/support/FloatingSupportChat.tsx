@@ -248,7 +248,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
                 {activeTicketQuery.isLoading || messagesQuery.isLoading ? <Loader2 className="mx-auto mt-8 h-5 w-5 animate-spin text-sky-600" /> : null}
-                {activeTicket && messages.length === 0 ? (
+                {activeTicket && !messagesQuery.isLoading && messages.length === 0 ? (
                   <div className="rounded-2xl rounded-tl-sm border border-sky-100 bg-white p-3 shadow-sm">
                     <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{activeTicket.message}</p>
                     {activeTicket.attachment_path ? (
