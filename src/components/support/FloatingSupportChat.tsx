@@ -241,8 +241,10 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
               <div className="flex-1 space-y-5 overflow-y-auto p-5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Nova conversa</p>
-                  <h2 className="mt-2 text-xl font-black text-slate-950">Sobre qual material precisas de ajuda?</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">A tua mensagem chegará diretamente à fila de tickets do suporte.</p>
+                  <h2 className="mt-2 text-xl font-black text-slate-950">
+                    {context ? "Qual é a tua dúvida sobre este material?" : "Sobre qual material precisas de ajuda?"}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">A tua dúvida será recebida pela Mariana, que te responderá assim que possível.</p>
                 </div>
                 {context ? (
                   <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-slate-700">

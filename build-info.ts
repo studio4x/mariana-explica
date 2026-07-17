@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "276"
-export const BUILD_COMMIT = "course-chat-activation"
+export const BUILD_DEPLOY_NUMBER = "277"
+export const BUILD_COMMIT = "course-chat-context-copy"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
