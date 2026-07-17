@@ -33,6 +33,7 @@ import {
 } from "@/lib/support-sla"
 import type { SupportTicketSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
+import { SupportMessageContent } from "@/components/support/SupportMessageContent"
 
 function formatFileSize(size: number | null) {
   if (!size) return null
@@ -209,8 +210,8 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
 
           <div ref={chatScrollRef} className="h-[560px] space-y-4 overflow-y-auto bg-slate-50/50 p-5">
             {messages.length === 0 ? (
-              <div className="max-w-[86%] rounded-2xl rounded-tl-sm border bg-white p-4 shadow-sm">
-                <p className="text-sm leading-7 text-slate-700">{ticket.message}</p>
+              <div className={`max-w-[86%] rounded-2xl p-4 shadow-sm ${mode === "student" ? "rounded-tr-sm bg-slate-950 text-white" : "rounded-tl-sm border bg-white text-slate-800"}`}>
+                <SupportMessageContent message={ticket.message} isMine={mode === "student"} messageLabel={mode === "admin" ? "Mensagem do aluno" : undefined} />
                 {ticket.attachment_path ? (
                   <button
                     type="button"
@@ -246,7 +247,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                         {message.sender_role === "admin" ? "Equipe de suporte" : "Aluno"}
                       </p>
                     ) : null}
-                    {message.message ? <p className="text-sm leading-7">{message.message}</p> : null}
+                    {message.message ? <SupportMessageContent message={message.message} isMine={isMine} messageLabel={mode === "admin" ? (message.sender_role === "admin" ? "Mensagem da equipa" : "Mensagem do aluno") : undefined} /> : null}
                     {attachmentData.path ? (
                       <button
                         type="button"

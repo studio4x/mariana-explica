@@ -13,6 +13,7 @@ import {
 } from "@/hooks/useDashboard"
 import type { DashboardProductSummary, SupportTicketSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
+import { SupportMessageContent } from "./SupportMessageContent"
 
 export interface FloatingSupportChatContext {
   productId: string
@@ -246,8 +247,8 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
               <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
                 {activeTicketQuery.isLoading || messagesQuery.isLoading ? <Loader2 className="mx-auto mt-8 h-5 w-5 animate-spin text-sky-600" /> : null}
                 {activeTicket && !messagesQuery.isLoading && messages.length === 0 ? (
-                  <div className="rounded-2xl rounded-tl-sm border border-sky-100 bg-white p-3 shadow-sm">
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{activeTicket.message}</p>
+                  <div className="rounded-2xl rounded-tr-sm bg-slate-950 p-3 text-white shadow-sm">
+                    <SupportMessageContent message={activeTicket.message} isMine />
                     {activeTicket.attachment_path ? (
                       <button type="button" onClick={() => void openAttachment({ bucket: activeTicket.attachment_bucket, path: activeTicket.attachment_path })} className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white">
                         <Download className="mr-2 h-3.5 w-3.5" />
@@ -267,7 +268,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                     <div key={item.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[88%] rounded-2xl p-3 shadow-sm ${isMine ? "rounded-tr-sm bg-slate-950 text-white" : "rounded-tl-sm border bg-white text-slate-800"}`}>
                         {!isMine ? <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700">Equipe de suporte</p> : null}
-                        <p className="whitespace-pre-wrap text-sm leading-6">{item.message}</p>
+                        <SupportMessageContent message={item.message} isMine={isMine} />
                         {attachmentData.path ? (
                           <button type="button" onClick={() => void openAttachment({ bucket: attachmentData.bucket, path: attachmentData.path })} className={`mt-3 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ${isMine ? "bg-white/10 text-white hover:bg-white/20" : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"}`}>
                             <Download className="mr-2 h-3.5 w-3.5" />
