@@ -373,8 +373,8 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
               {archiveNotice === "error" ? <div role="alert" className="mx-4 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-center text-xs font-bold text-rose-800">Não foi possível arquivar o chat. Tenta novamente.</div> : null}
               <div className="border-b border-slate-100 px-4 pt-4">
                 <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3">
-                  <p className="text-xs font-black text-slate-950">Chat exclusivo para dúvidas sobre os materiais</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">Para outras dúvidas, utiliza o sistema de tickets do suporte.</p>
+                  <p className="text-xs font-black text-slate-950">Este chat é exclusivo para dúvidas sobre a matéria.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Para dúvidas sobre acesso, compras, etc, usa nossa página de suporte!</p>
                   <Link to={ROUTES.DASHBOARD_SUPPORT} className="mt-2 inline-flex items-center text-xs font-black text-sky-700 underline underline-offset-4 hover:text-sky-900">
                     Abrir página de suporte
                     <ArrowRight className="ml-1 h-3.5 w-3.5" />
