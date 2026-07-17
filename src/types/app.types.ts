@@ -982,6 +982,7 @@ export type AdminPlatformEmailTemplateKey =
   | "free_product_claimed"
   | "support_ticket_created"
   | "support_ticket_replied"
+  | "course_chat_message_created"
   | "manual_notification"
   | "public_form_submission_admin"
   | "public_form_reply"

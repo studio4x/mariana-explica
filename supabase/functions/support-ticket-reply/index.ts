@@ -8,6 +8,7 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  buildCourseChatMessageCreatedEmail,
   buildSupportTicketRepliedEmail,
   extractRequestAuditContext,
   queueEmailDelivery,
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await context.serviceClient
       .from("support_tickets")
-      .select("id,user_id,subject,status,priority")
+      .select("id,user_id,subject,status,priority,category,product_id")
       .eq("id", body.ticketId)
       .maybeSingle()
 
@@ -170,6 +171,41 @@ Deno.serve(async (req) => {
         messagePreview: preview,
       })
     } else {
+      if (ticket.category === "course_chat" && context.profile.email) {
+        let productTitle = "material"
+        if (ticket.product_id) {
+          const { data: product, error: productError } = await context.serviceClient
+            .from("products")
+            .select("title")
+            .eq("id", ticket.product_id)
+            .maybeSingle()
+
+          if (productError) throw productError
+          productTitle = product?.title ?? productTitle
+        }
+
+        const email = await buildCourseChatMessageCreatedEmail(context.serviceClient, {
+          fullName: context.profile.full_name,
+          productTitle,
+          messagePreview: preview,
+          chatUrl: `/aluno/suporte/${ticket.id}`,
+        })
+
+        await queueEmailDelivery(context.serviceClient, {
+          userId: context.user.id,
+          emailTo: context.profile.email,
+          templateKey: "course_chat_message_created",
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+          metadata: {
+            ticket_id: ticket.id,
+            message_id: message.id,
+            category: ticket.category,
+          },
+        })
+      }
+
       const { data: adminRecipients, error: adminRecipientsError } = await context.serviceClient
         .from("profiles")
         .select("id")

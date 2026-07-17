@@ -8,6 +8,7 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  buildCourseChatMessageCreatedEmail,
   buildSupportTicketCreatedEmail,
   extractRequestAuditContext,
   queueEmailDelivery,
@@ -76,15 +77,18 @@ Deno.serve(async (req) => {
       throw badRequest("Anexo invalido para este usuario")
     }
 
+    let productTitle: string | null = null
+
     if (productId) {
       const { data: product, error: productError } = await context.serviceClient
         .from("products")
-        .select("id,status")
+        .select("id,status,title")
         .eq("id", productId)
         .maybeSingle()
 
       if (productError) throw productError
       if (!product) throw badRequest("Material nao encontrado")
+      productTitle = product.title
 
       const { data: grant, error: grantError } = await context.serviceClient
         .from("access_grants")
@@ -124,16 +128,26 @@ Deno.serve(async (req) => {
     }
 
     if (context.profile.email) {
-      const email = await buildSupportTicketCreatedEmail(context.serviceClient, {
-        fullName: context.profile.full_name,
-        subject,
-        supportUrl: `/aluno/suporte/${ticket.id}`,
-      })
+      const isCourseChat = category === "course_chat"
+      const email = isCourseChat
+        ? await buildCourseChatMessageCreatedEmail(context.serviceClient, {
+            fullName: context.profile.full_name,
+            productTitle: productTitle ?? "material",
+            messagePreview: message.includes("Mensagem do aluno:\n")
+              ? message.split("Mensagem do aluno:\n").pop() ?? message
+              : message,
+            chatUrl: `/aluno/suporte/${ticket.id}`,
+          })
+        : await buildSupportTicketCreatedEmail(context.serviceClient, {
+            fullName: context.profile.full_name,
+            subject,
+            supportUrl: `/aluno/suporte/${ticket.id}`,
+          })
 
       await queueEmailDelivery(context.serviceClient, {
         userId: context.user.id,
         emailTo: context.profile.email,
-        templateKey: "support_ticket_created",
+        templateKey: isCourseChat ? "course_chat_message_created" : "support_ticket_created",
         subject: email.subject,
         html: email.html,
         text: email.text,

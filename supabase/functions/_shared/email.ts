@@ -7,6 +7,7 @@ export type PlatformTemplateKey =
   | "free_product_claimed"
   | "support_ticket_created"
   | "support_ticket_replied"
+  | "course_chat_message_created"
   | "manual_notification"
   | "public_form_submission_admin"
   | "public_form_reply"
@@ -234,6 +235,33 @@ const PLATFORM_EMAIL_TEMPLATE_DEFINITIONS: PlatformEmailTemplateDefinition[] = [
       ticket_subject: "Nao consigo abrir o material",
       message_preview: "Ja validamos o teu acesso e deixamos um passo a passo no ticket.",
       support_url: "/aluno/suporte/ticket-exemplo",
+    },
+  },
+  {
+    key: "course_chat_message_created",
+    label: "Mensagem no chat de materiais",
+    description: "Enviado ao aluno quando uma mensagem e registada no chat de duvidas sobre materiais.",
+    category: "Chat de materiais",
+    availableVariables: ["greeting_name", "product_title", "message_preview", "chat_url"],
+    defaultContent: {
+      subject: "Mensagem recebida no chat de materiais | Mariana Explica",
+      eyebrow: "Chat de duvidas",
+      title: "Recebemos a tua mensagem",
+      greeting: "Ola{{greeting_name}}.",
+      intro: 'A tua mensagem sobre o material "{{product_title}}" foi recebida com sucesso.',
+      bullets: [
+        "Mensagem enviada: {{message_preview}}",
+        "Quando houver uma resposta, vais encontra-la no mesmo chat dentro da tua area do aluno.",
+      ],
+      ctaLabel: "Abrir chat de duvidas",
+      ctaUrl: "{{chat_url}}",
+      footer: "Este email confirma apenas o envio da tua mensagem. Para outras questoes, usa a pagina de suporte.",
+    },
+    sampleData: {
+      greeting_name: ", Mariana",
+      product_title: "Pack Exame Nacional de Filosofia",
+      message_preview: "Tenho uma duvida sobre este material.",
+      chat_url: "/aluno/suporte",
     },
   },
   {
@@ -1537,6 +1565,20 @@ export async function buildSupportTicketRepliedEmail(client: SupabaseClient, inp
     ticket_subject: input.subject,
     message_preview: input.messagePreview,
     support_url: input.supportUrl ?? "/aluno/suporte",
+  })
+}
+
+export async function buildCourseChatMessageCreatedEmail(client: SupabaseClient, input: {
+  fullName?: string | null
+  productTitle: string
+  messagePreview: string
+  chatUrl?: string | null
+}) {
+  return await buildPlatformManagedEmail(client, "course_chat_message_created", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    product_title: input.productTitle,
+    message_preview: input.messagePreview.slice(0, 500),
+    chat_url: input.chatUrl ?? "/aluno/suporte",
   })
 }
 
