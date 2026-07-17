@@ -110,7 +110,7 @@ async function fetchProductsByIds(productIds: string[]) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at",
     )
     .in("id", productIds)
 
@@ -267,7 +267,7 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
     const { data, error } = await supabase
       .from("products")
       .select(
-        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at,updated_at",
+        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at,updated_at",
       )
       .eq("status", "published")
       .order("published_at", { ascending: false })

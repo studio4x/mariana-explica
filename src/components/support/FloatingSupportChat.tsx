@@ -50,8 +50,15 @@ function buildContextMessage(
   return `${lines.join("\n")}\n\nMensagem do aluno:\n${message.trim()}`
 }
 
-function ticketMatchesContext(ticket: SupportTicketSummary, context?: FloatingSupportChatContext) {
-  return ticket.category === "course_chat" && (!context || ticket.product_id === context.productId)
+function ticketMatchesContext(
+  ticket: SupportTicketSummary,
+  context: FloatingSupportChatContext | undefined,
+  enabledProductIds: Set<string>,
+) {
+  return (
+    ticket.category === "course_chat" &&
+    (context ? ticket.product_id === context.productId : enabledProductIds.has(ticket.product_id ?? ""))
+  )
 }
 
 export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
@@ -78,14 +85,18 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const replyTicket = useReplySupportTicket()
   const uploadAttachment = useUploadSupportAttachment()
   const attachmentUrl = useSupportAttachmentUrl()
+  const products = (productsQuery.data ?? []).filter((product) => product.course_chat_enabled)
+  const enabledProductIds = useMemo(
+    () => new Set(products.map((product) => product.id)),
+    [products],
+  )
   const tickets = useMemo(
-    () => (ticketsQuery.data ?? []).filter((ticket) => ticketMatchesContext(ticket, context)),
-    [context, ticketsQuery.data],
+    () => (ticketsQuery.data ?? []).filter((ticket) => ticketMatchesContext(ticket, context, enabledProductIds)),
+    [context, enabledProductIds, ticketsQuery.data],
   )
   const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "closed" && !archivingTicketIds.has(ticket.id)), [archivingTicketIds, tickets])
   const archivedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "closed"), [tickets])
   const visibleTickets = showArchived ? archivedTickets : activeTickets
-  const products = productsQuery.data ?? []
   const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null
   const activeTicketQuery = useSupportTicket(selectedTicketId ?? undefined)
   const messagesQuery = useSupportTicketMessages(selectedTicketId ?? undefined)

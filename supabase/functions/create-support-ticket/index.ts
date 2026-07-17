@@ -82,12 +82,15 @@ Deno.serve(async (req) => {
     if (productId) {
       const { data: product, error: productError } = await context.serviceClient
         .from("products")
-        .select("id,status,title")
+        .select("id,status,title,course_chat_enabled")
         .eq("id", productId)
         .maybeSingle()
 
       if (productError) throw productError
       if (!product) throw badRequest("Material nao encontrado")
+      if (category === "course_chat" && !product.course_chat_enabled && !context.profile.is_admin) {
+        throw badRequest("O chat de duvidas nao esta ativado neste material")
+      }
       productTitle = product.title
 
       const { data: grant, error: grantError } = await context.serviceClient

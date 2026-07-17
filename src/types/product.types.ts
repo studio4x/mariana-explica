@@ -83,6 +83,7 @@ export interface ProductSummary {
   public_page_content: CoursePublicPageContent | null
   sales_page_enabled: boolean
   requires_auth: boolean
+  course_chat_enabled: boolean
   is_featured: boolean
   allow_affiliate: boolean
   sort_order: number

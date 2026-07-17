@@ -69,6 +69,19 @@ Deno.serve(async (req) => {
     if (ticketError) throw ticketError
     if (!ticket) throw notFound("Ticket nao encontrado")
 
+    if (!context.profile.is_admin && ticket.category === "course_chat" && ticket.product_id) {
+      const { data: product, error: productError } = await context.serviceClient
+        .from("products")
+        .select("course_chat_enabled")
+        .eq("id", ticket.product_id)
+        .maybeSingle()
+
+      if (productError) throw productError
+      if (!product?.course_chat_enabled) {
+        throw forbidden("O chat de duvidas nao esta ativado neste material")
+      }
+    }
+
     const isOwner = ticket.user_id === context.user.id
     if (!context.profile.is_admin && !isOwner) {
       throw forbidden("Voce nao pode responder este ticket")

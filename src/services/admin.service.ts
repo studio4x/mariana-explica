@@ -1276,9 +1276,9 @@ export async function fetchAdminUsers() {
 
 export async function fetchAdminProducts() {
   const selectWithCategories =
-    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,category_id,published_at"
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,category_id,published_at"
   const selectLegacy =
-    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at"
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at"
 
   const { data, error } = await supabase
     .from("products")
@@ -3327,6 +3327,7 @@ export function createAdminProduct(input: {
   currency?: string
   salesPageEnabled?: boolean
   requiresAuth?: boolean
+  courseChatEnabled?: boolean
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
@@ -3362,6 +3363,7 @@ export function updateAdminProduct(input: {
   currency?: string
   salesPageEnabled?: boolean
   requiresAuth?: boolean
+  courseChatEnabled?: boolean
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number

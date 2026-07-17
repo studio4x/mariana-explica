@@ -26,6 +26,7 @@ function buildProduct(overrides: Partial<ProductSummary> = {}): ProductSummary {
     public_page_content: null,
     sales_page_enabled: true,
     requires_auth: false,
+    course_chat_enabled: false,
     is_featured: false,
     allow_affiliate: false,
     sort_order: 1,

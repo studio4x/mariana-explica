@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth"
 import {
   useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
+  useMyProducts,
   useNotifications,
   useProfilePreferences,
   useUnreadNotificationsCount,
@@ -87,6 +88,7 @@ export function DashboardLayout() {
   const profilePreferencesQuery = useProfilePreferences()
   const unreadNotificationsQuery = useUnreadNotificationsCount()
   const notificationsQuery = useNotifications()
+  const productsQuery = useMyProducts()
   const markAsRead = useMarkNotificationAsRead()
   const markAllAsRead = useMarkAllNotificationsAsRead()
   const profilePreferences = profilePreferencesQuery.data
@@ -102,6 +104,7 @@ export function DashboardLayout() {
   const unreadNotificationsCount = notificationsQuery.data
     ? notificationsQuery.data.filter((notification) => notification.status === "unread").length
     : unreadNotificationsQuery.data ?? 0
+  const courseChatEnabled = productsQuery.data?.some((product) => product.course_chat_enabled) ?? false
 
   return (
     <div className="min-h-screen bg-[#F2F7F9] text-[#163138]">
@@ -258,7 +261,7 @@ export function DashboardLayout() {
         clearAllPending={markAllAsRead.isPending}
         alignWithFloatingChat
       />
-      <FloatingSupportChat />
+      {courseChatEnabled ? <FloatingSupportChat /> : null}
       <SiteAiCodeEditorLauncher />
       <InstallPrompt />
     </div>

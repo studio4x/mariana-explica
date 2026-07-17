@@ -414,7 +414,7 @@ export function StudentCoursePlayerLayout() {
           </div>
         </main>
       </div>
-      <FloatingSupportChat
+      {product.course_chat_enabled ? <FloatingSupportChat
         context={{
           productId: product.id,
           productTitle: product.title,
@@ -425,7 +425,7 @@ export function StudentCoursePlayerLayout() {
               : null,
           currentContentType: lessonId ? "aula" : assessmentId ? "avaliação" : null,
         }}
-      />
+      /> : null}
       <SiteAiCodeEditorLauncher />
     </div>
   )

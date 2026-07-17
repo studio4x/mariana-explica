@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     const { data: product, error: productError } = await context.serviceClient
       .from("products")
       .select(
-        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,sales_page_enabled,requires_auth,is_featured,allow_affiliate,sort_order,published_at",
+        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at",
       )
       .eq("id", productId)
       .eq("status", "published")

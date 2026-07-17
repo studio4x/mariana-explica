@@ -31,6 +31,7 @@ interface ProductPayload {
   currency?: string
   salesPageEnabled?: boolean
   requiresAuth?: boolean
+  courseChatEnabled?: boolean
   isFeatured?: boolean
   allowAffiliate?: boolean
   sortOrder?: number
@@ -68,6 +69,7 @@ function mapPayload(payload: Partial<ProductPayload>) {
   if (payload.currency !== undefined) updates.currency = payload.currency.toUpperCase()
   if (payload.salesPageEnabled !== undefined) updates.sales_page_enabled = payload.salesPageEnabled
   if (payload.requiresAuth !== undefined) updates.requires_auth = payload.requiresAuth
+  if (payload.courseChatEnabled !== undefined) updates.course_chat_enabled = payload.courseChatEnabled
   if (payload.isFeatured !== undefined) updates.is_featured = payload.isFeatured
   if (payload.allowAffiliate !== undefined) updates.allow_affiliate = payload.allowAffiliate
   if (payload.sortOrder !== undefined) updates.sort_order = payload.sortOrder

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, ImagePlus, MessageCircle, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
@@ -141,6 +141,7 @@ export function CourseSettingsPanel() {
     currency: product.currency,
     salesPageEnabled: product.sales_page_enabled,
     requiresAuth: product.requires_auth,
+    courseChatEnabled: product.course_chat_enabled,
     isFeatured: product.is_featured,
     allowAffiliate: product.allow_affiliate,
     sortOrder: String(product.sort_order ?? 0),
@@ -172,6 +173,7 @@ export function CourseSettingsPanel() {
       currency: product.currency,
       salesPageEnabled: product.sales_page_enabled,
       requiresAuth: product.requires_auth,
+      courseChatEnabled: product.course_chat_enabled,
       isFeatured: product.is_featured,
       allowAffiliate: product.allow_affiliate,
       sortOrder: String(product.sort_order ?? 0),
@@ -326,6 +328,7 @@ export function CourseSettingsPanel() {
         currency: form.currency.trim().toUpperCase() || "EUR",
         salesPageEnabled: form.salesPageEnabled,
         requiresAuth: form.requiresAuth,
+        courseChatEnabled: form.courseChatEnabled,
         isFeatured: form.isFeatured,
         allowAffiliate: form.allowAffiliate,
         sortOrder: Number(form.sortOrder || 0),
@@ -848,6 +851,35 @@ export function CourseSettingsPanel() {
             onUpload={handleCoverUpload}
             onSelect={handleCoverLibrarySelect}
           />
+        </section>
+
+        <section className="rounded-[1.5rem] border border-sky-100 bg-sky-50/60 p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm">
+              <MessageCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-700">Apoio ao aluno</p>
+              <h2 className="mt-2 text-lg font-bold text-slate-950">Chat de dúvidas sobre este material</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Quando ativado, o aluno verá o chat flutuante dentro deste curso e poderá enviar dúvidas diretamente sobre a matéria.
+              </p>
+            </div>
+          </div>
+          <label className="mt-5 flex items-start gap-3 rounded-2xl border border-sky-100 bg-white px-4 py-4 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.courseChatEnabled}
+              onChange={(event) => setForm((prev) => ({ ...prev, courseChatEnabled: event.target.checked }))}
+              className="mt-1"
+            />
+            <span>
+              <span className="block font-semibold text-slate-950">Ativar chat de dúvidas neste material</span>
+              <span className="mt-1 block text-slate-500">
+                O botão só aparecerá para alunos com acesso liberado a este material.
+              </span>
+            </span>
+          </label>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">
