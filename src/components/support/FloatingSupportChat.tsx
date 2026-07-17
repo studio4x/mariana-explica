@@ -59,7 +59,8 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
-  const [archiveNotice, setArchiveNotice] = useState(false)
+  const [archiveNotice, setArchiveNotice] = useState<"success" | "error" | null>(null)
+  const [archivingTicketIds, setArchivingTicketIds] = useState<Set<string>>(new Set())
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [selectedProductId, setSelectedProductId] = useState("")
   const [message, setMessage] = useState("")
@@ -81,7 +82,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     () => (ticketsQuery.data ?? []).filter((ticket) => ticketMatchesContext(ticket, context)),
     [context, ticketsQuery.data],
   )
-  const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "closed"), [tickets])
+  const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "closed" && !archivingTicketIds.has(ticket.id)), [archivingTicketIds, tickets])
   const archivedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "closed"), [tickets])
   const visibleTickets = showArchived ? archivedTickets : activeTickets
   const products = productsQuery.data ?? []
@@ -110,14 +111,14 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
 
   useEffect(() => {
     if (!archiveNotice) return undefined
-    const timeout = window.setTimeout(() => setArchiveNotice(false), 3500)
+    const timeout = window.setTimeout(() => setArchiveNotice(null), 3500)
     return () => window.clearTimeout(timeout)
   }, [archiveNotice])
 
   const openComposer = () => {
     setSelectedTicketId(null)
     setShowArchived(false)
-    setArchiveNotice(false)
+    setArchiveNotice(null)
     setReply("")
     setMessage("")
     setAttachment(null)
@@ -132,7 +133,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     setSelectedTicketId(null)
     setReply("")
     setReplyAttachment(null)
-    setArchiveNotice(false)
+    setArchiveNotice(null)
   }
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
@@ -174,10 +175,21 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   }
 
   const handleArchive = async (ticketId: string) => {
-    await archiveTicket.mutateAsync(ticketId)
+    setArchivingTicketIds((current) => new Set(current).add(ticketId))
     setSelectedTicketId(null)
     setShowArchived(false)
-    setArchiveNotice(true)
+    setArchiveNotice("success")
+    try {
+      await archiveTicket.mutateAsync(ticketId)
+    } catch {
+      setArchiveNotice("error")
+    } finally {
+      setArchivingTicketIds((current) => {
+        const next = new Set(current)
+        next.delete(ticketId)
+        return next
+      })
+    }
   }
 
   const openAttachment = async (input: { bucket: string | null; path: string | null }) => {
@@ -357,7 +369,8 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
-              {archiveNotice ? <div role="status" className="mx-4 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-bold text-emerald-800">Chat arquivado com sucesso.</div> : null}
+              {archiveNotice === "success" ? <div role="status" className="mx-4 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-bold text-emerald-800">Chat arquivado com sucesso.</div> : null}
+              {archiveNotice === "error" ? <div role="alert" className="mx-4 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-center text-xs font-bold text-rose-800">Não foi possível arquivar o chat. Tenta novamente.</div> : null}
               <div className="border-b border-slate-100 px-4 pt-4">
                 <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3">
                   <p className="text-xs font-black text-slate-950">Chat exclusivo para dúvidas sobre os materiais</p>
