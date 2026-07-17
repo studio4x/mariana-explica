@@ -6,6 +6,7 @@ import { queryClient } from "@/lib/query-client"
 import { removeMatchingOptimisticSupportMessage } from "@/lib/support-messages"
 import {
   createSupportTicket,
+  archiveSupportTicket,
   fetchAccessibleAssessment,
   fetchAccessibleLesson,
   fetchAssessmentAttemptState,
@@ -510,6 +511,21 @@ export function useCreateSupportTicket() {
 
   return useMutation({
     mutationFn: createSupportTicket,
+    onSuccess: (ticket) => {
+      queryClient.setQueryData<SupportTicketSummary[]>(["dashboard", "support", "tickets"], (current) =>
+        upsertById(current, ticket, sortTickets),
+      )
+      queryClient.setQueryData(["dashboard", "support", "ticket", ticket.id], ticket)
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "support"] })
+    },
+  })
+}
+
+export function useArchiveSupportTicket() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: archiveSupportTicket,
     onSuccess: (ticket) => {
       queryClient.setQueryData<SupportTicketSummary[]>(["dashboard", "support", "tickets"], (current) =>
         upsertById(current, ticket, sortTickets),

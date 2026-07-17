@@ -1042,6 +1042,17 @@ export async function fetchSupportTickets() {
   return (data ?? []) as SupportTicketSummary[]
 }
 
+export async function archiveSupportTicket(ticketId: string) {
+  const headers = await getFunctionAuthHeaders()
+  const { data, error } = await supabase.functions.invoke("archive-support-ticket", {
+    body: { ticketId },
+    headers,
+  })
+
+  if (error) throw error
+  return (data as { success: true; ticket: SupportTicketSummary }).ticket
+}
+
 export async function fetchSupportTicket(ticketId: string) {
   const { data, error } = await supabase
     .from("support_tickets")

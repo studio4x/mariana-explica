@@ -3,6 +3,7 @@ import { Archive, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send
 import { useAuth } from "@/hooks/useAuth"
 import {
   useCreateSupportTicket,
+  useArchiveSupportTicket,
   useMyProducts,
   useReplySupportTicket,
   useSupportAttachmentUrl,
@@ -69,6 +70,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const ticketsQuery = useSupportTickets()
   const productsQuery = useMyProducts({ enabled: !context })
   const createTicket = useCreateSupportTicket()
+  const archiveTicket = useArchiveSupportTicket()
   const replyTicket = useReplySupportTicket()
   const uploadAttachment = useUploadSupportAttachment()
   const attachmentUrl = useSupportAttachmentUrl()
@@ -158,6 +160,12 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     setReply("")
     setReplyAttachment(null)
     if (replyFileInputRef.current) replyFileInputRef.current.value = ""
+  }
+
+  const handleArchive = async (ticketId: string) => {
+    await archiveTicket.mutateAsync(ticketId)
+    setSelectedTicketId(null)
+    setShowArchived(true)
   }
 
   const openAttachment = async (input: { bucket: string | null; path: string | null }) => {
@@ -266,6 +274,11 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                   <p className="truncate text-sm font-black text-slate-950">{activeTicket?.subject ?? "Conversa"}</p>
                   <p className="text-xs text-slate-500">Chat do curso</p>
                 </div>
+                {activeTicket && activeTicket.status !== "closed" ? (
+                  <button type="button" onClick={() => void handleArchive(activeTicket.id)} disabled={archiveTicket.isPending} className="ml-auto rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Arquivar conversa" title="Arquivar conversa">
+                    <Archive className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
               <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
                 {activeTicketQuery.isLoading || messagesQuery.isLoading ? <Loader2 className="mx-auto mt-8 h-5 w-5 animate-spin text-sky-600" /> : null}
@@ -342,14 +355,21 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                 ) : (
                   <div className="space-y-2">
                     {visibleTickets.map((ticket) => (
-                      <button key={ticket.id} type="button" onClick={() => selectTicket(ticket.id)} className={`w-full rounded-2xl border p-4 text-left transition ${showArchived ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white" : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50"}`}>
-                        <p className="truncate font-black text-slate-950">{ticket.subject}</p>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{ticket.message.replace(/^\[Contexto do curso\/material\][\s\S]*?Mensagem do aluno:\n/, "")}</p>
-                        <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
-                          {showArchived ? <Archive className="h-3 w-3" /> : null}
-                          {formatDateTime(ticket.updated_at)}
-                        </p>
-                      </button>
+                      <div key={ticket.id} className="relative">
+                        <button type="button" onClick={() => selectTicket(ticket.id)} className={`w-full rounded-2xl border p-4 pr-12 text-left transition ${showArchived ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white" : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50"}`}>
+                          <p className="truncate font-black text-slate-950">{ticket.subject}</p>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{ticket.message.replace(/^\[Contexto do curso\/material\][\s\S]*?Mensagem do aluno:\n/, "")}</p>
+                          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                            {showArchived ? <Archive className="h-3 w-3" /> : null}
+                            {formatDateTime(ticket.updated_at)}
+                          </p>
+                        </button>
+                        {!showArchived ? (
+                          <button type="button" onClick={() => void handleArchive(ticket.id)} disabled={archiveTicket.isPending} className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Arquivar conversa" title="Arquivar conversa">
+                            <Archive className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 )}
