@@ -6,30 +6,35 @@ export const supportCategories = [
     label: "Pagamentos e acesso",
     description: "Compra, checkout, fatura, ativação ou acesso após pagamento.",
     firstResponseHours: 5,
+    tone: "orange",
   },
   {
     key: "technical",
     label: "Apoio técnico",
     description: "Erro na área do aluno, visualizador, downloads ou login.",
     firstResponseHours: 24,
+    tone: "info",
   },
   {
     key: "account",
     label: "Conta e acesso",
     description: "Dados da conta, senha, acesso a materiais ou permissao.",
     firstResponseHours: 24,
+    tone: "purple",
   },
   {
     key: "general",
     label: "Dúvidas gerais",
     description: "Perguntas sobre materiais ou funcionamento.",
     firstResponseHours: 24,
+    tone: "success",
   },
   {
     key: "course_chat",
     label: "Chat do curso",
     description: "Duvidas enviadas diretamente a partir de um curso ou material.",
     firstResponseHours: 24,
+    tone: "teal",
   },
 ] as const
 

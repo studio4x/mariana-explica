@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn"
 
 interface StatusBadgeProps {
   label: string
-  tone?: "neutral" | "success" | "warning" | "danger" | "info"
+  tone?: "neutral" | "success" | "warning" | "danger" | "info" | "orange" | "purple" | "teal"
 }
 
 const toneClasses: Record<NonNullable<StatusBadgeProps["tone"]>, string> = {
@@ -11,6 +11,9 @@ const toneClasses: Record<NonNullable<StatusBadgeProps["tone"]>, string> = {
   warning: "border border-amber-200 bg-amber-100 text-amber-800",
   danger: "border border-rose-200 bg-rose-100 text-rose-700",
   info: "border border-sky-200 bg-sky-100 text-sky-700",
+  orange: "border border-orange-200 bg-orange-100 text-orange-700",
+  purple: "border border-violet-200 bg-violet-100 text-violet-700",
+  teal: "border border-teal-200 bg-teal-100 text-teal-700",
 }
 
 export function StatusBadge({ label, tone = "neutral" }: StatusBadgeProps) {

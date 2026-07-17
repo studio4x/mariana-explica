@@ -234,7 +234,7 @@ export function AdminSupport() {
                         <p className="mt-1 text-xs text-slate-500">{formatDateTime(ticket.created_at)}</p>
                       </td>
                       <td className="px-4 py-4">
-                        <StatusBadge label={category.label} tone="info" />
+                        <StatusBadge label={category.label} tone={category.tone} />
                         <p className="mt-1 text-xs text-slate-500">Ate {category.firstResponseHours}h uteis</p>
                       </td>
                       <td className="px-4 py-4"><StatusBadge label={sla.label} tone={sla.tone} /></td>
