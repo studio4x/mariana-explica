@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "271"
-export const BUILD_COMMIT = "student-archive-optimistic"
+export const BUILD_DEPLOY_NUMBER = "272"
+export const BUILD_COMMIT = "student-notifications-layout"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
