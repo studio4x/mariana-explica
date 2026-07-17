@@ -1,13 +1,15 @@
-import { useMemo, useState, type FormEvent } from "react"
-import { BookOpen, ChevronLeft, Loader2, MessageCircle, Send, X } from "lucide-react"
+import { useMemo, useRef, useState, type FormEvent } from "react"
+import { BookOpen, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import {
   useCreateSupportTicket,
   useMyProducts,
   useReplySupportTicket,
+  useSupportAttachmentUrl,
   useSupportTicket,
   useSupportTicketMessages,
   useSupportTickets,
+  useUploadSupportAttachment,
 } from "@/hooks/useDashboard"
 import type { DashboardProductSummary, SupportTicketSummary } from "@/types/app.types"
 import { formatDateTime } from "@/utils/date"
@@ -55,11 +57,17 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [selectedProductId, setSelectedProductId] = useState("")
   const [message, setMessage] = useState("")
+  const [attachment, setAttachment] = useState<File | null>(null)
   const [reply, setReply] = useState("")
+  const [replyAttachment, setReplyAttachment] = useState<File | null>(null)
+  const composerFileInputRef = useRef<HTMLInputElement | null>(null)
+  const replyFileInputRef = useRef<HTMLInputElement | null>(null)
   const ticketsQuery = useSupportTickets()
   const productsQuery = useMyProducts({ enabled: !context })
   const createTicket = useCreateSupportTicket()
   const replyTicket = useReplySupportTicket()
+  const uploadAttachment = useUploadSupportAttachment()
+  const attachmentUrl = useSupportAttachmentUrl()
   const tickets = useMemo(
     () => (ticketsQuery.data ?? []).filter((ticket) => ticketMatchesContext(ticket, context)),
     [context, ticketsQuery.data],
@@ -70,12 +78,14 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const messagesQuery = useSupportTicketMessages(selectedTicketId ?? undefined)
   const activeTicket = activeTicketQuery.data
   const messages = messagesQuery.data ?? []
-  const isSending = createTicket.isPending || replyTicket.isPending
+  const isSending = createTicket.isPending || replyTicket.isPending || uploadAttachment.isPending
 
   const openComposer = () => {
     setSelectedTicketId(null)
     setReply("")
     setMessage("")
+    setAttachment(null)
+    setReplyAttachment(null)
     if (context) setSelectedProductId(context.productId)
     setIsComposerOpen(true)
   }
@@ -85,6 +95,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     setIsComposerOpen(false)
     setSelectedTicketId(null)
     setReply("")
+    setReplyAttachment(null)
   }
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
@@ -94,24 +105,41 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
       : selectedProduct
     if (!product || !message.trim()) return
 
+    const uploadedAttachment = attachment
+      ? await uploadAttachment.mutateAsync({ file: attachment })
+      : null
     const ticket = await createTicket.mutateAsync({
       subject: `Dúvida sobre ${product.title}`,
       message: buildContextMessage(message, product, context),
       productId: product.id,
       category: "course_chat",
       priority: "normal",
+      attachment: uploadedAttachment,
     })
 
     setMessage("")
+    setAttachment(null)
+    if (composerFileInputRef.current) composerFileInputRef.current.value = ""
     setIsComposerOpen(false)
     setSelectedTicketId(ticket.id)
   }
 
   const handleReply = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!selectedTicketId || !reply.trim() || activeTicket?.status === "closed") return
-    await replyTicket.mutateAsync({ ticketId: selectedTicketId, message: reply })
+    if (!selectedTicketId || (!reply.trim() && !replyAttachment) || activeTicket?.status === "closed") return
+    const uploadedAttachment = replyAttachment
+      ? await uploadAttachment.mutateAsync({ file: replyAttachment, ticketId: selectedTicketId })
+      : null
+    await replyTicket.mutateAsync({ ticketId: selectedTicketId, message: reply, attachment: uploadedAttachment })
     setReply("")
+    setReplyAttachment(null)
+    if (replyFileInputRef.current) replyFileInputRef.current.value = ""
+  }
+
+  const openAttachment = async (input: { bucket: string | null; path: string | null }) => {
+    if (!activeTicket || !input.bucket || !input.path) return
+    const result = await attachmentUrl.mutateAsync({ ticketId: activeTicket.id, bucket: input.bucket, path: input.path })
+    window.open(result.signed_url, "_blank", "noopener,noreferrer")
   }
 
   const selectTicket = (ticketId: string) => {
@@ -186,9 +214,21 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                     className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </label>
+                {attachment ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-bold text-slate-700">
+                    <span className="flex min-w-0 items-center gap-2 truncate"><Paperclip className="h-4 w-4 shrink-0 text-sky-700" />{attachment.name}</span>
+                    <button type="button" onClick={() => { setAttachment(null); if (composerFileInputRef.current) composerFileInputRef.current.value = "" }} className="rounded-full p-1 text-slate-500 hover:bg-white" aria-label="Remover anexo">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
               </div>
               <div className="flex gap-2 border-t border-slate-100 p-4">
                 {tickets.length > 0 ? <button type="button" onClick={() => setIsComposerOpen(false)} className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100">Voltar</button> : null}
+                <input ref={composerFileInputRef} type="file" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] ?? null)} />
+                <button type="button" onClick={() => composerFileInputRef.current?.click()} className="inline-flex items-center rounded-xl border border-slate-200 px-3 py-2.5 text-slate-600 hover:bg-slate-50" aria-label="Anexar arquivo">
+                  <Paperclip className="h-4 w-4" />
+                </button>
                 <button type="submit" disabled={isSending || !message.trim() || (!context && !selectedProductId)} className="ml-auto inline-flex items-center rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50">
                   {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                   Enviar mensagem
@@ -208,19 +248,35 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
                 {activeTicketQuery.isLoading || messagesQuery.isLoading ? <Loader2 className="mx-auto mt-8 h-5 w-5 animate-spin text-sky-600" /> : null}
-                {activeTicket ? (
+                {activeTicket && messages.length === 0 ? (
                   <div className="rounded-2xl rounded-tl-sm border border-sky-100 bg-white p-3 shadow-sm">
                     <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{activeTicket.message}</p>
+                    {activeTicket.attachment_path ? (
+                      <button type="button" onClick={() => void openAttachment({ bucket: activeTicket.attachment_bucket, path: activeTicket.attachment_path })} className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white">
+                        <Download className="mr-2 h-3.5 w-3.5" />
+                        {activeTicket.attachment_name ?? "Abrir anexo"}
+                      </button>
+                    ) : null}
                     <p className="mt-2 text-[11px] font-semibold text-slate-400">{formatDateTime(activeTicket.created_at)}</p>
                   </div>
                 ) : null}
                 {messages.map((item) => {
                   const isMine = item.sender_user_id === user?.id
+                  const isInitialMessage = item.message === activeTicket?.message && item.created_at === activeTicket.created_at
+                  const attachmentData = isInitialMessage && activeTicket?.attachment_path
+                    ? { bucket: activeTicket.attachment_bucket, path: activeTicket.attachment_path, name: activeTicket.attachment_name }
+                    : { bucket: item.attachment_bucket, path: item.attachment_path, name: item.attachment_name }
                   return (
                     <div key={item.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[88%] rounded-2xl p-3 shadow-sm ${isMine ? "rounded-tr-sm bg-slate-950 text-white" : "rounded-tl-sm border bg-white text-slate-800"}`}>
                         {!isMine ? <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700">Equipe de suporte</p> : null}
                         <p className="whitespace-pre-wrap text-sm leading-6">{item.message}</p>
+                        {attachmentData.path ? (
+                          <button type="button" onClick={() => void openAttachment({ bucket: attachmentData.bucket, path: attachmentData.path })} className={`mt-3 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ${isMine ? "bg-white/10 text-white hover:bg-white/20" : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"}`}>
+                            <Download className="mr-2 h-3.5 w-3.5" />
+                            {attachmentData.name ?? "Abrir anexo"}
+                          </button>
+                        ) : null}
                         <p className={`mt-2 text-[11px] font-semibold ${isMine ? "text-white/60" : "text-slate-400"}`}>{formatDateTime(item.created_at)}</p>
                       </div>
                     </div>
@@ -230,11 +286,25 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
               {activeTicket?.status === "closed" ? (
                 <p className="border-t border-slate-100 bg-slate-50 p-4 text-center text-xs font-semibold text-slate-500">Esta conversa foi encerrada.</p>
               ) : (
-                <form onSubmit={handleReply} className="flex gap-2 border-t border-slate-100 bg-white p-3">
-                  <textarea value={reply} onChange={(event) => setReply(event.target.value)} rows={2} placeholder="Escreve uma resposta..." className="min-h-10 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-500 focus:bg-white" />
-                  <button type="submit" disabled={isSending || !reply.trim()} className="self-end rounded-xl bg-sky-600 p-3 text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Enviar resposta">
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </button>
+                <form onSubmit={handleReply} className="border-t border-slate-100 bg-white p-3">
+                  {replyAttachment ? (
+                    <div className="mb-2 flex items-center justify-between rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-bold text-slate-700">
+                      <span className="flex min-w-0 items-center gap-2 truncate"><Paperclip className="h-4 w-4 shrink-0 text-sky-700" />{replyAttachment.name}</span>
+                      <button type="button" onClick={() => { setReplyAttachment(null); if (replyFileInputRef.current) replyFileInputRef.current.value = "" }} className="rounded-full p-1 text-slate-500 hover:bg-white" aria-label="Remover anexo">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <input ref={replyFileInputRef} type="file" className="hidden" onChange={(event) => setReplyAttachment(event.target.files?.[0] ?? null)} />
+                    <button type="button" onClick={() => replyFileInputRef.current?.click()} className="self-end rounded-xl border border-slate-200 p-3 text-slate-600 hover:bg-slate-50" aria-label="Anexar arquivo">
+                      <Paperclip className="h-4 w-4" />
+                    </button>
+                    <textarea value={reply} onChange={(event) => setReply(event.target.value)} rows={2} placeholder="Escreve uma resposta..." className="min-h-10 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-500 focus:bg-white" />
+                    <button type="submit" disabled={isSending || (!reply.trim() && !replyAttachment)} className="self-end rounded-xl bg-sky-600 p-3 text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Enviar resposta">
+                      {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </form>
               )}
             </div>

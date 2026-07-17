@@ -208,25 +208,30 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
           </div>
 
           <div ref={chatScrollRef} className="h-[560px] space-y-4 overflow-y-auto bg-slate-50/50 p-5">
-            <div className="max-w-[86%] rounded-2xl rounded-tl-sm border bg-white p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Descrição do problema</p>
-              <p className="mt-2 text-sm leading-7 text-slate-700">{ticket.message}</p>
-              {ticket.attachment_path ? (
-                <button
-                  type="button"
-                  onClick={() => void openAttachment({ bucket: ticket.attachment_bucket, path: ticket.attachment_path })}
-                  className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white"
-                >
-                  <Download className="mr-2 h-3.5 w-3.5" />
-                  {ticket.attachment_name ?? "Abrir anexo"}
-                  {formatFileSize(ticket.attachment_size_bytes) ? ` (${formatFileSize(ticket.attachment_size_bytes)})` : ""}
-                </button>
-              ) : null}
-              <p className="mt-3 text-xs font-semibold text-slate-400">{formatDateTime(ticket.created_at)}</p>
-            </div>
+            {messages.length === 0 ? (
+              <div className="max-w-[86%] rounded-2xl rounded-tl-sm border bg-white p-4 shadow-sm">
+                <p className="text-sm leading-7 text-slate-700">{ticket.message}</p>
+                {ticket.attachment_path ? (
+                  <button
+                    type="button"
+                    onClick={() => void openAttachment({ bucket: ticket.attachment_bucket, path: ticket.attachment_path })}
+                    className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white"
+                  >
+                    <Download className="mr-2 h-3.5 w-3.5" />
+                    {ticket.attachment_name ?? "Abrir anexo"}
+                    {formatFileSize(ticket.attachment_size_bytes) ? ` (${formatFileSize(ticket.attachment_size_bytes)})` : ""}
+                  </button>
+                ) : null}
+                <p className="mt-3 text-xs font-semibold text-slate-400">{formatDateTime(ticket.created_at)}</p>
+              </div>
+            ) : null}
 
             {messages.map((message) => {
               const isMine = message.sender_user_id === user?.id
+              const isInitialMessage = message.message === ticket.message && message.created_at === ticket.created_at
+              const attachmentData = isInitialMessage && ticket.attachment_path
+                ? { bucket: ticket.attachment_bucket, path: ticket.attachment_path, name: ticket.attachment_name, size: ticket.attachment_size_bytes }
+                : { bucket: message.attachment_bucket, path: message.attachment_path, name: message.attachment_name, size: message.attachment_size_bytes }
               return (
                 <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                   <div
@@ -242,10 +247,10 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                       </p>
                     ) : null}
                     {message.message ? <p className="text-sm leading-7">{message.message}</p> : null}
-                    {message.attachment_path ? (
+                    {attachmentData.path ? (
                       <button
                         type="button"
-                        onClick={() => void openAttachment({ bucket: message.attachment_bucket, path: message.attachment_path })}
+                        onClick={() => void openAttachment({ bucket: attachmentData.bucket, path: attachmentData.path })}
                         className={`mt-3 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ${
                           isMine
                             ? "bg-white/10 text-white hover:bg-white/20"
@@ -253,8 +258,8 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                         }`}
                       >
                         <Download className="mr-2 h-3.5 w-3.5" />
-                        {message.attachment_name ?? "Abrir anexo"}
-                        {formatFileSize(message.attachment_size_bytes) ? ` (${formatFileSize(message.attachment_size_bytes)})` : ""}
+                        {attachmentData.name ?? "Abrir anexo"}
+                        {formatFileSize(attachmentData.size) ? ` (${formatFileSize(attachmentData.size)})` : ""}
                       </button>
                     ) : null}
                     <p className={`mt-3 text-xs font-semibold ${isMine ? "text-white/60" : "text-slate-400"}`}>
