@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from "react"
+import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { BookOpen, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -63,6 +63,8 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const [replyAttachment, setReplyAttachment] = useState<File | null>(null)
   const composerFileInputRef = useRef<HTMLInputElement | null>(null)
   const replyFileInputRef = useRef<HTMLInputElement | null>(null)
+  const chatScrollRef = useRef<HTMLDivElement | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const ticketsQuery = useSupportTickets()
   const productsQuery = useMyProducts({ enabled: !context })
   const createTicket = useCreateSupportTicket()
@@ -80,6 +82,22 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const activeTicket = activeTicketQuery.data
   const messages = messagesQuery.data ?? []
   const isSending = createTicket.isPending || replyTicket.isPending || uploadAttachment.isPending
+  const latestMessageId = messages.at(-1)?.id ?? null
+
+  useLayoutEffect(() => {
+    if (!isOpen || !selectedTicketId) return undefined
+
+    const scrollToLatestMessage = () => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+      }
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
+    }
+
+    scrollToLatestMessage()
+    const frame = window.requestAnimationFrame(scrollToLatestMessage)
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeTicket?.id, isOpen, latestMessageId, selectedTicketId])
 
   const openComposer = () => {
     setSelectedTicketId(null)
@@ -244,7 +262,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                   <p className="text-xs text-slate-500">Chat do curso</p>
                 </div>
               </div>
-              <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
+              <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
                 {activeTicketQuery.isLoading || messagesQuery.isLoading ? <Loader2 className="mx-auto mt-8 h-5 w-5 animate-spin text-sky-600" /> : null}
                 {activeTicket && !messagesQuery.isLoading && messages.length === 0 ? (
                   <div className="rounded-2xl rounded-tr-sm bg-slate-950 p-3 text-white shadow-sm">
@@ -280,6 +298,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                     </div>
                   )
                 })}
+                <div ref={messagesEndRef} />
               </div>
               {activeTicket?.status === "closed" ? (
                 <p className="border-t border-slate-100 bg-slate-50 p-4 text-center text-xs font-semibold text-slate-500">Esta conversa foi encerrada.</p>
