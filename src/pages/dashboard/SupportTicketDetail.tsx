@@ -244,7 +244,7 @@ function TicketDetail({ mode }: { mode: "student" | "admin" }) {
                   >
                     {!isMine ? (
                       <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-sky-700">
-                        {message.sender_role === "admin" ? "Equipe de suporte" : "Aluno"}
+                        {message.sender_role === "admin" ? "Mariana" : "Aluno"}
                       </p>
                     ) : null}
                     {message.message ? <SupportMessageContent message={message.message} isMine={isMine} messageLabel={mode === "admin" ? (message.sender_role === "admin" ? "Mensagem da equipa" : "Mensagem do aluno") : undefined} /> : null}

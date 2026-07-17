@@ -327,7 +327,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
                   return (
                     <div key={item.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[88%] rounded-2xl p-3 shadow-sm ${isMine ? "rounded-tr-sm bg-slate-950 text-white" : "rounded-tl-sm border bg-white text-slate-800"}`}>
-                        {!isMine ? <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700">Equipe de suporte</p> : null}
+                        {!isMine ? <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700">Mariana</p> : null}
                         <SupportMessageContent message={item.message} isMine={isMine} />
                         {attachmentData.path ? (
                           <button type="button" onClick={() => void openAttachment({ bucket: attachmentData.bucket, path: attachmentData.path })} className={`mt-3 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold ${isMine ? "bg-white/10 text-white hover:bg-white/20" : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"}`}>
