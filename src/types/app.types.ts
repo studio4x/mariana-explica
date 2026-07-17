@@ -1297,7 +1297,7 @@ export interface SupportTicketSummary {
   message: string
   status: "open" | "in_progress" | "answered" | "closed"
   priority: "low" | "normal" | "medium" | "high" | "urgent"
-  category: "payment" | "technical" | "account" | "general"
+  category: "payment" | "technical" | "account" | "general" | "course_chat"
   assigned_admin_id: string | null
   last_reply_at: string | null
   first_response_due_at: string | null

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { SiteAiCodeEditorLauncher, StatusBadge } from "@/components/common"
+import { FloatingSupportChat } from "@/components/support"
 import { useDashboardProductContent } from "@/hooks/useDashboard"
 import {
   buildCoursePlayerEntries,
@@ -413,6 +414,18 @@ export function StudentCoursePlayerLayout() {
           </div>
         </main>
       </div>
+      <FloatingSupportChat
+        context={{
+          productId: product.id,
+          productTitle: product.title,
+          currentContentTitle: lessonId
+            ? data.lessons.find((lesson) => lesson.id === lessonId)?.title
+            : assessmentId
+              ? data.assessments.find((assessment) => assessment.id === assessmentId)?.title
+              : null,
+          currentContentType: lessonId ? "aula" : assessmentId ? "avaliação" : null,
+        }}
+      />
       <SiteAiCodeEditorLauncher />
     </div>
   )

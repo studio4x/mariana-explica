@@ -25,6 +25,12 @@ export const supportCategories = [
     description: "Perguntas sobre materiais ou funcionamento.",
     firstResponseHours: 24,
   },
+  {
+    key: "course_chat",
+    label: "Chat do curso",
+    description: "Duvidas enviadas diretamente a partir de um curso ou material.",
+    firstResponseHours: 24,
+  },
 ] as const
 
 export const supportFirstResponseSummary =

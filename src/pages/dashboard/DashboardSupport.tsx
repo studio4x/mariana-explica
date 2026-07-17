@@ -207,7 +207,7 @@ export function DashboardSupport() {
                     <label className="text-sm font-black text-slate-700">
                       Categoria
                       <select value={category} onChange={(event) => setCategory(event.target.value as SupportTicketSummary["category"])} className="mt-2 h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white">
-                        {supportCategories.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                        {supportCategories.filter((item) => item.key !== "course_chat").map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                       </select>
                     </label>
                     <label className="text-sm font-black text-slate-700">

@@ -20,7 +20,7 @@ interface CreateSupportTicketInput {
   subject: string
   message: string
   productId?: string | null
-  category?: "payment" | "technical" | "account" | "general"
+  category?: "payment" | "technical" | "account" | "general" | "course_chat"
   priority?: "low" | "normal" | "medium" | "high" | "urgent"
   attachment?: {
     bucket: string
@@ -56,12 +56,16 @@ Deno.serve(async (req) => {
       throw badRequest("subject e message sao obrigatorios")
     }
 
-    if (!["payment", "technical", "account", "general"].includes(category)) {
+    if (!["payment", "technical", "account", "general", "course_chat"].includes(category)) {
       throw badRequest("category invalida")
     }
 
     if (!["low", "normal", "medium", "high", "urgent"].includes(priority)) {
       throw badRequest("priority invalida")
+    }
+
+    if (category === "course_chat" && !productId) {
+      throw badRequest("O chat do curso exige um material liberado")
     }
 
     if (

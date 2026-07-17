@@ -20,6 +20,7 @@ import {
   SiteTrackingManager,
 } from "@/components/common"
 import { FloatingNotifications } from "@/components/notifications"
+import { FloatingSupportChat } from "@/components/support"
 import { Button } from "@/components/ui"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -256,6 +257,7 @@ export function DashboardLayout() {
         markAsReadPending={markAsRead.isPending}
         clearAllPending={markAllAsRead.isPending}
       />
+      <FloatingSupportChat />
       <SiteAiCodeEditorLauncher />
       <InstallPrompt />
     </div>
