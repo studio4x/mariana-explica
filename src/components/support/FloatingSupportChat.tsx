@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
-import { Archive, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
+import { Archive, ArrowRight, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
+import { Link } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import {
   useCreateSupportTicket,
@@ -13,6 +14,7 @@ import {
   useUploadSupportAttachment,
 } from "@/hooks/useDashboard"
 import type { DashboardProductSummary, SupportTicketSummary } from "@/types/app.types"
+import { ROUTES } from "@/lib/constants"
 import { formatDateTime } from "@/utils/date"
 import { SupportMessageContent } from "./SupportMessageContent"
 
@@ -345,6 +347,16 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
+              <div className="border-b border-slate-100 px-4 pt-4">
+                <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3">
+                  <p className="text-xs font-black text-slate-950">Chat exclusivo para dúvidas sobre os materiais</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Para outras dúvidas, utiliza o sistema de tickets do suporte.</p>
+                  <Link to={ROUTES.DASHBOARD_SUPPORT} className="mt-2 inline-flex items-center text-xs font-black text-sky-700 underline underline-offset-4 hover:text-sky-900">
+                    Abrir página de suporte
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {visibleTickets.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-5 py-10 text-center">
