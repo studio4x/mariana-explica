@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useId } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
@@ -334,6 +334,7 @@ export function useRequestStudentOrderRefund() {
 export function useSupportTickets() {
   const { session } = useAuth()
   const userId = session?.user.id
+  const channelInstanceId = useId().replace(/:/g, "")
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ["dashboard", "support", "tickets"],
@@ -348,7 +349,7 @@ export function useSupportTickets() {
     if (!userId) return undefined
 
     const channel = supabase
-      .channel(`student-support-tickets:${userId}`)
+      .channel(`student-support-tickets:${userId}:${channelInstanceId}`)
       .on(
         "postgres_changes",
         {
@@ -386,7 +387,7 @@ export function useSupportTickets() {
       window.clearTimeout(initialSync)
       void supabase.removeChannel(channel)
     }
-  }, [queryClient, userId])
+  }, [channelInstanceId, queryClient, userId])
 
   return query
 }
