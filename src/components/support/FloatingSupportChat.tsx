@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Archive, ArrowRight, ChevronLeft, Download, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
@@ -59,6 +59,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
+  const [archiveNotice, setArchiveNotice] = useState(false)
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [selectedProductId, setSelectedProductId] = useState("")
   const [message, setMessage] = useState("")
@@ -107,9 +108,16 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     return () => window.cancelAnimationFrame(frame)
   }, [activeTicket?.id, isOpen, latestMessageId, selectedTicketId])
 
+  useEffect(() => {
+    if (!archiveNotice) return undefined
+    const timeout = window.setTimeout(() => setArchiveNotice(false), 3500)
+    return () => window.clearTimeout(timeout)
+  }, [archiveNotice])
+
   const openComposer = () => {
     setSelectedTicketId(null)
     setShowArchived(false)
+    setArchiveNotice(false)
     setReply("")
     setMessage("")
     setAttachment(null)
@@ -124,6 +132,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
     setSelectedTicketId(null)
     setReply("")
     setReplyAttachment(null)
+    setArchiveNotice(false)
   }
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
@@ -167,7 +176,8 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
   const handleArchive = async (ticketId: string) => {
     await archiveTicket.mutateAsync(ticketId)
     setSelectedTicketId(null)
-    setShowArchived(true)
+    setShowArchived(false)
+    setArchiveNotice(true)
   }
 
   const openAttachment = async (input: { bucket: string | null; path: string | null }) => {
@@ -347,6 +357,7 @@ export function FloatingSupportChat({ context }: FloatingSupportChatProps) {
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
+              {archiveNotice ? <div role="status" className="mx-4 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-bold text-emerald-800">Chat arquivado com sucesso.</div> : null}
               <div className="border-b border-slate-100 px-4 pt-4">
                 <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3">
                   <p className="text-xs font-black text-slate-950">Chat exclusivo para dúvidas sobre os materiais</p>
