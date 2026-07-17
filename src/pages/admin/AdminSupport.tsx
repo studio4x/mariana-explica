@@ -24,7 +24,7 @@ export function AdminSupport() {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | SupportTicketSummary["status"]>("all")
   const [categoryFilter, setCategoryFilter] = useState<"all" | SupportTicketSummary["category"]>("all")
-  const [sortMode, setSortMode] = useState<SortMode>("sla")
+  const [sortMode, setSortMode] = useState<SortMode>("date")
   const [ticketToDelete, setTicketToDelete] = useState<AdminSupportTicketSummary | null>(null)
   const deferredQuery = useDeferredValue(query)
   const ticketsQuery = useAdminSupportTickets()
