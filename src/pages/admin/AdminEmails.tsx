@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Mail, RefreshCw, RotateCcw, Save } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Loader2, Mail, RefreshCw, RotateCcw, Save, X } from "lucide-react"
 import { ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -43,7 +43,7 @@ export function AdminEmails() {
   const [drafts, setDrafts] = useState<Partial<Record<AdminPlatformEmailTemplateKey, AdminPlatformEmailTemplateContent>>>({})
   const [previews, setPreviews] = useState<Partial<Record<AdminPlatformEmailTemplateKey, AdminPlatformEmailTemplatePreview>>>({})
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
-  const previewRequestRef = useRef<string | null>(null)
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
 
   const templates = templatesQuery.data?.templates ?? []
   const customizedCount = useMemo(
@@ -76,31 +76,6 @@ export function AdminEmails() {
   const selectedDraft = selectedKey ? drafts[selectedKey] ?? selectedTemplate?.content ?? null : null
   const selectedPreview = selectedKey ? previews[selectedKey] ?? null : null
 
-  useEffect(() => {
-    if (!selectedKey || !selectedDraft || previews[selectedKey]) return
-    const requestKey = `${selectedKey}:${JSON.stringify(selectedDraft)}`
-    if (previewRequestRef.current === requestKey) return
-
-    previewRequestRef.current = requestKey
-
-    void previewMutation
-      .mutateAsync({
-        templateKey: selectedKey,
-        content: selectedDraft,
-      })
-      .then((preview) => {
-        setPreviews((current) => ({ ...current, [preview.templateKey]: preview }))
-      })
-      .catch(() => {
-        // preview errors are surfaced on explicit refresh/save interactions
-      })
-      .finally(() => {
-        if (previewRequestRef.current === requestKey) {
-          previewRequestRef.current = null
-        }
-      })
-  }, [selectedDraft, selectedKey, previews])
-
   const handleDraftChange = <TKey extends keyof AdminPlatformEmailTemplateContent>(
     key: TKey,
     value: AdminPlatformEmailTemplateContent[TKey],
@@ -121,6 +96,7 @@ export function AdminEmails() {
     if (!selectedKey || !selectedDraft) return
 
     setFeedback(null)
+    setIsPreviewModalOpen(true)
 
     try {
       const preview = await previewMutation.mutateAsync({
@@ -308,7 +284,10 @@ export function AdminEmails() {
               <button
                 key={template.key}
                 type="button"
-                onClick={() => setSelectedKey(template.key)}
+                onClick={() => {
+                  setSelectedKey(template.key)
+                  setIsPreviewModalOpen(false)
+                }}
                 className={[
                   "w-full rounded-[1.5rem] border p-4 text-left transition",
                   active
@@ -469,48 +448,58 @@ export function AdminEmails() {
             </label>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-display text-2xl font-bold text-slate-950">Preview HTML</h3>
-                  <p className="mt-1 text-sm text-slate-600">Renderizacao real do template com dados de exemplo.</p>
+        </div>
+      </div>
+
+      {isPreviewModalOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="email-preview-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsPreviewModalOpen(false)
+          }}
+        >
+          <section className="flex h-[min(850px,calc(100dvh-2rem))] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Preview do email</p>
+                <h2 id="email-preview-title" className="mt-1 truncate font-display text-2xl font-bold text-slate-950">
+                  {selectedTemplate.label}
+                </h2>
+                {selectedPreview ? <p className="mt-1 truncate text-sm text-slate-600">{selectedPreview.subject}</p> : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPreviewModalOpen(false)}
+                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+                aria-label="Fechar preview"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="min-h-0 flex-1 bg-slate-100 p-3 sm:p-5">
+              {isPreviewing ? (
+                <div className="flex h-full items-center justify-center gap-3 text-sm font-semibold text-slate-600">
+                  <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
+                  A gerar preview...
                 </div>
-                <StatusBadge label={selectedPreview ? "Pronto" : "Pendente"} tone={selectedPreview ? "success" : "warning"} />
-              </div>
-              <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
-                {selectedPreview ? (
-                  <iframe
-                    title={`preview-${selectedTemplate.key}`}
-                    srcDoc={selectedPreview.html}
-                    className="h-[640px] w-full bg-white"
-                  />
-                ) : (
-                  <div className="flex h-[320px] items-center justify-center px-6 text-sm text-slate-500">
-                    Gera o preview para visualizar o HTML final deste email.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm sm:p-6">
-                <h3 className="font-display text-2xl font-bold text-slate-950">Assunto renderizado</h3>
-                <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
-                  {selectedPreview?.subject ?? "Sem preview gerado ainda."}
-                </p>
-              </div>
-
-              <div className="rounded-[1.75rem] border bg-white p-5 shadow-sm sm:p-6">
-                <h3 className="font-display text-2xl font-bold text-slate-950">Texto puro</h3>
-                <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                  {selectedPreview?.text ?? "Sem preview gerado ainda."}
-                </pre>
-              </div>
+              ) : selectedPreview ? (
+                <iframe
+                  title={`preview-${selectedTemplate.key}`}
+                  srcDoc={selectedPreview.html}
+                  className="h-full min-h-[420px] w-full rounded-2xl border border-slate-200 bg-white shadow-sm"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                  Não foi possível gerar o preview.
+                </div>
+              )}
             </div>
           </section>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }

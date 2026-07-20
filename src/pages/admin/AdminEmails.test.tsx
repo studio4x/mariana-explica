@@ -162,4 +162,28 @@ describe("AdminEmails", () => {
 
     expect(screen.getByRole("button", { name: "Guardar template" })).toBeEnabled()
   })
+
+  it("opens the email preview in a modal", async () => {
+    mockUseAdminEmailTemplates.mockReturnValue({
+      data: buildConfig(),
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    mockUsePreviewAdminEmailTemplate.mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn().mockImplementation(async ({ templateKey }) => createPreview(templateKey)),
+    })
+    mockUseUpdateAdminEmailTemplate.mockReturnValue({ isPending: false, mutateAsync: vi.fn() })
+    mockUseResetAdminEmailTemplate.mockReturnValue({ isPending: false, mutateAsync: vi.fn() })
+
+    render(<AdminEmails />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }))
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(await screen.findByTitle("preview-purchase_confirmed")).toBeInTheDocument()
+  })
 })
