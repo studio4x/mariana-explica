@@ -72,6 +72,16 @@ function buildConfig(): AdminPlatformEmailTemplatesConfig {
         content: buildContent("Assunto suporte"),
         isCustomized: true,
       },
+      {
+        key: "course_chat_message_created",
+        label: "Mensagem no chat de materiais",
+        description: "Template do chat de materiais",
+        category: "Chat de materiais",
+        availableVariables: ["product_title", "message_preview"],
+        sampleData: { product_title: "Pack", message_preview: "Duvida" },
+        content: buildContent("Assunto chat"),
+        isCustomized: false,
+      },
     ],
   }
 }
@@ -106,5 +116,29 @@ describe("AdminEmails", () => {
     fireEvent.click(screen.getByRole("button", { name: /Ticket criado/i }))
 
     expect(await screen.findByDisplayValue("Assunto suporte")).toBeInTheDocument()
+  })
+
+  it("keeps the material chat template available in the editor", async () => {
+    mockUseAdminEmailTemplates.mockReturnValue({
+      data: buildConfig(),
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    mockUsePreviewAdminEmailTemplate.mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn().mockImplementation(async ({ templateKey }) => createPreview(templateKey)),
+    })
+    mockUseUpdateAdminEmailTemplate.mockReturnValue({ isPending: false, mutateAsync: vi.fn() })
+    mockUseResetAdminEmailTemplate.mockReturnValue({ isPending: false, mutateAsync: vi.fn() })
+
+    render(<AdminEmails />)
+
+    fireEvent.click(screen.getByRole("button", { name: /Mensagem no chat de materiais/i }))
+
+    expect(await screen.findByDisplayValue("Assunto chat")).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Titulo")).toBeInTheDocument()
   })
 })
