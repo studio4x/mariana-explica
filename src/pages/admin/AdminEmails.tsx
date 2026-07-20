@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Mail, RefreshCw, RotateCcw, Save } from "lucide-react"
 import { ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
@@ -43,6 +43,7 @@ export function AdminEmails() {
   const [drafts, setDrafts] = useState<Partial<Record<AdminPlatformEmailTemplateKey, AdminPlatformEmailTemplateContent>>>({})
   const [previews, setPreviews] = useState<Partial<Record<AdminPlatformEmailTemplateKey, AdminPlatformEmailTemplatePreview>>>({})
   const [feedback, setFeedback] = useState<{ tone: "success" | "danger"; message: string } | null>(null)
+  const previewRequestRef = useRef<string | null>(null)
 
   const templates = templatesQuery.data?.templates ?? []
   const customizedCount = useMemo(
@@ -77,6 +78,10 @@ export function AdminEmails() {
 
   useEffect(() => {
     if (!selectedKey || !selectedDraft || previews[selectedKey]) return
+    const requestKey = `${selectedKey}:${JSON.stringify(selectedDraft)}`
+    if (previewRequestRef.current === requestKey) return
+
+    previewRequestRef.current = requestKey
 
     void previewMutation
       .mutateAsync({
@@ -89,7 +94,12 @@ export function AdminEmails() {
       .catch(() => {
         // preview errors are surfaced on explicit refresh/save interactions
       })
-  }, [selectedDraft, selectedKey, previews, previewMutation])
+      .finally(() => {
+        if (previewRequestRef.current === requestKey) {
+          previewRequestRef.current = null
+        }
+      })
+  }, [selectedDraft, selectedKey, previews])
 
   const handleDraftChange = <TKey extends keyof AdminPlatformEmailTemplateContent>(
     key: TKey,
@@ -229,8 +239,8 @@ export function AdminEmails() {
     )
   }
 
-  const isMutating =
-    previewMutation.isPending || updateMutation.isPending || resetMutation.isPending
+  const isSaving = updateMutation.isPending || resetMutation.isPending
+  const isPreviewing = previewMutation.isPending
 
   return (
     <div className="space-y-6">
@@ -338,15 +348,15 @@ export function AdminEmails() {
                 <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{selectedTemplate.description}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => void refreshPreview()} disabled={isMutating}>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => void refreshPreview()} disabled={isSaving || isPreviewing}>
                   <Mail className="mr-2 h-4 w-4" />
                   Preview
                 </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => void resetTemplate()} disabled={isMutating}>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => void resetTemplate()} disabled={isSaving || isPreviewing}>
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Repor base
                 </Button>
-                <Button type="button" className="rounded-full" onClick={() => void saveTemplate()} disabled={isMutating}>
+                <Button type="button" className="rounded-full" onClick={() => void saveTemplate()} disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
                   Guardar template
                 </Button>
