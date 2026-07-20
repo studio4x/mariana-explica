@@ -230,7 +230,7 @@ export function AdminEmails() {
   }
 
   const isMutating =
-    previewMutation.isPending || updateMutation.isPending || resetMutation.isPending || templatesQuery.isFetching
+    previewMutation.isPending || updateMutation.isPending || resetMutation.isPending
 
   return (
     <div className="space-y-6">

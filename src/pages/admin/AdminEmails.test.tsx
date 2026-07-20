@@ -141,4 +141,25 @@ describe("AdminEmails", () => {
     expect(await screen.findByDisplayValue("Assunto chat")).toBeInTheDocument()
     expect(screen.getByDisplayValue("Titulo")).toBeInTheDocument()
   })
+
+  it("keeps the save action enabled while the template list refreshes", async () => {
+    mockUseAdminEmailTemplates.mockReturnValue({
+      data: buildConfig(),
+      isLoading: false,
+      isError: false,
+      isFetching: true,
+      error: null,
+      refetch: vi.fn(),
+    })
+    mockUsePreviewAdminEmailTemplate.mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn().mockImplementation(async ({ templateKey }) => createPreview(templateKey)),
+    })
+    mockUseUpdateAdminEmailTemplate.mockReturnValue({ isPending: false, mutateAsync: vi.fn() })
+    mockUseResetAdminEmailTemplate.mockReturnValue({ isPending: false, mutateAsync: vi.fn() })
+
+    render(<AdminEmails />)
+
+    expect(screen.getByRole("button", { name: "Guardar template" })).toBeEnabled()
+  })
 })
