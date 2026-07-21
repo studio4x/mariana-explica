@@ -25,6 +25,11 @@ interface SignedReadUrlInput {
   downloadFileName?: string | null
 }
 
+interface MultipartPartInput {
+  partNumber: number
+  etag: string
+}
+
 interface UploadObjectInput {
   serviceClient: SupabaseClient
   logicalBucket: string
@@ -132,6 +137,25 @@ function buildR2ObjectKey(logicalBucket: string, storagePath: string) {
   return `${normalizedBucket}/${normalizedPath}`
 }
 
+function buildR2ObjectUrl(logicalBucket: string, storagePath: string) {
+  const objectKey = buildR2ObjectKey(logicalBucket, storagePath)
+  return `${getR2EndpointBase()}/${getR2PhysicalBucket()}/${objectKey}`
+}
+
+function escapeXml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;")
+}
+
+function extractXmlValue(xml: string, tagName: string) {
+  const match = xml.match(new RegExp(`<${tagName}>([^<]+)</${tagName}>`))
+  return match?.[1]?.trim() || null
+}
+
 function getR2Client() {
   return new AwsClient({
     service: "s3",
@@ -228,6 +252,132 @@ export async function createSignedUploadTicket(input: SignedUploadTicketInput) {
     storage_bucket: input.logicalBucket,
     storage_provider: provider,
     public_url: publicUrl,
+  }
+}
+
+export async function createMultipartUpload(input: SignedUploadTicketInput) {
+  const provider = resolveStorageProvider(input.provider)
+  if (provider !== "r2") {
+    throw badRequest("Multipart upload disponivel apenas para R2")
+  }
+
+  const response = await getR2Client().fetch(`${buildR2ObjectUrl(input.logicalBucket, input.storagePath)}?uploads`, {
+    method: "POST",
+    headers: {
+      "Content-Type": input.mimeType,
+    },
+  })
+  const responseText = await response.text().catch(() => "")
+
+  if (!response.ok) {
+    throw internalError(`Falha ao iniciar multipart upload no R2 (${response.status})`)
+  }
+
+  const uploadId = extractXmlValue(responseText, "UploadId")
+  if (!uploadId) {
+    throw internalError("R2 nao devolveu o identificador do multipart upload")
+  }
+
+  return uploadId
+}
+
+export async function createSignedMultipartPartUrl(input: {
+  logicalBucket: string
+  storagePath: string
+  uploadId: string
+  partNumber: number
+  mimeType: string
+  expiresInSeconds?: number
+}) {
+  if (!Number.isInteger(input.partNumber) || input.partNumber < 1 || input.partNumber > 10000) {
+    throw badRequest("partNumber invalido")
+  }
+
+  const url = new URL(buildR2ObjectUrl(input.logicalBucket, input.storagePath))
+  url.searchParams.set("partNumber", String(input.partNumber))
+  url.searchParams.set("uploadId", input.uploadId)
+  url.searchParams.set("X-Amz-Expires", String(input.expiresInSeconds ?? getSignedPutExpiresSeconds()))
+
+  const signedRequest = await getR2Client().sign(
+    new Request(url.toString(), {
+      method: "PUT",
+      headers: {
+        "Content-Type": input.mimeType,
+      },
+    }),
+    {
+      aws: {
+        signQuery: true,
+      },
+    },
+  )
+
+  return {
+    upload_url: signedRequest.url.toString(),
+    upload_headers: {
+      "Content-Type": input.mimeType,
+    },
+  }
+}
+
+export async function completeMultipartUpload(input: {
+  logicalBucket: string
+  storagePath: string
+  uploadId: string
+  parts: MultipartPartInput[]
+}) {
+  if (input.parts.length < 1 || input.parts.length > 10000) {
+    throw badRequest("parts invalidas")
+  }
+
+  const parts = [...input.parts].sort((left, right) => left.partNumber - right.partNumber)
+  const partNumbers = new Set<number>()
+  for (const part of parts) {
+    if (!Number.isInteger(part.partNumber) || part.partNumber < 1 || part.partNumber > 10000 || partNumbers.has(part.partNumber)) {
+      throw badRequest("parts invalidas")
+    }
+    if (!part.etag.trim()) {
+      throw badRequest("ETag de part invalido")
+    }
+    partNumbers.add(part.partNumber)
+  }
+
+  const completeXml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    "<CompleteMultipartUpload>",
+    ...parts.map(
+      (part) => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${escapeXml(part.etag.trim())}</ETag></Part>`,
+    ),
+    "</CompleteMultipartUpload>",
+  ].join("")
+  const response = await getR2Client().fetch(
+    `${buildR2ObjectUrl(input.logicalBucket, input.storagePath)}?uploadId=${encodeURIComponent(input.uploadId)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/xml",
+      },
+      body: completeXml,
+    },
+  )
+
+  if (!response.ok) {
+    throw internalError(`Falha ao concluir multipart upload no R2 (${response.status})`)
+  }
+}
+
+export async function abortMultipartUpload(input: {
+  logicalBucket: string
+  storagePath: string
+  uploadId: string
+}) {
+  const response = await getR2Client().fetch(
+    `${buildR2ObjectUrl(input.logicalBucket, input.storagePath)}?uploadId=${encodeURIComponent(input.uploadId)}`,
+    { method: "DELETE" },
+  )
+
+  if (!response.ok && response.status !== 404) {
+    throw internalError(`Falha ao cancelar multipart upload no R2 (${response.status})`)
   }
 }
 

@@ -12,6 +12,10 @@ import {
   writeAuditLog,
 } from "../_shared/mod.ts"
 import {
+  abortMultipartUpload,
+  completeMultipartUpload,
+  createMultipartUpload,
+  createSignedMultipartPartUrl,
   createSignedUploadTicket,
   deleteStorageObject,
   getStorageLimits,
@@ -31,7 +35,14 @@ type UploadKind =
   | "site_page_asset"
 
 interface Body {
-  operation: "prepare_upload" | "delete_object" | "get_upload_limits"
+  operation:
+    | "prepare_upload"
+    | "prepare_multipart_upload"
+    | "sign_multipart_part"
+    | "complete_multipart_upload"
+    | "abort_multipart_upload"
+    | "delete_object"
+    | "get_upload_limits"
   upload_kind?: UploadKind
   entity_id?: string | null
   file_name?: string | null
@@ -42,6 +53,9 @@ interface Body {
   storage_bucket?: string | null
   storage_path?: string | null
   storage_provider?: StorageProvider | null
+  upload_id?: string | null
+  part_number?: number | null
+  parts?: Array<{ part_number?: number | null; etag?: string | null }> | null
 }
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
@@ -513,6 +527,119 @@ Deno.serve(async (req) => {
           provider: body.storage_provider ?? null,
         },
         ...auditMeta,
+      })
+
+      return jsonResponse({ success: true, request_id: requestId })
+    }
+
+    if (body.operation === "prepare_multipart_upload") {
+      const target = await resolveUploadTarget(context, body)
+      const uploadId = await createMultipartUpload({
+        serviceClient: context.serviceClient,
+        logicalBucket: target.logicalBucket,
+        storagePath: target.storagePath,
+        mimeType: target.mimeType,
+        provider: "r2",
+        publicProxyKind: target.publicProxyKind,
+      })
+
+      await writeAuditLog(context.serviceClient, context, {
+        action: `storage.${body.upload_kind}.prepare_multipart_upload`,
+        entityType: target.auditEntityType,
+        entityId: target.auditEntityId,
+        metadata: {
+          ...target.metadata,
+          bucket: target.logicalBucket,
+          path: target.storagePath,
+          provider: "r2",
+          file_name: target.fileName,
+          mime_type: target.mimeType,
+          file_size_bytes: target.fileSizeBytes,
+          multipart_upload_id: uploadId,
+        },
+        ...auditMeta,
+      })
+
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        upload: {
+          upload_method: "r2_multipart",
+          upload_path: target.storagePath,
+          upload_token: null,
+          upload_url: "",
+          upload_headers: {},
+          storage_bucket: target.logicalBucket,
+          storage_provider: "r2",
+          public_url: null,
+          multipart_upload_id: uploadId,
+          max_file_size_bytes: getStorageLimits().maxFileSizeBytes,
+        },
+      })
+    }
+
+    if (
+      body.operation === "sign_multipart_part"
+      || body.operation === "complete_multipart_upload"
+      || body.operation === "abort_multipart_upload"
+    ) {
+      requireAdminUpload(context)
+      const storageBucket = String(body.storage_bucket ?? "").trim()
+      const storagePath = String(body.storage_path ?? "").trim()
+      const uploadId = String(body.upload_id ?? "").trim()
+
+      if (storageBucket !== COURSE_STORAGE_BUCKET || !storagePath || !uploadId) {
+        throw badRequest("Dados do multipart upload invalidos")
+      }
+
+      if (body.operation === "sign_multipart_part") {
+        const partNumber = Number(body.part_number ?? 0)
+        if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000) {
+          throw badRequest("part_number invalido")
+        }
+
+        const signedPart = await createSignedMultipartPartUrl({
+          logicalBucket: storageBucket,
+          storagePath,
+          uploadId,
+          partNumber,
+          mimeType: ensureMimeType(body.mime_type, "video.mp4"),
+        })
+
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          upload: {
+            ...signedPart,
+            storage_bucket: storageBucket,
+            storage_path: storagePath,
+            storage_provider: "r2",
+            part_number: partNumber,
+          },
+        })
+      }
+
+      if (body.operation === "abort_multipart_upload") {
+        await abortMultipartUpload({
+          logicalBucket: storageBucket,
+          storagePath,
+          uploadId,
+        })
+
+        return jsonResponse({ success: true, request_id: requestId })
+      }
+
+      const rawParts = Array.isArray(body.parts) ? body.parts : []
+      const parts = rawParts.map((part) => ({
+        partNumber: Number(part.part_number ?? 0),
+        etag: String(part.etag ?? "").trim(),
+      }))
+
+      await completeMultipartUpload({
+        logicalBucket: storageBucket,
+        storagePath,
+        uploadId,
+        parts,
       })
 
       return jsonResponse({ success: true, request_id: requestId })

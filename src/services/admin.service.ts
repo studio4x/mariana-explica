@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase"
-import { prepareStorageUpload, uploadStorageFile, type PreparedStorageUploadTicket } from "@/features/storage/r2-upload"
+import { prepareMultipartStorageUpload, uploadStorageFile, type PreparedStorageUploadTicket } from "@/features/storage/r2-upload"
 import {
   ensureAdminAiPageEditorConversationResponse,
   ensureAdminAiFooterCopyProposalResponse,
@@ -1168,7 +1168,7 @@ export async function createAdminModuleAssetSignedUpload(input: {
   mimeType: string
   fileSizeBytes?: number
 }) {
-  const ticket = await prepareStorageUpload({
+  const ticket = await prepareMultipartStorageUpload({
     upload_kind: "module_asset",
     entity_id: input.moduleId,
     file_name: input.fileName,
