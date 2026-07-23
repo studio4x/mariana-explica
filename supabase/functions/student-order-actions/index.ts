@@ -16,6 +16,7 @@ import {
   getStripeCheckoutSession,
   getStripeInvoice,
   getStripePaymentIntent,
+  queueFiscalAdjustmentReview,
   revokeActiveGrantForOrder,
   requireActiveUser,
   updateOrderStatus,
@@ -105,7 +106,13 @@ async function resolveReceiptUrl(order: StudentOrderRow) {
       mode: order.payment_environment,
     })
     const invoiceUrl = invoice.hosted_invoice_url ?? invoice.invoice_pdf
-    if (invoiceUrl) return invoiceUrl
+    if (invoiceUrl) {
+      return {
+        receipt_url: invoiceUrl,
+        payment_intent: order.payment_reference ?? "",
+        charge_id: "",
+      }
+    }
   }
 
   let paymentIntentId = order.payment_reference?.startsWith("pi_")
@@ -120,7 +127,7 @@ async function resolveReceiptUrl(order: StudentOrderRow) {
   }
 
   if (!paymentIntentId) {
-    throw notFound("Fatura Stripe ainda nao disponivel para este pedido.")
+    throw notFound("Comprovativo Stripe ainda nao disponivel para este pedido.")
   }
 
   const intent = await getStripePaymentIntent(paymentIntentId, {
@@ -145,7 +152,7 @@ async function resolveReceiptUrl(order: StudentOrderRow) {
   }
 
   if (!charge?.receipt_url) {
-    throw notFound("Fatura Stripe ainda nao disponivel para este pedido.")
+    throw notFound("Comprovativo Stripe ainda nao disponivel para este pedido.")
   }
 
   return {
@@ -210,6 +217,14 @@ Deno.serve(async (req) => {
     }
 
     if (order.status === "refunded") {
+      await queueFiscalAdjustmentReview(context.serviceClient, {
+        orderId: order.id,
+        userId: order.user_id,
+        stripeEventId: `student-refund-replay:${order.id}`,
+        adjustmentType: "refund_full",
+        amountCents: order.final_price_cents,
+        currency: order.currency,
+      })
       return jsonResponse({
         success: true,
         request_id: requestId,
@@ -255,6 +270,15 @@ Deno.serve(async (req) => {
 
     const cancelledReferrals = await cancelAffiliateReferralForOrder(context.serviceClient, {
       orderId: updatedOrder.id,
+    })
+
+    await queueFiscalAdjustmentReview(context.serviceClient, {
+      orderId: updatedOrder.id,
+      userId: updatedOrder.user_id,
+      stripeRefundId: refund.id,
+      adjustmentType: refund.amount >= order.final_price_cents ? "refund_full" : "refund_partial",
+      amountCents: refund.amount,
+      currency: refund.currency ?? order.currency,
     })
 
     const productTitle = getProductTitle(order)

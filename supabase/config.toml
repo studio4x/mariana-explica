@@ -123,3 +123,24 @@ verify_jwt = false
 
 [functions.cron-retry-email-deliveries]
 verify_jwt = false
+
+[functions.admin-moloni-oauth-start]
+verify_jwt = false
+
+[functions.moloni-oauth-callback]
+verify_jwt = false
+
+[functions.admin-moloni-disconnect]
+verify_jwt = false
+
+[functions.cron-process-moloni-documents]
+verify_jwt = false
+
+[functions.admin-retry-moloni-document]
+verify_jwt = false
+
+[functions.admin-update-moloni-mapping]
+verify_jwt = false
+
+[functions.get-order-fiscal-document]
+verify_jwt = false

@@ -3,6 +3,7 @@ import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody }
 import { logError } from "../_shared/logger.ts"
 import {
   createServiceClient,
+  ensureOrderFiscalOutbox,
   findReconcilableOrder,
   finishJobRun,
   reconcileOrderWithStripe,
@@ -86,6 +87,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Repara vendas pagas cujo webhook terminou antes do planeamento fiscal.
+    // A RPC é idempotente e apenas cria/recupera o outbox.
+    const { data: paidOrders, error: paidOrdersError } = await serviceClient
+      .from("orders")
+      .select("id")
+      .eq("status", "paid")
+      .eq("payment_provider", "stripe")
+      .order("paid_at", { ascending: false })
+      .limit(batchSize)
+    if (paidOrdersError) throw paidOrdersError
+    const fiscalRepairIds: string[] = []
+    for (const paidOrder of paidOrders ?? []) {
+      await ensureOrderFiscalOutbox(serviceClient, String(paidOrder.id))
+      fiscalRepairIds.push(String(paidOrder.id))
+    }
+
     const result = {
       scanned_count: (candidates ?? []).length,
       reconciled_count: reconciledIds.length,
@@ -94,6 +111,7 @@ Deno.serve(async (req) => {
       reconciled_ids: reconciledIds,
       changed_ids: changedIds,
       failed_items: failedItems,
+      fiscal_repair_ids: fiscalRepairIds,
     }
 
     await finishJobRun(serviceClient, {

@@ -36,7 +36,11 @@ Deno.serve(async (req) => {
     const userIds = [...new Set((orders ?? []).map((order) => order.user_id))]
     const productIds = [...new Set((orders ?? []).map((order) => order.product_id))]
 
-    const [{ data: users, error: usersError }, { data: products, error: productsError }] = await Promise.all([
+    const [
+      { data: users, error: usersError },
+      { data: products, error: productsError },
+      { data: fiscalDocuments, error: fiscalError },
+    ] = await Promise.all([
       userIds.length
         ? context.serviceClient
             .from("profiles")
@@ -49,6 +53,10 @@ Deno.serve(async (req) => {
             .select("id,title,product_type")
             .in("id", productIds)
         : Promise.resolve({ data: [], error: null }),
+      context.serviceClient
+        .from("fiscal_documents")
+        .select("id,order_id,status,document_kind,environment,document_number,issued_at,last_error_code,last_error_message")
+        .is("original_fiscal_document_id", null),
     ])
 
     if (usersError) {
@@ -58,9 +66,25 @@ Deno.serve(async (req) => {
     if (productsError) {
       throw productsError
     }
+    if (fiscalError) {
+      throw fiscalError
+    }
+    const fiscalDocumentIds = (fiscalDocuments ?? []).map((document) => document.id)
+    const { data: fiscalJobs, error: fiscalJobsError } = fiscalDocumentIds.length
+      ? await context.serviceClient
+          .from("moloni_document_jobs")
+          .select("id,fiscal_document_id,status,attempt_count,max_attempts,available_at,last_error_code,last_error")
+          .in("fiscal_document_id", fiscalDocumentIds)
+      : { data: [], error: null }
+    if (fiscalJobsError) throw fiscalJobsError
 
     const userMap = new Map((users ?? []).map((user) => [user.id, user]))
     const productMap = new Map((products ?? []).map((product) => [product.id, product]))
+    const fiscalJobMap = new Map((fiscalJobs ?? []).map((job) => [job.fiscal_document_id, job]))
+    const fiscalMap = new Map((fiscalDocuments ?? []).map((document) => [
+      document.order_id,
+      { ...document, job: fiscalJobMap.get(document.id) ?? null },
+    ]))
 
     const enrichedOrders = (orders ?? []).map((order) => ({
       ...order,
@@ -68,6 +92,7 @@ Deno.serve(async (req) => {
       user_email: userMap.get(order.user_id)?.email ?? null,
       product_title: productMap.get(order.product_id)?.title ?? null,
       product_type: productMap.get(order.product_id)?.product_type ?? null,
+      fiscal_document: fiscalMap.get(order.id) ?? null,
     }))
 
     return jsonResponse({

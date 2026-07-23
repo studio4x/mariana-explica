@@ -18,6 +18,7 @@ import {
   fetchMyProducts,
   fetchNotifications,
   fetchPaymentHistory,
+  fetchOrderFiscalDocumentUrl,
   fetchStudentOrderReceiptUrl,
   fetchProfilePreferences,
   fetchSupportTicketMessages,
@@ -401,6 +402,12 @@ export function useSupportTicket(ticketId: string | undefined) {
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     staleTime: DASHBOARD_QUERY_STALE_TIME,
+  })
+}
+
+export function useOrderFiscalDocument() {
+  return useMutation({
+    mutationFn: fetchOrderFiscalDocumentUrl,
   })
 }
 

@@ -4,12 +4,14 @@ import {
   calculateCouponDiscount,
   calculateOrderTotals,
   countCouponUsagesByUser,
+  createInitialBillingSnapshot,
   createOrderWithItems,
   ensureActiveGrant,
   extractRequestAuditContext,
   findActiveGrantForProduct,
   getAppBaseUrl,
   getProductByIdentifier,
+  isValidPortugueseNif,
   markOrderFailed,
   recordAffiliateReferral,
   recordCouponUsage,
@@ -84,11 +86,6 @@ function assertStripeMinimumAmount(currency: string, amountCents: number) {
 
 function stripDigits(value: string) {
   return value.replace(/\D/g, "")
-}
-
-function isValidNif(value: string) {
-  const digits = stripDigits(value)
-  return digits.length === 9 && !/^(\d)\1{8}$/.test(digits)
 }
 
 async function waitForProfileById(
@@ -260,7 +257,7 @@ Deno.serve(async (req) => {
         throw badRequest("NIF obrigatorio")
       }
 
-      if (!isValidNif(customerNif)) {
+      if (!isValidPortugueseNif(customerNif)) {
         throw badRequest("NIF invalido")
       }
     }
@@ -415,6 +412,13 @@ Deno.serve(async (req) => {
 
     if (reusableOrder) {
       try {
+        await createInitialBillingSnapshot(context.serviceClient, {
+          orderId: reusableOrder.id,
+          userId: context.user.id,
+          legalName: context.profile.full_name,
+          email: customerEmail ?? context.profile.email ?? context.user.email,
+          vatNumber: invoiceWithNif ? customerNif : null,
+        })
         const existingSession = await getStripeCheckoutSession(reusableOrder.checkout_session_id, {
           mode: stripeMode,
         })
@@ -467,6 +471,13 @@ Deno.serve(async (req) => {
       paymentProvider: "stripe",
       paymentEnvironment: stripeMode,
     })
+    await createInitialBillingSnapshot(context.serviceClient, {
+      orderId: order.id,
+      userId: context.user.id,
+      legalName: context.profile.full_name,
+      email: customerEmail ?? context.profile.email ?? context.user.email,
+      vatNumber: invoiceWithNif ? customerNif : null,
+    })
 
     let session: Awaited<ReturnType<typeof createStripeCheckoutSession>>
     try {
@@ -477,8 +488,11 @@ Deno.serve(async (req) => {
         customer_email: customerEmail ?? context.profile.email ?? context.user.email ?? undefined,
         automatic_tax_enabled: true,
         billing_address_collection: "required",
-        tax_id_collection_enabled: invoiceWithNif,
+        // O NIF português já foi validado e guardado no snapshot da venda.
+        // Stripe Tax ID não é usado para evitar tratar NIF pessoal como VAT empresarial.
+        tax_id_collection_enabled: false,
         customer_creation: invoiceWithNif ? "always" : undefined,
+        // Mantido temporariamente como comprovativo Stripe; não é o documento fiscal Moloni.
         invoice_creation: invoiceWithNif
           ? {
               enabled: true,

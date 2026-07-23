@@ -12,6 +12,7 @@ import type {
   DashboardOverviewData,
   DashboardProductSummary,
   DownloadableItem,
+  FiscalDocumentSummary,
   LessonNoteSummary,
   LessonProgressSummary,
   ModuleAssetSummary,
@@ -883,7 +884,18 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
     throw error
   }
 
-  return ((data ?? []) as PaymentOrderRow[]).map((order) => {
+  const orderRows = (data ?? []) as PaymentOrderRow[]
+  const orderIds = orderRows.map((order) => order.id)
+  const fiscalDocuments = await Promise.all(
+    orderIds.map((orderId) => fetchOrderFiscalDocumentMetadata(orderId).catch(() => null)),
+  )
+  const fiscalMap = new Map(
+    fiscalDocuments
+      .filter((document): document is FiscalDocumentSummary => Boolean(document))
+      .map((document) => [document.order_id, document]),
+  )
+
+  return orderRows.map((order) => {
     const product = Array.isArray(order.products) ? order.products[0] : order.products
 
     return {
@@ -905,6 +917,7 @@ export async function fetchPaymentHistory(): Promise<StudentPaymentSummary[]> {
       paid_at: order.paid_at,
       refunded_at: order.refunded_at,
       created_at: order.created_at,
+      fiscal_document: fiscalMap.get(order.id) ?? null,
     } as StudentPaymentSummary
   })
 }
@@ -969,6 +982,43 @@ export function requestStudentOrderRefund(input: { orderId: string; message?: st
     action: "request_refund",
     ...input,
   })
+}
+
+async function fetchOrderFiscalDocumentMetadata(orderId: string): Promise<FiscalDocumentSummary> {
+  const result = await invokeOrderFiscalDocument(orderId, "metadata")
+  return result.document
+}
+
+async function invokeOrderFiscalDocument(
+  orderId: string,
+  action: "metadata" | "download",
+): Promise<{ document: FiscalDocumentSummary; signed_url?: string }> {
+  const auth = await getFreshFunctionAuthContext()
+  if (!auth) throw new Error("Sessão expirada")
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/get-order-fiscal-document`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth.headers.Authorization,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action, orderId, access_token: auth.accessToken }),
+  })
+  const data = await response.json().catch(() => null) as {
+    document?: FiscalDocumentSummary
+    signed_url?: string
+    message?: string
+  } | null
+  if (!response.ok || !data?.document) {
+    throw new Error(data?.message ?? "Não foi possível obter o documento fiscal.")
+  }
+  return { document: data.document, signed_url: data.signed_url }
+}
+
+export async function fetchOrderFiscalDocumentUrl(orderId: string) {
+  const data = await invokeOrderFiscalDocument(orderId, "download")
+  if (!data.signed_url) throw new Error("Documento fiscal sem URL assinada.")
+  return { signed_url: data.signed_url }
 }
 
 export async function requestLessonFileAccess(lessonId: string) {

@@ -343,7 +343,18 @@ export async function getStripeCheckoutSession(
       amount_tax?: number | null
     } | null
     invoice?: string | null
+    customer?: string | null
     customer_details?: {
+      name?: string | null
+      email?: string | null
+      address?: {
+        line1?: string | null
+        line2?: string | null
+        postal_code?: string | null
+        city?: string | null
+        state?: string | null
+        country?: string | null
+      } | null
       tax_ids?: Array<{
         type?: string | null
         value?: string | null
@@ -434,6 +445,7 @@ export async function getStripeCharge(
 
   return payload as {
     id: string
+    url: string | null
     livemode: boolean
     refunded: boolean
     amount: number

@@ -8,8 +8,11 @@ import {
 } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import {
+  completeBillingSnapshotFromStripe,
   ensureActiveGrant,
+  ensureOrderFiscalOutbox,
   extractRequestAuditContext,
+  queueFiscalAdjustmentReview,
   requireAdmin,
   revokeActiveGrantForOrder,
   updateOrderStatus,
@@ -41,7 +44,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await context.serviceClient
       .from("orders")
-      .select("id,user_id,product_id,status,payment_reference,payment_provider,checkout_session_id,payment_environment")
+      .select("id,user_id,product_id,status,currency,final_price_cents,total_paid_cents,payment_reference,payment_provider,checkout_session_id,payment_environment")
       .eq("id", body.orderId)
       .single()
 
@@ -52,6 +55,7 @@ Deno.serve(async (req) => {
     if (body.action === "mark_paid") {
       const isStripeOrder = order.payment_provider === "stripe" || Boolean(order.checkout_session_id)
       let confirmedStripePaymentReference: string | null = null
+      let stripeSession: Awaited<ReturnType<typeof getStripeCheckoutSession>> | null = null
 
       if (isStripeOrder) {
         if (!order.checkout_session_id) {
@@ -61,6 +65,7 @@ Deno.serve(async (req) => {
         const session = await getStripeCheckoutSession(order.checkout_session_id, {
           mode: order.payment_environment ?? undefined,
         })
+        stripeSession = session
 
         if (!isStripeCheckoutPaymentConfirmed(session)) {
           throw unprocessable("A Stripe ainda nao confirmou este pagamento. O acesso permanece bloqueado.")
@@ -74,6 +79,9 @@ Deno.serve(async (req) => {
         status: "paid",
         paymentReference: confirmedStripePaymentReference ?? body.paymentReference ?? order.payment_reference,
         paidAt: new Date().toISOString(),
+        taxAmountCents: stripeSession?.total_details?.amount_tax ?? undefined,
+        totalPaidCents: stripeSession?.amount_total ?? undefined,
+        stripeInvoiceId: stripeSession?.invoice ?? undefined,
       })
 
       const grant = await ensureActiveGrant(context.serviceClient, {
@@ -83,6 +91,15 @@ Deno.serve(async (req) => {
         sourceOrderId: updatedOrder.id,
         notes: "Acesso liberado manualmente pelo admin",
       })
+      if (isStripeOrder && stripeSession) {
+        await completeBillingSnapshotFromStripe(context.serviceClient, {
+          orderId: updatedOrder.id,
+          userId: updatedOrder.user_id,
+          stripeCustomerId: stripeSession.customer,
+          customerDetails: stripeSession.customer_details,
+        })
+        await ensureOrderFiscalOutbox(context.serviceClient, updatedOrder.id)
+      }
 
       await writeAuditLog(context.serviceClient, context, {
         action: "admin.order_mark_paid",
@@ -112,6 +129,16 @@ Deno.serve(async (req) => {
           ? body.reason
           : `Acesso revogado apÃ³s pedido ${targetStatus}`,
     })
+    if (targetStatus === "refunded" && order.payment_provider === "stripe") {
+      await queueFiscalAdjustmentReview(context.serviceClient, {
+        orderId: updatedOrder.id,
+        userId: updatedOrder.user_id,
+        stripeEventId: `admin:${requestId}`,
+        adjustmentType: "refund_full",
+        amountCents: updatedOrder.total_paid_cents ?? updatedOrder.final_price_cents,
+        currency: updatedOrder.currency,
+      })
+    }
 
     await writeAuditLog(context.serviceClient, context, {
       action: `admin.order_${targetStatus}`,

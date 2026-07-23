@@ -1529,6 +1529,132 @@ export async function fetchPublicSiteMaintenanceConfig() {
   return normalizeAdminSiteMaintenanceConfig(data as Partial<AdminSiteMaintenanceConfig> | null)
 }
 
+export interface AdminMoloniStatus {
+  settings: Array<Record<string, unknown> & {
+    payment_environment: "test" | "live"
+    moloni_environment: "draft" | "live"
+    emission_enabled: boolean
+    fiscal_checklist_approved: boolean
+    document_kind: "invoice" | "invoice_receipt" | null
+    document_status: 0 | 1
+    moloni_company_id: number | null
+  }>
+  connections: Array<{
+    environment: "draft" | "live"
+    status: "disconnected" | "connected" | "refreshing" | "reconnect_required"
+    company_name: string | null
+    moloni_company_id: number | null
+    token_expires_at: string | null
+    last_success_at: string | null
+  }>
+  mappings: Array<Record<string, unknown>>
+  products: Array<{ id: string; title: string; status: string; product_type: string }>
+  documents: Array<Record<string, unknown>>
+  jobs: Array<Record<string, unknown>>
+  adjustments: Array<Record<string, unknown>>
+  metrics: {
+    pending: number
+    blocked: number
+    failed: number
+    issued: number
+    adjustmentsRequiringReview: number
+  }
+}
+
+export async function fetchAdminMoloniStatus() {
+  return await invokeAdminFunction<{ success: true } & AdminMoloniStatus>(
+    "admin-update-moloni-mapping",
+    { action: "status" },
+  )
+}
+
+export async function fetchAdminMoloniCatalog(input: {
+  moloniEnvironment: "draft" | "live"
+  moloniCompanyId?: number | null
+}) {
+  return await invokeAdminFunction<{
+    success: true
+    companies: Array<{ company_id: number; name?: string }>
+    products?: Array<Record<string, unknown>>
+    document_sets?: Array<Record<string, unknown>>
+    taxes?: Array<Record<string, unknown>>
+    payment_methods?: Array<Record<string, unknown>>
+  }>("admin-update-moloni-mapping", {
+    action: "catalog",
+    ...input,
+  })
+}
+
+export async function startAdminMoloniConnection(environment: "draft" | "live") {
+  return await invokeAdminFunction<{ success: true; authorization_url: string }>(
+    "admin-moloni-oauth-start",
+    { environment, redirectPath: "/admin/pagamentos?tab=settings" },
+  )
+}
+
+export async function disconnectAdminMoloni(environment: "draft" | "live") {
+  return await invokeAdminFunction<{ success: true }>("admin-moloni-disconnect", {
+    environment,
+    confirmation: "DESCONECTAR_MOLONI",
+  })
+}
+
+export async function updateAdminMoloniSettings(input: {
+  paymentEnvironment: "test" | "live"
+  moloniEnvironment: "draft" | "live"
+  emissionEnabled: boolean
+  fiscalChecklistApproved: boolean
+  documentKind: "invoice" | "invoice_receipt" | null
+  refundDocumentKind?: "credit_note" | "payment_return" | null
+  documentStatus: 0 | 1
+  moloniCompanyId: number | null
+  customerEmailFallbackEnabled: boolean
+  customerWithoutVatRule?: string | null
+  customerCountryId?: number | null
+  customerLanguageId?: number | null
+  customerMaturityDateId?: number | null
+  customerPaymentMethodId?: number | null
+  confirmation?: string
+}) {
+  return await invokeAdminFunction<{ success: true }>("admin-update-moloni-mapping", {
+    action: "update_settings",
+    ...input,
+  })
+}
+
+export async function upsertAdminMoloniMapping(input: {
+  paymentEnvironment: "test" | "live"
+  productId: string
+  moloniCompanyId: number
+  moloniProductId: number
+  moloniDocumentSetId: number
+  moloniTaxId?: number | null
+  taxValue?: number | null
+  exemptionReason?: string | null
+  eacId?: number | null
+  moloniPaymentMethodId?: number | null
+  isActive: boolean
+}) {
+  return await invokeAdminFunction<{ success: true }>("admin-update-moloni-mapping", {
+    action: "upsert_mapping",
+    ...input,
+  })
+}
+
+export async function retryAdminMoloniDocument(fiscalDocumentId: string) {
+  return await invokeAdminFunction<{ success: true }>("admin-retry-moloni-document", {
+    fiscalDocumentId,
+  })
+}
+
+export async function fetchAdminFiscalDocumentUrl(orderId: string) {
+  const response = await invokeAdminFunction<{ success: true; signed_url: string }>(
+    "get-order-fiscal-document",
+    { action: "download", orderId },
+  )
+  return response.signed_url
+}
+
 export async function fetchAdminR2UsageOverview(prefix?: string | null) {
   const response = await invokeAdminFunction<{ success: true; overview: AdminR2UsageOverview }>("admin-r2-usage", {
     action: "overview",

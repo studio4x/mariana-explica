@@ -1463,6 +1463,38 @@ export interface AdminOrderSummary {
   paid_at: string | null
   refunded_at: string | null
   created_at: string
+  fiscal_document?: FiscalDocumentSummary | null
+}
+
+export interface FiscalDocumentSummary {
+  id: string
+  order_id: string
+  status:
+    | "pending"
+    | "processing"
+    | "blocked_data"
+    | "issued"
+    | "failed_retryable"
+    | "failed_permanent"
+    | "credit_pending"
+    | "credited"
+    | "cancelled_before_issue"
+    | "requires_review"
+  document_kind: string
+  environment: "draft" | "live"
+  document_number: string | null
+  issued_at: string | null
+  last_error_code?: string | null
+  last_error_message?: string | null
+  job?: {
+    id: string
+    status: string
+    attempt_count: number
+    max_attempts: number
+    available_at: string
+    last_error_code: string | null
+    last_error: string | null
+  } | null
 }
 
 export interface StudentPaymentSummary {
@@ -1484,6 +1516,7 @@ export interface StudentPaymentSummary {
   paid_at: string | null
   refunded_at: string | null
   created_at: string
+  fiscal_document: FiscalDocumentSummary | null
 }
 
 export interface AdminOrderViewSummary extends AdminOrderSummary {

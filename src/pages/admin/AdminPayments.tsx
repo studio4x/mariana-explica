@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowUpRight, Check, CreditCard, MoreHorizontal, RefreshCw, Search, Settings2 } from "lucide-react"
+import { ArrowUpRight, Check, CreditCard, Link2, MoreHorizontal, RefreshCw, Search, Settings2 } from "lucide-react"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -9,10 +9,18 @@ import {
   fetchAdminCheckoutModeConfig,
   fetchAdminOrdersView,
   fetchAdminPaymentsStatus,
+  fetchAdminMoloniStatus,
+  fetchAdminMoloniCatalog,
+  fetchAdminFiscalDocumentUrl,
+  disconnectAdminMoloni,
   markAdminOrderCancelled,
   markAdminOrderPaid,
   markAdminOrderRefunded,
   reconcileAdminOrder,
+  retryAdminMoloniDocument,
+  startAdminMoloniConnection,
+  updateAdminMoloniSettings,
+  upsertAdminMoloniMapping,
   updateAdminCheckoutModeConfig,
 } from "@/services/admin.service"
 import { formatProductPrice } from "@/utils/currency"
@@ -130,9 +138,306 @@ function AdminPaymentsSkeleton() {
   )
 }
 
+function numberOrNull(value: string) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+function MoloniSettingsPanel() {
+  const queryClient = useQueryClient()
+  const statusQuery = useQuery({
+    queryKey: ["admin", "moloni-status"],
+    queryFn: fetchAdminMoloniStatus,
+    staleTime: 30_000,
+  })
+  const [environment, setEnvironment] = useState<"test" | "live">("test")
+  const [companyId, setCompanyId] = useState("")
+  const [documentKind, setDocumentKind] = useState<"invoice" | "invoice_receipt">("invoice_receipt")
+  const [withoutVatRule, setWithoutVatRule] = useState("")
+  const [countryId, setCountryId] = useState("")
+  const [languageId, setLanguageId] = useState("")
+  const [maturityId, setMaturityId] = useState("")
+  const [paymentMethodId, setPaymentMethodId] = useState("")
+  const [checklistApproved, setChecklistApproved] = useState(false)
+  const [emissionEnabled, setEmissionEnabled] = useState(false)
+  const [productId, setProductId] = useState("")
+  const [moloniProductId, setMoloniProductId] = useState("")
+  const [documentSetId, setDocumentSetId] = useState("")
+  const [taxId, setTaxId] = useState("")
+  const [taxValue, setTaxValue] = useState("0")
+  const [exemptionReason, setExemptionReason] = useState("")
+  const [mappingPaymentMethodId, setMappingPaymentMethodId] = useState("")
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  const settings = statusQuery.data?.settings.find((item) => item.payment_environment === environment)
+  /* eslint-disable react-hooks/set-state-in-effect -- formulário administrativo hidrata um snapshot remoto ao trocar de ambiente */
+  useEffect(() => {
+    if (!settings) return
+    setCompanyId(settings.moloni_company_id ? String(settings.moloni_company_id) : "")
+    setDocumentKind(settings.document_kind ?? "invoice_receipt")
+    setWithoutVatRule(String(settings.customer_without_vat_rule ?? ""))
+    setCountryId(settings.customer_country_id ? String(settings.customer_country_id) : "")
+    setLanguageId(settings.customer_language_id ? String(settings.customer_language_id) : "")
+    setMaturityId(settings.customer_maturity_date_id ? String(settings.customer_maturity_date_id) : "")
+    setPaymentMethodId(settings.customer_payment_method_id ? String(settings.customer_payment_method_id) : "")
+    setChecklistApproved(settings.fiscal_checklist_approved)
+    setEmissionEnabled(settings.emission_enabled)
+  }, [settings])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["admin", "moloni-status"] })
+  }
+  const connect = useMutation({
+    mutationFn: startAdminMoloniConnection,
+    onSuccess: (result) => window.location.assign(result.authorization_url),
+  })
+  const disconnect = useMutation({
+    mutationFn: disconnectAdminMoloni,
+    onSuccess: refresh,
+  })
+  const saveSettings = useMutation({
+    mutationFn: updateAdminMoloniSettings,
+    onSuccess: async () => {
+      setFeedback("Configuração fiscal guardada.")
+      await refresh()
+    },
+  })
+  const saveMapping = useMutation({
+    mutationFn: upsertAdminMoloniMapping,
+    onSuccess: async () => {
+      setFeedback("Mapeamento validado e guardado.")
+      await refresh()
+    },
+  })
+  const loadCatalog = useMutation({
+    mutationFn: fetchAdminMoloniCatalog,
+  })
+
+  if (statusQuery.isLoading) {
+    return <div className="h-48 animate-pulse rounded-[1.5rem] border bg-slate-50" />
+  }
+  if (statusQuery.isError) {
+    return (
+      <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">
+        Não foi possível carregar a integração Moloni.{" "}
+        <button className="font-semibold underline" onClick={() => void statusQuery.refetch()}>Tentar novamente</button>
+      </div>
+    )
+  }
+
+  const data = statusQuery.data
+  const selectedMoloniEnvironment =
+    environment === "test" || !checklistApproved ? "draft" : "live"
+  const busy =
+    connect.isPending ||
+    disconnect.isPending ||
+    saveSettings.isPending ||
+    saveMapping.isPending ||
+    loadCatalog.isPending
+  const catalog = loadCatalog.data
+
+  return (
+    <section className="space-y-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Integração fiscal</p>
+          <h3 className="mt-2 text-2xl font-bold text-slate-950">Moloni</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Credenciais nunca são exibidas. Stripe test fica isolada em rascunhos; emissão live exige checklist e confirmação explícita.
+          </p>
+        </div>
+        <Button type="button" variant="outline" className="rounded-full" onClick={() => void statusQuery.refetch()}>
+          <RefreshCw className="h-4 w-4" /> Atualizar estado
+        </Button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          ["Fila", data?.metrics.pending ?? 0],
+          ["Bloqueados", data?.metrics.blocked ?? 0],
+          ["Falhas", data?.metrics.failed ?? 0],
+          ["Emitidos", data?.metrics.issued ?? 0],
+          ["Retificações", data?.metrics.adjustmentsRequiringReview ?? 0],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="rounded-2xl border bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {(["draft", "live"] as const).map((target) => {
+          const connection = data?.connections.find((item) => item.environment === target)
+          const connected = connection?.status === "connected"
+          return (
+            <div key={target} className="rounded-2xl border p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-950">Moloni {target === "draft" ? "rascunho" : "live"}</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {connection?.company_name ?? "Empresa ainda não selecionada"} · {connection?.status ?? "desconectada"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Último sucesso: {connection?.last_success_at ? formatDateTime(connection.last_success_at) : "sem comunicação"}
+                  </p>
+                </div>
+                <StatusBadge label={connected ? "Conectada" : "Ação necessária"} tone={connected ? "success" : "warning"} />
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  disabled={busy}
+                  onClick={() => void connect.mutateAsync(target)}
+                >
+                  <Link2 className="h-4 w-4" /> {connected ? "Reconectar" : "Conectar"}
+                </Button>
+                {connected ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm(`Desconectar Moloni ${target} sem apagar o histórico?`)) {
+                        void disconnect.mutateAsync(target)
+                      }
+                    }}
+                  >
+                    Desconectar
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="rounded-2xl border bg-slate-50 p-4">
+        <div className="flex flex-wrap gap-2">
+          {(["test", "live"] as const).map((item) => (
+            <Button
+              key={item}
+              type="button"
+              variant={environment === item ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => setEnvironment(item)}
+            >
+              Stripe {item}
+            </Button>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="text-sm">Empresa Moloni<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={companyId} onChange={(event) => { setCompanyId(event.target.value); const nextCompanyId = numberOrNull(event.target.value); if (nextCompanyId) void loadCatalog.mutateAsync({ moloniEnvironment: selectedMoloniEnvironment, moloniCompanyId: nextCompanyId }) }}><option value="">Selecionar empresa</option>{companyId && !(catalog?.companies ?? []).some((item) => String(item.company_id) === companyId) ? <option value={companyId}>Empresa {companyId}</option> : null}{(catalog?.companies ?? []).map((company) => <option key={company.company_id} value={company.company_id}>{company.name ?? `Empresa ${company.company_id}`}</option>)}</select></label>
+          <label className="text-sm">Documento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={documentKind} onChange={(event) => setDocumentKind(event.target.value as typeof documentKind)}><option value="invoice_receipt">Fatura-recibo</option><option value="invoice">Fatura</option></select></label>
+          <label className="text-sm">NIF genérico aprovado<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={withoutVatRule} onChange={(event) => setWithoutVatRule(event.target.value)} /></label>
+          <label className="text-sm">País ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={countryId} onChange={(event) => setCountryId(event.target.value)} /></label>
+          <label className="text-sm">Idioma ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={languageId} onChange={(event) => setLanguageId(event.target.value)} /></label>
+          <label className="text-sm">Vencimento ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={maturityId} onChange={(event) => setMaturityId(event.target.value)} /></label>
+          <label className="text-sm">Método pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={paymentMethodId} onChange={(event) => setPaymentMethodId(event.target.value)}><option value="">Selecionar</option>{paymentMethodId && !(catalog?.payment_methods ?? []).some((item) => String(item.payment_method_id) === paymentMethodId) ? <option value={paymentMethodId}>Método {paymentMethodId}</option> : null}{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
+          <div className="flex flex-col justify-end gap-2 text-sm">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={checklistApproved} onChange={(event) => setChecklistApproved(event.target.checked)} /> Checklist fiscal aprovado</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={emissionEnabled} onChange={(event) => setEmissionEnabled(event.target.checked)} /> Emissão automática</label>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            disabled={busy}
+            onClick={() => void loadCatalog.mutateAsync({
+              moloniEnvironment: selectedMoloniEnvironment,
+              moloniCompanyId: numberOrNull(companyId),
+            })}
+          >
+            Carregar catálogo Moloni
+          </Button>
+          <Button
+            type="button"
+            className="rounded-full"
+            disabled={busy}
+            onClick={() => {
+            if (emissionEnabled && !window.confirm(`Ativar emissão fiscal para Stripe ${environment}?`)) return
+            void saveSettings.mutateAsync({
+              paymentEnvironment: environment,
+              moloniEnvironment: selectedMoloniEnvironment,
+              emissionEnabled,
+              fiscalChecklistApproved: checklistApproved,
+              documentKind,
+              refundDocumentKind: null,
+              documentStatus: selectedMoloniEnvironment === "draft" ? 0 : 1,
+              moloniCompanyId: numberOrNull(companyId),
+              customerEmailFallbackEnabled: false,
+              customerWithoutVatRule: withoutVatRule || null,
+              customerCountryId: numberOrNull(countryId),
+              customerLanguageId: numberOrNull(languageId),
+              customerMaturityDateId: numberOrNull(maturityId),
+              customerPaymentMethodId: numberOrNull(paymentMethodId),
+              confirmation: emissionEnabled
+                ? environment === "live"
+                  ? "ATIVAR_EMISSAO_FISCAL_LIVE"
+                  : "ATIVAR_HOMOLOGACAO_RASCUNHO"
+                : undefined,
+            })
+            }}
+          >
+            Guardar configuração segura
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-slate-50 p-4">
+        <h4 className="font-semibold text-slate-950">Mapear produto</h4>
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="text-sm">Produto<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Selecionar</option>{(data?.products ?? []).map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label>
+          <label className="text-sm">Artigo Moloni<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={moloniProductId} onChange={(event) => setMoloniProductId(event.target.value)}><option value="">Selecionar</option>{(catalog?.products ?? []).map((item) => <option key={String(item.product_id)} value={String(item.product_id)}>{String(item.name ?? item.reference ?? item.product_id)}</option>)}</select></label>
+          <label className="text-sm">Série<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={documentSetId} onChange={(event) => setDocumentSetId(event.target.value)}><option value="">Selecionar</option>{(catalog?.document_sets ?? []).map((item) => <option key={String(item.document_set_id)} value={String(item.document_set_id)}>{String(item.name ?? item.document_set_id)}</option>)}</select></label>
+          <label className="text-sm">Taxa<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxId} onChange={(event) => { setTaxId(event.target.value); const selected = (catalog?.taxes ?? []).find((item) => String(item.tax_id) === event.target.value); if (selected?.value !== undefined) setTaxValue(String(selected.value)) }}><option value="">Isento</option>{(catalog?.taxes ?? []).map((item) => <option key={String(item.tax_id)} value={String(item.tax_id)}>{String(item.name ?? item.tax_id)} ({String(item.value ?? 0)}%)</option>)}</select></label>
+          <label className="text-sm">Taxa %<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxValue} onChange={(event) => setTaxValue(event.target.value)} /></label>
+          <label className="text-sm">Motivo isenção<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} /></label>
+          <label className="text-sm">Método pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={mappingPaymentMethodId} onChange={(event) => setMappingPaymentMethodId(event.target.value)}><option value="">Usar configuração</option>{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
+        </div>
+        <Button
+          type="button"
+          className="mt-4 rounded-full"
+          disabled={busy || !productId}
+          onClick={() => void saveMapping.mutateAsync({
+            paymentEnvironment: environment,
+            productId,
+            moloniCompanyId: numberOrNull(companyId) ?? 0,
+            moloniProductId: numberOrNull(moloniProductId) ?? 0,
+            moloniDocumentSetId: numberOrNull(documentSetId) ?? 0,
+            moloniTaxId: numberOrNull(taxId),
+            taxValue: Number(taxValue) || 0,
+            exemptionReason: exemptionReason || null,
+            moloniPaymentMethodId: numberOrNull(mappingPaymentMethodId),
+            isActive: true,
+          })}
+        >
+          Validar artigo e guardar mapeamento
+        </Button>
+      </div>
+
+      {feedback ? <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{feedback}</p> : null}
+      {(connect.error || disconnect.error || saveSettings.error || saveMapping.error || loadCatalog.error) ? (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {(connect.error ?? disconnect.error ?? saveSettings.error ?? saveMapping.error ?? loadCatalog.error) instanceof Error
+            ? (connect.error ?? disconnect.error ?? saveSettings.error ?? saveMapping.error ?? loadCatalog.error as Error).message
+            : "Não foi possível concluir a operação Moloni."}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
 export function AdminPayments() {
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<PaymentsTab>("history")
+  const [tab, setTab] = useState<PaymentsTab>(() =>
+    new URLSearchParams(window.location.search).get("tab") === "settings" ? "settings" : "history",
+  )
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<PaymentsFilter>("all")
   const [draftMode, setDraftMode] = useState<CheckoutMode>("sandbox")
@@ -199,6 +504,19 @@ export function AdminPayments() {
     mutationFn: ({ orderId, reason }: { orderId: string; reason?: string | null }) =>
       markAdminOrderCancelled(orderId, reason),
     onSuccess: invalidateOrders,
+  })
+  const retryFiscalDocument = useMutation({
+    mutationFn: retryAdminMoloniDocument,
+    onSuccess: async () => {
+      await Promise.all([
+        invalidateOrders(),
+        queryClient.invalidateQueries({ queryKey: ["admin", "moloni-status"] }),
+      ])
+    },
+  })
+  const openFiscalDocument = useMutation({
+    mutationFn: fetchAdminFiscalDocumentUrl,
+    onSuccess: (url) => window.open(url, "_blank", "noopener,noreferrer"),
   })
 
   const runOrderAction = async (action: () => Promise<unknown>, successMessage: string) => {
@@ -474,7 +792,9 @@ export function AdminPayments() {
                         reconcileOrder.isPending ||
                         markPaid.isPending ||
                         markRefunded.isPending ||
-                        markCancelled.isPending
+                        markCancelled.isPending ||
+                        retryFiscalDocument.isPending ||
+                        openFiscalDocument.isPending
 
                       return (
                         <tr key={order.id} className="border-b last:border-b-0 align-top">
@@ -492,6 +812,42 @@ export function AdminPayments() {
                           <td className="px-4 py-4 text-slate-600">{formatDateTime(order.created_at)}</td>
                           <td className="px-4 py-4">
                             <StatusBadge label={paymentStatusLabel(order.status)} tone={orderStatusTone(order.status)} />
+                            {order.fiscal_document ? (
+                              <div className="mt-2 space-y-1 text-xs text-slate-600">
+                                <p>Fiscal: {order.fiscal_document.status}</p>
+                                {order.fiscal_document.document_number ? <p>{order.fiscal_document.document_number}</p> : null}
+                                {order.fiscal_document.job ? (
+                                  <p>
+                                    Tentativas {order.fiscal_document.job.attempt_count}/{order.fiscal_document.job.max_attempts}
+                                  </p>
+                                ) : null}
+                                {order.fiscal_document.status === "issued" ? (
+                                  <button
+                                    type="button"
+                                    className="font-semibold text-slate-900 underline"
+                                    disabled={actionPending}
+                                    onClick={() => void openFiscalDocument.mutateAsync(order.id)}
+                                  >
+                                    Abrir documento
+                                  </button>
+                                ) : null}
+                                {order.fiscal_document.last_error_code ? (
+                                  <p className="max-w-48 break-words text-rose-700">{order.fiscal_document.last_error_code}</p>
+                                ) : null}
+                                {["blocked_data", "failed_retryable", "failed_permanent"].includes(order.fiscal_document.status) ? (
+                                  <button
+                                    type="button"
+                                    className="font-semibold text-slate-900 underline"
+                                    disabled={actionPending}
+                                    onClick={() => void retryFiscalDocument.mutateAsync(order.fiscal_document!.id)}
+                                  >
+                                    Reprocessar
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-xs text-slate-500">Fiscal não planeado</p>
+                            )}
                           </td>
                           <td className="px-4 py-4 font-semibold text-slate-950">
                             {formatProductPrice(getChargedAmount(order), order.currency)}
@@ -616,6 +972,7 @@ export function AdminPayments() {
           </div>
         ) : (
           <div className="space-y-6 pt-6">
+            <MoloniSettingsPanel />
             <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
               <div className="rounded-[1.5rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
                 <div className="flex items-start justify-between gap-4">

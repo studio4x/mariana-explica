@@ -12,7 +12,7 @@ export function formatNif(value: string) {
 export function isValidNif(value: string) {
   const digits = stripNifDigits(value)
 
-  if (digits.length !== 9) {
+  if (!/^[1235689]\d{8}$/.test(digits)) {
     return false
   }
 
@@ -20,5 +20,11 @@ export function isValidNif(value: string) {
     return false
   }
 
-  return true
+  const sum = digits
+    .slice(0, 8)
+    .split("")
+    .reduce((total, digit, index) => total + Number(digit) * (9 - index), 0)
+  const remainder = sum % 11
+  const checkDigit = remainder < 2 ? 0 : 11 - remainder
+  return Number(digits[8]) === checkDigit
 }

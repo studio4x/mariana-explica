@@ -3,6 +3,7 @@ import { conflict, notFound } from "./errors.ts"
 import { ensureActiveGrant, revokeActiveGrantForOrder, updateOrderStatus } from "./commerce.ts"
 import { getStripeCheckoutSession } from "./payments.ts"
 import { isStripeCheckoutPaymentConfirmed } from "./stripe-checkout.ts"
+import { completeBillingSnapshotFromStripe, ensureOrderFiscalOutbox } from "./fiscal.ts"
 
 export interface ReconcilableOrderRow {
   id: string
@@ -97,6 +98,13 @@ export async function reconcileOrderWithStripe(
       sourceOrderId: order.id,
     })
     grants = [grant.grant]
+    await completeBillingSnapshotFromStripe(client, {
+      orderId: order.id,
+      userId: order.user_id,
+      stripeCustomerId: session.customer,
+      customerDetails: session.customer_details,
+    })
+    await ensureOrderFiscalOutbox(client, order.id)
     action = "mark_paid"
   } else if (session.status === "expired") {
     updatedOrder = await updateOrderStatus(client, {

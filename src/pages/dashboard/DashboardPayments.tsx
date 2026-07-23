@@ -6,6 +6,7 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   usePaymentHistory,
+  useOrderFiscalDocument,
   useRequestStudentOrderRefund,
   useStudentOrderReceipt,
 } from "@/hooks/useDashboard"
@@ -34,14 +35,25 @@ function getChargedAmount(payment: StudentPaymentSummary) {
   return payment.total_paid_cents ?? payment.final_price_cents
 }
 
+function getFiscalStatusLabel(payment: StudentPaymentSummary) {
+  const status = payment.fiscal_document?.status
+  if (status === "issued") return "Documento fiscal emitido"
+  if (status === "processing" || status === "pending") return "Documento fiscal em processamento"
+  if (status === "blocked_data" || status === "requires_review") return "Documento fiscal pendente"
+  if (status === "failed_retryable" || status === "failed_permanent") return "Documento fiscal requer revisão"
+  return "Documento fiscal ainda não planeado"
+}
+
 export function DashboardPayments() {
   const paymentsQuery = usePaymentHistory()
   const receiptMutation = useStudentOrderReceipt()
+  const fiscalDocumentMutation = useOrderFiscalDocument()
   const refundMutation = useRequestStudentOrderRefund()
   const [refundPayment, setRefundPayment] = useState<StudentPaymentSummary | null>(null)
   const [confirmRefund, setConfirmRefund] = useState(false)
   const [refundMessage, setRefundMessage] = useState("")
   const [receiptLoadingOrderId, setReceiptLoadingOrderId] = useState<string | null>(null)
+  const [fiscalLoadingOrderId, setFiscalLoadingOrderId] = useState<string | null>(null)
 
   if (paymentsQuery.isLoading) {
     return <LoadingState message="A carregar histórico de pagamentos..." />
@@ -67,11 +79,11 @@ export function DashboardPayments() {
     const receiptWindow = window.open("", "_blank")
     if (receiptWindow) {
       receiptWindow.opener = null
-      receiptWindow.document.title = "A preparar fatura"
+      receiptWindow.document.title = "A preparar comprovativo Stripe"
       receiptWindow.document.body.innerHTML = `
         <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a; background: #ffffff; min-height: 100vh;">
           <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #64748b;">Mariana Explica</p>
-          <h1 style="font-size: 24px; margin: 12px 0;">A preparar a tua fatura...</h1>
+          <h1 style="font-size: 24px; margin: 12px 0;">A preparar o comprovativo Stripe...</h1>
           <p style="color: #475569;">Esta janela vai abrir automaticamente dentro de instantes.</p>
         </main>
       `
@@ -91,13 +103,31 @@ export function DashboardPayments() {
         receiptWindow.document.body.innerHTML = `
           <main style="font-family: Inter, Arial, sans-serif; padding: 32px; color: #0f172a; background: #ffffff; min-height: 100vh;">
             <p style="font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: #b91c1c;">Erro</p>
-            <h1 style="font-size: 24px; margin: 12px 0;">Não foi possível abrir a fatura</h1>
+            <h1 style="font-size: 24px; margin: 12px 0;">Não foi possível abrir o comprovativo Stripe</h1>
             <p style="color: #475569;">Volta a página anterior e tenta novamente.</p>
           </main>
         `
       }
     } finally {
       setReceiptLoadingOrderId(null)
+    }
+  }
+
+  const openFiscalDocument = async (payment: StudentPaymentSummary) => {
+    const documentWindow = window.open("", "_blank")
+    if (documentWindow) {
+      documentWindow.opener = null
+      documentWindow.document.title = "A preparar documento fiscal"
+    }
+    setFiscalLoadingOrderId(payment.id)
+    try {
+      const result = await fiscalDocumentMutation.mutateAsync(payment.id)
+      if (documentWindow) documentWindow.location.href = result.signed_url
+      else window.open(result.signed_url, "_blank", "noopener,noreferrer")
+    } catch {
+      documentWindow?.close()
+    } finally {
+      setFiscalLoadingOrderId(null)
     }
   }
 
@@ -170,6 +200,12 @@ export function DashboardPayments() {
                         Ref. {payment.payment_reference}
                       </p>
                     ) : null}
+                    <p className="mt-2 text-xs font-medium text-slate-600">
+                      {getFiscalStatusLabel(payment)}
+                      {payment.fiscal_document?.document_number
+                        ? ` · ${payment.fiscal_document.document_number}`
+                        : ""}
+                    </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
                     <StatusBadge
@@ -187,9 +223,25 @@ export function DashboardPayments() {
                         disabled={!payment.payment_reference || receiptLoadingOrderId === payment.id}
                         onClick={() => void openReceipt(payment)}
                       >
-                        {receiptLoadingOrderId === payment.id ? "A abrir..." : "Ver fatura"}
+                        {receiptLoadingOrderId === payment.id ? "A abrir..." : "Comprovativo Stripe"}
                         <ExternalLink className="h-4 w-4" />
                       </Button>
+
+                      {payment.fiscal_document ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={
+                            payment.fiscal_document.status !== "issued" ||
+                            fiscalLoadingOrderId === payment.id
+                          }
+                          onClick={() => void openFiscalDocument(payment)}
+                        >
+                          {fiscalLoadingOrderId === payment.id ? "A abrir..." : "Documento fiscal"}
+                          <ReceiptText className="h-4 w-4" />
+                        </Button>
+                      ) : null}
 
                       {isRefundAvailable(payment) ? (
                         <Button
