@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     if (!["draft", "live"].includes(body.environment)) {
       throw badRequest("Ambiente Moloni inválido")
     }
-    const redirectPath = body.redirectPath?.trim() || "/admin/pagamentos"
+    const redirectPath = body.redirectPath?.trim() || "/admin/integracoes/moloni"
     if (!redirectPath.startsWith("/admin/")) throw badRequest("Redirect administrativo inválido")
 
     const state = base64Url(crypto.getRandomValues(new Uint8Array(32)))
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       success: true,
       request_id: requestId,
       environment: body.environment,
-      authorization_url: buildMoloniAuthorizationUrl(state),
+      authorization_url: await buildMoloniAuthorizationUrl(context.serviceClient, state),
       expires_in_seconds: 600,
     })
   } catch (error) {

@@ -1561,6 +1561,243 @@ export interface AdminMoloniStatus {
   }
 }
 
+export type AdminMoloniPaymentEnvironment = "test" | "live"
+export type AdminMoloniEnvironment = "draft" | "live"
+
+export interface AdminMoloniOverview {
+  credentials: {
+    configured: boolean
+    client_id_configured: boolean
+    client_secret_configured: boolean
+    encryption_key_configured: boolean
+    source: "database" | "environment" | "none"
+    callback_uri: string
+    configured_at: string | null
+  }
+  settings: Array<Record<string, unknown> & {
+    payment_environment: AdminMoloniPaymentEnvironment
+    moloni_environment: AdminMoloniEnvironment
+    emission_enabled: boolean
+    fiscal_checklist_approved: boolean
+    document_kind: "invoice" | "invoice_receipt" | null
+    refund_document_kind: "credit_note" | "payment_return" | null
+    document_status: 0 | 1
+    moloni_company_id: number | null
+    customer_email_fallback_enabled: boolean
+    customer_without_vat_rule: string | null
+    customer_country_id: number | null
+    customer_language_id: number | null
+    customer_maturity_date_id: number | null
+    customer_payment_method_id: number | null
+    activated_at: string | null
+    deactivated_at: string | null
+  }>
+  connections: Array<{
+    environment: AdminMoloniEnvironment
+    status: "disconnected" | "connected" | "refreshing" | "reconnect_required"
+    moloni_company_id: number | null
+    company_name: string | null
+    token_expires_at: string | null
+    refresh_token_expires_at: string | null
+    last_success_at: string | null
+    last_error_code: string | null
+    last_error_message: string | null
+  }>
+  checklist: Array<{
+    id: string
+    payment_environment: AdminMoloniPaymentEnvironment
+    item_key: string
+    title: string
+    description: string
+    is_blocking: boolean
+    status: "pending" | "filled" | "approved"
+    configuration: unknown
+    notes: string | null
+    approved_by: string | null
+    approved_at: string | null
+    updated_at: string
+  }>
+  validations: Array<{
+    id: string
+    payment_environment: AdminMoloniPaymentEnvironment
+    validation_type: string
+    status: "passed" | "failed"
+    summary: string
+    details: Record<string, unknown>
+    created_at: string
+  }>
+  activation_events: Array<{
+    id: string
+    payment_environment: AdminMoloniPaymentEnvironment
+    action: "enabled" | "disabled"
+    configuration_snapshot: Record<string, unknown>
+    actor_user_id: string
+    created_at: string
+  }>
+  mappings: Array<Record<string, unknown> & {
+    id: string
+    product_id: string
+    payment_environment: AdminMoloniPaymentEnvironment
+    moloni_company_id: number
+    moloni_product_id: number
+    moloni_document_set_id: number
+    moloni_tax_id: number | null
+    tax_value: number | null
+    exemption_reason: string | null
+    eac_id: number | null
+    moloni_payment_method_id: number | null
+    moloni_product_name: string | null
+    moloni_document_set_name: string | null
+    moloni_tax_name: string | null
+    moloni_payment_method_name: string | null
+    is_active: boolean
+    updated_at: string
+  }>
+  products: Array<{ id: string; title: string; status: string; product_type: string }>
+  queue: Array<{
+    fiscal_document_id: string
+    order_id: string
+    buyer_label: string
+    commercial_status: string
+    fiscal_status: string
+    job_type: string | null
+    job_status: string | null
+    attempt_count: number
+    max_attempts: number
+    last_error: string | null
+    last_error_code: string | null
+    available_at: string | null
+    document_number: string | null
+    moloni_document_id: number | null
+    environment: AdminMoloniEnvironment
+    payment_environment: AdminMoloniPaymentEnvironment
+    total_amount_cents: number
+    currency: string
+    issued_at: string | null
+    can_retry: boolean
+    can_cancel: boolean
+  }>
+  adjustments: Array<Record<string, unknown>>
+  metrics: {
+    pending: number
+    blocked: number
+    permanent_failures: number
+    issued: number
+    paid_without_document: number
+    adjustments_requiring_review: number
+  }
+  activation_gate: {
+    ready: boolean
+    missing: string[]
+    credentialsConfigured: boolean
+    encryptionKeyConfigured: boolean
+    oauthConnected: boolean
+    tokenUsable: boolean
+    companyConfigured: boolean
+    companyValidated: boolean
+    documentSetsValidated: boolean
+    productsValidated: boolean
+    taxesValidated: boolean
+    paymentMethodValidated: boolean
+    mappingsValidated: boolean
+    missingPaidProductMappings: number
+    approvedChecklistItems: number
+    requiredChecklistItems: number
+    draftTestPassed: boolean
+    monetaryDivergences: number
+    moloniEnvironment: AdminMoloniEnvironment
+    documentStatus: 0 | 1
+  }
+}
+
+export async function fetchAdminMoloniOverview() {
+  return await invokeAdminFunction<{ success: true } & AdminMoloniOverview>(
+    "admin-moloni-configuration",
+    { action: "overview" },
+  )
+}
+
+export async function saveAdminMoloniCredentials(input: {
+  clientId?: string
+  clientSecret?: string
+}) {
+  return await invokeAdminFunction<{
+    success: true
+    credentials: AdminMoloniOverview["credentials"]
+  }>("admin-moloni-configuration", {
+    action: "save_credentials",
+    ...input,
+  })
+}
+
+export async function updateAdminMoloniChecklist(input: {
+  paymentEnvironment: AdminMoloniPaymentEnvironment
+  itemKey: string
+  status: "pending" | "filled" | "approved"
+  configuration?: unknown
+  notes?: string | null
+  confirmation?: string
+}) {
+  return await invokeAdminFunction<{ success: true }>("admin-moloni-configuration", {
+    action: "update_checklist",
+    ...input,
+  })
+}
+
+export async function runAdminMoloniValidation(input: {
+  paymentEnvironment: AdminMoloniPaymentEnvironment
+  validationType:
+    | "credentials"
+    | "oauth"
+    | "company"
+    | "document_sets"
+    | "products"
+    | "taxes"
+    | "payment_method"
+    | "mappings"
+}) {
+  return await invokeAdminFunction<{ success: true }>("admin-moloni-configuration", {
+    action: "run_validation",
+    ...input,
+  })
+}
+
+export async function createAdminMoloniDraftTest(input: {
+  fiscalDocumentId: string
+  confirmation: string
+}) {
+  return await invokeAdminFunction<{ success: true }>("admin-moloni-configuration", {
+    action: "create_draft_test",
+    ...input,
+  })
+}
+
+export async function activateAdminMoloniLive(confirmation: string) {
+  return await invokeAdminFunction<{ success: true; historical_reprocessing_started: false }>(
+    "admin-moloni-configuration",
+    { action: "activate", paymentEnvironment: "live", confirmation },
+  )
+}
+
+export async function deactivateAdminMoloni(
+  paymentEnvironment: AdminMoloniPaymentEnvironment,
+  confirmation: string,
+) {
+  return await invokeAdminFunction<{ success: true }>("admin-moloni-configuration", {
+    action: "deactivate",
+    paymentEnvironment,
+    confirmation,
+  })
+}
+
+export async function runAdminMoloniJobAction(input: {
+  fiscalDocumentId: string
+  action: "retry" | "unblock" | "reconcile" | "cancel"
+  confirmation?: string
+}) {
+  return await invokeAdminFunction<{ success: true }>("admin-moloni-job-actions", input)
+}
+
 export async function fetchAdminMoloniStatus() {
   return await invokeAdminFunction<{ success: true } & AdminMoloniStatus>(
     "admin-update-moloni-mapping",
@@ -1588,7 +1825,7 @@ export async function fetchAdminMoloniCatalog(input: {
 export async function startAdminMoloniConnection(environment: "draft" | "live") {
   return await invokeAdminFunction<{ success: true; authorization_url: string }>(
     "admin-moloni-oauth-start",
-    { environment, redirectPath: "/admin/pagamentos?tab=settings" },
+    { environment, redirectPath: "/admin/integracoes/moloni" },
   )
 }
 

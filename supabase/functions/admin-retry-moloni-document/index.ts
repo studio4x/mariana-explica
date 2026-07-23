@@ -35,31 +35,19 @@ Deno.serve(async (req) => {
     if (document.status === "issued" || document.moloni_document_id) {
       throw conflict("Documento já emitido; a retentativa foi bloqueada.")
     }
-    const { data: job, error } = await context.serviceClient
-      .from("moloni_document_jobs")
-      .update({
-        status: "retry",
-        available_at: new Date().toISOString(),
-        locked_at: null,
-        locked_by: null,
-        last_error_code: null,
-        last_error: null,
-      })
-      .eq("fiscal_document_id", document.id)
-      .in("status", ["blocked", "failed", "retry"])
-      .select("id,status,attempt_count")
-      .maybeSingle()
+    const { data, error } = await context.serviceClient.rpc("admin_transition_moloni_job", {
+      p_fiscal_document_id: document.id,
+      p_action: "retry",
+      p_actor_user_id: context.user.id,
+    })
     if (error) throw error
+    const job = Array.isArray(data) ? data[0] : data
     if (!job) throw conflict("A tarefa está em processamento ou concluída.")
-    await context.serviceClient
-      .from("fiscal_documents")
-      .update({ status: "pending", last_error_code: null, last_error_message: null })
-      .eq("id", document.id)
     await writeAuditLog(context.serviceClient, context, {
       action: "admin.moloni_document_retried",
       entityType: "fiscal_document",
       entityId: document.id,
-      metadata: { job_id: job.id, previous_status: document.status },
+      metadata: { job_id: job.job_id, previous_status: document.status, changed: job.changed },
       ...extractRequestAuditContext(req),
     })
     return jsonResponse({ success: true, request_id: requestId, job })

@@ -403,7 +403,11 @@ function validateRemoteTotals(remote: Record<string, unknown>, document: FiscalD
   }
 }
 
-export async function processMoloniDocumentJob(client: SupabaseClient, job: MoloniJobRow) {
+export async function processMoloniDocumentJob(
+  client: SupabaseClient,
+  job: MoloniJobRow,
+  options: { allowDraftHomologation?: boolean } = {},
+) {
   const workerId = job.locked_by || crypto.randomUUID()
   try {
     const { data: documentData, error: documentError } = await client
@@ -432,9 +436,14 @@ export async function processMoloniDocumentJob(client: SupabaseClient, job: Molo
     const settings = settingsData as FiscalSettingsRow
     const billing = billingData as BillingRow
 
+    const manualDraftHomologation =
+      options.allowDraftHomologation === true &&
+      document.source_payment_environment === "test" &&
+      settings.payment_environment === "test" &&
+      settings.moloni_environment === "draft" &&
+      settings.document_status === 0
     if (
-      !settings.emission_enabled ||
-      !settings.fiscal_checklist_approved ||
+      ((!settings.emission_enabled || !settings.fiscal_checklist_approved) && !manualDraftHomologation) ||
       !settings.document_kind ||
       !settings.moloni_company_id
     ) {

@@ -33,10 +33,28 @@ interface EncryptedCredentials {
   encryption_version: number
 }
 
+interface EncryptedAppCredentials {
+  client_id_ciphertext: string
+  client_secret_ciphertext: string
+  callback_uri: string
+  configured_at: string
+}
+
 function requiredEnv(name: string) {
   const value = Deno.env.get(name)?.trim()
   if (!value) throw internalError(`${name} não configurada`)
   return value
+}
+
+function configuredEnv(name: string) {
+  return Boolean(Deno.env.get(name)?.trim())
+}
+
+export function getSystemMoloniCallbackUri() {
+  const explicit = Deno.env.get("MOLONI_REDIRECT_URI")?.trim()
+  if (explicit) return explicit
+  const supabaseUrl = requiredEnv("SUPABASE_URL").replace(/\/$/, "")
+  return `${supabaseUrl}/functions/v1/moloni-oauth-callback`
 }
 
 function bytesToBase64(bytes: Uint8Array) {
@@ -83,11 +101,76 @@ export async function decryptMoloniToken(value: string) {
   }
 }
 
-export function buildMoloniAuthorizationUrl(state: string) {
+async function loadMoloniAppConfiguration(client: SupabaseClient) {
+  const { data, error } = await client.rpc("get_moloni_app_credentials")
+  if (error) throw error
+  const stored = (Array.isArray(data) ? data[0] : data) as EncryptedAppCredentials | null
+  if (stored) {
+    const [clientId, clientSecret] = await Promise.all([
+      decryptMoloniToken(stored.client_id_ciphertext),
+      decryptMoloniToken(stored.client_secret_ciphertext),
+    ])
+    return {
+      clientId,
+      clientSecret,
+      callbackUri: stored.callback_uri,
+      source: "database" as const,
+    }
+  }
+
+  return {
+    clientId: requiredEnv("MOLONI_CLIENT_ID"),
+    clientSecret: requiredEnv("MOLONI_CLIENT_SECRET"),
+    callbackUri: getSystemMoloniCallbackUri(),
+    source: "environment" as const,
+  }
+}
+
+export async function getMoloniAppCredentialStatus(client: SupabaseClient) {
+  const { data, error } = await client.rpc("get_moloni_app_credentials")
+  if (error) throw error
+  const stored = (Array.isArray(data) ? data[0] : data) as EncryptedAppCredentials | null
+  const environmentConfigured = configuredEnv("MOLONI_CLIENT_ID") && configuredEnv("MOLONI_CLIENT_SECRET")
+  return {
+    configured: Boolean(stored) || environmentConfigured,
+    client_id_configured: Boolean(stored) || configuredEnv("MOLONI_CLIENT_ID"),
+    client_secret_configured: Boolean(stored) || configuredEnv("MOLONI_CLIENT_SECRET"),
+    encryption_key_configured: configuredEnv("MOLONI_TOKEN_ENCRYPTION_KEY"),
+    source: stored ? "database" as const : environmentConfigured ? "environment" as const : "none" as const,
+    callback_uri: stored?.callback_uri ?? getSystemMoloniCallbackUri(),
+    configured_at: stored?.configured_at ?? null,
+  }
+}
+
+export async function storeMoloniAppConfiguration(
+  client: SupabaseClient,
+  input: {
+    clientId?: string | null
+    clientSecret?: string | null
+    actorUserId: string
+  },
+) {
+  // The root key intentionally remains an external Supabase secret.
+  requiredEnv("MOLONI_TOKEN_ENCRYPTION_KEY")
+  const [clientIdCiphertext, clientSecretCiphertext] = await Promise.all([
+    input.clientId?.trim() ? encryptMoloniToken(input.clientId.trim()) : Promise.resolve(null),
+    input.clientSecret?.trim() ? encryptMoloniToken(input.clientSecret.trim()) : Promise.resolve(null),
+  ])
+  const { error } = await client.rpc("store_moloni_app_credentials", {
+    p_client_id_ciphertext: clientIdCiphertext,
+    p_client_secret_ciphertext: clientSecretCiphertext,
+    p_callback_uri: getSystemMoloniCallbackUri(),
+    p_actor_user_id: input.actorUserId,
+  })
+  if (error) throw error
+}
+
+export async function buildMoloniAuthorizationUrl(client: SupabaseClient, state: string) {
+  const configuration = await loadMoloniAppConfiguration(client)
   const url = new URL(MOLONI_AUTHORIZE_URL)
   url.searchParams.set("response_type", "code")
-  url.searchParams.set("client_id", requiredEnv("MOLONI_CLIENT_ID"))
-  url.searchParams.set("redirect_uri", requiredEnv("MOLONI_REDIRECT_URI"))
+  url.searchParams.set("client_id", configuration.clientId)
+  url.searchParams.set("redirect_uri", configuration.callbackUri)
   url.searchParams.set("state", state)
   return url.toString()
 }
@@ -119,21 +202,23 @@ async function requestTokens(params: Record<string, string>) {
   }
 }
 
-export function exchangeMoloniAuthorizationCode(code: string) {
+export async function exchangeMoloniAuthorizationCode(client: SupabaseClient, code: string) {
+  const configuration = await loadMoloniAppConfiguration(client)
   return requestTokens({
     grant_type: "authorization_code",
-    client_id: requiredEnv("MOLONI_CLIENT_ID"),
-    redirect_uri: requiredEnv("MOLONI_REDIRECT_URI"),
-    client_secret: requiredEnv("MOLONI_CLIENT_SECRET"),
+    client_id: configuration.clientId,
+    redirect_uri: configuration.callbackUri,
+    client_secret: configuration.clientSecret,
     code,
   })
 }
 
-function refreshMoloniTokens(refreshToken: string) {
+async function refreshMoloniTokens(client: SupabaseClient, refreshToken: string) {
+  const configuration = await loadMoloniAppConfiguration(client)
   return requestTokens({
     grant_type: "refresh_token",
-    client_id: requiredEnv("MOLONI_CLIENT_ID"),
-    client_secret: requiredEnv("MOLONI_CLIENT_SECRET"),
+    client_id: configuration.clientId,
+    client_secret: configuration.clientSecret,
     refresh_token: refreshToken,
   })
 }
@@ -235,7 +320,7 @@ async function getValidAccessToken(client: SupabaseClient, environment: MoloniEn
 
   try {
     const refreshToken = await decryptMoloniToken(credentials.refresh_token_ciphertext)
-    const tokens = await refreshMoloniTokens(refreshToken)
+    const tokens = await refreshMoloniTokens(client, refreshToken)
     await storeMoloniTokens(client, environment, tokens)
     return tokens.access_token
   } catch (refreshError) {

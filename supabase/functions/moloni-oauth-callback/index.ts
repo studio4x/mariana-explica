@@ -23,7 +23,7 @@ async function sha256(value: string) {
 
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
-  let redirectPath = "/admin/pagamentos"
+  let redirectPath = "/admin/integracoes/moloni"
   try {
     if (req.method !== "GET") throw badRequest("Método não suportado")
     const url = new URL(req.url)
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     if (consumeError) throw consumeError
     if (!consumed) throw unauthorized("OAuth state já utilizado")
 
-    const tokens = await exchangeMoloniAuthorizationCode(code)
+    const tokens = await exchangeMoloniAuthorizationCode(client, code)
     await storeMoloniTokens(client, oauthState.environment, tokens, oauthState.admin_user_id)
     const moloni = new MoloniClient(client, oauthState.environment)
     const companies = await moloni.getCompanies()

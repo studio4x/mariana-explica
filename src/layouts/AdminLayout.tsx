@@ -17,6 +17,7 @@ import {
   MessageSquareText,
   Package,
   Percent,
+  ReceiptText,
   RefreshCw,
   Settings,
   TicketPercent,
@@ -72,6 +73,7 @@ interface AdminNavItem {
 const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN, label: "Visao geral", icon: LayoutDashboard },
   { to: ROUTES.ADMIN_PAYMENTS, label: "Pagamentos", icon: CreditCard },
+  { to: ROUTES.ADMIN_MOLONI, label: "Moloni", icon: ReceiptText },
   { to: ROUTES.ADMIN_NOTIFICATIONS, label: "Notificacoes", icon: Bell },
   { to: ROUTES.ADMIN_EMAILS, label: "Emails", icon: Mail },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },

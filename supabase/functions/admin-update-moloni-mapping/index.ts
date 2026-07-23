@@ -51,6 +51,11 @@ type Input =
       isActive: boolean
     }
 
+function remoteLabel(item: Record<string, unknown> | undefined, fallback: string) {
+  const value = item?.name ?? item?.title ?? item?.reference
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 250) : fallback
+}
+
 async function loadStatus(context: Awaited<ReturnType<typeof requireAdmin>>) {
   const [
     settingsResult,
@@ -167,26 +172,35 @@ Deno.serve(async (req) => {
         throw conflict("Stripe test só pode usar Moloni em rascunho.")
       }
       if (body.emissionEnabled) {
-        const expected = body.paymentEnvironment === "live"
-          ? "ATIVAR_EMISSAO_FISCAL_LIVE"
-          : "ATIVAR_HOMOLOGACAO_RASCUNHO"
-        if (body.confirmation !== expected) {
-          throw conflict("Confirmação explícita de ativação ausente.")
-        }
+        throw conflict("Use o fluxo dedicado de ativação com validação integral.")
       }
+      const { data: currentSettings, error: currentSettingsError } = await context.serviceClient
+        .from("moloni_fiscal_settings")
+        .select("emission_enabled")
+        .eq("payment_environment", body.paymentEnvironment)
+        .maybeSingle()
+      if (currentSettingsError) throw currentSettingsError
+      if (currentSettings?.emission_enabled) {
+        throw conflict("Desative a emissão Moloni antes de alterar a configuração fiscal.")
+      }
+      const { data: checklistApproved, error: checklistError } = await context.serviceClient
+        .rpc("refresh_moloni_checklist_approval", {
+          p_payment_environment: body.paymentEnvironment,
+        })
+      if (checklistError) throw checklistError
       if (
         body.moloniEnvironment === "live" &&
-        (!body.fiscalChecklistApproved || body.documentStatus !== 1 || body.paymentEnvironment !== "live")
+        (body.documentStatus !== 1 || body.paymentEnvironment !== "live")
       ) {
-        throw conflict("Moloni live exige checklist aprovado, Stripe live e documento fechado.")
+        throw conflict("Moloni live exige Stripe live e documento fechado.")
       }
       const { data: settings, error } = await context.serviceClient
         .from("moloni_fiscal_settings")
         .upsert({
           payment_environment: body.paymentEnvironment,
           moloni_environment: body.moloniEnvironment,
-          emission_enabled: body.emissionEnabled,
-          fiscal_checklist_approved: body.fiscalChecklistApproved,
+          emission_enabled: false,
+          fiscal_checklist_approved: Boolean(checklistApproved),
           document_kind: body.documentKind,
           refund_document_kind: body.refundDocumentKind ?? null,
           document_status: body.documentStatus,
@@ -202,42 +216,28 @@ Deno.serve(async (req) => {
         .select("*")
         .single()
       if (error) throw error
+      const { error: validationDeleteError } = await context.serviceClient
+        .from("moloni_validation_runs")
+        .delete()
+        .eq("payment_environment", body.paymentEnvironment)
+        .in("validation_type", [
+          "company",
+          "document_sets",
+          "products",
+          "taxes",
+          "payment_method",
+          "mappings",
+        ])
+      if (validationDeleteError) throw validationDeleteError
 
-      if (body.emissionEnabled) {
-        const { data: blockedDocuments } = await context.serviceClient
-          .from("fiscal_documents")
-          .select("id,order_id")
-          .eq("source_payment_environment", body.paymentEnvironment)
-          .eq("status", "blocked_data")
-          .eq("last_error_code", "FISCAL_CONFIGURATION_INCOMPLETE")
-        for (const document of blockedDocuments ?? []) {
-          await context.serviceClient.rpc("ensure_order_fiscal_outbox", { p_order_id: document.order_id })
-          await context.serviceClient
-            .from("fiscal_documents")
-            .update({
-              status: "pending",
-              document_kind: body.documentKind,
-              environment: body.moloniEnvironment,
-              moloni_company_id: body.moloniCompanyId,
-              last_error_code: null,
-              last_error_message: null,
-            })
-            .eq("id", document.id)
-          await context.serviceClient
-            .from("moloni_document_jobs")
-            .update({ status: "retry", available_at: new Date().toISOString(), last_error_code: null, last_error: null })
-            .eq("fiscal_document_id", document.id)
-            .eq("status", "blocked")
-        }
-      }
       await writeAuditLog(context.serviceClient, context, {
         action: "admin.moloni_settings_updated",
         entityType: "moloni_fiscal_settings",
         metadata: {
           payment_environment: body.paymentEnvironment,
           moloni_environment: body.moloniEnvironment,
-          emission_enabled: body.emissionEnabled,
-          checklist_approved: body.fiscalChecklistApproved,
+          emission_enabled: false,
+          checklist_approved: Boolean(checklistApproved),
           document_kind: body.documentKind,
         },
         ...extractRequestAuditContext(req),
@@ -291,6 +291,13 @@ Deno.serve(async (req) => {
     ) {
       throw conflict("Método de pagamento Moloni não confirmado.")
     }
+    const remoteDocumentSet = documentSets.find((item) =>
+      Number(item.document_set_id) === body.moloniDocumentSetId
+    )
+    const remoteTax = taxes.find((item) => Number(item.tax_id) === body.moloniTaxId)
+    const remotePaymentMethod = paymentMethods.find((item) =>
+      Number(item.payment_method_id) === body.moloniPaymentMethodId
+    )
     const { data: mapping, error } = await context.serviceClient
       .from("moloni_product_mappings")
       .upsert({
@@ -304,6 +311,14 @@ Deno.serve(async (req) => {
         exemption_reason: body.exemptionReason?.trim() || null,
         eac_id: body.eacId ?? null,
         moloni_payment_method_id: body.moloniPaymentMethodId ?? null,
+        moloni_product_name: remoteLabel(remoteProduct, `Artigo ${body.moloniProductId}`),
+        moloni_document_set_name: remoteLabel(remoteDocumentSet, `Série ${body.moloniDocumentSetId}`),
+        moloni_tax_name: body.moloniTaxId
+          ? remoteLabel(remoteTax, `Taxa ${body.moloniTaxId}`)
+          : null,
+        moloni_payment_method_name: body.moloniPaymentMethodId
+          ? remoteLabel(remotePaymentMethod, `Método ${body.moloniPaymentMethodId}`)
+          : null,
         is_active: body.isActive,
         created_by: context.user.id,
         updated_by: context.user.id,
@@ -311,6 +326,12 @@ Deno.serve(async (req) => {
       .select("*")
       .single()
     if (error) throw error
+    const { error: validationDeleteError } = await context.serviceClient
+      .from("moloni_validation_runs")
+      .delete()
+      .eq("payment_environment", body.paymentEnvironment)
+      .eq("validation_type", "mappings")
+    if (validationDeleteError) throw validationDeleteError
     await writeAuditLog(context.serviceClient, context, {
       action: "admin.moloni_product_mapping_updated",
       entityType: "product",

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowUpRight, Check, CreditCard, Link2, MoreHorizontal, RefreshCw, Search, Settings2 } from "lucide-react"
+import { Link } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { CHECKOUT_MODES, type CheckoutMode } from "@/lib/admin-checkout"
+import { ROUTES } from "@/lib/constants"
 import {
   fetchAdminCheckoutModeConfig,
   fetchAdminOrdersView,
@@ -237,7 +239,30 @@ function MoloniSettingsPanel() {
     loadCatalog.isPending
   const catalog = loadCatalog.data
 
-  return (
+  return ROUTES.ADMIN_MOLONI ? (
+    <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Integração fiscal</p>
+          <h3 className="mt-2 text-2xl font-bold text-slate-950">Moloni</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Credenciais, OAuth, regras fiscais, homologação, mapeamentos e fila estão centralizados numa área protegida própria.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <StatusBadge label={`${data?.metrics.pending ?? 0} na fila`} tone="info" />
+            <StatusBadge label={`${data?.metrics.blocked ?? 0} bloqueados`} tone={(data?.metrics.blocked ?? 0) > 0 ? "warning" : "success"} />
+            <StatusBadge label={`${data?.metrics.issued ?? 0} emitidos`} tone="success" />
+          </div>
+        </div>
+        <Button asChild type="button" className="rounded-full">
+          <Link to={ROUTES.ADMIN_MOLONI}>
+            <Settings2 className="h-4 w-4" />
+            Abrir configuração Moloni
+          </Link>
+        </Button>
+      </div>
+    </section>
+  ) : (
     <section className="space-y-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>

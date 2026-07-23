@@ -88,6 +88,9 @@ const AdminNotifications = lazy(() =>
 const AdminPayments = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminPayments })),
 )
+const AdminMoloni = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminMoloni })),
+)
 const AdminReviews = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminReviews })),
 )
@@ -563,6 +566,10 @@ export const router = createBrowserRouter(
         {
           path: "pagamentos",
           element: withSuspense(<AdminPayments />),
+        },
+        {
+          path: "integracoes/moloni",
+          element: withSuspense(<AdminMoloni />),
         },
         {
           path: "configuracoes",

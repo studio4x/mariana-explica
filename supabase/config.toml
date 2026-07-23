@@ -144,3 +144,9 @@ verify_jwt = false
 
 [functions.get-order-fiscal-document]
 verify_jwt = false
+
+[functions.admin-moloni-configuration]
+verify_jwt = false
+
+[functions.admin-moloni-job-actions]
+verify_jwt = false
