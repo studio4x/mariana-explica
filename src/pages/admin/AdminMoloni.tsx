@@ -59,9 +59,9 @@ const validationTypes = [
 ] as const
 
 const moloniTabs = [
-  { slug: "configuracao", label: "Configuração", description: "Credenciais e regras fiscais", path: ROUTES.ADMIN_MOLONI_SETTINGS },
-  { slug: "checklist-fiscal", label: "Checklist fiscal", description: "Requisitos e aprovações", path: ROUTES.ADMIN_MOLONI_CHECKLIST },
-  { slug: "fila-documentos-fiscais", label: "Fila e documentos fiscais", description: "Operação e documentos", path: ROUTES.ADMIN_MOLONI_QUEUE },
+  { slug: "configuracao", label: "Configura\u00e7\u00e3o", description: "Credenciais e regras fiscais", path: ROUTES.ADMIN_MOLONI_SETTINGS },
+  { slug: "checklist-fiscal", label: "Checklist fiscal", description: "Requisitos e aprova\u00e7\u00f5es", path: ROUTES.ADMIN_MOLONI_CHECKLIST },
+  { slug: "fila-documentos-fiscais", label: "Fila e documentos fiscais", description: "Opera\u00e7\u00e3o e documentos", path: ROUTES.ADMIN_MOLONI_QUEUE },
 ] as const
 type MoloniTabSlug = (typeof moloniTabs)[number]["slug"]
 
