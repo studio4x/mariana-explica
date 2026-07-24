@@ -239,6 +239,12 @@ function AdminPaymentsRedirect() {
   return <Navigate to={`/admin/pagamentos/${tab}${search ? `?${search}` : ""}`} replace />
 }
 
+function AdminMoloniRedirect() {
+  const location = useLocation()
+  const search = location.search
+  return <Navigate to={`${ROUTES.ADMIN_MOLONI_SETTINGS}${search}`} replace />
+}
+
 function LegacyStudentCourseRedirect() {
   const { id } = useParams<{ id: string }>()
   return <Navigate to={`/aluno/cursos/${id}`} replace />
@@ -583,6 +589,10 @@ export const router = createBrowserRouter(
         },
         {
           path: "integracoes/moloni",
+          element: <AdminMoloniRedirect />,
+        },
+        {
+          path: "integracoes/moloni/:tab",
           element: withSuspense(<AdminMoloni />),
         },
         {

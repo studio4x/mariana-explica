@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Unplug,
 } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, Navigate, useParams } from "react-router-dom"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -57,6 +57,13 @@ const validationTypes = [
   ["payment_method", "Pagamento"],
   ["mappings", "Mapeamentos"],
 ] as const
+
+const moloniTabs = [
+  { slug: "configuracao", label: "Configuração", description: "Credenciais e regras fiscais", path: ROUTES.ADMIN_MOLONI_SETTINGS },
+  { slug: "checklist-fiscal", label: "Checklist fiscal", description: "Requisitos e aprovações", path: ROUTES.ADMIN_MOLONI_CHECKLIST },
+  { slug: "fila-documentos-fiscais", label: "Fila e documentos fiscais", description: "Operação e documentos", path: ROUTES.ADMIN_MOLONI_QUEUE },
+] as const
+type MoloniTabSlug = (typeof moloniTabs)[number]["slug"]
 
 function positiveInteger(value: string) {
   const parsed = Number(value)
@@ -191,6 +198,8 @@ function ChecklistRow({
 }
 
 export function AdminMoloni() {
+  const { tab } = useParams<{ tab?: string }>()
+  const activeTab = moloniTabs.find((item) => item.slug === tab)?.slug as MoloniTabSlug | undefined
   const queryClient = useQueryClient()
   const [environment, setEnvironment] = useState<AdminMoloniPaymentEnvironment>("test")
   const [feedback, setFeedback] = useState<Feedback | null>(null)
@@ -368,6 +377,8 @@ export function AdminMoloni() {
   const connectionHealthy = connection?.status === "connected"
   const liveSettings = data.settings.find((item) => item.payment_environment === "live")
 
+  if (!activeTab) return <Navigate to={ROUTES.ADMIN_MOLONI_SETTINGS} replace />
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -402,6 +413,25 @@ export function AdminMoloni() {
         </div>
       ) : null}
 
+      <nav className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 md:grid-cols-3" role="tablist" aria-label="Secções da integração Moloni">
+        {moloniTabs.map((item) => (
+          <Link
+            key={item.slug}
+            to={item.path}
+            role="tab"
+            aria-selected={activeTab === item.slug}
+            className={`rounded-xl px-4 py-3 transition ${
+              activeTab === item.slug
+                ? "bg-slate-950 text-white shadow-sm"
+                : "text-slate-600 hover:bg-white hover:text-slate-950"
+            }`}
+          >
+            <span className="block text-sm font-bold">{item.label}</span>
+            <span className={`mt-1 block text-xs ${activeTab === item.slug ? "text-slate-300" : "text-slate-500"}`}>{item.description}</span>
+          </Link>
+        ))}
+      </nav>
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6" aria-label="Resumo Moloni">
         {[
           ["Estado", liveSettings?.emission_enabled ? "Ativa" : "Desativada"],
@@ -418,7 +448,8 @@ export function AdminMoloni() {
         ))}
       </section>
 
-      <section className={cardClass}>
+      {activeTab === "configuracao" ? (
+        <section className={cardClass}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -543,7 +574,8 @@ export function AdminMoloni() {
             )
           })}
         </div>
-      </section>
+        </section>
+      ) : null}
 
       <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2" role="tablist" aria-label="Ambiente Stripe">
         {(["test", "live"] as const).map((target) => (
@@ -564,7 +596,9 @@ export function AdminMoloni() {
         ))}
       </div>
 
-      <section className={cardClass}>
+      {activeTab === "configuracao" ? (
+        <>
+        <section className={cardClass}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-950">Configuração fiscal</h2>
@@ -652,9 +686,9 @@ export function AdminMoloni() {
             Guardar sem ativar
           </Button>
         </div>
-      </section>
+        </section>
 
-      <section className={cardClass}>
+        <section className={cardClass}>
         <h2 className="text-xl font-black text-slate-950">Mapeamento por produto</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Cada material pago publicado precisa de artigo, série e regra fiscal válidos no ambiente selecionado.
@@ -765,8 +799,11 @@ export function AdminMoloni() {
           </Button>
         </div>
       </section>
+        </>
+      ) : null}
 
-      <section className={cardClass}>
+      {activeTab === "checklist-fiscal" ? (
+        <section className={cardClass}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-950">Checklist fiscal</h2>
@@ -796,9 +833,11 @@ export function AdminMoloni() {
             />
           ))}
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className={cardClass}>
+      {activeTab === "configuracao" ? (
+        <section className={cardClass}>
         <h2 className="text-xl font-black text-slate-950">Diagnóstico e homologação</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Execute verificações isoladas. O único teste documental permitido aqui cria um rascunho no ambiente de teste.
@@ -857,9 +896,11 @@ export function AdminMoloni() {
             </div>
           ))}
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className={cardClass}>
+      {activeTab === "fila-documentos-fiscais" ? (
+        <section className={cardClass}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-950">Fila e documentos fiscais</h2>
@@ -929,8 +970,10 @@ export function AdminMoloni() {
           </div>
         )}
       </section>
+      ) : null}
 
-      <section className={`rounded-[1.5rem] border p-5 shadow-sm ${data.activation_gate.ready ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+      {activeTab === "configuracao" ? (
+        <section className={`rounded-[1.5rem] border p-5 shadow-sm ${data.activation_gate.ready ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
         <div className="flex items-start gap-3">
           {data.activation_gate.ready ? <CheckCircle2 className="mt-1 h-6 w-6 text-emerald-700" /> : <AlertTriangle className="mt-1 h-6 w-6 text-amber-700" />}
           <div className="min-w-0 flex-1">
@@ -982,7 +1025,8 @@ export function AdminMoloni() {
             ) : null}
           </div>
         </div>
-      </section>
+        </section>
+      ) : null}
     </div>
   )
 }
