@@ -28,6 +28,7 @@ import {
   fetchAdminFiscalDocumentUrl,
   fetchAdminMoloniCatalog,
   fetchAdminMoloniOverview,
+  fetchAdminMoloniStatus,
   runAdminMoloniJobAction,
   runAdminMoloniValidation,
   saveAdminMoloniCredentials,
@@ -35,6 +36,7 @@ import {
   updateAdminMoloniChecklist,
   updateAdminMoloniSettings,
   upsertAdminMoloniMapping,
+  upsertAdminMoloniRule,
   type AdminMoloniOverview,
   type AdminMoloniPaymentEnvironment,
 } from "@/services/admin.service"
@@ -246,8 +248,13 @@ export function AdminMoloni() {
   const [moloniProductSearch, setMoloniProductSearch] = useState("")
   const [documentSetId, setDocumentSetId] = useState("")
   const [taxId, setTaxId] = useState("")
-  const [taxValue, setTaxValue] = useState("0")
   const [exemptionReason, setExemptionReason] = useState("")
+  const [ruleId, setRuleId] = useState<string | null>(null)
+  const [ruleCountry, setRuleCountry] = useState("")
+  const [ruleCustomerType, setRuleCustomerType] = useState<"" | "individual" | "company">("")
+  const [rulePriority, setRulePriority] = useState("100")
+  const [ruleDefault, setRuleDefault] = useState(false)
+  const [ruleActive, setRuleActive] = useState(true)
   const [mappingPaymentMethodId, setMappingPaymentMethodId] = useState("")
   const [eacId, setEacId] = useState("")
   const [draftDocumentId, setDraftDocumentId] = useState("")
@@ -261,12 +268,21 @@ export function AdminMoloni() {
     queryFn: fetchAdminMoloniOverview,
     staleTime: 20_000,
   })
+  const statusQuery = useQuery({
+    queryKey: ["admin", "moloni-status"],
+    queryFn: fetchAdminMoloniStatus,
+    staleTime: 20_000,
+  })
   const data = overviewQuery.data
   const settings = data?.settings.find((item) => item.payment_environment === environment)
   const connection = data?.connections.find((item) => item.environment === (environment === "test" ? "draft" : "live"))
   const mappings = useMemo(
     () => (data?.mappings ?? []).filter((item) => item.payment_environment === environment),
     [data?.mappings, environment],
+  )
+  const rules = useMemo(
+    () => (statusQuery.data?.rules ?? []).filter((item) => item.payment_environment === environment),
+    [environment, statusQuery.data?.rules],
   )
   const checklist = useMemo(
     () => (data?.checklist ?? []).filter((item) => item.payment_environment === environment),
@@ -384,6 +400,14 @@ export function AdminMoloni() {
   const mappingMutation = useMutation({
     mutationFn: upsertAdminMoloniMapping,
     onSuccess: () => succeed("Mapeamento validado e guardado."),
+    onError: fail,
+  })
+  const ruleMutation = useMutation({
+    mutationFn: upsertAdminMoloniRule,
+    onSuccess: () => {
+      setRuleId(null)
+      succeed("Regra fiscal guardada com taxa oficial da Moloni.")
+    },
     onError: fail,
   })
   const checklistMutation = useMutation({
@@ -852,10 +876,10 @@ export function AdminMoloni() {
                 return (
                   <tr key={product.id}>
                     <td className="px-4 py-3 font-semibold text-slate-950">{product.title}</td>
-                    <td className="px-4 py-3"><StatusBadge label={mapping ? "Mapeado" : "Em falta"} tone={mapping ? "success" : "warning"} /></td>
+                    <td className="px-4 py-3"><StatusBadge label={!mapping ? "Em falta" : mapping.mapping_status === "requires_review" ? "Requer revisão" : "Mapeado"} tone={!mapping ? "warning" : mapping.mapping_status === "requires_review" ? "danger" : "success"} /></td>
                     <td className="px-4 py-3 text-slate-600">{mapping?.moloni_product_name ?? mapping?.moloni_product_id ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-600">{mapping?.moloni_document_set_name ?? mapping?.moloni_document_set_id ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-600">{mapping?.moloni_tax_name ?? (mapping ? `${mapping.tax_value ?? 0}%` : "—")}</td>
+                    <td className="px-4 py-3 text-slate-600">{mapping?.moloni_tax_name ?? (mapping ? `${mapping.tax_value ?? 0}%` : "—")}{mapping?.mapping_status === "requires_review" ? <span className="block text-xs text-rose-700">{String(mapping.mapping_review_reason ?? "Confirme o imposto na Moloni.")}</span> : null}</td>
                   </tr>
                 )
               })}
@@ -877,7 +901,6 @@ export function AdminMoloni() {
                   setMoloniProductId(nextMapping?.moloni_product_id ? String(nextMapping.moloni_product_id) : "")
                   setDocumentSetId(nextMapping?.moloni_document_set_id ? String(nextMapping.moloni_document_set_id) : "")
                   setTaxId(nextMapping?.moloni_tax_id ? String(nextMapping.moloni_tax_id) : "")
-                  setTaxValue(nextMapping?.tax_value !== null && nextMapping?.tax_value !== undefined ? String(nextMapping.tax_value) : "0")
                   setExemptionReason(nextMapping?.exemption_reason ?? "")
                   setMappingPaymentMethodId(nextMapping?.moloni_payment_method_id ? String(nextMapping.moloni_payment_method_id) : "")
                   setEacId(nextMapping?.eac_id ? String(nextMapping.eac_id) : "")
@@ -929,8 +952,6 @@ export function AdminMoloni() {
                 value={taxId}
                 onChange={(event) => {
                   setTaxId(event.target.value)
-                  const selected = (catalog?.taxes ?? []).find((item) => recordId(item, ["tax_id", "id"]) === event.target.value)
-                  if (selected?.value !== undefined) setTaxValue(String(selected.value))
                 }}
               >
                 <option value="">Isento</option>
@@ -940,7 +961,16 @@ export function AdminMoloni() {
                 })}
               </select>
             </label>
-            <label className="text-sm font-medium text-slate-700">Taxa %<input className={inputClass} value={taxValue} onChange={(event) => setTaxValue(event.target.value)} /></label>
+            <label className="text-sm font-medium text-slate-700">
+              Taxa %
+              <input
+                className={`${inputClass} bg-slate-100`}
+                value={String((catalog?.taxes ?? []).find((item) => recordId(item, ["tax_id", "id"]) === taxId)?.value ?? (taxId ? "—" : "0"))}
+                readOnly
+                aria-readonly="true"
+              />
+              <span className="mt-1 block text-xs font-normal text-slate-500">Valor oficial devolvido pela Moloni.</span>
+            </label>
             <label className="text-sm font-medium text-slate-700">Motivo de isenção<input className={inputClass} value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} /></label>
             <label className="text-sm font-medium text-slate-700">CAE ID, quando aplicável<input inputMode="numeric" className={inputClass} value={eacId} onChange={(event) => setEacId(event.target.value)} /></label>
             <label className="text-sm font-medium text-slate-700">
@@ -965,7 +995,6 @@ export function AdminMoloni() {
               moloniProductId: positiveInteger(moloniProductId) ?? 0,
               moloniDocumentSetId: positiveInteger(documentSetId) ?? 0,
               moloniTaxId: positiveInteger(taxId),
-              taxValue: Number(taxValue) || 0,
               exemptionReason: exemptionReason.trim() || null,
               eacId: positiveInteger(eacId),
               moloniPaymentMethodId: positiveInteger(mappingPaymentMethodId),
@@ -975,6 +1004,56 @@ export function AdminMoloni() {
             <FileCheck2 className="h-4 w-4" />
             Validar e guardar
           </Button>
+        </div>
+      </section>
+      <section className={cardClass}>
+        <h2 className="text-xl font-black text-slate-950">Regras fiscais por país</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Configure exceções por país e tipo de cliente. Sem uma regra explícita aplicável, a emissão fica em revisão.
+        </p>
+        {statusQuery.isLoading ? <p className="mt-4 text-sm text-slate-500">A carregar regras fiscais…</p> : null}
+        {statusQuery.isError ? <p className="mt-4 text-sm text-rose-700">Não foi possível carregar as regras. Tente novamente.</p> : null}
+        {rules.length ? (
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+                <tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3">País</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Taxa</th><th className="px-4 py-3">Prioridade</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3" /></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {rules.map((rule) => {
+                  const product = data.products.find((item) => item.id === rule.product_id)
+                  const country = catalog?.countries.find((item) => item.iso_3166_1 === rule.billing_country_code)
+                  const duplicate = rules.filter((other) =>
+                    other.id !== rule.id && other.product_id === rule.product_id &&
+                    other.billing_country_code === rule.billing_country_code &&
+                    other.customer_type === rule.customer_type && other.priority === rule.priority &&
+                    other.is_active && rule.is_active,
+                  ).length > 0
+                  return (
+                    <tr key={rule.id}>
+                      <td className="px-4 py-3 font-semibold text-slate-950">{product?.title ?? rule.product_id}</td>
+                      <td className="px-4 py-3">{rule.is_default ? "Padrão" : country?.name ?? rule.billing_country_code ?? "Todos"}</td>
+                      <td className="px-4 py-3">{rule.customer_type === "company" ? "Empresa com NIF/VAT" : rule.customer_type === "individual" ? "Consumidor final" : "Todos"}</td>
+                      <td className="px-4 py-3">{rule.tax_value === null ? "Isento" : `${rule.tax_value}%`}</td>
+                      <td className="px-4 py-3">{rule.priority}</td>
+                      <td className="px-4 py-3">{duplicate ? <StatusBadge label="Conflito" tone="danger" /> : <StatusBadge label={rule.is_active ? "Ativa" : "Inativa"} tone={rule.is_active ? "success" : "warning"} />}</td>
+                      <td className="px-4 py-3"><Button type="button" variant="outline" size="sm" onClick={() => { setRuleId(rule.id); setProductId(rule.product_id); setTaxId(rule.moloni_tax_id ? String(rule.moloni_tax_id) : ""); setExemptionReason(rule.exemption_reason ?? ""); setRuleCountry(rule.billing_country_code ?? ""); setRuleCustomerType(rule.customer_type ?? ""); setRulePriority(String(rule.priority)); setRuleDefault(rule.is_default); setRuleActive(rule.is_active) }}>Editar</Button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : !statusQuery.isLoading ? <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">Nenhuma regra contextual configurada. O mapeamento atual continua compatível até criar regras explícitas.</p> : null}
+        <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="text-sm font-medium text-slate-700">Produto da regra<select aria-label="Produto da regra fiscal" className={inputClass} value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Selecionar</option>{data.products.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          <label className="text-sm font-medium text-slate-700">País de faturação<select className={inputClass} value={ruleCountry} onChange={(event) => setRuleCountry(event.target.value)} disabled={ruleDefault}><option value="">Todos os países</option>{(catalog?.countries ?? []).map((item) => <option key={item.country_id} value={item.iso_3166_1}>{item.name ?? item.iso_3166_1}</option>)}</select></label>
+          <label className="text-sm font-medium text-slate-700">Tipo de cliente<select className={inputClass} value={ruleCustomerType} onChange={(event) => setRuleCustomerType(event.target.value as "" | "individual" | "company")} disabled={ruleDefault}><option value="">Todos</option><option value="individual">Consumidor final</option><option value="company">Empresa com NIF/VAT</option></select></label>
+          <label className="text-sm font-medium text-slate-700">Prioridade<input inputMode="numeric" className={inputClass} value={rulePriority} onChange={(event) => setRulePriority(event.target.value)} /></label>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={ruleDefault} onChange={(event) => { setRuleDefault(event.target.checked); if (event.target.checked) { setRuleCountry(""); setRuleCustomerType("") } }} />Regra padrão/fallback</label>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={ruleActive} onChange={(event) => setRuleActive(event.target.checked)} />Regra ativa</label>
+          <Button type="button" className="rounded-full" disabled={busy || !productId || !positiveInteger(companyId) || (!positiveInteger(taxId) && !exemptionReason.trim())} onClick={() => ruleMutation.mutate({ ruleId, paymentEnvironment: environment, productId, moloniCompanyId: positiveInteger(companyId) ?? 0, billingCountryCode: ruleCountry || null, customerType: ruleCustomerType || null, moloniTaxId: positiveInteger(taxId), exemptionReason: exemptionReason.trim() || null, priority: Number(rulePriority) || 0, isDefault: ruleDefault, isActive: ruleActive })}><Save className="h-4 w-4" />Guardar regra</Button>
+          {ruleId ? <Button type="button" variant="outline" className="rounded-full" onClick={() => setRuleId(null)}>Nova regra</Button> : null}
         </div>
       </section>
         </>

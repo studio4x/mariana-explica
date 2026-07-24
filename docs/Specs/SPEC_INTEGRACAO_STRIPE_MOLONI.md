@@ -1212,3 +1212,34 @@ Ao implementar esta especificação, o Codex deve:
     - primeira emissão/reconciliação validada;
     - pendências reais;
     - etiqueta completa `VERSAO-DEPLOY-COMMIT`.
+
+---
+
+## 33. Endurecimento implementado — regras, catálogos e autenticação
+
+O mapeamento fiscal continua compatível com `moloni_product_mappings`, mas `tax_value` só pode ser persistido depois de o backend consultar `taxes/getAll` pelo `tax_id`. O painel exibe a taxa como informação derivada e mapeamentos antigos cuja taxa divergir da Moloni ficam marcados como `requires_review`; não são corrigidos silenciosamente.
+
+Quando houver configuração contextual, `moloni_fiscal_rules` seleciona explicitamente a regra por ambiente, empresa, produto, país de faturação e tipo de cliente. A ordem é especificidade, depois menor prioridade numérica. Uma regra `is_default` é o fallback explícito. Ausência ou conflito bloqueia apenas o job fiscal e não altera pedido nem `access_grant`.
+
+Antes da primeira chamada de emissão, o documento captura `fiscal_snapshot`, incluindo taxa oficial, imposto, motivo de isenção, regra selecionada e motivo da seleção. O snapshot é protegido por trigger e não pode ser alterado numa retentativa.
+
+O cliente usa páginas de no máximo 50 registros para `taxes/getAll`, `documentSets/getAll`, `paymentMethods/getAll`, `maturityDates/getAll`, categorias e artigos. Deduplicação por identificador, detecção de página repetida e limite máximo de páginas evitam loops.
+
+Após `401` ou resposta equivalente a token expirado, o cliente reutiliza um token rotacionado por outro worker ou adquire o lock existente, renova uma única vez e repete apenas chamadas seguras. Inserções de documentos não são repetidas automaticamente: primeiro consultam `your_reference` determinística e, se não houver confirmação, entram em reconciliação.
+
+Endpoints Moloni confirmados: <https://www.moloni.pt/dev/utilizacao/>, <https://www.moloni.pt/dev/company/company/getall/>, <https://www.moloni.pt/dev/global-data/countries/getall>, <https://www.moloni.pt/dev/settings/tax-fees/getall/>, <https://www.moloni.pt/dev/settings/document-sets/getall/>, <https://www.moloni.pt/dev/settings/payment-methods/getall>, <https://www.moloni.pt/dev/settings/maturity-dates/getall/> e <https://www.moloni.pt/dev/products/products/getall/>.
+
+### Checklist seguro de homologação
+
+1. Conectar OAuth no ambiente draft.
+2. Carregar todos os catálogos e confirmar contagens/paginação.
+3. Configurar artigo e uma regra fiscal explícita.
+4. Executar pagamento Stripe test.
+5. Conferir o snapshot fiscal e a taxa oficial.
+6. Confirmar o cliente na Moloni.
+7. Emitir somente o rascunho de homologação permitido.
+8. Conferir totais e imposto.
+9. Validar a obtenção protegida do PDF.
+10. Confirmar que não houve duplicidade.
+
+IVA, OSS, isenções e documentos de reembolso continuam dependentes da decisão da contabilista; o sistema não interpreta automaticamente legislação fiscal.

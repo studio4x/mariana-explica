@@ -5,6 +5,7 @@ import {
   assertAdminIntegrationRateLimit,
   extractRequestAuditContext,
   findInvalidMoloniCustomerReferences,
+  getOfficialMoloniTax,
   MoloniClient,
   type MoloniCountry,
   requireAdmin,
@@ -46,10 +47,23 @@ type Input =
       moloniProductId: number
       moloniDocumentSetId: number
       moloniTaxId?: number | null
-      taxValue?: number | null
       exemptionReason?: string | null
       eacId?: number | null
       moloniPaymentMethodId?: number | null
+      isActive: boolean
+    }
+  | {
+      action: "upsert_rule"
+      ruleId?: string | null
+      paymentEnvironment: Environment
+      productId: string
+      moloniCompanyId: number
+      billingCountryCode?: string | null
+      customerType?: "individual" | "company" | null
+      moloniTaxId?: number | null
+      exemptionReason?: string | null
+      priority: number
+      isDefault: boolean
       isActive: boolean
     }
 
@@ -71,6 +85,7 @@ async function loadStatus(context: Awaited<ReturnType<typeof requireAdmin>>) {
     settingsResult,
     connectionsResult,
     mappingsResult,
+    rulesResult,
     productsResult,
     documentsResult,
     jobsResult,
@@ -79,6 +94,7 @@ async function loadStatus(context: Awaited<ReturnType<typeof requireAdmin>>) {
     context.serviceClient.from("moloni_fiscal_settings").select("*").order("payment_environment"),
     context.serviceClient.from("moloni_connections").select("*").order("environment"),
     context.serviceClient.from("moloni_product_mappings").select("*").order("created_at"),
+    context.serviceClient.from("moloni_fiscal_rules").select("*").order("priority").order("created_at"),
     context.serviceClient
       .from("products")
       .select("id,title,status,product_type")
@@ -104,6 +120,7 @@ async function loadStatus(context: Awaited<ReturnType<typeof requireAdmin>>) {
     settingsResult,
     connectionsResult,
     mappingsResult,
+    rulesResult,
     productsResult,
     documentsResult,
     jobsResult,
@@ -116,6 +133,7 @@ async function loadStatus(context: Awaited<ReturnType<typeof requireAdmin>>) {
     settings: settingsResult.data ?? [],
     connections: connectionsResult.data ?? [],
     mappings: mappingsResult.data ?? [],
+    rules: rulesResult.data ?? [],
     products: productsResult.data ?? [],
     documents: documentsResult.data ?? [],
     jobs,
@@ -184,6 +202,38 @@ Deno.serve(async (req) => {
         moloni.getPaymentMethods(body.moloniCompanyId),
         moloni.getMaturityDates(body.moloniCompanyId),
       ])
+      const { data: storedMappings, error: storedMappingsError } = await context.serviceClient
+        .from("moloni_product_mappings")
+        .select("id,moloni_tax_id,tax_value,exemption_reason")
+        .eq("moloni_company_id", body.moloniCompanyId)
+      if (storedMappingsError) throw storedMappingsError
+      const mappingsRequiringReview: string[] = []
+      for (const stored of storedMappings ?? []) {
+        let reason: string | null = null
+        if (stored.moloni_tax_id) {
+          try {
+            const official = getOfficialMoloniTax(taxes, Number(stored.moloni_tax_id))
+            if (stored.tax_value === null || Number(stored.tax_value) !== official.value) {
+              reason = "A taxa guardada diverge da taxa oficial atual da Moloni."
+            }
+            if (official.value > 0 && stored.exemption_reason?.trim()) {
+              reason = "O mapeamento combina imposto tributado com motivo de isenção."
+            }
+          } catch {
+            reason = "O imposto guardado não está disponível ou válido na Moloni."
+          }
+        } else if (!stored.exemption_reason?.trim()) {
+          reason = "O mapeamento não possui imposto nem motivo de isenção."
+        }
+        if (reason) {
+          mappingsRequiringReview.push(String(stored.id))
+          const { error: reviewError } = await context.serviceClient
+            .from("moloni_product_mappings")
+            .update({ mapping_status: "requires_review", mapping_review_reason: reason })
+            .eq("id", stored.id)
+          if (reviewError) throw reviewError
+        }
+      }
       return jsonResponse({
         success: true,
         request_id: requestId,
@@ -195,6 +245,7 @@ Deno.serve(async (req) => {
         document_sets: documentSets,
         taxes,
         payment_methods: paymentMethods,
+        mappings_requiring_review: mappingsRequiringReview,
       })
     }
 
@@ -306,6 +357,106 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, request_id: requestId, settings })
     }
 
+    if (body.action === "upsert_rule") {
+      if (!body.productId || !Number.isInteger(body.moloniCompanyId) || body.moloniCompanyId <= 0) {
+        throw badRequest("Regra fiscal incompleta")
+      }
+      if (!Number.isInteger(body.priority) || body.priority < 0 || body.priority > 100000) {
+        throw badRequest("Prioridade da regra fiscal inválida")
+      }
+      const countryCode = body.billingCountryCode?.trim().toUpperCase() || null
+      if (countryCode && !/^[A-Z]{2}$/.test(countryCode)) throw badRequest("País de faturação inválido")
+      if (body.isDefault && (countryCode || body.customerType)) {
+        throw conflict("Uma regra padrão não pode limitar país ou tipo de cliente.")
+      }
+      if (!body.moloniTaxId && !body.exemptionReason?.trim()) {
+        throw badRequest("Informe taxa Moloni ou motivo de isenção aprovado")
+      }
+
+      const { data: product, error: productError } = await context.serviceClient
+        .from("products")
+        .select("id")
+        .eq("id", body.productId)
+        .in("product_type", ["paid", "hybrid"])
+        .maybeSingle()
+      if (productError) throw productError
+      if (!product) throw conflict("Produto Mariana Explica não encontrado ou não elegível.")
+
+      const { data: mapping, error: mappingError } = await context.serviceClient
+        .from("moloni_product_mappings")
+        .select("id,moloni_company_id,mapping_status")
+        .eq("product_id", body.productId)
+        .eq("payment_environment", body.paymentEnvironment)
+        .eq("is_active", true)
+        .maybeSingle()
+      if (mappingError) throw mappingError
+      if (!mapping) throw conflict("Configure primeiro o artigo e a série Moloni do produto.")
+      if (Number(mapping.moloni_company_id) !== body.moloniCompanyId) {
+        throw conflict("A empresa da regra diverge do mapeamento base do produto.")
+      }
+      if (mapping.mapping_status === "requires_review") {
+        throw conflict("O mapeamento base requer revisão antes de criar regras fiscais.")
+      }
+
+      const settingsResult = await context.serviceClient
+        .from("moloni_fiscal_settings")
+        .select("moloni_environment,moloni_company_id")
+        .eq("payment_environment", body.paymentEnvironment)
+        .single()
+      if (settingsResult.error) throw settingsResult.error
+      const moloni = new MoloniClient(context.serviceClient, settingsResult.data.moloni_environment as "draft" | "live")
+      const companies = await moloni.getCompanies()
+      if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
+        throw conflict("A empresa Moloni selecionada não pertence à conexão autenticada.")
+      }
+      const taxes = await moloni.getTaxes(body.moloniCompanyId)
+      const officialTax = body.moloniTaxId ? getOfficialMoloniTax(taxes, body.moloniTaxId) : null
+      const exemptionReason = body.exemptionReason?.trim() || null
+      if (officialTax && officialTax.value > 0 && exemptionReason) {
+        throw conflict("Um imposto tributado não pode receber motivo de isenção.")
+      }
+      if (officialTax && officialTax.value === 0 && !exemptionReason && !officialTax.exemption_reason?.trim()) {
+        throw conflict("Taxa zero exige motivo de isenção fiscal aprovado.")
+      }
+
+      const values = {
+        payment_environment: body.paymentEnvironment,
+        product_id: body.productId,
+        moloni_company_id: body.moloniCompanyId,
+        billing_country_code: countryCode,
+        customer_type: body.customerType ?? null,
+        moloni_tax_id: body.moloniTaxId ?? null,
+        tax_value: officialTax?.value ?? null,
+        exemption_reason: exemptionReason || officialTax?.exemption_reason?.trim() || null,
+        priority: body.priority,
+        is_default: body.isDefault,
+        is_active: body.isActive,
+        tax_verified_at: new Date().toISOString(),
+        updated_by: context.user.id,
+      }
+      const query = context.serviceClient.from("moloni_fiscal_rules")
+      const result = body.ruleId
+        ? await query.update(values).eq("id", body.ruleId).eq("payment_environment", body.paymentEnvironment).select("*").single()
+        : await query.insert({ ...values, created_by: context.user.id }).select("*").single()
+      if (result.error) throw result.error
+      await writeAuditLog(context.serviceClient, context, {
+        action: body.ruleId ? "admin.moloni_fiscal_rule_updated" : "admin.moloni_fiscal_rule_created",
+        entityType: "moloni_fiscal_rule",
+        entityId: result.data.id,
+        metadata: {
+          payment_environment: body.paymentEnvironment,
+          product_id: body.productId,
+          country: countryCode,
+          customer_type: body.customerType ?? null,
+          official_tax_value: officialTax?.value ?? null,
+          is_default: body.isDefault,
+          priority: body.priority,
+        },
+        ...extractRequestAuditContext(req),
+      })
+      return jsonResponse({ success: true, request_id: requestId, rule: result.data })
+    }
+
     if (body.action !== "upsert_mapping") throw badRequest("Ação inválida")
     if (
       !body.productId ||
@@ -368,7 +519,15 @@ Deno.serve(async (req) => {
     const remoteDocumentSet = documentSets.find((item) =>
       Number(item.document_set_id) === body.moloniDocumentSetId
     )
-    const remoteTax = taxes.find((item) => Number(item.tax_id) === body.moloniTaxId)
+    const officialTax = body.moloniTaxId ? getOfficialMoloniTax(taxes, body.moloniTaxId) : null
+    const exemptionReason = body.exemptionReason?.trim() || null
+    if (officialTax && officialTax.value > 0 && exemptionReason) {
+      throw conflict("Um imposto tributado não pode receber motivo de isenção.")
+    }
+    if (officialTax && officialTax.value === 0 && !exemptionReason && !officialTax.exemption_reason?.trim()) {
+      throw conflict("Taxa zero exige motivo de isenção fiscal aprovado.")
+    }
+    const remoteTax = officialTax
     const remotePaymentMethod = paymentMethods.find((item) =>
       Number(item.payment_method_id) === body.moloniPaymentMethodId
     )
@@ -381,8 +540,8 @@ Deno.serve(async (req) => {
         moloni_product_id: body.moloniProductId,
         moloni_document_set_id: body.moloniDocumentSetId,
         moloni_tax_id: body.moloniTaxId ?? null,
-        tax_value: body.taxValue ?? null,
-        exemption_reason: body.exemptionReason?.trim() || null,
+        tax_value: officialTax?.value ?? null,
+        exemption_reason: exemptionReason || officialTax?.exemption_reason?.trim() || null,
         eac_id: body.eacId ?? null,
         moloni_payment_method_id: body.moloniPaymentMethodId ?? null,
         moloni_product_name: remoteLabel(remoteProduct, `Artigo ${body.moloniProductId}`),
@@ -393,6 +552,9 @@ Deno.serve(async (req) => {
         moloni_payment_method_name: body.moloniPaymentMethodId
           ? remoteLabel(remotePaymentMethod, `Método ${body.moloniPaymentMethodId}`)
           : null,
+        mapping_status: "valid",
+        mapping_review_reason: null,
+        tax_verified_at: body.moloniTaxId ? new Date().toISOString() : null,
         is_active: body.isActive,
         created_by: context.user.id,
         updated_by: context.user.id,

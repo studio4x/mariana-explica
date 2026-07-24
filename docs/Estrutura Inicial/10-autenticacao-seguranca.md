@@ -614,6 +614,10 @@ A segurança será considerada adequada quando:
 - remoção de usuário sem estratégia de reversão
 - sessão antiga mantendo acesso indevido
 
+### Tokens Moloni
+
+Access token, refresh token, client secret e authorization code permanecem server-only e cifrados. Logs não podem conter credenciais. A renovação concorrente usa lock transacional; falha definitiva marca a conexão como `reconnect_required` e exige novo OAuth administrativo.
+
 ### Riscos operacionais
 - admin alterando usuário sem auditoria
 - bloqueio incorreto de usuário

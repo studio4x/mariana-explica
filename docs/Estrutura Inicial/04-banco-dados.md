@@ -1109,6 +1109,10 @@ A modelagem será considerada adequada quando:
 
 ## 22. Riscos e observações
 
+### Integração fiscal Moloni
+
+As alterações da integração usam migrations versionadas. `moloni_fiscal_rules` guarda apenas regras administrativas explícitas e `fiscal_documents.fiscal_snapshot` é a captura imutável usada na emissão. A taxa persistida em mapeamentos/regras é a taxa oficial consultada na Moloni; o frontend nunca é fonte desse valor. RLS mantém a leitura administrativa e a escrita sensível passa pelo backend com auditoria.
+
 ### Riscos
 - modelagem simplificada demais para afiliados
 - ausência de logs em fluxos críticos

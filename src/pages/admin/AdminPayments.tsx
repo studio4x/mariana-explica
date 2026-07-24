@@ -175,7 +175,6 @@ function MoloniSettingsPanel() {
   const [moloniProductId, setMoloniProductId] = useState("")
   const [documentSetId, setDocumentSetId] = useState("")
   const [taxId, setTaxId] = useState("")
-  const [taxValue, setTaxValue] = useState("0")
   const [exemptionReason, setExemptionReason] = useState("")
   const [mappingPaymentMethodId, setMappingPaymentMethodId] = useState("")
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -429,8 +428,8 @@ function MoloniSettingsPanel() {
           <label className="text-sm">Produto<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Selecionar</option>{(data?.products ?? []).map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label>
           <label className="text-sm">Artigo Moloni<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={moloniProductId} onChange={(event) => setMoloniProductId(event.target.value)}><option value="">Selecionar</option>{(catalog?.products ?? []).map((item) => <option key={String(item.product_id)} value={String(item.product_id)}>{String(item.name ?? item.reference ?? item.product_id)}</option>)}</select></label>
           <label className="text-sm">Série<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={documentSetId} onChange={(event) => setDocumentSetId(event.target.value)}><option value="">Selecionar</option>{(catalog?.document_sets ?? []).map((item) => <option key={String(item.document_set_id)} value={String(item.document_set_id)}>{String(item.name ?? item.document_set_id)}</option>)}</select></label>
-          <label className="text-sm">Taxa<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxId} onChange={(event) => { setTaxId(event.target.value); const selected = (catalog?.taxes ?? []).find((item) => String(item.tax_id) === event.target.value); if (selected?.value !== undefined) setTaxValue(String(selected.value)) }}><option value="">Isento</option>{(catalog?.taxes ?? []).map((item) => <option key={String(item.tax_id)} value={String(item.tax_id)}>{String(item.name ?? item.tax_id)} ({String(item.value ?? 0)}%)</option>)}</select></label>
-          <label className="text-sm">Taxa %<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxValue} onChange={(event) => setTaxValue(event.target.value)} /></label>
+          <label className="text-sm">Taxa<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxId} onChange={(event) => setTaxId(event.target.value)}><option value="">Isento</option>{(catalog?.taxes ?? []).map((item) => <option key={String(item.tax_id)} value={String(item.tax_id)}>{String(item.name ?? item.tax_id)} ({String(item.value ?? 0)}%)</option>)}</select></label>
+          <label className="text-sm">Taxa %<input readOnly aria-readonly="true" className="mt-1 h-11 w-full rounded-xl border bg-slate-100 px-3" value={String((catalog?.taxes ?? []).find((item) => String(item.tax_id) === taxId)?.value ?? (taxId ? "—" : "0"))} /></label>
           <label className="text-sm">Motivo isenção<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} /></label>
           <label className="text-sm">Método pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={mappingPaymentMethodId} onChange={(event) => setMappingPaymentMethodId(event.target.value)}><option value="">Usar configuração</option>{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
         </div>
@@ -445,7 +444,6 @@ function MoloniSettingsPanel() {
             moloniProductId: numberOrNull(moloniProductId) ?? 0,
             moloniDocumentSetId: numberOrNull(documentSetId) ?? 0,
             moloniTaxId: numberOrNull(taxId),
-            taxValue: Number(taxValue) || 0,
             exemptionReason: exemptionReason || null,
             moloniPaymentMethodId: numberOrNull(mappingPaymentMethodId),
             isActive: true,

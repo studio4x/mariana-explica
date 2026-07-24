@@ -4,6 +4,8 @@ import {
   findInvalidMoloniCustomerReferences,
   MoloniClient,
   MoloniError,
+  getOfficialMoloniTax,
+  paginateMoloniCollection,
   type MoloniProductCategory,
 } from "./moloni.ts"
 
@@ -58,6 +60,17 @@ class ProductCatalogMoloniClient extends MoloniClient {
   }
 }
 
+class AmbiguousInsertMoloniClient extends MoloniClient {
+  readonly calls: string[] = []
+  override async post<T>(endpoint: string, _body: Record<string, unknown>, _options?: { retryAfter401?: boolean }) {
+    this.calls.push(endpoint)
+    if (endpoint === "invoiceReceipts/insert") {
+      throw new MoloniError("reautenticado", "TOKEN_REFRESHED_REQUIRES_RECONCILIATION", false, 401)
+    }
+    return { document_id: 88 } as T
+  }
+}
+
 Deno.test("classifies temporary Moloni failures as retryable", () => {
   const rateLimited = classifyMoloniFailure(429, null, "customers/getByVat")
   const unavailable = classifyMoloniFailure(503, null, "documents/getOne")
@@ -89,7 +102,7 @@ Deno.test("loads countries and languages without a company and maturity dates wi
   assertEquals(client.calls, [
     { endpoint: "countries/getAll", body: {} },
     { endpoint: "languages/getAll", body: {} },
-    { endpoint: "maturityDates/getAll", body: { company_id: 42 } },
+    { endpoint: "maturityDates/getAll", body: { company_id: 42, qty: 50, offset: 0 } },
   ])
 })
 
@@ -150,4 +163,38 @@ Deno.test("rejects customer references that are not present in the remote catalo
     maturityDateId: 9,
   })
   assertEquals(invalidCountry, "País Moloni selecionado não existe no catálogo atual.")
+})
+
+Deno.test("paginates more than 50 records, deduplicates and stops on a repeated page", async () => {
+  const calls: number[] = []
+  const records = await paginateMoloniCollection(
+    async (offset) => {
+      calls.push(offset)
+      if (offset === 0) return Array.from({ length: 50 }, (_, index) => ({ id: index + 1 }))
+      if (offset === 50) return [{ id: 50 }, { id: 51 }, ...Array.from({ length: 48 }, () => ({ id: 51 }))]
+      return [{ id: 50 }, { id: 51 }, ...Array.from({ length: 48 }, () => ({ id: 51 }))]
+    },
+    (item) => item.id,
+  )
+  assertEquals(calls, [0, 50, 100])
+  assertEquals(records.length, 51)
+})
+
+Deno.test("uses the official percentage and rejects fixed-value taxes", () => {
+  assertEquals(getOfficialMoloniTax([
+    { tax_id: 7, name: "IVA", value: 23, type: 1 },
+  ], 7).value, 23)
+  assertRejects(() => Promise.resolve().then(() => getOfficialMoloniTax([
+    { tax_id: 8, value: 5, type: 2 },
+  ], 8)), MoloniError)
+})
+
+Deno.test("reconciles an ambiguous document insertion before allowing a result", async () => {
+  const client = new AmbiguousInsertMoloniClient({} as never, "draft")
+  const result = await client.createDocument("invoice_receipt", {
+    company_id: 42,
+    your_reference: "mariana:order:sale:v1",
+  })
+  assertEquals(result.document_id, 88)
+  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne"])
 })

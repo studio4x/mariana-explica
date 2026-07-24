@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
-import { MoloniClient, MoloniError } from "./moloni.ts"
+import { getOfficialMoloniTax, MoloniClient, MoloniError } from "./moloni.ts"
 import { normalizeIso2, normalizeVatNumber } from "./fiscal.ts"
 
 type DocumentKind = "invoice" | "invoice_receipt"
@@ -19,6 +19,7 @@ interface FiscalDocumentRow {
   total_amount_cents: number
   your_reference: string
   payment_reference: string | null
+  fiscal_snapshot?: Record<string, unknown> | null
 }
 
 interface MoloniJobRow {
@@ -31,6 +32,7 @@ interface MoloniJobRow {
 }
 
 interface BillingRow {
+  customer_type: "individual" | "company"
   legal_name: string | null
   email: string | null
   vat_number: string | null
@@ -77,6 +79,21 @@ interface MappingRow {
   eac_id: number | null
   moloni_payment_method_id: number | null
   is_active: boolean
+  mapping_status?: "valid" | "requires_review"
+}
+
+interface FiscalRuleRow {
+  id: string
+  product_id: string
+  moloni_company_id: number
+  billing_country_code: string | null
+  customer_type: "individual" | "company" | null
+  moloni_tax_id: number | null
+  tax_value: number | null
+  exemption_reason: string | null
+  priority: number
+  is_default: boolean
+  is_active: boolean
 }
 
 export class FiscalProcessingError extends Error {
@@ -114,6 +131,85 @@ export async function resolveMoloniCountryId(
 
 export function centsToDecimal(cents: number) {
   return Number((cents / 100).toFixed(2))
+}
+
+export function selectMoloniFiscalRule(params: {
+  productId: string
+  companyId: number | null
+  countryCode: string | null
+  customerType: "individual" | "company"
+  mapping: MappingRow | undefined
+  rules: FiscalRuleRow[]
+}) {
+  const { mapping } = params
+  if (!mapping?.is_active) {
+    throw new FiscalProcessingError("Existe produto sem mapeamento fiscal ativo.", "PRODUCT_MAPPING_MISSING", false, true)
+  }
+  if (mapping.mapping_status === "requires_review") {
+    throw new FiscalProcessingError("O mapeamento fiscal antigo requer revisão.", "MAPPING_REQUIRES_REVIEW", false, true)
+  }
+  if (mapping.moloni_company_id !== params.companyId) {
+    throw new FiscalProcessingError("O mapeamento do produto pertence a outra empresa Moloni.", "MAPPING_COMPANY_MISMATCH", false, true)
+  }
+
+  const productRules = params.rules.filter((rule) =>
+    rule.is_active && rule.product_id === params.productId && rule.moloni_company_id === params.companyId,
+  )
+  if (productRules.length === 0) {
+    return {
+      mapping,
+      ruleId: null,
+      reason: "Compatibilidade com o mapeamento legado do produto.",
+    }
+  }
+
+  const country = params.countryCode?.toUpperCase() ?? null
+  const candidates = productRules.filter((rule) =>
+    !rule.is_default &&
+    (!rule.billing_country_code || rule.billing_country_code === country) &&
+    (!rule.customer_type || rule.customer_type === params.customerType),
+  )
+  const defaults = productRules.filter((rule) => rule.is_default)
+  const ordered = [...candidates, ...defaults].sort((left, right) => {
+    const leftSpecificity = (left.billing_country_code ? 2 : 0) + (left.customer_type ? 1 : 0)
+    const rightSpecificity = (right.billing_country_code ? 2 : 0) + (right.customer_type ? 1 : 0)
+    return rightSpecificity - leftSpecificity || left.priority - right.priority
+  })
+  const selected = ordered[0]
+  if (!selected) {
+    throw new FiscalProcessingError(
+      "Nenhuma regra fiscal segura foi configurada para este país e tipo de cliente.",
+      "FISCAL_RULE_NOT_FOUND",
+      false,
+      true,
+    )
+  }
+  const selectedSpecificity = (selected.billing_country_code ? 2 : 0) + (selected.customer_type ? 1 : 0)
+  const conflict = ordered.slice(1).find((rule) => {
+    const specificity = (rule.billing_country_code ? 2 : 0) + (rule.customer_type ? 1 : 0)
+    return specificity === selectedSpecificity && rule.priority === selected.priority
+  })
+  if (conflict) {
+    throw new FiscalProcessingError(
+      "Existem regras fiscais sobrepostas com a mesma prioridade.",
+      "FISCAL_RULE_CONFLICT",
+      false,
+      true,
+    )
+  }
+  if (selected.moloni_tax_id && selected.tax_value === null) {
+    throw new FiscalProcessingError("A regra fiscal não possui a taxa oficial da Moloni.", "TAX_RATE_MISSING", false, true)
+  }
+  return {
+    mapping: {
+      ...mapping,
+      moloni_tax_id: selected.moloni_tax_id,
+      tax_value: selected.tax_value,
+      exemption_reason: selected.exemption_reason,
+    },
+    ruleId: selected.id,
+    reason: `Regra explícita selecionada (prioridade ${selected.priority}).`,
+  }
 }
 
 export function buildMoloniDocumentPayload(params: {
@@ -174,6 +270,22 @@ export function buildMoloniDocumentPayload(params: {
       throw new FiscalProcessingError(
         "O mapeamento não possui imposto nem motivo de isenção aprovado.",
         "TAX_RULE_MISSING",
+        false,
+        true,
+      )
+    }
+    if (mapping.moloni_tax_id && mapping.tax_value === null) {
+      throw new FiscalProcessingError(
+        "O imposto selecionado não possui taxa oficial capturada da Moloni.",
+        "TAX_RATE_MISSING",
+        false,
+        true,
+      )
+    }
+    if (mapping.tax_value !== null && Number(mapping.tax_value) === 0 && !mapping.exemption_reason?.trim()) {
+      throw new FiscalProcessingError(
+        "Taxa zero exige motivo de isenção no snapshot fiscal.",
+        "EXEMPTION_REASON_MISSING",
         false,
         true,
       )
@@ -509,14 +621,81 @@ export async function processMoloniDocumentJob(
       throw new FiscalProcessingError("O pedido não está pago.", "ORDER_NOT_PAID", false, true)
     }
     const productIds = (items ?? []).map((item) => item.product_id)
-    const { data: mappings, error: mappingError } = await client
+    const [{ data: mappings, error: mappingError }, { data: rules, error: rulesError }] = await Promise.all([
+      client
       .from("moloni_product_mappings")
       .select("*")
       .eq("payment_environment", document.source_payment_environment)
-      .in("product_id", productIds)
+      .in("product_id", productIds),
+      client
+        .from("moloni_fiscal_rules")
+        .select("*")
+        .eq("payment_environment", document.source_payment_environment)
+        .eq("is_active", true)
+    ])
     if (mappingError) throw mappingError
+    if (rulesError) throw rulesError
+
+    const baseMappings = (mappings ?? []) as MappingRow[]
+    let effectiveMappings: MappingRow[]
+    let selectionReason = "Snapshot fiscal existente reutilizado."
+    if (document.fiscal_snapshot && Array.isArray(document.fiscal_snapshot.mappings)) {
+      const snapshotMappings = document.fiscal_snapshot.mappings as MappingRow[]
+      if (snapshotMappings.length !== productIds.length) {
+        throw new FiscalProcessingError("O snapshot fiscal está incompleto.", "FISCAL_SNAPSHOT_INVALID", false, true)
+      }
+      effectiveMappings = snapshotMappings
+    } else {
+      const selected = (items ?? []).map((item) => {
+        const result = selectMoloniFiscalRule({
+          productId: item.product_id,
+          companyId: settings.moloni_company_id,
+          countryCode: billing.country_code,
+          customerType: billing.customer_type,
+          mapping: baseMappings.find((candidate) => candidate.product_id === item.product_id),
+          rules: (rules ?? []) as FiscalRuleRow[],
+        })
+        return { productId: item.product_id, ...result }
+      })
+      effectiveMappings = selected.map((item) => item.mapping)
+      selectionReason = selected.map((item) => `${item.productId}: ${item.reason}`).join(" | ")
+      const fiscalSnapshot = {
+        version: 1,
+        captured_at: new Date().toISOString(),
+        source_payment_environment: document.source_payment_environment,
+        moloni_company_id: settings.moloni_company_id,
+        country_code: billing.country_code,
+        customer_type: billing.customer_type,
+        mappings: effectiveMappings,
+        rules: selected.map((item) => ({ product_id: item.productId, rule_id: item.ruleId, reason: item.reason })),
+      }
+      const { error: snapshotError } = await client
+        .from("fiscal_documents")
+        .update({
+          fiscal_snapshot: fiscalSnapshot,
+          selected_fiscal_rule_id: selected.length === 1 ? selected[0].ruleId : null,
+          fiscal_selection_reason: selectionReason,
+          fiscal_snapshot_locked_at: new Date().toISOString(),
+        })
+        .eq("id", document.id)
+        .is("fiscal_snapshot", null)
+      if (snapshotError) throw snapshotError
+    }
 
     const moloni = new MoloniClient(client, settings.moloni_environment)
+    const remoteTaxes = await moloni.getTaxes(settings.moloni_company_id)
+    for (const mapping of effectiveMappings) {
+      if (!mapping.moloni_tax_id) continue
+      let officialTax
+      try {
+        officialTax = getOfficialMoloniTax(remoteTaxes, mapping.moloni_tax_id)
+      } catch {
+        throw new FiscalProcessingError("O imposto do snapshot não está disponível ou válido na Moloni.", "TAX_MAPPING_INVALID", false, true)
+      }
+      if (mapping.tax_value === null || Number(mapping.tax_value) !== officialTax.value) {
+        throw new FiscalProcessingError("A taxa do snapshot diverge da taxa oficial atual da Moloni.", "TAX_MAPPING_DIVERGED", false, true)
+      }
+    }
     const customerId = await resolveMoloniCustomer({
       client,
       moloni,
@@ -531,7 +710,7 @@ export async function processMoloniDocumentJob(
       customerId,
       paidAt: order.paid_at,
       items: (items ?? []) as OrderItemRow[],
-      mappings: (mappings ?? []) as MappingRow[],
+      mappings: effectiveMappings,
     })
 
     await client
@@ -542,7 +721,7 @@ export async function processMoloniDocumentJob(
         environment: settings.moloni_environment,
         moloni_company_id: settings.moloni_company_id,
         moloni_customer_id: customerId,
-        moloni_document_set_id: Number((mappings?.[0] as MappingRow | undefined)?.moloni_document_set_id ?? 0) || null,
+        moloni_document_set_id: Number(effectiveMappings[0]?.moloni_document_set_id ?? 0) || null,
         last_error_code: null,
         last_error_message: null,
       })

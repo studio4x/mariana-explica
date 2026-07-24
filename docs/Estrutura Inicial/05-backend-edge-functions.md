@@ -386,6 +386,10 @@ Formato:
 
 ---
 
+### Integração Moloni
+
+O fluxo permanece `Stripe → webhook → outbox fiscal → processamento Moloni`. O cliente compartilhado pagina catálogos com limite 50, deduplica identificadores, renova tokens sob lock após `401` e limita a repetição a uma chamada segura. Inserção de documento usa `your_reference` determinística e reconciliação antes de qualquer tentativa posterior. Falha fiscal deve bloquear somente emissão, nunca pagamento ou `access_grant`.
+
 ## 16. Riscos
 
 - webhook sem validação

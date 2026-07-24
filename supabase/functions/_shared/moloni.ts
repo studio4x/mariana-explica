@@ -7,6 +7,8 @@ const MOLONI_API_BASE = "https://api.moloni.pt/v1"
 const MOLONI_AUTHORIZE_URL = "https://www.moloni.pt/ac/root/oauth/"
 const DEFAULT_TIMEOUT_MS = 15_000
 const TOKEN_REFRESH_MARGIN_MS = 2 * 60 * 1000
+const MOLONI_PAGE_SIZE = 50
+const MOLONI_MAX_PAGES = 200
 
 export class MoloniError extends Error {
   constructor(
@@ -64,6 +66,19 @@ export interface MoloniMaturityDate {
   name: string
   days: number
   associated_discount?: number
+}
+
+export interface MoloniTax {
+  tax_id: number
+  name?: string
+  value: number
+  type: number
+  saft_type?: number
+  vat_type?: string
+  stamp_tax?: string
+  exemption_reason?: string
+  fiscal_zone?: string
+  active_by_default?: number
 }
 
 export interface MoloniProductCategory {
@@ -391,6 +406,58 @@ async function getValidAccessToken(client: SupabaseClient, environment: MoloniEn
   }
 }
 
+async function refreshAccessTokenAfterUnauthorized(
+  client: SupabaseClient,
+  environment: MoloniEnvironment,
+  rejectedToken: string,
+) {
+  const credentials = await loadCredentials(client, environment)
+  const currentToken = await decryptMoloniToken(credentials.access_token_ciphertext)
+  if (currentToken !== rejectedToken) return currentToken
+
+  const workerId = crypto.randomUUID()
+  const { data: claimed, error: claimError } = await client.rpc("claim_moloni_token_refresh", {
+    p_environment: environment,
+    p_worker_id: workerId,
+  })
+  if (claimError) throw claimError
+
+  if (!claimed) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const refreshedCredentials = await loadCredentials(client, environment)
+      const refreshedToken = await decryptMoloniToken(refreshedCredentials.access_token_ciphertext)
+      if (refreshedToken !== rejectedToken) return refreshedToken
+    }
+    throw new MoloniError("Renovação Moloni já está em curso.", "TOKEN_REFRESH_BUSY", true)
+  }
+
+  try {
+    const latestCredentials = await loadCredentials(client, environment)
+    const latestAccessToken = await decryptMoloniToken(latestCredentials.access_token_ciphertext)
+    if (latestAccessToken !== rejectedToken) return latestAccessToken
+    const refreshToken = await decryptMoloniToken(latestCredentials.refresh_token_ciphertext)
+    const tokens = await refreshMoloniTokens(client, refreshToken)
+    await storeMoloniTokens(client, environment, tokens)
+    return tokens.access_token
+  } catch (refreshError) {
+    await client
+      .from("moloni_connections")
+      .update({
+        status: "reconnect_required",
+        last_error_code: "TOKEN_REFRESH_FAILED",
+        last_error_message: "A ligação Moloni precisa ser autenticada novamente.",
+      })
+      .eq("environment", environment)
+    throw refreshError
+  } finally {
+    await client.rpc("release_moloni_token_refresh", {
+      p_environment: environment,
+      p_worker_id: workerId,
+    })
+  }
+}
+
 export function classifyMoloniFailure(
   status: number,
   payload: unknown,
@@ -419,6 +486,16 @@ export function classifyMoloniFailure(
   )
 }
 
+function isMoloniTokenFailure(payload: unknown) {
+  if (typeof payload !== "object" || payload === null) return false
+  const record = payload as Record<string, unknown>
+  const text = [record.error, record.error_code, record.error_description, record.message, record.code]
+    .filter((value) => value !== undefined && value !== null)
+    .join(" ")
+    .toLowerCase()
+  return /token|access.?token|oauth/.test(text) && /expir|invalid|unauthor|revok/.test(text)
+}
+
 export class MoloniClient {
   constructor(
     private readonly client: SupabaseClient,
@@ -426,26 +503,59 @@ export class MoloniClient {
     private readonly timeoutMs = DEFAULT_TIMEOUT_MS,
   ) {}
 
-  async post<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
+  async post<T>(
+    endpoint: string,
+    body: Record<string, unknown>,
+    options: { retryAfter401?: boolean } = {},
+  ): Promise<T> {
     const startedAt = Date.now()
     const token = await getValidAccessToken(this.client, this.environment)
-    const url = new URL(`${MOLONI_API_BASE}/${endpoint.replace(/^\/+|\/+$/g, "")}/`)
-    url.searchParams.set("access_token", token)
-    url.searchParams.set("json", "true")
-    url.searchParams.set("human_errors", "true")
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+    const retryAfter401 = options.retryAfter401 !== false
+
+    const request = async (accessToken: string) => {
+      const url = new URL(`${MOLONI_API_BASE}/${endpoint.replace(/^\/+|\/+$/g, "")}/`)
+      url.searchParams.set("access_token", accessToken)
+      url.searchParams.set("json", "true")
+      url.searchParams.set("human_errors", "true")
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        })
+        const payload = await response.json().catch(() => null)
+        if (!response.ok || (payload && typeof payload === "object" && "valid" in payload && payload.valid === 0)) {
+          const failure = classifyMoloniFailure(response.status, payload, endpoint)
+          if (failure.code === "MOLONI_REJECTED" && isMoloniTokenFailure(payload)) {
+            throw new MoloniError(failure.message, "TOKEN_EXPIRED", true, response.status || 401)
+          }
+          throw failure
+        }
+        return { response, payload }
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      })
-      const payload = await response.json().catch(() => null)
-      if (!response.ok || (payload && typeof payload === "object" && "valid" in payload && payload.valid === 0)) {
-        throw classifyMoloniFailure(response.status, payload, endpoint)
+      let result: { response: Response; payload: unknown }
+      try {
+        result = await request(token)
+      } catch (error) {
+        if (!(error instanceof MoloniError) || error.code !== "TOKEN_EXPIRED") throw error
+        const refreshedToken = await refreshAccessTokenAfterUnauthorized(this.client, this.environment, token)
+        if (!retryAfter401) {
+          throw new MoloniError(
+            "A chamada Moloni foi rejeitada por autenticação; a ligação foi renovada e requer reconciliação segura.",
+            "TOKEN_REFRESHED_REQUIRES_RECONCILIATION",
+            false,
+            401,
+          )
+        }
+        result = await request(refreshedToken)
       }
       await this.client
         .from("moloni_connections")
@@ -455,9 +565,9 @@ export class MoloniClient {
         endpoint,
         environment: this.environment,
         duration_ms: Date.now() - startedAt,
-        http_status: response.status,
+        http_status: result.response.status,
       })
-      return payload as T
+      return result.payload as T
     } catch (error) {
       if (error instanceof MoloniError) {
         logError("Moloni API call failed", {
@@ -485,10 +595,9 @@ export class MoloniClient {
         error_code: "NETWORK_ERROR",
       })
       throw new MoloniError("Falha de ligação à API Moloni.", "NETWORK_ERROR", true)
-    } finally {
-      clearTimeout(timeout)
-    }
   }
+
+    }
 
   getCompanies() {
     return this.post<Array<{ company_id: number; name?: string }>>("companies/getAll", {})
@@ -506,7 +615,7 @@ export class MoloniClient {
     if (!Number.isInteger(companyId) || companyId <= 0) {
       throw new MoloniError("Empresa Moloni obrigatória para carregar vencimentos.", "COMPANY_ID_REQUIRED", false)
     }
-    return this.post<MoloniMaturityDate[]>("maturityDates/getAll", { company_id: companyId })
+    return this.getPaginated<MoloniMaturityDate>("maturityDates/getAll", { company_id: companyId }, (item) => item.maturity_date_id)
   }
 
   getCustomerByVat(companyId: number, vat: string) {
@@ -576,45 +685,29 @@ export class MoloniClient {
       if (parentId === undefined || visitedParentIds.has(parentId)) continue
       visitedParentIds.add(parentId)
 
-      let offset = 0
-      const pageKeys = new Set<string>()
-      while (true) {
-        const page = await this.getProductCategories(companyId, parentId, offset)
-        const pageKey = page.map((category) => Number(category.category_id)).join(",")
-        if (pageKeys.has(pageKey)) break
-        pageKeys.add(pageKey)
-
-        for (const category of page) {
+      const categories = await paginateMoloniCollection(
+        async (offset) => await this.getProductCategories(companyId, parentId, offset),
+        (category) => category.category_id,
+      )
+      for (const category of categories) {
           const categoryId = Number(category.category_id)
           if (!Number.isInteger(categoryId) || categoryId <= 0) continue
           categoryIds.add(categoryId)
           if (!visitedParentIds.has(categoryId)) pendingParentIds.push(categoryId)
-        }
-
-        if (page.length < 50) break
-        offset += 50
       }
     }
 
     const products = new Map<number, MoloniCatalogProduct>()
     for (const categoryId of categoryIds) {
-      let offset = 0
-      const pageKeys = new Set<string>()
-      while (true) {
-        const page = await this.getProductsByCategory(companyId, categoryId, offset)
-        const pageKey = page.map((product) => Number(product.product_id)).join(",")
-        if (pageKeys.has(pageKey)) break
-        pageKeys.add(pageKey)
-
-        for (const product of page) {
+      const categoryProducts = await paginateMoloniCollection(
+        async (offset) => await this.getProductsByCategory(companyId, categoryId, offset),
+        (product) => product.product_id,
+      )
+      for (const product of categoryProducts) {
           const sanitized = sanitizeMoloniCatalogProduct(product, categoryId)
           if (sanitized && !products.has(sanitized.product_id)) {
             products.set(sanitized.product_id, sanitized)
           }
-        }
-
-        if (page.length < 50) break
-        offset += 50
       }
     }
 
@@ -627,22 +720,33 @@ export class MoloniClient {
   }
 
   getDocumentSets(companyId: number) {
-    return this.post<Array<Record<string, unknown>>>("documentSets/getAll", {
-      company_id: companyId,
-    })
+    return this.getPaginated("documentSets/getAll", { company_id: companyId }, (item) => item["document_set_id"])
   }
 
   getTaxes(companyId: number) {
-    return this.post<Array<Record<string, unknown>>>("taxes/getAll", {
+    return this.getPaginated<MoloniTax>("taxes/getAll", {
       company_id: companyId,
       with_invisible: 1,
-    })
+    }, (item) => item.tax_id)
   }
 
   getPaymentMethods(companyId: number) {
-    return this.post<Array<Record<string, unknown>>>("paymentMethods/getAll", {
-      company_id: companyId,
-    })
+    return this.getPaginated("paymentMethods/getAll", { company_id: companyId }, (item) => item["payment_method_id"])
+  }
+
+  private getPaginated<T = Record<string, unknown>>(
+    endpoint: string,
+    body: Record<string, unknown>,
+    identifier: (item: T) => unknown,
+  ) {
+    return paginateMoloniCollection(
+      async (offset) => await this.post<T[]>(endpoint, {
+        ...body,
+        qty: MOLONI_PAGE_SIZE,
+        offset,
+      }),
+      identifier,
+    )
   }
 
   getDocument(
@@ -659,7 +763,31 @@ export class MoloniClient {
 
   createDocument(kind: "invoice" | "invoice_receipt", payload: Record<string, unknown>) {
     const resource = kind === "invoice_receipt" ? "invoiceReceipts" : "invoices"
-    return this.post<{ valid: number; document_id: number }>(`${resource}/insert`, payload)
+    return this.post<{ valid: number; document_id: number }>(`${resource}/insert`, payload, {
+      retryAfter401: false,
+    }).catch(async (error) => {
+      if (!(error instanceof MoloniError) || error.code !== "TOKEN_REFRESHED_REQUIRES_RECONCILIATION") throw error
+      const companyId = Number(payload.company_id)
+      const yourReference = typeof payload.your_reference === "string" ? payload.your_reference : ""
+      if (!companyId || !yourReference) {
+        throw new MoloniError(
+          "A inserção Moloni requer reconciliação antes de nova tentativa.",
+          "DOCUMENT_CREATE_REQUIRES_RECONCILIATION",
+          false,
+          401,
+        )
+      }
+      const existing = await this.getDocument(kind, companyId, { your_reference: yourReference })
+      if (existing?.document_id) {
+        return { valid: 1, document_id: Number(existing.document_id) }
+      }
+      throw new MoloniError(
+        "A inserção Moloni não foi repetida automaticamente; reconciliação necessária.",
+        "DOCUMENT_CREATE_REQUIRES_RECONCILIATION",
+        false,
+        401,
+      )
+    })
   }
 
   getCreditNote(companyId: number, search: { document_id?: number; your_reference?: string }) {
@@ -686,6 +814,50 @@ export class MoloniClient {
   }
 }
 
+export async function paginateMoloniCollection<T>(
+  fetchPage: (offset: number) => Promise<T[]>,
+  identifier: (item: T) => unknown,
+  options: { pageSize?: number; maxPages?: number } = {},
+) {
+  const pageSize = options.pageSize ?? MOLONI_PAGE_SIZE
+  const maxPages = options.maxPages ?? MOLONI_MAX_PAGES
+  const records = new Map<string, T>()
+  const pageKeys = new Set<string>()
+
+  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+    const page = await fetchPage(pageIndex * pageSize)
+    const pageKey = page.map((item) => String(identifier(item))).join(",")
+    if (pageKeys.has(pageKey)) return [...records.values()]
+    pageKeys.add(pageKey)
+    for (const item of page) {
+      const key = String(identifier(item))
+      if (key !== "undefined" && key !== "null" && !records.has(key)) records.set(key, item)
+    }
+    if (page.length < pageSize) return [...records.values()]
+  }
+
+  throw new MoloniError(
+    "A paginação Moloni excedeu o limite de segurança.",
+    "CATALOG_PAGINATION_LIMIT",
+    false,
+  )
+}
+
+export function getOfficialMoloniTax(taxes: MoloniTax[], taxId: number) {
+  const tax = taxes.find((item) => Number(item.tax_id) === taxId)
+  if (!tax) throw new MoloniError("Imposto Moloni não encontrado ou indisponível.", "TAX_NOT_FOUND", false, 400)
+  const value = Number(tax.value)
+  if (Number(tax.type) !== 1 || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new MoloniError(
+      "O imposto Moloni selecionado não representa uma taxa percentual válida.",
+      "TAX_RATE_INVALID",
+      false,
+      400,
+    )
+  }
+  return { ...tax, tax_id: taxId, value }
+}
+
 function sanitizeMoloniCatalogProduct(item: Record<string, unknown>, categoryId: number): MoloniCatalogProduct | null {
   const productId = Number(item.product_id)
   if (!Number.isInteger(productId) || productId <= 0) return null
@@ -704,7 +876,7 @@ function sanitizeMoloniCatalogProduct(item: Record<string, unknown>, categoryId:
 }
 
 export async function findInvalidMoloniCustomerReferences(
-  moloni: MoloniClient,
+  moloni: Pick<MoloniClient, "getCountries" | "getLanguages" | "getMaturityDates">,
   selection: MoloniCustomerReferenceSelection,
 ) {
   const requireAll = selection.requireAll === true

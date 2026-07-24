@@ -402,7 +402,7 @@ async function runValidation(
           summary = `${rows.length} série(s) documental(is) validada(s).`
           details.count = rows.length
         } else if (validationType === "products") {
-          const rows = await moloni.getProducts(companyId)
+          const rows = await moloni.getAllProducts(companyId)
           if (!rows.length) throw conflict("Nenhum artigo Moloni disponível.")
           summary = `${rows.length} artigo(s) Moloni validado(s).`
           details.count = rows.length
@@ -431,7 +431,7 @@ async function runValidation(
             throw conflict(`${missing.length} produto(s) pago(s) ainda não possuem mapeamento ativo.`)
           }
           const [remoteProducts, documentSets, taxes, paymentMethods] = await Promise.all([
-            moloni.getProducts(companyId),
+            moloni.getAllProducts(companyId),
             moloni.getDocumentSets(companyId),
             moloni.getTaxes(companyId),
             moloni.getPaymentMethods(companyId),

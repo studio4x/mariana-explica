@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   saveCredentials: vi.fn(),
   activate: vi.fn(),
   catalog: vi.fn(),
+  status: vi.fn(),
 }))
 
 vi.mock("@/services/admin.service", () => ({
@@ -21,12 +22,14 @@ vi.mock("@/services/admin.service", () => ({
   disconnectAdminMoloni: vi.fn(),
   fetchAdminFiscalDocumentUrl: vi.fn(),
   fetchAdminMoloniCatalog: (...args: unknown[]) => mocks.catalog(...args),
+  fetchAdminMoloniStatus: (...args: unknown[]) => mocks.status(...args),
   runAdminMoloniJobAction: vi.fn(),
   runAdminMoloniValidation: vi.fn(),
   startAdminMoloniConnection: vi.fn(),
   updateAdminMoloniChecklist: vi.fn(),
   updateAdminMoloniSettings: vi.fn(),
   upsertAdminMoloniMapping: vi.fn(),
+  upsertAdminMoloniRule: vi.fn(),
 }))
 
 function buildOverview(ready = false) {
@@ -162,6 +165,8 @@ describe("AdminMoloni", () => {
     mocks.saveCredentials.mockReset()
     mocks.activate.mockReset()
     mocks.catalog.mockReset()
+    mocks.status.mockReset()
+    mocks.status.mockResolvedValue({ rules: [] })
   })
 
   it("shows an initial loading skeleton", () => {

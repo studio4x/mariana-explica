@@ -4,6 +4,7 @@ import {
   centsToDecimal,
   FiscalProcessingError,
   resolveMoloniCountryId,
+  selectMoloniFiscalRule,
 } from "./moloni-processing.ts"
 
 Deno.test("converts integer cents without floating point drift", () => {
@@ -134,4 +135,46 @@ Deno.test("blocks monetary divergence before reaching Moloni", () => {
       mappings: [],
     })
   )
+})
+
+Deno.test("selects country and customer rules by specificity and priority", () => {
+  const result = selectMoloniFiscalRule({
+    productId: "product",
+    companyId: 10,
+    countryCode: "ES",
+    customerType: "company",
+    mapping: {
+      product_id: "product",
+      moloni_company_id: 10,
+      moloni_product_id: 30,
+      moloni_document_set_id: 40,
+      moloni_tax_id: 50,
+      tax_value: 23,
+      exemption_reason: null,
+      eac_id: null,
+      moloni_payment_method_id: 7,
+      is_active: true,
+    },
+    rules: [
+      { id: "default", product_id: "product", moloni_company_id: 10, billing_country_code: null, customer_type: null, moloni_tax_id: 1, tax_value: 23, exemption_reason: null, priority: 1, is_default: true, is_active: true },
+      { id: "country", product_id: "product", moloni_company_id: 10, billing_country_code: "ES", customer_type: null, moloni_tax_id: 2, tax_value: 21, exemption_reason: null, priority: 100, is_default: false, is_active: true },
+      { id: "company", product_id: "product", moloni_company_id: 10, billing_country_code: "ES", customer_type: "company", moloni_tax_id: 3, tax_value: 0, exemption_reason: "M01", priority: 100, is_default: false, is_active: true },
+    ],
+  })
+  assertEquals(result.ruleId, "company")
+  assertEquals(result.mapping.tax_value, 0)
+})
+
+Deno.test("blocks an active rule set without a safe match", () => {
+  assertRejects(() => Promise.resolve().then(() => selectMoloniFiscalRule({
+    productId: "product",
+    companyId: 10,
+    countryCode: "FR",
+    customerType: "individual",
+    mapping: {
+      product_id: "product", moloni_company_id: 10, moloni_product_id: 30, moloni_document_set_id: 40,
+      moloni_tax_id: 50, tax_value: 23, exemption_reason: null, eac_id: null, moloni_payment_method_id: null, is_active: true,
+    },
+    rules: [{ id: "pt", product_id: "product", moloni_company_id: 10, billing_country_code: "PT", customer_type: null, moloni_tax_id: 1, tax_value: 23, exemption_reason: null, priority: 1, is_default: false, is_active: true }],
+  })), FiscalProcessingError)
 })

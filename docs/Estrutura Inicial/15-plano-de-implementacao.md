@@ -697,6 +697,10 @@ O plano será considerado adequado quando:
 
 ## 29. Observações finais
 
+### Homologação fiscal antes de produção
+
+Antes de qualquer ativação live, validar OAuth, catálogos completos, regra fiscal por produto/contexto, snapshot, cliente, rascunho, totais, PDF privado e ausência de duplicidade. Nenhuma etapa de desenvolvimento habilita emissão live automaticamente.
+
 - este plano deve ser usado como roteiro principal no VS Code com o Codex
 - sempre implementar do núcleo para a borda
 - o banco e o backend definem segurança e verdade do sistema

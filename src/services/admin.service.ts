@@ -1548,6 +1548,20 @@ export interface AdminMoloniStatus {
     last_success_at: string | null
   }>
   mappings: Array<Record<string, unknown>>
+  rules: Array<Record<string, unknown> & {
+    id: string
+    product_id: string
+    payment_environment: AdminMoloniPaymentEnvironment
+    moloni_company_id: number
+    billing_country_code: string | null
+    customer_type: "individual" | "company" | null
+    moloni_tax_id: number | null
+    tax_value: number | null
+    exemption_reason: string | null
+    priority: number
+    is_default: boolean
+    is_active: boolean
+  }>
   products: Array<{ id: string; title: string; status: string; product_type: string }>
   documents: Array<Record<string, unknown>>
   jobs: Array<Record<string, unknown>>
@@ -1652,6 +1666,20 @@ export interface AdminMoloniOverview {
     moloni_payment_method_name: string | null
     is_active: boolean
     updated_at: string
+  }>
+  rules: Array<Record<string, unknown> & {
+    id: string
+    product_id: string
+    payment_environment: AdminMoloniPaymentEnvironment
+    moloni_company_id: number
+    billing_country_code: string | null
+    customer_type: "individual" | "company" | null
+    moloni_tax_id: number | null
+    tax_value: number | null
+    exemption_reason: string | null
+    priority: number
+    is_default: boolean
+    is_active: boolean
   }>
   products: Array<{ id: string; title: string; status: string; product_type: string }>
   queue: Array<{
@@ -1902,7 +1930,6 @@ export async function upsertAdminMoloniMapping(input: {
   moloniProductId: number
   moloniDocumentSetId: number
   moloniTaxId?: number | null
-  taxValue?: number | null
   exemptionReason?: string | null
   eacId?: number | null
   moloniPaymentMethodId?: number | null
@@ -1910,6 +1937,25 @@ export async function upsertAdminMoloniMapping(input: {
 }) {
   return await invokeAdminFunction<{ success: true }>("admin-update-moloni-mapping", {
     action: "upsert_mapping",
+    ...input,
+  })
+}
+
+export async function upsertAdminMoloniRule(input: {
+  ruleId?: string | null
+  paymentEnvironment: AdminMoloniPaymentEnvironment
+  productId: string
+  moloniCompanyId: number
+  billingCountryCode?: string | null
+  customerType?: "individual" | "company" | null
+  moloniTaxId?: number | null
+  exemptionReason?: string | null
+  priority: number
+  isDefault: boolean
+  isActive: boolean
+}) {
+  return await invokeAdminFunction<{ success: true; rule: Record<string, unknown> }>("admin-update-moloni-mapping", {
+    action: "upsert_rule",
     ...input,
   })
 }
