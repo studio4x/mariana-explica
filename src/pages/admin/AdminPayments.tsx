@@ -1020,7 +1020,7 @@ export function AdminPayments() {
                     <h3 className="mt-2 text-3xl font-bold">{currentModeConfig.label}</h3>
                     <p className="mt-3 max-w-xl text-sm leading-7 text-white/80">
                       {paymentsStatusQuery.data?.mode === "live"
-                        ? "Checkout real com chaves de producao."
+                        ? "Checkout real com chaves de produção."
                         : "Checkout de teste para validar a experiência sem impacto comercial."}
                     </p>
                   </div>
