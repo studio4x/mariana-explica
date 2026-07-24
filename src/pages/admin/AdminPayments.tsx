@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowUpRight, Check, CreditCard, Link2, MoreHorizontal, RefreshCw, Search, Settings2 } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, Navigate, useLocation, useParams } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
@@ -36,6 +36,16 @@ type ActionFeedback = {
   message: string
 }
 
+const paymentTabRoutes: Record<PaymentsTab, string> = {
+  history: ROUTES.ADMIN_PAYMENTS_HISTORY,
+  settings: ROUTES.ADMIN_PAYMENTS_SETTINGS,
+}
+
+const paymentTabBySlug: Record<string, PaymentsTab> = {
+  historico: "history",
+  configuracoes: "settings",
+}
+
 const filterOptions: Array<{ key: PaymentsFilter; label: string }> = [
   { key: "all", label: "Todos" },
   { key: "pending", label: "Pendentes" },
@@ -61,7 +71,7 @@ function paymentStatusLabel(status: AdminOrderViewSummary["status"]) {
 
 function productTypeLabel(productType: AdminOrderViewSummary["product_type"] | null) {
   if (productType === "free") return "Gratuito"
-  if (productType === "hybrid") return "Híbrido"
+  if (productType === "hybrid") return "HÃ­brido"
   if (productType === "external_service") return "Externo"
   return "Pago"
 }
@@ -121,14 +131,14 @@ function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_pending" 
   }
 
   if (action === "mark_failed") {
-    return "Pedido reconciliado com a Stripe e marcado como falhou porque a sessão externa não confirmou pagamento."
+    return "Pedido reconciliado com a Stripe e marcado como falhou porque a sessÃ£o externa nÃ£o confirmou pagamento."
   }
 
   if (action === "mark_pending") {
-    return "A Stripe ainda não confirmou o pagamento. O pedido voltou para pendente e qualquer acesso ativo foi revogado."
+    return "A Stripe ainda nÃ£o confirmou o pagamento. O pedido voltou para pendente e qualquer acesso ativo foi revogado."
   }
 
-  return `Reconciliação concluída sem mudancas. Estado Stripe: ${stripeState || "sem alteração relevante"}.`
+  return `ReconciliaÃ§Ã£o concluÃ­da sem mudancas. Estado Stripe: ${stripeState || "sem alteraÃ§Ã£o relevante"}.`
 }
 
 function AdminPaymentsSkeleton() {
@@ -139,7 +149,6 @@ function AdminPaymentsSkeleton() {
     </div>
   )
 }
-
 function numberOrNull(value: string) {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
@@ -172,7 +181,7 @@ function MoloniSettingsPanel() {
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const settings = statusQuery.data?.settings.find((item) => item.payment_environment === environment)
-  /* eslint-disable react-hooks/set-state-in-effect -- formulário administrativo hidrata um snapshot remoto ao trocar de ambiente */
+  /* eslint-disable react-hooks/set-state-in-effect -- formulÃ¡rio administrativo hidrata um snapshot remoto ao trocar de ambiente */
   useEffect(() => {
     if (!settings) return
     setCompanyId(settings.moloni_company_id ? String(settings.moloni_company_id) : "")
@@ -201,7 +210,7 @@ function MoloniSettingsPanel() {
   const saveSettings = useMutation({
     mutationFn: updateAdminMoloniSettings,
     onSuccess: async () => {
-      setFeedback("Configuração fiscal guardada.")
+      setFeedback("ConfiguraÃ§Ã£o fiscal guardada.")
       await refresh()
     },
   })
@@ -222,7 +231,7 @@ function MoloniSettingsPanel() {
   if (statusQuery.isError) {
     return (
       <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">
-        Não foi possível carregar a integração Moloni.{" "}
+        NÃ£o foi possÃ­vel carregar a integraÃ§Ã£o Moloni.{" "}
         <button className="font-semibold underline" onClick={() => void statusQuery.refetch()}>Tentar novamente</button>
       </div>
     )
@@ -243,10 +252,10 @@ function MoloniSettingsPanel() {
     <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Integração fiscal</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">IntegraÃ§Ã£o fiscal</p>
           <h3 className="mt-2 text-2xl font-bold text-slate-950">Moloni</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Credenciais, OAuth, regras fiscais, homologação, mapeamentos e fila estão centralizados numa área protegida própria.
+            Credenciais, OAuth, regras fiscais, homologaÃ§Ã£o, mapeamentos e fila estÃ£o centralizados numa Ã¡rea protegida prÃ³pria.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <StatusBadge label={`${data?.metrics.pending ?? 0} na fila`} tone="info" />
@@ -257,7 +266,7 @@ function MoloniSettingsPanel() {
         <Button asChild type="button" className="rounded-full">
           <Link to={ROUTES.ADMIN_MOLONI}>
             <Settings2 className="h-4 w-4" />
-            Abrir configuração Moloni
+            Abrir configuraÃ§Ã£o Moloni
           </Link>
         </Button>
       </div>
@@ -266,10 +275,10 @@ function MoloniSettingsPanel() {
     <section className="space-y-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Integração fiscal</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">IntegraÃ§Ã£o fiscal</p>
           <h3 className="mt-2 text-2xl font-bold text-slate-950">Moloni</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Credenciais nunca são exibidas. Stripe test fica isolada em rascunhos; emissão live exige checklist e confirmação explícita.
+            Credenciais nunca sÃ£o exibidas. Stripe test fica isolada em rascunhos; emissÃ£o live exige checklist e confirmaÃ§Ã£o explÃ­cita.
           </p>
         </div>
         <Button type="button" variant="outline" className="rounded-full" onClick={() => void statusQuery.refetch()}>
@@ -283,7 +292,7 @@ function MoloniSettingsPanel() {
           ["Bloqueados", data?.metrics.blocked ?? 0],
           ["Falhas", data?.metrics.failed ?? 0],
           ["Emitidos", data?.metrics.issued ?? 0],
-          ["Retificações", data?.metrics.adjustmentsRequiringReview ?? 0],
+          ["RetificaÃ§Ãµes", data?.metrics.adjustmentsRequiringReview ?? 0],
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-2xl border bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
@@ -302,13 +311,13 @@ function MoloniSettingsPanel() {
                 <div>
                   <p className="font-semibold text-slate-950">Moloni {target === "draft" ? "rascunho" : "live"}</p>
                   <p className="mt-1 text-sm text-slate-600">
-                    {connection?.company_name ?? "Empresa ainda não selecionada"} · {connection?.status ?? "desconectada"}
+                    {connection?.company_name ?? "Empresa ainda nÃ£o selecionada"} Â· {connection?.status ?? "desconectada"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Último sucesso: {connection?.last_success_at ? formatDateTime(connection.last_success_at) : "sem comunicação"}
+                    Ãšltimo sucesso: {connection?.last_success_at ? formatDateTime(connection.last_success_at) : "sem comunicaÃ§Ã£o"}
                   </p>
                 </div>
-                <StatusBadge label={connected ? "Conectada" : "Ação necessária"} tone={connected ? "success" : "warning"} />
+                <StatusBadge label={connected ? "Conectada" : "AÃ§Ã£o necessÃ¡ria"} tone={connected ? "success" : "warning"} />
               </div>
               <div className="mt-4 flex gap-2">
                 <Button
@@ -326,7 +335,7 @@ function MoloniSettingsPanel() {
                     className="rounded-full"
                     disabled={busy}
                     onClick={() => {
-                      if (window.confirm(`Desconectar Moloni ${target} sem apagar o histórico?`)) {
+                      if (window.confirm(`Desconectar Moloni ${target} sem apagar o histÃ³rico?`)) {
                         void disconnect.mutateAsync(target)
                       }
                     }}
@@ -357,14 +366,14 @@ function MoloniSettingsPanel() {
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm">Empresa Moloni<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={companyId} onChange={(event) => { setCompanyId(event.target.value); const nextCompanyId = numberOrNull(event.target.value); if (nextCompanyId) void loadCatalog.mutateAsync({ moloniEnvironment: selectedMoloniEnvironment, moloniCompanyId: nextCompanyId }) }}><option value="">Selecionar empresa</option>{companyId && !(catalog?.companies ?? []).some((item) => String(item.company_id) === companyId) ? <option value={companyId}>Empresa {companyId}</option> : null}{(catalog?.companies ?? []).map((company) => <option key={company.company_id} value={company.company_id}>{company.name ?? `Empresa ${company.company_id}`}</option>)}</select></label>
           <label className="text-sm">Documento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={documentKind} onChange={(event) => setDocumentKind(event.target.value as typeof documentKind)}><option value="invoice_receipt">Fatura-recibo</option><option value="invoice">Fatura</option></select></label>
-          <label className="text-sm">NIF genérico aprovado<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={withoutVatRule} onChange={(event) => setWithoutVatRule(event.target.value)} /></label>
-          <label className="text-sm">País ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={countryId} onChange={(event) => setCountryId(event.target.value)} /></label>
+          <label className="text-sm">NIF genÃ©rico aprovado<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={withoutVatRule} onChange={(event) => setWithoutVatRule(event.target.value)} /></label>
+          <label className="text-sm">PaÃ­s ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={countryId} onChange={(event) => setCountryId(event.target.value)} /></label>
           <label className="text-sm">Idioma ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={languageId} onChange={(event) => setLanguageId(event.target.value)} /></label>
           <label className="text-sm">Vencimento ID<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={maturityId} onChange={(event) => setMaturityId(event.target.value)} /></label>
-          <label className="text-sm">Método pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={paymentMethodId} onChange={(event) => setPaymentMethodId(event.target.value)}><option value="">Selecionar</option>{paymentMethodId && !(catalog?.payment_methods ?? []).some((item) => String(item.payment_method_id) === paymentMethodId) ? <option value={paymentMethodId}>Método {paymentMethodId}</option> : null}{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
+          <label className="text-sm">MÃ©todo pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={paymentMethodId} onChange={(event) => setPaymentMethodId(event.target.value)}><option value="">Selecionar</option>{paymentMethodId && !(catalog?.payment_methods ?? []).some((item) => String(item.payment_method_id) === paymentMethodId) ? <option value={paymentMethodId}>MÃ©todo {paymentMethodId}</option> : null}{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
           <div className="flex flex-col justify-end gap-2 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" checked={checklistApproved} onChange={(event) => setChecklistApproved(event.target.checked)} /> Checklist fiscal aprovado</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={emissionEnabled} onChange={(event) => setEmissionEnabled(event.target.checked)} /> Emissão automática</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={emissionEnabled} onChange={(event) => setEmissionEnabled(event.target.checked)} /> EmissÃ£o automÃ¡tica</label>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -378,14 +387,14 @@ function MoloniSettingsPanel() {
               moloniCompanyId: numberOrNull(companyId),
             })}
           >
-            Carregar catálogo Moloni
+            Carregar catÃ¡logo Moloni
           </Button>
           <Button
             type="button"
             className="rounded-full"
             disabled={busy}
             onClick={() => {
-            if (emissionEnabled && !window.confirm(`Ativar emissão fiscal para Stripe ${environment}?`)) return
+            if (emissionEnabled && !window.confirm(`Ativar emissÃ£o fiscal para Stripe ${environment}?`)) return
             void saveSettings.mutateAsync({
               paymentEnvironment: environment,
               moloniEnvironment: selectedMoloniEnvironment,
@@ -409,7 +418,7 @@ function MoloniSettingsPanel() {
             })
             }}
           >
-            Guardar configuração segura
+            Guardar configuraÃ§Ã£o segura
           </Button>
         </div>
       </div>
@@ -419,11 +428,11 @@ function MoloniSettingsPanel() {
         <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm">Produto<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Selecionar</option>{(data?.products ?? []).map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label>
           <label className="text-sm">Artigo Moloni<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={moloniProductId} onChange={(event) => setMoloniProductId(event.target.value)}><option value="">Selecionar</option>{(catalog?.products ?? []).map((item) => <option key={String(item.product_id)} value={String(item.product_id)}>{String(item.name ?? item.reference ?? item.product_id)}</option>)}</select></label>
-          <label className="text-sm">Série<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={documentSetId} onChange={(event) => setDocumentSetId(event.target.value)}><option value="">Selecionar</option>{(catalog?.document_sets ?? []).map((item) => <option key={String(item.document_set_id)} value={String(item.document_set_id)}>{String(item.name ?? item.document_set_id)}</option>)}</select></label>
+          <label className="text-sm">SÃ©rie<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={documentSetId} onChange={(event) => setDocumentSetId(event.target.value)}><option value="">Selecionar</option>{(catalog?.document_sets ?? []).map((item) => <option key={String(item.document_set_id)} value={String(item.document_set_id)}>{String(item.name ?? item.document_set_id)}</option>)}</select></label>
           <label className="text-sm">Taxa<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxId} onChange={(event) => { setTaxId(event.target.value); const selected = (catalog?.taxes ?? []).find((item) => String(item.tax_id) === event.target.value); if (selected?.value !== undefined) setTaxValue(String(selected.value)) }}><option value="">Isento</option>{(catalog?.taxes ?? []).map((item) => <option key={String(item.tax_id)} value={String(item.tax_id)}>{String(item.name ?? item.tax_id)} ({String(item.value ?? 0)}%)</option>)}</select></label>
           <label className="text-sm">Taxa %<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={taxValue} onChange={(event) => setTaxValue(event.target.value)} /></label>
-          <label className="text-sm">Motivo isenção<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} /></label>
-          <label className="text-sm">Método pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={mappingPaymentMethodId} onChange={(event) => setMappingPaymentMethodId(event.target.value)}><option value="">Usar configuração</option>{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
+          <label className="text-sm">Motivo isenÃ§Ã£o<input className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} /></label>
+          <label className="text-sm">MÃ©todo pagamento<select className="mt-1 h-11 w-full rounded-xl border bg-white px-3" value={mappingPaymentMethodId} onChange={(event) => setMappingPaymentMethodId(event.target.value)}><option value="">Usar configuraÃ§Ã£o</option>{(catalog?.payment_methods ?? []).map((item) => <option key={String(item.payment_method_id)} value={String(item.payment_method_id)}>{String(item.name ?? item.payment_method_id)}</option>)}</select></label>
         </div>
         <Button
           type="button"
@@ -451,7 +460,7 @@ function MoloniSettingsPanel() {
         <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {(connect.error ?? disconnect.error ?? saveSettings.error ?? saveMapping.error ?? loadCatalog.error) instanceof Error
             ? (connect.error ?? disconnect.error ?? saveSettings.error ?? saveMapping.error ?? loadCatalog.error as Error).message
-            : "Não foi possível concluir a operação Moloni."}
+            : "NÃ£o foi possÃ­vel concluir a operaÃ§Ã£o Moloni."}
         </p>
       ) : null}
     </section>
@@ -460,9 +469,9 @@ function MoloniSettingsPanel() {
 
 export function AdminPayments() {
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<PaymentsTab>(() =>
-    new URLSearchParams(window.location.search).get("tab") === "settings" ? "settings" : "history",
-  )
+  const location = useLocation()
+  const { tab: tabSlug } = useParams<{ tab?: string }>()
+  const tab = tabSlug ? paymentTabBySlug[tabSlug] : undefined
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<PaymentsFilter>("all")
   const [draftMode, setDraftMode] = useState<CheckoutMode>("sandbox")
@@ -553,7 +562,7 @@ export function AdminPayments() {
     } catch (error) {
       setActionFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "Não foi possível concluir a ação do pedido.",
+        message: error instanceof Error ? error.message : "NÃ£o foi possÃ­vel concluir a aÃ§Ã£o do pedido.",
       })
     }
   }
@@ -570,7 +579,7 @@ export function AdminPayments() {
     } catch (error) {
       setActionFeedback({
         tone: "danger",
-        message: error instanceof Error ? error.message : "Não foi possível reconciliar o pedido.",
+        message: error instanceof Error ? error.message : "NÃ£o foi possÃ­vel reconciliar o pedido.",
       })
     }
   }
@@ -581,9 +590,15 @@ export function AdminPayments() {
     return toUiMode(persisted ?? fallback)
   }, [checkoutModeQuery.data?.config_value.mode, paymentsStatusQuery.data?.mode])
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sincroniza o estado do selector com o modo persistido */
   useEffect(() => {
     setDraftMode(activeMode)
   }, [activeMode])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  if (!tab) {
+    return <Navigate to={ROUTES.ADMIN_PAYMENTS_HISTORY} replace />
+  }
 
   const isLoading =
     ordersQuery.isLoading ||
@@ -611,7 +626,7 @@ export function AdminPayments() {
 
     return (
       <ErrorState
-        title="Não foi possível carregar os pagamentos"
+        title="NÃ£o foi possÃ­vel carregar os pagamentos"
         message={error?.message ?? "Tenta novamente dentro de instantes."}
         onRetry={() => {
           void ordersQuery.refetch()
@@ -664,9 +679,9 @@ export function AdminPayments() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Admin / Pagamentos</p>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Histórico de pagamentos</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">HistÃ³rico de pagamentos</h2>
             <p className="max-w-2xl text-sm leading-7 text-slate-600">
-              Consulta os pedidos processados, acompanha os estados e alterna o ambiente do checkout sem sair da página.
+              Consulta os pedidos processados, acompanha os estados e alterna o ambiente do checkout sem sair da pÃ¡gina.
             </p>
           </div>
 
@@ -690,17 +705,16 @@ export function AdminPayments() {
 
         <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
           {[
-            { key: "history" as const, label: "Histórico", icon: CreditCard },
-            { key: "settings" as const, label: "Configurações", icon: Settings2 },
+            { key: "history" as const, label: "HistÃ³rico", icon: CreditCard },
+            { key: "settings" as const, label: "ConfiguraÃ§Ãµes", icon: Settings2 },
           ].map((item) => {
             const Icon = item.icon
             const active = tab === item.key
 
             return (
-              <button
+              <Link
                 key={item.key}
-                type="button"
-                onClick={() => setTab(item.key)}
+                to={`${paymentTabRoutes[item.key]}${location.search}`}
                 className={[
                   "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition",
                   active
@@ -710,7 +724,7 @@ export function AdminPayments() {
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
-              </button>
+              </Link>
             )
           })}
         </div>
@@ -805,7 +819,7 @@ export function AdminPayments() {
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="px-4 py-3 font-medium">Valor</th>
                       <th className="px-4 py-3 font-medium">Detalhes</th>
-                      <th className="px-4 py-3 font-medium">Ações</th>
+                      <th className="px-4 py-3 font-medium">AÃ§Ãµes</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -824,7 +838,7 @@ export function AdminPayments() {
                       return (
                         <tr key={order.id} className="border-b last:border-b-0 align-top">
                           <td className="px-4 py-4">
-                            <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente não identificado"}</p>
+                            <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente nÃ£o identificado"}</p>
                             <p className="mt-1 break-all text-xs text-slate-500">{order.user_email ?? order.user_id}</p>
                           </td>
                           <td className="px-4 py-4">
@@ -871,7 +885,7 @@ export function AdminPayments() {
                                 ) : null}
                               </div>
                             ) : (
-                              <p className="mt-2 text-xs text-slate-500">Fiscal não planeado</p>
+                              <p className="mt-2 text-xs text-slate-500">Fiscal nÃ£o planeado</p>
                             )}
                           </td>
                           <td className="px-4 py-4 font-semibold text-slate-950">
@@ -899,7 +913,7 @@ export function AdminPayments() {
                                   onClick={() => setOpenActionOrderId(actionsOpen ? null : order.id)}
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
-                                  Ações
+                                  AÃ§Ãµes
                                 </Button>
 
                                 {actionsOpen ? (
@@ -984,7 +998,7 @@ export function AdminPayments() {
                                 ) : null}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-500">Sem ações</span>
+                              <span className="text-xs text-slate-500">Sem aÃ§Ãµes</span>
                             )}
                           </td>
                         </tr>
@@ -1007,7 +1021,7 @@ export function AdminPayments() {
                     <p className="mt-3 max-w-xl text-sm leading-7 text-white/80">
                       {paymentsStatusQuery.data?.mode === "live"
                         ? "Checkout real com chaves de producao."
-                        : "Checkout de teste para validar a experiência sem impacto comercial."}
+                        : "Checkout de teste para validar a experiÃªncia sem impacto comercial."}
                     </p>
                   </div>
 
@@ -1045,50 +1059,15 @@ export function AdminPayments() {
                     })}
                   </div>
                   {updateCheckoutMode.isPending ? (
-                    <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/60">A guardar alteração...</p>
+                    <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/60">A guardar alteraÃ§Ã£o...</p>
                   ) : null}
                 </div>
 
                 <p className="mt-5 text-sm leading-7 text-white/75">
-                  A mudanca entra no checkout imediatamente. O pedido interno e a confirmação da Stripe passam a usar o
+                  A mudanca entra no checkout imediatamente. O pedido interno e a confirmaÃ§Ã£o da Stripe passam a usar o
                   mesmo ambiente selecionado aqui.
                 </p>
               </div>
-
-              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist do ambiente</p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Itens já validados para o modo {currentModeConfig.label.toLowerCase()} e requisitos que ainda pedem
-                  conferencias manuais.
-                </p>
-
-                <div className="mt-5 space-y-3">
-                  {currentModeConfig.checklist.map((item) => (
-                    <div key={item.name} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="break-words font-medium leading-6 text-slate-950">{item.name}</p>
-                          <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
-                        </div>
-                        <StatusBadge label={item.status === "ready" ? "Pronto" : "Manual"} tone={item.status === "ready" ? "success" : "warning"} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Notas</p>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-                    {currentModeConfig.notes.map((note) => (
-                      <li key={note} className="flex gap-2">
-                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-slate-400" />
-                        <span>{note}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
 
             <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
               <div className="flex flex-wrap items-center gap-3">
@@ -1099,49 +1078,15 @@ export function AdminPayments() {
                 />
               </div>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                O checkout público passa a obedecer o modo selecionado acima. Se alterares para Sandbox, as proximas
-                sessões Stripe são criadas com chaves de teste; se alterares para Producao, passam a usar as chaves
+                O checkout pÃºblico passa a obedecer o modo selecionado acima. Se alterares para Sandbox, as proximas
+                sessÃµes Stripe sÃ£o criadas com chaves de teste; se alterares para Producao, passam a usar as chaves
                 reais do backend.
               </p>
             </div>
           </div>
+          </div>
         )}
 
-        <div className="mt-8 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Legendas das ações</p>
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {[
-              {
-                title: "Reconciliar",
-                description:
-                  "Consulta a Stripe e sincroniza o pedido local. Se a Stripe ainda estiver pendente, nada e forcado.",
-              },
-              {
-                title: "Marcar como pago",
-                description:
-                  "Correcao manual para confirmar o pedido e liberar o acesso quando a operação já foi validada.",
-              },
-              {
-                title: "Reembolsar",
-                description:
-                  "Marca o pedido como reembolsado na plataforma e revoga o acesso. O reembolso financeiro deve existir na Stripe.",
-              },
-              {
-                title: "Cancelar pedido",
-                description: "Cancela um pedido pendente sem liberar acesso ao aluno.",
-              },
-              {
-                title: "Abrir pedido",
-                description: "Abre o registro correspondente na Stripe; a Stripe pode pedir login administrativo.",
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="font-semibold text-slate-950">{item.title}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
     </div>
   )

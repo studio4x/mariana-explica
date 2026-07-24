@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense, useEffect, type ReactNode } from "react"
-import { Navigate, createBrowserRouter, useParams, useRouteError } from "react-router-dom"
+import { Navigate, createBrowserRouter, useLocation, useParams, useRouteError } from "react-router-dom"
 import {
   PublicLayout,
   DashboardLayout,
@@ -227,6 +227,16 @@ function RouteErrorBoundary() {
 function LegacyPublicCourseRedirect() {
   const { slug } = useParams<{ slug: string }>()
   return <Navigate to={slug ? `${ROUTES.COURSES}/${slug}` : ROUTES.COURSES} replace />
+}
+
+function AdminPaymentsRedirect() {
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const tab = searchParams.get("tab") === "settings" ? "configuracoes" : "historico"
+  searchParams.delete("tab")
+  const search = searchParams.toString()
+
+  return <Navigate to={`/admin/pagamentos/${tab}${search ? `?${search}` : ""}`} replace />
 }
 
 function LegacyStudentCourseRedirect() {
@@ -541,7 +551,7 @@ export const router = createBrowserRouter(
         },
         {
           path: "pedidos",
-          element: <Navigate to="/admin/pagamentos" replace />,
+          element: <Navigate to={ROUTES.ADMIN_PAYMENTS} replace />,
         },
         {
           path: "reviews",
@@ -565,6 +575,10 @@ export const router = createBrowserRouter(
         },
         {
           path: "pagamentos",
+          element: <AdminPaymentsRedirect />,
+        },
+        {
+          path: "pagamentos/:tab",
           element: withSuspense(<AdminPayments />),
         },
         {
