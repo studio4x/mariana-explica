@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
+  Sparkles,
   Unplug,
 } from "lucide-react"
 import { Link, Navigate, useParams } from "react-router-dom"
@@ -20,6 +21,11 @@ import { PageHeader, StatusBadge } from "@/components/common"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
+import {
+  detectMoloniChecklistValues,
+  MOLONI_CHECKLIST_GUIDES,
+  type MoloniChecklistGroup,
+} from "@/lib/moloni-checklist"
 import {
   activateAdminMoloniLive,
   createAdminMoloniDraftTest,
@@ -59,6 +65,23 @@ const validationTypes = [
   ["payment_method", "Pagamento"],
   ["mappings", "Mapeamentos"],
 ] as const
+const checklistGroupInfo: Record<MoloniChecklistGroup, {
+  title: string
+  description: string
+}> = {
+  automatic: {
+    title: "A plataforma consegue verificar",
+    description: "Dados já existentes na configuração, nos mapeamentos e nos testes.",
+  },
+  accountant: {
+    title: "Confirmar com a contabilista",
+    description: "Escolhas fiscais apresentadas em linguagem simples. Não é necessário escrever textos técnicos.",
+  },
+  operation: {
+    title: "Como agir em situações especiais",
+    description: "Decisões seguras para reembolsos, disputas e documentos retificativos.",
+  },
+}
 
 const moloniTabs = [
   { slug: "configuracao", label: "Configura\u00e7\u00e3o", description: "Credenciais e regras fiscais", path: ROUTES.ADMIN_MOLONI_SETTINGS },
@@ -129,10 +152,12 @@ function MoloniSkeleton() {
 
 function ChecklistRow({
   item,
+  detectedValue,
   disabled,
   onSave,
 }: {
   item: AdminMoloniOverview["checklist"][number]
+  detectedValue?: string
   disabled: boolean
   onSave: (input: {
     itemKey: string
@@ -142,8 +167,8 @@ function ChecklistRow({
     confirmation?: string
   }) => void
 }) {
-  const [status, setStatus] = useState(item.status)
   const [notes, setNotes] = useState(item.notes ?? "")
+  const guide = MOLONI_CHECKLIST_GUIDES[item.item_key]
   const initialConfiguration =
     item.configuration &&
     typeof item.configuration === "object" &&
@@ -152,72 +177,109 @@ function ChecklistRow({
       ? item.configuration.value
       : ""
   const [configuration, setConfiguration] = useState(initialConfiguration)
+  const selectedValue = detectedValue ?? configuration
+  const isAutomatic = guide?.group === "automatic"
+  const canApprove = Boolean(selectedValue.trim())
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="font-bold text-slate-950">{item.title}</h4>
-            {item.is_blocking ? <StatusBadge label="Obrigatório" tone="warning" /> : null}
             <StatusBadge
               label={item.status === "approved" ? "Aprovado" : item.status === "filled" ? "Preenchido" : "Pendente"}
               tone={item.status === "approved" ? "success" : item.status === "filled" ? "info" : "neutral"}
             />
+            {isAutomatic ? <StatusBadge label="Verificação automática" tone="info" /> : null}
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
-        </div>
-        <div className="grid min-w-56 gap-2">
-          <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Estado
-            <select
-              aria-label={`Estado: ${item.title}`}
-              className={inputClass}
-              value={status}
-              onChange={(event) => setStatus(event.target.value as typeof status)}
-            >
-              <option value="pending">Pendente</option>
-              <option value="filled">Preenchido</option>
-              <option value="approved">Aprovado</option>
-            </select>
-          </label>
+          <p className="mt-2 font-semibold text-slate-800">{guide?.question ?? item.description}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{guide?.help ?? item.description}</p>
         </div>
       </div>
-      <label className="mt-3 block text-sm font-medium text-slate-700">
-        Valor ou configuração aprovada
-        <input
-          aria-label={`Configuração: ${item.title}`}
-          className={inputClass}
-          value={configuration}
-          onChange={(event) => setConfiguration(event.target.value)}
-          placeholder="Regra, opção, referência ou “não se aplica”, conforme decisão fiscal."
-        />
-      </label>
-      <label className="mt-3 block text-sm font-medium text-slate-700">
-        Evidência ou decisão
-        <textarea
-          aria-label={`Evidência: ${item.title}`}
-          className="mt-1 min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          placeholder="Registe a decisão, o responsável e a evidência utilizada."
-        />
-      </label>
+
+      {isAutomatic ? (
+        <div className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
+          detectedValue
+            ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+            : "border-amber-200 bg-amber-50 text-amber-950"
+        }`}>
+          {detectedValue ? (
+            <span className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              <span><strong>Detetado:</strong> {detectedValue}</span>
+            </span>
+          ) : (
+            <span className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Ainda não é possível confirmar este item. Conclua a configuração ou validação indicada.</span>
+            </span>
+          )}
+        </div>
+      ) : guide?.options?.length ? (
+        <label className="mt-3 block text-sm font-medium text-slate-700">
+          Escolha confirmada
+          <select
+            aria-label={`Decisão: ${item.title}`}
+            className={inputClass}
+            value={configuration}
+            onChange={(event) => setConfiguration(event.target.value)}
+          >
+            <option value="">Selecionar uma opção</option>
+            {guide.options.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+      ) : (
+        <label className="mt-3 block text-sm font-medium text-slate-700">
+          Decisão confirmada
+          <input
+            aria-label={`Decisão: ${item.title}`}
+            className={inputClass}
+            value={configuration}
+            onChange={(event) => setConfiguration(event.target.value)}
+            placeholder={guide?.placeholder ?? "Escreva a orientação confirmada pela contabilista."}
+          />
+        </label>
+      )}
+
+      {!isAutomatic ? (
+        <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+            Adicionar observação (opcional)
+          </summary>
+          <textarea
+            aria-label={`Observação: ${item.title}`}
+            className="mt-2 min-h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder="Ex.: confirmado por email pela contabilista em determinada data."
+          />
+        </details>
+      ) : null}
+
       <Button
         type="button"
         variant="outline"
         className="mt-3 rounded-full"
-        disabled={disabled || (status === "approved" && !notes.trim())}
+        disabled={disabled || !canApprove || item.status === "approved"}
         onClick={() => onSave({
           itemKey: item.item_key,
-          status,
-          configuration: configuration.trim() ? { value: configuration.trim() } : null,
-          notes,
-          confirmation: status === "approved" ? "APROVAR DECISAO FISCAL" : undefined,
+          status: "approved",
+          configuration: { value: selectedValue.trim() },
+          notes: notes.trim() || (
+            isAutomatic
+              ? `Configuração verificada pela plataforma: ${selectedValue.trim()}`
+              : `Decisão confirmada no painel: ${selectedValue.trim()}`
+          ),
+          confirmation: "APROVAR DECISAO FISCAL",
         })}
       >
-        <Save className="h-4 w-4" />
-        Guardar item
+        {item.status === "approved" ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+        {item.status === "approved"
+          ? "Confirmado"
+          : isAutomatic
+            ? "Confirmar verificação"
+            : "Guardar decisão"}
       </Button>
       {item.approved_at ? (
         <p className="mt-3 text-xs text-slate-500">
@@ -287,6 +349,34 @@ export function AdminMoloni() {
   const checklist = useMemo(
     () => (data?.checklist ?? []).filter((item) => item.payment_environment === environment),
     [data?.checklist, environment],
+  )
+  const detectedChecklistValues = useMemo(
+    () => detectMoloniChecklistValues({
+      environment,
+      settings: (data?.settings ?? []) as Array<Record<string, unknown>>,
+      mappings: (data?.mappings ?? []) as Array<Record<string, unknown>>,
+      products: (data?.products ?? []) as Array<Record<string, unknown>>,
+      validations: (data?.validations ?? []) as Array<Record<string, unknown>>,
+    }),
+    [data?.mappings, data?.products, data?.settings, data?.validations, environment],
+  )
+  const checklistGroups = useMemo(() => {
+    const groups: Record<MoloniChecklistGroup, typeof checklist> = {
+      automatic: [],
+      accountant: [],
+      operation: [],
+    }
+    checklist.forEach((item) => {
+      const group = MOLONI_CHECKLIST_GUIDES[item.item_key]?.group ?? "accountant"
+      groups[group].push(item)
+    })
+    return groups
+  }, [checklist])
+  const automaticItemsReady = useMemo(
+    () => checklistGroups.automatic.filter(
+      (item) => item.status !== "approved" && Boolean(detectedChecklistValues[item.item_key]),
+    ),
+    [checklistGroups.automatic, detectedChecklistValues],
   )
   const eligibleDraftDocuments = useMemo(
     () => (data?.queue ?? []).filter((item) =>
@@ -415,6 +505,25 @@ export function AdminMoloni() {
     onSuccess: () => succeed("Item do checklist atualizado e auditado."),
     onError: fail,
   })
+  const automaticChecklistMutation = useMutation({
+    mutationFn: async () => {
+      for (const item of automaticItemsReady) {
+        const value = detectedChecklistValues[item.item_key]
+        await updateAdminMoloniChecklist({
+          paymentEnvironment: environment,
+          itemKey: item.item_key,
+          status: "approved",
+          configuration: { value },
+          notes: `Configuração verificada pela plataforma: ${value}`,
+          confirmation: "APROVAR DECISAO FISCAL",
+        })
+      }
+    },
+    onSuccess: () => succeed(
+      `${automaticItemsReady.length} verificação(ões) automática(s) confirmada(s).`,
+    ),
+    onError: fail,
+  })
   const validationMutation = useMutation({
     mutationFn: runAdminMoloniValidation,
     onSuccess: () => succeed("Diagnóstico concluído e registado."),
@@ -471,6 +580,7 @@ export function AdminMoloni() {
     catalogMutation.isPending ||
     mappingMutation.isPending ||
     checklistMutation.isPending ||
+    automaticChecklistMutation.isPending ||
     validationMutation.isPending ||
     draftMutation.isPending ||
     activateMutation.isPending ||
@@ -1065,7 +1175,7 @@ export function AdminMoloni() {
           <div>
             <h2 className="text-xl font-black text-slate-950">Checklist fiscal</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              As decisões são independentes por ambiente, exigem evidência e ficam associadas ao administrador responsável.
+              A plataforma verifica o que já conhece. Você só precisa escolher as decisões que dependem da contabilista.
             </p>
           </div>
           <StatusBadge
@@ -1073,22 +1183,73 @@ export function AdminMoloni() {
             tone={settings?.fiscal_checklist_approved ? "success" : "warning"}
           />
         </div>
-        <div className="mt-4 space-y-3">
-          {checklist.map((item) => (
-            <ChecklistRow
-              key={`${item.id}:${item.updated_at}`}
-              item={item}
-              disabled={busy}
-              onSave={(input) => {
-                if (
-                  input.status !== "approved" ||
-                  window.confirm("Aprovar esta decisão fiscal com o seu utilizador administrativo?")
-                ) {
-                  checklistMutation.mutate({ paymentEnvironment: environment, ...input })
+
+        <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-bold text-sky-950">Preenchimento assistido</p>
+              <p className="mt-1 text-sm leading-6 text-sky-900">
+                {automaticItemsReady.length > 0
+                  ? `${automaticItemsReady.length} item(ns) já podem ser confirmados com os dados da própria plataforma.`
+                  : "Não há novas verificações automáticas disponíveis neste momento."}
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="rounded-full"
+              disabled={busy || automaticItemsReady.length === 0}
+              onClick={() => {
+                if (window.confirm(
+                  `Confirmar ${automaticItemsReady.length} item(ns) com os dados verificados pela plataforma?`,
+                )) {
+                  automaticChecklistMutation.mutate()
                 }
               }}
-            />
-          ))}
+            >
+              {automaticChecklistMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Sparkles className="h-4 w-4" />}
+              Confirmar verificações automáticas
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-5">
+          {(["automatic", "accountant", "operation"] as const).map((group) => {
+            const items = checklistGroups[group]
+            if (!items.length) return null
+            const approved = items.filter((item) => item.status === "approved").length
+            const info = checklistGroupInfo[group]
+            return (
+              <section key={group} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 className="font-black text-slate-950">{info.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{info.description}</p>
+                  </div>
+                  <StatusBadge
+                    label={`${approved}/${items.length} concluídos`}
+                    tone={approved === items.length ? "success" : "neutral"}
+                  />
+                </div>
+                <div className="mt-4 space-y-3">
+                  {items.map((item) => (
+                    <ChecklistRow
+                      key={`${item.id}:${item.updated_at}`}
+                      item={item}
+                      detectedValue={detectedChecklistValues[item.item_key]}
+                      disabled={busy}
+                      onSave={(input) => {
+                        if (window.confirm("Confirmar esta escolha com o seu utilizador administrativo?")) {
+                          checklistMutation.mutate({ paymentEnvironment: environment, ...input })
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
         </div>
         </section>
       ) : null}

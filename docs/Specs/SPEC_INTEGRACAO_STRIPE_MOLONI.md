@@ -1243,3 +1243,21 @@ Endpoints Moloni confirmados: <https://www.moloni.pt/dev/utilizacao/>, <https://
 10. Confirmar que não houve duplicidade.
 
 IVA, OSS, isenções e documentos de reembolso continuam dependentes da decisão da contabilista; o sistema não interpreta automaticamente legislação fiscal.
+
+### Checklist fiscal assistido
+
+O painel não deve exigir que o administrador invente texto fiscal ou repita
+configurações que a plataforma já conhece. O checklist separa:
+
+- verificações automáticas, derivadas da configuração documental, mapeamentos
+  validados, homologação em rascunho e entrega protegida do PDF;
+- decisões fiscais que precisam de confirmação da contabilista, apresentadas
+  como escolhas guiadas e sem valores fiscais inventados;
+- decisões operacionais para reembolsos, chargebacks e documentos
+  retificativos, mantendo revisão manual como comportamento seguro.
+
+Uma verificação automática só pode ser oferecida quando a evidência correspondente
+existe no estado administrativo retornado pelo backend. Ausência de validação,
+mapeamento ou teste mantém o item pendente. A confirmação continua explícita,
+auditada e independente por ambiente. O preenchimento assistido não ativa emissão
+real nem substitui a aprovação da contabilista nas decisões fiscais.

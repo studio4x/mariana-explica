@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
   catalog: vi.fn(),
   status: vi.fn(),
+  updateChecklist: vi.fn(),
 }))
 
 vi.mock("@/services/admin.service", () => ({
@@ -26,7 +27,7 @@ vi.mock("@/services/admin.service", () => ({
   runAdminMoloniJobAction: vi.fn(),
   runAdminMoloniValidation: vi.fn(),
   startAdminMoloniConnection: vi.fn(),
-  updateAdminMoloniChecklist: vi.fn(),
+  updateAdminMoloniChecklist: (...args: unknown[]) => mocks.updateChecklist(...args),
   updateAdminMoloniSettings: vi.fn(),
   upsertAdminMoloniMapping: vi.fn(),
   upsertAdminMoloniRule: vi.fn(),
@@ -146,11 +147,11 @@ function buildOverview(ready = false) {
   }
 }
 
-function renderPage() {
+function renderPage(path = "/admin/integracoes/moloni/configuracao") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/admin/integracoes/moloni/configuracao"]}>
+        <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route path="/admin/integracoes/moloni/:tab" element={<AdminMoloni />} />
           </Routes>
@@ -166,7 +167,9 @@ describe("AdminMoloni", () => {
     mocks.activate.mockReset()
     mocks.catalog.mockReset()
     mocks.status.mockReset()
+    mocks.updateChecklist.mockReset()
     mocks.status.mockResolvedValue({ rules: [] })
+    mocks.updateChecklist.mockResolvedValue({ success: true })
   })
 
   it("shows an initial loading skeleton", () => {
@@ -217,6 +220,55 @@ describe("AdminMoloni", () => {
     expect(await screen.findByText("Não foi possível carregar a Moloni")).toBeInTheDocument()
     expect(screen.getByText("Falha simulada")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument()
+  })
+
+  it("replaces generic checklist fields with detected values and guided choices", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.checklist = [
+      {
+        id: "automatic-1",
+        payment_environment: "test",
+        item_key: "immediate_payment_document",
+        title: "Documento para pagamento imediato",
+        description: "Descrição antiga",
+        is_blocking: true,
+        status: "pending",
+        configuration: null,
+        notes: null,
+        approved_by: null,
+        approved_at: null,
+        updated_at: "2026-07-24T10:00:00.000Z",
+      },
+      {
+        id: "accountant-1",
+        payment_environment: "test",
+        item_key: "international_sales",
+        title: "Vendas internacionais",
+        description: "Descrição antiga",
+        is_blocking: true,
+        status: "pending",
+        configuration: null,
+        notes: null,
+        approved_by: null,
+        approved_at: null,
+        updated_at: "2026-07-24T10:00:00.000Z",
+      },
+    ] as unknown as typeof overview.checklist
+    mocks.overview.mockResolvedValue(overview)
+    renderPage("/admin/integracoes/moloni/checklist-fiscal")
+
+    expect(await screen.findByText("Preenchimento assistido")).toBeInTheDocument()
+    expect(screen.getByText("Detetado:")).toBeInTheDocument()
+    expect(screen.getByText("Fatura-recibo")).toBeInTheDocument()
+    expect(screen.getByLabelText("Decisão: Vendas internacionais")).toBeInTheDocument()
+    expect(screen.queryByText("Valor ou configuração aprovada")).not.toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByLabelText("Decisão: Vendas internacionais"),
+      "Não vender fora de Portugal",
+    )
+    expect(screen.getByRole("button", { name: "Guardar decisão" })).toBeEnabled()
   })
 
   it("renders readable catalog selectors and suggests Portugal, Portuguese and immediate payment", async () => {
