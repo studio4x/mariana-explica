@@ -80,6 +80,23 @@ function recordLabel(item: Record<string, unknown>, keys: string[], fallback: st
   return typeof value === "string" ? value : fallback
 }
 
+function normalizeCatalogText(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+}
+
+function moloniProductTypeLabel(type: number) {
+  if (type === 1) return "Produto"
+  if (type === 2) return "Serviço"
+  if (type === 3) return "Outro"
+  if (type === 4) return "Imposto/taxa"
+  return "Outro"
+}
+
+function moloniProductLabel(item: NonNullable<Catalog["products"]>[number]) {
+  const reference = item.reference.trim()
+  return [item.name, reference, moloniProductTypeLabel(item.type)].filter(Boolean).join(" — ")
+}
+
 function countryLabel(item: Catalog["countries"][number]) {
   return item.name?.trim() || `País (${item.iso_3166_1})`
 }
@@ -226,6 +243,7 @@ export function AdminMoloni() {
   const [paymentMethodId, setPaymentMethodId] = useState("")
   const [productId, setProductId] = useState("")
   const [moloniProductId, setMoloniProductId] = useState("")
+  const [moloniProductSearch, setMoloniProductSearch] = useState("")
   const [documentSetId, setDocumentSetId] = useState("")
   const [taxId, setTaxId] = useState("")
   const [taxValue, setTaxValue] = useState("0")
@@ -317,10 +335,27 @@ export function AdminMoloni() {
   })
 
   const catalog: Catalog | undefined = catalogMutation.data
+  const moloniProducts = useMemo(() => catalog?.products ?? [], [catalog?.products])
+  const filteredMoloniProducts = useMemo(() => {
+    const query = normalizeCatalogText(moloniProductSearch)
+    if (!query) return moloniProducts
+    return moloniProducts.filter((item) => normalizeCatalogText(moloniProductLabel(item)).includes(query))
+  }, [moloniProductSearch, moloniProducts])
+  const selectedMarianaProduct = data?.products.find((item) => item.id === productId)
+  const selectedMapping = mappings.find((item) => item.product_id === productId && item.is_active)
+  const savedArticleMissing = Boolean(
+    selectedMapping && catalog && !moloniProducts.some((item) => String(item.product_id) === String(selectedMapping.moloni_product_id)),
+  )
+  const articleSuggestion = useMemo(() => {
+    if (!selectedMarianaProduct || selectedMapping || !moloniProducts.length) return null
+    const productName = normalizeCatalogText(selectedMarianaProduct.title)
+    const matches = moloniProducts.filter((item) => normalizeCatalogText(item.name) === productName)
+    return matches.length === 1 ? matches[0] : null
+  }, [moloniProducts, selectedMapping, selectedMarianaProduct])
   /* eslint-disable react-hooks/set-state-in-effect -- sugestões iniciais hidratam o formulário a partir do catálogo remoto */
   useEffect(() => {
     if (!catalog) return
-    const suggestionKey = `${environment}:${companyId}:${catalog.countries.length}:${catalog.languages.length}:${catalog.maturity_dates.length}`
+    const suggestionKey = `${environment}:${companyId}:${catalog.countries.length}:${catalog.languages.length}:${catalog.maturity_dates.length}:${catalog.products?.length ?? 0}`
     if (catalogSuggestionKeyRef.current === suggestionKey) return
     catalogSuggestionKeyRef.current = suggestionKey
 
@@ -763,9 +798,10 @@ export function AdminMoloni() {
               Tentar novamente
             </Button>
           </div>
-        ) : null}
-        {catalog ? (
-          <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-3" aria-live="polite">
+         ) : null}
+         {catalog ? (
+           <>
+           <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-4" aria-live="polite">
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{catalog.countries.length ? `${catalog.countries.length} países carregados.` : "A conta não possui países disponíveis."}</p>
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{catalog.languages.length ? `${catalog.languages.length} idiomas carregados.` : "A conta não possui idiomas disponíveis."}</p>
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -773,10 +809,29 @@ export function AdminMoloni() {
                 ? "Selecione uma empresa para carregar os prazos de pagamento."
                 : catalog.maturity_dates.length
                   ? `${catalog.maturity_dates.length} prazos de pagamento carregados.`
-                  : "A empresa não possui prazos de pagamento disponíveis."}
+                   : "A empresa não possui prazos de pagamento disponíveis."}
             </p>
-          </div>
-        ) : (
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              {moloniProducts.length ? `${moloniProducts.length} artigos/serviços carregados.` : "A empresa não possui artigos carregados."}
+            </p>
+           </div>
+           {positiveInteger(companyId) && catalog && moloniProducts.length === 0 ? (
+             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between" role="status">
+               <p>Não foram encontrados artigos na Moloni. Crie os artigos ou serviços diretamente na sua conta Moloni e carregue o catálogo novamente.</p>
+               <div className="flex shrink-0 flex-wrap gap-2">
+                 <Button type="button" variant="outline" className="rounded-full border-amber-300" onClick={() => catalogMutation.mutate({ moloniEnvironment: selectedMoloniEnvironment, moloniCompanyId: positiveInteger(companyId) })}>
+                   <RefreshCw className="h-4 w-4" />
+                   Carregar novamente
+                 </Button>
+                 <a className="inline-flex items-center gap-2 rounded-full border border-amber-300 px-4 py-2 font-semibold hover:bg-amber-100" href="https://www.moloni.pt/" target="_blank" rel="noreferrer">
+                   <ExternalLink className="h-4 w-4" />
+                   Abrir Moloni
+                 </a>
+               </div>
+             </div>
+           ) : null}
+           </>
+          ) : (
           <p className="mt-3 text-sm text-slate-500">Clique em “Carregar catálogo” para consultar países, idiomas, prazos e os restantes catálogos Moloni.</p>
         )}
         </section>
@@ -812,21 +867,51 @@ export function AdminMoloni() {
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="text-sm font-medium text-slate-700">
               Produto
-              <select className={inputClass} value={productId} onChange={(event) => setProductId(event.target.value)}>
+              <select
+                className={inputClass}
+                value={productId}
+                onChange={(event) => {
+                  const nextProductId = event.target.value
+                  const nextMapping = mappings.find((item) => item.product_id === nextProductId && item.is_active)
+                  setProductId(nextProductId)
+                  setMoloniProductId(nextMapping?.moloni_product_id ? String(nextMapping.moloni_product_id) : "")
+                  setDocumentSetId(nextMapping?.moloni_document_set_id ? String(nextMapping.moloni_document_set_id) : "")
+                  setTaxId(nextMapping?.moloni_tax_id ? String(nextMapping.moloni_tax_id) : "")
+                  setTaxValue(nextMapping?.tax_value !== null && nextMapping?.tax_value !== undefined ? String(nextMapping.tax_value) : "0")
+                  setExemptionReason(nextMapping?.exemption_reason ?? "")
+                  setMappingPaymentMethodId(nextMapping?.moloni_payment_method_id ? String(nextMapping.moloni_payment_method_id) : "")
+                  setEacId(nextMapping?.eac_id ? String(nextMapping.eac_id) : "")
+                }}
+              >
                 <option value="">Selecionar</option>
                 {data.products.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
               </select>
             </label>
             <label className="text-sm font-medium text-slate-700">
               Artigo Moloni
+              {moloniProducts.length > 25 ? (
+                <input
+                  aria-label="Pesquisar artigos Moloni"
+                  className={inputClass}
+                  placeholder="Pesquisar por nome, referência ou tipo"
+                  value={moloniProductSearch}
+                  onChange={(event) => setMoloniProductSearch(event.target.value)}
+                />
+              ) : null}
               <select className={inputClass} value={moloniProductId} onChange={(event) => setMoloniProductId(event.target.value)}>
                 <option value="">Selecionar</option>
-                {(catalog?.products ?? []).map((item) => {
-                  const id = recordId(item, ["product_id", "id"])
-                  return <option key={id} value={id}>{recordLabel(item, ["name", "reference"], id)}</option>
-                })}
+                {savedArticleMissing ? <option value={String(selectedMapping?.moloni_product_id)}>Artigo guardado não encontrado (ID {selectedMapping?.moloni_product_id})</option> : null}
+                {moloniProductId && !filteredMoloniProducts.some((item) => String(item.product_id) === moloniProductId) && !savedArticleMissing ? <option value={moloniProductId}>Artigo selecionado (ID {moloniProductId})</option> : null}
+                {filteredMoloniProducts.map((item) => <option key={item.product_id} value={item.product_id}>{moloniProductLabel(item)}</option>)}
               </select>
+              {savedArticleMissing ? <span className="mt-1 block text-xs font-normal text-amber-700">O artigo salvo não aparece no catálogo atual. Confirme um artigo válido antes de guardar.</span> : null}
             </label>
+            {articleSuggestion ? (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-950 md:col-span-2 xl:col-span-4">
+                <p><strong>Sugestão visual:</strong> {moloniProductLabel(articleSuggestion)}. Nada será selecionado ou guardado automaticamente.</p>
+                <Button type="button" variant="outline" className="mt-2 rounded-full border-sky-300" onClick={() => setMoloniProductId(String(articleSuggestion.product_id))}>Usar sugestão</Button>
+              </div>
+            ) : null}
             <label className="text-sm font-medium text-slate-700">
               Série
               <select className={inputClass} value={documentSetId} onChange={(event) => setDocumentSetId(event.target.value)}>

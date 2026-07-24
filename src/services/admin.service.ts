@@ -1824,6 +1824,16 @@ export interface AdminMoloniMaturityDate {
   associated_discount?: number
 }
 
+export interface AdminMoloniCatalogProduct {
+  product_id: number
+  category_id: number
+  type: number
+  name: string
+  reference: string
+  price: number | null
+  visibility_id: number | null
+}
+
 export interface AdminMoloniCatalogItem {
   [key: string]: unknown
 }
@@ -1838,7 +1848,7 @@ export async function fetchAdminMoloniCatalog(input: {
     countries: AdminMoloniCountry[]
     languages: AdminMoloniLanguage[]
     maturity_dates: AdminMoloniMaturityDate[]
-    products?: AdminMoloniCatalogItem[]
+    products?: AdminMoloniCatalogProduct[]
     document_sets?: AdminMoloniCatalogItem[]
     taxes?: AdminMoloniCatalogItem[]
     payment_methods?: AdminMoloniCatalogItem[]

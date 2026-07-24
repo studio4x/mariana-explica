@@ -66,6 +66,22 @@ export interface MoloniMaturityDate {
   associated_discount?: number
 }
 
+export interface MoloniProductCategory {
+  category_id: number
+  parent_id: number
+  name: string
+}
+
+export interface MoloniCatalogProduct {
+  product_id: number
+  category_id: number
+  type: number
+  name: string
+  reference: string
+  price: number | null
+  visibility_id: number | null
+}
+
 export interface MoloniCustomerReferenceSelection {
   companyId: number | null
   countryId: number | null
@@ -531,12 +547,82 @@ export class MoloniClient {
     })
   }
 
-  getProducts(companyId: number) {
+  getProductCategories(companyId: number, parentId = 0, offset = 0) {
+    return this.post<MoloniProductCategory[]>("productCategories/getAll", {
+      company_id: companyId,
+      parent_id: parentId,
+      qty: 50,
+      offset,
+    })
+  }
+
+  getProductsByCategory(companyId: number, categoryId: number, offset = 0) {
     return this.post<Array<Record<string, unknown>>>("products/getAll", {
       company_id: companyId,
+      category_id: categoryId,
       qty: 50,
-      offset: 0,
+      offset,
       with_invisible: 1,
+    })
+  }
+
+  async getAllProducts(companyId: number) {
+    const categoryIds = new Set<number>()
+    const pendingParentIds = [0]
+    const visitedParentIds = new Set<number>()
+
+    while (pendingParentIds.length > 0) {
+      const parentId = pendingParentIds.shift()
+      if (parentId === undefined || visitedParentIds.has(parentId)) continue
+      visitedParentIds.add(parentId)
+
+      let offset = 0
+      const pageKeys = new Set<string>()
+      while (true) {
+        const page = await this.getProductCategories(companyId, parentId, offset)
+        const pageKey = page.map((category) => Number(category.category_id)).join(",")
+        if (pageKeys.has(pageKey)) break
+        pageKeys.add(pageKey)
+
+        for (const category of page) {
+          const categoryId = Number(category.category_id)
+          if (!Number.isInteger(categoryId) || categoryId <= 0) continue
+          categoryIds.add(categoryId)
+          if (!visitedParentIds.has(categoryId)) pendingParentIds.push(categoryId)
+        }
+
+        if (page.length < 50) break
+        offset += 50
+      }
+    }
+
+    const products = new Map<number, MoloniCatalogProduct>()
+    for (const categoryId of categoryIds) {
+      let offset = 0
+      const pageKeys = new Set<string>()
+      while (true) {
+        const page = await this.getProductsByCategory(companyId, categoryId, offset)
+        const pageKey = page.map((product) => Number(product.product_id)).join(",")
+        if (pageKeys.has(pageKey)) break
+        pageKeys.add(pageKey)
+
+        for (const product of page) {
+          const sanitized = sanitizeMoloniCatalogProduct(product, categoryId)
+          if (sanitized && !products.has(sanitized.product_id)) {
+            products.set(sanitized.product_id, sanitized)
+          }
+        }
+
+        if (page.length < 50) break
+        offset += 50
+      }
+    }
+
+    return [...products.values()].sort((left, right) => {
+      const byName = left.name.localeCompare(right.name, "pt-PT", { sensitivity: "base", numeric: true })
+      if (byName !== 0) return byName
+      const byReference = left.reference.localeCompare(right.reference, "pt-PT", { sensitivity: "base", numeric: true })
+      return byReference !== 0 ? byReference : left.product_id - right.product_id
     })
   }
 
@@ -597,6 +683,23 @@ export class MoloniClient {
       document_id: documentId,
       signed: 1,
     })
+  }
+}
+
+function sanitizeMoloniCatalogProduct(item: Record<string, unknown>, categoryId: number): MoloniCatalogProduct | null {
+  const productId = Number(item.product_id)
+  if (!Number.isInteger(productId) || productId <= 0) return null
+
+  const price = Number(item.price)
+  const visibilityId = Number(item.visibility_id)
+  return {
+    product_id: productId,
+    category_id: categoryId,
+    type: Number.isInteger(Number(item.type)) ? Number(item.type) : 0,
+    name: typeof item.name === "string" && item.name.trim() ? item.name.trim().slice(0, 250) : `Artigo ${productId}`,
+    reference: typeof item.reference === "string" ? item.reference.trim().slice(0, 100) : "",
+    price: Number.isFinite(price) ? price : null,
+    visibility_id: Number.isInteger(visibilityId) ? visibilityId : null,
   }
 }
 

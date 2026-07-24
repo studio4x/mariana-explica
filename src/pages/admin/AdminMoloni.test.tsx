@@ -268,4 +268,116 @@ describe("AdminMoloni", () => {
     expect(screen.getByRole("combobox", { name: "Idioma Moloni" })).toHaveValue("7")
     expect(screen.getByRole("combobox", { name: "Vencimento Moloni" })).toHaveValue("9")
   })
+
+  it("shows the explicit empty catalog state and retries without offering article creation", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.settings[0].moloni_company_id = 42
+    mocks.overview.mockResolvedValue(overview)
+    mocks.catalog.mockResolvedValue({
+      success: true,
+      companies: [{ company_id: 42, name: "Mariana Explica" }],
+      countries: [],
+      languages: [],
+      maturity_dates: [],
+      products: [],
+      document_sets: [],
+      taxes: [],
+      payment_methods: [],
+    })
+    renderPage()
+
+    await screen.findByRole("heading", { name: "Integração Moloni" })
+    await user.click(screen.getByRole("button", { name: "Carregar catálogo" }))
+
+    expect(await screen.findByText("Não foram encontrados artigos na Moloni. Crie os artigos ou serviços diretamente na sua conta Moloni e carregue o catálogo novamente.")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Carregar novamente" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Abrir Moloni" })).toHaveAttribute("href", "https://www.moloni.pt/")
+    expect(screen.queryByRole("button", { name: /Criar artigo/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Carregar novamente" }))
+    await waitFor(() => expect(mocks.catalog).toHaveBeenCalledTimes(2))
+  })
+
+  it("searches large catalogs and renders name, reference and Moloni type", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.settings[0].moloni_company_id = 42
+    mocks.overview.mockResolvedValue(overview)
+    mocks.catalog.mockResolvedValue({
+      success: true,
+      companies: [{ company_id: 42, name: "Mariana Explica" }],
+      countries: [],
+      languages: [],
+      maturity_dates: [],
+      products: Array.from({ length: 26 }, (_, index) => ({
+        product_id: 1000 + index,
+        category_id: 10,
+        type: index === 25 ? 2 : 1,
+        name: `Artigo ${index}`,
+        reference: `REF-${index}`,
+        price: null,
+        visibility_id: index === 25 ? 0 : 1,
+      })),
+      document_sets: [],
+      taxes: [],
+      payment_methods: [],
+    })
+    renderPage()
+
+    await screen.findByRole("heading", { name: "Integração Moloni" })
+    await user.click(screen.getByRole("button", { name: "Carregar catálogo" }))
+    const search = await screen.findByRole("textbox", { name: "Pesquisar artigos Moloni" })
+    await user.type(search, "REF-25")
+
+    expect(screen.getByRole("option", { name: "Artigo 25 — REF-25 — Serviço" })).toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: "Artigo 1 — REF-1 — Produto" })).not.toBeInTheDocument()
+  })
+
+  it("hydrates an existing product mapping when the Mariana product is selected", async () => {
+    const user = userEvent.setup()
+    const overview = {
+      ...buildOverview(false),
+      products: [{ id: "mariana-course", title: "Curso de Filosofia", status: "published", product_type: "paid" }],
+      mappings: [{
+        id: "mapping-1",
+        product_id: "mariana-course",
+        payment_environment: "test",
+        moloni_company_id: 42,
+        moloni_product_id: 901,
+        moloni_document_set_id: 77,
+        moloni_tax_id: 6,
+        tax_value: 23,
+        exemption_reason: null,
+        eac_id: null,
+        moloni_payment_method_id: null,
+        moloni_product_name: "Curso de Filosofia",
+        moloni_document_set_name: "Série Teste",
+        moloni_tax_name: "IVA 23%",
+        moloni_payment_method_name: null,
+        is_active: true,
+      }],
+    }
+    overview.settings[0].moloni_company_id = 42
+    mocks.overview.mockResolvedValue(overview)
+    mocks.catalog.mockResolvedValue({
+      success: true,
+      companies: [{ company_id: 42, name: "Mariana Explica" }],
+      countries: [],
+      languages: [],
+      maturity_dates: [],
+      products: [{ product_id: 901, category_id: 10, type: 2, name: "Curso de Filosofia", reference: "CURSO-01", price: 20, visibility_id: 1 }],
+      document_sets: [{ document_set_id: 77, name: "Série Teste" }],
+      taxes: [{ tax_id: 6, name: "IVA 23%", value: 23 }],
+      payment_methods: [],
+    })
+    renderPage()
+
+    await screen.findByRole("heading", { name: "Integração Moloni" })
+    await user.click(screen.getByRole("button", { name: "Carregar catálogo" }))
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Produto" }), "mariana-course")
+
+    expect(screen.getByRole("combobox", { name: "Artigo Moloni" })).toHaveValue("901")
+    expect(screen.getByRole("option", { name: "Curso de Filosofia — CURSO-01 — Serviço" })).toBeInTheDocument()
+  })
 })

@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
         throw conflict("Empresa Moloni não pertence à conexão autenticada.")
       }
       const [products, documentSets, taxes, paymentMethods, maturityDates] = await Promise.all([
-        moloni.getProducts(body.moloniCompanyId),
+        moloni.getAllProducts(body.moloniCompanyId),
         moloni.getDocumentSets(body.moloniCompanyId),
         moloni.getTaxes(body.moloniCompanyId),
         moloni.getPaymentMethods(body.moloniCompanyId),
@@ -319,6 +319,15 @@ Deno.serve(async (req) => {
       throw badRequest("Informe taxa Moloni ou motivo de isenção aprovado")
     }
 
+    const { data: marianaProduct, error: marianaProductError } = await context.serviceClient
+      .from("products")
+      .select("id")
+      .eq("id", body.productId)
+      .in("product_type", ["paid", "hybrid"])
+      .maybeSingle()
+    if (marianaProductError) throw marianaProductError
+    if (!marianaProduct) throw conflict("Produto Mariana Explica não encontrado ou não elegível para mapeamento.")
+
     const { data: settings, error: settingsError } = await context.serviceClient
       .from("moloni_fiscal_settings")
       .select("moloni_environment,moloni_company_id")
@@ -329,6 +338,10 @@ Deno.serve(async (req) => {
       throw conflict("A empresa do mapeamento diverge da configuração do ambiente.")
     }
     const moloni = new MoloniClient(context.serviceClient, settings.moloni_environment)
+    const companies = await moloni.getCompanies()
+    if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
+      throw conflict("A empresa Moloni selecionada não pertence à conexão autenticada.")
+    }
     const [remoteProduct, documentSets, taxes, paymentMethods] = await Promise.all([
       moloni.getProduct(body.moloniCompanyId, body.moloniProductId),
       moloni.getDocumentSets(body.moloniCompanyId),
