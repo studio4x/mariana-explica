@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest"
-import { detectMoloniChecklistValues } from "./moloni-checklist"
+import { detectMoloniChecklistValues, MOLONI_CHECKLIST_GUIDES } from "./moloni-checklist"
+
+describe("Moloni checklist text", () => {
+  it("keeps all UI labels free of UTF-8 replacement characters", () => {
+    const text = Object.values(MOLONI_CHECKLIST_GUIDES)
+      .flatMap((guide) => [guide.question, guide.help, ...(guide.options ?? []), guide.placeholder ?? ""])
+      .join(" ")
+
+    expect(text).not.toContain("�")
+  })
+})
 
 describe("detectMoloniChecklistValues", () => {
   it("derives only configuration that the platform can prove", () => {

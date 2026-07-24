@@ -1624,11 +1624,20 @@ export interface AdminMoloniOverview {
     title: string
     description: string
     is_blocking: boolean
+    is_automatic: boolean
     status: "pending" | "filled" | "approved"
     configuration: unknown
     notes: string | null
     approved_by: string | null
     approved_at: string | null
+    evidence_snapshot: Record<string, unknown> | null
+    evidence_hash: string | null
+    current_evidence_snapshot: Record<string, unknown> | null
+    current_evidence_hash: string | null
+    evidence_checked_at: string | null
+    stale_reason: string | null
+    invalidated_at: string | null
+    invalidated_by: string | null
     updated_at: string
   }>
   validations: Array<{
@@ -1769,6 +1778,26 @@ export async function updateAdminMoloniChecklist(input: {
   return await invokeAdminFunction<{ success: true }>("admin-moloni-configuration", {
     action: "update_checklist",
     ...input,
+  })
+}
+
+export interface AdminMoloniAutomaticChecklistResult {
+  approved_items: Array<{ item_key: string; label: string }>
+  pending_items: Array<{ item_key: string; reason: string }>
+  updated_count: number
+  total_automatic_items: number
+  fiscal_checklist_approved: boolean
+}
+
+export async function syncAdminMoloniAutomaticChecklist(
+  paymentEnvironment: AdminMoloniPaymentEnvironment,
+) {
+  return await invokeAdminFunction<{
+    success: true
+    result: AdminMoloniAutomaticChecklistResult
+  }>("admin-moloni-configuration", {
+    action: "sync_automatic_checklist",
+    paymentEnvironment,
   })
 }
 

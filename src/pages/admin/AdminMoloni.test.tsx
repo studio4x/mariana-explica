@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   catalog: vi.fn(),
   status: vi.fn(),
   updateChecklist: vi.fn(),
+  syncAutomaticChecklist: vi.fn(),
 }))
 
 vi.mock("@/services/admin.service", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/services/admin.service", () => ({
   runAdminMoloniValidation: vi.fn(),
   startAdminMoloniConnection: vi.fn(),
   updateAdminMoloniChecklist: (...args: unknown[]) => mocks.updateChecklist(...args),
+  syncAdminMoloniAutomaticChecklist: (...args: unknown[]) => mocks.syncAutomaticChecklist(...args),
   updateAdminMoloniSettings: vi.fn(),
   upsertAdminMoloniMapping: vi.fn(),
   upsertAdminMoloniRule: vi.fn(),
@@ -168,8 +170,19 @@ describe("AdminMoloni", () => {
     mocks.catalog.mockReset()
     mocks.status.mockReset()
     mocks.updateChecklist.mockReset()
+    mocks.syncAutomaticChecklist.mockReset()
     mocks.status.mockResolvedValue({ rules: [] })
     mocks.updateChecklist.mockResolvedValue({ success: true })
+    mocks.syncAutomaticChecklist.mockResolvedValue({
+      success: true,
+      result: {
+        approved_items: [],
+        pending_items: [],
+        updated_count: 0,
+        total_automatic_items: 0,
+        fiscal_checklist_approved: false,
+      },
+    })
   })
 
   it("shows an initial loading skeleton", () => {
@@ -238,6 +251,15 @@ describe("AdminMoloni", () => {
         notes: null,
         approved_by: null,
         approved_at: null,
+        is_automatic: true,
+        evidence_snapshot: null,
+        evidence_hash: null,
+        current_evidence_snapshot: null,
+        current_evidence_hash: null,
+        evidence_checked_at: null,
+        stale_reason: null,
+        invalidated_at: null,
+        invalidated_by: null,
         updated_at: "2026-07-24T10:00:00.000Z",
       },
       {
@@ -259,8 +281,9 @@ describe("AdminMoloni", () => {
     renderPage("/admin/integracoes/moloni/checklist-fiscal")
 
     expect(await screen.findByText("Preenchimento assistido")).toBeInTheDocument()
-    expect(screen.getByText("Detetado:")).toBeInTheDocument()
+    expect(screen.getByText("Pré-visualização:")).toBeInTheDocument()
     expect(screen.getByText("Fatura-recibo")).toBeInTheDocument()
+    expect(screen.getByText("A aprovação final é feita pelo backend.")).toBeInTheDocument()
     expect(screen.getByLabelText("Decisão: Vendas internacionais")).toBeInTheDocument()
     expect(screen.queryByText("Valor ou configuração aprovada")).not.toBeInTheDocument()
 
@@ -269,6 +292,54 @@ describe("AdminMoloni", () => {
       "Aplicar somente regras por país previamente configuradas",
     )
     expect(screen.getByRole("button", { name: "Guardar decisão" })).toBeEnabled()
+  })
+
+  it("uses one server-side action for automatic checklist verification", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.checklist = [{
+      id: "automatic-1",
+      payment_environment: "test",
+      item_key: "immediate_payment_document",
+      title: "Documento para pagamento imediato",
+      description: "Definir fatura-recibo ou fatura seguida de recibo.",
+      is_blocking: true,
+      is_automatic: true,
+      status: "pending",
+      configuration: null,
+      notes: null,
+      approved_by: null,
+      approved_at: null,
+      evidence_snapshot: null,
+      evidence_hash: null,
+      current_evidence_snapshot: null,
+      current_evidence_hash: null,
+      evidence_checked_at: null,
+      stale_reason: "Configuração alterada.",
+      invalidated_at: "2026-07-24T10:00:00.000Z",
+      invalidated_by: null,
+      updated_at: "2026-07-24T10:00:00.000Z",
+    }] as unknown as typeof overview.checklist
+    mocks.overview.mockResolvedValue(overview)
+    mocks.syncAutomaticChecklist.mockResolvedValue({
+      success: true,
+      result: {
+        approved_items: [{ item_key: "immediate_payment_document", label: "Fatura-recibo" }],
+        pending_items: [],
+        updated_count: 1,
+        total_automatic_items: 1,
+        fiscal_checklist_approved: false,
+      },
+    })
+    renderPage("/admin/integracoes/moloni/checklist-fiscal")
+
+    await user.click(await screen.findByRole("button", { name: "Verificar automaticamente" }))
+
+    await waitFor(() => expect(mocks.syncAutomaticChecklist).toHaveBeenCalledWith("test"))
+    expect(mocks.syncAutomaticChecklist).toHaveBeenCalledTimes(1)
+    expect(mocks.updateChecklist).not.toHaveBeenCalled()
+    expect(await screen.findByText("Resultado da verificação server-side")).toBeInTheDocument()
+    expect(screen.getByText("Confirmados:")).toBeInTheDocument()
   })
 
   it("renders readable catalog selectors and suggests Portugal, Portuguese and immediate payment", async () => {

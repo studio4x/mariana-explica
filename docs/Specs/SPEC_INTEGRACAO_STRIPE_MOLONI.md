@@ -1261,3 +1261,25 @@ existe no estado administrativo retornado pelo backend. Ausência de validação
 mapeamento ou teste mantém o item pendente. A confirmação continua explícita,
 auditada e independente por ambiente. O preenchimento assistido não ativa emissão
 real nem substitui a aprovação da contabilista nas decisões fiscais.
+
+### Verificação automática server-side e invalidação
+
+Os seis itens automáticos (`immediate_payment_document`, `production_document_set`,
+`homologation_strategy`, `moloni_products`, `automatic_closing` e
+`customer_pdf_delivery`) são recalculados por uma única ação administrativa. O
+frontend envia apenas o ambiente (`test` ou `live`); a função e a RPC consultam
+as configurações, ligações, produtos publicados, mapeamentos, séries, validações
+e teste de rascunho no PostgreSQL. A atualização dos itens, da evidência e da
+barreira de emissão ocorre na mesma transação, com lock por ambiente e auditoria.
+
+Uma aprovação automática guarda a evidência e o seu hash. Alterações em documento,
+estado, empresa, ambiente Moloni, política de PDF, ligação, produto, mapeamento,
+série ou validação relacionada invalidam os itens dependentes, limpam a aprovação
+operacional e registram o motivo, ator e data, sem alterar documentos já emitidos,
+pedidos ou `access_grants`. A emissão permanece desativada quando a barreira deixa
+de estar aprovada. Itens automáticos não podem ser aprovados manualmente pela API,
+RPC ou interface; as decisões da contabilista continuam editáveis e auditadas.
+
+Os textos do checklist são canônicos por `item_key`, mantidos em UTF-8 por trigger
+e migration versionada. A migration deve falhar se encontrar o caractere de
+substituição `�`, evitando que novos registos reintroduzam mojibake.

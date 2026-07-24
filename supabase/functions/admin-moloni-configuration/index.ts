@@ -43,6 +43,10 @@ type Input =
       confirmation?: string
     }
   | {
+      action: "sync_automatic_checklist"
+      paymentEnvironment: PaymentEnvironment
+    }
+  | {
       action: "run_validation"
       paymentEnvironment: PaymentEnvironment
       validationType: ValidationType
@@ -324,7 +328,10 @@ function buildOverview(state: Awaited<ReturnType<typeof loadCoreState>>) {
     paymentMethodValidated: validationMatchesCompany(paymentValidation, companyId),
     mappingsValidated: validationMatchesCompany(mappingsValidation, companyId),
     missingPaidProductMappings,
-    approvedChecklistItems: liveChecklist.filter((item) => item.status === "approved").length,
+    approvedChecklistItems: liveChecklist.filter((item) =>
+      item.status === "approved" &&
+      (!item.is_automatic || (item.evidence_hash && !item.stale_reason))
+    ).length,
     requiredChecklistItems: liveChecklist.length,
     draftTestPassed: draftValidation?.status === "passed",
     monetaryDivergences: state.documents.filter((item) =>
@@ -462,6 +469,7 @@ async function runValidation(
           }
           summary = `${mappings.length} mapeamento(s) fiscal(is) validado(s).`
           details.mapping_count = mappings.length
+          details.company_id = companyId
         }
       }
     }
@@ -537,6 +545,20 @@ Deno.serve(async (req) => {
       const status = body.status
       if (!["pending", "filled", "approved"].includes(status)) throw badRequest("Status do checklist inválido")
       if (!body.itemKey?.trim()) throw badRequest("Item do checklist inválido")
+      const { data: checklistItem, error: checklistItemError } = await context.serviceClient
+        .from("moloni_fiscal_checklist_items")
+        .select("id,is_automatic")
+        .eq("payment_environment", body.paymentEnvironment)
+        .eq("item_key", body.itemKey)
+        .maybeSingle()
+      if (checklistItemError) throw checklistItemError
+      if (!checklistItem) throw notFound("Item do checklist não encontrado")
+      if (checklistItem.is_automatic && status !== "pending") {
+        throw conflict("Itens automáticos só podem ser aprovados pela verificação server-side.")
+      }
+      if (checklistItem.is_automatic && body.configuration != null) {
+        throw conflict("Itens automáticos não aceitam configuração enviada pelo painel.")
+      }
       if (status === "approved" && body.confirmation !== "APROVAR DECISAO FISCAL") {
         throw conflict("A confirmação explícita da aprovação está ausente.")
       }
@@ -577,7 +599,6 @@ Deno.serve(async (req) => {
         .select("*")
         .maybeSingle()
       if (error) throw error
-      if (!item) throw notFound("Item do checklist não encontrado")
       await writeAuditLog(context.serviceClient, context, {
         action: approved ? "admin.moloni_checklist_approved" : "admin.moloni_checklist_updated",
         entityType: "moloni_fiscal_checklist",
@@ -590,6 +611,29 @@ Deno.serve(async (req) => {
         ...extractRequestAuditContext(req),
       })
       return jsonResponse({ success: true, request_id: requestId, item })
+    }
+
+    if (body.action === "sync_automatic_checklist") {
+      assertPaymentEnvironment(body.paymentEnvironment)
+      const { data: result, error: syncError } = await context.serviceClient
+        .rpc("sync_moloni_automatic_checklist", {
+          p_payment_environment: body.paymentEnvironment,
+          p_actor_user_id: context.user.id,
+        })
+      if (syncError) throw syncError
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.moloni_automatic_checklist_synced",
+        entityType: "moloni_fiscal_checklist",
+        metadata: {
+          payment_environment: body.paymentEnvironment,
+          approved_count: Array.isArray(result?.approved_items) ? result.approved_items.length : 0,
+          pending_count: Array.isArray(result?.pending_items) ? result.pending_items.length : 0,
+          updated_count: Number(result?.updated_count ?? 0),
+          fiscal_checklist_approved: Boolean(result?.fiscal_checklist_approved),
+        },
+        ...extractRequestAuditContext(req),
+      })
+      return jsonResponse({ success: true, request_id: requestId, result })
     }
 
     if (body.action === "run_validation") {

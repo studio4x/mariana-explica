@@ -39,11 +39,13 @@ import {
   runAdminMoloniValidation,
   saveAdminMoloniCredentials,
   startAdminMoloniConnection,
+  syncAdminMoloniAutomaticChecklist,
   updateAdminMoloniChecklist,
   updateAdminMoloniSettings,
   upsertAdminMoloniMapping,
   upsertAdminMoloniRule,
   type AdminMoloniOverview,
+  type AdminMoloniAutomaticChecklistResult,
   type AdminMoloniPaymentEnvironment,
 } from "@/services/admin.service"
 import { formatProductPrice } from "@/utils/currency"
@@ -179,7 +181,7 @@ function ChecklistRow({
   const [configuration, setConfiguration] = useState(initialConfiguration)
   const selectedValue = detectedValue ?? configuration
   const isAutomatic = guide?.group === "automatic"
-  const canApprove = Boolean(selectedValue.trim())
+  const canApprove = !isAutomatic && Boolean(selectedValue.trim())
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -204,10 +206,15 @@ function ChecklistRow({
             ? "border-emerald-200 bg-emerald-50 text-emerald-950"
             : "border-amber-200 bg-amber-50 text-amber-950"
         }`}>
-          {detectedValue ? (
+          {item.stale_reason ? (
+            <span className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span><strong>Requer nova verificação:</strong> {item.stale_reason}</span>
+            </span>
+          ) : detectedValue ? (
             <span className="flex items-start gap-2">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <span><strong>Detetado:</strong> {detectedValue}</span>
+              <span><strong>Pré-visualização:</strong> {detectedValue}<br /><span className="text-xs">A aprovação final é feita pelo backend.</span></span>
             </span>
           ) : (
             <span className="flex items-start gap-2">
@@ -257,7 +264,7 @@ function ChecklistRow({
         </details>
       ) : null}
 
-      <Button
+      {!isAutomatic ? <Button
         type="button"
         variant="outline"
         className="mt-3 rounded-full"
@@ -277,14 +284,15 @@ function ChecklistRow({
         {item.status === "approved" ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
         {item.status === "approved"
           ? "Confirmado"
-          : isAutomatic
-            ? "Confirmar verificação"
-            : "Guardar decisão"}
-      </Button>
-      {item.approved_at ? (
+          : "Guardar decisão"}
+      </Button> : null}
+        {item.approved_at ? (
         <p className="mt-3 text-xs text-slate-500">
           Aprovado em {formatDateTime(item.approved_at)} · responsável {item.approved_by?.slice(0, 8) ?? "admin"}
         </p>
+      ) : null}
+      {isAutomatic && item.status === "approved" ? (
+        <p className="mt-3 text-sm font-semibold text-emerald-700">Confirmado pela verificação server-side.</p>
       ) : null}
     </article>
   )
@@ -296,6 +304,7 @@ export function AdminMoloni() {
   const queryClient = useQueryClient()
   const [environment, setEnvironment] = useState<AdminMoloniPaymentEnvironment>("test")
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [automaticSyncResult, setAutomaticSyncResult] = useState<AdminMoloniAutomaticChecklistResult | null>(null)
   const [clientId, setClientId] = useState("")
   const [clientSecret, setClientSecret] = useState("")
   const [companyId, setCompanyId] = useState("")
@@ -372,11 +381,9 @@ export function AdminMoloni() {
     })
     return groups
   }, [checklist])
-  const automaticItemsReady = useMemo(
-    () => checklistGroups.automatic.filter(
-      (item) => item.status !== "approved" && Boolean(detectedChecklistValues[item.item_key]),
-    ),
-    [checklistGroups.automatic, detectedChecklistValues],
+  const automaticItemsPending = useMemo(
+    () => checklistGroups.automatic.filter((item) => item.status !== "approved" || Boolean(item.stale_reason)),
+    [checklistGroups.automatic],
   )
   const eligibleDraftDocuments = useMemo(
     () => (data?.queue ?? []).filter((item) =>
@@ -506,22 +513,13 @@ export function AdminMoloni() {
     onError: fail,
   })
   const automaticChecklistMutation = useMutation({
-    mutationFn: async () => {
-      for (const item of automaticItemsReady) {
-        const value = detectedChecklistValues[item.item_key]
-        await updateAdminMoloniChecklist({
-          paymentEnvironment: environment,
-          itemKey: item.item_key,
-          status: "approved",
-          configuration: { value },
-          notes: `Configuração verificada pela plataforma: ${value}`,
-          confirmation: "APROVAR DECISAO FISCAL",
-        })
-      }
+    mutationFn: () => syncAdminMoloniAutomaticChecklist(environment),
+    onSuccess: async ({ result }) => {
+      setAutomaticSyncResult(result)
+      await succeed(
+        `${result.approved_items.length} item(ns) automático(s) confirmado(s); ${result.pending_items.length} pendente(s).`,
+      )
     },
-    onSuccess: () => succeed(
-      `${automaticItemsReady.length} verificação(ões) automática(s) confirmada(s).`,
-    ),
     onError: fail,
   })
   const validationMutation = useMutation({
@@ -1189,30 +1187,46 @@ export function AdminMoloni() {
             <div>
               <p className="font-bold text-sky-950">Preenchimento assistido</p>
               <p className="mt-1 text-sm leading-6 text-sky-900">
-                {automaticItemsReady.length > 0
-                  ? `${automaticItemsReady.length} item(ns) já podem ser confirmados com os dados da própria plataforma.`
-                  : "Não há novas verificações automáticas disponíveis neste momento."}
+                {automaticItemsPending.length > 0
+                  ? `${automaticItemsPending.length} item(ns) aguardam verificação server-side.`
+                  : "Todos os itens automáticos estão confirmados; ainda pode executar uma nova verificação."}
               </p>
             </div>
             <Button
               type="button"
               className="rounded-full"
-              disabled={busy || automaticItemsReady.length === 0}
-              onClick={() => {
-                if (window.confirm(
-                  `Confirmar ${automaticItemsReady.length} item(ns) com os dados verificados pela plataforma?`,
-                )) {
-                  automaticChecklistMutation.mutate()
-                }
-              }}
+              disabled={busy || checklistGroups.automatic.length === 0}
+              onClick={() => automaticChecklistMutation.mutate()}
             >
               {automaticChecklistMutation.isPending
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Sparkles className="h-4 w-4" />}
-              Confirmar verificações automáticas
+              Verificar automaticamente
             </Button>
           </div>
         </div>
+
+        {automaticSyncResult ? (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm" aria-live="polite">
+            <div>
+              <p className="font-bold text-slate-950">Resultado da verificação server-side</p>
+              <p className="mt-1 text-slate-600">{automaticSyncResult.updated_count} item(ns) atualizado(s). A aprovação fiscal geral permanece controlada pelo backend.</p>
+            </div>
+            {automaticSyncResult.approved_items.length > 0 ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-emerald-950">
+                <strong>Confirmados:</strong> {automaticSyncResult.approved_items.map((item) => item.label).join(" · ")}
+              </div>
+            ) : null}
+            {automaticSyncResult.pending_items.length > 0 ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
+                <strong>Pendentes:</strong>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {automaticSyncResult.pending_items.map((item) => <li key={item.item_key}>{checklist.find((checklistItem) => checklistItem.item_key === item.item_key)?.title ?? item.item_key}: {item.reason}</li>)}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-5 space-y-5">
           {(["automatic", "accountant", "operation"] as const).map((group) => {
