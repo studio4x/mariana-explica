@@ -705,8 +705,8 @@ export function AdminPayments() {
 
         <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
           {[
-            { key: "history" as const, label: "HistÃ³rico", icon: CreditCard },
-            { key: "settings" as const, label: "ConfiguraÃ§Ãµes", icon: Settings2 },
+            { key: "history" as const, label: "Hist\u00f3rico", icon: CreditCard },
+            { key: "settings" as const, label: "Configura\u00e7\u00f5es", icon: Settings2 },
           ].map((item) => {
             const Icon = item.icon
             const active = tab === item.key
