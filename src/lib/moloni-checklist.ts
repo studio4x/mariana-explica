@@ -45,8 +45,8 @@ export const MOLONI_CHECKLIST_GUIDES: Record<string, MoloniChecklistGuide> = {
     help: "Confirme esta escolha com a contabilista.",
     options: [
       "Usar o cliente genérico aprovado na configuração",
-      "Exigir NIF antes de concluir a compra",
-      "Enviar a emissão para revisão manual",
+      "Sem NIF, bloquear somente a emissão e enviar para revisão",
+      "Usar NIF quando informado; caso contrário, revisão manual",
     ],
   },
   individual_required_data: {
@@ -95,9 +95,9 @@ export const MOLONI_CHECKLIST_GUIDES: Record<string, MoloniChecklistGuide> = {
     question: "A plataforma venderá para compradores fora de Portugal?",
     help: "Sem uma regra explícita, a emissão internacional continuará bloqueada para revisão.",
     options: [
-      "Não vender fora de Portugal",
       "Aplicar somente regras por país previamente configuradas",
       "Enviar todas as vendas internacionais para revisão manual",
+      "Aplicar regra configurada; sem correspondência, enviar para revisão",
     ],
   },
   eu_b2b_b2c_oss: {
@@ -105,7 +105,7 @@ export const MOLONI_CHECKLIST_GUIDES: Record<string, MoloniChecklistGuide> = {
     question: "Como tratar vendas para outros países da União Europeia?",
     help: "Confirme com a contabilista se há enquadramento B2B, B2C ou OSS.",
     options: [
-      "Não se aplica — vendas limitadas a Portugal",
+      "Não se aplica segundo a contabilista; sem regra, revisão manual",
       "Aplicar regras B2B/B2C configuradas por país",
       "Revisão manual até validação ou adesão ao OSS",
     ],
@@ -250,4 +250,3 @@ export function detectMoloniChecklistValues({
 
   return detected
 }
-

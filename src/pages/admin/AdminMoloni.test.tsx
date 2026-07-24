@@ -266,7 +266,7 @@ describe("AdminMoloni", () => {
 
     await user.selectOptions(
       screen.getByLabelText("Decisão: Vendas internacionais"),
-      "Não vender fora de Portugal",
+      "Aplicar somente regras por país previamente configuradas",
     )
     expect(screen.getByRole("button", { name: "Guardar decisão" })).toBeEnabled()
   })
