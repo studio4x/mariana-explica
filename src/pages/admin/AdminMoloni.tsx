@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertTriangle,
@@ -78,6 +78,18 @@ function recordId(item: Record<string, unknown>, keys: string[]) {
 function recordLabel(item: Record<string, unknown>, keys: string[], fallback: string) {
   const value = keys.map((key) => item[key]).find((candidate) => typeof candidate === "string" && candidate.trim())
   return typeof value === "string" ? value : fallback
+}
+
+function countryLabel(item: Catalog["countries"][number]) {
+  return item.name?.trim() || `País (${item.iso_3166_1})`
+}
+
+function languageLabel(item: Catalog["languages"][number]) {
+  return item.title?.trim() || `Idioma (${item.code})`
+}
+
+function maturityDateLabel(item: Catalog["maturity_dates"][number]) {
+  return `${item.name} — ${item.days} ${item.days === 1 ? "dia" : "dias"}`
 }
 
 function errorMessage(error: unknown) {
@@ -224,6 +236,7 @@ export function AdminMoloni() {
   const [draftConfirmation, setDraftConfirmation] = useState("")
   const [activationConfirmation, setActivationConfirmation] = useState("")
   const [deactivationConfirmation, setDeactivationConfirmation] = useState("")
+  const catalogSuggestionKeyRef = useRef<string | null>(null)
 
   const overviewQuery = useQuery({
     queryKey: ["admin", "moloni-overview"],
@@ -302,6 +315,37 @@ export function AdminMoloni() {
     mutationFn: fetchAdminMoloniCatalog,
     onError: fail,
   })
+
+  const catalog: Catalog | undefined = catalogMutation.data
+  /* eslint-disable react-hooks/set-state-in-effect -- sugestões iniciais hidratam o formulário a partir do catálogo remoto */
+  useEffect(() => {
+    if (!catalog) return
+    const suggestionKey = `${environment}:${companyId}:${catalog.countries.length}:${catalog.languages.length}:${catalog.maturity_dates.length}`
+    if (catalogSuggestionKeyRef.current === suggestionKey) return
+    catalogSuggestionKeyRef.current = suggestionKey
+
+    if (!settings?.customer_country_id && !countryId) {
+      const portugalMatches = catalog.countries.filter((item) => item.iso_3166_1.toUpperCase() === "PT")
+      const portugal = portugalMatches.length === 1 ? portugalMatches[0] : undefined
+      if (portugal) setCountryId(String(portugal.country_id))
+    }
+    if (!settings?.customer_language_id && !languageId) {
+      const portugueseMatches = catalog.languages.filter((item) => item.code.toLowerCase() === "pt")
+      const portuguese = portugueseMatches.length === 1 ? portugueseMatches[0] : undefined
+      if (portuguese) setLanguageId(String(portuguese.language_id))
+    }
+    if (!settings?.customer_maturity_date_id && !maturityId) {
+      const namedImmediate = catalog.maturity_dates.filter((item) => /pronto pagamento/i.test(item.name))
+      const zeroDayMatches = catalog.maturity_dates.filter((item) => item.days === 0)
+      const immediatePayment = namedImmediate.length === 1
+        ? namedImmediate[0]
+        : namedImmediate.length === 0 && zeroDayMatches.length === 1
+          ? zeroDayMatches[0]
+          : undefined
+      if (immediatePayment) setMaturityId(String(immediatePayment.maturity_date_id))
+    }
+  }, [catalog, companyId, countryId, environment, languageId, maturityId, settings])
+  /* eslint-enable react-hooks/set-state-in-effect */
   const mappingMutation = useMutation({
     mutationFn: upsertAdminMoloniMapping,
     onSuccess: () => succeed("Mapeamento validado e guardado."),
@@ -359,7 +403,6 @@ export function AdminMoloni() {
     )
   }
 
-  const catalog: Catalog | undefined = catalogMutation.data
   const selectedMoloniEnvironment = environment === "test" ? "draft" : "live"
   const busy =
     credentialsMutation.isPending ||
@@ -589,6 +632,7 @@ export function AdminMoloni() {
             onClick={() => {
               setEnvironment(target)
               catalogMutation.reset()
+              catalogSuggestionKeyRef.current = null
             }}
           >
             Stripe {target === "test" ? "teste" : "live"}
@@ -632,9 +676,30 @@ export function AdminMoloni() {
             </select>
           </label>
           <label className="text-sm font-medium text-slate-700">Regra de NIF ausente<input className={inputClass} value={withoutVatRule} onChange={(event) => setWithoutVatRule(event.target.value)} /></label>
-          <label className="text-sm font-medium text-slate-700">País ID<input inputMode="numeric" className={inputClass} value={countryId} onChange={(event) => setCountryId(event.target.value)} /></label>
-          <label className="text-sm font-medium text-slate-700">Idioma ID<input inputMode="numeric" className={inputClass} value={languageId} onChange={(event) => setLanguageId(event.target.value)} /></label>
-          <label className="text-sm font-medium text-slate-700">Vencimento ID<input inputMode="numeric" className={inputClass} value={maturityId} onChange={(event) => setMaturityId(event.target.value)} /></label>
+          <label className="text-sm font-medium text-slate-700">
+            País
+            <select aria-label="País Moloni" className={inputClass} value={countryId} onChange={(event) => setCountryId(event.target.value)}>
+              <option value="">Selecionar país</option>
+              {countryId && !(catalog?.countries ?? []).some((item) => String(item.country_id) === countryId) ? <option value={countryId}>Configuração guardada (ID {countryId})</option> : null}
+              {(catalog?.countries ?? []).map((item) => <option key={item.country_id} value={item.country_id}>{countryLabel(item)}{item.iso_3166_1 ? ` — ${item.iso_3166_1}` : ""}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Idioma
+            <select aria-label="Idioma Moloni" className={inputClass} value={languageId} onChange={(event) => setLanguageId(event.target.value)}>
+              <option value="">Selecionar idioma</option>
+              {languageId && !(catalog?.languages ?? []).some((item) => String(item.language_id) === languageId) ? <option value={languageId}>Configuração guardada (ID {languageId})</option> : null}
+              {(catalog?.languages ?? []).map((item) => <option key={item.language_id} value={item.language_id}>{languageLabel(item)}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Vencimento
+            <select aria-label="Vencimento Moloni" className={inputClass} value={maturityId} onChange={(event) => setMaturityId(event.target.value)} disabled={!positiveInteger(companyId)}>
+              <option value="">{positiveInteger(companyId) ? "Selecionar vencimento" : "Selecione uma empresa primeiro"}</option>
+              {maturityId && !(catalog?.maturity_dates ?? []).some((item) => String(item.maturity_date_id) === maturityId) ? <option value={maturityId}>Configuração guardada (ID {maturityId})</option> : null}
+              {(catalog?.maturity_dates ?? []).map((item) => <option key={item.maturity_date_id} value={item.maturity_date_id}>{maturityDateLabel(item)}</option>)}
+            </select>
+          </label>
           <label className="text-sm font-medium text-slate-700">
             Método de pagamento
             <select className={inputClass} value={paymentMethodId} onChange={(event) => setPaymentMethodId(event.target.value)}>
@@ -686,6 +751,34 @@ export function AdminMoloni() {
             Guardar sem ativar
           </Button>
         </div>
+        {catalogMutation.isError ? (
+          <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between" role="alert">
+            <span>{errorMessage(catalogMutation.error)}</span>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full border-rose-300 text-rose-800"
+              onClick={() => catalogMutation.mutate({ moloniEnvironment: selectedMoloniEnvironment, moloniCompanyId: positiveInteger(companyId) })}
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        ) : null}
+        {catalog ? (
+          <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-3" aria-live="polite">
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{catalog.countries.length ? `${catalog.countries.length} países carregados.` : "A conta não possui países disponíveis."}</p>
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{catalog.languages.length ? `${catalog.languages.length} idiomas carregados.` : "A conta não possui idiomas disponíveis."}</p>
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              {!positiveInteger(companyId)
+                ? "Selecione uma empresa para carregar os prazos de pagamento."
+                : catalog.maturity_dates.length
+                  ? `${catalog.maturity_dates.length} prazos de pagamento carregados.`
+                  : "A empresa não possui prazos de pagamento disponíveis."}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">Clique em “Carregar catálogo” para consultar países, idiomas, prazos e os restantes catálogos Moloni.</p>
+        )}
         </section>
 
         <section className={cardClass}>

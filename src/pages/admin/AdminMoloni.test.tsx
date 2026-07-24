@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter, Route, Routes } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AdminMoloni } from "./AdminMoloni"
 
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   overview: vi.fn(),
   saveCredentials: vi.fn(),
   activate: vi.fn(),
+  catalog: vi.fn(),
 }))
 
 vi.mock("@/services/admin.service", () => ({
@@ -19,7 +20,7 @@ vi.mock("@/services/admin.service", () => ({
   deactivateAdminMoloni: vi.fn(),
   disconnectAdminMoloni: vi.fn(),
   fetchAdminFiscalDocumentUrl: vi.fn(),
-  fetchAdminMoloniCatalog: vi.fn(),
+  fetchAdminMoloniCatalog: (...args: unknown[]) => mocks.catalog(...args),
   runAdminMoloniJobAction: vi.fn(),
   runAdminMoloniValidation: vi.fn(),
   startAdminMoloniConnection: vi.fn(),
@@ -145,10 +146,12 @@ function buildOverview(ready = false) {
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={["/admin/integracoes/moloni"]}>
-        <AdminMoloni />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/admin/integracoes/moloni/configuracao"]}>
+          <Routes>
+            <Route path="/admin/integracoes/moloni/:tab" element={<AdminMoloni />} />
+          </Routes>
+        </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -158,6 +161,7 @@ describe("AdminMoloni", () => {
     mocks.overview.mockReset()
     mocks.saveCredentials.mockReset()
     mocks.activate.mockReset()
+    mocks.catalog.mockReset()
   })
 
   it("shows an initial loading skeleton", () => {
@@ -176,7 +180,6 @@ describe("AdminMoloni", () => {
     expect(secret).toHaveAttribute("type", "password")
     expect(secret).toHaveValue("")
     expect(screen.getByText("https://gookhgufsxeplelpdaua.supabase.co/functions/v1/moloni-oauth-callback")).toBeInTheDocument()
-    expect(screen.getByText("Fila fiscal vazia")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Testar conexão" })).toBeInTheDocument()
     expect(screen.getByText("Checklist fiscal integralmente aprovado")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Ativar Moloni live/i })).toBeDisabled()
@@ -209,5 +212,60 @@ describe("AdminMoloni", () => {
     expect(await screen.findByText("Não foi possível carregar a Moloni")).toBeInTheDocument()
     expect(screen.getByText("Falha simulada")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument()
+  })
+
+  it("renders readable catalog selectors and suggests Portugal, Portuguese and immediate payment", async () => {
+    const user = userEvent.setup()
+    mocks.overview.mockResolvedValue(buildOverview(false))
+    mocks.catalog.mockResolvedValue({
+      success: true,
+      companies: [{ company_id: 42, name: "Mariana Explica" }],
+      countries: [{ country_id: 351, iso_3166_1: "PT", name: "Portugal" }],
+      languages: [{ language_id: 7, code: "pt", title: "Português" }],
+      maturity_dates: [{ maturity_date_id: 9, name: "Pronto pagamento", days: 0, associated_discount: 0 }],
+      products: [],
+      document_sets: [],
+      taxes: [],
+      payment_methods: [],
+    })
+    renderPage()
+
+    await screen.findByRole("heading", { name: "Integração Moloni" })
+    await user.click(screen.getByRole("button", { name: "Carregar catálogo" }))
+
+    expect(await screen.findByRole("option", { name: "Portugal — PT" })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "Português" })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "Pronto pagamento — 0 dias" })).toBeInTheDocument()
+    expect(screen.getByRole("combobox", { name: "País Moloni" })).toHaveValue("351")
+    expect(screen.getByRole("combobox", { name: "Idioma Moloni" })).toHaveValue("7")
+    expect(screen.getByRole("combobox", { name: "Vencimento Moloni" })).toHaveValue("9")
+  })
+
+  it("preserves saved selector values after the catalog is loaded", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.settings[0].customer_country_id = 351
+    overview.settings[0].customer_language_id = 7
+    overview.settings[0].customer_maturity_date_id = 9
+    mocks.overview.mockResolvedValue(overview)
+    mocks.catalog.mockResolvedValue({
+      success: true,
+      companies: [{ company_id: 42, name: "Mariana Explica" }],
+      countries: [{ country_id: 351, iso_3166_1: "PT", name: "Portugal" }],
+      languages: [{ language_id: 7, code: "pt", title: "Português" }],
+      maturity_dates: [{ maturity_date_id: 9, name: "Pronto pagamento", days: 0 }],
+      products: [],
+      document_sets: [],
+      taxes: [],
+      payment_methods: [],
+    })
+    renderPage()
+
+    await screen.findByRole("heading", { name: "Integração Moloni" })
+    await user.click(screen.getByRole("button", { name: "Carregar catálogo" }))
+
+    expect(await screen.findByRole("combobox", { name: "País Moloni" })).toHaveValue("351")
+    expect(screen.getByRole("combobox", { name: "Idioma Moloni" })).toHaveValue("7")
+    expect(screen.getByRole("combobox", { name: "Vencimento Moloni" })).toHaveValue("9")
   })
 })

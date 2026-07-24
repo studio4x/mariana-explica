@@ -1,8 +1,32 @@
-import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts"
-import { buildMoloniDocumentPayload, centsToDecimal } from "./moloni-processing.ts"
+import { assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts"
+import {
+  buildMoloniDocumentPayload,
+  centsToDecimal,
+  FiscalProcessingError,
+  resolveMoloniCountryId,
+} from "./moloni-processing.ts"
 
 Deno.test("converts integer cents without floating point drift", () => {
   assertEquals(centsToDecimal(12345), 123.45)
+})
+
+Deno.test("resolves an international buyer country from the fiscal snapshot", async () => {
+  const countryId = await resolveMoloniCountryId({
+    getCountries: async () => [
+      { country_id: 351, iso_3166_1: "PT" },
+      { country_id: 34, iso_3166_1: "ES" },
+    ],
+  }, "ES", 351)
+
+  assertEquals(countryId, 34)
+})
+
+Deno.test("blocks an international country absent from Moloni instead of assuming Portugal", async () => {
+  const error = await assertRejects(
+    () => resolveMoloniCountryId({ getCountries: async () => [{ country_id: 351, iso_3166_1: "PT" }] }, "FR", 351),
+    FiscalProcessingError,
+  )
+  assertEquals(error.code, "COUNTRY_NOT_FOUND")
 })
 
 Deno.test("builds a draft invoice receipt payload from immutable order totals", () => {

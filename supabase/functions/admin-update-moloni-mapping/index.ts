@@ -4,7 +4,9 @@ import { logError } from "../_shared/logger.ts"
 import {
   assertAdminIntegrationRateLimit,
   extractRequestAuditContext,
+  findInvalidMoloniCustomerReferences,
   MoloniClient,
+  type MoloniCountry,
   requireAdmin,
   writeAuditLog,
 } from "../_shared/mod.ts"
@@ -54,6 +56,14 @@ type Input =
 function remoteLabel(item: Record<string, unknown> | undefined, fallback: string) {
   const value = item?.name ?? item?.title ?? item?.reference
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 250) : fallback
+}
+
+function sanitizeCountries(countries: MoloniCountry[]) {
+  return countries.map((country) => ({
+    country_id: Number(country.country_id),
+    iso_3166_1: String(country.iso_3166_1 ?? "").toUpperCase(),
+    name: country.name?.trim() || country.languages?.find((language) => language.name?.trim())?.name?.trim(),
+  }))
 }
 
 async function loadStatus(context: Awaited<ReturnType<typeof requireAdmin>>) {
@@ -141,24 +151,46 @@ Deno.serve(async (req) => {
       if (!["draft", "live"].includes(body.moloniEnvironment)) {
         throw badRequest("Ambiente Moloni inválido")
       }
+      if (
+        body.moloniCompanyId !== undefined &&
+        body.moloniCompanyId !== null &&
+        (!Number.isInteger(body.moloniCompanyId) || body.moloniCompanyId <= 0)
+      ) {
+        throw badRequest("Empresa Moloni inválida")
+      }
       const moloni = new MoloniClient(context.serviceClient, body.moloniEnvironment)
       const companies = await moloni.getCompanies()
+      const [countries, languages] = await Promise.all([
+        moloni.getCountries(),
+        moloni.getLanguages(),
+      ])
       if (!body.moloniCompanyId) {
-        return jsonResponse({ success: true, request_id: requestId, companies })
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          companies,
+          countries: sanitizeCountries(countries),
+          languages,
+          maturity_dates: [],
+        })
       }
       if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
         throw conflict("Empresa Moloni não pertence à conexão autenticada.")
       }
-      const [products, documentSets, taxes, paymentMethods] = await Promise.all([
+      const [products, documentSets, taxes, paymentMethods, maturityDates] = await Promise.all([
         moloni.getProducts(body.moloniCompanyId),
         moloni.getDocumentSets(body.moloniCompanyId),
         moloni.getTaxes(body.moloniCompanyId),
         moloni.getPaymentMethods(body.moloniCompanyId),
+        moloni.getMaturityDates(body.moloniCompanyId),
       ])
       return jsonResponse({
         success: true,
         request_id: requestId,
         companies,
+        countries: sanitizeCountries(countries),
+        languages,
+        maturity_dates: maturityDates,
         products,
         document_sets: documentSets,
         taxes,
@@ -171,6 +203,35 @@ Deno.serve(async (req) => {
       if (body.paymentEnvironment === "test" && (body.moloniEnvironment !== "draft" || body.documentStatus !== 0)) {
         throw conflict("Stripe test só pode usar Moloni em rascunho.")
       }
+      if (
+        body.moloniCompanyId !== null &&
+        (!Number.isInteger(body.moloniCompanyId) || body.moloniCompanyId <= 0)
+      ) {
+        throw badRequest("Empresa Moloni invalida")
+      }
+      for (const [label, value] of [
+        ["país", body.customerCountryId],
+        ["idioma", body.customerLanguageId],
+        ["vencimento", body.customerMaturityDateId],
+      ] as const) {
+        if (value !== undefined && value !== null && (!Number.isInteger(value) || value <= 0)) {
+          throw badRequest(`${label[0].toUpperCase()}${label.slice(1)} Moloni invalido`)
+        }
+      }
+      const moloni = new MoloniClient(context.serviceClient, body.moloniEnvironment)
+      if (body.moloniCompanyId) {
+        const companies = await moloni.getCompanies()
+        if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
+          throw conflict("Empresa Moloni selecionada nao existe na conexao autenticada.")
+        }
+      }
+      const invalidCustomerReference = await findInvalidMoloniCustomerReferences(moloni, {
+        companyId: body.moloniCompanyId,
+        countryId: body.customerCountryId ?? null,
+        languageId: body.customerLanguageId ?? null,
+        maturityDateId: body.customerMaturityDateId ?? null,
+      })
+      if (invalidCustomerReference) throw conflict(invalidCustomerReference)
       if (body.emissionEnabled) {
         throw conflict("Use o fluxo dedicado de ativação com validação integral.")
       }

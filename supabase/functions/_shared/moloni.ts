@@ -40,6 +40,40 @@ interface EncryptedAppCredentials {
   configured_at: string
 }
 
+export interface MoloniCountryLanguage {
+  country_id: number
+  language_id: number
+  name: string
+}
+
+export interface MoloniCountry {
+  country_id: number
+  iso_3166_1: string
+  name?: string
+  languages?: MoloniCountryLanguage[]
+}
+
+export interface MoloniLanguage {
+  language_id: number
+  code: string
+  title: string
+}
+
+export interface MoloniMaturityDate {
+  maturity_date_id: number
+  name: string
+  days: number
+  associated_discount?: number
+}
+
+export interface MoloniCustomerReferenceSelection {
+  companyId: number | null
+  countryId: number | null
+  languageId: number | null
+  maturityDateId: number | null
+  requireAll?: boolean
+}
+
 function requiredEnv(name: string) {
   const value = Deno.env.get(name)?.trim()
   if (!value) throw internalError(`${name} não configurada`)
@@ -444,6 +478,21 @@ export class MoloniClient {
     return this.post<Array<{ company_id: number; name?: string }>>("companies/getAll", {})
   }
 
+  getCountries() {
+    return this.post<MoloniCountry[]>("countries/getAll", {})
+  }
+
+  getLanguages() {
+    return this.post<MoloniLanguage[]>("languages/getAll", {})
+  }
+
+  getMaturityDates(companyId: number) {
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+      throw new MoloniError("Empresa Moloni obrigatória para carregar vencimentos.", "COMPANY_ID_REQUIRED", false)
+    }
+    return this.post<MoloniMaturityDate[]>("maturityDates/getAll", { company_id: companyId })
+  }
+
   getCustomerByVat(companyId: number, vat: string) {
     return this.post<Array<Record<string, unknown>>>("customers/getByVat", {
       company_id: companyId,
@@ -549,4 +598,40 @@ export class MoloniClient {
       signed: 1,
     })
   }
+}
+
+export async function findInvalidMoloniCustomerReferences(
+  moloni: MoloniClient,
+  selection: MoloniCustomerReferenceSelection,
+) {
+  const requireAll = selection.requireAll === true
+  if (requireAll && !selection.countryId) return "País Moloni não configurado."
+  if (requireAll && !selection.languageId) return "Idioma Moloni não configurado."
+  if (requireAll && !selection.maturityDateId) return "Prazo de pagamento Moloni não configurado."
+  if (selection.maturityDateId && !selection.companyId) {
+    return "Selecione uma empresa Moloni antes de configurar o prazo de pagamento."
+  }
+
+  if (selection.countryId) {
+    const countries = await moloni.getCountries()
+    if (!countries.some((country) => Number(country.country_id) === selection.countryId)) {
+      return "País Moloni selecionado não existe no catálogo atual."
+    }
+  }
+
+  if (selection.languageId) {
+    const languages = await moloni.getLanguages()
+    if (!languages.some((language) => Number(language.language_id) === selection.languageId)) {
+      return "Idioma Moloni selecionado não existe no catálogo atual."
+    }
+  }
+
+  if (selection.maturityDateId && selection.companyId) {
+    const maturityDates = await moloni.getMaturityDates(selection.companyId)
+    if (!maturityDates.some((maturityDate) => Number(maturityDate.maturity_date_id) === selection.maturityDateId)) {
+      return "Prazo de pagamento selecionado não pertence à empresa Moloni."
+    }
+  }
+
+  return null
 }

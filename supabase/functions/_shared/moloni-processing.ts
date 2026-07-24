@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
 import { MoloniClient, MoloniError } from "./moloni.ts"
-import { normalizeVatNumber } from "./fiscal.ts"
+import { normalizeIso2, normalizeVatNumber } from "./fiscal.ts"
 
 type DocumentKind = "invoice" | "invoice_receipt"
 
@@ -90,6 +90,26 @@ export class FiscalProcessingError extends Error {
     super(message)
     this.name = "FiscalProcessingError"
   }
+}
+
+export async function resolveMoloniCountryId(
+  moloni: Pick<MoloniClient, "getCountries">,
+  countryCode: string | null,
+  fallbackCountryId: number | null,
+) {
+  const iso = normalizeIso2(countryCode)
+  if (!iso) return fallbackCountryId
+  const countries = await moloni.getCountries()
+  const country = countries.find((item) => item.iso_3166_1.toUpperCase() === iso)
+  if (!country) {
+    throw new FiscalProcessingError(
+      `O país ${iso} do snapshot fiscal não existe no catálogo Moloni.`,
+      "COUNTRY_NOT_FOUND",
+      false,
+      true,
+    )
+  }
+  return Number(country.country_id)
 }
 
 export function centsToDecimal(cents: number) {
@@ -326,8 +346,13 @@ async function resolveMoloniCustomer(params: {
 
     let customerId = Number(customer?.customer_id ?? 0)
     if (!customerId) {
+      const effectiveCountryId = await resolveMoloniCountryId(
+        moloni,
+        billing.country_code,
+        settings.customer_country_id,
+      )
       const missingConfig = [
-        !settings.customer_country_id ? "country_id" : null,
+        !effectiveCountryId ? "country_id" : null,
         !settings.customer_language_id ? "language_id" : null,
         !settings.customer_maturity_date_id ? "maturity_date_id" : null,
         !settings.customer_payment_method_id ? "payment_method_id" : null,
@@ -350,7 +375,7 @@ async function resolveMoloniCustomer(params: {
         address: [billing.address_line1, billing.address_line2].filter(Boolean).join(" "),
         zip_code: billing.postal_code ?? "",
         city: billing.city,
-        country_id: settings.customer_country_id,
+        country_id: effectiveCountryId,
         email: billing.email ?? "",
         maturity_date_id: settings.customer_maturity_date_id,
         payment_method_id: settings.customer_payment_method_id,

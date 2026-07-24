@@ -5,6 +5,7 @@ import {
   assertAdminIntegrationRateLimit,
   buildMoloniAuthorizationUrl,
   extractRequestAuditContext,
+  findInvalidMoloniCustomerReferences,
   getMissingMoloniActivationRequirements,
   getMoloniAppCredentialStatus,
   hasApprovedChecklistItem,
@@ -701,6 +702,17 @@ Deno.serve(async (req) => {
       }
       const settings = state.settings.find((item) => item.payment_environment === "live")
       if (!settings) throw notFound("Configuração live não encontrada")
+      const customerReferenceError = await findInvalidMoloniCustomerReferences(
+        new MoloniClient(context.serviceClient, settings.moloni_environment as "draft" | "live"),
+        {
+          companyId: Number(settings.moloni_company_id ?? 0) || null,
+          countryId: Number(settings.customer_country_id ?? 0) || null,
+          languageId: Number(settings.customer_language_id ?? 0) || null,
+          maturityDateId: Number(settings.customer_maturity_date_id ?? 0) || null,
+          requireAll: true,
+        },
+      )
+      if (customerReferenceError) throw conflict(customerReferenceError)
       const snapshot = {
         moloni_environment: settings.moloni_environment,
         company_id: settings.moloni_company_id,

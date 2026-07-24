@@ -1805,6 +1805,29 @@ export async function fetchAdminMoloniStatus() {
   )
 }
 
+export interface AdminMoloniCountry {
+  country_id: number
+  iso_3166_1: string
+  name?: string
+}
+
+export interface AdminMoloniLanguage {
+  language_id: number
+  code: string
+  title: string
+}
+
+export interface AdminMoloniMaturityDate {
+  maturity_date_id: number
+  name: string
+  days: number
+  associated_discount?: number
+}
+
+export interface AdminMoloniCatalogItem {
+  [key: string]: unknown
+}
+
 export async function fetchAdminMoloniCatalog(input: {
   moloniEnvironment: "draft" | "live"
   moloniCompanyId?: number | null
@@ -1812,10 +1835,13 @@ export async function fetchAdminMoloniCatalog(input: {
   return await invokeAdminFunction<{
     success: true
     companies: Array<{ company_id: number; name?: string }>
-    products?: Array<Record<string, unknown>>
-    document_sets?: Array<Record<string, unknown>>
-    taxes?: Array<Record<string, unknown>>
-    payment_methods?: Array<Record<string, unknown>>
+    countries: AdminMoloniCountry[]
+    languages: AdminMoloniLanguage[]
+    maturity_dates: AdminMoloniMaturityDate[]
+    products?: AdminMoloniCatalogItem[]
+    document_sets?: AdminMoloniCatalogItem[]
+    taxes?: AdminMoloniCatalogItem[]
+    payment_methods?: AdminMoloniCatalogItem[]
   }>("admin-update-moloni-mapping", {
     action: "catalog",
     ...input,
