@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertTriangle,
+  Bell,
   CheckCircle2,
   Clipboard,
   ExternalLink,
@@ -68,6 +69,17 @@ const validationTypes = [
   ["payment_method", "Pagamento"],
   ["mappings", "Mapeamentos"],
 ] as const
+const validationTypeLabels: Record<string, string> = {
+  credentials: "Credenciais",
+  oauth: "OAuth",
+  company: "Empresa",
+  document_sets: "S\u00e9ries",
+  products: "Artigos",
+  taxes: "Impostos",
+  payment_method: "M\u00e9todo de pagamento",
+  mappings: "Mapeamentos",
+  draft_document: "Rascunho de homologa\u00e7\u00e3o",
+}
 const checklistGroupInfo: Record<MoloniChecklistGroup, {
   title: string
   description: string
@@ -305,6 +317,7 @@ export function AdminMoloni() {
   const queryClient = useQueryClient()
   const [environment, setEnvironment] = useState<AdminMoloniPaymentEnvironment>("test")
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [showValidationNotifications, setShowValidationNotifications] = useState(false)
   const [automaticSyncResult, setAutomaticSyncResult] = useState<AdminMoloniAutomaticChecklistResult | null>(null)
   const [clientId, setClientId] = useState("")
   const [clientSecret, setClientSecret] = useState("")
@@ -1289,6 +1302,19 @@ export function AdminMoloni() {
               Validar {label}
             </Button>
           ))}
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            aria-expanded={showValidationNotifications}
+            onClick={() => setShowValidationNotifications((visible) => !visible)}
+          >
+            <Bell className="h-4 w-4" />
+            {showValidationNotifications ? "Ocultar notificações" : "Mostrar notificações"}
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
+              {data.validations.filter((item) => item.payment_environment === environment).length}
+            </span>
+          </Button>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto]">
           <div className="grid gap-3 md:grid-cols-2">
@@ -1318,17 +1344,25 @@ export function AdminMoloni() {
             Criar rascunho de teste
           </Button>
         </div>
-        <div className="mt-5 space-y-2">
-          {data.validations.filter((item) => item.payment_environment === environment).slice(0, 8).map((item) => (
-            <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold text-slate-950">{item.summary}</p>
-                <p className="text-xs text-slate-500">{item.validation_type} · {formatDateTime(item.created_at)}</p>
-              </div>
-              <StatusBadge label={item.status === "passed" ? "Passou" : "Falhou"} tone={item.status === "passed" ? "success" : "danger"} />
-            </div>
-          ))}
-        </div>
+        {showValidationNotifications ? (
+          <div className="mt-5 space-y-2" aria-live="polite">
+            {data.validations.filter((item) => item.payment_environment === environment).slice(0, 8).length === 0 ? (
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Ainda não existem notificações de validação para este ambiente.
+              </p>
+            ) : (
+              data.validations.filter((item) => item.payment_environment === environment).slice(0, 8).map((item) => (
+                <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.summary}</p>
+                    <p className="text-xs text-slate-500">{validationTypeLabels[item.validation_type] ?? item.validation_type} · {formatDateTime(item.created_at)}</p>
+                  </div>
+                  <StatusBadge label={item.status === "passed" ? "Passou" : "Falhou"} tone={item.status === "passed" ? "success" : "danger"} />
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
         </section>
       ) : null}
 

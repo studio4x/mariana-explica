@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
   catalog: vi.fn(),
   status: vi.fn(),
+  runValidation: vi.fn(),
   updateChecklist: vi.fn(),
   syncAutomaticChecklist: vi.fn(),
 }))
@@ -26,8 +27,8 @@ vi.mock("@/services/admin.service", () => ({
   fetchAdminFiscalDocumentUrl: vi.fn(),
   fetchAdminMoloniCatalog: (...args: unknown[]) => mocks.catalog(...args),
   fetchAdminMoloniStatus: (...args: unknown[]) => mocks.status(...args),
+  runAdminMoloniValidation: (...args: unknown[]) => mocks.runValidation(...args),
   runAdminMoloniJobAction: vi.fn(),
-  runAdminMoloniValidation: vi.fn(),
   startAdminMoloniConnection: vi.fn(),
   updateAdminMoloniChecklist: (...args: unknown[]) => mocks.updateChecklist(...args),
   syncAdminMoloniAutomaticChecklist: (...args: unknown[]) => mocks.syncAutomaticChecklist(...args),
@@ -170,6 +171,7 @@ describe("AdminMoloni", () => {
     mocks.activate.mockReset()
     mocks.catalog.mockReset()
     mocks.status.mockReset()
+    mocks.runValidation.mockReset()
     mocks.updateChecklist.mockReset()
     mocks.syncAutomaticChecklist.mockReset()
     mocks.status.mockResolvedValue({ rules: [] })
@@ -205,6 +207,31 @@ describe("AdminMoloni", () => {
     renderPage()
 
     expect(screen.getByLabelText("A carregar configuração Moloni")).toBeInTheDocument()
+  })
+
+  it("shows validation notifications when requested", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.validations = [{
+      id: "validation-1",
+      payment_environment: "test",
+      validation_type: "document_sets",
+      status: "failed",
+      summary: "A série configurada não foi confirmada na Moloni.",
+      details: {},
+      created_at: "2026-07-24T10:00:00.000Z",
+    }] as unknown as typeof overview.validations
+    mocks.overview.mockResolvedValue(overview)
+    renderPage()
+
+    expect(await screen.findByRole("heading", { name: "Integração Moloni" })).toBeInTheDocument()
+    expect(screen.queryByText("A série configurada não foi confirmada na Moloni.")).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: /Mostrar notificações/i }))
+
+    expect(screen.getByText("A série configurada não foi confirmada na Moloni.")).toBeInTheDocument()
+    expect(screen.getByText((_, element) => element?.tagName === "P" && Boolean(element.textContent?.startsWith("Séries")))).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Ocultar notificações/i })).toHaveAttribute("aria-expanded", "true")
   })
 
   it("never exposes stored credentials and blocks incomplete production activation", async () => {
