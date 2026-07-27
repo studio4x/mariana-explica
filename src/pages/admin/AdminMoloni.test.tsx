@@ -234,6 +234,35 @@ describe("AdminMoloni", () => {
     expect(screen.getByRole("button", { name: /Ocultar notificações/i })).toHaveAttribute("aria-expanded", "true")
   })
 
+  it("shows the validation progress and result in the diagnostic card", async () => {
+    const user = userEvent.setup()
+    mocks.overview.mockResolvedValue(buildOverview(false))
+    mocks.runValidation.mockResolvedValue({
+      success: true,
+      validation: {
+        id: "validation-2",
+        payment_environment: "test",
+        validation_type: "credentials",
+        status: "passed",
+        summary: "Credenciais cifradas e callback validados.",
+        details: {},
+        created_at: "2026-07-27T15:00:00.000Z",
+      },
+    })
+    renderPage()
+
+    const validationButton = await screen.findByRole("button", { name: "Validar Credenciais" })
+    await user.click(validationButton)
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Validação concluída: Credenciais")
+    expect(screen.getByRole("status")).toHaveTextContent("Credenciais cifradas e callback validados.")
+    expect(mocks.runValidation).toHaveBeenCalledWith(
+      { paymentEnvironment: "test", validationType: "credentials" },
+      expect.anything(),
+    )
+    expect(screen.getByRole("button", { name: /Ocultar notificações/i })).toHaveAttribute("aria-expanded", "true")
+  })
+
   it("never exposes stored credentials and blocks incomplete production activation", async () => {
     mocks.overview.mockResolvedValue(buildOverview(false))
     renderPage()

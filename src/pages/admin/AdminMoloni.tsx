@@ -55,6 +55,11 @@ import { fiscalStatusLabel } from "@/lib/moloni-status"
 
 type Feedback = { tone: "success" | "danger" | "warning"; message: string }
 type Catalog = Awaited<ReturnType<typeof fetchAdminMoloniCatalog>>
+type ValidationFeedback = {
+  validationType: string
+  tone: "success" | "danger"
+  message: string
+}
 
 const inputClass =
   "mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
@@ -318,6 +323,7 @@ export function AdminMoloni() {
   const [environment, setEnvironment] = useState<AdminMoloniPaymentEnvironment>("test")
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [showValidationNotifications, setShowValidationNotifications] = useState(false)
+  const [validationFeedback, setValidationFeedback] = useState<ValidationFeedback | null>(null)
   const [automaticSyncResult, setAutomaticSyncResult] = useState<AdminMoloniAutomaticChecklistResult | null>(null)
   const [clientId, setClientId] = useState("")
   const [clientSecret, setClientSecret] = useState("")
@@ -538,8 +544,24 @@ export function AdminMoloni() {
   })
   const validationMutation = useMutation({
     mutationFn: runAdminMoloniValidation,
-    onSuccess: () => succeed("Diagnóstico concluído e registado."),
-    onError: fail,
+    onSuccess: async ({ validation }, input) => {
+      setValidationFeedback({
+        validationType: input.validationType,
+        tone: validation.status === "passed" ? "success" : "danger",
+        message: validation.summary,
+      })
+      setShowValidationNotifications(true)
+      await succeed("Diagnóstico concluído e registado.")
+    },
+    onError: (error, input) => {
+      setValidationFeedback({
+        validationType: input.validationType,
+        tone: "danger",
+        message: errorMessage(error),
+      })
+      setShowValidationNotifications(true)
+      fail(error)
+    },
   })
   const draftMutation = useMutation({
     mutationFn: createAdminMoloniDraftTest,
@@ -1296,10 +1318,17 @@ export function AdminMoloni() {
               variant="outline"
               className="rounded-full"
               disabled={busy}
-              onClick={() => validationMutation.mutate({ paymentEnvironment: environment, validationType: type })}
+              onClick={() => {
+                setValidationFeedback(null)
+                validationMutation.mutate({ paymentEnvironment: environment, validationType: type })
+              }}
             >
-              <ShieldCheck className="h-4 w-4" />
-              Validar {label}
+              {validationMutation.isPending && validationMutation.variables?.validationType === type
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <ShieldCheck className="h-4 w-4" />}
+              {validationMutation.isPending && validationMutation.variables?.validationType === type
+                ? `A validar ${label}...`
+                : `Validar ${label}`}
             </Button>
           ))}
           <Button
@@ -1316,6 +1345,21 @@ export function AdminMoloni() {
             </span>
           </Button>
         </div>
+        {validationFeedback ? (
+          <div
+            role="status"
+            className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+              validationFeedback.tone === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                : "border-rose-200 bg-rose-50 text-rose-950"
+            }`}
+          >
+            <p className="font-bold">
+              {validationFeedback.tone === "success" ? "Validação concluída" : "Validação não concluída"}: {validationTypeLabels[validationFeedback.validationType] ?? validationFeedback.validationType}
+            </p>
+            <p className="mt-1">{validationFeedback.message}</p>
+          </div>
+        ) : null}
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto]">
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">

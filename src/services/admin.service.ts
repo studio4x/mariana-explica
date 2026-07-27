@@ -1813,7 +1813,10 @@ export async function runAdminMoloniValidation(input: {
     | "payment_method"
     | "mappings"
 }) {
-  return await invokeAdminFunction<{ success: true }>("admin-moloni-configuration", {
+  return await invokeAdminFunction<{
+    success: true
+    validation: AdminMoloniOverview["validations"][number]
+  }>("admin-moloni-configuration", {
     action: "run_validation",
     ...input,
   })
