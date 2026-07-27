@@ -50,6 +50,7 @@ import {
 } from "@/services/admin.service"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
+import { fiscalStatusLabel } from "@/lib/moloni-status"
 
 type Feedback = { tone: "success" | "danger" | "warning"; message: string }
 type Catalog = Awaited<ReturnType<typeof fetchAdminMoloniCatalog>>
@@ -1359,7 +1360,7 @@ export function AdminMoloni() {
                   <tr key={item.fiscal_document_id}>
                     <td className="px-4 py-3"><p className="font-semibold text-slate-950">{item.buyer_label}</p><p className="text-xs text-slate-500">Pedido {item.order_id.slice(0, 8)}</p></td>
                     <td className="px-4 py-3">{item.commercial_status}</td>
-                    <td className="px-4 py-3"><StatusBadge label={item.fiscal_status} tone={item.fiscal_status === "issued" ? "success" : item.job_status === "failed" ? "danger" : "warning"} /></td>
+                    <td className="px-4 py-3"><StatusBadge label={fiscalStatusLabel(item.fiscal_status)} tone={item.fiscal_status === "issued" ? "success" : item.job_status === "failed" ? "danger" : "warning"} /></td>
                     <td className="px-4 py-3">{item.attempt_count}/{item.max_attempts}</td>
                     <td className="px-4 py-3">{formatProductPrice(item.total_amount_cents, item.currency)}</td>
                     <td className="max-w-64 px-4 py-3 text-xs text-rose-700">{item.last_error ?? "—"}</td>

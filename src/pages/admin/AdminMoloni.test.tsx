@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { fiscalStatusLabel } from "@/lib/moloni-status"
 import { AdminMoloni } from "./AdminMoloni"
 
 const mocks = vi.hoisted(() => ({
@@ -183,6 +184,20 @@ describe("AdminMoloni", () => {
         fiscal_checklist_approved: false,
       },
     })
+  })
+
+  it("translates every fiscal document status for the queue", () => {
+    expect(fiscalStatusLabel("pending")).toBe("Pendente")
+    expect(fiscalStatusLabel("processing")).toBe("Em processamento")
+    expect(fiscalStatusLabel("blocked_data")).toBe("Dados pendentes")
+    expect(fiscalStatusLabel("issued")).toBe("Emitido")
+    expect(fiscalStatusLabel("failed_retryable")).toBe("Falha temporária")
+    expect(fiscalStatusLabel("failed_permanent")).toBe("Falha permanente")
+    expect(fiscalStatusLabel("credit_pending")).toBe("Nota de crédito pendente")
+    expect(fiscalStatusLabel("credited")).toBe("Nota de crédito emitida")
+    expect(fiscalStatusLabel("cancelled_before_issue")).toBe("Cancelado antes da emissão")
+    expect(fiscalStatusLabel("requires_review")).toBe("Requer revisão")
+    expect(fiscalStatusLabel("future_status")).toBe("Estado fiscal não reconhecido")
   })
 
   it("shows an initial loading skeleton", () => {
