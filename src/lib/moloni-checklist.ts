@@ -158,6 +158,33 @@ export const MOLONI_CHECKLIST_GUIDES: Record<string, MoloniChecklistGuide> = {
   },
 }
 
+export function getMoloniChecklistPendingInstruction(itemKey: string) {
+  switch (itemKey) {
+    case "immediate_payment_document":
+      return "Abra Configuração fiscal, defina o documento de pagamento imediato, guarde e execute Verificar automaticamente."
+    case "production_document_set":
+      return "Garanta que todos os produtos pagos publicados têm uma série Moloni válida no mapeamento e execute Verificar automaticamente."
+    case "homologation_strategy":
+      return "No ambiente Stripe teste, conclua um teste documental em rascunho sem bloqueios e depois execute Verificar automaticamente."
+    case "moloni_products":
+      return "Ligue todos os produtos pagos publicados a artigos Moloni válidos, guarde os mapeamentos necessários e execute Verificar automaticamente."
+    case "automatic_closing":
+      return "Na Configuração fiscal, escolha se o documento fica em rascunho ou fechado, guarde e execute Verificar automaticamente."
+    case "customer_pdf_delivery":
+      return "Mantenha a política de entrega do PDF fiscal configurada de forma protegida e execute Verificar automaticamente."
+    default: {
+      const group = MOLONI_CHECKLIST_GUIDES[itemKey]?.group
+      if (group === "accountant") {
+        return "Escolha a decisão confirmada com a contabilista, registe uma observação se necessário e clique em Guardar decisão."
+      }
+      if (group === "operation") {
+        return "Escolha a ação operacional aprovada para este cenário e clique em Guardar decisão."
+      }
+      return "Conclua a configuração indicada e volte a verificar este item."
+    }
+  }
+}
+
 interface ChecklistDetectionInput {
   environment: "test" | "live"
   settings: Array<Record<string, unknown>>

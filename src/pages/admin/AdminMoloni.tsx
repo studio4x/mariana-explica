@@ -24,6 +24,7 @@ import { Button } from "@/components/ui"
 import { ROUTES } from "@/lib/constants"
 import {
   detectMoloniChecklistValues,
+  getMoloniChecklistPendingInstruction,
   MOLONI_CHECKLIST_GUIDES,
   type MoloniChecklistGroup,
 } from "@/lib/moloni-checklist"
@@ -207,6 +208,9 @@ function ChecklistRow({
   const selectedValue = detectedValue ?? configuration
   const isAutomatic = guide?.group === "automatic"
   const canApprove = !isAutomatic && Boolean(selectedValue.trim())
+  const pendingInstruction = item.status === "pending"
+    ? getMoloniChecklistPendingInstruction(item.item_key)
+    : null
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -273,6 +277,12 @@ function ChecklistRow({
           />
         </label>
       )}
+
+      {pendingInstruction ? (
+        <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+          <strong>Como resolver:</strong> {pendingInstruction}
+        </div>
+      ) : null}
 
       {!isAutomatic ? (
         <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">

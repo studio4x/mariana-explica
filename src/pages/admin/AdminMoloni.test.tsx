@@ -375,6 +375,9 @@ describe("AdminMoloni", () => {
     expect(screen.getByText("Pré-visualização:")).toBeInTheDocument()
     expect(screen.getByText("Fatura-recibo")).toBeInTheDocument()
     expect(screen.getByText("A aprovação final é feita pelo backend.")).toBeInTheDocument()
+    expect(screen.getAllByText(/Como resolver:/i)).toHaveLength(2)
+    expect(screen.getByText(/Escolha a decisão confirmada com a contabilista/i)).toBeInTheDocument()
+    expect(screen.getByText(/Abra Configuração fiscal, defina o documento de pagamento imediato/i)).toBeInTheDocument()
     expect(screen.getByLabelText("Decisão: Vendas internacionais")).toBeInTheDocument()
     expect(screen.queryByText("Valor ou configuração aprovada")).not.toBeInTheDocument()
 
@@ -431,6 +434,7 @@ describe("AdminMoloni", () => {
     expect(mocks.updateChecklist).not.toHaveBeenCalled()
     expect(await screen.findByText("Resultado da verificação server-side")).toBeInTheDocument()
     expect(screen.getByText("Confirmados:")).toBeInTheDocument()
+    expect(screen.queryByText(/No ambiente Stripe teste, conclua um teste documental em rascunho sem bloqueios/i)).not.toBeInTheDocument()
   })
 
   it("imports accountant answers from sandbox into live", async () => {
