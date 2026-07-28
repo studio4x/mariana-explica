@@ -105,6 +105,15 @@ export interface MoloniCustomerReferenceSelection {
   requireAll?: boolean
 }
 
+export function findMoloniCompanyById(
+  companies: Array<{ company_id: number | string; name?: string | null }>,
+  companyId: number | null | undefined,
+) {
+  const targetId = Number(companyId ?? 0)
+  if (!Number.isInteger(targetId) || targetId <= 0) return null
+  return companies.find((item) => Number(item.company_id) === targetId) ?? null
+}
+
 function requiredEnv(name: string) {
   const value = Deno.env.get(name)?.trim()
   if (!value) throw internalError(`${name} não configurada`)

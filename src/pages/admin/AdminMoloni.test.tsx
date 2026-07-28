@@ -489,7 +489,10 @@ describe("AdminMoloni", () => {
     await screen.findByRole("heading", { name: "Integração Moloni" })
     await user.click(screen.getByRole("button", { name: "Carregar catálogo" }))
 
+    expect(await screen.findByText("A empresa nao possui metodos de pagamento disponiveis.")).toBeInTheDocument()
     expect(await screen.findByText("Não foram encontrados artigos na Moloni. Crie os artigos ou serviços diretamente na sua conta Moloni e carregue o catálogo novamente.")).toBeInTheDocument()
+    expect(screen.getByText(/Diagnostico do catalogo rascunho:/i)).toBeInTheDocument()
+    expect(screen.getByText(/a Moloni nao devolveu prazos de pagamento, metodos de pagamento e artigos\/servicos para a empresa selecionada\./i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Carregar novamente" })).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Abrir Moloni" })).toHaveAttribute("href", "https://www.moloni.pt/")
     expect(screen.queryByRole("button", { name: /Criar artigo/i })).not.toBeInTheDocument()

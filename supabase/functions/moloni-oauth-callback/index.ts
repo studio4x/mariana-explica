@@ -4,6 +4,7 @@ import { logError } from "../_shared/logger.ts"
 import {
   createServiceClient,
   exchangeMoloniAuthorizationCode,
+  findMoloniCompanyById,
   getAppBaseUrl,
   MoloniClient,
   storeMoloniTokens,
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
       .not("moloni_company_id", "is", null)
       .limit(1)
       .maybeSingle()
-    const company = companies.find((item) => item.company_id === settings?.moloni_company_id) ??
+    const company = findMoloniCompanyById(companies, Number(settings?.moloni_company_id ?? 0) || null) ??
       (companies.length === 1 ? companies[0] : null)
     await client
       .from("moloni_connections")

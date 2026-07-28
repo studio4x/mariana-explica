@@ -1,10 +1,11 @@
 import { badRequest, conflict } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
-import { logError } from "../_shared/logger.ts"
+import { logError, logInfo, logWarn } from "../_shared/logger.ts"
 import {
   assertAdminIntegrationRateLimit,
   extractRequestAuditContext,
   findInvalidMoloniCustomerReferences,
+  findMoloniCompanyById,
   getOfficialMoloniTax,
   MoloniClient,
   type MoloniCountry,
@@ -195,6 +196,7 @@ Deno.serve(async (req) => {
       if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
         throw conflict("Empresa Moloni não pertence à conexão autenticada.")
       }
+      const selectedCompany = findMoloniCompanyById(companies, body.moloniCompanyId)
       const [products, documentSets, taxes, paymentMethods, maturityDates] = await Promise.all([
         moloni.getAllProducts(body.moloniCompanyId),
         moloni.getDocumentSets(body.moloniCompanyId),
@@ -233,6 +235,49 @@ Deno.serve(async (req) => {
             .eq("id", stored.id)
           if (reviewError) throw reviewError
         }
+      }
+      const catalogCounts = {
+        companies: companies.length,
+        countries: countries.length,
+        languages: languages.length,
+        products: products.length,
+        document_sets: documentSets.length,
+        taxes: taxes.length,
+        payment_methods: paymentMethods.length,
+        maturity_dates: maturityDates.length,
+      }
+      const { error: connectionUpdateError } = await context.serviceClient
+        .from("moloni_connections")
+        .update({
+          status: "connected",
+          moloni_company_id: Number(selectedCompany?.company_id ?? body.moloniCompanyId),
+          company_name: selectedCompany?.name?.trim() || null,
+          last_success_at: new Date().toISOString(),
+          last_error_code: null,
+          last_error_message: null,
+        })
+        .eq("environment", body.moloniEnvironment)
+      if (connectionUpdateError) throw connectionUpdateError
+
+      logInfo("Moloni catalog loaded", {
+        request_id: requestId,
+        environment: body.moloniEnvironment,
+        company_id: Number(selectedCompany?.company_id ?? body.moloniCompanyId),
+        ...catalogCounts,
+      })
+      if (
+        body.moloniEnvironment === "live" &&
+        (products.length === 0 || paymentMethods.length === 0 || maturityDates.length === 0)
+      ) {
+        logWarn("Moloni live catalog missing resources", {
+          request_id: requestId,
+          environment: body.moloniEnvironment,
+          company_id: Number(selectedCompany?.company_id ?? body.moloniCompanyId),
+          missing_products: products.length === 0,
+          missing_payment_methods: paymentMethods.length === 0,
+          missing_maturity_dates: maturityDates.length === 0,
+          ...catalogCounts,
+        })
       }
       return jsonResponse({
         success: true,

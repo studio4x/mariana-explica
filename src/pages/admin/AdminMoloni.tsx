@@ -61,6 +61,12 @@ type ValidationFeedback = {
   message: string
 }
 
+function naturalLanguageList(items: string[]) {
+  if (items.length <= 1) return items[0] ?? ""
+  if (items.length === 2) return `${items[0]} e ${items[1]}`
+  return `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`
+}
+
 const inputClass =
   "mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
 const cardClass = "rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"
@@ -469,6 +475,7 @@ export function AdminMoloni() {
 
   const catalog: Catalog | undefined = catalogMutation.data
   const moloniProducts = useMemo(() => catalog?.products ?? [], [catalog?.products])
+  const paymentMethods = useMemo(() => catalog?.payment_methods ?? [], [catalog?.payment_methods])
   const filteredMoloniProducts = useMemo(() => {
     const query = normalizeCatalogText(moloniProductSearch)
     if (!query) return moloniProducts
@@ -606,6 +613,15 @@ export function AdminMoloni() {
   }
 
   const selectedMoloniEnvironment = environment === "test" ? "draft" : "live"
+  const selectedCompanyId = positiveInteger(companyId)
+  const missingCatalogResources =
+    !catalog || !selectedCompanyId
+      ? []
+      : [
+          ...(!catalog.maturity_dates.length ? ["prazos de pagamento"] : []),
+          ...(!paymentMethods.length ? ["metodos de pagamento"] : []),
+          ...(!moloniProducts.length ? ["artigos/servicos"] : []),
+        ]
   const busy =
     credentialsMutation.isPending ||
     connectMutation.isPending ||
@@ -969,11 +985,11 @@ export function AdminMoloni() {
          ) : null}
          {catalog ? (
            <>
-           <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-4" aria-live="polite">
+           <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-5" aria-live="polite">
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{catalog.countries.length ? `${catalog.countries.length} países carregados.` : "A conta não possui países disponíveis."}</p>
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{catalog.languages.length ? `${catalog.languages.length} idiomas carregados.` : "A conta não possui idiomas disponíveis."}</p>
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              {!positiveInteger(companyId)
+              {!selectedCompanyId
                 ? "Selecione uma empresa para carregar os prazos de pagamento."
                 : catalog.maturity_dates.length
                   ? `${catalog.maturity_dates.length} prazos de pagamento carregados.`
@@ -982,10 +998,21 @@ export function AdminMoloni() {
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               {moloniProducts.length ? `${moloniProducts.length} artigos/serviços carregados.` : "A empresa não possui artigos carregados."}
             </p>
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              {!selectedCompanyId
+                ? "Selecione uma empresa para carregar os metodos de pagamento."
+                : paymentMethods.length
+                  ? `${paymentMethods.length} metodos de pagamento carregados.`
+                  : "A empresa nao possui metodos de pagamento disponiveis."}
+            </p>
            </div>
-           {positiveInteger(companyId) && catalog && moloniProducts.length === 0 ? (
+           {missingCatalogResources.length ? (
              <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between" role="status">
                <p>Não foram encontrados artigos na Moloni. Crie os artigos ou serviços diretamente na sua conta Moloni e carregue o catálogo novamente.</p>
+               <div className="space-y-1">
+                 <p><strong>Diagnostico do catalogo {selectedMoloniEnvironment === "live" ? "live" : "rascunho"}:</strong> a Moloni nao devolveu {naturalLanguageList(missingCatalogResources)} para a empresa selecionada.</p>
+                 <p className="text-xs text-amber-900/80">Se esses recursos ja existem na conta, confirme na mesma empresa autenticada e carregue o catalogo novamente. A configuracao guardada continua visivel mesmo quando o retorno do catalogo vem vazio.</p>
+               </div>
                <div className="flex shrink-0 flex-wrap gap-2">
                  <Button type="button" variant="outline" className="rounded-full border-amber-300" onClick={() => catalogMutation.mutate({ moloniEnvironment: selectedMoloniEnvironment, moloniCompanyId: positiveInteger(companyId) })}>
                    <RefreshCw className="h-4 w-4" />
