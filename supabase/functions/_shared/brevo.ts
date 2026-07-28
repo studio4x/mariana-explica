@@ -185,7 +185,8 @@ export async function getBrevoAccount(client: SupabaseClient) {
 }
 
 export async function getBrevoLists(client: SupabaseClient) {
-  return await brevoRequest<{ lists?: Array<Record<string, unknown>>; count?: number }>(client, "/contacts/lists?limit=500&offset=0", { method: "GET" })
+  // Brevo caps this endpoint at 50 items per page.
+  return await brevoRequest<{ lists?: Array<Record<string, unknown>>; count?: number }>(client, "/contacts/lists?limit=50&offset=0&sort=desc", { method: "GET" })
 }
 
 export async function getBrevoAttributes(client: SupabaseClient) {

@@ -285,7 +285,7 @@ export function useAdminBrevoOverview() {
 }
 
 export function useAdminBrevoCatalog(enabled = true) {
-  return useQuery({ queryKey: ["admin", "brevo", "catalog"], queryFn: fetchAdminBrevoCatalog, enabled, ...getAdminQueryOptions() })
+  return useQuery({ queryKey: ["admin", "brevo", "catalog"], queryFn: fetchAdminBrevoCatalog, ...getAdminQueryOptions(), enabled, refetchOnMount: true, staleTime: 0 })
 }
 
 export function useAdminBrevoHistory(input: { query?: string; status?: string; offset?: number; limit?: number; days?: number } = {}) {
