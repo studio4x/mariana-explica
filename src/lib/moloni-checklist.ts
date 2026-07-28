@@ -17,7 +17,7 @@ export const MOLONI_CHECKLIST_GUIDES: Record<string, MoloniChecklistGuide> = {
   production_document_set: {
     group: "automatic",
     question: "As séries dos produtos estão configuradas?",
-    help: "A plataforma confere os mapeamentos ativos de todos os produtos publicados.",
+    help: "A plataforma confere os mapeamentos ativos de todos os produtos pagos publicados.",
   },
   homologation_strategy: {
     group: "automatic",
@@ -27,7 +27,7 @@ export const MOLONI_CHECKLIST_GUIDES: Record<string, MoloniChecklistGuide> = {
   moloni_products: {
     group: "automatic",
     question: "Todos os produtos pagos estão ligados a artigos Moloni?",
-    help: "A plataforma compara os produtos publicados com os mapeamentos ativos.",
+    help: "A plataforma compara os produtos pagos publicados com os mapeamentos ativos.",
   },
   automatic_closing: {
     group: "automatic",
@@ -179,6 +179,10 @@ function validationPassed(
   )
 }
 
+function isPublishedPaidProduct(item: Record<string, unknown>) {
+  return item.status === "published" && Number(item.price_cents ?? 0) > 0
+}
+
 export function detectMoloniChecklistValues({
   environment,
   settings,
@@ -208,7 +212,7 @@ export function detectMoloniChecklistValues({
 
   const publishedProductIds = new Set(
     products
-      .filter((item) => item.status === "published")
+      .filter(isPublishedPaidProduct)
       .map((item) => String(item.id)),
   )
   const activeMappings = mappings.filter(
@@ -223,7 +227,7 @@ export function detectMoloniChecklistValues({
     [...publishedProductIds].every((id) => mappedProductIds.has(id))
 
   if (allProductsMapped && validationPassed(validations, environment, "mappings")) {
-    detected.moloni_products = `${mappedProductIds.size} produto(s) publicado(s) ligado(s) e validado(s)`
+    detected.moloni_products = `${mappedProductIds.size} produto(s) pago(s) publicado(s) ligado(s) e validado(s)`
     const series = [...new Set(
       activeMappings
         .map((item) => String(item.moloni_document_set_name ?? "").trim())

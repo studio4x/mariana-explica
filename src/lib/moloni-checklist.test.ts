@@ -7,7 +7,7 @@ describe("Moloni checklist text", () => {
       .flatMap((guide) => [guide.question, guide.help, ...(guide.options ?? []), guide.placeholder ?? ""])
       .join(" ")
 
-    expect(text).not.toContain("�")
+    expect(text).not.toContain("ï¿½")
   })
 })
 
@@ -27,14 +27,14 @@ describe("detectMoloniChecklistValues", () => {
           document_status: 1,
         },
       ],
-      products: [{ id: "product-1", status: "published" }],
+      products: [{ id: "product-1", status: "published", price_cents: 1500 }],
       mappings: [
         {
           product_id: "product-1",
           payment_environment: "live",
           is_active: true,
           moloni_document_set_id: 90,
-          moloni_document_set_name: "Série 2026",
+          moloni_document_set_name: "SÃ©rie 2026",
         },
       ],
       validations: [
@@ -45,7 +45,7 @@ describe("detectMoloniChecklistValues", () => {
     })
 
     expect(values.immediate_payment_document).toBe("Fatura-recibo")
-    expect(values.production_document_set).toContain("Série 2026")
+    expect(values.production_document_set).toContain("SÃ©rie 2026")
     expect(values.moloni_products).toContain("1 produto(s)")
     expect(values.homologation_strategy).toContain("homologação concluída")
     expect(values.customer_pdf_delivery).toContain("área do aluno")
@@ -63,7 +63,7 @@ describe("detectMoloniChecklistValues", () => {
           document_status: 0,
         },
       ],
-      products: [{ id: "product-1", status: "published" }],
+      products: [{ id: "product-1", status: "published", price_cents: 1500 }],
       mappings: [],
       validations: [],
     })
@@ -73,5 +73,39 @@ describe("detectMoloniChecklistValues", () => {
     expect(values.moloni_products).toBeUndefined()
     expect(values.production_document_set).toBeUndefined()
     expect(values.homologation_strategy).toBeUndefined()
+  })
+
+  it("ignores free or archived products when checking paid-product coverage", () => {
+    const values = detectMoloniChecklistValues({
+      environment: "live",
+      settings: [
+        {
+          payment_environment: "live",
+          document_kind: "invoice_receipt",
+          document_status: 1,
+        },
+      ],
+      products: [
+        { id: "paid-product", status: "published", price_cents: 2900 },
+        { id: "free-product", status: "published", price_cents: 0 },
+        { id: "archived-free", status: "archived", price_cents: 0 },
+      ],
+      mappings: [
+        {
+          product_id: "paid-product",
+          payment_environment: "live",
+          is_active: true,
+          moloni_document_set_id: 90,
+          moloni_document_set_name: "SÃ©rie 2026",
+        },
+      ],
+      validations: [
+        { payment_environment: "live", validation_type: "mappings", status: "passed" },
+        { payment_environment: "live", validation_type: "document_sets", status: "passed" },
+      ],
+    })
+
+    expect(values.moloni_products).toContain("1 produto(s) pago(s) publicado(s)")
+    expect(values.production_document_set).toContain("SÃ©rie 2026")
   })
 })

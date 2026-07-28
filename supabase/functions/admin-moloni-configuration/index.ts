@@ -104,6 +104,10 @@ function validationMatchesCompany(validation: ValidationRow | null, companyId: n
   )
 }
 
+function isPublishedPaidProduct(item: { status?: unknown; price_cents?: unknown }) {
+  return item.status === "published" && Number(item.price_cents ?? 0) > 0
+}
+
 async function recordValidation(
   context: Awaited<ReturnType<typeof requireAdmin>>,
   input: {
@@ -166,7 +170,7 @@ async function loadCoreState(context: Awaited<ReturnType<typeof requireAdmin>>) 
     context.serviceClient.from("moloni_product_mappings").select("*").order("updated_at", { ascending: false }),
     context.serviceClient
       .from("products")
-      .select("id,title,status,product_type")
+      .select("id,title,status,product_type,price_cents")
       .in("product_type", ["paid", "hybrid"])
       .order("title"),
     context.serviceClient
@@ -291,7 +295,7 @@ function buildOverview(state: Awaited<ReturnType<typeof loadCoreState>>) {
   const liveChecklist = state.checklist.filter((item) =>
     item.payment_environment === "live" && item.is_blocking
   )
-  const publishedPaidProducts = state.products.filter((item) => item.status === "published")
+  const publishedPaidProducts = state.products.filter(isPublishedPaidProduct)
   const liveActiveMappings = state.mappings.filter((item) =>
     item.payment_environment === "live" && item.is_active
   )
@@ -428,7 +432,7 @@ async function runValidation(
           summary = "Método de pagamento Stripe confirmado na Moloni."
           details.payment_method_id = settings.customer_payment_method_id
         } else if (validationType === "mappings") {
-          const publishedProducts = state.products.filter((item) => item.status === "published")
+          const publishedProducts = state.products.filter(isPublishedPaidProduct)
           const mappings = state.mappings.filter((item) =>
             item.payment_environment === paymentEnvironment && item.is_active
           )
