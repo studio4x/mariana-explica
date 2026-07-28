@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   saveCredentials: vi.fn(),
   activate: vi.fn(),
   catalog: vi.fn(),
+  importChecklistAnswers: vi.fn(),
   status: vi.fn(),
   runValidation: vi.fn(),
   updateChecklist: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("@/services/admin.service", () => ({
   fetchAdminFiscalDocumentUrl: vi.fn(),
   fetchAdminMoloniCatalog: (...args: unknown[]) => mocks.catalog(...args),
   fetchAdminMoloniStatus: (...args: unknown[]) => mocks.status(...args),
+  importAdminMoloniChecklistAnswers: (...args: unknown[]) => mocks.importChecklistAnswers(...args),
   runAdminMoloniValidation: (...args: unknown[]) => mocks.runValidation(...args),
   runAdminMoloniJobAction: vi.fn(),
   startAdminMoloniConnection: vi.fn(),
@@ -170,11 +172,29 @@ describe("AdminMoloni", () => {
     mocks.saveCredentials.mockReset()
     mocks.activate.mockReset()
     mocks.catalog.mockReset()
+    mocks.importChecklistAnswers.mockReset()
     mocks.status.mockReset()
     mocks.runValidation.mockReset()
     mocks.updateChecklist.mockReset()
     mocks.syncAutomaticChecklist.mockReset()
     mocks.status.mockResolvedValue({ rules: [] })
+    mocks.importChecklistAnswers.mockResolvedValue({
+      success: true,
+      result: {
+        imported_count: 9,
+        imported_keys: [
+          "buyer_without_vat",
+          "individual_required_data",
+          "company_required_data",
+          "eac",
+          "portugal_vat",
+          "international_sales",
+          "eu_b2b_b2c_oss",
+          "exemptions",
+          "tax_authority_communication",
+        ],
+      },
+    })
     mocks.updateChecklist.mockResolvedValue({ success: true })
     mocks.syncAutomaticChecklist.mockResolvedValue({
       success: true,
@@ -411,6 +431,59 @@ describe("AdminMoloni", () => {
     expect(mocks.updateChecklist).not.toHaveBeenCalled()
     expect(await screen.findByText("Resultado da verificação server-side")).toBeInTheDocument()
     expect(screen.getByText("Confirmados:")).toBeInTheDocument()
+  })
+
+  it("imports accountant answers from sandbox into live", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.checklist = [
+      {
+        id: "accountant-test-1",
+        payment_environment: "test",
+        item_key: "buyer_without_vat",
+        title: "Comprador sem NIF",
+        description: "Regra para comprador sem NIF.",
+        is_blocking: true,
+        status: "approved",
+        configuration: { value: "Usar o cliente genérico aprovado na configuração" },
+        notes: "Resposta confirmada no sandbox.",
+        approved_by: "admin-test",
+        approved_at: "2026-07-26T14:35:36.362Z",
+        is_automatic: false,
+        updated_at: "2026-07-26T14:35:36.362Z",
+      },
+      {
+        id: "accountant-live-1",
+        payment_environment: "live",
+        item_key: "buyer_without_vat",
+        title: "Comprador sem NIF",
+        description: "Regra para comprador sem NIF.",
+        is_blocking: true,
+        status: "pending",
+        configuration: null,
+        notes: null,
+        approved_by: null,
+        approved_at: null,
+        is_automatic: false,
+        updated_at: "2026-07-28T20:00:00.000Z",
+      },
+    ] as unknown as typeof overview.checklist
+    mocks.overview.mockResolvedValue(overview)
+    renderPage("/admin/integracoes/moloni/checklist-fiscal")
+
+    await screen.findByRole("heading", { name: "Integração Moloni" })
+    await user.click(screen.getByRole("tab", { name: "Stripe live" }))
+
+    expect(await screen.findByText("1 resposta(s) já preenchida(s) no sandbox podem ser copiadas para produção.")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Importar respostas do sandbox" }))
+
+    await waitFor(() => expect(mocks.importChecklistAnswers).toHaveBeenCalled())
+    expect(mocks.importChecklistAnswers.mock.calls[0]?.[0]).toEqual({
+      sourcePaymentEnvironment: "test",
+      targetPaymentEnvironment: "live",
+      group: "accountant",
+    })
   })
 
   it("renders readable catalog selectors and suggests Portugal, Portuguese and immediate payment", async () => {

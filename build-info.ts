@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "298"
-export const BUILD_COMMIT = "moloni-live-catalog"
+export const BUILD_DEPLOY_NUMBER = "299"
+export const BUILD_COMMIT = "moloni-checklist-sync"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

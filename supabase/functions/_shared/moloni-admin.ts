@@ -21,6 +21,18 @@ export const MOLONI_CHECKLIST_KEYS = [
 
 export type MoloniChecklistKey = typeof MOLONI_CHECKLIST_KEYS[number]
 
+export const MOLONI_ACCOUNTANT_CHECKLIST_KEYS = [
+  "buyer_without_vat",
+  "individual_required_data",
+  "company_required_data",
+  "eac",
+  "portugal_vat",
+  "international_sales",
+  "eu_b2b_b2c_oss",
+  "exemptions",
+  "tax_authority_communication",
+] as const satisfies readonly MoloniChecklistKey[]
+
 export interface MoloniActivationGateInput {
   credentialsConfigured: boolean
   encryptionKeyConfigured: boolean

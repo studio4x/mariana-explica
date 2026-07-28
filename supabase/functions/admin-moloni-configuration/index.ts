@@ -12,6 +12,7 @@ import {
   isDraftHomologationConfirmation,
   isStrongMoloniActivationConfirmation,
   minimalBuyerLabel,
+  MOLONI_ACCOUNTANT_CHECKLIST_KEYS,
   MoloniClient,
   processMoloniDocumentJob,
   requireAdmin,
@@ -45,6 +46,12 @@ type Input =
   | {
       action: "sync_automatic_checklist"
       paymentEnvironment: PaymentEnvironment
+    }
+  | {
+      action: "import_checklist_answers"
+      sourcePaymentEnvironment: "test"
+      targetPaymentEnvironment: "live"
+      group: "accountant"
     }
   | {
       action: "run_validation"
@@ -496,6 +503,23 @@ async function runValidation(
   }
 }
 
+async function refreshAutomaticChecklistDependencies(
+  context: Awaited<ReturnType<typeof requireAdmin>>,
+  paymentEnvironment: PaymentEnvironment,
+) {
+  const validationTypes: ValidationType[] = ["company", "document_sets", "products", "mappings"]
+  const refreshed: Array<{ validation_type: ValidationType; status: "passed" | "failed" }> = []
+  for (const validationType of validationTypes) {
+    try {
+      await runValidation(context, paymentEnvironment, validationType)
+      refreshed.push({ validation_type: validationType, status: "passed" })
+    } catch {
+      refreshed.push({ validation_type: validationType, status: "failed" })
+    }
+  }
+  return refreshed
+}
+
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
   if (req.method === "OPTIONS") return corsResponse()
@@ -619,6 +643,10 @@ Deno.serve(async (req) => {
 
     if (body.action === "sync_automatic_checklist") {
       assertPaymentEnvironment(body.paymentEnvironment)
+      const refreshedValidations = await refreshAutomaticChecklistDependencies(
+        context,
+        body.paymentEnvironment,
+      )
       const { data: result, error: syncError } = await context.serviceClient
         .rpc("sync_moloni_automatic_checklist", {
           p_payment_environment: body.paymentEnvironment,
@@ -634,10 +662,95 @@ Deno.serve(async (req) => {
           pending_count: Array.isArray(result?.pending_items) ? result.pending_items.length : 0,
           updated_count: Number(result?.updated_count ?? 0),
           fiscal_checklist_approved: Boolean(result?.fiscal_checklist_approved),
+          refreshed_validations: refreshedValidations,
         },
         ...extractRequestAuditContext(req),
       })
-      return jsonResponse({ success: true, request_id: requestId, result })
+      return jsonResponse({ success: true, request_id: requestId, result, refreshed_validations: refreshedValidations })
+    }
+
+    if (body.action === "import_checklist_answers") {
+      if (
+        body.sourcePaymentEnvironment !== "test" ||
+        body.targetPaymentEnvironment !== "live" ||
+        body.group !== "accountant"
+      ) {
+        throw badRequest("Importação de checklist inválida")
+      }
+      const accountantKeys = [...MOLONI_ACCOUNTANT_CHECKLIST_KEYS]
+      const { data: sourceItems, error: sourceItemsError } = await context.serviceClient
+        .from("moloni_fiscal_checklist_items")
+        .select("id,item_key,status,configuration,notes,is_automatic")
+        .eq("payment_environment", body.sourcePaymentEnvironment)
+        .in("item_key", accountantKeys)
+      if (sourceItemsError) throw sourceItemsError
+      const { data: targetItems, error: targetItemsError } = await context.serviceClient
+        .from("moloni_fiscal_checklist_items")
+        .select("id,item_key,status")
+        .eq("payment_environment", body.targetPaymentEnvironment)
+        .in("item_key", accountantKeys)
+      if (targetItemsError) throw targetItemsError
+
+      const targetByKey = new Map((targetItems ?? []).map((item) => [item.item_key, item]))
+      const now = new Date().toISOString()
+      const updates = (sourceItems ?? [])
+        .filter((item) =>
+          !item.is_automatic &&
+          (item.status === "filled" || item.status === "approved") &&
+          targetByKey.has(item.item_key),
+        )
+        .map((item) => ({
+          id: String(targetByKey.get(item.item_key)?.id),
+          item_key: item.item_key,
+          status: item.status,
+          configuration: item.configuration ?? null,
+          notes: item.notes?.trim() || `Importado do sandbox em ${now}.`,
+          approved_by: item.status === "approved" ? context.user.id : null,
+          approved_at: item.status === "approved" ? now : null,
+          updated_by: context.user.id,
+        }))
+
+      if (updates.length === 0) {
+        return jsonResponse({
+          success: true,
+          request_id: requestId,
+          result: { imported_count: 0, imported_keys: [] },
+        })
+      }
+
+      const { data: importedItems, error: importError } = await context.serviceClient
+        .from("moloni_fiscal_checklist_items")
+        .upsert(updates, { onConflict: "id" })
+        .select("id,item_key,status")
+      if (importError) throw importError
+
+      const { data: checklistApproved, error: checklistError } = await context.serviceClient
+        .rpc("refresh_moloni_checklist_approval", {
+          p_payment_environment: body.targetPaymentEnvironment,
+        })
+      if (checklistError) throw checklistError
+
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.moloni_checklist_answers_imported",
+        entityType: "moloni_fiscal_checklist",
+        metadata: {
+          source_payment_environment: body.sourcePaymentEnvironment,
+          target_payment_environment: body.targetPaymentEnvironment,
+          group: body.group,
+          imported_count: importedItems?.length ?? 0,
+          imported_keys: (importedItems ?? []).map((item) => item.item_key),
+          fiscal_checklist_approved: Boolean(checklistApproved),
+        },
+        ...extractRequestAuditContext(req),
+      })
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        result: {
+          imported_count: importedItems?.length ?? 0,
+          imported_keys: (importedItems ?? []).map((item) => item.item_key),
+        },
+      })
     }
 
     if (body.action === "run_validation") {

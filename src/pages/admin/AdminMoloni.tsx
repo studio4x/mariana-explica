@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+﻿import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertTriangle,
@@ -41,6 +41,7 @@ import {
   saveAdminMoloniCredentials,
   startAdminMoloniConnection,
   syncAdminMoloniAutomaticChecklist,
+  importAdminMoloniChecklistAnswers,
   updateAdminMoloniChecklist,
   updateAdminMoloniSettings,
   upsertAdminMoloniMapping,
@@ -407,6 +408,14 @@ export function AdminMoloni() {
     })
     return groups
   }, [checklist])
+  const sandboxAccountantSourceItems = useMemo(
+    () => (data?.checklist ?? []).filter((item) =>
+      item.payment_environment === "test" &&
+      (MOLONI_CHECKLIST_GUIDES[item.item_key]?.group ?? "accountant") === "accountant" &&
+      (item.status === "filled" || item.status === "approved"),
+    ),
+    [data?.checklist],
+  )
   const automaticItemsPending = useMemo(
     () => checklistGroups.automatic.filter((item) => item.status !== "approved" || Boolean(item.stale_reason)),
     [checklistGroups.automatic],
@@ -465,7 +474,13 @@ export function AdminMoloni() {
   })
   const settingsMutation = useMutation({
     mutationFn: updateAdminMoloniSettings,
-    onSuccess: () => succeed("Configuração fiscal guardada com emissão automática desativada."),
+    onSuccess: async () => {
+      if (positiveInteger(companyId)) {
+        const { result } = await syncAdminMoloniAutomaticChecklist(environment)
+        setAutomaticSyncResult(result)
+      }
+      await succeed("Configuração fiscal guardada com emissão automática desativada.")
+    },
     onError: fail,
   })
   const catalogMutation = useMutation({
@@ -523,7 +538,13 @@ export function AdminMoloni() {
   /* eslint-enable react-hooks/set-state-in-effect */
   const mappingMutation = useMutation({
     mutationFn: upsertAdminMoloniMapping,
-    onSuccess: () => succeed("Mapeamento validado e guardado."),
+    onSuccess: async () => {
+      if (positiveInteger(companyId)) {
+        const { result } = await syncAdminMoloniAutomaticChecklist(environment)
+        setAutomaticSyncResult(result)
+      }
+      await succeed("Mapeamento validado, guardado e checklist automÃ¡tico reavaliado.")
+    },
     onError: fail,
   })
   const ruleMutation = useMutation({
@@ -537,6 +558,13 @@ export function AdminMoloni() {
   const checklistMutation = useMutation({
     mutationFn: updateAdminMoloniChecklist,
     onSuccess: () => succeed("Item do checklist atualizado e auditado."),
+    onError: fail,
+  })
+  const importChecklistAnswersMutation = useMutation({
+    mutationFn: importAdminMoloniChecklistAnswers,
+    onSuccess: async ({ result }) => {
+      await succeed(`${result.imported_count} resposta(s) da contabilista importada(s) do sandbox.`)
+    },
     onError: fail,
   })
   const automaticChecklistMutation = useMutation({
@@ -614,6 +642,8 @@ export function AdminMoloni() {
 
   const selectedMoloniEnvironment = environment === "test" ? "draft" : "live"
   const selectedCompanyId = positiveInteger(companyId)
+  const canImportSandboxAccountantAnswers =
+    environment === "live" && sandboxAccountantSourceItems.length > 0
   const missingCatalogResources =
     !catalog || !selectedCompanyId
       ? []
@@ -630,6 +660,7 @@ export function AdminMoloni() {
     catalogMutation.isPending ||
     mappingMutation.isPending ||
     checklistMutation.isPending ||
+    importChecklistAnswersMutation.isPending ||
     automaticChecklistMutation.isPending ||
     validationMutation.isPending ||
     draftMutation.isPending ||
@@ -1304,11 +1335,38 @@ export function AdminMoloni() {
                     <h3 className="font-black text-slate-950">{info.title}</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{info.description}</p>
                   </div>
-                  <StatusBadge
-                    label={`${approved}/${items.length} concluídos`}
-                    tone={approved === items.length ? "success" : "neutral"}
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge
+                      label={`${approved}/${items.length} concluídos`}
+                      tone={approved === items.length ? "success" : "neutral"}
+                    />
+                    {group === "accountant" && environment === "live" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={busy || !canImportSandboxAccountantAnswers}
+                        onClick={() => importChecklistAnswersMutation.mutate({
+                          sourcePaymentEnvironment: "test",
+                          targetPaymentEnvironment: "live",
+                          group: "accountant",
+                        })}
+                      >
+                        {importChecklistAnswersMutation.isPending
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <Clipboard className="h-4 w-4" />}
+                        Importar respostas do sandbox
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
+                {group === "accountant" && environment === "live" ? (
+                  <p className="mt-3 text-xs text-slate-500">
+                    {canImportSandboxAccountantAnswers
+                      ? `${sandboxAccountantSourceItems.length} resposta(s) já preenchida(s) no sandbox podem ser copiadas para produção.`
+                      : "Ainda não existem respostas preenchidas no sandbox para importar nesta seção."}
+                  </p>
+                ) : null}
                 <div className="mt-4 space-y-3">
                   {items.map((item) => (
                     <ChecklistRow

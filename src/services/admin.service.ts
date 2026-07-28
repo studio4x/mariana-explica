@@ -1798,9 +1798,30 @@ export async function syncAdminMoloniAutomaticChecklist(
   return await invokeAdminFunction<{
     success: true
     result: AdminMoloniAutomaticChecklistResult
+    refreshed_validations: Array<{
+      validation_type: "company" | "document_sets" | "products" | "mappings"
+      status: "passed" | "failed"
+    }>
   }>("admin-moloni-configuration", {
     action: "sync_automatic_checklist",
     paymentEnvironment,
+  })
+}
+
+export async function importAdminMoloniChecklistAnswers(input: {
+  sourcePaymentEnvironment: "test"
+  targetPaymentEnvironment: "live"
+  group: "accountant"
+}) {
+  return await invokeAdminFunction<{
+    success: true
+    result: {
+      imported_count: number
+      imported_keys: string[]
+    }
+  }>("admin-moloni-configuration", {
+    action: "import_checklist_answers",
+    ...input,
   })
 }
 
