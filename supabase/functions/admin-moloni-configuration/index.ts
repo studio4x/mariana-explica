@@ -718,11 +718,20 @@ Deno.serve(async (req) => {
         })
       }
 
-      const { data: importedItems, error: importError } = await context.serviceClient
-        .from("moloni_fiscal_checklist_items")
-        .upsert(updates, { onConflict: "id" })
-        .select("id,item_key,status")
-      if (importError) throw importError
+      const importedItems = await Promise.all(
+        updates.map(async ({ id, item_key, ...payload }) => {
+          const { data: importedItem, error: importError } = await context.serviceClient
+            .from("moloni_fiscal_checklist_items")
+            .update(payload)
+            .eq("id", id)
+            .eq("item_key", item_key)
+            .select("id,item_key,status")
+            .maybeSingle()
+          if (importError) throw importError
+          if (!importedItem) throw notFound(`Item de checklist '${item_key}' não encontrado no destino`)
+          return importedItem
+        }),
+      )
 
       const { data: checklistApproved, error: checklistError } = await context.serviceClient
         .rpc("refresh_moloni_checklist_approval", {
