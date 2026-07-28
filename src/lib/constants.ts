@@ -55,6 +55,7 @@ export const ROUTES = {
   ADMIN_MOLONI_CHECKLIST: "/admin/integracoes/moloni/checklist-fiscal",
   ADMIN_MOLONI_QUEUE: "/admin/integracoes/moloni/fila-documentos-fiscais",
   ADMIN_EMAILS: "/admin/emails",
+  ADMIN_BREVO: "/admin/integracoes/brevo",
   ADMIN_SETTINGS: "/admin/configuracoes",
   ADMIN_ACCOUNT: "/admin/minha-conta",
   ADMIN_NOTIFICATIONS: "/admin/notificacoes",

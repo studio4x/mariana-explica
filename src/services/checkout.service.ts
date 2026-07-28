@@ -24,6 +24,7 @@ export interface ClaimFreeProductInput {
   productId?: string
   productSlug?: string
   pendingUserId?: string | null
+  contentUpdatesConsent?: boolean
 }
 
 export interface CheckoutAutologinInput {

@@ -307,7 +307,11 @@ function CheckoutPageContent() {
 
     try {
       if (isFreeProduct(product)) {
-        await claimFreeProduct({ productId: product.id, pendingUserId: pendingUserId ?? null })
+        await claimFreeProduct({
+          productId: product.id,
+          pendingUserId: pendingUserId ?? null,
+          contentUpdatesConsent: draft.contentUpdatesConsent,
+        })
         clearCheckoutDraft()
         navigate(
           `${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=free`,

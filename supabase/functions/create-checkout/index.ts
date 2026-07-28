@@ -18,6 +18,7 @@ import {
   resolveAffiliateByCode,
   resolveCouponByCode,
   createServiceClient,
+  queueBrevoContactSync,
   writeAuditLog,
 } from "../_shared/mod.ts"
 import { badRequest, internalError, unprocessable } from "../_shared/errors.ts"
@@ -227,7 +228,7 @@ Deno.serve(async (req) => {
     const pendingUserId = body.pendingUserId?.trim() || null
     const invoiceWithNif = Boolean(body.invoiceWithNif)
     const customerNif = body.customerNif?.trim() || null
-    const contentUpdatesConsent = Boolean(body.contentUpdatesConsent)
+    const requestedContentUpdatesConsent = Boolean(body.contentUpdatesConsent)
 
     if (!identifier) {
       throw badRequest("Informe productId ou productSlug")
@@ -244,6 +245,7 @@ Deno.serve(async (req) => {
     }
 
     const accountEmail = context.profile.email ?? context.user.email ?? null
+    const contentUpdatesConsent = requestedContentUpdatesConsent || context.profile.content_updates_consent === true
     if (
       customerEmail &&
       accountEmail &&
@@ -289,6 +291,15 @@ Deno.serve(async (req) => {
 
     const profileUpdates: Record<string, unknown> = {
       content_updates_consent: contentUpdatesConsent,
+    }
+    if (contentUpdatesConsent) {
+      profileUpdates.content_updates_consent_at = new Date().toISOString()
+      profileUpdates.content_updates_consent_source = product?.slug ? `checkout:${product.slug}` : "checkout"
+      profileUpdates.content_updates_consent_evidence = {
+        flow: "create-checkout",
+        explicit_checkbox: true,
+        request_id: requestId,
+      }
     }
     if (invoiceWithNif && customerNif) {
       profileUpdates.nif = stripDigits(customerNif)
@@ -342,6 +353,28 @@ Deno.serve(async (req) => {
         sourceType: "free_claim",
         sourceOrderId: order.id,
       })
+
+      if (contentUpdatesConsent && accountEmail) {
+        try {
+          await queueBrevoContactSync(context.serviceClient, {
+            userId: context.user.id,
+            email: accountEmail,
+            fullName: context.profile.full_name,
+            nif: context.profile.nif,
+            product: product.title,
+            productId: product.id,
+            orderId: order.id,
+            source: "free_checkout",
+            consentEvidence: { flow: "create-checkout", explicit_checkbox: true, request_id: requestId },
+          })
+        } catch (brevoError) {
+          logError("Free checkout Brevo contact queue failed", {
+            request_id: requestId,
+            user_id: context.user.id,
+            error: String(brevoError),
+          })
+        }
+      }
 
       if (coupon) {
         await recordCouponUsage(context.serviceClient, {
@@ -478,6 +511,30 @@ Deno.serve(async (req) => {
       email: customerEmail ?? context.profile.email ?? context.user.email,
       vatNumber: invoiceWithNif ? customerNif : null,
     })
+
+    if (contentUpdatesConsent && accountEmail) {
+      try {
+        await queueBrevoContactSync(context.serviceClient, {
+          userId: context.user.id,
+          email: accountEmail,
+          fullName: context.profile.full_name,
+          nif: context.profile.nif,
+          product: product.title,
+          productId: product.id,
+          orderId: order.id,
+          paymentEnvironment: stripeMode,
+          source: "paid_checkout",
+          consentEvidence: { flow: "create-checkout", explicit_checkbox: true, request_id: requestId },
+        })
+      } catch (brevoError) {
+        logError("Paid checkout Brevo contact queue failed", {
+          request_id: requestId,
+          user_id: context.user.id,
+          order_id: order.id,
+          error: String(brevoError),
+        })
+      }
+    }
 
     let session: Awaited<ReturnType<typeof createStripeCheckoutSession>>
     try {

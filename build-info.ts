@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "291"
-export const BUILD_COMMIT = "moloni-validation-feedback"
+export const BUILD_DEPLOY_NUMBER = "292"
+export const BUILD_COMMIT = "brevo-integration"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

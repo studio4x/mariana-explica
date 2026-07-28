@@ -118,6 +118,15 @@ verify_jwt = false
 [functions.cron-process-email-deliveries]
 verify_jwt = false
 
+[functions.cron-process-brevo-contact-syncs]
+verify_jwt = false
+
+[functions.admin-brevo]
+verify_jwt = false
+
+[functions.auth-send-email-brevo]
+verify_jwt = false
+
 [functions.cron-reconcile-orders]
 verify_jwt = false
 

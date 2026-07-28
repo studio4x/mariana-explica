@@ -1,6 +1,7 @@
 ﻿import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
 import { richTextToPlainText, sanitizeRichTextHtml } from "./rich-text.ts"
 import { getAppBaseUrl } from "./supabase.ts"
+import { fetchBrevoSettings, sendBrevoTransactionalEmail } from "./brevo.ts"
 
 export type PlatformTemplateKey =
   | "purchase_confirmed"
@@ -87,7 +88,7 @@ export interface PlatformEmailTemplatePreview {
 
 export interface EmailEnvironmentStatus {
   providerName: string | null
-  transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
+  transport: "brevo" | "smtp" | "resend" | "postmark" | "sendgrid" | null
   senderNamePresent: boolean
   senderAddressPresent: boolean
   replyToPresent: boolean
@@ -1643,6 +1644,16 @@ export async function buildPublicFormReplyEmail(client: SupabaseClient, input: {
 }
 
 export async function fetchEmailOperationalConfig(client: SupabaseClient) {
+  const brevoSettings = await fetchBrevoSettings(client)
+  if (brevoSettings.enabled || brevoSettings.sender_email || brevoSettings.updated_at) {
+    return {
+      providerName: "brevo",
+      senderName: brevoSettings.sender_name,
+      senderAddress: brevoSettings.sender_email,
+      replyTo: brevoSettings.reply_to,
+    }
+  }
+
   const envConfig = readEmailRuntimeConfigFromEnvironment()
 
   const { data, error } = await client
@@ -1666,10 +1677,10 @@ export async function fetchEmailOperationalConfig(client: SupabaseClient) {
 }
 
 export async function sendTransactionalEmail(
+  client: SupabaseClient,
   config: EmailOperationalConfig,
   input: SendTransactionalEmailInput,
 ) {
-  const runtimeConfig = resolveProviderRuntimeConfig(config)
   const normalizedInput = {
     ...input,
     emailTo: normalizeEmailAddress(input.emailTo),
@@ -1685,6 +1696,12 @@ export async function sendTransactionalEmail(
   if (!normalizedInput.html && !normalizedInput.text) {
     throw new Error("Email sem payload renderizavel para envio transacional")
   }
+
+  if (config.providerName === "brevo") {
+    return await sendBrevoTransactionalEmail(client, normalizedInput)
+  }
+
+  const runtimeConfig = resolveProviderRuntimeConfig(config)
 
   if (runtimeConfig.providerKey === "resend") {
     return await sendWithResend(runtimeConfig, normalizedInput)

@@ -9,6 +9,7 @@ import {
 
 type CronKey =
   | "process_email_deliveries"
+  | "process_brevo_contact_syncs"
   | "retry_email_deliveries"
   | "reconcile_orders"
   | "audit_access_consistency"
@@ -29,6 +30,10 @@ interface AdminCronSchedulerInput {
 const CRON_TARGETS: Record<CronKey, { slug: string; defaultPayload: Record<string, unknown> }> = {
   process_email_deliveries: {
     slug: "cron-process-email-deliveries",
+    defaultPayload: { batchSize: 20 },
+  },
+  process_brevo_contact_syncs: {
+    slug: "cron-process-brevo-contact-syncs",
     defaultPayload: { batchSize: 20 },
   },
   retry_email_deliveries: {

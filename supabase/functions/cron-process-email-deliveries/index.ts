@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const providerResult = await sendTransactionalEmail(emailConfig, {
+        const providerResult = await sendTransactionalEmail(serviceClient, emailConfig, {
           emailTo: delivery.email_to,
           subject: delivery.subject ?? "",
           html: delivery.html_content,

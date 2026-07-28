@@ -40,6 +40,17 @@ import {
   fetchAdminAiPageEditorUsageMetrics,
   fetchAdminLegacyPageEditorConfig,
   fetchAdminEmailStatus,
+  fetchAdminBrevoOverview,
+  saveAdminBrevoCredentials,
+  saveAdminBrevoSettings,
+  checkAdminBrevoConnection,
+  fetchAdminBrevoCatalog,
+  sendAdminBrevoTestEmail,
+  fetchAdminBrevoHistory,
+  fetchAdminBrevoContacts,
+  retryAdminBrevoContact,
+  retryFailedAdminBrevoContacts,
+  syncAdminBrevoContact,
   fetchAdminEmailTemplates,
   fetchAdminModulePdfWatermarkConfig,
   fetchAdminPendingInfoConfig,
@@ -267,6 +278,39 @@ export function useAdminEmailTemplates() {
     queryFn: fetchAdminEmailTemplates,
     ...getAdminQueryOptions(),
   })
+}
+
+export function useAdminBrevoOverview() {
+  return useQuery({ queryKey: ["admin", "brevo", "overview"], queryFn: fetchAdminBrevoOverview, ...getAdminQueryOptions() })
+}
+
+export function useAdminBrevoCatalog(enabled = true) {
+  return useQuery({ queryKey: ["admin", "brevo", "catalog"], queryFn: fetchAdminBrevoCatalog, enabled, ...getAdminQueryOptions() })
+}
+
+export function useAdminBrevoHistory(input: { query?: string; status?: string; offset?: number; limit?: number; days?: number } = {}) {
+  return useQuery({ queryKey: ["admin", "brevo", "history", input], queryFn: () => fetchAdminBrevoHistory(input), ...getAdminQueryOptions() })
+}
+
+export function useAdminBrevoContacts(input: { query?: string; status?: string; offset?: number; limit?: number } = {}) {
+  return useQuery({ queryKey: ["admin", "brevo", "contacts", input], queryFn: () => fetchAdminBrevoContacts(input), ...getAdminQueryOptions() })
+}
+
+export function useAdminBrevoMutation() {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin", "brevo"] })
+    void queryClient.invalidateQueries({ queryKey: ["admin", "operations"] })
+  }
+  return {
+    saveCredentials: useMutation({ mutationFn: saveAdminBrevoCredentials, onSuccess: invalidate }),
+    saveSettings: useMutation({ mutationFn: saveAdminBrevoSettings, onSuccess: invalidate }),
+    checkConnection: useMutation({ mutationFn: checkAdminBrevoConnection, onSuccess: invalidate }),
+    sendTest: useMutation({ mutationFn: sendAdminBrevoTestEmail, onSuccess: invalidate }),
+    retryContact: useMutation({ mutationFn: retryAdminBrevoContact, onSuccess: invalidate }),
+    retryFailed: useMutation({ mutationFn: retryFailedAdminBrevoContacts, onSuccess: invalidate }),
+    syncContact: useMutation({ mutationFn: syncAdminBrevoContact, onSuccess: invalidate }),
+  }
 }
 
 export function useAdminPendingInfoConfig() {

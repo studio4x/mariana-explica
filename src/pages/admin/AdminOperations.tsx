@@ -84,6 +84,12 @@ const CRON_CATALOG: Array<{
     description: "Reenfileira emails com falha para nova tentativa segura.",
   },
   {
+    cron: "process_brevo_contact_syncs",
+    jobname: "mariana-cron-process-brevo-contact-syncs",
+    title: "Sincronizar contatos Brevo",
+    description: "Processa consentimentos explícitos pendentes e retentativas Brevo.",
+  },
+  {
     cron: "reconcile_orders",
     jobname: "mariana-cron-reconcile-orders",
     title: "Reconciliar pedidos",
@@ -106,6 +112,7 @@ const CRON_CATALOG: Array<{
 function findLastRun(jobRuns: AdminJobRunSummary[], cron: AdminCronKey) {
   const prefixes: Record<AdminCronKey, string> = {
     process_email_deliveries: "cron_process_email_deliveries",
+    process_brevo_contact_syncs: "cron_process_brevo_contact_syncs",
     retry_email_deliveries: "cron_retry_email_deliveries",
     reconcile_orders: "cron_reconcile_orders",
     audit_access_consistency: "cron_audit_access_consistency",

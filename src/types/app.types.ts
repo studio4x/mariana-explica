@@ -1115,7 +1115,7 @@ export interface AdminPlatformEmailTemplatePreview {
 
 export interface AdminEmailStatus {
   providerName: string | null
-  transport: "smtp" | "resend" | "postmark" | "sendgrid" | null
+  transport: "brevo" | "smtp" | "resend" | "postmark" | "sendgrid" | null
   senderNamePresent: boolean
   senderAddressPresent: boolean
   replyToPresent: boolean
@@ -1336,6 +1336,51 @@ export interface SupportAttachmentUploadResult {
   file_name: string
   mime_type: string | null
   file_size_bytes: number | null
+}
+
+export interface AdminBrevoSettings {
+  enabled: boolean
+  sender_name: string | null
+  sender_email: string | null
+  reply_to: string | null
+  lead_list_id: number | null
+  consent_group_id: number | null
+  attribute_mapping: Record<string, string>
+  last_account: Record<string, unknown> | null
+  last_connection_check_at: string | null
+  last_connection_error: string | null
+  updated_at: string | null
+}
+
+export interface AdminBrevoContactSync {
+  id: string
+  user_id: string | null
+  email: string
+  brevo_contact_id: number | null
+  list_id: number | null
+  consent_group_id: number | null
+  consent_granted: boolean
+  consent_at: string
+  consent_source: string
+  source_product_id: string | null
+  source_order_id: string | null
+  status: "queued" | "processing" | "synced" | "failed"
+  last_synced_at: string | null
+  last_error: string | null
+  remote_snapshot?: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminBrevoEmailEvent {
+  id: string
+  message_id: string | null
+  email: string | null
+  subject: string | null
+  event: string
+  reason: string | null
+  event_at: string | null
+  created_at: string
 }
 
 export interface ProfileAvatarUploadResult {
@@ -1559,6 +1604,9 @@ export interface AdminEmailDeliverySummary {
   status: "queued" | "sent" | "failed" | "delivered" | "bounced"
   error_message: string | null
   sent_at: string | null
+  last_event_at?: string | null
+  last_event?: string | null
+  origin?: string | null
   created_at: string
 }
 
@@ -1586,6 +1634,7 @@ export interface AdminOperationsOverview {
 
 export type AdminCronKey =
   | "process_email_deliveries"
+  | "process_brevo_contact_syncs"
   | "retry_email_deliveries"
   | "reconcile_orders"
   | "audit_access_consistency"

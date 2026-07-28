@@ -1,7 +1,7 @@
 import { requireAdmin } from "../_shared/auth.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
-import { getEmailEnvironmentStatus } from "../_shared/mod.ts"
+import { fetchBrevoSettings, getBrevoCredentialStatus } from "../_shared/mod.ts"
 
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
@@ -24,7 +24,29 @@ Deno.serve(async (req) => {
     }
 
     const context = await requireAdmin(req)
-    const email = getEmailEnvironmentStatus()
+    const [credentials, settings] = await Promise.all([
+      getBrevoCredentialStatus(context.serviceClient),
+      fetchBrevoSettings(context.serviceClient),
+    ])
+    const email = {
+      providerName: "brevo",
+      transport: "brevo" as const,
+      senderNamePresent: Boolean(settings.sender_name),
+      senderAddressPresent: Boolean(settings.sender_email),
+      replyToPresent: Boolean(settings.reply_to),
+      smtpHostPresent: false,
+      smtpPortPresent: false,
+      smtpUserPresent: false,
+      smtpPasswordPresent: false,
+      ready: credentials.configured && settings.enabled && Boolean(settings.sender_email),
+      missing: [
+        ...(!credentials.configured ? ["BREVO_API_KEY"] : []),
+        ...(!settings.enabled ? ["integração Brevo ativa"] : []),
+        ...(!settings.sender_email ? ["remetente Brevo"] : []),
+      ],
+      credentials,
+      settings,
+    }
 
     return jsonResponse({
       success: true,

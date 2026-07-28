@@ -8,6 +8,7 @@ import {
   findActiveGrantForProduct,
   getProductByIdentifier,
   queueEmailDelivery,
+  queueBrevoContactSync,
   writeAuditLog,
 } from "../_shared/mod.ts"
 import { badRequest, internalError, unprocessable } from "../_shared/errors.ts"
@@ -28,6 +29,7 @@ interface ClaimFreeProductInput {
   productId?: string
   productSlug?: string
   pendingUserId?: string | null
+  contentUpdatesConsent?: boolean
 }
 
 async function waitForProfileById(serviceClient: ReturnType<typeof createServiceClient>, userId: string) {
@@ -117,6 +119,20 @@ Deno.serve(async (req) => {
       throw badRequest("Sessao ausente. Cria a conta para continuar.")
     }
 
+    const contentUpdatesConsent = body.contentUpdatesConsent === true || context.profile.content_updates_consent === true
+    if (contentUpdatesConsent && !context.profile.content_updates_consent) {
+      const { error: consentError } = await context.serviceClient
+        .from("profiles")
+        .update({
+          content_updates_consent: true,
+          content_updates_consent_at: new Date().toISOString(),
+          content_updates_consent_source: "claim-free-product",
+          content_updates_consent_evidence: { flow: "claim-free-product", request_id: requestId, explicit_checkbox: true },
+        })
+        .eq("id", context.user.id)
+      if (consentError) throw consentError
+    }
+
     const product = await getProductByIdentifier(context.serviceClient, identifier)
     assertPaidProduct(product)
 
@@ -190,6 +206,28 @@ Deno.serve(async (req) => {
           product_id: product.id,
         },
       })
+
+      if (contentUpdatesConsent) {
+        try {
+          await queueBrevoContactSync(context.serviceClient, {
+            userId: context.user.id,
+            email: context.profile.email,
+            fullName: context.profile.full_name,
+            nif: context.profile.nif,
+            product: product.title,
+            productId: product.id,
+            orderId: order.id,
+            source: "free_checkout",
+            consentEvidence: { flow: "claim-free-product", request_id: requestId, explicit_checkbox: true },
+          })
+        } catch (brevoError) {
+          logError("Free checkout Brevo contact queue failed", {
+            request_id: requestId,
+            user_id: context.user.id,
+            error: String(brevoError),
+          })
+        }
+      }
     }
 
     logInfo("Free product claimed", {

@@ -48,6 +48,9 @@ import type {
   AdminCronScheduleSummary,
   AdminCronStatusOverview,
   AdminEmailStatus,
+  AdminBrevoSettings,
+  AdminBrevoContactSync,
+  AdminBrevoEmailEvent,
   AdminPlatformEmailTemplateContent,
   AdminPlatformEmailTemplatePreview,
   AdminPlatformEmailTemplatesConfig,
@@ -2116,6 +2119,62 @@ export async function fetchAdminPendingInfoConfig() {
 export async function fetchAdminEmailStatus() {
   const response = await invokeAdminFunction<{ success: true; email: AdminEmailStatus }>("admin-email-status", {})
   return response.email
+}
+
+export interface AdminBrevoOverview {
+  credentials: { configured: boolean; source: "database" | "environment" | "none"; encryption_key_configured: boolean; configured_at: string | null }
+  settings: AdminBrevoSettings
+  contacts: AdminBrevoContactSync[]
+  events: AdminBrevoEmailEvent[]
+}
+
+export async function fetchAdminBrevoOverview() {
+  const response = await invokeAdminFunction<{ success: true; credentials: AdminBrevoOverview["credentials"]; settings: AdminBrevoSettings; contacts: AdminBrevoContactSync[]; events: AdminBrevoEmailEvent[] }>("admin-brevo", { action: "overview" })
+  return response
+}
+
+export async function saveAdminBrevoCredentials(apiKey: string) {
+  const response = await invokeAdminFunction<{ success: true; credentials: AdminBrevoOverview["credentials"] }>("admin-brevo", { action: "save_credentials", apiKey })
+  return response.credentials
+}
+
+export async function saveAdminBrevoSettings(input: { enabled: boolean; senderName: string; senderEmail: string; replyTo: string; leadListId: number | null; consentGroupId: number | null; attributeMapping: Record<string, string> }) {
+  const response = await invokeAdminFunction<{ success: true; settings: AdminBrevoSettings }>("admin-brevo", { action: "save_settings", ...input })
+  return response.settings
+}
+
+export async function checkAdminBrevoConnection() {
+  const response = await invokeAdminFunction<{ success: true; account: Record<string, unknown> }>("admin-brevo", { action: "check_connection" })
+  return response.account
+}
+
+export async function fetchAdminBrevoCatalog() {
+  return await invokeAdminFunction<{ success: true; lists: Array<Record<string, unknown>>; attributes: Array<Record<string, unknown>>; consentGroups: Array<Record<string, unknown>>; consentGroupsEnabled: boolean }>("admin-brevo", { action: "catalog" })
+}
+
+export async function sendAdminBrevoTestEmail(emailTo: string) {
+  const response = await invokeAdminFunction<{ success: true; delivery: AdminEmailDeliverySummary }>("admin-brevo", { action: "send_test", emailTo })
+  return response.delivery
+}
+
+export async function fetchAdminBrevoHistory(input: { query?: string; status?: string; offset?: number; limit?: number; days?: number }) {
+  return await invokeAdminFunction<{ success: true; rows: AdminEmailDeliverySummary[]; events: AdminBrevoEmailEvent[]; count: number }>("admin-brevo", { action: "history", ...input })
+}
+
+export async function fetchAdminBrevoContacts(input: { query?: string; status?: string; offset?: number; limit?: number }) {
+  return await invokeAdminFunction<{ success: true; rows: AdminBrevoContactSync[]; count: number }>("admin-brevo", { action: "contacts", ...input })
+}
+
+export async function retryAdminBrevoContact(contactSyncId: string) {
+  return await invokeAdminFunction<{ success: true }>("admin-brevo", { action: "retry_contact", contactSyncId })
+}
+
+export async function retryFailedAdminBrevoContacts() {
+  return await invokeAdminFunction<{ success: true }>("admin-brevo", { action: "retry_failed_contacts" })
+}
+
+export async function syncAdminBrevoContact(contactSyncId: string) {
+  return await invokeAdminFunction<{ success: true }>("admin-brevo", { action: "sync_contact", contactSyncId })
 }
 
 export async function fetchAdminEmailTemplates() {
