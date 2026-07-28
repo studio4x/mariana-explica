@@ -100,10 +100,11 @@ export async function getBrevoApiKey(client: SupabaseClient) {
 export async function getBrevoCredentialStatus(client: SupabaseClient) {
   const { data, error } = await client.rpc("get_brevo_credentials")
   if (error) throw error
-  const row = (Array.isArray(data) ? data[0] : data) as { configured_at?: string } | null
+  const row = (Array.isArray(data) ? data[0] : data) as { api_key_ciphertext?: string | null; configured_at?: string } | null
+  const databaseConfigured = Boolean(row?.api_key_ciphertext)
   return {
-    configured: Boolean(row) || configuredEnv("BREVO_API_KEY"),
-    source: row ? "database" : configuredEnv("BREVO_API_KEY") ? "environment" : "none",
+    configured: databaseConfigured || configuredEnv("BREVO_API_KEY"),
+    source: databaseConfigured ? "database" : configuredEnv("BREVO_API_KEY") ? "environment" : "none",
     encryption_key_configured: configuredEnv("BREVO_TOKEN_ENCRYPTION_KEY"),
     configured_at: row?.configured_at ?? null,
   } as const
