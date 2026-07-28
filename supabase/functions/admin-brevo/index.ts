@@ -124,7 +124,15 @@ Deno.serve(async (req) => {
       const [lists, attributes] = await Promise.all([getBrevoLists(context.serviceClient), getBrevoAttributes(context.serviceClient)])
       let consentGroups: Record<string, unknown>[] = []
       let consentGroupsEnabled = false
-      try { consentGroups = (await getBrevoConsentGroups(context.serviceClient)).consentGroups ?? []; consentGroupsEnabled = true } catch (error) { if (!safeBrevoError(error).includes("CONSENT_GROUP_NOT_ENABLED")) throw error }
+      try {
+        consentGroups = (await getBrevoConsentGroups(context.serviceClient)).consentGroups ?? []
+        consentGroupsEnabled = true
+      } catch {
+        // Consent Groups are optional and account-dependent. A failure here
+        // must never hide the regular lists and attributes from the admin.
+        consentGroups = []
+        consentGroupsEnabled = false
+      }
       return jsonResponse({ success: true, request_id: requestId, lists: lists.lists ?? [], attributes: attributes.attributes ?? [], consentGroups, consentGroupsEnabled })
     }
 
