@@ -63,6 +63,23 @@ type ValidationFeedback = {
   message: string
 }
 
+function InlineFeedback({ feedback }: { feedback: Feedback }) {
+  return (
+    <div
+      aria-live="polite"
+      className={`rounded-2xl border px-4 py-3 text-sm ${
+        feedback.tone === "success"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : feedback.tone === "warning"
+            ? "border-amber-200 bg-amber-50 text-amber-900"
+            : "border-rose-200 bg-rose-50 text-rose-900"
+      }`}
+    >
+      {feedback.message}
+    </div>
+  )
+}
+
 function naturalLanguageList(items: string[]) {
   if (items.length <= 1) return items[0] ?? ""
   if (items.length === 2) return `${items[0]} e ${items[1]}`
@@ -712,21 +729,6 @@ export function AdminMoloni() {
         <strong>Barreira de segurança:</strong> a configuração e os testes não ativam emissão real. A produção só pode ser ativada após todos os requisitos, validações e confirmação textual.
       </div>
 
-      {feedback ? (
-        <div
-          aria-live="polite"
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : feedback.tone === "warning"
-                ? "border-amber-200 bg-amber-50 text-amber-900"
-                : "border-rose-200 bg-rose-50 text-rose-900"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
-
       <nav className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 md:grid-cols-3" role="tablist" aria-label="Secções da integração Moloni">
         {moloniTabs.map((item) => (
           <Link
@@ -1284,6 +1286,7 @@ export function AdminMoloni() {
 
       {activeTab === "checklist-fiscal" ? (
         <section className={cardClass}>
+        {feedback ? <div className="mb-4"><InlineFeedback feedback={feedback} /></div> : null}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-950">Checklist fiscal</h2>
@@ -1412,6 +1415,7 @@ export function AdminMoloni() {
 
       {activeTab === "configuracao" ? (
         <section className={cardClass}>
+        {feedback ? <div className="mb-4"><InlineFeedback feedback={feedback} /></div> : null}
         <h2 className="text-xl font-black text-slate-950">Diagnóstico e homologação</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Execute verificações isoladas. O único teste documental permitido aqui cria um rascunho no ambiente de teste.
@@ -1518,6 +1522,7 @@ export function AdminMoloni() {
 
       {activeTab === "fila-documentos-fiscais" ? (
         <section className={cardClass}>
+        {feedback ? <div className="mb-4"><InlineFeedback feedback={feedback} /></div> : null}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-950">Fila e documentos fiscais</h2>

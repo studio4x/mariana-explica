@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "304"
-export const BUILD_COMMIT = "moloni-draft-test-unblock"
+export const BUILD_DEPLOY_NUMBER = "306"
+export const BUILD_COMMIT = "moloni-inline-card-feedback"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
