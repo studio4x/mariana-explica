@@ -453,22 +453,28 @@ export function AdminMoloni() {
   }, [settings])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["admin", "moloni-overview"] })
-    await queryClient.invalidateQueries({ queryKey: ["admin", "moloni-status"] })
+  const refresh = async (scope: { overview?: boolean; status?: boolean } = { overview: true }) => {
+    const tasks: Promise<unknown>[] = []
+    if (scope.overview) {
+      tasks.push(queryClient.invalidateQueries({ queryKey: ["admin", "moloni-overview"] }))
+    }
+    if (scope.status) {
+      tasks.push(queryClient.invalidateQueries({ queryKey: ["admin", "moloni-status"] }))
+    }
+    if (tasks.length > 0) await Promise.all(tasks)
   }
-  const succeed = async (message: string) => {
+  const succeed = (message: string, scope: { overview?: boolean; status?: boolean } = { overview: true }) => {
     setFeedback({ tone: "success", message })
-    await refresh()
+    void refresh(scope)
   }
   const fail = (error: unknown) => setFeedback({ tone: "danger", message: errorMessage(error) })
 
   const credentialsMutation = useMutation({
     mutationFn: saveAdminMoloniCredentials,
-    onSuccess: async () => {
+    onSuccess: () => {
       setClientId("")
       setClientSecret("")
-      await succeed("Credenciais guardadas de forma cifrada. Os valores não serão novamente exibidos.")
+      succeed("Credenciais guardadas de forma cifrada. Os valores não serão novamente exibidos.")
     },
     onError: fail,
   })
@@ -489,7 +495,7 @@ export function AdminMoloni() {
         const { result } = await syncAdminMoloniAutomaticChecklist(environment)
         setAutomaticSyncResult(result)
       }
-      await succeed("Configuração fiscal guardada com emissão automática desativada.")
+      succeed("Configuração fiscal guardada com emissão automática desativada.")
     },
     onError: fail,
   })
@@ -553,7 +559,7 @@ export function AdminMoloni() {
         const { result } = await syncAdminMoloniAutomaticChecklist(environment)
         setAutomaticSyncResult(result)
       }
-      await succeed("Mapeamento validado, guardado e checklist automÃ¡tico reavaliado.")
+      succeed("Mapeamento validado, guardado e checklist automÃ¡tico reavaliado.")
     },
     onError: fail,
   })
@@ -561,7 +567,7 @@ export function AdminMoloni() {
     mutationFn: upsertAdminMoloniRule,
     onSuccess: () => {
       setRuleId(null)
-      succeed("Regra fiscal guardada com taxa oficial da Moloni.")
+      succeed("Regra fiscal guardada com taxa oficial da Moloni.", { status: true })
     },
     onError: fail,
   })
@@ -572,16 +578,16 @@ export function AdminMoloni() {
   })
   const importChecklistAnswersMutation = useMutation({
     mutationFn: importAdminMoloniChecklistAnswers,
-    onSuccess: async ({ result }) => {
-      await succeed(`${result.imported_count} resposta(s) da contabilista importada(s) do sandbox.`)
+    onSuccess: ({ result }) => {
+      succeed(`${result.imported_count} resposta(s) da contabilista importada(s) do sandbox.`)
     },
     onError: fail,
   })
   const automaticChecklistMutation = useMutation({
     mutationFn: () => syncAdminMoloniAutomaticChecklist(environment),
-    onSuccess: async ({ result }) => {
+    onSuccess: ({ result }) => {
       setAutomaticSyncResult(result)
-      await succeed(
+      succeed(
         `${result.approved_items.length} item(ns) automático(s) confirmado(s); ${result.pending_items.length} pendente(s).`,
       )
     },
@@ -589,14 +595,14 @@ export function AdminMoloni() {
   })
   const validationMutation = useMutation({
     mutationFn: runAdminMoloniValidation,
-    onSuccess: async ({ validation }, input) => {
+    onSuccess: ({ validation }, input) => {
       setValidationFeedback({
         validationType: input.validationType,
         tone: validation.status === "passed" ? "success" : "danger",
         message: validation.summary,
       })
       setShowValidationNotifications(true)
-      await succeed("Diagnóstico concluído e registado.")
+      succeed("Diagnóstico concluído e registado.")
     },
     onError: (error, input) => {
       setValidationFeedback({
@@ -610,26 +616,26 @@ export function AdminMoloni() {
   })
   const draftMutation = useMutation({
     mutationFn: createAdminMoloniDraftTest,
-    onSuccess: async () => {
+    onSuccess: () => {
       setDraftConfirmation("")
-      await succeed("Teste enviado exclusivamente como rascunho de homologação.")
+      succeed("Teste enviado exclusivamente como rascunho de homologação.")
     },
     onError: fail,
   })
   const activateMutation = useMutation({
     mutationFn: activateAdminMoloniLive,
-    onSuccess: async () => {
+    onSuccess: () => {
       setActivationConfirmation("")
-      await succeed("Emissão Moloni live ativada. Nenhum pedido histórico foi reprocessado.")
+      succeed("Emissão Moloni live ativada. Nenhum pedido histórico foi reprocessado.")
     },
     onError: fail,
   })
   const deactivateMutation = useMutation({
     mutationFn: ({ target, confirmation }: { target: AdminMoloniPaymentEnvironment; confirmation: string }) =>
       deactivateAdminMoloni(target, confirmation),
-    onSuccess: async () => {
+    onSuccess: () => {
       setDeactivationConfirmation("")
-      await succeed("Emissão automática desativada; histórico e documentos foram preservados.")
+      succeed("Emissão automática desativada; histórico e documentos foram preservados.")
     },
     onError: fail,
   })
@@ -690,7 +696,12 @@ export function AdminMoloni() {
         backTo={ROUTES.ADMIN_PAYMENTS}
         backLabel="Voltar a Pagamentos"
         actions={
-          <Button type="button" variant="outline" className="rounded-full" onClick={() => void overviewQuery.refetch()}>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => void refresh({ overview: true, status: true })}
+          >
             <RefreshCw className="h-4 w-4" />
             Atualizar
           </Button>
