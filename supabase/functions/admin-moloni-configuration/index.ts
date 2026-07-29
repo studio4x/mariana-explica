@@ -937,33 +937,27 @@ Deno.serve(async (req) => {
       ) {
         throw conflict("A homologação aceita somente pedido Stripe test e documento Moloni em rascunho.")
       }
-      const { data: claimedJob, error: claimError } = await context.serviceClient
-        .from("moloni_document_jobs")
-        .update({
-          status: "processing",
-          locked_at: new Date().toISOString(),
-          locked_by: `admin-draft:${requestId}`,
-          attempt_count: 1,
-          last_error_code: null,
-          last_error: null,
+      const { data: claimedJobData, error: claimError } = await context.serviceClient
+        .rpc("claim_moloni_draft_homologation", {
+          p_fiscal_document_id: document.id,
+          p_worker_id: `admin-draft:${requestId}`,
+          p_stale_after_seconds: 300,
         })
-        .eq("fiscal_document_id", document.id)
-        .in("status", ["pending", "retry", "blocked", "failed"])
-        .select("*")
-        .maybeSingle()
-      if (claimError) throw claimError
-      if (!claimedJob) throw conflict("O documento de teste já está em processamento ou foi concluído.")
-      const { error: snapshotResetError } = await context.serviceClient
-        .from("fiscal_documents")
-        .update({
-          fiscal_snapshot: null,
-          selected_fiscal_rule_id: null,
-          fiscal_selection_reason: null,
-          fiscal_snapshot_locked_at: null,
-        })
-        .eq("id", document.id)
-        .is("moloni_document_id", null)
-      if (snapshotResetError) throw snapshotResetError
+      if (claimError) {
+        const claimMessage = claimError.message.toLowerCase()
+        if (claimMessage.includes("já está em processamento")) {
+          throw conflict("O documento de teste já está em processamento. Aguarde alguns instantes antes de tentar novamente.")
+        }
+        if (claimMessage.includes("já foi concluído")) {
+          throw conflict("O documento de teste já foi concluído.")
+        }
+        if (claimMessage.includes("foi cancelado")) {
+          throw conflict("O documento de teste foi cancelado. Selecione outro documento elegível.")
+        }
+        throw conflict("Não foi possível preparar o documento para homologação.")
+      }
+      const claimedJob = Array.isArray(claimedJobData) ? claimedJobData[0] : claimedJobData
+      if (!claimedJob) throw conflict("Não foi possível reservar o documento de teste para processamento.")
       const result = await processMoloniDocumentJob(context.serviceClient, claimedJob, {
         allowDraftHomologation: true,
       })
