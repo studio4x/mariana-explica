@@ -923,14 +923,6 @@ Deno.serve(async (req) => {
       if (!isDraftHomologationConfirmation(body.confirmation)) {
         throw conflict("Digite CRIAR RASCUNHO DE TESTE para confirmar.")
       }
-      const { data: checklist, error: checklistError } = await context.serviceClient
-        .from("moloni_fiscal_checklist_items")
-        .select("item_key,status")
-        .eq("payment_environment", "test")
-      if (checklistError) throw checklistError
-      if (!hasApprovedChecklistItem(checklist ?? [], "homologation_strategy")) {
-        throw conflict("A estratégia de homologação ainda não foi aprovada.")
-      }
       const { data: document, error: documentError } = await context.serviceClient
         .from("fiscal_documents")
         .select("id,status,source_payment_environment,environment,moloni_document_id")
