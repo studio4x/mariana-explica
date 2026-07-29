@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         : Promise.resolve({ data: [], error: null }),
       context.serviceClient
         .from("fiscal_documents")
-        .select("id,order_id,status,document_kind,environment,document_number,issued_at,last_error_code,last_error_message")
+        .select("id,order_id,status,document_kind,environment,remote_status,document_number,issued_at,last_error_code,last_error_message")
         .is("original_fiscal_document_id", null),
     ])
 

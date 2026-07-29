@@ -59,3 +59,9 @@ export function fiscalErrorLabel(code: string | null | undefined) {
   if (!code) return null
   return fiscalErrorLabels[code] ?? humanizeUnknownStatus(code)
 }
+
+export function canDownloadFiscalDocument(
+  document: Pick<FiscalDocumentSummary, "status" | "environment" | "remote_status">,
+) {
+  return document.status === "issued" && document.environment === "live" && document.remote_status !== 0
+}

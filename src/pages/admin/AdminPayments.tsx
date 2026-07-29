@@ -27,7 +27,7 @@ import {
 } from "@/services/admin.service"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
-import { fiscalDocumentStatusLabel, fiscalErrorLabel } from "@/lib/fiscal-status"
+import { canDownloadFiscalDocument, fiscalDocumentStatusLabel, fiscalErrorLabel } from "@/lib/fiscal-status"
 import type { AdminOrderViewSummary } from "@/types/app.types"
 
 type PaymentsTab = "history" | "settings"
@@ -549,8 +549,33 @@ export function AdminPayments() {
   })
   const openFiscalDocument = useMutation({
     mutationFn: fetchAdminFiscalDocumentUrl,
-    onSuccess: (url) => window.open(url, "_blank", "noopener,noreferrer"),
   })
+
+  const openFiscalDocumentInNewTab = (orderId: string) => {
+    const popup = window.open("about:blank", "_blank")
+    if (!popup) {
+      setActionFeedback({
+        tone: "danger",
+        message: "O navegador bloqueou a nova aba. Permita pop-ups para este site e tente novamente.",
+      })
+      return
+    }
+
+    popup.opener = null
+    setActionFeedback(null)
+    openFiscalDocument.mutate(orderId, {
+      onSuccess: (url) => {
+        popup.location.replace(url)
+      },
+      onError: (error) => {
+        popup.close()
+        setActionFeedback({
+          tone: "danger",
+          message: error instanceof Error ? error.message : "Não foi possível abrir o documento fiscal.",
+        })
+      },
+    })
+  }
 
   const runOrderAction = async (action: () => Promise<unknown>, successMessage: string) => {
     setActionFeedback(null)
@@ -859,15 +884,17 @@ export function AdminPayments() {
                                     Tentativas {order.fiscal_document.job.attempt_count}/{order.fiscal_document.job.max_attempts}
                                   </p>
                                 ) : null}
-                                {order.fiscal_document.status === "issued" ? (
+                                {canDownloadFiscalDocument(order.fiscal_document) ? (
                                   <button
                                     type="button"
                                     className="font-semibold text-slate-900 underline"
                                     disabled={actionPending}
-                                    onClick={() => void openFiscalDocument.mutateAsync(order.id)}
+                                    onClick={() => openFiscalDocumentInNewTab(order.id)}
                                   >
                                     Abrir documento
                                   </button>
+                                ) : order.fiscal_document.status === "issued" ? (
+                                  <p className="text-slate-500">PDF oficial disponível apenas após emissão live.</p>
                                 ) : null}
                                 {order.fiscal_document.last_error_code ? (
                                   <p className="max-w-48 break-words text-rose-700">

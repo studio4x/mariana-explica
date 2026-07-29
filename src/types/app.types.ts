@@ -1527,6 +1527,7 @@ export interface FiscalDocumentSummary {
     | "requires_review"
   document_kind: string
   environment: "draft" | "live"
+  remote_status?: number | null
   document_number: string | null
   issued_at: string | null
   last_error_code?: string | null
