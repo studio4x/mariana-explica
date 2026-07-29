@@ -732,6 +732,15 @@ export async function processMoloniDocumentJob(
     })
 
     if (!remote?.document_id) {
+      const matches = await moloni.getDocumentsByReference(
+        settings.document_kind,
+        settings.moloni_company_id,
+        document.your_reference,
+      )
+      remote = matches.find((item) => Number(item.document_id) > 0) ?? remote
+    }
+
+    if (!remote?.document_id) {
       const created = await moloni.createDocument(settings.document_kind, payload)
       if (!created.document_id) {
         throw new FiscalProcessingError(

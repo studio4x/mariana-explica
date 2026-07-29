@@ -791,6 +791,20 @@ export class MoloniClient {
     })
   }
 
+  getDocumentsByReference(
+    kind: "invoice" | "invoice_receipt",
+    companyId: number,
+    yourReference: string,
+  ) {
+    const resource = kind === "invoice_receipt" ? "invoiceReceipts" : "invoices"
+    return this.post<Array<Record<string, unknown>>>(`${resource}/getAll`, {
+      company_id: companyId,
+      your_reference: yourReference,
+      qty: MOLONI_PAGE_SIZE,
+      offset: 0,
+    })
+  }
+
   private async reconcileDocument(
     kind: "invoice" | "invoice_receipt",
     payload: Record<string, unknown>,
@@ -806,6 +820,15 @@ export class MoloniClient {
       try {
         const existing = await this.getDocument(kind, companyId, { your_reference: yourReference })
         const documentId = extractMoloniDocumentId(existing)
+        if (documentId) return documentId
+      } catch (error) {
+        if (!(error instanceof MoloniError) || !["MOLONI_REJECTED", "DOCUMENT_NOT_FOUND"].includes(error.code)) {
+          throw error
+        }
+      }
+      try {
+        const matches = await this.getDocumentsByReference(kind, companyId, yourReference)
+        const documentId = extractMoloniDocumentId(matches)
         if (documentId) return documentId
       } catch (error) {
         if (!(error instanceof MoloniError) || !["MOLONI_REJECTED", "DOCUMENT_NOT_FOUND"].includes(error.code)) {
@@ -838,6 +861,15 @@ export class MoloniClient {
 
     const insertedDocumentId = extractMoloniDocumentId(inserted)
     if (insertedDocumentId) return { valid: 1, document_id: insertedDocumentId }
+
+    logError("Moloni document insert omitted document identifier", {
+      endpoint: `${resource}/insert`,
+      environment: this.environment,
+      response_type: Array.isArray(inserted) ? "array" : typeof inserted,
+      response_keys: typeof inserted === "object" && inserted !== null && !Array.isArray(inserted)
+        ? Object.keys(inserted as Record<string, unknown>)
+        : [],
+    })
 
     const reconciledDocumentId = await this.reconcileDocument(kind, payload)
     if (reconciledDocumentId) return { valid: 1, document_id: reconciledDocumentId }

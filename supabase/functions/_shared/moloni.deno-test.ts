@@ -76,6 +76,7 @@ class MissingDocumentIdMoloniClient extends MoloniClient {
   override async post<T>(endpoint: string, _body: Record<string, unknown>, _options?: { retryAfter401?: boolean }) {
     this.calls.push(endpoint)
     if (endpoint === "invoiceReceipts/insert") return { valid: 1 } as T
+    if (endpoint === "invoiceReceipts/getOne") return {} as T
     return { document_id: 99 } as T
   }
 }
@@ -205,7 +206,7 @@ Deno.test("reconciles an ambiguous document insertion before allowing a result",
     your_reference: "mariana:order:sale:v1",
   })
   assertEquals(result.document_id, 88)
-  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne"])
+  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne", "invoiceReceipts/getAll"])
 })
 
 Deno.test("reconciles a successful insert that omitted document_id", async () => {

@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "307"
-export const BUILD_COMMIT = "moloni-draft-reconciliation"
+export const BUILD_DEPLOY_NUMBER = "308"
+export const BUILD_COMMIT = "moloni-reference-reconciliation"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
