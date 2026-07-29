@@ -179,9 +179,10 @@ Deno.serve(async (req) => {
       }
       const moloni = new MoloniClient(context.serviceClient, body.moloniEnvironment)
       const companies = await moloni.getCompanies()
-      const [countries, languages] = await Promise.all([
+      const [countries, languages, taxExemptions] = await Promise.all([
         moloni.getCountries(),
         moloni.getLanguages(),
+        moloni.getTaxExemptions(),
       ])
       if (!body.moloniCompanyId) {
         return jsonResponse({
@@ -190,6 +191,7 @@ Deno.serve(async (req) => {
           companies,
           countries: sanitizeCountries(countries),
           languages,
+          tax_exemptions: taxExemptions,
           maturity_dates: [],
         })
       }
@@ -224,8 +226,13 @@ Deno.serve(async (req) => {
           } catch {
             reason = "O imposto guardado não está disponível ou válido na Moloni."
           }
-        } else if (!stored.exemption_reason?.trim()) {
-          reason = "O mapeamento não possui imposto nem motivo de isenção."
+        } else {
+          const exemptionReason = stored.exemption_reason?.trim().toUpperCase() || ""
+          if (!exemptionReason) {
+            reason = "O mapeamento não possui imposto nem motivo de isenção."
+          } else if (!taxExemptions.some((item) => item.code?.trim().toUpperCase() === exemptionReason)) {
+            reason = "O motivo de isenção guardado não é um código válido do catálogo Moloni."
+          }
         }
         if (reason) {
           mappingsRequiringReview.push(String(stored.id))
@@ -243,6 +250,7 @@ Deno.serve(async (req) => {
         products: products.length,
         document_sets: documentSets.length,
         taxes: taxes.length,
+        tax_exemptions: taxExemptions.length,
         payment_methods: paymentMethods.length,
         maturity_dates: maturityDates.length,
       }
@@ -289,6 +297,7 @@ Deno.serve(async (req) => {
         products,
         document_sets: documentSets,
         taxes,
+        tax_exemptions: taxExemptions,
         payment_methods: paymentMethods,
         mappings_requiring_review: mappingsRequiringReview,
       })
@@ -454,7 +463,10 @@ Deno.serve(async (req) => {
       if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
         throw conflict("A empresa Moloni selecionada não pertence à conexão autenticada.")
       }
-      const taxes = await moloni.getTaxes(body.moloniCompanyId)
+      const [taxes, taxExemptions] = await Promise.all([
+        moloni.getTaxes(body.moloniCompanyId),
+        moloni.getTaxExemptions(),
+      ])
       const officialTax = body.moloniTaxId ? getOfficialMoloniTax(taxes, body.moloniTaxId) : null
       const exemptionReason = body.exemptionReason?.trim() || null
       if (officialTax && officialTax.value > 0 && exemptionReason) {
@@ -462,6 +474,15 @@ Deno.serve(async (req) => {
       }
       if (officialTax && officialTax.value === 0 && !exemptionReason && !officialTax.exemption_reason?.trim()) {
         throw conflict("Taxa zero exige motivo de isenção fiscal aprovado.")
+      }
+      const effectiveExemptionReason = exemptionReason || officialTax?.exemption_reason?.trim() || null
+      if (
+        effectiveExemptionReason &&
+        !taxExemptions.some((item) =>
+          item.code?.trim().toUpperCase() === effectiveExemptionReason.toUpperCase()
+        )
+      ) {
+        throw conflict("Selecione um código de isenção fiscal válido devolvido pelo catálogo Moloni.")
       }
 
       const values = {
@@ -472,7 +493,7 @@ Deno.serve(async (req) => {
         customer_type: body.customerType ?? null,
         moloni_tax_id: body.moloniTaxId ?? null,
         tax_value: officialTax?.value ?? null,
-        exemption_reason: exemptionReason || officialTax?.exemption_reason?.trim() || null,
+        exemption_reason: effectiveExemptionReason,
         priority: body.priority,
         is_default: body.isDefault,
         is_active: body.isActive,
@@ -538,13 +559,14 @@ Deno.serve(async (req) => {
     if (!companies.some((company) => Number(company.company_id) === body.moloniCompanyId)) {
       throw conflict("A empresa Moloni selecionada não pertence à conexão autenticada.")
     }
-    const [remoteProduct, documentSets, taxes, paymentMethods] = await Promise.all([
+    const [remoteProduct, documentSets, taxes, paymentMethods, taxExemptions] = await Promise.all([
       moloni.getProduct(body.moloniCompanyId, body.moloniProductId),
       moloni.getDocumentSets(body.moloniCompanyId),
       body.moloniTaxId ? moloni.getTaxes(body.moloniCompanyId) : Promise.resolve([]),
       body.moloniPaymentMethodId
         ? moloni.getPaymentMethods(body.moloniCompanyId)
         : Promise.resolve([]),
+      moloni.getTaxExemptions(),
     ])
     if (Number(remoteProduct.product_id) !== body.moloniProductId) {
       throw conflict("Artigo Moloni não confirmado.")
@@ -572,6 +594,15 @@ Deno.serve(async (req) => {
     if (officialTax && officialTax.value === 0 && !exemptionReason && !officialTax.exemption_reason?.trim()) {
       throw conflict("Taxa zero exige motivo de isenção fiscal aprovado.")
     }
+    const effectiveExemptionReason = exemptionReason || officialTax?.exemption_reason?.trim() || null
+    if (
+      effectiveExemptionReason &&
+      !taxExemptions.some((item) =>
+        item.code?.trim().toUpperCase() === effectiveExemptionReason.toUpperCase()
+      )
+    ) {
+      throw conflict("Selecione um código de isenção fiscal válido devolvido pelo catálogo Moloni.")
+    }
     const remoteTax = officialTax
     const remotePaymentMethod = paymentMethods.find((item) =>
       Number(item.payment_method_id) === body.moloniPaymentMethodId
@@ -586,7 +617,7 @@ Deno.serve(async (req) => {
         moloni_document_set_id: body.moloniDocumentSetId,
         moloni_tax_id: body.moloniTaxId ?? null,
         tax_value: officialTax?.value ?? null,
-        exemption_reason: exemptionReason || officialTax?.exemption_reason?.trim() || null,
+        exemption_reason: effectiveExemptionReason,
         eac_id: body.eacId ?? null,
         moloni_payment_method_id: body.moloniPaymentMethodId ?? null,
         moloni_product_name: remoteLabel(remoteProduct, `Artigo ${body.moloniProductId}`),

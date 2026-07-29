@@ -683,17 +683,36 @@ export async function processMoloniDocumentJob(
     }
 
     const moloni = new MoloniClient(client, settings.moloni_environment)
-    const remoteTaxes = await moloni.getTaxes(settings.moloni_company_id)
+    const [remoteTaxes, remoteTaxExemptions] = await Promise.all([
+      moloni.getTaxes(settings.moloni_company_id),
+      moloni.getTaxExemptions(),
+    ])
+    const validTaxExemptionCodes = new Set(
+      remoteTaxExemptions.map((item) => item.code?.trim().toUpperCase()).filter(Boolean),
+    )
     for (const mapping of effectiveMappings) {
-      if (!mapping.moloni_tax_id) continue
-      let officialTax
-      try {
-        officialTax = getOfficialMoloniTax(remoteTaxes, mapping.moloni_tax_id)
-      } catch {
-        throw new FiscalProcessingError("O imposto do snapshot não está disponível ou válido na Moloni.", "TAX_MAPPING_INVALID", false, true)
+      let officialTax = null
+      if (mapping.moloni_tax_id) {
+        try {
+          officialTax = getOfficialMoloniTax(remoteTaxes, mapping.moloni_tax_id)
+        } catch {
+          throw new FiscalProcessingError("O imposto do snapshot não está disponível ou válido na Moloni.", "TAX_MAPPING_INVALID", false, true)
+        }
+        if (mapping.tax_value === null || Number(mapping.tax_value) !== officialTax.value) {
+          throw new FiscalProcessingError("A taxa do snapshot diverge da taxa oficial atual da Moloni.", "TAX_MAPPING_DIVERGED", false, true)
+        }
       }
-      if (mapping.tax_value === null || Number(mapping.tax_value) !== officialTax.value) {
-        throw new FiscalProcessingError("A taxa do snapshot diverge da taxa oficial atual da Moloni.", "TAX_MAPPING_DIVERGED", false, true)
+      const exemptionReason =
+        mapping.exemption_reason?.trim().toUpperCase() ||
+        officialTax?.exemption_reason?.trim().toUpperCase() ||
+        ""
+      if ((!officialTax || officialTax.value === 0) && !validTaxExemptionCodes.has(exemptionReason)) {
+        throw new FiscalProcessingError(
+          "O motivo de isenção fiscal não é um código válido da Moloni. Selecione um código do catálogo, como M01–M16, confirmado com a contabilista.",
+          "EXEMPTION_REASON_INVALID",
+          false,
+          true,
+        )
       }
     }
     const customerId = await resolveMoloniCustomer({
@@ -833,6 +852,10 @@ export async function processMoloniDocumentJob(
         })
         .eq("id", job.id),
     ])
-    return { status: jobStatus as "blocked" | "retry" | "failed", code: failure.code }
+    return {
+      status: jobStatus as "blocked" | "retry" | "failed",
+      code: failure.code,
+      message: failure.message,
+    }
   }
 }

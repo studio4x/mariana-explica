@@ -1,6 +1,7 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts"
 import {
   classifyMoloniFailure,
+  extractMoloniDataValidationMessage,
   findInvalidMoloniCustomerReferences,
   MoloniClient,
   MoloniError,
@@ -97,6 +98,19 @@ Deno.test("classifies functional rejection as permanent", () => {
   )
   assertEquals(rejected.retryable, false)
   assertEquals(rejected.code, "MOLONI_REJECTED")
+})
+
+Deno.test("extracts human Moloni data validation errors returned with HTTP 200", () => {
+  const payload = [
+    { code: "5 products[0][exemption_reason]", description: "Field 'exemption_reason' must have a valid value" },
+  ]
+  assertEquals(
+    extractMoloniDataValidationMessage(payload),
+    "Field 'exemption_reason' must have a valid value",
+  )
+  const rejected = classifyMoloniFailure(200, payload, "invoiceReceipts/insert")
+  assertEquals(rejected.code, "MOLONI_REJECTED")
+  assertEquals(rejected.retryable, false)
 })
 
 Deno.test("loads countries and languages without a company and maturity dates with company_id", async () => {

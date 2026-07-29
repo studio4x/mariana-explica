@@ -524,6 +524,7 @@ export function AdminMoloni() {
   const catalog: Catalog | undefined = catalogMutation.data
   const moloniProducts = useMemo(() => catalog?.products ?? [], [catalog?.products])
   const paymentMethods = useMemo(() => catalog?.payment_methods ?? [], [catalog?.payment_methods])
+  const taxExemptions = useMemo(() => catalog?.tax_exemptions ?? [], [catalog?.tax_exemptions])
   const filteredMoloniProducts = useMemo(() => {
     const query = normalizeCatalogText(moloniProductSearch)
     if (!query) return moloniProducts
@@ -1176,7 +1177,16 @@ export function AdminMoloni() {
                 className={inputClass}
                 value={taxId}
                 onChange={(event) => {
-                  setTaxId(event.target.value)
+                  const nextTaxId = event.target.value
+                  const nextTax = (catalog?.taxes ?? []).find((item) =>
+                    recordId(item, ["tax_id", "id"]) === nextTaxId
+                  )
+                  setTaxId(nextTaxId)
+                  if (nextTax && Number(nextTax.value) > 0) {
+                    setExemptionReason("")
+                  } else if (typeof nextTax?.exemption_reason === "string" && nextTax.exemption_reason.trim()) {
+                    setExemptionReason(nextTax.exemption_reason.trim())
+                  }
                 }}
               >
                 <option value="">Isento</option>
@@ -1196,7 +1206,30 @@ export function AdminMoloni() {
               />
               <span className="mt-1 block text-xs font-normal text-slate-500">Valor oficial devolvido pela Moloni.</span>
             </label>
-            <label className="text-sm font-medium text-slate-700">Motivo de isenção<input className={inputClass} value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} /></label>
+            <label className="text-sm font-medium text-slate-700">
+              Código de isenção fiscal
+              <select
+                className={inputClass}
+                value={exemptionReason}
+                onChange={(event) => setExemptionReason(event.target.value)}
+                disabled={Boolean(taxId && Number(
+                  (catalog?.taxes ?? []).find((item) => recordId(item, ["tax_id", "id"]) === taxId)?.value,
+                ) > 0)}
+              >
+                <option value="">Selecionar código</option>
+                {exemptionReason && !taxExemptions.some((item) => String(item.code ?? "") === exemptionReason) ? (
+                  <option value={exemptionReason}>Guardado inválido — {exemptionReason}</option>
+                ) : null}
+                {taxExemptions.map((item) => {
+                  const code = String(item.code ?? "")
+                  const label = recordLabel(item, ["name", "description"], code)
+                  return <option key={code} value={code}>{code} — {label}</option>
+                })}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                Selecione o código fiscal confirmado com a contabilista; textos como “Isento” ou “Isenção” não são aceites pela Moloni.
+              </span>
+            </label>
             <label className="text-sm font-medium text-slate-700">CAE ID, quando aplicável<input inputMode="numeric" className={inputClass} value={eacId} onChange={(event) => setEacId(event.target.value)} /></label>
             <label className="text-sm font-medium text-slate-700">
               Método de pagamento

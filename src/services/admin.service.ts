@@ -1935,6 +1935,7 @@ export async function fetchAdminMoloniCatalog(input: {
     products?: AdminMoloniCatalogProduct[]
     document_sets?: AdminMoloniCatalogItem[]
     taxes?: AdminMoloniCatalogItem[]
+    tax_exemptions?: AdminMoloniCatalogItem[]
     payment_methods?: AdminMoloniCatalogItem[]
   }>("admin-update-moloni-mapping", {
     action: "catalog",

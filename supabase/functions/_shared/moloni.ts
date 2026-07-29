@@ -81,6 +81,13 @@ export interface MoloniTax {
   active_by_default?: number
 }
 
+export interface MoloniTaxExemption {
+  code: string
+  name: string
+  description: string
+  visibility: number
+}
+
 export interface MoloniProductCategory {
   category_id: number
   parent_id: number
@@ -480,19 +487,36 @@ export function classifyMoloniFailure(
       : status === 401
         ? "TOKEN_EXPIRED"
         : "MOLONI_REJECTED"
-  const humanMessage = typeof payload === "object" && payload !== null
+  const dataValidationMessage = extractMoloniDataValidationMessage(payload)
+  const humanMessage = dataValidationMessage || (typeof payload === "object" && payload !== null
     ? String(
       (payload as Record<string, unknown>).error_description ??
         (payload as Record<string, unknown>).message ??
         "",
     ).slice(0, 300)
-    : ""
+    : "")
   return new MoloniError(
     humanMessage || `A API Moloni rejeitou a operação ${endpoint}.`,
     code,
     retryable,
     status || null,
   )
+}
+
+export function extractMoloniDataValidationMessage(payload: unknown) {
+  if (!Array.isArray(payload)) return ""
+  const messages: string[] = []
+  for (const item of payload) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) continue
+    const record = item as Record<string, unknown>
+    const code = typeof record.code === "string" ? record.code.trim() : ""
+    const description = typeof record.description === "string" ? record.description.trim() : ""
+    if (!description || !/^\d+(?:\s|$)/.test(code)) continue
+    const message = description.slice(0, 200)
+    if (!messages.includes(message)) messages.push(message)
+    if (messages.length === 5) break
+  }
+  return messages.join("; ").slice(0, 300)
 }
 
 function isMoloniTokenFailure(payload: unknown) {
@@ -557,7 +581,12 @@ export class MoloniClient {
           signal: controller.signal,
         })
         const payload = await response.json().catch(() => null)
-        if (!response.ok || (payload && typeof payload === "object" && "valid" in payload && payload.valid === 0)) {
+        const dataValidationMessage = extractMoloniDataValidationMessage(payload)
+        if (
+          !response.ok ||
+          dataValidationMessage ||
+          (payload && typeof payload === "object" && "valid" in payload && payload.valid === 0)
+        ) {
           const failure = classifyMoloniFailure(response.status, payload, endpoint)
           if (failure.code === "MOLONI_REJECTED" && isMoloniTokenFailure(payload)) {
             throw new MoloniError(failure.message, "TOKEN_EXPIRED", true, response.status || 401)
@@ -758,6 +787,12 @@ export class MoloniClient {
       company_id: companyId,
       with_invisible: 1,
     }, (item) => item.tax_id)
+  }
+
+  getTaxExemptions() {
+    return this.getPaginated<MoloniTaxExemption>("taxExemptions/getAll", {
+      with_invisible: 1,
+    }, (item) => item.code)
   }
 
   getPaymentMethods(companyId: number) {

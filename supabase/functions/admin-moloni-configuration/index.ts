@@ -953,6 +953,17 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (claimError) throw claimError
       if (!claimedJob) throw conflict("O documento de teste já está em processamento ou foi concluído.")
+      const { error: snapshotResetError } = await context.serviceClient
+        .from("fiscal_documents")
+        .update({
+          fiscal_snapshot: null,
+          selected_fiscal_rule_id: null,
+          fiscal_selection_reason: null,
+          fiscal_snapshot_locked_at: null,
+        })
+        .eq("id", document.id)
+        .is("moloni_document_id", null)
+      if (snapshotResetError) throw snapshotResetError
       const result = await processMoloniDocumentJob(context.serviceClient, claimedJob, {
         allowDraftHomologation: true,
       })
@@ -977,8 +988,11 @@ Deno.serve(async (req) => {
         ...extractRequestAuditContext(req),
       })
       if (!passed) {
+        const failureMessage = "message" in result ? result.message : null
         throw conflict(
-          result.status === "retry"
+          failureMessage
+            ? `A homologação não foi concluída: ${failureMessage}`
+            : result.status === "retry"
             ? "A homologação ficou pendente de reconciliação com a Moloni. Consulte a fila e tente novamente em instantes."
             : "A homologação ficou bloqueada. Consulte o erro sanitizado na fila.",
         )
