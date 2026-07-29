@@ -27,6 +27,7 @@ import {
 } from "@/services/admin.service"
 import { formatProductPrice } from "@/utils/currency"
 import { formatDateTime } from "@/utils/date"
+import { fiscalDocumentStatusLabel, fiscalErrorLabel } from "@/lib/fiscal-status"
 import type { AdminOrderViewSummary } from "@/types/app.types"
 
 type PaymentsTab = "history" | "settings"
@@ -851,7 +852,7 @@ export function AdminPayments() {
                             <StatusBadge label={paymentStatusLabel(order.status)} tone={orderStatusTone(order.status)} />
                             {order.fiscal_document ? (
                               <div className="mt-2 space-y-1 text-xs text-slate-600">
-                                <p>Fiscal: {order.fiscal_document.status}</p>
+                                <p>Fiscal: {fiscalDocumentStatusLabel(order.fiscal_document.status)}</p>
                                 {order.fiscal_document.document_number ? <p>{order.fiscal_document.document_number}</p> : null}
                                 {order.fiscal_document.job ? (
                                   <p>
@@ -869,7 +870,9 @@ export function AdminPayments() {
                                   </button>
                                 ) : null}
                                 {order.fiscal_document.last_error_code ? (
-                                  <p className="max-w-48 break-words text-rose-700">{order.fiscal_document.last_error_code}</p>
+                                  <p className="max-w-48 break-words text-rose-700">
+                                    {fiscalErrorLabel(order.fiscal_document.last_error_code)}
+                                  </p>
                                 ) : null}
                                 {["blocked_data", "failed_retryable", "failed_permanent"].includes(order.fiscal_document.status) ? (
                                   <button
