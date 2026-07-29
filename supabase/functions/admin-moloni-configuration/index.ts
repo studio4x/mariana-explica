@@ -507,17 +507,145 @@ async function refreshAutomaticChecklistDependencies(
   context: Awaited<ReturnType<typeof requireAdmin>>,
   paymentEnvironment: PaymentEnvironment,
 ) {
-  const validationTypes: ValidationType[] = ["company", "document_sets", "products", "mappings"]
-  const refreshed: Array<{ validation_type: ValidationType; status: "passed" | "failed" }> = []
-  for (const validationType of validationTypes) {
-    try {
-      await runValidation(context, paymentEnvironment, validationType)
-      refreshed.push({ validation_type: validationType, status: "passed" })
-    } catch {
-      refreshed.push({ validation_type: validationType, status: "failed" })
+  const state = await loadCoreState(context)
+  const settings = state.settings.find((item) => item.payment_environment === paymentEnvironment)
+  if (!settings) throw notFound("ConfiguraÃ§Ã£o fiscal nÃ£o encontrada")
+
+  const moloniEnvironment = settings.moloni_environment as "draft" | "live"
+  const companyId = Number(settings.moloni_company_id ?? 0) || null
+  const moloni = new MoloniClient(context.serviceClient, moloniEnvironment)
+
+  let companiesPromise: Promise<Awaited<ReturnType<typeof moloni.getCompanies>>> | null = null
+  let documentSetsPromise: Promise<Awaited<ReturnType<typeof moloni.getDocumentSets>>> | null = null
+  let productsPromise: Promise<Awaited<ReturnType<typeof moloni.getAllProducts>>> | null = null
+  let taxesPromise: Promise<Awaited<ReturnType<typeof moloni.getTaxes>>> | null = null
+  let paymentMethodsPromise: Promise<Awaited<ReturnType<typeof moloni.getPaymentMethods>>> | null = null
+
+  const getCompanies = () => (companiesPromise ??= moloni.getCompanies())
+  const getDocumentSets = () => {
+    if (!companyId) throw conflict("A empresa configurada nÃ£o foi encontrada na ligaÃ§Ã£o Moloni.")
+    return (documentSetsPromise ??= moloni.getDocumentSets(companyId))
+  }
+  const getProducts = () => {
+    if (!companyId) throw conflict("A empresa configurada nÃ£o foi encontrada na ligaÃ§Ã£o Moloni.")
+    return (productsPromise ??= moloni.getAllProducts(companyId))
+  }
+  const getTaxes = () => {
+    if (!companyId) throw conflict("A empresa configurada nÃ£o foi encontrada na ligaÃ§Ã£o Moloni.")
+    return (taxesPromise ??= moloni.getTaxes(companyId))
+  }
+  const getPaymentMethods = () => {
+    if (!companyId) throw conflict("A empresa configurada nÃ£o foi encontrada na ligaÃ§Ã£o Moloni.")
+    return (paymentMethodsPromise ??= moloni.getPaymentMethods(companyId))
+  }
+  const assertCompanyAvailable = async () => {
+    const companies = await getCompanies()
+    if (!companyId || !companies.some((item) => Number(item.company_id) === companyId)) {
+      throw conflict("A empresa configurada nÃ£o foi encontrada na ligaÃ§Ã£o Moloni.")
     }
   }
-  return refreshed
+  const recordRefreshedValidation = async (
+    validationType: ValidationType,
+    executor: () => Promise<{ summary: string; details?: Record<string, unknown> }>,
+  ) => {
+    try {
+      const { summary, details = {} } = await executor()
+      await recordValidation(context, {
+        paymentEnvironment,
+        validationType,
+        status: "passed",
+        summary,
+        details,
+      })
+      return { validation_type: validationType, status: "passed" as const }
+    } catch (error) {
+      await recordValidation(context, {
+        paymentEnvironment,
+        validationType,
+        status: "failed",
+        summary: safeMessage(error),
+        details: { company_id: companyId },
+      })
+      return { validation_type: validationType, status: "failed" as const }
+    }
+  }
+
+  const companyValidation = await recordRefreshedValidation("company", async () => {
+    await assertCompanyAvailable()
+    return {
+      summary: "Empresa Moloni confirmada.",
+      details: { company_id: companyId },
+    }
+  })
+
+  const [documentSetsValidation, productsValidation, mappingsValidation] = await Promise.all([
+    recordRefreshedValidation("document_sets", async () => {
+      await assertCompanyAvailable()
+      const rows = await getDocumentSets()
+      if (!rows.length) throw conflict("Nenhuma sÃ©rie documental disponÃ­vel.")
+      return {
+        summary: `${rows.length} sÃ©rie(s) documental(is) validada(s).`,
+        details: { count: rows.length, company_id: companyId },
+      }
+    }),
+    recordRefreshedValidation("products", async () => {
+      await assertCompanyAvailable()
+      const rows = await getProducts()
+      if (!rows.length) throw conflict("Nenhum artigo Moloni disponÃ­vel.")
+      return {
+        summary: `${rows.length} artigo(s) Moloni validado(s).`,
+        details: { count: rows.length, company_id: companyId },
+      }
+    }),
+    recordRefreshedValidation("mappings", async () => {
+      await assertCompanyAvailable()
+      const publishedProducts = state.products.filter(isPublishedPaidProduct)
+      const mappings = state.mappings.filter((item) =>
+        item.payment_environment === paymentEnvironment && item.is_active
+      )
+      const mappingByProduct = new Map(mappings.map((item) => [item.product_id, item]))
+      const missing = publishedProducts.filter((item) => !mappingByProduct.has(item.id))
+      if (missing.length) {
+        throw conflict(`${missing.length} produto(s) pago(s) ainda nÃ£o possuem mapeamento ativo.`)
+      }
+      const [remoteProducts, documentSets, taxes, paymentMethods] = await Promise.all([
+        getProducts(),
+        getDocumentSets(),
+        getTaxes(),
+        getPaymentMethods(),
+      ])
+      for (const mapping of mappings) {
+        if (!remoteProducts.some((item) => Number(item.product_id) === mapping.moloni_product_id)) {
+          throw conflict("Um artigo mapeado deixou de existir na Moloni.")
+        }
+        if (!documentSets.some((item) =>
+          Number(item.document_set_id) === mapping.moloni_document_set_id
+        )) {
+          throw conflict("Uma sÃ©rie mapeada deixou de existir na Moloni.")
+        }
+        if (
+          mapping.moloni_tax_id &&
+          !taxes.some((item) => Number(item.tax_id) === mapping.moloni_tax_id)
+        ) {
+          throw conflict("Uma taxa mapeada deixou de existir na Moloni.")
+        }
+        if (
+          mapping.moloni_payment_method_id &&
+          !paymentMethods.some((item) =>
+            Number(item.payment_method_id) === mapping.moloni_payment_method_id
+          )
+        ) {
+          throw conflict("Um mÃ©todo de pagamento mapeado deixou de existir na Moloni.")
+        }
+      }
+      return {
+        summary: `${mappings.length} mapeamento(s) fiscal(is) validado(s).`,
+        details: { mapping_count: mappings.length, company_id: companyId },
+      }
+    }),
+  ])
+
+  return [companyValidation, documentSetsValidation, productsValidation, mappingsValidation]
 }
 
 Deno.serve(async (req) => {
