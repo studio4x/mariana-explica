@@ -71,6 +71,15 @@ class AmbiguousInsertMoloniClient extends MoloniClient {
   }
 }
 
+class MissingDocumentIdMoloniClient extends MoloniClient {
+  readonly calls: string[] = []
+  override async post<T>(endpoint: string, _body: Record<string, unknown>, _options?: { retryAfter401?: boolean }) {
+    this.calls.push(endpoint)
+    if (endpoint === "invoiceReceipts/insert") return { valid: 1 } as T
+    return { document_id: 99 } as T
+  }
+}
+
 Deno.test("classifies temporary Moloni failures as retryable", () => {
   const rateLimited = classifyMoloniFailure(429, null, "customers/getByVat")
   const unavailable = classifyMoloniFailure(503, null, "documents/getOne")
@@ -196,5 +205,15 @@ Deno.test("reconciles an ambiguous document insertion before allowing a result",
     your_reference: "mariana:order:sale:v1",
   })
   assertEquals(result.document_id, 88)
+  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne"])
+})
+
+Deno.test("reconciles a successful insert that omitted document_id", async () => {
+  const client = new MissingDocumentIdMoloniClient({} as never, "draft")
+  const result = await client.createDocument("invoice_receipt", {
+    company_id: 42,
+    your_reference: "mariana:order:sale:v1",
+  })
+  assertEquals(result.document_id, 99)
   assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne"])
 })

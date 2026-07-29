@@ -505,6 +505,27 @@ function isMoloniTokenFailure(payload: unknown) {
   return /token|access.?token|oauth/.test(text) && /expir|invalid|unauthor|revok/.test(text)
 }
 
+function extractMoloniDocumentId(value: unknown): number | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const documentId = extractMoloniDocumentId(item)
+      if (documentId) return documentId
+    }
+    return null
+  }
+  if (typeof value !== "object" || value === null) return null
+  const record = value as Record<string, unknown>
+  for (const key of ["document_id", "documentId", "id"]) {
+    const candidate = Number(record[key])
+    if (Number.isInteger(candidate) && candidate > 0) return candidate
+  }
+  for (const key of ["data", "document", "result"]) {
+    const documentId = extractMoloniDocumentId(record[key])
+    if (documentId) return documentId
+  }
+  return null
+}
+
 export class MoloniClient {
   constructor(
     private readonly client: SupabaseClient,
@@ -770,33 +791,61 @@ export class MoloniClient {
     })
   }
 
-  createDocument(kind: "invoice" | "invoice_receipt", payload: Record<string, unknown>) {
+  private async reconcileDocument(
+    kind: "invoice" | "invoice_receipt",
+    payload: Record<string, unknown>,
+  ) {
+    const companyId = Number(payload.company_id)
+    const yourReference = typeof payload.your_reference === "string" ? payload.your_reference : ""
+    if (!companyId || !yourReference) return null
+
+    // A successful Moloni insert may occasionally omit document_id while the
+    // document is already being persisted. Reconcile by our idempotent
+    // reference before allowing the job to retry the insert.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const existing = await this.getDocument(kind, companyId, { your_reference: yourReference })
+        const documentId = extractMoloniDocumentId(existing)
+        if (documentId) return documentId
+      } catch (error) {
+        if (!(error instanceof MoloniError) || !["MOLONI_REJECTED", "DOCUMENT_NOT_FOUND"].includes(error.code)) {
+          throw error
+        }
+      }
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
+    }
+    return null
+  }
+
+  async createDocument(kind: "invoice" | "invoice_receipt", payload: Record<string, unknown>) {
     const resource = kind === "invoice_receipt" ? "invoiceReceipts" : "invoices"
-    return this.post<{ valid: number; document_id: number }>(`${resource}/insert`, payload, {
-      retryAfter401: false,
-    }).catch(async (error) => {
+    let inserted: unknown
+    try {
+      inserted = await this.post<{ valid: number; document_id?: number }>(`${resource}/insert`, payload, {
+        retryAfter401: false,
+      })
+    } catch (error) {
       if (!(error instanceof MoloniError) || error.code !== "TOKEN_REFRESHED_REQUIRES_RECONCILIATION") throw error
-      const companyId = Number(payload.company_id)
-      const yourReference = typeof payload.your_reference === "string" ? payload.your_reference : ""
-      if (!companyId || !yourReference) {
-        throw new MoloniError(
-          "A inserção Moloni requer reconciliação antes de nova tentativa.",
-          "DOCUMENT_CREATE_REQUIRES_RECONCILIATION",
-          false,
-          401,
-        )
-      }
-      const existing = await this.getDocument(kind, companyId, { your_reference: yourReference })
-      if (existing?.document_id) {
-        return { valid: 1, document_id: Number(existing.document_id) }
-      }
+      const documentId = await this.reconcileDocument(kind, payload)
+      if (documentId) return { valid: 1, document_id: documentId }
       throw new MoloniError(
         "A inserção Moloni não foi repetida automaticamente; reconciliação necessária.",
         "DOCUMENT_CREATE_REQUIRES_RECONCILIATION",
-        false,
+        true,
         401,
       )
-    })
+    }
+
+    const insertedDocumentId = extractMoloniDocumentId(inserted)
+    if (insertedDocumentId) return { valid: 1, document_id: insertedDocumentId }
+
+    const reconciledDocumentId = await this.reconcileDocument(kind, payload)
+    if (reconciledDocumentId) return { valid: 1, document_id: reconciledDocumentId }
+    throw new MoloniError(
+      "A Moloni aceitou a inserção, mas não devolveu o identificador do documento.",
+      "DOCUMENT_CREATE_INVALID_RESPONSE",
+      true,
+    )
   }
 
   getCreditNote(companyId: number, search: { document_id?: number; your_reference?: string }) {

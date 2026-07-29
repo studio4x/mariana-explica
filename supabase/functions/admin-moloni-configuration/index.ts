@@ -976,7 +976,13 @@ Deno.serve(async (req) => {
         metadata: { status: result.status, validation_id: validation.id },
         ...extractRequestAuditContext(req),
       })
-      if (!passed) throw conflict("A homologação ficou bloqueada. Consulte o erro sanitizado na fila.")
+      if (!passed) {
+        throw conflict(
+          result.status === "retry"
+            ? "A homologação ficou pendente de reconciliação com a Moloni. Consulte a fila e tente novamente em instantes."
+            : "A homologação ficou bloqueada. Consulte o erro sanitizado na fila.",
+        )
+      }
       return jsonResponse({ success: true, request_id: requestId, result, validation })
     }
 
