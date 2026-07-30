@@ -231,6 +231,7 @@ Campos principais:
 - `lesson_type`: `video`, `text` ou `hybrid`
 - `youtube_url` (campo legado usado como fonte do video)
 - `text_content`
+- `lesson_file_*` para o PDF base opcional da aula
 - `estimated_minutes`
 - `starts_at`
 - `ends_at`
@@ -248,6 +249,8 @@ Regras:
 - Aula fora da janela fica bloqueada mesmo quando modulo esta liberado.
 - O conteudo textual e salvo em `text_content`, com blocos serializados.
 - Quando `youtube_url` armazena `asset:<uuid>`, a aula usa video privado servido por URL assinada temporaria.
+- O PDF base da aula e independente de `lesson_type`: pode existir em aulas de video, texto ou hibridas.
+- Na visualizacao do aluno, o PDF base aparece apenas como botao de download; o download gera copia licenciada com a marca d'agua configurada no painel admin.
 
 ### 4.4 Assessment
 
@@ -694,6 +697,18 @@ No aluno:
 - se nao houver PDF base, o sistema pode usar fallback de exportacao de conteudo;
 - marca d'agua inclui dados do aluno, e-mail e identificador interno.
 
+### 9.4 PDF base da aula
+
+O admin pode anexar um PDF base diretamente em cada aula, por upload ou pela biblioteca de storage.
+
+Regras:
+
+- o PDF e persistido nos campos `lesson_file_*` de `product_lessons`;
+- o PDF nao altera nem depende do tipo pedagogico da aula;
+- na visualizacao da aula existe somente o botao de download do PDF base, quando configurado;
+- o download usa o mesmo fluxo de copia licenciada e a mesma configuracao de marca d'agua do PDF base do modulo;
+- se a aula nao possuir PDF base, nenhum botao de PDF e exibido.
+
 ## 10. Editor de Aula
 
 ### 10.1 Campos principais
@@ -705,6 +720,7 @@ Campos:
 - tipo de aula;
 - URL do video;
 - upload protegido de video;
+- PDF base opcional da aula;
 - conteudo textual;
 - carga horaria estimada;
 - aula obrigatoria;
@@ -1421,6 +1437,7 @@ Buckets/conceitos usados:
 
 - imagens de capa;
 - PDF base de modulo;
+- PDF base de aula;
 - arquivos de rodape da aula;
 - assets de blocos interativos;
 - materiais privados.

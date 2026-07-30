@@ -11,7 +11,6 @@ import {
   useAdminProductLessons,
   useCreateAdminModuleAsset,
   useDeleteAdminProductLesson,
-  useAdminLessonFileAccess,
   useUpdateAdminProductLesson,
   useUploadAdminLessonFile,
 } from "@/hooks/useAdmin"
@@ -162,7 +161,6 @@ export function CourseLessonDetailPanel() {
   const updateLesson = useUpdateAdminProductLesson()
   const deleteLesson = useDeleteAdminProductLesson()
   const uploadLessonFile = useUploadAdminLessonFile()
-  const lessonFileAccess = useAdminLessonFileAccess()
   const moduleAssetUploadLimitQuery = useAdminModuleAssetUploadLimit(moduleId)
   const createSignedVideoUpload = useCreateAdminModuleAssetSignedUpload()
   const createAsset = useCreateAdminModuleAsset()
@@ -180,8 +178,6 @@ export function CourseLessonDetailPanel() {
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [isLessonFileLibraryOpen, setIsLessonFileLibraryOpen] = useState(false)
-  const [lessonFilePreviewUrl, setLessonFilePreviewUrl] = useState<string | null>(null)
-  const lessonFilePreviewRequestPathRef = useRef<string | null>(null)
   const videoFileInputRef = useRef<HTMLInputElement | null>(null)
   const [resolvedProtectedVideoMaxBytes, setResolvedProtectedVideoMaxBytes] = useState<number | null>(null)
   const descriptionEditorRef = useRef<LessonContentBlocksEditorHandle | null>(null)
@@ -191,12 +187,12 @@ export function CourseLessonDetailPanel() {
     () => lessons.find((item) => item.id === lessonId) ?? null,
     [lessonId, lessons],
   )
-  const requestLessonFilePreview = lessonFileAccess.mutateAsync
   const pendingVideoPreviewUrl = useMemo(
     () => (pendingVideoFile ? URL.createObjectURL(pendingVideoFile) : null),
     [pendingVideoFile],
   )
 
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrates the local builder draft from the selected lesson. */
   useEffect(() => {
     return () => {
       if (pendingVideoPreviewUrl) {
@@ -217,57 +213,8 @@ export function CourseLessonDetailPanel() {
     setVideoUrlDraft(hasUploadedVideo ? "" : currentSource)
     setUploadedVideoAssetValue(hasUploadedVideo ? currentSource : null)
     setPendingVideoFile(null)
-    setLessonFilePreviewUrl(null)
-    lessonFilePreviewRequestPathRef.current = null
   }, [lesson])
-
-  useEffect(() => {
-    if (!lesson) {
-      setLessonFilePreviewUrl(null)
-      lessonFilePreviewRequestPathRef.current = null
-      return
-    }
-
-    const draftLessonType = form.lesson_type ?? lesson.lesson_type
-    const draftLessonFilePath = form.lesson_file_storage_path ?? lesson.lesson_file_storage_path ?? null
-
-    if (draftLessonType !== "file" || !draftLessonFilePath) {
-      setLessonFilePreviewUrl(null)
-      lessonFilePreviewRequestPathRef.current = null
-      return
-    }
-
-    if (lessonFilePreviewRequestPathRef.current === draftLessonFilePath) {
-      return
-    }
-
-    let isActive = true
-    lessonFilePreviewRequestPathRef.current = draftLessonFilePath
-
-    void requestLessonFilePreview(lesson.id)
-      .then((access) => {
-        if (isActive) {
-          setLessonFilePreviewUrl(access.url)
-        }
-      })
-      .catch((previewError) => {
-        if (isActive) {
-          lessonFilePreviewRequestPathRef.current = null
-          setError(previewError instanceof Error ? previewError.message : "NÃ£o foi possÃ­vel abrir a visualizaÃ§Ã£o do PDF.")
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [
-    form.lesson_file_storage_path,
-    form.lesson_type,
-    lesson?.id,
-    lesson?.lesson_file_storage_path,
-    lesson?.lesson_type,
-    requestLessonFilePreview,
-  ])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!courseId || !moduleId || !lessonId) {
     return <EmptyState title="Aula inválida" message="Seleciona uma aula válida na Árvore do builder." />
@@ -370,13 +317,6 @@ export function CourseLessonDetailPanel() {
         lesson_type: values.lesson_type,
         youtube_url: normalizedYoutube,
         text_content: normalizedText,
-        lesson_file_storage_bucket: values.lesson_file_storage_bucket,
-        lesson_file_storage_path: values.lesson_file_storage_path,
-        lesson_file_storage_provider: values.lesson_file_storage_provider,
-        lesson_file_storage_managed: values.lesson_file_storage_managed,
-        lesson_file_name: values.lesson_file_name,
-        lesson_file_mime_type: values.lesson_file_mime_type,
-        lesson_file_size_bytes: values.lesson_file_size_bytes,
         estimated_minutes: Number(values.estimated_minutes || 0),
         starts_at: values.starts_at || null,
         ends_at: values.ends_at || null,
@@ -481,6 +421,33 @@ export function CourseLessonDetailPanel() {
     return updatedLesson
   }
 
+  const persistLessonPdfAfterUpload = async (fileFields: {
+    lesson_file_storage_bucket: string | null
+    lesson_file_storage_path: string | null
+    lesson_file_storage_provider: "supabase" | "r2" | null
+    lesson_file_storage_managed: boolean
+    lesson_file_name: string | null
+    lesson_file_mime_type: string | null
+    lesson_file_size_bytes: number | null
+  }) => {
+    const updatedLesson = await updateLesson.mutateAsync({
+      lessonId: lesson.id,
+      ...fileFields,
+    })
+    setForm((prev) => ({
+      ...prev,
+      lesson_file_storage_bucket: updatedLesson.lesson_file_storage_bucket,
+      lesson_file_storage_path: updatedLesson.lesson_file_storage_path,
+      lesson_file_storage_provider: updatedLesson.lesson_file_storage_provider,
+      lesson_file_storage_managed: updatedLesson.lesson_file_storage_managed,
+      lesson_file_name: updatedLesson.lesson_file_name,
+      lesson_file_mime_type: updatedLesson.lesson_file_mime_type,
+      lesson_file_size_bytes: updatedLesson.lesson_file_size_bytes,
+    }))
+    setFeedback({ tone: "success", message: `O PDF base da aula "${updatedLesson.title}" foi guardado.` })
+    return updatedLesson
+  }
+
   const handleDelete = async () => {
     const confirmed = window.confirm(
       `Excluir a aula "${lesson.title}"? Esta ação remove o conteúdo ligado a ela.`,
@@ -513,10 +480,7 @@ export function CourseLessonDetailPanel() {
         file,
         replacePath: values.lesson_file_storage_path,
       })
-      await persistLessonAfterUpload({
-        lesson_type: "file",
-        youtube_url: null,
-        text_content: null,
+      await persistLessonPdfAfterUpload({
         lesson_file_storage_bucket: upload.bucket,
         lesson_file_storage_path: upload.path,
         lesson_file_storage_provider: upload.storage_provider ?? "r2",
@@ -525,19 +489,7 @@ export function CourseLessonDetailPanel() {
         lesson_file_mime_type: upload.mime_type ?? "application/pdf",
         lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
       })
-      setUploadMessage("Ficheiro enviado e aula guardada automaticamente. Ele já esta disponível na Área de materiais deste módulo.")
-      setUploadMessage("PDF enviado e guardado diretamente nesta aula. Ele ja esta disponivel no leitor de PDF do player.")
-      setForm((prev) => ({
-        ...prev,
-        lesson_type: "file",
-        lesson_file_storage_bucket: upload.bucket,
-        lesson_file_storage_path: upload.path,
-        lesson_file_storage_provider: upload.storage_provider ?? "r2",
-        lesson_file_storage_managed: true,
-        lesson_file_name: upload.file_name,
-        lesson_file_mime_type: upload.mime_type ?? "application/pdf",
-        lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
-      }))
+      setUploadMessage("PDF enviado e guardado diretamente nesta aula.")
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o ficheiro.")
     } finally {
@@ -555,10 +507,7 @@ export function CourseLessonDetailPanel() {
       file,
       replacePath: values.lesson_file_storage_path,
     })
-    await persistLessonAfterUpload({
-      lesson_type: "file",
-      youtube_url: null,
-      text_content: null,
+    await persistLessonPdfAfterUpload({
       lesson_file_storage_bucket: upload.bucket,
       lesson_file_storage_path: upload.path,
       lesson_file_storage_provider: upload.storage_provider ?? "r2",
@@ -567,20 +516,7 @@ export function CourseLessonDetailPanel() {
       lesson_file_mime_type: upload.mime_type ?? "application/pdf",
       lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
     })
-    setUploadMessage("PDF enviado e guardado diretamente nesta aula. Ele ja esta disponivel no leitor de PDF do player.")
-    setForm((prev) => ({
-      ...prev,
-      lesson_type: "file",
-      lesson_file_storage_bucket: upload.bucket,
-      lesson_file_storage_path: upload.path,
-      lesson_file_storage_provider: upload.storage_provider ?? "r2",
-      lesson_file_storage_managed: true,
-      lesson_file_name: upload.file_name,
-      lesson_file_mime_type: upload.mime_type ?? "application/pdf",
-      lesson_file_size_bytes: upload.file_size_bytes ?? file.size,
-    }))
-    setLessonFilePreviewUrl(null)
-    lessonFilePreviewRequestPathRef.current = null
+    setUploadMessage("PDF enviado e guardado diretamente nesta aula.")
   }
 
   const handleMediaLibraryLessonFileSelect = async (object: AdminR2ListedObject) => {
@@ -589,10 +525,7 @@ export function CourseLessonDetailPanel() {
       throw new Error("Seleciona um ficheiro PDF da biblioteca.")
     }
 
-    await persistLessonAfterUpload({
-      lesson_type: "file",
-      youtube_url: null,
-      text_content: null,
+    await persistLessonPdfAfterUpload({
       lesson_file_storage_bucket: object.logical_bucket,
       lesson_file_storage_path: object.storage_path,
       lesson_file_storage_provider: "r2",
@@ -602,19 +535,6 @@ export function CourseLessonDetailPanel() {
       lesson_file_size_bytes: object.size_bytes,
     })
     setUploadMessage("PDF da biblioteca selecionado e associado diretamente a esta aula.")
-    setForm((prev) => ({
-      ...prev,
-      lesson_type: "file",
-      lesson_file_storage_bucket: object.logical_bucket,
-      lesson_file_storage_path: object.storage_path,
-      lesson_file_storage_provider: "r2",
-      lesson_file_storage_managed: false,
-      lesson_file_name: fileName,
-      lesson_file_mime_type: "application/pdf",
-      lesson_file_size_bytes: object.size_bytes,
-    }))
-    setLessonFilePreviewUrl(null)
-    lessonFilePreviewRequestPathRef.current = null
   }
 
   const handleVideoUploadSelection = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1119,19 +1039,19 @@ export function CourseLessonDetailPanel() {
             </section>
           ) : null}
 
-          {values.lesson_type === "file" ? (
+          <>
             <section className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">
-                  Bloco 04: Ficheiro Principal
+                  Bloco 05: PDF base da aula
                 </p>
-                <h2 className="mt-2 text-lg font-bold text-slate-950">Upload do material protegido</h2>
+                <h2 className="mt-2 text-lg font-bold text-slate-950">PDF base da aula</h2>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-sm font-semibold text-slate-950">Enviar ficheiro</p>
+                <p className="text-sm font-semibold text-slate-950">Ficheiro PDF protegido</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  O upload guarda um PDF protegido diretamente nesta aula. O aluno poderá visualizá-lo no leitor de PDF do player.
+                  Adiciona o PDF base desta aula. O aluno receberá uma cópia licenciada com a marca d&apos;água configurada no painel admin.
                 </p>
                 <input
                   type="file"
@@ -1162,7 +1082,7 @@ export function CourseLessonDetailPanel() {
                 {values.lesson_file_storage_path ? (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-emerald-950">Ficheiro guardado nesta aula</p>
+                      <p className="text-sm font-semibold text-emerald-950">PDF guardado nesta aula</p>
                       <StatusBadge label="PDF protegido" tone="success" />
                     </div>
                     <p className="mt-1 break-all text-sm text-emerald-800">
@@ -1170,7 +1090,7 @@ export function CourseLessonDetailPanel() {
                     </p>
                     {values.lesson_file_size_bytes ? (
                       <p className="mt-1 text-xs text-emerald-700">
-                        {formatBytes(values.lesson_file_size_bytes)} · disponível no leitor do player
+                        {formatBytes(values.lesson_file_size_bytes)} · disponível para download na visualização da aula
                       </p>
                     ) : null}
                   </div>
@@ -1184,38 +1104,9 @@ export function CourseLessonDetailPanel() {
                     {uploadMessage}
                   </div>
                 ) : null}
-                {lessonFileAccess.isError ? (
-                  <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                    Não foi possível preparar o leitor do PDF: {lessonFileAccess.error instanceof Error
-                      ? lessonFileAccess.error.message
-                      : "erro desconhecido"}
-                  </div>
-                ) : null}
-                {lessonFileAccess.isPending ? (
-                  <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
-                    A preparar a visualização do PDF...
-                  </div>
-                ) : lessonFilePreviewUrl ? (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <a
-                      href={lessonFilePreviewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mb-3 block text-sm font-semibold text-sky-700 hover:text-sky-900"
-                    >
-                      Abrir PDF em nova aba
-                    </a>
-                    <p className="mb-3 text-sm font-semibold text-slate-950">Visualização do PDF</p>
-                    <iframe
-                      src={lessonFilePreviewUrl}
-                      title={values.lesson_file_name ?? "Visualização do PDF"}
-                      className="h-[min(720px,70vh)] w-full rounded-xl border border-slate-200 bg-white"
-                    />
-                  </div>
-                ) : null}
               </div>
             </section>
-          ) : null}
+          </>
 
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
             <div>

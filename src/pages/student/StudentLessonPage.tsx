@@ -1,5 +1,5 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
-import { CheckCircle2, FileText, Loader2, StickyNote } from "lucide-react"
+import { CheckCircle2, Download, FileText, Loader2, StickyNote } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -13,10 +13,9 @@ import {
 import {
   useAccessibleLesson,
   useLessonAdditionalResources,
-  useLessonFileAccess,
   useLessonNote,
+  useRequestLessonFileAccess,
   useRequestAssetAccess,
-  useRequestModulePdfAccess,
   useSaveLessonNote,
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
@@ -34,11 +33,6 @@ export function StudentLessonPage() {
   const lessonSummary = context.lessons.find((item) => item.id === lessonId) ?? null
   const module = lessonSummary ? context.modules.find((item) => item.id === lessonSummary.module_id) ?? null : null
   const lessonQuery = useAccessibleLesson(lessonSummary && !lessonSummary.is_locked ? lessonSummary.id : undefined)
-  const lessonFileAccess = useLessonFileAccess(
-    lessonQuery.data?.lesson_type === "file" && lessonQuery.data.lesson_file_storage_path
-      ? lessonQuery.data.id
-      : undefined,
-  )
   const assetsQuery = useLessonAdditionalResources(
     module && !module.is_locked ? module.id : undefined,
     lessonSummary && !lessonSummary.is_locked ? lessonSummary.id : undefined,
@@ -47,7 +41,7 @@ export function StudentLessonPage() {
   const saveLessonNote = useSaveLessonNote()
   const progressMutation = useUpsertLessonProgress()
   const assetAccess = useRequestAssetAccess()
-  const modulePdfAccess = useRequestModulePdfAccess()
+  const lessonPdfAccess = useRequestLessonFileAccess()
   const [noteText, setNoteText] = useState("")
 
   useEffect(() => {
@@ -140,8 +134,8 @@ export function StudentLessonPage() {
     window.open(result.url, "_blank", "noopener,noreferrer")
   }
 
-  const handleModulePdfOpen = async () => {
-    const result = await modulePdfAccess.mutateAsync(module.id)
+  const handleLessonPdfDownload = async () => {
+    const result = await lessonPdfAccess.mutateAsync(lesson.id)
     window.open(result.url, "_blank", "noopener,noreferrer")
   }
 
@@ -169,49 +163,18 @@ export function StudentLessonPage() {
 
         <div className="mt-7 space-y-4">
           <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
-          {lesson.lesson_type === "file" && lesson.lesson_file_storage_path ? (
-            <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-4 md:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 text-slate-900">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  <p className="font-semibold">Material da Aula</p>
-                </div>
-                {lesson.lesson_file_name ? <p className="text-sm text-slate-500">{lesson.lesson_file_name}</p> : null}
-              </div>
-              {lessonFileAccess.isLoading ? (
-                <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">
-                  A preparar o Material da Aula...
-                </div>
-              ) : lessonFileAccess.isError ? (
-                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  <p>{lessonFileAccess.error instanceof Error ? lessonFileAccess.error.message : "Não foi possível abrir o PDF."}</p>
-                  <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => void lessonFileAccess.refetch()}>
-                    Tentar novamente
-                  </Button>
-                </div>
-              ) : lessonFileAccess.data?.url ? (
-                <>
-                  <div className="mt-4 flex justify-end">
-                    <a
-                      href={lessonFileAccess.data.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-semibold text-sky-700 hover:text-sky-900"
-                    >
-                      Abrir PDF em nova aba
-                    </a>
-                  </div>
-                <iframe
-                  src={lessonFileAccess.data.url}
-                  title={lesson.lesson_file_name ?? lesson.title}
-                  className="mt-4 h-[min(760px,75vh)] w-full rounded-2xl border border-slate-200 bg-white"
-                />
-                </>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                  O PDF principal ainda não está disponível.
-                </div>
-              )}
+          {lesson.lesson_file_storage_path ? (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-sky-200 text-sky-700 hover:bg-sky-50"
+                onClick={() => void handleLessonPdfDownload()}
+                disabled={lessonPdfAccess.isPending}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {lessonPdfAccess.isPending ? "A preparar PDF..." : "Baixar PDF da aula"}
+              </Button>
             </div>
           ) : null}
           {lesson.text_content ? (
@@ -221,16 +184,6 @@ export function StudentLessonPage() {
                 <p className="font-semibold">Conteúdo textual</p>
               </div>
               <LessonContentBlocksRenderer value={lesson.text_content} className="mt-3" />
-            </div>
-          ) : lesson.lesson_type === "file" && !lesson.lesson_file_storage_path ? (
-            <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-6">
-              <div className="flex items-center gap-2 text-slate-900">
-                <FileText className="h-4 w-4" />
-                <p className="font-semibold">Conteúdo principal em ficheiro</p>
-              </div>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Abre os materiais protegidos abaixo para consumir esta aula.
-              </p>
             </div>
           ) : null}
         </div>
@@ -262,7 +215,7 @@ export function StudentLessonPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div>
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
           <div className="flex items-center gap-2">
             <StickyNote className="h-4 w-4 text-slate-900" />
@@ -280,40 +233,6 @@ export function StudentLessonPage() {
           </Button>
         </section>
 
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
-          <h2 className="font-display text-2xl font-black text-slate-950">Materiais da aula</h2>
-          <div className="mt-4 space-y-3">
-            {module.module_pdf_file_name ? (
-              <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-slate-950">{module.module_pdf_file_name}</p>
-                      <StatusBadge label="PDF base do módulo" tone="warning" />
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Material protegido ligado ao módulo atual.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    className="rounded-full"
-                    onClick={() => void handleModulePdfOpen()}
-                    disabled={modulePdfAccess.isPending}
-                  >
-                    {modulePdfAccess.isPending ? "A preparar..." : "Abrir PDF"}
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {!module.module_pdf_file_name ? (
-              <EmptyState
-                title="Sem material base"
-                message="Quando houver um PDF base configurado para o módulo, ele aparece aqui."
-              />
-            ) : null}
-          </div>
-        </section>
       </div>
 
       <LessonAdditionalResources

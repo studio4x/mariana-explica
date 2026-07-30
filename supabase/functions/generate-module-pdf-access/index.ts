@@ -12,6 +12,7 @@ const DEFAULT_SITE_NAME = "Mariana Explica"
 
 interface Input {
   moduleId?: string
+  lessonId?: string
 }
 
 interface WatermarkConfigValue {
@@ -174,10 +175,38 @@ Deno.serve(async (req) => {
     const auditMeta = extractRequestAuditContext(req)
     const body = await readJsonBody<Input>(req)
     const moduleId = body.moduleId?.trim()
+    const lessonId = body.lessonId?.trim()
     const isAdminPreview = isAdminProfile(context.profile)
 
-    if (!moduleId) {
-      throw badRequest("moduleId e obrigatorio")
+    if (Boolean(moduleId) === Boolean(lessonId)) {
+      throw badRequest("moduleId ou lessonId e obrigatorio")
+    }
+
+    let lessonRow: {
+      id: string
+      module_id: string
+      title: string
+      status: "draft" | "published" | "archived"
+      lesson_file_storage_path: string | null
+      lesson_file_storage_provider: "supabase" | "r2" | null
+      lesson_file_name: string | null
+    } | null = null
+
+    if (lessonId) {
+      const { data, error } = await context.serviceClient
+        .from("product_lessons")
+        .select("id,module_id,title,status,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_name")
+        .eq("id", lessonId)
+        .maybeSingle()
+
+      if (error) throw error
+      if (!data) throw forbidden("Aula indisponivel")
+      lessonRow = data
+    }
+
+    const targetModuleId = lessonRow?.module_id ?? moduleId
+    if (!targetModuleId) {
+      throw badRequest("Modulo da aula e obrigatorio")
     }
 
     const { data: moduleRow, error: moduleError } = await context.serviceClient
@@ -185,7 +214,7 @@ Deno.serve(async (req) => {
       .select(
         "id,product_id,title,module_pdf_storage_path,module_pdf_storage_provider,module_pdf_file_name,status,access_type,is_preview,starts_at,ends_at,release_days_after_enrollment",
       )
-      .eq("id", moduleId)
+      .eq("id", targetModuleId)
       .maybeSingle()
 
     if (moduleError) throw moduleError
@@ -193,17 +222,25 @@ Deno.serve(async (req) => {
 
     if (!isAdminPreview) {
       const { data: canAccessRow, error: canAccessError } = await context.serviceClient
-        .rpc("can_access_product_module", {
-          target_module_id: moduleId,
-          target_user: context.user.id,
-        })
+        .rpc(
+          lessonId ? "can_access_product_lesson" : "can_access_product_module",
+          lessonId
+            ? { target_lesson_id: lessonId, target_user: context.user.id }
+            : { target_module_id: targetModuleId, target_user: context.user.id },
+        )
 
       if (canAccessError) throw canAccessError
       if (!canAccessRow) throw forbidden("Voce nao possui acesso a este PDF")
     }
 
-    if (!moduleRow.module_pdf_storage_path || !moduleRow.module_pdf_file_name) {
-      throw forbidden("Este modulo nao possui PDF base configurado")
+    const sourceStoragePath = lessonId ? lessonRow?.lesson_file_storage_path ?? null : moduleRow.module_pdf_storage_path
+    const sourceFileName = lessonId ? lessonRow?.lesson_file_name ?? null : moduleRow.module_pdf_file_name
+    const sourceStorageProvider = lessonId
+      ? lessonRow?.lesson_file_storage_provider ?? null
+      : moduleRow.module_pdf_storage_provider
+
+    if (!sourceStoragePath || !sourceFileName) {
+      throw forbidden(lessonId ? "Esta aula nao possui PDF base configurado" : "Este modulo nao possui PDF base configurado")
     }
 
     const { data: productRow, error: productError } = await context.serviceClient
@@ -219,8 +256,8 @@ Deno.serve(async (req) => {
     const sourcePdfBytes = await readStorageObject(
       context.serviceClient,
       COURSE_STORAGE_BUCKET,
-      moduleRow.module_pdf_storage_path,
-      moduleRow.module_pdf_storage_provider ?? "supabase",
+      sourceStoragePath,
+      sourceStorageProvider ?? "supabase",
     )
 
     let logoBytes: Uint8Array | null = null
@@ -253,9 +290,10 @@ Deno.serve(async (req) => {
     })
 
     const downloadName = sanitizeSegment(
-      `${productRow.title}-${moduleRow.title}-${licenseToken}-${moduleRow.module_pdf_file_name}`,
-    ) || moduleRow.module_pdf_file_name
-    const derivedPath = `derived-watermarks/module-pdfs/${context.user.id}/${moduleId}/${sanitizeSegment(downloadName) || "material"}.pdf`
+      `${productRow.title}-${lessonId ? "aula" : "modulo"}-${lessonRow?.title ?? moduleRow.title}-${licenseToken}-${sourceFileName}`,
+    ) || sourceFileName
+    const derivedRoot = lessonId ? "lesson-pdfs" : "module-pdfs"
+    const derivedPath = `derived-watermarks/${derivedRoot}/${context.user.id}/${targetModuleId}/${lessonId ?? targetModuleId}/${sanitizeSegment(downloadName) || "material"}.pdf`
 
     await uploadStorageObject({
       serviceClient: context.serviceClient,
@@ -276,19 +314,20 @@ Deno.serve(async (req) => {
     })
 
     await writeAuditLog(context.serviceClient, context, {
-      action: "student.module_pdf_access_requested",
-      entityType: "product_module",
-      entityId: moduleId,
+      action: lessonId ? "student.lesson_pdf_access_requested" : "student.module_pdf_access_requested",
+      entityType: lessonId ? "product_lesson" : "product_module",
+      entityId: lessonId ?? targetModuleId,
       metadata: {
-        module_id: moduleId,
+        module_id: targetModuleId,
+        lesson_id: lessonId ?? null,
         product_id: moduleRow.product_id,
-        storage_path: moduleRow.module_pdf_storage_path,
+        storage_path: sourceStoragePath,
         derived_storage_path: derivedPath,
-        file_name: moduleRow.module_pdf_file_name,
+        file_name: sourceFileName,
         licensed_file_name: downloadName,
         watermark_site_name: watermarkConfig.site_name,
         watermark_logo_path: watermarkConfig.logo_path,
-        storage_provider: moduleRow.module_pdf_storage_provider ?? "supabase",
+        storage_provider: sourceStorageProvider ?? "supabase",
       },
       ...auditMeta,
     })

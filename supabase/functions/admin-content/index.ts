@@ -606,14 +606,6 @@ Deno.serve(async (req) => {
         delete payload.lesson_file_size_bytes
       }
 
-      if (body.lesson_type !== undefined && body.lesson_type !== "file") {
-        payload.lesson_file_storage_bucket = null
-        payload.lesson_file_storage_path = null
-        payload.lesson_file_storage_provider = null
-        payload.lesson_file_name = null
-        payload.lesson_file_mime_type = null
-        payload.lesson_file_size_bytes = null
-      }
       if (body.estimated_minutes !== undefined) payload.estimated_minutes = body.estimated_minutes
       if (body.starts_at !== undefined) payload.starts_at = normalizeNullableTimestamp(body.starts_at)
       if (body.ends_at !== undefined) payload.ends_at = normalizeNullableTimestamp(body.ends_at)

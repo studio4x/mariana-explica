@@ -684,6 +684,12 @@ export function useLessonFileAccess(lessonId: string | undefined) {
   })
 }
 
+export function useRequestLessonFileAccess() {
+  return useMutation({
+    mutationFn: requestLessonFileAccess,
+  })
+}
+
 export function useRequestModulePdfAccess() {
   return useMutation({
     mutationFn: requestModulePdfAccess,
