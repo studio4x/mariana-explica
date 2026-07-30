@@ -73,6 +73,7 @@ interface Body {
   lesson_file_name?: string | null
   lesson_file_mime_type?: string | null
   lesson_file_size_bytes?: number | null
+  clear_lesson_file?: boolean
   estimated_minutes?: number
   lesson_status?: LessonStatus
 
@@ -574,6 +575,16 @@ Deno.serve(async (req) => {
         payload.lesson_file_size_bytes = fileSizeBytes
       }
 
+      if (body.clear_lesson_file === true) {
+        payload.lesson_file_storage_bucket = null
+        payload.lesson_file_storage_path = null
+        payload.lesson_file_storage_provider = null
+        payload.lesson_file_storage_managed = false
+        payload.lesson_file_name = null
+        payload.lesson_file_mime_type = null
+        payload.lesson_file_size_bytes = null
+      }
+
       const hasFileFields = [
         body.lesson_file_storage_bucket,
         body.lesson_file_storage_path,
@@ -596,7 +607,7 @@ Deno.serve(async (req) => {
       // A normal save of an `file` lesson can arrive before the local upload
       // state has finished hydrating. Empty file fields must not erase a file
       // that is already persisted; replacement is explicit through a path.
-      if (body.lesson_type === "file" && hasFileFields && !hasConcreteLessonFilePath) {
+      if (body.clear_lesson_file !== true && body.lesson_type === "file" && hasFileFields && !hasConcreteLessonFilePath) {
         delete payload.lesson_file_storage_bucket
         delete payload.lesson_file_storage_path
         delete payload.lesson_file_storage_provider

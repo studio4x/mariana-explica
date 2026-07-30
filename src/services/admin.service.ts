@@ -3453,6 +3453,7 @@ export async function updateAdminProductLesson(input: {
   lesson_file_name?: string | null
   lesson_file_mime_type?: string | null
   lesson_file_size_bytes?: number | null
+  clear_lesson_file?: boolean
   estimated_minutes?: number
   starts_at?: string | null
   ends_at?: string | null

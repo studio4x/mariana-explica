@@ -704,6 +704,7 @@ O admin pode anexar um PDF base diretamente em cada aula, por upload ou pela bib
 Regras:
 
 - o PDF e persistido nos campos `lesson_file_*` de `product_lessons`;
+- o admin pode remover a associacao atual do PDF para substitui-lo por outro arquivo; arquivos gerenciados pela plataforma sao limpos do storage;
 - o PDF nao altera nem depende do tipo pedagogico da aula;
 - na visualizacao da aula existe somente o botao de download do PDF base, quando configurado;
 - o download usa o mesmo fluxo de copia licenciada e a mesma configuracao de marca d'agua do PDF base do modulo;

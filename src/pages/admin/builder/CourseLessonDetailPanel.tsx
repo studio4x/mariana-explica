@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
+import { Trash2 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -446,6 +447,36 @@ export function CourseLessonDetailPanel() {
     }))
     setFeedback({ tone: "success", message: `O PDF base da aula "${updatedLesson.title}" foi guardado.` })
     return updatedLesson
+  }
+
+  const handleRemoveLessonPdf = async () => {
+    if (!values.lesson_file_storage_path) return
+    const confirmed = window.confirm("Remover o PDF base desta aula? Poderás adicionar outro ficheiro depois.")
+    if (!confirmed) return
+
+    setError(null)
+    setUploadMessage(null)
+
+    try {
+      const updatedLesson = await updateLesson.mutateAsync({
+        lessonId: lesson.id,
+        clear_lesson_file: true,
+      })
+      setForm((prev) => ({
+        ...prev,
+        lesson_file_storage_bucket: updatedLesson.lesson_file_storage_bucket,
+        lesson_file_storage_path: updatedLesson.lesson_file_storage_path,
+        lesson_file_storage_provider: updatedLesson.lesson_file_storage_provider,
+        lesson_file_storage_managed: updatedLesson.lesson_file_storage_managed,
+        lesson_file_name: updatedLesson.lesson_file_name,
+        lesson_file_mime_type: updatedLesson.lesson_file_mime_type,
+        lesson_file_size_bytes: updatedLesson.lesson_file_size_bytes,
+      }))
+      setUploadMessage("PDF removido desta aula. Já podes adicionar um novo ficheiro.")
+      setFeedback({ tone: "success", message: `O PDF base da aula "${updatedLesson.title}" foi removido.` })
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Não foi possível remover o PDF.")
+    }
   }
 
   const handleDelete = async () => {
@@ -1081,9 +1112,21 @@ export function CourseLessonDetailPanel() {
                 />
                 {values.lesson_file_storage_path ? (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-emerald-950">PDF guardado nesta aula</p>
-                      <StatusBadge label="PDF protegido" tone="success" />
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-emerald-950">PDF guardado nesta aula</p>
+                        <StatusBadge label="PDF protegido" tone="success" />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                        onClick={() => void handleRemoveLessonPdf()}
+                        disabled={updateLesson.isPending || uploadLessonFile.isPending}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remover PDF
+                      </Button>
                     </div>
                     <p className="mt-1 break-all text-sm text-emerald-800">
                       {values.lesson_file_name ?? "PDF principal da aula"}
