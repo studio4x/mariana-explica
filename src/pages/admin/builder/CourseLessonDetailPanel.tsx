@@ -1169,17 +1169,23 @@ export function CourseLessonDetailPanel() {
               </span>
             </label>
 
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-              <p className="font-semibold text-slate-950">Preview dos botões do rodape</p>
-              <p className="mt-1">
-                O acesso detalhado a botões e URLs fica na rota dedicada de recursos adicionais da aula.
+          </section>
+
+          <section className="space-y-4 rounded-2xl border border-sky-200 bg-sky-50 p-5 shadow-sm">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-700">
+                Recursos adicionais da aula
               </p>
-              <Button asChild variant="outline" className="mt-4 rounded-full">
-                <Link to={adminCourseLessonAdditionalResourcesPath(courseId, moduleId, lesson.id)}>
-                  Abrir configuração de recursos adicionais
-                </Link>
-              </Button>
+              <h2 className="mt-2 text-lg font-bold text-slate-950">Links, ficheiros e botões de apoio</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Adiciona e organiza os recursos manuais que serão apresentados no card de recursos adicionais desta aula.
+              </p>
             </div>
+            <Button asChild className="w-fit rounded-full bg-sky-700 text-white hover:bg-sky-800">
+              <Link to={adminCourseLessonAdditionalResourcesPath(courseId, moduleId, lesson.id)}>
+                Abrir recursos adicionais da aula
+              </Link>
+            </Button>
           </section>
         </div>
 
