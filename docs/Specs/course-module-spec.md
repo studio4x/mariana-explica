@@ -1105,6 +1105,7 @@ Comportamento:
 - as notas aparecem acima do campo de insercao, uma abaixo da outra;
 - cada nota permite editar ou excluir;
 - ao editar, o texto fica aberto com um botao especifico para salvar a alteracao;
+- cada nota exibe no lado direito a data e hora em que foi guardada e, quando aplicavel, a data e hora da ultima edicao;
 - depois de criar ou atualizar, a interface confirma o salvamento.
 
 ### 14.4 Materiais de rodape

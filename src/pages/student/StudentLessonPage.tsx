@@ -23,6 +23,7 @@ import {
 } from "@/hooks/useDashboard"
 import { buildCoursePlayerEntries } from "@/lib/course-helpers"
 import { getLessonTypeLabel } from "@/lib/product-presentation"
+import { formatDateTime } from "@/utils/date"
 import {
   studentCourseAssessmentPath,
   studentCourseLessonPath,
@@ -300,67 +301,83 @@ export function StudentLessonPage() {
             <div className="mt-5 space-y-3">
               {notes.map((note) => (
                 <article key={note.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  {editingNoteId === note.id ? (
-                    <>
-                      <textarea
-                        rows={5}
-                        value={editingNoteText}
-                        onChange={(event) => setEditingNoteText(event.target.value)}
-                        className="w-full rounded-2xl border border-sky-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-                        autoFocus
-                      />
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          className="rounded-full bg-[#242742] font-bold hover:bg-[#1b1d38]"
-                          onClick={() => void handleSaveNoteEdit()}
-                          disabled={updateLessonNote.isPending}
-                        >
-                          <Save className="mr-2 h-4 w-4" />
-                          {updateLessonNote.isPending ? "A guardar..." : "Salvar nota"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-full"
-                          onClick={() => {
-                            setEditingNoteId(null)
-                            setEditingNoteText("")
-                          }}
-                          disabled={updateLessonNote.isPending}
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          Cancelar
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{note.note_text}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-9 rounded-full px-3 text-xs"
-                          onClick={() => handleStartNoteEdit(note.id, note.note_text)}
-                          disabled={deleteLessonNote.isPending || updateLessonNote.isPending}
-                        >
-                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                          Editar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-9 rounded-full border-rose-200 px-3 text-xs text-rose-700 hover:bg-rose-50"
-                          onClick={() => void handleDeleteNote(note.id)}
-                          disabled={deleteLessonNote.isPending || updateLessonNote.isPending}
-                        >
-                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                          Excluir
-                        </Button>
-                      </div>
-                    </>
-                  )}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      {editingNoteId === note.id ? (
+                        <>
+                          <textarea
+                            rows={5}
+                            value={editingNoteText}
+                            onChange={(event) => setEditingNoteText(event.target.value)}
+                            className="w-full rounded-2xl border border-sky-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                            autoFocus
+                          />
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              className="rounded-full bg-[#242742] font-bold hover:bg-[#1b1d38]"
+                              onClick={() => void handleSaveNoteEdit()}
+                              disabled={updateLessonNote.isPending}
+                            >
+                              <Save className="mr-2 h-4 w-4" />
+                              {updateLessonNote.isPending ? "A guardar..." : "Salvar nota"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => {
+                                setEditingNoteId(null)
+                                setEditingNoteText("")
+                              }}
+                              disabled={updateLessonNote.isPending}
+                            >
+                              <X className="mr-2 h-4 w-4" />
+                              Cancelar
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{note.note_text}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-9 rounded-full px-3 text-xs"
+                              onClick={() => handleStartNoteEdit(note.id, note.note_text)}
+                              disabled={deleteLessonNote.isPending || updateLessonNote.isPending}
+                            >
+                              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                              Editar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-9 rounded-full border-rose-200 px-3 text-xs text-rose-700 hover:bg-rose-50"
+                              onClick={() => void handleDeleteNote(note.id)}
+                              disabled={deleteLessonNote.isPending || updateLessonNote.isPending}
+                            >
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              Excluir
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right text-[11px] leading-5 text-slate-500">
+                      <p>
+                        <span className="block font-bold uppercase tracking-[0.12em] text-slate-400">Guardada em</span>
+                        {formatDateTime(note.created_at)}
+                      </p>
+                      {note.updated_at !== note.created_at ? (
+                        <p className="mt-2">
+                          <span className="block font-bold uppercase tracking-[0.12em] text-slate-400">Última edição</span>
+                          {formatDateTime(note.updated_at)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                 </article>
               ))}
             </div>
