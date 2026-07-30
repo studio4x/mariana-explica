@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowUpRight, Check, CreditCard, Link2, MoreHorizontal, RefreshCw, Search, Settings2 } from "lucide-react"
+import { AlertCircle, ArrowUpRight, Check, CheckCircle2, CreditCard, Info, Link2, MoreHorizontal, RefreshCw, Search, Settings2, X } from "lucide-react"
 import { Link, Navigate, useLocation, useParams } from "react-router-dom"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
@@ -34,6 +34,12 @@ type PaymentsTab = "history" | "settings"
 type PaymentsFilter = "all" | "pending" | "paid" | "refunded"
 type ActionFeedback = {
   tone: "success" | "warning" | "danger"
+  message: string
+}
+
+type ReconciliationResult = {
+  tone: "success" | "warning" | "danger"
+  title: string
   message: string
 }
 
@@ -140,6 +146,132 @@ function reconcileFeedbackMessage(action: "noop" | "mark_paid" | "mark_pending" 
   }
 
   return `Reconciliação concluída sem mudanças. Estado Stripe: ${stripeState || "sem alteração relevante"}.`
+}
+
+function reconciliationResultTitle(action: "noop" | "mark_paid" | "mark_pending" | "mark_failed") {
+  return action === "noop" ? "Nenhuma alteração necessária" : "Reconciliação concluída"
+}
+
+function ReconciliationModal({
+  order,
+  result,
+  isPending,
+  onConfirm,
+  onClose,
+}: {
+  order: AdminOrderViewSummary | null
+  result: ReconciliationResult | null
+  isPending: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const isOpen = Boolean(order || result)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isPending) onClose()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isOpen, isPending, onClose])
+
+  if (!isOpen) return null
+
+  const isResult = Boolean(result)
+  const tone = result?.tone ?? "warning"
+  const Icon = isResult
+    ? tone === "success"
+      ? CheckCircle2
+      : tone === "danger"
+        ? AlertCircle
+        : Info
+    : Info
+  const iconClass =
+    tone === "success"
+      ? "bg-emerald-100 text-emerald-700"
+      : tone === "danger"
+        ? "bg-rose-100 text-rose-700"
+        : "bg-sky-100 text-sky-700"
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isPending) onClose()
+      }}
+    >
+      <div
+        className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_32px_80px_rgba(15,23,42,0.26)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reconciliation-modal-title"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className={["inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", iconClass].join(" ")}>
+              <Icon className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 id="reconciliation-modal-title" className="text-xl font-bold text-slate-950">
+                {result?.title ?? "Reconciliar pedido"}
+              </h2>
+              {result ? (
+                <p className="mt-2 text-sm leading-6 text-slate-600">{result.message}</p>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    A reconciliação consulta o estado atual do pagamento na Stripe e compara-o com o pedido interno.
+                  </p>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-950">
+                      {order?.user_name ?? "Cliente não identificado"}
+                    </p>
+                    <p className="mt-1">{order?.product_title ?? "Produto não identificado"}</p>
+                    <p className="mt-1 text-xs text-slate-500">Pedido {order?.id.slice(0, 8)}</p>
+                  </div>
+                  <ul className="mt-4 space-y-2 text-sm leading-5 text-slate-600">
+                    <li>• Se a Stripe confirmar o pagamento, o pedido é marcado como pago e o acesso é sincronizado.</li>
+                    <li>• Se o pagamento não estiver confirmado ou tiver expirado, o estado e o acesso podem ser ajustados.</li>
+                    <li>• A operação não cria uma nova cobrança nem duplica o pedido.</li>
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={onClose}
+            disabled={isPending}
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          {result ? (
+            <Button type="button" className="rounded-2xl" onClick={onClose}>
+              Fechar
+            </Button>
+          ) : (
+            <>
+              <Button type="button" variant="outline" className="rounded-2xl" onClick={onClose} disabled={isPending}>
+                Fechar
+              </Button>
+              <Button type="button" className="rounded-2xl" onClick={onConfirm} disabled={isPending}>
+                {isPending ? "A reconciliar..." : "Continuar e reconciliar"}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function AdminPaymentsSkeleton() {
@@ -476,6 +608,8 @@ export function AdminPayments() {
   const [draftMode, setDraftMode] = useState<CheckoutMode>("sandbox")
   const [openActionOrderId, setOpenActionOrderId] = useState<string | null>(null)
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null)
+  const [reconciliationOrder, setReconciliationOrder] = useState<AdminOrderViewSummary | null>(null)
+  const [reconciliationResult, setReconciliationResult] = useState<ReconciliationResult | null>(null)
 
   const ordersQuery = useQuery({
     queryKey: ["admin", "orders-view"],
@@ -592,17 +726,21 @@ export function AdminPayments() {
   }
 
   const runReconciliation = async (orderId: string) => {
-    setActionFeedback(null)
+    setReconciliationResult(null)
 
     try {
       const result = await reconcileOrder.mutateAsync(orderId)
-      setActionFeedback({
+      setReconciliationOrder(null)
+      setReconciliationResult({
         tone: result.action === "noop" ? "warning" : "success",
+        title: reconciliationResultTitle(result.action),
         message: reconcileFeedbackMessage(result.action, result.stripe),
       })
     } catch (error) {
-      setActionFeedback({
+      setReconciliationOrder(null)
+      setReconciliationResult({
         tone: "danger",
+        title: "Não foi possível reconciliar",
         message: error instanceof Error ? error.message : "Não foi possível reconciliar o pedido.",
       })
     }
@@ -954,7 +1092,8 @@ export function AdminPayments() {
                                         disabled={actionPending}
                                         onClick={() => {
                                           setOpenActionOrderId(null)
-                                          void runReconciliation(order.id)
+                                          setReconciliationResult(null)
+                                          setReconciliationOrder(order)
                                         }}
                                       >
                                         Reconciliar
@@ -1116,6 +1255,19 @@ export function AdminPayments() {
         )}
 
       </section>
+      <ReconciliationModal
+        order={reconciliationOrder}
+        result={reconciliationResult}
+        isPending={reconcileOrder.isPending}
+        onConfirm={() => {
+          if (reconciliationOrder) void runReconciliation(reconciliationOrder.id)
+        }}
+        onClose={() => {
+          if (reconcileOrder.isPending) return
+          setReconciliationOrder(null)
+          setReconciliationResult(null)
+        }}
+      />
     </div>
   )
 }
