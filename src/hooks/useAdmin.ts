@@ -461,10 +461,10 @@ export function useAdminProductModules(productId: string | undefined) {
   })
 }
 
-export function useAdminModuleAssets(moduleId: string | undefined) {
+export function useAdminModuleAssets(moduleId: string | undefined, lessonId?: string) {
   return useQuery({
-    queryKey: ["admin", "modules", moduleId, "assets"],
-    queryFn: () => fetchAdminModuleAssets(moduleId ?? ""),
+    queryKey: ["admin", "modules", moduleId, "lessons", lessonId, "assets"],
+    queryFn: () => fetchAdminModuleAssets(moduleId ?? "", lessonId),
     enabled: Boolean(moduleId),
     ...getAdminQueryOptions(),
   })

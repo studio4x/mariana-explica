@@ -282,6 +282,9 @@ Representa os arquivos e ativos vinculados a módulos.
 
 - `module_id uuid not null references product_modules(id) on delete cascade`
 
+- `lesson_id uuid null references product_lessons(id) on delete cascade`
+  preenchido apenas quando o recurso foi adicionado manualmente a uma aula.
+
 - `asset_type text not null`
   valores esperados:
   - `pdf`
@@ -322,6 +325,7 @@ Representa os arquivos e ativos vinculados a módulos.
   - `external_url`
 - arquivo em storage nunca deve ser público por padrão
 - `allow_download` deve respeitar a regra do produto/compras
+- `lesson_id` identifica os recursos adicionais manuais de uma aula; quando nulo, o ativo permanece ligado apenas ao módulo ou à infraestrutura de conteúdo
 
 ### Índices
 - índice em `module_id`

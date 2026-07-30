@@ -12,9 +12,9 @@ import {
 } from "@/components/common"
 import {
   useAccessibleLesson,
+  useLessonAdditionalResources,
   useLessonFileAccess,
   useLessonNote,
-  useModuleAssets,
   useRequestAssetAccess,
   useRequestModulePdfAccess,
   useSaveLessonNote,
@@ -39,7 +39,10 @@ export function StudentLessonPage() {
       ? lessonQuery.data.id
       : undefined,
   )
-  const assetsQuery = useModuleAssets(module && !module.is_locked ? module.id : undefined)
+  const assetsQuery = useLessonAdditionalResources(
+    module && !module.is_locked ? module.id : undefined,
+    lessonSummary && !lessonSummary.is_locked ? lessonSummary.id : undefined,
+  )
   const noteQuery = useLessonNote(lessonSummary?.id)
   const saveLessonNote = useSaveLessonNote()
   const progressMutation = useUpsertLessonProgress()

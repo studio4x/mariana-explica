@@ -827,11 +827,18 @@ Deno.serve(async (req) => {
 
     if (body.action === "list_assets") {
       const moduleId = requireUuid(body.moduleId, "moduleId")
-      const { data, error } = await serviceClient
+      const lessonId = body.lessonId ? requireUuid(body.lessonId, "lessonId") : null
+      let assetsQuery = serviceClient
         .from("module_assets")
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status,created_at,updated_at")
+        .select("id,module_id,lesson_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status,created_at,updated_at")
         .eq("module_id", moduleId)
         .order("sort_order", { ascending: true })
+
+      if (lessonId) {
+        assetsQuery = assetsQuery.eq("lesson_id", lessonId)
+      }
+
+      const { data, error } = await assetsQuery
 
       if (error) throw error
       return jsonResponse({ success: true, request_id: requestId, assets: data ?? [] })
@@ -839,9 +846,22 @@ Deno.serve(async (req) => {
 
     if (body.action === "create_asset") {
       const moduleId = requireUuid(body.moduleId, "moduleId")
+      const lessonId = body.lessonId ? requireUuid(body.lessonId, "lessonId") : null
       const title = normalizeNullableText(body.title)
       if (!title) throw badRequest("title é obrigatório")
       if (!body.asset_type) throw badRequest("asset_type é obrigatório")
+
+      if (lessonId) {
+        const { data: lesson, error: lessonError } = await serviceClient
+          .from("product_lessons")
+          .select("id")
+          .eq("id", lessonId)
+          .eq("module_id", moduleId)
+          .maybeSingle()
+
+        if (lessonError) throw lessonError
+        if (!lesson) throw badRequest("Aula nao pertence ao modulo informado")
+      }
 
       const source = validateAssetSource(body)
 
@@ -849,6 +869,7 @@ Deno.serve(async (req) => {
         .from("module_assets")
         .insert({
           module_id: moduleId,
+          lesson_id: lessonId,
           asset_type: body.asset_type,
           title,
           sort_order: Number.isFinite(body.sort_order_asset) ? body.sort_order_asset : 0,
@@ -861,7 +882,7 @@ Deno.serve(async (req) => {
           watermark_enabled: Boolean(body.watermark_enabled),
           status: body.asset_status ?? "active",
         })
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
+        .select("id,module_id,lesson_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
         .single()
 
       if (error) throw error
@@ -903,7 +924,7 @@ Deno.serve(async (req) => {
         .from("module_assets")
         .update(payload)
         .eq("id", assetId)
-        .select("id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
+        .select("id,module_id,lesson_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,storage_managed,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status")
         .single()
 
       if (error) throw error

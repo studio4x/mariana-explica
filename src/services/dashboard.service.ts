@@ -438,6 +438,27 @@ export async function fetchModuleAssetsByModule(moduleId: string) {
   return assets.filter((asset) => asset.module_id === moduleId)
 }
 
+export async function fetchLessonAdditionalResources(moduleId: string, lessonId: string) {
+  if (!moduleId || !lessonId) {
+    return [] as ModuleAssetSummary[]
+  }
+
+  const { data, error } = await supabase
+    .from("module_assets")
+    .select(
+      "id,module_id,lesson_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
+    )
+    .eq("module_id", moduleId)
+    .eq("lesson_id", lessonId)
+    .order("sort_order", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as ModuleAssetSummary[]
+}
+
 export async function requestModulePdfAccess(moduleId: string) {
   const auth = await getFreshFunctionAuthContext()
   if (!auth) {
@@ -696,7 +717,7 @@ export async function fetchModuleAssets(moduleIds: string[]) {
   const { data, error } = await supabase
     .from("module_assets")
     .select(
-      "id,module_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
+      "id,module_id,lesson_id,asset_type,title,sort_order,storage_bucket,storage_path,storage_provider,external_url,mime_type,file_size_bytes,allow_download,allow_stream,watermark_enabled,status",
     )
     .in("module_id", moduleIds)
     .order("sort_order", { ascending: true })

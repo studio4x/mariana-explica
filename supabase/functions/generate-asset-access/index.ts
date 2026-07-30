@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
     let resource: {
       id: string
       module_id: string
+      lesson_id: string | null
       title: string
       status: "active" | "inactive" | "draft" | "published" | "archived"
       external_url: string | null
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
       const { data, error } = await client
         .from("module_assets")
         .select(
-          "id,module_id,asset_type,title,storage_bucket,storage_path,storage_provider,external_url,allow_download,allow_stream,watermark_enabled,status",
+          "id,module_id,lesson_id,asset_type,title,storage_bucket,storage_path,storage_provider,external_url,allow_download,allow_stream,watermark_enabled,status",
         )
         .eq("id", body.assetId as string)
         .maybeSingle()
@@ -128,6 +129,7 @@ Deno.serve(async (req) => {
       resource = {
         id: data.id,
         module_id: data.module_id,
+        lesson_id: null,
         title: data.title,
         status: data.status,
         external_url: null,
@@ -162,6 +164,29 @@ Deno.serve(async (req) => {
     const product = productRow as ProductRow
     const activeContext = optionalContext ? await requireActiveUser(req) : null
     const isAdminRequester = Boolean(activeContext && isAdminProfile(activeContext.profile))
+
+    if (resource.resource_type === "module_asset" && resource.lesson_id) {
+      const { data: linkedLesson, error: linkedLessonError } = await client
+        .from("product_lessons")
+        .select("id,module_id")
+        .eq("id", resource.lesson_id)
+        .maybeSingle()
+
+      if (linkedLessonError) throw linkedLessonError
+      if (!linkedLesson || linkedLesson.module_id !== resource.module_id) {
+        throw forbidden("Recurso adicional invalido")
+      }
+
+      if (!isAdminRequester) {
+        const { data: canAccessLesson, error: lessonAccessError } = await client.rpc("can_access_product_lesson", {
+          target_lesson_id: resource.lesson_id,
+          target_user: activeContext?.user.id ?? null,
+        })
+
+        if (lessonAccessError) throw lessonAccessError
+        if (!canAccessLesson) throw forbidden("Aula indisponivel")
+      }
+    }
 
     if (!isAdminRequester && (resource.status !== "active" && resource.status !== "published" || module.status !== "published" || product.status !== "published")) {
       throw forbidden("Conteudo indisponivel")

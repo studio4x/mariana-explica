@@ -29,7 +29,7 @@ function getLibraryAssetType(object: AdminR2ListedObject, fallback: ModuleAssetS
 
 export function CourseLessonMaterialsPanel() {
   const { courseId, moduleId, lessonId } = useParams<{ courseId: string; moduleId: string; lessonId: string }>()
-  const assetsQuery = useAdminModuleAssets(moduleId)
+  const assetsQuery = useAdminModuleAssets(moduleId, lessonId)
   const lessonsQuery = useAdminProductLessons(moduleId)
   const createAsset = useCreateAdminModuleAsset()
   const updateAsset = useUpdateAdminModuleAsset()
@@ -115,6 +115,7 @@ export function CourseLessonMaterialsPanel() {
     try {
       await createAsset.mutateAsync({
         moduleId,
+        lessonId,
         title: draft.title.trim(),
         asset_type: draft.asset_type,
         sort_order_asset: nextOrder,
@@ -163,6 +164,7 @@ export function CourseLessonMaterialsPanel() {
       const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
       await createAsset.mutateAsync({
         moduleId,
+        lessonId,
         title: draft.title.trim() || upload.file_name.replace(/\.[^.]+$/, ""),
         asset_type: draft.asset_type,
         sort_order_asset: nextOrder,
@@ -205,6 +207,7 @@ export function CourseLessonMaterialsPanel() {
       const upload = await uploadAssetFile.mutateAsync({ moduleId, file })
       await createAsset.mutateAsync({
         moduleId,
+        lessonId,
         title: draft.title.trim() || upload.file_name.replace(/\.[^.]+$/, ""),
         asset_type: draft.asset_type,
         sort_order_asset: nextOrder,
@@ -232,6 +235,7 @@ export function CourseLessonMaterialsPanel() {
     try {
       await createAsset.mutateAsync({
         moduleId,
+        lessonId,
         title: draft.title.trim() || getLibraryObjectName(object).replace(/\.[^.]+$/, ""),
         asset_type: getLibraryAssetType(object, draft.asset_type),
         sort_order_asset: nextOrder,

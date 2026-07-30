@@ -820,7 +820,8 @@ Regras:
 - URL nao fica exposta visualmente no card;
 - clique em URL abre nova aba;
 - arquivo usa signed URL;
-- o upload de um arquivo cria ou atualiza automaticamente o material no modulo;
+- o upload de um arquivo cria ou atualiza automaticamente um recurso ligado à aula atual;
+- materiais do modulo e ativos tecnicos sem aula nao aparecem no card de recursos adicionais da aula;
 - template controla aparencia, icone e label padrao.
 
 ## 11. Bloco Interativo de Hotspots de Aula

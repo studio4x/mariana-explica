@@ -14,6 +14,7 @@ import {
   fetchDashboardProductContent,
   fetchDownloads,
   fetchLessonNotes,
+  fetchLessonAdditionalResources,
   fetchModuleAssetsByModule,
   fetchMyProducts,
   fetchNotifications,
@@ -160,6 +161,15 @@ export function useModuleAssets(moduleId: string | undefined) {
     queryKey: ["dashboard", "module", moduleId, "assets"],
     queryFn: () => fetchModuleAssetsByModule(moduleId ?? ""),
     enabled: Boolean(moduleId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
+  })
+}
+
+export function useLessonAdditionalResources(moduleId: string | undefined, lessonId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "lesson", lessonId, "additional-resources"],
+    queryFn: () => fetchLessonAdditionalResources(moduleId ?? "", lessonId ?? ""),
+    enabled: Boolean(moduleId && lessonId),
     staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }

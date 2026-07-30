@@ -56,6 +56,7 @@ export interface CourseModuleNavigationSummary extends ProductModuleSummary {
 export interface ModuleAssetSummary {
   id: string
   module_id: string
+  lesson_id: string | null
   asset_type: "pdf" | "image" | "video_file" | "video_embed" | "external_link"
   title: string
   sort_order: number

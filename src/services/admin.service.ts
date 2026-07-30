@@ -3319,10 +3319,11 @@ export async function deleteAdminProductModule(moduleId: string) {
   })
 }
 
-export async function fetchAdminModuleAssets(moduleId: string) {
+export async function fetchAdminModuleAssets(moduleId: string, lessonId?: string) {
   const response = await invokeAdminFunction<{ success: true; assets: ModuleAssetSummary[] }>("admin-content", {
     action: "list_assets",
     moduleId,
+    lessonId,
   })
 
   return response.assets ?? []
@@ -3330,6 +3331,7 @@ export async function fetchAdminModuleAssets(moduleId: string) {
 
 export async function createAdminModuleAsset(input: {
   moduleId: string
+  lessonId?: string | null
   asset_type: ModuleAssetSummary["asset_type"]
   title: string
   sort_order_asset?: number
