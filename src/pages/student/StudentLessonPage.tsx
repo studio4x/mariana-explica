@@ -163,20 +163,6 @@ export function StudentLessonPage() {
 
         <div className="mt-7 space-y-4">
           <LessonPrimaryMedia source={resolvedPrimaryVideoSource} />
-          {lesson.lesson_file_storage_path ? (
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full border-sky-200 text-sky-700 hover:bg-sky-50"
-                onClick={() => void handleLessonPdfDownload()}
-                disabled={lessonPdfAccess.isPending}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {lessonPdfAccess.isPending ? "A preparar PDF..." : "Baixar PDF da aula"}
-              </Button>
-            </div>
-          ) : null}
           {lesson.text_content ? (
             <div className="rounded-[1.5rem] border border-slate-300 bg-slate-50/80 p-6">
               <div className="flex items-center gap-2 text-slate-900">
@@ -212,6 +198,17 @@ export function StudentLessonPage() {
             ) : null}
             {isLessonCompleted ? "Aula concluída" : "Concluir aula"}
           </Button>
+          {lesson.lesson_file_storage_path ? (
+            <Button
+              type="button"
+              className="h-11 rounded-full bg-sky-600 px-5 font-black text-white shadow-lg shadow-sky-200 ring-2 ring-sky-100 hover:bg-sky-700"
+              onClick={() => void handleLessonPdfDownload()}
+              disabled={lessonPdfAccess.isPending}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {lessonPdfAccess.isPending ? "A preparar PDF..." : "Baixar PDF da aula"}
+            </Button>
+          ) : null}
         </div>
       </section>
 
