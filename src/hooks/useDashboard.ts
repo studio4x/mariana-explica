@@ -13,6 +13,7 @@ import {
   fetchDashboardOverview,
   fetchDashboardProductContent,
   fetchDownloads,
+  fetchLessonNote,
   fetchLessonNotes,
   fetchLessonAdditionalResources,
   fetchModuleAssetsByModule,
@@ -33,11 +34,13 @@ import {
   requestLessonFileAccess,
   requestModulePdfAccess,
   requestStudentOrderRefund,
+  deleteLessonNote,
   saveAssessmentAttemptDraft,
   saveLessonNote,
   submitAssessmentAttempt,
   upsertLessonProgress,
   updateAccountPassword,
+  updateLessonNote,
   updateProfilePreferences,
   uploadProfileAvatar,
   uploadSupportAttachment,
@@ -132,6 +135,15 @@ export function useDashboardProductContent(productId: string | undefined) {
 export function useLessonNote(lessonId: string | undefined) {
   return useQuery({
     queryKey: ["dashboard", "lesson", lessonId, "note"],
+    queryFn: () => fetchLessonNote(lessonId ?? ""),
+    enabled: Boolean(lessonId),
+    staleTime: DASHBOARD_QUERY_STALE_TIME,
+  })
+}
+
+export function useLessonNotes(lessonId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "lesson", lessonId, "notes"],
     queryFn: () => fetchLessonNotes(lessonId ?? ""),
     enabled: Boolean(lessonId),
     staleTime: DASHBOARD_QUERY_STALE_TIME,
@@ -703,6 +715,34 @@ export function useSaveLessonNote() {
     mutationFn: saveLessonNote,
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", variables.lessonId, "note"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", variables.lessonId, "notes"] })
+    },
+  })
+}
+
+export function useUpdateLessonNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateLessonNote,
+    onSuccess: (note) => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", note.lesson_id, "note"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", note.lesson_id, "notes"] })
+    },
+  })
+}
+
+export function useDeleteLessonNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ noteId, lessonId }: { noteId: string; lessonId: string }) => {
+      await deleteLessonNote(noteId)
+      return lessonId
+    },
+    onSuccess: (lessonId) => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", lessonId, "note"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "lesson", lessonId, "notes"] })
     },
   })
 }

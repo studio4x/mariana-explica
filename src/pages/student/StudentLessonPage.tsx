@@ -1,6 +1,6 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
-import { CheckCircle2, Download, FileText, Loader2, StickyNote } from "lucide-react"
-import { useEffect, useState } from "react"
+import { CheckCircle2, Download, FileText, Loader2, Pencil, Save, StickyNote, Trash2, X } from "lucide-react"
+import { useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import {
@@ -13,10 +13,12 @@ import {
 import {
   useAccessibleLesson,
   useLessonAdditionalResources,
-  useLessonNote,
+  useLessonNotes,
+  useDeleteLessonNote,
   useRequestLessonFileAccess,
   useRequestAssetAccess,
   useSaveLessonNote,
+  useUpdateLessonNote,
   useUpsertLessonProgress,
 } from "@/hooks/useDashboard"
 import { buildCoursePlayerEntries } from "@/lib/course-helpers"
@@ -37,17 +39,19 @@ export function StudentLessonPage() {
     module && !module.is_locked ? module.id : undefined,
     lessonSummary && !lessonSummary.is_locked ? lessonSummary.id : undefined,
   )
-  const noteQuery = useLessonNote(lessonSummary?.id)
+  const notesQuery = useLessonNotes(
+    lessonSummary && !lessonSummary.is_locked && module && !module.is_locked ? lessonSummary.id : undefined,
+  )
   const saveLessonNote = useSaveLessonNote()
+  const updateLessonNote = useUpdateLessonNote()
+  const deleteLessonNote = useDeleteLessonNote()
   const progressMutation = useUpsertLessonProgress()
   const assetAccess = useRequestAssetAccess()
   const lessonPdfAccess = useRequestLessonFileAccess()
   const [noteText, setNoteText] = useState("")
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs the fetched note into the editable draft when the lesson changes.
-    setNoteText(noteQuery.data?.note_text ?? "")
-  }, [lessonSummary?.id, noteQuery.data?.note_text])
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteText, setEditingNoteText] = useState("")
+  const [noteFeedback, setNoteFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
 
   if (!lessonSummary || !module) {
     return (
@@ -67,11 +71,11 @@ export function StudentLessonPage() {
     )
   }
 
-  if (lessonQuery.isLoading || assetsQuery.isLoading) {
+  if (lessonQuery.isLoading || assetsQuery.isLoading || notesQuery.isLoading) {
     return <LoadingState message="A preparar o conteúdo da aula..." />
   }
 
-  if (lessonQuery.isError || assetsQuery.isError) {
+  if (lessonQuery.isError || assetsQuery.isError || notesQuery.isError) {
     return (
       <ErrorState
         title="Não foi possível abrir esta aula"
@@ -80,11 +84,14 @@ export function StudentLessonPage() {
             ? lessonQuery.error.message
             : assetsQuery.error instanceof Error
               ? assetsQuery.error.message
+              : notesQuery.error instanceof Error
+                ? notesQuery.error.message
               : "Tenta novamente dentro de instantes."
         }
         onRetry={() => {
           void lessonQuery.refetch()
           void assetsQuery.refetch()
+          void notesQuery.refetch()
         }}
       />
     )
@@ -92,6 +99,7 @@ export function StudentLessonPage() {
 
   const lesson = lessonQuery.data
   const assets = assetsQuery.data ?? []
+  const notes = notesQuery.data ?? []
   const lessonVideoSource = lesson?.youtube_url?.trim() ?? ""
   const resolvedPrimaryVideoSource = lessonVideoSource || null
 
@@ -116,7 +124,67 @@ export function StudentLessonPage() {
   const isLessonCompleted = displayedStatus === "completed"
 
   const handleSaveNote = async () => {
-    await saveLessonNote.mutateAsync({ lessonId: lesson.id, noteText: currentNote })
+    const trimmedNote = currentNote.trim()
+    if (!trimmedNote) {
+      setNoteFeedback({ tone: "error", message: "Escreve uma anotação antes de guardar." })
+      return
+    }
+
+    try {
+      await saveLessonNote.mutateAsync({ lessonId: lesson.id, noteText: trimmedNote })
+      setNoteText("")
+      setNoteFeedback({ tone: "success", message: "Anotação guardada com sucesso." })
+    } catch (saveError) {
+      setNoteFeedback({
+        tone: "error",
+        message: saveError instanceof Error ? saveError.message : "Não foi possível guardar a anotação.",
+      })
+    }
+  }
+
+  const handleStartNoteEdit = (noteId: string, text: string) => {
+    setEditingNoteId(noteId)
+    setEditingNoteText(text)
+    setNoteFeedback(null)
+  }
+
+  const handleSaveNoteEdit = async () => {
+    if (!editingNoteId) return
+    const trimmedNote = editingNoteText.trim()
+    if (!trimmedNote) {
+      setNoteFeedback({ tone: "error", message: "A anotação não pode ficar vazia." })
+      return
+    }
+
+    try {
+      await updateLessonNote.mutateAsync({ noteId: editingNoteId, noteText: trimmedNote })
+      setEditingNoteId(null)
+      setEditingNoteText("")
+      setNoteFeedback({ tone: "success", message: "Anotação atualizada com sucesso." })
+    } catch (updateError) {
+      setNoteFeedback({
+        tone: "error",
+        message: updateError instanceof Error ? updateError.message : "Não foi possível atualizar a anotação.",
+      })
+    }
+  }
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!window.confirm("Excluir esta anotação? Esta ação não pode ser desfeita.")) return
+
+    try {
+      await deleteLessonNote.mutateAsync({ noteId, lessonId: lesson.id })
+      if (editingNoteId === noteId) {
+        setEditingNoteId(null)
+        setEditingNoteText("")
+      }
+      setNoteFeedback({ tone: "success", message: "Anotação excluída com sucesso." })
+    } catch (deleteError) {
+      setNoteFeedback({
+        tone: "error",
+        message: deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a anotação.",
+      })
+    }
   }
 
   const handleProgress = async (status: "in_progress" | "completed") => {
@@ -218,6 +286,90 @@ export function StudentLessonPage() {
             <StickyNote className="h-4 w-4 text-slate-900" />
             <h2 className="font-display text-2xl font-black text-slate-950">Anotações da aula</h2>
           </div>
+          {noteFeedback ? (
+            <div
+              className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${noteFeedback.tone === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-rose-200 bg-rose-50 text-rose-800"}`}
+              role="status"
+            >
+              {noteFeedback.message}
+            </div>
+          ) : null}
+          {notes.length > 0 ? (
+            <div className="mt-5 space-y-3">
+              {notes.map((note) => (
+                <article key={note.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  {editingNoteId === note.id ? (
+                    <>
+                      <textarea
+                        rows={5}
+                        value={editingNoteText}
+                        onChange={(event) => setEditingNoteText(event.target.value)}
+                        className="w-full rounded-2xl border border-sky-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                        autoFocus
+                      />
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          className="rounded-full bg-[#242742] font-bold hover:bg-[#1b1d38]"
+                          onClick={() => void handleSaveNoteEdit()}
+                          disabled={updateLessonNote.isPending}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          {updateLessonNote.isPending ? "A guardar..." : "Salvar nota"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => {
+                            setEditingNoteId(null)
+                            setEditingNoteText("")
+                          }}
+                          disabled={updateLessonNote.isPending}
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Cancelar
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{note.note_text}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 rounded-full px-3 text-xs"
+                          onClick={() => handleStartNoteEdit(note.id, note.note_text)}
+                          disabled={deleteLessonNote.isPending || updateLessonNote.isPending}
+                        >
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                          Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 rounded-full border-rose-200 px-3 text-xs text-rose-700 hover:bg-rose-50"
+                          onClick={() => void handleDeleteNote(note.id)}
+                          disabled={deleteLessonNote.isPending || updateLessonNote.isPending}
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          Excluir
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+              Ainda não existem anotações guardadas nesta aula.
+            </p>
+          )}
+          <p className="mt-6 text-sm font-semibold text-slate-700">Nova anotação</p>
           <textarea
             rows={10}
             value={currentNote}
@@ -226,7 +378,7 @@ export function StudentLessonPage() {
             className="mt-4 min-h-56 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
           />
           <Button type="button" className="mt-4 rounded-full bg-[#242742] font-bold hover:bg-[#1b1d38]" onClick={() => void handleSaveNote()} disabled={saveLessonNote.isPending}>
-            {saveLessonNote.isPending ? "A guardar..." : "Guardar anotações"}
+            {saveLessonNote.isPending ? "A guardar..." : "Guardar anotação"}
           </Button>
         </section>
 

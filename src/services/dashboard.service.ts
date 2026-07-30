@@ -217,13 +217,23 @@ async function requireCurrentUserId() {
 function mutableTable(table: string) {
   return (supabase as unknown as {
     from: (name: string) => {
-      upsert: (...args: unknown[]) => {
-        select: (...args: unknown[]) => {
-          single: () => Promise<{ data: unknown; error: unknown }>
-        }
-      }
+      upsert: (...args: unknown[]) => MutableTableQuery
+      insert: (...args: unknown[]) => MutableTableQuery
+      update: (...args: unknown[]) => MutableTableQuery
+      delete: () => MutableDeleteQuery
     }
   }).from(table)
+}
+
+type MutableTableQuery = {
+  eq: (...args: unknown[]) => MutableTableQuery
+  select: (...args: unknown[]) => {
+    single: () => Promise<{ data: unknown; error: unknown }>
+  }
+}
+
+type MutableDeleteQuery = {
+  eq: (...args: unknown[]) => Promise<{ error: unknown }>
 }
 
 export async function fetchMyAccessGrants() {
@@ -644,25 +654,30 @@ export async function fetchLessonNotes(lessonId: string) {
     .from("lesson_notes")
     .select("id,user_id,lesson_id,note_text,created_at,updated_at")
     .eq("lesson_id", lessonId)
-    .maybeSingle()
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
 
   if (error) {
     throw error
   }
 
-  return (data ?? null) as LessonNoteSummary | null
+  return (data ?? []) as LessonNoteSummary[]
+}
+
+export async function fetchLessonNote(lessonId: string) {
+  const notes = await fetchLessonNotes(lessonId)
+  return notes[0] ?? null
 }
 
 export async function saveLessonNote(input: { lessonId: string; noteText: string }) {
   const userId = await requireCurrentUserId()
   const { data, error } = await mutableTable("lesson_notes")
-    .upsert(
+    .insert(
       {
         user_id: userId,
         lesson_id: input.lessonId,
         note_text: input.noteText,
       },
-      { onConflict: "user_id,lesson_id" },
     )
     .select("id,user_id,lesson_id,note_text,created_at,updated_at")
     .single()
@@ -672,6 +687,30 @@ export async function saveLessonNote(input: { lessonId: string; noteText: string
   }
 
   return data as LessonNoteSummary
+}
+
+export async function updateLessonNote(input: { noteId: string; noteText: string }) {
+  const { data, error } = await mutableTable("lesson_notes")
+    .update({ note_text: input.noteText })
+    .eq("id", input.noteId)
+    .select("id,user_id,lesson_id,note_text,created_at,updated_at")
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data as LessonNoteSummary
+}
+
+export async function deleteLessonNote(noteId: string) {
+  const { error } = await mutableTable("lesson_notes")
+    .delete()
+    .eq("id", noteId)
+
+  if (error) {
+    throw error
+  }
 }
 
 export async function upsertLessonProgress(input: {

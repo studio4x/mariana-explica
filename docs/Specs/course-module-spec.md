@@ -1099,6 +1099,14 @@ Uso:
 - revisao posterior;
 - registro privado.
 
+Comportamento:
+
+- cada salvamento cria uma nota independente, preservando as notas anteriores;
+- as notas aparecem acima do campo de insercao, uma abaixo da outra;
+- cada nota permite editar ou excluir;
+- ao editar, o texto fica aberto com um botao especifico para salvar a alteracao;
+- depois de criar ou atualizar, a interface confirma o salvamento.
+
 ### 14.4 Materiais de rodape
 
 Os botoes aparecem no rodape da aula, junto a navegacao.
