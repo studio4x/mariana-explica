@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom"
 import { RefreshCw } from "lucide-react"
+import { useState } from "react"
 import { EmptyState, ErrorState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { useMyProducts } from "@/hooks/useDashboard"
+import { useExpiredRenewalProducts, useMyProducts } from "@/hooks/useDashboard"
+import { createCheckoutSession } from "@/services/checkout.service"
 import { getEnrolledCourseAction, getStudentProductAccessLabel } from "@/lib/course-cta"
 import { ROUTES } from "@/lib/constants"
 import { getDashboardProductNote } from "@/lib/product-presentation"
@@ -114,6 +116,34 @@ function DashboardProductsSkeleton() {
 
 export function DashboardProducts() {
   const { data, isLoading, isError, error, refetch } = useMyProducts()
+  const { data: expiredRenewals = [], refetch: refetchExpiredRenewals } = useExpiredRenewalProducts()
+  const [renewingProductId, setRenewingProductId] = useState<string | null>(null)
+  const [renewalError, setRenewalError] = useState<string | null>(null)
+
+  const handleRenewal = async (productId: string) => {
+    setRenewingProductId(productId)
+    setRenewalError(null)
+
+    try {
+      const result = await createCheckoutSession({
+        productId,
+        renewal: true,
+        successUrl: `${window.location.origin}${ROUTES.DASHBOARD_PRODUCTS}?renewal=success`,
+        cancelUrl: `${window.location.origin}${ROUTES.DASHBOARD_PRODUCTS}?renewal=cancelled`,
+      })
+
+      if (result.mode === "stripe" && result.checkout_url) {
+        window.location.assign(result.checkout_url)
+        return
+      }
+
+      await Promise.all([refetch(), refetchExpiredRenewals()])
+    } catch (renewalError) {
+      setRenewalError(renewalError instanceof Error ? renewalError.message : "Não foi possível iniciar a renovação.")
+    } finally {
+      setRenewingProductId(null)
+    }
+  }
 
   if (isLoading) {
     return <DashboardProductsSkeleton />
@@ -131,7 +161,7 @@ export function DashboardProducts() {
 
   const products = data ?? []
 
-  if (products.length === 0) {
+  if (products.length === 0 && expiredRenewals.length === 0) {
     return (
       <div className="space-y-6">
         <PageHeader
@@ -255,6 +285,41 @@ export function DashboardProducts() {
           )
         })}
       </div>
+
+      {expiredRenewals.length > 0 ? (
+        <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50/50 p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Acessos expirados</p>
+              <h2 className="mt-1 font-display text-2xl font-bold text-slate-950">Renova os teus materiais</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">O acesso expirou, mas estes materiais ainda podem ser renovados.</p>
+            </div>
+          </div>
+          {renewalError ? <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{renewalError}</p> : null}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {expiredRenewals.map((product) => {
+              const hasDiscount = product.renewal_discount_enabled && Number(product.renewal_discount_percent ?? 0) > 0
+              return (
+                <div key={product.id} className="rounded-2xl border border-amber-100 bg-white p-4">
+                  <p className="font-semibold text-slate-950">{product.title}</p>
+                  <p className="mt-1 text-sm text-slate-500">Acesso expirado em {formatDate(product.expires_at)}.</p>
+                  {hasDiscount ? (
+                    <p className="mt-2 text-sm font-semibold text-emerald-700">{product.renewal_discount_percent}% de desconto na renovação</p>
+                  ) : null}
+                  <Button
+                    type="button"
+                    className="mt-4 rounded-full"
+                    onClick={() => void handleRenewal(product.id)}
+                    disabled={renewingProductId !== null}
+                  >
+                    {renewingProductId === product.id ? "A preparar..." : "Renovar acesso"}
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
     </div>
   )
 }

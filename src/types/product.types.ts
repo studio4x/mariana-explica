@@ -1,5 +1,10 @@
 export type ProductType = "paid" | "free" | "hybrid" | "external_service"
 export type ProductStatus = "draft" | "published" | "archived"
+export type ProductAccessExpirationMode =
+  | "specific_date"
+  | "days_after_enrollment_open"
+  | "days_after_student_enrollment"
+  | "lifetime"
 
 export interface ProductCategorySummary {
   id: string
@@ -73,6 +78,12 @@ export interface ProductSummary {
   cover_image_storage_bucket?: string | null
   cover_image_storage_path?: string | null
   cover_image_storage_provider?: "supabase" | "r2" | null
+  access_expiration_mode?: ProductAccessExpirationMode
+  access_expires_at?: string | null
+  access_duration_days?: number | null
+  renewal_enabled?: boolean
+  renewal_discount_enabled?: boolean
+  renewal_discount_percent?: number | null
   launch_date: string | null
   is_public: boolean
   creator_id: string | null

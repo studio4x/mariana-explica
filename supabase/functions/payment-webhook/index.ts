@@ -86,7 +86,7 @@ async function findOrderByReferenceOrSession(
     const { data, error } = await client
       .from("orders")
       .select(
-        "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
+        "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal",
       )
       .eq("id", reference)
       .maybeSingle()
@@ -110,7 +110,7 @@ async function findOrderByPaymentReference(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal",
     )
     .eq("payment_reference", paymentReference)
     .maybeSingle()
@@ -179,7 +179,7 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
     const grant = await ensureActiveGrant(client, {
       userId: order.user_id,
       productId: order.product_id,
-      sourceType: "purchase",
+      sourceType: order.access_renewal ? "renewal" : "purchase",
       sourceOrderId: order.id,
     })
     await syncFiscalAfterPayment(client, {
@@ -233,7 +233,7 @@ async function handleCheckoutCompleted(event: StripeEvent, requestId: string, re
   const grant = await ensureActiveGrant(client, {
     userId: paidOrder.user_id,
     productId: paidOrder.product_id,
-    sourceType: "purchase",
+    sourceType: paidOrder.access_renewal ? "renewal" : "purchase",
     sourceOrderId: paidOrder.id,
   })
   await syncFiscalAfterPayment(client, {

@@ -14,6 +14,13 @@ export interface ProductRow {
   sales_page_enabled: boolean
   requires_auth: boolean
   allow_affiliate: boolean
+  access_expiration_mode: "specific_date" | "days_after_enrollment_open" | "days_after_student_enrollment" | "lifetime"
+  access_expires_at: string | null
+  access_duration_days: number | null
+  renewal_enabled: boolean
+  renewal_discount_enabled: boolean
+  renewal_discount_percent: number | null
+  published_at: string | null
 }
 
 export interface CouponRow {
@@ -57,6 +64,7 @@ export interface OrderRow {
   tax_amount_cents: number
   total_paid_cents: number | null
   stripe_invoice_id: string | null
+  access_renewal: boolean
 }
 
 export interface OrderTotals {
@@ -77,7 +85,7 @@ export async function getProductByIdentifier(client: SupabaseClient, identifier:
   const query = client
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,sales_page_enabled,requires_auth,allow_affiliate",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,sales_page_enabled,requires_auth,allow_affiliate,access_expiration_mode,access_expires_at,access_duration_days,renewal_enabled,renewal_discount_enabled,renewal_discount_percent,published_at",
     )
 
   const { data, error } = await (isUuid(identifier)
@@ -212,11 +220,24 @@ export async function ensureActiveGrant(
   params: {
     userId: string
     productId: string
-    sourceType: "purchase" | "free_claim" | "admin_grant" | "manual_adjustment"
+    sourceType: "purchase" | "renewal" | "free_claim" | "admin_grant" | "manual_adjustment"
     sourceOrderId?: string | null
     notes?: string | null
   },
 ) {
+  const grantedAt = new Date().toISOString()
+  const { error: expireError } = await client
+    .from("access_grants")
+    .update({ status: "expired" })
+    .eq("user_id", params.userId)
+    .eq("product_id", params.productId)
+    .eq("status", "active")
+    .is("revoked_at", null)
+    .not("expires_at", "is", null)
+    .lte("expires_at", grantedAt)
+
+  if (expireError) throw expireError
+
   const { data: existingGrant, error: lookupError } = await client
     .from("access_grants")
     .select("id,user_id,product_id,status,source_type,source_order_id,expires_at,revoked_at")
@@ -235,6 +256,8 @@ export async function ensureActiveGrant(
     return { grant: existingGrant, created: false }
   }
 
+  const expiresAt = await resolveGrantExpiration(client, params.productId, params.sourceType, grantedAt)
+
   const { data, error } = await client
     .from("access_grants")
     .insert({
@@ -244,7 +267,8 @@ export async function ensureActiveGrant(
       source_order_id: params.sourceOrderId ?? null,
       status: "active",
       notes: params.notes ?? null,
-      granted_at: new Date().toISOString(),
+      granted_at: grantedAt,
+      expires_at: expiresAt,
     })
     .select("id,user_id,product_id,status,source_type,source_order_id,expires_at,revoked_at")
     .single()
@@ -254,6 +278,41 @@ export async function ensureActiveGrant(
   }
 
   return { grant: data, created: true }
+}
+
+async function resolveGrantExpiration(
+  client: SupabaseClient,
+  productId: string,
+  sourceType: "purchase" | "renewal" | "free_claim" | "admin_grant" | "manual_adjustment",
+  grantedAt: string,
+) {
+  if (sourceType === "admin_grant" || sourceType === "manual_adjustment") return null
+
+  const { data: product, error } = await client
+    .from("products")
+    .select("access_expiration_mode,access_expires_at,access_duration_days,published_at")
+    .eq("id", productId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!product) throw notFound("Produto não encontrado")
+  if (product.access_expiration_mode === "lifetime") return null
+  if (product.access_expiration_mode === "specific_date") {
+    if (!product.access_expires_at) throw unprocessable("Data de término do acesso não configurada")
+    return product.access_expires_at
+  }
+
+  const durationDays = Number(product.access_duration_days)
+  if (!Number.isInteger(durationDays) || durationDays <= 0) {
+    throw unprocessable("Período de acesso do material não configurado")
+  }
+
+  const reference = product.access_expiration_mode === "days_after_enrollment_open"
+    ? product.published_at
+    : grantedAt
+  if (!reference) throw unprocessable("Abertura das inscrições do material não definida")
+
+  return new Date(new Date(reference).getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString()
 }
 
 export async function findActiveGrantForProduct(
@@ -318,6 +377,7 @@ export async function createOrderWithItems(
     paymentReference?: string | null
     checkoutSessionId?: string | null
     paymentEnvironment?: OrderRow["payment_environment"] | null
+    accessRenewal?: boolean
     status?: OrderRow["status"]
     paidAt?: string | null
   },
@@ -338,10 +398,11 @@ export async function createOrderWithItems(
       payment_reference: params.paymentReference ?? null,
       checkout_session_id: params.checkoutSessionId ?? null,
       payment_environment: params.paymentEnvironment ?? undefined,
+      access_renewal: params.accessRenewal ?? false,
       paid_at: params.paidAt ?? null,
     })
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal",
     )
     .single()
 
@@ -504,7 +565,7 @@ export async function updateOrderAfterPayment(
     })
     .eq("id", params.orderId)
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal",
     )
     .single()
 
@@ -565,7 +626,7 @@ export async function updateOrderStatus(
     })
     .eq("id", params.orderId)
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,paid_at,refunded_at",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal,paid_at,refunded_at",
     )
     .single()
 
@@ -583,7 +644,7 @@ export async function findOrderForCheckoutSession(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id",
+      "id,user_id,product_id,coupon_id,affiliate_id,status,currency,base_price_cents,discount_cents,final_price_cents,payment_provider,payment_reference,checkout_session_id,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal",
     )
     .eq("checkout_session_id", checkoutSessionId)
     .maybeSingle()

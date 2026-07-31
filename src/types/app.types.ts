@@ -84,6 +84,11 @@ export interface AdminStorageUploadResult {
   public_url?: string | null
 }
 
+export interface ExpiredRenewalProductSummary extends ProductSummary {
+  grant_id: string
+  expires_at: string
+}
+
 export interface AdminModulePdfWatermarkConfig {
   config_key: string
   config_value: {

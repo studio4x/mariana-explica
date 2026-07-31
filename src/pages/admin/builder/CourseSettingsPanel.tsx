@@ -29,6 +29,14 @@ function parsePriceInput(value: string) {
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0
 }
 
+function toDateTimeLocal(value: string | null | undefined) {
+  if (!value) return ""
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
 function normalizeProductPricing(productType: ProductSummary["product_type"], priceCents: number) {
   if (productType === "paid" && priceCents === 0) {
     return { productType: "free" as const, priceCents: 0, convertedToFree: true }
@@ -127,6 +135,14 @@ export function CourseSettingsPanel() {
     title: product.title,
     slug: product.slug,
     coverImageUrl: product.cover_image_url ?? "",
+    accessExpirationMode: product.access_expiration_mode ?? "lifetime",
+    accessExpiresAt: toDateTimeLocal(product.access_expires_at),
+    accessDurationDays: product.access_duration_days ? String(product.access_duration_days) : "",
+    renewalEnabled: product.renewal_enabled ?? false,
+    renewalDiscountEnabled: product.renewal_discount_enabled ?? false,
+    renewalDiscountPercent: product.renewal_discount_percent !== null && product.renewal_discount_percent !== undefined
+      ? String(product.renewal_discount_percent)
+      : "",
     shortDescription: product.short_description ?? "",
     launchDate: product.launch_date ?? "",
     workloadMinutes: String(product.workload_minutes ?? 0),
@@ -159,6 +175,14 @@ export function CourseSettingsPanel() {
       title: product.title,
       slug: product.slug,
       coverImageUrl: product.cover_image_url ?? "",
+      accessExpirationMode: product.access_expiration_mode ?? "lifetime",
+      accessExpiresAt: toDateTimeLocal(product.access_expires_at),
+      accessDurationDays: product.access_duration_days ? String(product.access_duration_days) : "",
+      renewalEnabled: product.renewal_enabled ?? false,
+      renewalDiscountEnabled: product.renewal_discount_enabled ?? false,
+      renewalDiscountPercent: product.renewal_discount_percent !== null && product.renewal_discount_percent !== undefined
+        ? String(product.renewal_discount_percent)
+        : "",
       shortDescription: product.short_description ?? "",
       launchDate: product.launch_date ?? "",
       workloadMinutes: String(product.workload_minutes ?? 0),
@@ -308,6 +332,8 @@ export function CourseSettingsPanel() {
       )
 
       const normalizedPricing = normalizeProductPricing(form.productType, priceCents)
+      const accessExpiresAt = form.accessExpiresAt ? new Date(form.accessExpiresAt).toISOString() : null
+      const accessDurationDays = form.accessDurationDays ? Number(form.accessDurationDays) : null
 
       const updatedProduct = await updateProduct.mutateAsync({
         productId: product.id,
@@ -340,6 +366,16 @@ export function CourseSettingsPanel() {
           case_study_ai: false,
         },
         publicPageContent: nextPublicPageContent,
+        accessExpirationMode: form.accessExpirationMode,
+        accessExpiresAt,
+        accessDurationDays,
+        renewalEnabled: form.accessExpirationMode === "lifetime" ? false : form.renewalEnabled,
+        renewalDiscountEnabled:
+          form.accessExpirationMode === "lifetime" ? false : form.renewalEnabled && form.renewalDiscountEnabled,
+        renewalDiscountPercent:
+          form.accessExpirationMode !== "lifetime" && form.renewalEnabled && form.renewalDiscountEnabled && form.renewalDiscountPercent
+            ? Number(form.renewalDiscountPercent)
+            : null,
       })
       const selectedCategoryId = form.categoryId.trim()
       setForm((prev) => ({
@@ -781,6 +817,121 @@ export function CourseSettingsPanel() {
                 </span>
               </label>
             </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-800">Término do acesso ao curso</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Defina por quanto tempo o aluno poderá acessar o conteúdo depois que a inscrição for liberada.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field fullWidth label="Período de acesso">
+                <select
+                  value={form.accessExpirationMode}
+                  onChange={(event) => {
+                    const accessExpirationMode = event.target.value as typeof form.accessExpirationMode
+                    setForm((prev) => ({
+                      ...prev,
+                      accessExpirationMode,
+                      accessExpiresAt: accessExpirationMode === "specific_date" ? prev.accessExpiresAt : "",
+                      accessDurationDays:
+                        accessExpirationMode === "days_after_enrollment_open" || accessExpirationMode === "days_after_student_enrollment"
+                          ? prev.accessDurationDays
+                          : "",
+                      renewalEnabled: accessExpirationMode === "lifetime" ? false : prev.renewalEnabled,
+                    }))
+                  }}
+                  className="h-11 w-full rounded-xl border border-sky-200 bg-white px-4 text-sm outline-none focus:border-sky-500"
+                >
+                  <option value="specific_date">Término em uma data específica</option>
+                  <option value="days_after_enrollment_open">Término após X dias da abertura das inscrições</option>
+                  <option value="days_after_student_enrollment">Término após X dias da inscrição do aluno</option>
+                  <option value="lifetime">Sem período máximo de acesso (vitalício)</option>
+                </select>
+              </Field>
+
+              {form.accessExpirationMode === "specific_date" ? (
+                <Field label="Data e hora de término" helper="Após este momento, o acesso ao material será bloqueado.">
+                  <input
+                    type="datetime-local"
+                    value={form.accessExpiresAt}
+                    onChange={(event) => setForm((prev) => ({ ...prev, accessExpiresAt: event.target.value }))}
+                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-sky-500"
+                  />
+                </Field>
+              ) : null}
+
+              {form.accessExpirationMode === "days_after_enrollment_open" ||
+              form.accessExpirationMode === "days_after_student_enrollment" ? (
+                <Field
+                  label="Quantidade de dias"
+                  helper={
+                    form.accessExpirationMode === "days_after_enrollment_open"
+                      ? "A abertura das inscrições corresponde à primeira publicação do material."
+                      : "A contagem começa quando o acesso do aluno é liberado."
+                  }
+                >
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.accessDurationDays}
+                    onChange={(event) => setForm((prev) => ({ ...prev, accessDurationDays: event.target.value }))}
+                    placeholder="Ex.: 365"
+                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-sky-500"
+                  />
+                </Field>
+              ) : null}
+            </div>
+
+            {form.accessExpirationMode !== "lifetime" ? (
+              <div className="mt-5 space-y-3 rounded-2xl border border-sky-100 bg-white p-4">
+                <label className="flex items-start gap-3 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.renewalEnabled}
+                    onChange={(event) => setForm((prev) => ({ ...prev, renewalEnabled: event.target.checked }))}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-950">Permitir renovação após a expiração</span>
+                    <span className="mt-1 block text-slate-500">O comprador verá a opção de renovar apenas depois de o acesso expirar.</span>
+                  </span>
+                </label>
+
+                {form.renewalEnabled ? (
+                  <div className="ml-7 grid gap-3 md:grid-cols-2">
+                    <label className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={form.renewalDiscountEnabled}
+                        onChange={(event) => setForm((prev) => ({ ...prev, renewalDiscountEnabled: event.target.checked }))}
+                        className="mt-1"
+                      />
+                      <span>
+                        <span className="block font-semibold text-slate-950">Aplicar desconto na renovação</span>
+                        <span className="mt-1 block text-slate-500">O desconto é calculado pelo backend sobre o preço atual do material.</span>
+                      </span>
+                    </label>
+                    {form.renewalDiscountEnabled ? (
+                      <Field label="Desconto da renovação (%)">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={form.renewalDiscountPercent}
+                          onChange={(event) => setForm((prev) => ({ ...prev, renewalDiscountPercent: event.target.value }))}
+                          placeholder="Ex.: 20"
+                          className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-sky-500"
+                        />
+                      </Field>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </section>
 

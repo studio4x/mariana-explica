@@ -52,6 +52,7 @@ interface CreateCheckoutInput {
   contentUpdatesConsent?: boolean
   successUrl?: string | null
   cancelUrl?: string | null
+  renewal?: boolean
 }
 
 const STRIPE_MINIMUM_AMOUNT_CENTS: Record<string, number> = {
@@ -178,6 +179,7 @@ async function findReusablePendingCheckout(
     currency: string
     finalPriceCents: number
     paymentEnvironment: "test" | "live"
+    accessRenewal: boolean
   },
 ) {
   const createdAfter = new Date(Date.now() - 30 * 60 * 1000).toISOString()
@@ -189,6 +191,7 @@ async function findReusablePendingCheckout(
     .eq("status", "pending")
     .eq("payment_provider", "stripe")
     .eq("payment_environment", params.paymentEnvironment)
+    .eq("access_renewal", params.accessRenewal)
     .eq("final_price_cents", params.finalPriceCents)
     .eq("currency", params.currency)
     .not("checkout_session_id", "is", null)
@@ -229,6 +232,7 @@ Deno.serve(async (req) => {
     const invoiceWithNif = Boolean(body.invoiceWithNif)
     const customerNif = body.customerNif?.trim() || null
     const requestedContentUpdatesConsent = Boolean(body.contentUpdatesConsent)
+    const isRenewal = body.renewal === true
 
     if (!identifier) {
       throw badRequest("Informe productId ou productSlug")
@@ -273,6 +277,36 @@ Deno.serve(async (req) => {
     })
     if (existingGrant) {
       throw unprocessable("Ja tens acesso ativo a este material.")
+    }
+
+    if (isRenewal) {
+      if (!product.renewal_enabled || product.access_expiration_mode === "lifetime") {
+        throw unprocessable("A renovação não está disponível para este material.")
+      }
+
+      const { data: expiredGrant, error: expiredGrantError } = await context.serviceClient
+        .from("access_grants")
+        .select("id")
+        .eq("user_id", context.user.id)
+        .eq("product_id", product.id)
+        .is("revoked_at", null)
+        .in("status", ["active", "expired"])
+        .not("expires_at", "is", null)
+        .lte("expires_at", new Date().toISOString())
+        .limit(1)
+        .maybeSingle()
+
+      if (expiredGrantError) throw expiredGrantError
+      if (!expiredGrant) throw unprocessable("A renovação só fica disponível depois de o teu acesso expirar.")
+
+      const configuredExpiry = product.access_expiration_mode === "specific_date"
+        ? product.access_expires_at
+        : product.access_expiration_mode === "days_after_enrollment_open" && product.published_at && product.access_duration_days
+          ? new Date(new Date(product.published_at).getTime() + product.access_duration_days * 24 * 60 * 60 * 1000).toISOString()
+          : null
+      if (configuredExpiry && new Date(configuredExpiry).getTime() <= Date.now()) {
+        throw unprocessable("A renovação não está disponível porque o período configurado para este material já terminou.")
+      }
     }
 
     if (body.affiliateCode && !product.allow_affiliate) {
@@ -328,9 +362,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    const discountCents = coupon
-      ? calculateCouponDiscount(product.price_cents, coupon)
-      : 0
+    const couponDiscountCents = coupon ? calculateCouponDiscount(product.price_cents, coupon) : 0
+    const renewalDiscountCents =
+      isRenewal && product.renewal_discount_enabled && product.renewal_discount_percent !== null
+        ? Math.floor((product.price_cents * Number(product.renewal_discount_percent)) / 100)
+        : 0
+    const discountCents = Math.min(product.price_cents, couponDiscountCents + renewalDiscountCents)
     const totals = calculateOrderTotals(product.price_cents, discountCents)
     const isFreeOrder = totals.finalPriceCents === 0 || product.product_type === "free"
 
@@ -343,6 +380,7 @@ Deno.serve(async (req) => {
         affiliateId: affiliate?.id ?? null,
         paymentProvider: "internal",
         paymentReference: `free:${crypto.randomUUID()}`,
+        accessRenewal: isRenewal,
         status: "paid",
         paidAt: new Date().toISOString(),
       })
@@ -350,7 +388,7 @@ Deno.serve(async (req) => {
       const grant = await ensureActiveGrant(context.serviceClient, {
         userId: context.user.id,
         productId: product.id,
-        sourceType: "free_claim",
+        sourceType: isRenewal ? "renewal" : "free_claim",
         sourceOrderId: order.id,
       })
 
@@ -441,6 +479,7 @@ Deno.serve(async (req) => {
       currency: product.currency,
       finalPriceCents: totals.finalPriceCents,
       paymentEnvironment: stripeMode,
+      accessRenewal: isRenewal,
     })
 
     if (reusableOrder) {
@@ -503,6 +542,7 @@ Deno.serve(async (req) => {
       affiliateId: affiliate?.id ?? null,
       paymentProvider: "stripe",
       paymentEnvironment: stripeMode,
+      accessRenewal: isRenewal,
     })
     await createInitialBillingSnapshot(context.serviceClient, {
       orderId: order.id,
@@ -563,6 +603,8 @@ Deno.serve(async (req) => {
           payment_environment: stripeMode,
           coupon_id: coupon?.id ?? "",
           affiliate_id: affiliate?.id ?? "",
+          access_renewal: isRenewal ? "true" : "false",
+          renewal_discount_cents: String(renewalDiscountCents),
           checkout_payment_methods_version: STRIPE_CHECKOUT_PAYMENT_METHODS_VERSION,
         },
         line_items: [
@@ -630,6 +672,8 @@ Deno.serve(async (req) => {
           checkout_session_id: session.id,
           coupon_id: coupon?.id ?? null,
           affiliate_id: affiliate?.id ?? null,
+          access_renewal: isRenewal,
+          renewal_discount_cents: renewalDiscountCents,
           final_price_cents: totals.finalPriceCents,
           payment_environment: stripeMode,
           stripe_livemode: session.livemode,

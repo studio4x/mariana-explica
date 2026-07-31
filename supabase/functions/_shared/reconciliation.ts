@@ -18,6 +18,7 @@ export interface ReconcilableOrderRow {
   tax_amount_cents: number
   total_paid_cents: number | null
   stripe_invoice_id: string | null
+  access_renewal: boolean
   paid_at?: string | null
   refunded_at?: string | null
 }
@@ -36,7 +37,7 @@ export async function findReconcilableOrder(
   const { data, error } = await client
     .from("orders")
     .select(
-      "id,user_id,product_id,status,currency,final_price_cents,checkout_session_id,payment_reference,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,paid_at,refunded_at",
+      "id,user_id,product_id,status,currency,final_price_cents,checkout_session_id,payment_reference,payment_environment,tax_amount_cents,total_paid_cents,stripe_invoice_id,access_renewal,paid_at,refunded_at",
     )
     .eq("id", orderId)
     .maybeSingle()
@@ -94,7 +95,7 @@ export async function reconcileOrderWithStripe(
     const grant = await ensureActiveGrant(client, {
       userId: order.user_id,
       productId: order.product_id,
-      sourceType: "purchase",
+      sourceType: order.access_renewal ? "renewal" : "purchase",
       sourceOrderId: order.id,
     })
     grants = [grant.grant]

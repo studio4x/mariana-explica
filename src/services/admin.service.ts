@@ -1279,9 +1279,9 @@ export async function fetchAdminUsers() {
 
 export async function fetchAdminProducts() {
   const selectWithCategories =
-    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,category_id,published_at"
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,access_expiration_mode,access_expires_at,access_duration_days,renewal_enabled,renewal_discount_enabled,renewal_discount_percent,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,category_id,published_at"
   const selectLegacy =
-    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at"
+    "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,access_expiration_mode,access_expires_at,access_duration_days,renewal_enabled,renewal_discount_enabled,renewal_discount_percent,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at"
 
   const { data, error } = await supabase
     .from("products")
@@ -3901,6 +3901,12 @@ export function createAdminProduct(input: {
   hasLinearProgression?: boolean
   quizTypeSettings?: Record<string, boolean>
   publicPageContent?: ProductSummary["public_page_content"]
+  accessExpirationMode?: ProductSummary["access_expiration_mode"]
+  accessExpiresAt?: string | null
+  accessDurationDays?: number | null
+  renewalEnabled?: boolean
+  renewalDiscountEnabled?: boolean
+  renewalDiscountPercent?: number | null
 }) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "create",
@@ -3937,6 +3943,12 @@ export function updateAdminProduct(input: {
   hasLinearProgression?: boolean
   quizTypeSettings?: Record<string, boolean>
   publicPageContent?: ProductSummary["public_page_content"]
+  accessExpirationMode?: ProductSummary["access_expiration_mode"]
+  accessExpiresAt?: string | null
+  accessDurationDays?: number | null
+  renewalEnabled?: boolean
+  renewalDiscountEnabled?: boolean
+  renewalDiscountPercent?: number | null
 }) {
   return invokeAdminFunction<{ success: true; product: ProductSummary }>("admin-products", {
     action: "update",

@@ -16,6 +16,7 @@ import type { SupabaseClient } from "../_shared/supabase.ts"
 
 type ProductType = "paid" | "free" | "hybrid" | "external_service"
 type ProductStatus = "draft" | "published" | "archived"
+type AccessExpirationMode = "specific_date" | "days_after_enrollment_open" | "days_after_student_enrollment" | "lifetime"
 
 interface ProductPayload {
   slug: string
@@ -44,6 +45,12 @@ interface ProductPayload {
   hasLinearProgression?: boolean
   quizTypeSettings?: Record<string, boolean>
   publicPageContent?: Record<string, unknown> | null
+  accessExpirationMode?: AccessExpirationMode
+  accessExpiresAt?: string | null
+  accessDurationDays?: number | null
+  renewalEnabled?: boolean
+  renewalDiscountEnabled?: boolean
+  renewalDiscountPercent?: number | null
 }
 
 type AdminProductsInput =
@@ -86,8 +93,69 @@ function mapPayload(payload: Partial<ProductPayload>) {
   }
   if (payload.quizTypeSettings !== undefined) updates.quiz_type_settings = payload.quizTypeSettings
   if (payload.publicPageContent !== undefined) updates.public_page_content = payload.publicPageContent ?? {}
+  if (payload.accessExpirationMode !== undefined) updates.access_expiration_mode = payload.accessExpirationMode
+  if (payload.accessExpiresAt !== undefined) updates.access_expires_at = payload.accessExpiresAt
+  if (payload.accessDurationDays !== undefined) updates.access_duration_days = payload.accessDurationDays
+  if (payload.renewalEnabled !== undefined) updates.renewal_enabled = payload.renewalEnabled
+  if (payload.renewalDiscountEnabled !== undefined) updates.renewal_discount_enabled = payload.renewalDiscountEnabled
+  if (payload.renewalDiscountPercent !== undefined) updates.renewal_discount_percent = payload.renewalDiscountPercent
 
   return updates
+}
+
+function normalizeAccessExpirationFields(
+  updates: Record<string, unknown>,
+  fallback?: {
+    access_expiration_mode: AccessExpirationMode
+    access_expires_at: string | null
+    access_duration_days: number | null
+    renewal_enabled: boolean
+    renewal_discount_enabled: boolean
+    renewal_discount_percent: number | null
+  },
+) {
+  const mode = (updates.access_expiration_mode ?? fallback?.access_expiration_mode ?? "lifetime") as AccessExpirationMode
+  const expiresAt = updates.access_expires_at ?? fallback?.access_expires_at ?? null
+  const durationDays = updates.access_duration_days ?? fallback?.access_duration_days ?? null
+  const renewalEnabled = (updates.renewal_enabled ?? fallback?.renewal_enabled ?? false) === true
+  const renewalDiscountEnabled = (updates.renewal_discount_enabled ?? fallback?.renewal_discount_enabled ?? false) === true
+  const renewalDiscountPercent = updates.renewal_discount_percent ?? fallback?.renewal_discount_percent ?? null
+
+  if (mode === "lifetime") {
+    updates.access_expires_at = null
+    updates.access_duration_days = null
+    updates.renewal_enabled = false
+    updates.renewal_discount_enabled = false
+    updates.renewal_discount_percent = null
+    return
+  }
+
+  if (mode === "specific_date") {
+    if (typeof expiresAt !== "string" || !expiresAt || Number.isNaN(Date.parse(expiresAt))) {
+      throw badRequest("Informe uma data específica válida para o término do acesso")
+    }
+    updates.access_expires_at = expiresAt
+    updates.access_duration_days = null
+  } else {
+    const normalizedDays = Number(durationDays)
+    if (!Number.isInteger(normalizedDays) || normalizedDays <= 0) {
+      throw badRequest("Informe um número inteiro de dias maior que zero para o término do acesso")
+    }
+    updates.access_expires_at = null
+    updates.access_duration_days = normalizedDays
+  }
+
+  updates.renewal_enabled = renewalEnabled
+  updates.renewal_discount_enabled = renewalEnabled && renewalDiscountEnabled
+  if (renewalEnabled && renewalDiscountEnabled) {
+    const normalizedPercent = Number(renewalDiscountPercent)
+    if (!Number.isFinite(normalizedPercent) || normalizedPercent < 0 || normalizedPercent > 100) {
+      throw badRequest("O desconto de renovação deve estar entre 0% e 100%")
+    }
+    updates.renewal_discount_percent = normalizedPercent
+  } else {
+    updates.renewal_discount_percent = null
+  }
 }
 
 function normalizePricingFields(
@@ -163,6 +231,7 @@ Deno.serve(async (req) => {
         product_type: body.productType,
         price_cents: body.priceCents,
       })
+      normalizeAccessExpirationFields(payload)
 
       const { data, error } = await context.serviceClient
         .from("products")
@@ -273,7 +342,7 @@ Deno.serve(async (req) => {
     await requireExistingCategoryId(context.serviceClient, body.categoryId?.trim() || null)
     const { data: currentProduct, error: currentProductError } = await context.serviceClient
       .from("products")
-      .select("product_type,price_cents")
+      .select("product_type,price_cents,status,access_expiration_mode,access_expires_at,access_duration_days,renewal_enabled,renewal_discount_enabled,renewal_discount_percent")
       .eq("id", body.productId)
       .maybeSingle()
 
@@ -283,12 +352,13 @@ Deno.serve(async (req) => {
 
     if (body.status) {
       updates.status = body.status
-      if (body.status === "published") {
+      if (body.status === "published" && currentProduct?.status !== "published") {
         updates.published_at = new Date().toISOString()
       }
     }
 
     normalizePricingFields(updates, currentProduct ?? undefined)
+    normalizeAccessExpirationFields(updates, currentProduct ?? undefined)
 
     const { data, error } = await context.serviceClient
       .from("products")

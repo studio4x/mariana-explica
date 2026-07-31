@@ -11,6 +11,7 @@ import type {
   CourseModuleNavigationSummary,
   DashboardOverviewData,
   DashboardProductSummary,
+  ExpiredRenewalProductSummary,
   DownloadableItem,
   FiscalDocumentSummary,
   LessonNoteSummary,
@@ -111,7 +112,7 @@ async function fetchProductsByIds(productIds: string[]) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at",
+      "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,access_expiration_mode,access_expires_at,access_duration_days,renewal_enabled,renewal_discount_enabled,renewal_discount_percent,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at",
     )
     .in("id", productIds)
 
@@ -278,7 +279,7 @@ export async function fetchMyProducts(): Promise<DashboardProductSummary[]> {
     const { data, error } = await supabase
       .from("products")
       .select(
-        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at,updated_at",
+        "id,slug,title,short_description,description,product_type,status,price_cents,currency,cover_image_url,cover_image_storage_bucket,cover_image_storage_path,cover_image_storage_provider,access_expiration_mode,access_expires_at,access_duration_days,renewal_enabled,renewal_discount_enabled,renewal_discount_percent,launch_date,is_public,creator_id,creator_commission_percent,workload_minutes,has_linear_progression,quiz_type_settings,public_page_content,sales_page_enabled,requires_auth,course_chat_enabled,is_featured,allow_affiliate,sort_order,published_at,updated_at",
       )
       .eq("status", "published")
       .order("published_at", { ascending: false })
@@ -446,6 +447,33 @@ export async function fetchProductLessons(moduleIds: string[]) {
 export async function fetchModuleAssetsByModule(moduleId: string) {
   const assets = await fetchModuleAssets([moduleId])
   return assets.filter((asset) => asset.module_id === moduleId)
+}
+
+export async function fetchExpiredRenewalProducts(): Promise<ExpiredRenewalProductSummary[]> {
+  const now = new Date().toISOString()
+  const { data: grants, error: grantsError } = await supabase
+    .from("access_grants")
+    .select("id,product_id,expires_at")
+    .in("status", ["active", "expired"])
+    .order("expires_at", { ascending: false })
+
+  if (grantsError) throw grantsError
+
+  const latestGrantByProduct = new Map<string, { id: string; expires_at: string }>()
+  for (const grant of (grants ?? []) as Array<{ id: string; product_id: string; expires_at: string | null }>) {
+    if (!grant.expires_at || Date.parse(grant.expires_at) > Date.parse(now) || latestGrantByProduct.has(grant.product_id)) continue
+    latestGrantByProduct.set(grant.product_id, { id: grant.id, expires_at: grant.expires_at })
+  }
+
+  const products = await fetchProductsByIds([...latestGrantByProduct.keys()])
+  return products
+    .filter((product) => product.renewal_enabled === true && product.access_expiration_mode !== "lifetime")
+    .map((product) => {
+      const grant = latestGrantByProduct.get(product.id)
+      if (!grant) return null
+      return { ...product, grant_id: grant.id, expires_at: grant.expires_at }
+    })
+    .filter((product): product is ExpiredRenewalProductSummary => Boolean(product))
 }
 
 export async function fetchLessonAdditionalResources(moduleId: string, lessonId: string) {

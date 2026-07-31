@@ -11,6 +11,7 @@ import {
   fetchAccessibleLesson,
   fetchAssessmentAttemptState,
   fetchDashboardOverview,
+  fetchExpiredRenewalProducts,
   fetchDashboardProductContent,
   fetchDownloads,
   fetchLessonNote,
@@ -120,6 +121,18 @@ export function useMyProducts(options?: { enabled?: boolean }) {
     enabled: (options?.enabled ?? true) && Boolean(userId),
     staleTime: DASHBOARD_PROGRESS_STALE_TIME,
     placeholderData: () => queryClient.getQueryData<DashboardOverviewData>(["dashboard", "overview"])?.products,
+  })
+}
+
+export function useExpiredRenewalProducts() {
+  const { session } = useAuth()
+  const userId = session?.user.id
+
+  return useQuery({
+    queryKey: ["dashboard", "expired-renewals", userId],
+    queryFn: fetchExpiredRenewalProducts,
+    enabled: Boolean(userId),
+    staleTime: DASHBOARD_PROGRESS_STALE_TIME,
   })
 }
 

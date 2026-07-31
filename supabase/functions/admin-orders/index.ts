@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       const grant = await ensureActiveGrant(context.serviceClient, {
         userId: updatedOrder.user_id,
         productId: updatedOrder.product_id,
-        sourceType: "manual_adjustment",
+        sourceType: updatedOrder.access_renewal ? "renewal" : "manual_adjustment",
         sourceOrderId: updatedOrder.id,
         notes: "Acesso liberado manualmente pelo admin",
       })

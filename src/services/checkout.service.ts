@@ -18,6 +18,7 @@ export interface CreateCheckoutInput {
   contentUpdatesConsent?: boolean
   successUrl?: string | null
   cancelUrl?: string | null
+  renewal?: boolean
 }
 
 export interface ClaimFreeProductInput {
