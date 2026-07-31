@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, ImagePlus, MessageCircle, Plus, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
-import { MediaLibraryModal, OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
+import { MediaLibraryModal, OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge, type RichTextEditorHandle } from "@/components/common"
 import { useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
 import { buildCourseCatalogCardView, sanitizeCourseCatalogCardContent } from "@/lib/course-public-page"
 import { ROUTES } from "@/lib/constants"
@@ -118,6 +118,7 @@ export function CourseSettingsPanel() {
   const { data: categories = [] } = useAdminProductCategories()
   const updateProduct = useUpdateAdminProduct()
   const uploadCover = useUploadAdminProductCover()
+  const shortDescriptionEditorRef = useRef<RichTextEditorHandle | null>(null)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [coverStorage, setCoverStorage] = useState<{
     bucket: string | null
@@ -318,6 +319,7 @@ export function CourseSettingsPanel() {
     setFeedback(null)
 
     try {
+      const shortDescription = shortDescriptionEditorRef.current?.flush() ?? form.shortDescription
       const nextPublicPageContent = { ...(product.public_page_content ?? {}) }
       delete nextPublicPageContent.catalogCardMode
       delete nextPublicPageContent.catalogCardSummary
@@ -343,7 +345,7 @@ export function CourseSettingsPanel() {
         coverImageStorageBucket: coverStorage.bucket,
         coverImageStoragePath: coverStorage.path,
         coverImageStorageProvider: coverStorage.provider,
-        shortDescription: form.shortDescription.trim() || null,
+        shortDescription: shortDescription.trim() || null,
         launchDate: form.launchDate || null,
         workloadMinutes: Number(form.workloadMinutes || 0),
         creatorCommissionPercent: form.creatorCommissionPercent ? Number(form.creatorCommissionPercent) : null,
@@ -490,6 +492,7 @@ export function CourseSettingsPanel() {
             fullWidth
           >
             <RichTextEditor
+              ref={shortDescriptionEditorRef}
               value={form.shortDescription}
               onChange={(value) => setForm((prev) => ({ ...prev, shortDescription: value }))}
               placeholder="Descreva o material com hierarquia, listas e destaques."

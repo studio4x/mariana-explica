@@ -111,7 +111,10 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         ref={quillRef}
         theme="snow"
         value={draft}
-        onChange={setDraft}
+        onChange={(nextValue) => {
+          setDraft(nextValue)
+          commitValue(nextValue)
+        }}
         onFocus={() => {
           isFocusedRef.current = true
         }}
