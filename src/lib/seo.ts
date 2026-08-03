@@ -95,7 +95,7 @@ export const DEFAULT_SEO_CONFIG: SeoConfigValue = {
     'curso de Filosofia',
     'explica\u00e7\u00f5es online',
   ],
-  default_og_image_url: `${DEFAULT_SITE_URL}/icon-512.png`,
+  default_og_image_url: `${DEFAULT_SITE_URL}/social-preview-1200x630.jpg`,
   language: 'pt-PT',
   locale: 'pt_PT',
   author_name: 'Mariana Teixeira',

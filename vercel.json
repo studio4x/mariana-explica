@@ -78,6 +78,19 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/social-preview-1200x630.jpg",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -87,6 +100,6 @@
     { "source": "/api/public/site-asset", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
     { "source": "/api/public/course-media", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media" },
     { "source": "/api/public/profile-avatar", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
-    { "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/).*)", "destination": "/" }
+    { "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
   ]
 }
