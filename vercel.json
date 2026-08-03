@@ -110,6 +110,10 @@
       "continue": true
     },
     {
+      "src": "^/index\\.html$",
+      "continue": true
+    },
+    {
       "src": "^/(?!assets/|api/|favicon\\.ico$|index\\.html$|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|sitemap\\.xml$|robots\\.txt$|llms\\.txt$|icons/).*$",
       "dest": "/api/seo-html"
     },
