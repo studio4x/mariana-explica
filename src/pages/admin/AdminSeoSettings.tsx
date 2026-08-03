@@ -323,6 +323,7 @@ export function AdminSeoSettings() {
               type="url"
               value={state.default_og_image_url}
               onChange={(value) => update('default_og_image_url', value)}
+              hint="Recomendado para partilhas sociais: 1200 × 630 px (proporção 1,91:1), em JPG, PNG ou WebP. Evita texto excessivo na imagem."
             />
             <button
               type="button"
@@ -338,6 +339,7 @@ export function AdminSeoSettings() {
               type="url"
               value={state.organization_logo_url}
               onChange={(value) => update('organization_logo_url', value)}
+              hint="Para o Google Organization: mínimo 112 × 112 px; recomendado 512 × 512 px, quadrado, em PNG ou SVG e legível sobre fundo branco."
             />
             <button
               type="button"
