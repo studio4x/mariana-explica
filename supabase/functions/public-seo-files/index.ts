@@ -51,14 +51,14 @@ function escapeMarkdown(value: unknown) {
 }
 
 function response(body: string, contentType: string) {
+  const headers = new Headers(corsHeaders)
+  headers.set('Cache-Control', 'public, max-age=900, stale-while-revalidate=3600')
+  headers.set('Content-Type', `${contentType}; charset=utf-8`)
+  headers.set('X-Content-Type-Options', 'nosniff')
+
   return new Response(body, {
     status: 200,
-    headers: {
-      ...corsHeaders,
-      'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600',
-      'Content-Type': `${contentType}; charset=utf-8`,
-      'X-Content-Type-Options': 'nosniff',
-    },
+    headers,
   })
 }
 
