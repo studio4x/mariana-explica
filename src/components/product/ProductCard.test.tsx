@@ -52,6 +52,13 @@ describe("ProductCard", () => {
     expect(screen.getByText("Formato e entrega")).toBeInTheDocument()
     expect(screen.getByText("Como acedes")).toBeInTheDocument()
     expect(screen.getByText(/Valor|Acesso gratuito|Pedido orientado/)).toBeInTheDocument()
+    expect(screen.getByText("Todos os impostos incluídos")).toBeInTheDocument()
+  })
+
+  it("does not show the tax note for free products", () => {
+    renderCard(buildProduct({ product_type: "free", price_cents: 0 }))
+
+    expect(screen.queryByText("Todos os impostos incluídos")).not.toBeInTheDocument()
   })
 
   it("renders custom catalog information blocks from product settings", () => {

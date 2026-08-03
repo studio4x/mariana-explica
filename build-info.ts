@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "335"
-export const BUILD_COMMIT = "seo-og-server"
+export const BUILD_DEPLOY_NUMBER = "336"
+export const BUILD_COMMIT = "tax-note-cards"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

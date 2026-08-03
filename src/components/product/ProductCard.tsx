@@ -107,6 +107,11 @@ export function ProductCard({
             <p className="text-2xl font-bold text-[#13364b]">
               {formatProductPrice(product.price_cents, product.currency)}
             </p>
+            {product.price_cents > 0 ? (
+              <p className="whitespace-nowrap text-[10px] font-semibold uppercase leading-4 tracking-[0.12em] text-[#567085]">
+                Todos os impostos incluídos
+              </p>
+            ) : null}
           </div>
 
           {actionTo ? (
