@@ -16,6 +16,7 @@ import {
   SiteBrandingManager,
   SiteCacheControlManager,
   SiteLogo,
+  SiteSeoManager,
   SiteThemeManager,
   SiteTrackingManager,
 } from "@/components/common"
@@ -111,6 +112,7 @@ export function DashboardLayout() {
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteCacheControlManager />
+      <SiteSeoManager scope="private" />
       <SiteThemeManager />
       <SiteTrackingManager />
       <header className="sticky top-0 z-40 border-b border-[#D8E6EB] bg-[#F2F7F9]/95 backdrop-blur-md">

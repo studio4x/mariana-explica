@@ -6,6 +6,7 @@ import {
   ScrollToTop,
   SiteBrandingManager,
   SiteCacheControlManager,
+  SiteSeoManager,
   SiteThemeManager,
   SiteTrackingManager,
 } from "@/components/common"
@@ -20,6 +21,7 @@ export function PublicLayout() {
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteCacheControlManager />
+      <SiteSeoManager />
       <SiteThemeManager />
       <SiteTrackingManager />
       {isCheckout ? null : <Navbar />}

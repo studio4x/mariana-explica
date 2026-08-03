@@ -91,6 +91,9 @@ verify_jwt = false
 [functions.public-profile-avatar]
 verify_jwt = false
 
+[functions.public-seo-files]
+verify_jwt = false
+
 [functions.admin-support-ticket-delete]
 verify_jwt = false
 

@@ -1,6 +1,46 @@
 {
   "headers": [
     {
+      "source": "/(admin|aluno)/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/(login|register|criar-conta|recuperar-senha|redefinir-senha|checkout)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/(auth|checkout)/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/(sitemap.xml|robots.txt|llms.txt)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=900, stale-while-revalidate=3600"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
       "source": "/sw.js",
       "headers": [
         {
@@ -21,6 +61,18 @@
   ],
   "rewrites": [
     {
+      "source": "/sitemap.xml",
+      "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=sitemap"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=robots"
+    },
+    {
+      "source": "/llms.txt",
+      "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=llms"
+    },
+    {
       "source": "/api/public/site-asset",
       "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset"
     },
@@ -33,7 +85,7 @@
       "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar"
     },
     {
-      "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|icons/).*)",
+      "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/).*)",
       "destination": "/"
     }
   ]

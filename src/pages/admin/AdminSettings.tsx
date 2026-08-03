@@ -1,6 +1,6 @@
 ﻿import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Activity, Code2, EyeOff, Image, Palette, RefreshCw, UploadCloud } from "lucide-react"
+import { Activity, Code2, EyeOff, Image, Palette, RefreshCw, Search, UploadCloud } from "lucide-react"
 import { Link, useSearchParams } from "react-router-dom"
 import { ErrorState } from "@/components/feedback"
 import { Button } from "@/components/ui"
@@ -22,10 +22,11 @@ import type {
   AdminTrackingConfig,
 } from "@/types/app.types"
 import { AdminOperations } from "./AdminOperations"
+import { AdminSeoSettings } from "./AdminSeoSettings"
 import { AdminSiteThemeSettings } from "./AdminSiteThemeSettings"
 
 type BrandingRole = Exclude<keyof AdminBrandingConfig["config_value"], "footer_description" | "header_announcement">
-type SettingsTab = "branding" | "tracking" | "maintenance" | "legacy-editor" | "operations" | "site-theme"
+type SettingsTab = "branding" | "seo" | "tracking" | "maintenance" | "legacy-editor" | "operations" | "site-theme"
 
 const assetCards: Array<{
   role: BrandingRole
@@ -185,7 +186,9 @@ export function AdminSettings() {
   const [maintenanceDraft, setMaintenanceDraft] = useState<AdminSiteMaintenanceConfig["config_value"] | null>(null)
   const currentTab = searchParams.get("tab")
   const activeTab: SettingsTab =
-    currentTab === "operacoes"
+    currentTab === "seo"
+      ? "seo"
+      : currentTab === "operacoes"
       ? "operations"
       : currentTab === "tipografia"
         ? "site-theme"
@@ -342,6 +345,7 @@ export function AdminSettings() {
   const readyCount = branding ? countReady(branding) : 0
   const tabs: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
     { key: "branding", label: "Branding", icon: Palette },
+    { key: "seo", label: "SEO", icon: Search as typeof Palette },
     { key: "site-theme", label: "Tipografia & cores", icon: Palette },
     { key: "tracking", label: "Rastreamento", icon: Code2 as typeof Palette },
     { key: "maintenance", label: "Manutenção", icon: Activity },
@@ -353,6 +357,11 @@ export function AdminSettings() {
       title: "Branding e logotipos",
       description:
         "Envie aqui os arquivos oficiais da marca. O sistema escolhe automaticamente o logotipo light ou dark de acordo com o fundo em cada área da plataforma.",
+    },
+    seo: {
+      title: "SEO e presença no Google",
+      description:
+        "Configure como as páginas aparecem nos motores de pesquisa, redes sociais e ferramentas que descobrem o conteúdo público do site.",
     },
     "site-theme": {
       title: "Tipografia e cores do site",
@@ -398,7 +407,7 @@ export function AdminSettings() {
               {sectionCopy[activeTab].description}
             </p>
           </div>
-          {activeTab !== "site-theme" ? (
+          {activeTab !== "site-theme" && activeTab !== "seo" ? (
             <button
               type="button"
               onClick={() => {
@@ -434,6 +443,8 @@ export function AdminSettings() {
               onClick={() => {
                 if (tab.key === "branding") {
                   setSearchParams({})
+                } else if (tab.key === "seo") {
+                  setSearchParams({ tab: "seo" })
                 } else if (tab.key === "site-theme") {
                   setSearchParams({ tab: "tipografia" })
                 } else if (tab.key === "tracking") {
@@ -460,7 +471,9 @@ export function AdminSettings() {
         })}
       </div>
 
-      {activeTab === "site-theme" ? (
+      {activeTab === "seo" ? (
+        <AdminSeoSettings />
+      ) : activeTab === "site-theme" ? (
         <AdminSiteThemeSettings />
       ) : activeTab === "maintenance" ? (
         <>

@@ -7,6 +7,7 @@ import {
   normalizeAdminAiPageEditorError,
 } from "@/lib/ai-page-editor-response"
 import { APP_DESCRIPTION, APP_HEADER_ANNOUNCEMENT, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/constants"
+import { SEO_CONFIG_KEY, normalizeSeoConfig, type SeoConfig, type SeoConfigValue } from "@/lib/seo"
 import { getFreshFunctionAuthContext } from "@/services/supabase-auth"
 import type {
   AdminCheckoutModeConfig,
@@ -1487,6 +1488,31 @@ export async function fetchAdminTrackingConfig() {
   return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig> | null)
 }
 
+export async function fetchAdminSeoConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", SEO_CONFIG_KEY)
+    .maybeSingle()
+
+  if (error) throw error
+
+  return normalizeSeoConfig(data as Partial<SeoConfig> | null)
+}
+
+export async function fetchPublicSeoConfig() {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("config_key,config_value,description,is_public,updated_at")
+    .eq("config_key", SEO_CONFIG_KEY)
+    .eq("is_public", true)
+    .maybeSingle()
+
+  if (error) throw error
+
+  return normalizeSeoConfig(data as Partial<SeoConfig> | null)
+}
+
 export async function fetchPublicTrackingConfig() {
   const { data, error } = await supabase
     .from("site_config")
@@ -2444,6 +2470,41 @@ export async function updateAdminTrackingConfig(
   }
 
   return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig>)
+}
+
+export async function updateAdminSeoConfig(input: SeoConfigValue) {
+  const payload = normalizeSeoConfig({
+    config_key: SEO_CONFIG_KEY,
+    config_value: input,
+    description:
+      "Configuração pública de metadados, indexação, canonical, redes sociais e identidade para mecanismos de pesquisa.",
+    is_public: true,
+  })
+
+  const siteConfigTable = supabase.from("site_config") as unknown as {
+    upsert: (...args: unknown[]) => {
+      select: (columns: string) => {
+        single: () => Promise<{ data: Partial<SeoConfig> | null; error: Error | null }>
+      }
+    }
+  }
+
+  const { data, error } = await siteConfigTable
+    .upsert(
+      {
+        config_key: SEO_CONFIG_KEY,
+        config_value: payload.config_value,
+        description: payload.description,
+        is_public: true,
+      },
+      { onConflict: "config_key" },
+    )
+    .select("config_key,config_value,description,is_public,updated_at")
+    .single()
+
+  if (error) throw error
+
+  return normalizeSeoConfig(data)
 }
 
 export async function updateAdminSiteThemeConfig(

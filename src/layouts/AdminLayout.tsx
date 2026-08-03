@@ -34,6 +34,7 @@ import {
   SiteBrandingManager,
   SiteCacheControlManager,
   SiteLogo,
+  SiteSeoManager,
   SiteTrackingManager,
   StatusBadge,
   broadcastCacheControl,
@@ -232,6 +233,7 @@ export function AdminLayout() {
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteCacheControlManager />
+      <SiteSeoManager scope="private" />
       <SiteTrackingManager />
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="flex min-h-[64px] w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">

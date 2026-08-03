@@ -7,6 +7,7 @@ import {
   ScrollToTop,
   SiteBrandingManager,
   SiteCacheControlManager,
+  SiteSeoManager,
   SiteThemeManager,
   SiteTrackingManager,
 } from "@/components/common"
@@ -17,6 +18,7 @@ export function AuthLayout() {
       <ScrollToTop />
       <SiteBrandingManager />
       <SiteCacheControlManager />
+      <SiteSeoManager scope="private" />
       <SiteThemeManager />
       <SiteTrackingManager />
       <Navbar />
