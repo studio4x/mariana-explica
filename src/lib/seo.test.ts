@@ -93,4 +93,22 @@ describe('SEO configuration', () => {
     expect(result.image).toBe('https://www.mariana-explica.pt/icon-512.png')
     expect(result.description).toContain('preparar o exame nacional')
   })
+
+  it('replaces incomplete product copy with the configured SEO template', () => {
+    const result = buildProductSeo(
+      DEFAULT_SEO_CONFIG,
+      product({
+        title: 'Curso Completo de Filosofia',
+        short_description: '<p>testeee</p>',
+        description: null,
+      })
+    )
+
+    expect(result.description).toBe(
+      DEFAULT_SEO_CONFIG.course_description_template.replace(
+        '%s',
+        'Curso Completo de Filosofia'
+      )
+    )
+  })
 })

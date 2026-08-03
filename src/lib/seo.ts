@@ -326,9 +326,14 @@ export function buildProductSeo(
   product: ProductSummary
 ) {
   const title = applySeoTemplate(config.course_title_template, product.title)
+  const editorialDescription = [
+    product.short_description,
+    product.description,
+  ]
+    .map((value) => plainText(value))
+    .find((value) => value.length >= 50)
   const description = truncateSeoDescription(
-    product.short_description ||
-      product.description ||
+    editorialDescription ||
       config.course_description_template.replace('%s', product.title)
   )
   const canonical = absoluteSeoUrl(
