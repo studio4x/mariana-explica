@@ -83,6 +83,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (!asset && /^(logo_light|logo_dark|favicon)\//.test(storagePath)) {
+      asset = {
+        bucket: "site-branding-public",
+        path: storagePath,
+        storage_provider: "r2",
+      }
+    }
+
     if (!asset?.bucket || !asset.path) {
       throw notFound("Asset publico nao encontrado")
     }

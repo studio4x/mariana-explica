@@ -7,6 +7,7 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
+import { MediaLibraryModal } from '@/components/common'
 import { ErrorState, LoadingState } from '@/components/feedback'
 import {
   DEFAULT_SEO_CONFIG,
@@ -18,7 +19,9 @@ import {
 } from '@/lib/seo'
 import {
   fetchAdminSeoConfig,
+  uploadAdminBrandingAssetFile,
   updateAdminSeoConfig,
+  type AdminR2ListedObject,
 } from '@/services/admin.service'
 
 const inputClass =
@@ -114,6 +117,9 @@ function Section({
 export function AdminSeoSettings() {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<SeoConfigValue | null>(null)
+  const [imageField, setImageField] = useState<
+    'default_og_image_url' | 'organization_logo_url' | null
+  >(null)
   const [feedback, setFeedback] = useState<{
     tone: 'success' | 'danger'
     message: string
@@ -170,6 +176,21 @@ export function AdminSeoSettings() {
     })
   }
   const baseUrl = state.canonical_base_url.replace(/\/+$/, '')
+  const imageFieldLabel =
+    imageField === 'organization_logo_url'
+      ? 'logótipo da organização'
+      : 'imagem social'
+  const seoImageUrl = (storagePath: string) =>
+    `${baseUrl}/api/public/site-asset?storage_path=${encodeURIComponent(storagePath)}`
+  const uploadSeoImage = async (file: File) => {
+    if (!imageField) return
+    const upload = await uploadAdminBrandingAssetFile({ role: 'logo_light', file })
+    update(imageField, upload.public_url || seoImageUrl(upload.path))
+  }
+  const selectSeoImage = async (object: AdminR2ListedObject) => {
+    if (!imageField) return
+    update(imageField, seoImageUrl(object.storage_path))
+  }
 
   return (
     <div className="space-y-6">
@@ -296,18 +317,36 @@ export function AdminSeoSettings() {
             value={state.contact_email}
             onChange={(value) => update('contact_email', value)}
           />
-          <Field
-            label="Imagem social padrão"
-            type="url"
-            value={state.default_og_image_url}
-            onChange={(value) => update('default_og_image_url', value)}
-          />
-          <Field
-            label="Logótipo da organização"
-            type="url"
-            value={state.organization_logo_url}
-            onChange={(value) => update('organization_logo_url', value)}
-          />
+          <div>
+            <Field
+              label="Imagem social padrão"
+              type="url"
+              value={state.default_og_image_url}
+              onChange={(value) => update('default_og_image_url', value)}
+            />
+            <button
+              type="button"
+              onClick={() => setImageField('default_og_image_url')}
+              className="mt-3 rounded-full border border-sky-200 px-4 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50"
+            >
+              Escolher na biblioteca de mídia
+            </button>
+          </div>
+          <div>
+            <Field
+              label="Logótipo da organização"
+              type="url"
+              value={state.organization_logo_url}
+              onChange={(value) => update('organization_logo_url', value)}
+            />
+            <button
+              type="button"
+              onClick={() => setImageField('organization_logo_url')}
+              className="mt-3 rounded-full border border-sky-200 px-4 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50"
+            >
+              Escolher na biblioteca de mídia
+            </button>
+          </div>
           <Field
             label="Perfil X/Twitter"
             value={state.twitter_site}
@@ -365,6 +404,27 @@ export function AdminSeoSettings() {
             value={state.course_description_template}
             onChange={(value) => update('course_description_template', value)}
             hint="Só é usada quando o material não tem descrição própria."
+          />
+          <Field
+            label="Palavra-chave principal"
+            value={state.primary_keyword}
+            onChange={(value) => update('primary_keyword', value)}
+            hint="A expressão principal que resume o posicionamento do site."
+          />
+          <TextAreaField
+            label="Palavras-chave secundárias"
+            value={state.secondary_keywords.join('\n')}
+            onChange={(value) =>
+              update(
+                'secondary_keywords',
+                value
+                  .split(/\r?\n|,/)
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+              )
+            }
+            hint="Uma expressão por linha. Usa-as como orientação editorial, não como substituto de conteúdo útil."
+            rows={5}
           />
         </div>
       </Section>
@@ -559,6 +619,18 @@ export function AdminSeoSettings() {
           </button>
         </div>
       </div>
+      <MediaLibraryModal
+        open={Boolean(imageField)}
+        title={`Selecionar ${imageFieldLabel}`}
+        uploadTabLabel="Enviar imagem"
+        libraryTabLabel="Biblioteca de mídia"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        fileType="image"
+        prefix="site-branding-public/"
+        onClose={() => setImageField(null)}
+        onUpload={uploadSeoImage}
+        onSelect={selectSeoImage}
+      />
     </div>
   )
 }

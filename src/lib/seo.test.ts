@@ -59,6 +59,8 @@ describe('SEO configuration', () => {
     expect(Object.keys(DEFAULT_SEO_CONFIG.pages)).toHaveLength(
       Object.keys(SEO_PAGE_PATHS).length
     )
+    expect(DEFAULT_SEO_CONFIG.primary_keyword).toContain('Português')
+    expect(DEFAULT_SEO_CONFIG.secondary_keywords.length).toBeGreaterThanOrEqual(5)
   })
 
   it('normalizes unsafe or incomplete persisted values to production defaults', () => {

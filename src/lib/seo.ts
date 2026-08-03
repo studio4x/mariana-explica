@@ -26,6 +26,8 @@ export interface SeoConfigValue {
   default_title: string
   title_template: string
   default_description: string
+  primary_keyword: string
+  secondary_keywords: string[]
   default_og_image_url: string
   language: string
   locale: string
@@ -85,6 +87,14 @@ export const DEFAULT_SEO_CONFIG: SeoConfigValue = {
   title_template: '%s | Mariana Explica',
   default_description:
     'Explicações e materiais de estudo de Português e Filosofia, com conteúdos claros para aprender, organizar a matéria e preparar os exames.',
+  primary_keyword: 'explica\u00e7\u00f5es de Portugu\u00eas e Filosofia',
+  secondary_keywords: [
+    'materiais de estudo de Portugu\u00eas',
+    'materiais de estudo de Filosofia',
+    'prepara\u00e7\u00e3o para exames nacionais',
+    'curso de Filosofia',
+    'explica\u00e7\u00f5es online',
+  ],
   default_og_image_url: `${DEFAULT_SITE_URL}/icon-512.png`,
   language: 'pt-PT',
   locale: 'pt_PT',
@@ -235,6 +245,14 @@ export function normalizeSeoConfigValue(value: unknown): SeoConfigValue {
     default_description: text(
       record.default_description,
       DEFAULT_SEO_CONFIG.default_description
+    ),
+    primary_keyword: text(
+      record.primary_keyword,
+      DEFAULT_SEO_CONFIG.primary_keyword
+    ),
+    secondary_keywords: stringArray(
+      record.secondary_keywords,
+      DEFAULT_SEO_CONFIG.secondary_keywords
     ),
     default_og_image_url: text(
       record.default_og_image_url,

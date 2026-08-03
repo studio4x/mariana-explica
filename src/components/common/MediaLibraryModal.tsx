@@ -14,6 +14,7 @@ interface MediaLibraryModalProps {
   libraryTabLabel?: string
   accept?: string
   fileType?: MediaLibraryFileType
+  prefix?: string | null
   onClose: () => void
   onUpload: (file: File) => Promise<void>
   onSelect: (object: AdminR2ListedObject) => Promise<void>
@@ -43,6 +44,7 @@ export function MediaLibraryModal({
   libraryTabLabel = "Biblioteca de mídia",
   accept,
   fileType = "all",
+  prefix = null,
   onClose,
   onUpload,
   onSelect,
@@ -57,8 +59,8 @@ export function MediaLibraryModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const objectsQuery = useQuery({
-    queryKey: ["admin", "r2", "media-library", fileType, search, cursor],
-    queryFn: () => fetchAdminR2Objects({ fileType, search: search.trim() || null, cursor, limit: 60 }),
+    queryKey: ["admin", "r2", "media-library", prefix, fileType, search, cursor],
+    queryFn: () => fetchAdminR2Objects({ prefix, fileType, search: search.trim() || null, cursor, limit: 60 }),
     enabled: open && activeTab === "library",
   })
 

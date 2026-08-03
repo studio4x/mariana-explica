@@ -195,6 +195,7 @@ export function SiteSeoManager({ scope = 'public' }: { scope?: SeoScope }) {
                 alternateName: config.alternate_site_name,
                 url: config.canonical_base_url,
                 inLanguage: config.language,
+                keywords: [config.primary_keyword, ...config.secondary_keywords].join(', '),
               },
               {
                 '@type': 'EducationalOrganization',
@@ -288,6 +289,10 @@ export function SiteSeoManager({ scope = 'public' }: { scope?: SeoScope }) {
     setMeta('meta[name="author"]', {
       name: 'author',
       content: config.author_name,
+    })
+    setMeta('meta[name="keywords"]', {
+      name: 'keywords',
+      content: [config.primary_keyword, ...config.secondary_keywords].join(', '),
     })
     setMeta('meta[property="og:site_name"]', {
       property: 'og:site_name',
