@@ -5,6 +5,8 @@ type NodeResponse = {
   end(body?: string): void
 }
 
+declare const process: { env: Record<string, string | undefined> }
+
 const FALLBACK_ORIGIN = 'https://www.mariana-explica.pt'
 
 function escapeHtml(value: unknown) {
