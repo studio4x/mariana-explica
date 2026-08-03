@@ -102,16 +102,22 @@ function ImagePreview({
   src,
   alt,
   contain = false,
+  aspectRatio = 'default',
 }: {
   src: string
   alt: string
   contain?: boolean
+  aspectRatio?: 'default' | 'social'
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const failed = failedSrc === src
 
   return (
-    <div className="mt-3 flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
+    <div
+      className={`mt-3 flex items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2 ${
+        aspectRatio === 'social' ? 'aspect-[1200/630]' : 'h-36'
+      }`}
+    >
       {!src ? (
         <span className="text-xs font-semibold text-slate-500">
           Sem imagem selecionada
@@ -394,6 +400,8 @@ export function AdminSeoSettings() {
             </button>
             <ImagePreview
               src={state.default_og_image_url}
+              aspectRatio="social"
+              contain
               alt="Prévia da imagem social padrão"
             />
           </div>
