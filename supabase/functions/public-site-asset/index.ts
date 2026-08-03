@@ -36,37 +36,42 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const storagePath = decodeURIComponent(url.searchParams.get("storage_path")?.trim() ?? "")
-    if (!storagePath) {
+    let storagePath = decodeURIComponent(url.searchParams.get("storage_path")?.trim() ?? "")
+    const brandingRole = url.searchParams.get("branding_role")?.trim() ?? ""
+    if (!storagePath && brandingRole !== "favicon") {
       throw badRequest("storage_path e obrigatorio")
     }
 
     const serviceClient = createServiceClient()
 
-    const { data: legacyAsset, error: legacyError } = await serviceClient
-      .from("site_page_assets")
-      .select("bucket,path,storage_provider")
-      .eq("path", storagePath)
-      .maybeSingle()
+    let asset: { bucket: string; path: string; storage_provider: string | null } | null = null
 
-    if (legacyError) {
-      throw legacyError
-    }
-
-    let asset = legacyAsset
-
-    if (!asset) {
-      const visualAssetResult = await serviceClient
-        .from("visual_site_page_assets")
+    if (storagePath) {
+      const { data: legacyAsset, error: legacyError } = await serviceClient
+        .from("site_page_assets")
         .select("bucket,path,storage_provider")
         .eq("path", storagePath)
         .maybeSingle()
 
-      if (visualAssetResult.error) {
-        throw visualAssetResult.error
+      if (legacyError) {
+        throw legacyError
       }
 
-      asset = visualAssetResult.data
+      asset = legacyAsset
+
+      if (!asset) {
+        const visualAssetResult = await serviceClient
+          .from("visual_site_page_assets")
+          .select("bucket,path,storage_provider")
+          .eq("path", storagePath)
+          .maybeSingle()
+
+        if (visualAssetResult.error) {
+          throw visualAssetResult.error
+        }
+
+        asset = visualAssetResult.data
+      }
     }
 
     if (!asset) {
@@ -84,13 +89,16 @@ Deno.serve(async (req) => {
         brandingConfigResult.data?.config_value && typeof brandingConfigResult.data.config_value === "object"
           ? (brandingConfigResult.data.config_value as Record<string, unknown>)
           : {}
-      const brandingCandidates = ["logo_light", "logo_dark", "favicon"]
+      const brandingCandidates = brandingRole === "favicon" ? ["favicon"] : ["logo_light", "logo_dark", "favicon"]
 
       for (const candidate of brandingCandidates) {
         const item = configValue[candidate]
         const itemRecord = item && typeof item === "object" ? (item as Record<string, unknown>) : null
         if (!itemRecord) continue
-        if (String(itemRecord.path ?? "").trim() !== storagePath) continue
+        const candidatePath = String(itemRecord.path ?? "").trim()
+        if (!candidatePath || (storagePath && candidatePath !== storagePath)) continue
+
+        storagePath = candidatePath
 
         asset = {
           bucket: String(itemRecord.bucket ?? "site-branding-public"),

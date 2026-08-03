@@ -97,9 +97,10 @@
     { "source": "/sitemap.xml", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=sitemap" },
     { "source": "/robots.txt", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=robots" },
     { "source": "/llms.txt", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=llms" },
+    { "source": "/favicon", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset?branding_role=favicon" },
     { "source": "/api/public/site-asset", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
     { "source": "/api/public/course-media", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media" },
     { "source": "/api/public/profile-avatar", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
-    { "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
+    { "source": "/((?!assets/|favicon|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
   ]
 }
