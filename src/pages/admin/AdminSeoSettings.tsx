@@ -120,6 +120,7 @@ export function AdminSeoSettings() {
   const [imageField, setImageField] = useState<
     'default_og_image_url' | 'organization_logo_url' | null
   >(null)
+  const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false)
   const [feedback, setFeedback] = useState<{
     tone: 'success' | 'danger'
     message: string
@@ -190,6 +191,26 @@ export function AdminSeoSettings() {
   const selectSeoImage = async (object: AdminR2ListedObject) => {
     if (!imageField) return
     update(imageField, seoImageUrl(object.storage_path))
+  }
+  const saveSeoData = async () => {
+    setIsSaveConfirmOpen(false)
+    setFeedback(null)
+    try {
+      const saved = await saveSeo.mutateAsync(state)
+      setDraft(saved.config_value)
+      setFeedback({
+        tone: 'success',
+        message: 'Configuração SEO guardada e publicada.',
+      })
+    } catch (error) {
+      setFeedback({
+        tone: 'danger',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível guardar o SEO.',
+      })
+    }
   }
 
   return (
@@ -596,25 +617,7 @@ export function AdminSeoSettings() {
           <button
             type="button"
             disabled={saveSeo.isPending}
-            onClick={async () => {
-              setFeedback(null)
-              try {
-                const saved = await saveSeo.mutateAsync(state)
-                setDraft(saved.config_value)
-                setFeedback({
-                  tone: 'success',
-                  message: 'Configuração SEO guardada e publicada.',
-                })
-              } catch (error) {
-                setFeedback({
-                  tone: 'danger',
-                  message:
-                    error instanceof Error
-                      ? error.message
-                      : 'Não foi possível guardar o SEO.',
-                })
-              }
-            }}
+            onClick={() => setIsSaveConfirmOpen(true)}
             className="h-11 rounded-full bg-slate-950 px-5 text-sm font-bold text-white disabled:opacity-60"
           >
             {saveSeo.isPending ? 'A guardar...' : 'Guardar e publicar SEO'}
@@ -633,6 +636,57 @@ export function AdminSeoSettings() {
         onUpload={uploadSeoImage}
         onSelect={selectSeoImage}
       />
+      {isSaveConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 px-4 py-8 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsSaveConfirmOpen(false)
+          }}
+        >
+          <section
+            className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="seo-save-confirmation-title"
+          >
+            <div className="flex items-start gap-4">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                <ShieldCheck className="h-6 w-6" />
+              </span>
+              <div>
+                <h2
+                  id="seo-save-confirmation-title"
+                  className="font-display text-2xl font-bold text-slate-950"
+                >
+                  Confirmar publicação do SEO
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  As alterações serão guardadas e aplicadas às páginas públicas,
+                  aos metadados e aos arquivos de descoberta do site.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsSaveConfirmOpen(false)}
+                className="h-11 rounded-full border border-slate-200 px-5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveSeoData()}
+                className="h-11 rounded-full bg-slate-950 px-5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+                disabled={saveSeo.isPending}
+              >
+                Confirmar e publicar
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   )
 }
