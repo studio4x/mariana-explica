@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
 import { usePublishedProductBySlug } from '@/hooks/useProducts'
 import {
@@ -11,6 +11,8 @@ import {
   type SeoPageKey,
 } from '@/lib/seo'
 import { fetchPublicSeoConfig } from '@/services/admin.service'
+import { publicSupabase } from '@/integrations/supabase'
+import { SITE_SEO_UPDATED_EVENT } from './site-seo'
 
 type SeoScope = 'public' | 'private'
 
@@ -69,6 +71,7 @@ function pageKeyFromPath(pathname: string): SeoPageKey | null {
 }
 
 export function SiteSeoManager({ scope = 'public' }: { scope?: SeoScope }) {
+  const queryClient = useQueryClient()
   const location = useLocation()
   const productSlug =
     scope === 'public' && location.pathname.startsWith('/materiais/')
@@ -84,6 +87,41 @@ export function SiteSeoManager({ scope = 'public' }: { scope?: SeoScope }) {
   const config = normalizeSeoConfigValue(
     seoQuery.data?.config_value ?? DEFAULT_SEO_CONFIG
   )
+
+  useEffect(() => {
+    if (scope !== 'public') return
+
+    const refreshSeo = () => {
+      void queryClient.invalidateQueries({ queryKey: ['site', 'seo'] })
+      void queryClient.refetchQueries({ queryKey: ['site', 'seo'], type: 'active' })
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'mariana-explica:site-seo-updated') refreshSeo()
+    }
+
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener(SITE_SEO_UPDATED_EVENT, refreshSeo)
+
+    const channel = publicSupabase
+      .channel('public-site-seo-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'site_config',
+          filter: 'config_key=eq.site_seo',
+        },
+        refreshSeo
+      )
+      .subscribe()
+
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener(SITE_SEO_UPDATED_EVENT, refreshSeo)
+      void publicSupabase.removeChannel(channel)
+    }
+  }, [queryClient, scope])
 
   const resolved = useMemo(() => {
     if (scope === 'private') {

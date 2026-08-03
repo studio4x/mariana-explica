@@ -8,6 +8,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { MediaLibraryModal } from '@/components/common'
+import { broadcastSiteSeoUpdate } from '@/components/common/site-seo'
 import { ErrorState, LoadingState } from '@/components/feedback'
 import {
   DEFAULT_SEO_CONFIG,
@@ -135,6 +136,7 @@ export function AdminSeoSettings() {
     onSuccess: async (saved) => {
       queryClient.setQueryData(['admin', 'seo'], saved)
       queryClient.setQueryData(['site', 'seo'], saved)
+      broadcastSiteSeoUpdate(saved.updated_at)
       await queryClient.invalidateQueries({ queryKey: ['site', 'seo'] })
     },
   })
