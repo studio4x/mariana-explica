@@ -50,16 +50,17 @@ function escapeMarkdown(value: unknown) {
     .trim()
 }
 
+function usableDescription(value: unknown, fallback: string) {
+  const text = escapeMarkdown(value)
+  return text.length >= 50 && !text.includes('\uFFFD') ? text : fallback
+}
+
 function response(body: string, contentType: string) {
   const headers = new Headers(corsHeaders)
   headers.set('Cache-Control', 'public, max-age=900, stale-while-revalidate=3600')
   headers.set('Content-Type', `${contentType}; charset=utf-8`)
   headers.set('X-Content-Type-Options', 'nosniff')
-
-  return new Response(body, {
-    status: 200,
-    headers,
-  })
+  return new Response(body, { status: 200, headers })
 }
 
 Deno.serve(async (req) => {
@@ -70,9 +71,7 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const file = String(url.searchParams.get('file') ?? 'sitemap')
-      .trim()
-      .toLowerCase()
+    const file = String(url.searchParams.get('file') ?? 'sitemap').trim().toLowerCase()
     const client = createServiceClient()
     const [
       { data: seoRow, error: seoError },
@@ -91,122 +90,96 @@ Deno.serve(async (req) => {
         .eq('sales_page_enabled', true)
         .order('sort_order', { ascending: true }),
     ])
-
     if (seoError) throw seoError
     if (productsError) throw productsError
 
     const config = record(seoRow?.config_value)
     const pages = record(config.pages)
     const baseUrl = baseUrlFromConfig(config)
-    const siteName =
-      String(config.site_name ?? 'Mariana Explica').trim() || 'Mariana Explica'
-    const defaultDescription =
-      String(config.default_description ?? '').trim() ||
-      'Explicações e materiais de Português e Filosofia.'
+    const siteName = String(config.site_name ?? 'Mariana Explica').trim() || 'Mariana Explica'
+    const defaultDescription = usableDescription(
+      config.default_description,
+      '\u0045xplica\u00e7\u00f5es e materiais de Portugu\u00eas e Filosofia.'
+    )
 
     if (file === 'robots') {
       return response(
-        [
-          'User-agent: *',
-          'Allow: /',
-          'Disallow: /api/',
-          '',
-          `Sitemap: ${baseUrl}/sitemap.xml`,
-          '',
-        ].join('\n'),
+        ['User-agent: *', 'Allow: /', 'Disallow: /api/', '', `Sitemap: ${baseUrl}/sitemap.xml`, ''].join('\n'),
         'text/plain'
       )
     }
 
     if (file === 'llms') {
       const materialLines = (products ?? []).map((product) => {
-        const description = escapeMarkdown(product.short_description)
-        return `- [${escapeMarkdown(product.title)}](${baseUrl}/materiais/${encodeURIComponent(product.slug)})${description ? `: ${description}` : ''}`
+        const title = escapeMarkdown(product.title)
+        const description = usableDescription(
+          product.short_description,
+          `Material de estudo de ${title} na Mariana Explica.`
+        )
+        return `- [${title}](${baseUrl}/materiais/${encodeURIComponent(product.slug)}): ${description}`
       })
       const body = [
         `# ${siteName}`,
         '',
         `> ${defaultDescription}`,
         '',
-        'A Mariana Explica disponibiliza explicações, materiais digitais e cursos de Português e Filosofia em português europeu.',
+        'A Mariana Explica disponibiliza explica\u00e7\u00f5es, materiais digitais e cursos de Portugu\u00eas e Filosofia em portugu\u00eas europeu.',
         '',
-        '## Páginas principais',
+        '## P\u00e1ginas principais',
         '',
-        `- [Página inicial](${baseUrl}/)`,
+        `- [P\u00e1gina inicial](${baseUrl}/)`,
         `- [Materiais](${baseUrl}/materiais)`,
-        `- [Explicações](${baseUrl}/explicacoes)`,
+        `- [Explica\u00e7\u00f5es](${baseUrl}/explicacoes)`,
         `- [Sobre](${baseUrl}/sobre)`,
         `- [Suporte](${baseUrl}/suporte)`,
         '',
         '## Materiais publicados',
         '',
-        ...(materialLines.length
-          ? materialLines
-          : [
-              '- Consulta o catálogo público para ver os materiais disponíveis.',
-            ]),
+        ...(materialLines.length ? materialLines : ['- Consulta o cat\u00e1logo p\u00fablico para ver os materiais dispon\u00edveis.']),
         '',
-        '## Políticas',
+        '## Pol\u00edticas',
         '',
         `- [Privacidade](${baseUrl}/privacidade)`,
         `- [Cookies](${baseUrl}/cookies)`,
         `- [Termos de uso](${baseUrl}/termos-de-uso)`,
         '',
-        'O conteúdo das áreas de aluno e administração é privado e não deve ser indexado.',
+        'O conte\u00fado das \u00e1reas de aluno e administra\u00e7\u00e3o \u00e9 privado e n\u00e3o deve ser indexado.',
         '',
       ].join('\n')
       return response(body, 'text/plain')
     }
 
-    if (file !== 'sitemap') {
-      return new Response('Not found', { status: 404 })
-    }
+    if (file !== 'sitemap') return new Response('Not found', { status: 404 })
 
-    const staticLastmod = seoRow?.updated_at
-      ? new Date(seoRow.updated_at).toISOString()
-      : null
-    const urls = STATIC_PAGES.filter(({ key }) => {
-      const page = record(pages[key])
-      return page.index !== false
-    }).map(({ path }) => ({
+    const staticLastmod = seoRow?.updated_at ? new Date(seoRow.updated_at).toISOString() : null
+    const urls = STATIC_PAGES.filter(({ key }) => record(pages[key]).index !== false).map(({ path }) => ({
       loc: `${baseUrl}${path === '/' ? '/' : path}`,
       lastmod: staticLastmod,
     }))
-
     for (const product of products ?? []) {
       urls.push({
         loc: `${baseUrl}/materiais/${encodeURIComponent(product.slug)}`,
-        lastmod: product.updated_at
-          ? new Date(product.updated_at).toISOString()
-          : null,
+        lastmod: product.updated_at ? new Date(product.updated_at).toISOString() : null,
       })
     }
-
     const xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-      ...urls.map(({ loc, lastmod }) =>
-        [
-          '  <url>',
-          `    <loc>${escapeXml(loc)}</loc>`,
-          ...(lastmod ? [`    <lastmod>${escapeXml(lastmod)}</lastmod>`] : []),
-          '  </url>',
-        ].join('\n')
-      ),
+      ...urls.map(({ loc, lastmod }) => [
+        '  <url>',
+        `    <loc>${escapeXml(loc)}</loc>`,
+        ...(lastmod ? [`    <lastmod>${escapeXml(lastmod)}</lastmod>`] : []),
+        '  </url>',
+      ].join('\n')),
       '</urlset>',
       '',
     ].join('\n')
-
     return response(xml, 'application/xml')
   } catch (error) {
     console.error('[public-seo-files]', error)
-    return new Response('Não foi possível gerar o arquivo SEO.', {
+    return new Response('N\u00e3o foi poss\u00edvel gerar o arquivo SEO.', {
       status: 500,
-      headers: {
-        ...corsHeaders,
-        'Cache-Control': 'no-store',
-        'Content-Type': 'text/plain; charset=utf-8',
-      },
+      headers: { ...corsHeaders, 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' },
     })
   }
 })
