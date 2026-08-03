@@ -1,13 +1,25 @@
 import { badRequest, corsHeaders, corsResponse, createSignedReadUrl, createServiceClient, getRequestId, notFound } from "../_shared/mod.ts"
 
-function redirectResponse(url: string) {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      ...corsHeaders,
-      Location: url,
-      "Cache-Control": "private, no-store",
-    },
+async function proxyAssetResponse(url: string, method: "GET" | "HEAD") {
+  // Do not forward Range: crawlers such as Facebook need the complete image
+  // and may otherwise receive a 206 response that they classify as corrupt.
+  const upstream = await fetch(url, { method })
+
+  if (!upstream.ok) {
+    throw new Error(`Falha ao ler asset publico (${upstream.status})`)
+  }
+
+  const headers = new Headers(corsHeaders)
+  for (const headerName of ["content-type", "content-length", "etag", "last-modified"]) {
+    const value = upstream.headers.get(headerName)
+    if (value) headers.set(headerName, value)
+  }
+  headers.set("Cache-Control", "public, max-age=300, s-maxage=3600")
+  headers.set("X-Content-Type-Options", "nosniff")
+
+  return new Response(method === "HEAD" ? null : upstream.body, {
+    status: 200,
+    headers,
   })
 }
 
@@ -15,6 +27,12 @@ Deno.serve(async (req) => {
   const requestId = getRequestId(req)
 
   if (req.method === "OPTIONS") return corsResponse()
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return new Response("Metodo nao permitido", {
+      status: 405,
+      headers: { ...corsHeaders, Allow: "GET, HEAD, OPTIONS", "Content-Type": "text/plain; charset=utf-8" },
+    })
+  }
 
   try {
     const url = new URL(req.url)
@@ -102,7 +120,7 @@ Deno.serve(async (req) => {
       provider: asset.storage_provider === "r2" ? "r2" : "supabase",
     })
 
-    return redirectResponse(signedUrl)
+    return await proxyAssetResponse(signedUrl, req.method)
   } catch (error) {
     const message =
       error instanceof Error ? error.message : `Nao foi possivel abrir o asset publico (${requestId})`
