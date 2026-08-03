@@ -106,8 +106,8 @@
       "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar"
     },
     {
-      "source": "/((?!assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/).*)",
-      "destination": "/"
+      "source": "/((?!api/|assets/|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/).*)",
+      "destination": "/api/seo-html"
     }
   ]
 }
