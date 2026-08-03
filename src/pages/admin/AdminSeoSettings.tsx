@@ -98,6 +98,43 @@ function TextAreaField({
   )
 }
 
+function ImagePreview({
+  src,
+  alt,
+  contain = false,
+}: {
+  src: string
+  alt: string
+  contain?: boolean
+}) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const failed = failedSrc === src
+
+  return (
+    <div className="mt-3 flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
+      {!src ? (
+        <span className="text-xs font-semibold text-slate-500">
+          Sem imagem selecionada
+        </span>
+      ) : failed ? (
+        <span className="px-4 text-center text-xs font-semibold text-rose-600">
+          Não foi possível carregar esta imagem. Confirma o URL ou escolhe outro ficheiro.
+        </span>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          onError={() => setFailedSrc(src)}
+          className={[
+            'h-full w-full rounded-xl',
+            contain ? 'object-contain' : 'object-cover',
+          ].join(' ')}
+        />
+      )}
+    </div>
+  )
+}
+
 function Section({
   title,
   description,
@@ -355,6 +392,10 @@ export function AdminSeoSettings() {
             >
               Escolher na biblioteca de mídia
             </button>
+            <ImagePreview
+              src={state.default_og_image_url}
+              alt="Prévia da imagem social padrão"
+            />
           </div>
           <div>
             <Field
@@ -371,6 +412,11 @@ export function AdminSeoSettings() {
             >
               Escolher na biblioteca de mídia
             </button>
+            <ImagePreview
+              src={state.organization_logo_url}
+              alt="Prévia do logótipo da organização"
+              contain
+            />
           </div>
           <Field
             label="Perfil X/Twitter"
