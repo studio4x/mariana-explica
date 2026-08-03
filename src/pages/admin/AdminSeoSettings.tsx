@@ -7,7 +7,10 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
-import { MediaLibraryModal } from '@/components/common'
+import {
+  MediaLibraryModal,
+  OperationFeedbackModal,
+} from '@/components/common'
 import { broadcastSiteSeoUpdate } from '@/components/common/site-seo'
 import { ErrorState, LoadingState } from '@/components/feedback'
 import {
@@ -122,6 +125,7 @@ export function AdminSeoSettings() {
     'default_og_image_url' | 'organization_logo_url' | null
   >(null)
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false)
+  const [isSavedModalOpen, setIsSavedModalOpen] = useState(false)
   const [feedback, setFeedback] = useState<{
     tone: 'success' | 'danger'
     message: string
@@ -200,10 +204,8 @@ export function AdminSeoSettings() {
     try {
       const saved = await saveSeo.mutateAsync(state)
       setDraft(saved.config_value)
-      setFeedback({
-        tone: 'success',
-        message: 'Configuração SEO guardada e publicada.',
-      })
+      setFeedback(null)
+      setIsSavedModalOpen(true)
     } catch (error) {
       setFeedback({
         tone: 'danger',
@@ -217,13 +219,11 @@ export function AdminSeoSettings() {
 
   return (
     <div className="space-y-6">
-      {feedback ? (
+      {feedback?.tone === 'danger' ? (
         <div
           className={[
             'rounded-2xl border px-4 py-3 text-sm font-medium',
-            feedback.tone === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-              : 'border-rose-200 bg-rose-50 text-rose-900',
+            'border-rose-200 bg-rose-50 text-rose-900',
           ].join(' ')}
         >
           {feedback.message}
@@ -611,6 +611,7 @@ export function AdminSeoSettings() {
             onClick={() => {
               setDraft(null)
               setFeedback(null)
+              setIsSavedModalOpen(false)
             }}
             className="h-11 rounded-full border border-slate-200 px-5 text-sm font-bold text-slate-700"
           >
@@ -689,6 +690,14 @@ export function AdminSeoSettings() {
           </section>
         </div>
       ) : null}
+      <OperationFeedbackModal
+        open={isSavedModalOpen}
+        tone="success"
+        title="Configuração SEO publicada"
+        message="As alterações foram guardadas e já estão disponíveis para a exibição pública do site."
+        confirmLabel="Fechar"
+        onClose={() => setIsSavedModalOpen(false)}
+      />
     </div>
   )
 }
