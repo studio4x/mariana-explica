@@ -501,6 +501,37 @@ export function AdminSeoSettings() {
       </Section>
 
       <Section
+        title="Prévia do resultado no Google"
+        description="Simulação de como a página inicial pode aparecer numa pesquisa. A prévia acompanha os campos acima; o Google pode ajustar o título e a descrição conforme a pesquisa."
+      >
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold text-slate-500">
+              Resultado orgânico · prévia
+            </p>
+            <p className="mt-4 truncate text-sm text-emerald-700">
+              {baseUrl}/
+            </p>
+            <h3 className="mt-1 line-clamp-2 text-xl font-medium leading-7 text-blue-700">
+              {state.default_title || 'Título da página'}
+            </h3>
+            <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+              {state.default_description || 'Descrição da página'}
+            </p>
+          </article>
+          <aside className="rounded-2xl border border-sky-100 bg-sky-50 p-5 text-sm text-sky-950">
+            <p className="font-bold">Boas práticas</p>
+            <ul className="mt-3 space-y-2 leading-5 text-sky-900/80">
+              <li>• Título claro e específico.</li>
+              <li>• Descrição fiel ao conteúdo.</li>
+              <li>• URL canónica em HTTPS.</li>
+              <li>• O Google pode reescrever o snippet.</li>
+            </ul>
+          </aside>
+        </div>
+      </Section>
+
+      <Section
         title="Páginas públicas"
         description="Cada URL tem um título e uma descrição únicos. O texto deve resumir com precisão o conteúdo visível."
       >
