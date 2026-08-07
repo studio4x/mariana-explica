@@ -549,7 +549,17 @@ Deno.serve(async (req) => {
       const assessment = await fetchAssessmentOrThrow(context.serviceClient, context.user.id, attempt.assessment_id)
 
       if (attempt.status !== "in_progress") {
-        throw conflict("A tentativa ja foi submetida e nao aceita novo rascunho")
+        const attemptsUsed = await countAttempts(context.serviceClient, context.user.id, assessment.id)
+        return jsonResponse({
+          ...buildAttemptResponse(
+            assessment,
+            attempt,
+            attemptsUsed,
+            attempt.status !== "pending_review" &&
+              (assessment.max_attempts === null || attemptsUsed < assessment.max_attempts),
+          ),
+          request_id: requestId,
+        })
       }
 
       const answersPayload = normalizeAnswersPayload(body.answersPayload)
@@ -582,7 +592,17 @@ Deno.serve(async (req) => {
       const assessment = await fetchAssessmentOrThrow(context.serviceClient, context.user.id, attempt.assessment_id)
 
       if (attempt.status !== "in_progress") {
-        throw conflict("A tentativa ja foi submetida")
+        const attemptsUsed = await countAttempts(context.serviceClient, context.user.id, assessment.id)
+        return jsonResponse({
+          ...buildAttemptResponse(
+            assessment,
+            attempt,
+            attemptsUsed,
+            attempt.status !== "pending_review" &&
+              (assessment.max_attempts === null || attemptsUsed < assessment.max_attempts),
+          ),
+          request_id: requestId,
+        })
       }
 
       const answersPayload = normalizeAnswersPayload(body.answersPayload ?? attempt.answers_payload)
