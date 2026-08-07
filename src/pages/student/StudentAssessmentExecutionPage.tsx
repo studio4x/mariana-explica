@@ -1,9 +1,9 @@
 import { Link, useOutletContext, useParams } from "react-router-dom"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ClipboardCheck } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
 import { RichTextContent, StatusBadge } from "@/components/common"
+import { useAuth } from "@/contexts/AuthContext"
 import {
   useAccessibleAssessment,
   useAssessmentAttemptState,
@@ -60,6 +60,7 @@ function getAttemptSummary(value: Record<string, unknown> | undefined) {
 export function StudentAssessmentExecutionPage() {
   const { assessmentId } = useParams<{ assessmentId: string }>()
   const context = useOutletContext<StudentCoursePlayerContext>()
+  const { isAdmin } = useAuth()
   const assessmentSummary = context.assessments.find((item) => item.id === assessmentId) ?? null
   const [answers, setAnswers] = useState<Record<string, AssessmentDraftAnswerValue>>({})
   const [previewRequested, setPreviewRequested] = useState(false)
@@ -67,7 +68,12 @@ export function StudentAssessmentExecutionPage() {
   const assessmentQuery = useAccessibleAssessment(
     assessmentSummary && !assessmentSummary.is_locked ? assessmentSummary.id : undefined,
   )
-  const attemptStateQuery = useAssessmentAttemptState(assessmentQuery.data?.id)
+  // Administrators use this route to preview course content. A preview must not
+  // create or read a student attempt, which is intentionally protected by the
+  // assessment access rules in the Edge Function.
+  const attemptStateQuery = useAssessmentAttemptState(
+    isAdmin ? undefined : assessmentQuery.data?.id,
+  )
   const saveDraft = useSaveAssessmentAttemptDraft()
   const submitAttempt = useSubmitAssessmentAttempt()
   const hydratedAttemptIdRef = useRef<string | null>(null)
@@ -94,7 +100,7 @@ export function StudentAssessmentExecutionPage() {
   )
   const officialState = attemptStateQuery.data ?? null
   const officialAttempt = officialState?.attempt ?? null
-  const attemptLocked = officialAttempt ? officialAttempt.status !== "in_progress" : true
+  const attemptLocked = isAdmin ? false : officialAttempt ? officialAttempt.status !== "in_progress" : true
   const officialSummary = getAttemptSummary(officialAttempt?.result_payload)
 
   useEffect(() => {
@@ -238,21 +244,10 @@ export function StudentAssessmentExecutionPage() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5 text-amber-700" />
-            <p className="font-semibold text-slate-950">Execução da avaliação</p>
-          </div>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            Esta tela consome o `builder_payload` para renderizar as perguntas no player e usa tentativa oficial no backend para preservar tentativas, score e validação segura.
-          </p>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            O resultado local abaixo funciona apenas como apoio visual do player. A tentativa oficial continua a ser persistida, validada e decidida pelo backend.
-          </p>
-        </div>
       </section>
 
-      <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
+      {!isAdmin ? (
+        <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Tentativa oficial</h2>
@@ -416,7 +411,8 @@ export function StudentAssessmentExecutionPage() {
             />
           </div>
         )}
-      </section>
+        </section>
+      ) : null}
 
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
