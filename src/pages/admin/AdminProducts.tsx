@@ -22,7 +22,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { EmptyState, ErrorState } from "@/components/feedback"
-import { StatusBadge } from "@/components/common"
+import { RichTextContent, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import {
   useAdminProductCategories,
@@ -884,9 +884,11 @@ export function AdminProducts() {
                     </span>
                   </div>
 
-                  <p className="h-[40px] text-sm leading-relaxed text-slate-500 line-clamp-2">
-                    {clampDescription(course.description ?? course.short_description)}
-                  </p>
+                  <RichTextContent
+                    value={course.description ?? course.short_description}
+                    fallback={clampDescription(null)}
+                    className="h-[40px] overflow-hidden text-sm leading-5 text-slate-500 [&>*:last-child]:mb-0"
+                  />
 
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
                     <Link
