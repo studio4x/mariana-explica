@@ -48,6 +48,7 @@ interface AttemptRow {
 
 type AttemptInput =
   | { action: "get_state"; assessmentId: string }
+  | { action: "start_attempt"; assessmentId: string }
   | { action: "save_draft"; attemptId: string; answersPayload?: Record<string, unknown> }
   | { action: "submit"; attemptId: string; answersPayload?: Record<string, unknown> }
 
@@ -420,24 +421,92 @@ Deno.serve(async (req) => {
         })
       }
 
-      if (assessment.max_attempts !== null && attemptsUsed >= assessment.max_attempts) {
-        const { data: latestAttempt, error: latestAttemptError } = await context.serviceClient
-          .from("assessment_attempts")
-          .select("id,user_id,assessment_id,product_id,module_id,attempt_number,status,answers_payload,result_payload,auto_score_percent,final_score_percent,requires_manual_review,passed,started_at,last_saved_at,submitted_at,evaluated_at,created_at,updated_at")
-          .eq("user_id", context.user.id)
-          .eq("assessment_id", assessmentId)
-          .order("attempt_number", { ascending: false })
-          .limit(1)
-          .maybeSingle()
+      const { data: latestAttempt, error: latestAttemptError } = await context.serviceClient
+        .from("assessment_attempts")
+        .select("id,user_id,assessment_id,product_id,module_id,attempt_number,status,answers_payload,result_payload,auto_score_percent,final_score_percent,requires_manual_review,passed,started_at,last_saved_at,submitted_at,evaluated_at,created_at,updated_at")
+        .eq("user_id", context.user.id)
+        .eq("assessment_id", assessmentId)
+        .order("attempt_number", { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-        if (latestAttemptError) {
-          throw latestAttemptError
+      if (latestAttemptError) {
+        throw latestAttemptError
+      }
+
+      if (!latestAttempt) {
+        const { data: createdAttempt, error: createAttemptError } = await context.serviceClient
+          .from("assessment_attempts")
+          .insert({
+            user_id: context.user.id,
+            assessment_id: assessment.id,
+            product_id: assessment.product_id,
+            module_id: assessment.module_id,
+            attempt_number: attemptsUsed + 1,
+            status: "in_progress",
+            answers_payload: {},
+            result_payload: {},
+            started_at: new Date().toISOString(),
+            last_saved_at: new Date().toISOString(),
+          })
+          .select("id,user_id,assessment_id,product_id,module_id,attempt_number,status,answers_payload,result_payload,auto_score_percent,final_score_percent,requires_manual_review,passed,started_at,last_saved_at,submitted_at,evaluated_at,created_at,updated_at")
+          .single()
+
+        if (createAttemptError) {
+          throw createAttemptError
         }
 
         return jsonResponse({
-          ...buildAttemptResponse(assessment, (latestAttempt as AttemptRow | null) ?? null, attemptsUsed, false),
+          ...buildAttemptResponse(assessment, createdAttempt as AttemptRow, attemptsUsed + 1, true),
           request_id: requestId,
         })
+      }
+
+      // A completed attempt must never be replaced during a state read.
+      // Subsequent attempts are created only through start_attempt.
+      const canStartNewAttempt =
+        (latestAttempt as AttemptRow | null)?.status !== "pending_review" &&
+        (assessment.max_attempts === null || attemptsUsed < assessment.max_attempts)
+
+      return jsonResponse({
+        ...buildAttemptResponse(
+          assessment,
+          (latestAttempt as AttemptRow | null) ?? null,
+          attemptsUsed,
+          canStartNewAttempt,
+        ),
+        request_id: requestId,
+      })
+    }
+
+    if (body.action === "start_attempt") {
+      const assessmentId = requireText(body.assessmentId, "assessmentId")
+      const assessment = await fetchAssessmentOrThrow(context.serviceClient, context.user.id, assessmentId)
+      const attemptsUsed = await countAttempts(context.serviceClient, context.user.id, assessmentId)
+
+      const { data: openAttempt, error: openAttemptError } = await context.serviceClient
+        .from("assessment_attempts")
+        .select("id,user_id,assessment_id,product_id,module_id,attempt_number,status,answers_payload,result_payload,auto_score_percent,final_score_percent,requires_manual_review,passed,started_at,last_saved_at,submitted_at,evaluated_at,created_at,updated_at")
+        .eq("user_id", context.user.id)
+        .eq("assessment_id", assessmentId)
+        .eq("status", "in_progress")
+        .order("attempt_number", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (openAttemptError) {
+        throw openAttemptError
+      }
+
+      if (openAttempt) {
+        return jsonResponse({
+          ...buildAttemptResponse(assessment, openAttempt as AttemptRow, attemptsUsed, true),
+          request_id: requestId,
+        })
+      }
+
+      if (assessment.max_attempts !== null && attemptsUsed >= assessment.max_attempts) {
+        throw conflict("O limite de tentativas desta avaliacao foi atingido")
       }
 
       const { data: createdAttempt, error: createAttemptError } = await context.serviceClient

@@ -657,6 +657,13 @@ export async function fetchAssessmentAttemptState(assessmentId: string) {
   })
 }
 
+export async function startAssessmentAttempt(assessmentId: string) {
+  return invokeStudentAssessmentFunction<AssessmentAttemptState & { success: true }>({
+    action: "start_attempt",
+    assessmentId,
+  })
+}
+
 export async function saveAssessmentAttemptDraft(input: {
   attemptId: string
   answersPayload: Record<string, unknown>

@@ -10,6 +10,7 @@ import {
   fetchAccessibleAssessment,
   fetchAccessibleLesson,
   fetchAssessmentAttemptState,
+  startAssessmentAttempt,
   fetchDashboardOverview,
   fetchExpiredRenewalProducts,
   fetchDashboardProductContent,
@@ -205,6 +206,17 @@ export function useAssessmentAttemptState(assessmentId: string | undefined) {
     queryFn: () => fetchAssessmentAttemptState(assessmentId ?? ""),
     enabled: Boolean(assessmentId),
     staleTime: DASHBOARD_QUERY_STALE_TIME,
+  })
+}
+
+export function useStartAssessmentAttempt() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: startAssessmentAttempt,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "assessment"] })
+    },
   })
 }
 

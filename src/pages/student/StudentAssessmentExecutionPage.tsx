@@ -8,6 +8,7 @@ import {
   useAccessibleAssessment,
   useAssessmentAttemptState,
   useSaveAssessmentAttemptDraft,
+  useStartAssessmentAttempt,
   useSubmitAssessmentAttempt,
 } from "@/hooks/useDashboard"
 import {
@@ -65,6 +66,7 @@ export function StudentAssessmentExecutionPage() {
   const [answers, setAnswers] = useState<Record<string, AssessmentDraftAnswerValue>>({})
   const [previewRequested, setPreviewRequested] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const assessmentQuery = useAccessibleAssessment(
     assessmentSummary && !assessmentSummary.is_locked ? assessmentSummary.id : undefined,
   )
@@ -75,9 +77,11 @@ export function StudentAssessmentExecutionPage() {
     isAdmin ? undefined : assessmentQuery.data?.id,
   )
   const saveDraft = useSaveAssessmentAttemptDraft()
+  const startAttempt = useStartAssessmentAttempt()
   const submitAttempt = useSubmitAssessmentAttempt()
   const hydratedAttemptIdRef = useRef<string | null>(null)
   const lastSavedSignatureRef = useRef<string>("{}")
+  const isSubmittingRef = useRef(false)
 
   const assessment = assessmentQuery.data ?? null
   const module = assessment?.module_id
@@ -119,6 +123,7 @@ export function StudentAssessmentExecutionPage() {
 
   useEffect(() => {
     if (!officialAttempt || officialAttempt.status !== "in_progress") return
+    if (isSubmitting) return
     if (hydratedAttemptIdRef.current !== officialAttempt.id) return
     if (answersSignature === lastSavedSignatureRef.current) return
 
@@ -134,12 +139,14 @@ export function StudentAssessmentExecutionPage() {
           setAutosaveStatus("saved")
         })
         .catch(() => {
-          setAutosaveStatus("error")
+          if (!isSubmittingRef.current) {
+            setAutosaveStatus("error")
+          }
         })
     }, 700)
 
     return () => window.clearTimeout(timeout)
-  }, [answers, answersSignature, officialAttempt, saveDraft])
+  }, [answers, answersSignature, isSubmitting, officialAttempt, saveDraft])
 
   if (!assessmentSummary) {
     return (
@@ -210,6 +217,8 @@ export function StudentAssessmentExecutionPage() {
   const handleSubmitOfficialAttempt = async () => {
     if (!officialAttempt) return
 
+    isSubmittingRef.current = true
+    setIsSubmitting(true)
     try {
       await submitAttempt.mutateAsync({
         attemptId: officialAttempt.id,
@@ -219,7 +228,16 @@ export function StudentAssessmentExecutionPage() {
       await attemptStateQuery.refetch()
     } catch {
       // The mutation already surfaces the backend error via its status and we show a generic message below.
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
     }
+  }
+
+  const handleStartOfficialAttempt = async () => {
+    if (!assessment) return
+
+    await startAttempt.mutateAsync(assessment.id)
+    await attemptStateQuery.refetch()
   }
 
   return (
@@ -400,6 +418,17 @@ export function StudentAssessmentExecutionPage() {
               ) : null}
               {!officialState?.can_start_new_attempt && officialAttempt.status !== "in_progress" ? (
                 <StatusBadge label="Limite de tentativas atingido" tone="warning" />
+              ) : null}
+              {officialAttempt.status !== "in_progress" && officialState?.can_start_new_attempt ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => void handleStartOfficialAttempt()}
+                  disabled={startAttempt.isPending}
+                >
+                  {startAttempt.isPending ? "A preparar..." : "Iniciar nova tentativa"}
+                </Button>
               ) : null}
             </div>
           </div>
