@@ -2,7 +2,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { RichTextContent, StatusBadge } from "@/components/common"
+import { OperationFeedbackModal, RichTextContent, StatusBadge } from "@/components/common"
 import { useAuth } from "@/contexts/AuthContext"
 import {
   useAccessibleAssessment,
@@ -22,6 +22,7 @@ import {
   studentCourseLessonPath,
 } from "@/lib/routes"
 import type { StudentCoursePlayerContext } from "./StudentCoursePlayerLayout"
+import type { AssessmentAttemptSummary } from "@/types/app.types"
 
 const questionTypeLabels = {
   single_choice: "Multipla escolha",
@@ -67,6 +68,9 @@ export function StudentAssessmentExecutionPage() {
   const [previewRequested, setPreviewRequested] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitConfirmationOpen, setIsSubmitConfirmationOpen] = useState(false)
+  const [submittedAttemptFeedback, setSubmittedAttemptFeedback] = useState<AssessmentAttemptSummary | null>(null)
+  const [submissionError, setSubmissionError] = useState<string | null>(null)
   const assessmentQuery = useAccessibleAssessment(
     assessmentSummary && !assessmentSummary.is_locked ? assessmentSummary.id : undefined,
   )
@@ -219,15 +223,22 @@ export function StudentAssessmentExecutionPage() {
 
     isSubmittingRef.current = true
     setIsSubmitting(true)
+    setSubmissionError(null)
     try {
-      await submitAttempt.mutateAsync({
+      const response = await submitAttempt.mutateAsync({
         attemptId: officialAttempt.id,
         answersPayload: answers,
       })
       setPreviewRequested(true)
       await attemptStateQuery.refetch()
-    } catch {
-      // The mutation already surfaces the backend error via its status and we show a generic message below.
+      setIsSubmitConfirmationOpen(false)
+      setSubmittedAttemptFeedback(response.attempt)
+    } catch (error) {
+      setSubmissionError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível submeter a avaliação. Tenta novamente.",
+      )
       isSubmittingRef.current = false
       setIsSubmitting(false)
     }
@@ -238,7 +249,24 @@ export function StudentAssessmentExecutionPage() {
 
     await startAttempt.mutateAsync(assessment.id)
     await attemptStateQuery.refetch()
+    isSubmittingRef.current = false
+    setIsSubmitting(false)
   }
+
+  const submittedScore =
+    submittedAttemptFeedback?.final_score_percent ?? submittedAttemptFeedback?.auto_score_percent ?? null
+  const submittedResultTitle =
+    submittedAttemptFeedback?.status === "passed"
+      ? "Avaliação aprovada"
+      : submittedAttemptFeedback?.status === "failed"
+        ? "Avaliação concluída"
+        : "Avaliação em revisão"
+  const submittedResultMessage =
+    submittedAttemptFeedback?.status === "passed"
+      ? "Parabéns! A tua submissão foi registada com sucesso."
+      : submittedAttemptFeedback?.status === "failed"
+        ? "A tua submissão foi registada. Podes consultar o resultado abaixo e tentar novamente, se estiver disponível."
+        : "A tua submissão foi registada e será revista antes de o resultado final ficar disponível."
 
   return (
     <div className="flex flex-col gap-6">
@@ -410,7 +438,7 @@ export function StudentAssessmentExecutionPage() {
                 <Button
                   type="button"
                   className="rounded-full"
-                  onClick={() => void handleSubmitOfficialAttempt()}
+                  onClick={() => setIsSubmitConfirmationOpen(true)}
                   disabled={submitAttempt.isPending}
                 >
                   {submitAttempt.isPending ? "A submeter..." : "Submeter avaliação"}
@@ -635,6 +663,59 @@ export function StudentAssessmentExecutionPage() {
           </div>
         </div>
       </section>
+
+      <OperationFeedbackModal
+        open={isSubmitConfirmationOpen}
+        tone="info"
+        title="Submeter avaliação?"
+        message="Depois de submeteres, não poderás alterar as respostas desta tentativa."
+        confirmLabel="Submeter avaliação"
+        isConfirming={submitAttempt.isPending}
+        onClose={() => {
+          setIsSubmitConfirmationOpen(false)
+          setSubmissionError(null)
+        }}
+        onConfirm={() => void handleSubmitOfficialAttempt()}
+      >
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          Respondeste a <strong>{draftResult.answeredCount}</strong> de <strong>{draftResult.totalQuestions}</strong> pergunta(s).
+        </div>
+        {submissionError ? <p className="mt-3 text-sm font-medium text-rose-700">{submissionError}</p> : null}
+      </OperationFeedbackModal>
+
+      <OperationFeedbackModal
+        open={Boolean(submittedAttemptFeedback)}
+        tone={
+          submittedAttemptFeedback?.status === "failed"
+            ? "error"
+            : submittedAttemptFeedback?.status === "pending_review"
+              ? "info"
+              : "success"
+        }
+        title={submittedResultTitle}
+        message={submittedResultMessage}
+        confirmLabel="Ver avaliação"
+        onClose={() => setSubmittedAttemptFeedback(null)}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nota</p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">
+              {submittedScore === null ? "Em revisão" : `${submittedScore}%`}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado</p>
+            <p className="mt-1 text-sm font-bold text-slate-950">
+              {submittedAttemptFeedback?.status === "passed"
+                ? "Aprovada"
+                : submittedAttemptFeedback?.status === "failed"
+                  ? "Não aprovada"
+                  : "Em revisão"}
+            </p>
+          </div>
+        </div>
+      </OperationFeedbackModal>
     </div>
   )
 }
