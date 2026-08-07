@@ -301,7 +301,7 @@ export function CourseOverviewPanel() {
                           <span className="truncate text-sm font-medium text-amber-800">Quiz: {assessment.title}</span>
                         </div>
                         <Button asChild variant="ghost" className="rounded-xl text-amber-700 hover:bg-amber-100 hover:text-amber-800">
-                          <Link to={`${adminCourseModulePath(courseId, module.id)}/avalia??es/${assessment.id}`}>Editar Quiz</Link>
+                          <Link to={adminCourseModuleAssessmentPath(courseId, module.id, assessment.id)}>Editar Quiz</Link>
                         </Button>
                       </div>
                     ))}

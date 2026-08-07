@@ -856,7 +856,7 @@ function AdminCourseBuilderContent() {
                             {moduleAssessments.map((assessment) => (
                               <div key={assessment.id} className="flex items-center gap-1">
                                 <NavLink
-                                  to={`${adminCourseModulePath(courseId, module.id)}/avalia??es/${assessment.id}`}
+                                  to={adminCourseModuleAssessmentPath(courseId, module.id, assessment.id)}
                                   className={({ isActive }) =>
                                     `flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-[13px] font-medium transition ${
                                       isActive
