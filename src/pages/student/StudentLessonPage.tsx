@@ -108,7 +108,7 @@ export function StudentLessonPage() {
     return (
       <EmptyState
         title="Conteúdo indisponivel"
-        message="O backend não libertou o conteúdo completo desta aula para a tua sessão."
+        message="Não foi possível carregar o conteúdo completo desta aula. Tenta novamente dentro de instantes."
       />
     )
   }

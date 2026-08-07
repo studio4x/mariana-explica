@@ -267,12 +267,12 @@ export function StudentCoursePlayerLayout() {
   const [searchQuery, setSearchQuery] = useState("")
   const { data, isLoading, isError, error, refetch } = useDashboardProductContent(courseId)
 
-  if (isLoading) return <LoadingState message="A abrir o player do material..." />
+  if (isLoading) return <LoadingState message="A abrir o material..." />
 
   if (isError) {
     return (
       <ErrorState
-        title="Não foi possível abrir o player"
+        title="Não foi possível abrir o material"
         message={error instanceof Error ? error.message : "Tenta novamente dentro de instantes."}
         onRetry={() => void refetch()}
       />
@@ -390,7 +390,7 @@ export function StudentCoursePlayerLayout() {
               <StatusBadge label={`${progressPercent}% concluído`} tone="warning" />
               <StatusBadge label={`${data.modules.length} módulos`} tone="info" />
               <Button asChild variant="outline" className="h-8 rounded-full px-3 text-xs font-black">
-                <Link to={studentCoursePath(product.id)}>Sair do player</Link>
+                <Link to={studentCoursePath(product.id)}>Sair do material</Link>
               </Button>
             </div>
           </div>

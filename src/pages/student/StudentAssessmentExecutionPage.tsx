@@ -181,7 +181,7 @@ export function StudentAssessmentExecutionPage() {
     return (
       <EmptyState
         title="Conteúdo indisponivel"
-        message="O backend não libertou o payload completo desta avaliação para a tua sessão."
+        message="Não foi possível carregar o conteúdo completo desta avaliação. Tenta novamente dentro de instantes."
       />
     )
   }
@@ -233,7 +233,7 @@ export function StudentAssessmentExecutionPage() {
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-950">{assessment.title}</h1>
             <RichTextContent
               value={assessment.description}
-              fallback="Avaliação ligada ao material, com score validado no backend."
+              fallback="Avaliação disponível neste material."
               className="mt-3 max-w-3xl text-sm leading-8 text-slate-600"
             />
           </div>
@@ -250,9 +250,9 @@ export function StudentAssessmentExecutionPage() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Tentativa oficial</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">A tua avaliação</h2>
             <p className="mt-1 text-sm text-slate-600">
-              O backend controla inicio, persistencia, limite de tentativas e resultado oficial desta avaliação.
+              Responde às perguntas e submete a avaliação quando terminares.
             </p>
           </div>
           {officialState ? (
@@ -261,7 +261,7 @@ export function StudentAssessmentExecutionPage() {
                 label={
                   officialAttempt
                     ? `Tentativa ${officialAttempt.attempt_number}`
-                    : "Sem tentativa oficial"
+                    : "Avaliação em preparação"
                 }
                 tone="neutral"
               />
@@ -279,12 +279,12 @@ export function StudentAssessmentExecutionPage() {
 
         {attemptStateQuery.isLoading ? (
           <div className="mt-6">
-            <LoadingState message="A preparar a tentativa oficial..." />
+            <LoadingState message="A preparar a avaliação..." />
           </div>
         ) : attemptStateQuery.isError ? (
           <div className="mt-6">
             <ErrorState
-              title="Não foi possível abrir a tentativa"
+              title="Não foi possível preparar a avaliação"
               message={
                 attemptStateQuery.error instanceof Error
                   ? attemptStateQuery.error.message
@@ -297,7 +297,7 @@ export function StudentAssessmentExecutionPage() {
           <div className="mt-6 space-y-4">
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Estado oficial</p>
+                <p className="text-sm text-slate-500">Estado da avaliação</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
                   {officialAttempt.status === "in_progress"
                     ? "Em andamento"
@@ -311,27 +311,27 @@ export function StudentAssessmentExecutionPage() {
                 </p>
               </div>
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Score oficial</p>
+                <p className="text-sm text-slate-500">Resultado</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
                   {officialAttempt.final_score_percent !== null
                     ? `${officialAttempt.final_score_percent}%`
                     : officialAttempt.auto_score_percent !== null
-                      ? `${officialAttempt.auto_score_percent}% auto`
+                      ? `${officialAttempt.auto_score_percent}%`
                       : "--"}
                 </p>
               </div>
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Guardado</p>
+                <p className="text-sm text-slate-500">Respostas</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
                   {autosaveStatus === "saving"
                     ? "A guardar"
                     : autosaveStatus === "error"
                       ? "Falhou"
-                      : "Sincronizado"}
+                      : "Guardadas"}
                 </p>
               </div>
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Submissao</p>
+                <p className="text-sm text-slate-500">Entrega</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
                   {officialAttempt.submitted_at ? "Enviada" : "Pendente"}
                 </p>
@@ -342,19 +342,19 @@ export function StudentAssessmentExecutionPage() {
               <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {submitAttempt.error instanceof Error
                   ? submitAttempt.error.message
-                  : "Não foi possível submeter a tentativa oficial."}
+                  : "Não foi possível submeter a avaliação."}
               </div>
             ) : null}
 
             {officialAttempt.status === "in_progress" ? (
               <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-700">
-                O rascunho desta tentativa esta a ser persistido automaticamente no backend enquanto respondes.
+                As tuas respostas são guardadas automaticamente enquanto respondes.
               </div>
             ) : null}
 
             {officialAttempt.status === "pending_review" ? (
               <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-700">
-                Esta tentativa entrou em revisão oficial porque existem respostas discursivas ou blocos que não podem ser corrigidos apenas por gabarito automático.
+                Esta avaliação será revista antes de o resultado ficar disponível.
               </div>
             ) : null}
 
@@ -367,7 +367,7 @@ export function StudentAssessmentExecutionPage() {
                   </p>
                 </div>
                 <div className="rounded-[1.5rem] border bg-white p-4">
-                  <p className="text-sm text-slate-500">Autoavaliaveis</p>
+                  <p className="text-sm text-slate-500">Correção automática</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">
                     {String(officialSummary.auto_gradable_questions ?? "--")}
                   </p>
@@ -395,7 +395,7 @@ export function StudentAssessmentExecutionPage() {
                   onClick={() => void handleSubmitOfficialAttempt()}
                   disabled={submitAttempt.isPending}
                 >
-                  {submitAttempt.isPending ? "A submeter..." : "Submeter tentativa oficial"}
+                  {submitAttempt.isPending ? "A submeter..." : "Submeter avaliação"}
                 </Button>
               ) : null}
               {!officialState?.can_start_new_attempt && officialAttempt.status !== "in_progress" ? (
@@ -406,8 +406,8 @@ export function StudentAssessmentExecutionPage() {
         ) : (
           <div className="mt-6">
             <EmptyState
-              title="Tentativa indisponivel"
-              message="Não foi possível abrir uma tentativa oficial para esta avaliação."
+              title="Avaliação indisponível"
+              message="Não foi possível preparar esta avaliação. Tenta novamente dentro de instantes."
             />
           </div>
         )}
@@ -419,13 +419,13 @@ export function StudentAssessmentExecutionPage() {
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Perguntas da avaliação</h2>
             <p className="mt-1 text-sm text-slate-600">
-              O player mostra a estrutura configurada pelo builder e recolhe respostas localmente.
+              Responde às perguntas abaixo e, quando terminares, submete a avaliação.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <StatusBadge label={`${questions.length} pergunta(s)`} tone="info" />
             {draftResult.autoGradableCount > 0 ? (
-              <StatusBadge label={`${draftResult.autoGradableCount} autoavaliaveis`} tone="warning" />
+            <StatusBadge label={`${draftResult.autoGradableCount} com correção automática`} tone="warning" />
             ) : null}
           </div>
         </div>
@@ -434,7 +434,7 @@ export function StudentAssessmentExecutionPage() {
           <div className="mt-6">
             <EmptyState
               title="Sem estrutura de perguntas"
-              message="O builder desta avaliação ainda não publicou um payload de questoes reconhecivel pelo player."
+              message="Esta avaliação ainda não tem perguntas disponíveis."
             />
           </div>
         ) : (
@@ -516,7 +516,7 @@ export function StudentAssessmentExecutionPage() {
 
                   {previewRequested && question.feedback ? (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
-                      <p className="font-semibold text-slate-950">Feedback do gabarito</p>
+                      <p className="font-semibold text-slate-950">Feedback</p>
                       <RichTextContent value={question.feedback} className="mt-1 leading-7" />
                     </div>
                   ) : null}
@@ -531,13 +531,13 @@ export function StudentAssessmentExecutionPage() {
         <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-slate-950">Resultado local do rascunho</h2>
+              <h2 className="font-display text-2xl font-bold text-slate-950">Resumo das respostas</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Esta leitura ajuda no fluxo do player, mas a nota oficial continua reservada ao backend.
+                Consulta uma estimativa com base nas respostas que selecionaste.
               </p>
             </div>
             <Button type="button" className="rounded-full" onClick={() => setPreviewRequested(true)}>
-              Corrigir rascunho
+              Ver estimativa
             </Button>
           </div>
 
@@ -549,7 +549,7 @@ export function StudentAssessmentExecutionPage() {
               </p>
             </div>
             <div className="rounded-[1.5rem] border bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Autoavaliaveis</p>
+              <p className="text-sm text-slate-500">Correção automática</p>
               <p className="mt-2 text-3xl font-bold text-slate-950">{draftResult.autoGradableCount}</p>
             </div>
             <div className="rounded-[1.5rem] border bg-slate-50 p-4">
@@ -557,7 +557,7 @@ export function StudentAssessmentExecutionPage() {
               <p className="mt-2 text-3xl font-bold text-slate-950">{draftResult.manualReviewCount}</p>
             </div>
             <div className="rounded-[1.5rem] border bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Score local</p>
+              <p className="text-sm text-slate-500">Resultado estimado</p>
               <p className="mt-2 text-3xl font-bold text-slate-950">
                 {previewRequested && draftResult.scorePercent !== null ? `${draftResult.scorePercent}%` : "--"}
               </p>
@@ -565,7 +565,7 @@ export function StudentAssessmentExecutionPage() {
           </div>
 
           <p className="mt-4 text-sm leading-7 text-slate-600">
-            Questoes discursivas, estudos de caso e outros formatos sem gabarito direto ficam marcados para revisão manual e não entram no score local.
+            Perguntas de resposta aberta podem precisar de revisão antes de o resultado ficar disponível.
           </p>
         </section>
       ) : null}
@@ -573,7 +573,7 @@ export function StudentAssessmentExecutionPage() {
       <section className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-950">Navegação do player</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-950">Navegação pelo material</h2>
             <p className="mt-1 text-sm text-slate-600">Segue para o item anterior ou continua para a proxima etapa.</p>
           </div>
           <div className="flex flex-wrap gap-3">
