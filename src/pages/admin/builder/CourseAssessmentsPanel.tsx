@@ -423,7 +423,7 @@ export function CourseAssessmentsPanel() {
       </section>
 
       {selectedAssessment ? (
-        <AssessmentBuilderWorkspace productId={courseId} assessment={selectedAssessment} modules={modules} />
+        <AssessmentBuilderWorkspace key={selectedAssessment.id} productId={courseId} assessment={selectedAssessment} modules={modules} />
       ) : null}
 
       <OperationFeedbackModal

@@ -102,6 +102,7 @@ export function CourseFinalAssessmentDetailPanel() {
       </section>
 
       <AssessmentBuilderWorkspace
+        key={finalAssessment.id}
         productId={courseId}
         assessment={finalAssessment}
         modules={modules}

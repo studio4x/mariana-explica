@@ -43,7 +43,7 @@ export function CourseModuleAssessmentDetailPanel() {
         </div>
       </section>
 
-      <AssessmentBuilderWorkspace productId={courseId} assessment={assessment} modules={modules} />
+      <AssessmentBuilderWorkspace key={assessment.id} productId={courseId} assessment={assessment} modules={modules} />
     </div>
   )
 }
