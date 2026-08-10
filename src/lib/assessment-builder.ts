@@ -151,3 +151,9 @@ export function buildAssessmentPayload(questions: AssessmentBuilderQuestionDraft
     })),
   }
 }
+
+export function findQuestionsMissingAnswerKey(questions: AssessmentBuilderQuestionDraft[]) {
+  return questions.flatMap((question, index) =>
+    question.kind === "single_choice" && !question.options.some((option) => option.isCorrect) ? [index + 1] : [],
+  )
+}

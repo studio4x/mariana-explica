@@ -1,7 +1,14 @@
 import { useMemo, useState, type ChangeEvent } from "react"
 import { Button } from "@/components/ui"
 import { OperationFeedbackModal, RichTextEditor, StatusBadge } from "@/components/common"
-import { createAssessmentDraft, createEmptyQuestionDraft, buildAssessmentPayload, assessmentQuestionTypeOptions, type AssessmentBuilderDraft } from "@/lib/assessment-builder"
+import {
+  createAssessmentDraft,
+  createEmptyQuestionDraft,
+  buildAssessmentPayload,
+  assessmentQuestionTypeOptions,
+  findQuestionsMissingAnswerKey,
+  type AssessmentBuilderDraft,
+} from "@/lib/assessment-builder"
 import { useUpdateAdminProductAssessment } from "@/hooks/useAdmin"
 import type { ProductAssessmentSummary, ProductModuleSummary } from "@/types/app.types"
 
@@ -23,11 +30,12 @@ export function AssessmentBuilderWorkspace({
 }: AssessmentBuilderWorkspaceProps) {
   const updateAssessment = useUpdateAdminProductAssessment()
   const [draft, setDraft] = useState<AssessmentBuilderDraft>(() => createAssessmentDraft(assessment))
-  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null)
   const selectedModule = useMemo(
     () => (draft.moduleId ? modules.find((item) => item.id === draft.moduleId) ?? null : null),
     [draft.moduleId, modules],
   )
+  const questionsMissingAnswerKey = useMemo(() => findQuestionsMissingAnswerKey(draft.questions), [draft.questions])
 
   const handleQuestionKindChange = (questionId: string, nextKind: AssessmentBuilderDraft["questions"][number]["kind"]) => {
     setDraft((prev) => ({
@@ -136,6 +144,8 @@ export function AssessmentBuilderWorkspace({
       return
     }
 
+    const shouldKeepInactive = questionsMissingAnswerKey.length > 0
+
     try {
       await updateAssessment.mutateAsync({
         assessmentId: assessment.id,
@@ -149,13 +159,22 @@ export function AssessmentBuilderWorkspace({
         passingScore: parseInteger(draft.passingScore, 70),
         maxAttempts: draft.maxAttempts.trim() ? parseInteger(draft.maxAttempts, 1) : null,
         estimatedMinutes: parseInteger(draft.estimatedMinutes, 15),
-        isActive: draft.isActive,
+        isActive: shouldKeepInactive ? false : draft.isActive,
         builderPayload: buildAssessmentPayload(draft.questions),
       })
     } catch (submitError) {
       setFeedback({
         tone: "error",
         message: submitError instanceof Error ? submitError.message : "Não foi possível guardar a avaliação.",
+      })
+      return
+    }
+
+    if (shouldKeepInactive) {
+      setDraft((prev) => ({ ...prev, isActive: false }))
+      setFeedback({
+        tone: "info",
+        message: `Avaliação guardada como inativa. Defina o gabarito da(s) pergunta(s) ${questionsMissingAnswerKey.join(", ")} antes de publicar.`,
       })
       return
     }
@@ -299,10 +318,11 @@ export function AssessmentBuilderWorkspace({
           <label className="flex items-center gap-2 rounded-2xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <input
               type="checkbox"
-              checked={draft.isActive}
+              checked={draft.isActive && questionsMissingAnswerKey.length === 0}
+              disabled={questionsMissingAnswerKey.length > 0}
               onChange={(event) => setDraft((prev) => ({ ...prev, isActive: event.target.checked }))}
             />
-            Avaliação ativa
+            {questionsMissingAnswerKey.length > 0 ? "Publicação bloqueada até definir o gabarito" : "Avaliação ativa"}
           </label>
         </div>
       </section>
@@ -329,6 +349,15 @@ export function AssessmentBuilderWorkspace({
             Nova pergunta
           </Button>
         </div>
+
+        {questionsMissingAnswerKey.length > 0 ? (
+          <div className="mt-6 rounded-[1.25rem] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-semibold">Publicação bloqueada: faltam respostas de gabarito.</p>
+            <p className="mt-1 leading-6">
+              Defina pelo menos uma alternativa correta nas perguntas {questionsMissingAnswerKey.join(", ")}. Ao guardar, o quiz será mantido como inativo.
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-6 space-y-4">
           {draft.questions.map((question, index) => (

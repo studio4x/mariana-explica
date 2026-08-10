@@ -171,6 +171,32 @@ function normalizeBuilderPayload(value: unknown) {
   return value as Record<string, unknown>
 }
 
+function getQuestionsMissingAnswerKey(payload: Record<string, unknown>) {
+  if (!Array.isArray(payload.questions)) return [] as number[]
+
+  return payload.questions.flatMap((rawQuestion, index) => {
+    if (!rawQuestion || typeof rawQuestion !== "object" || Array.isArray(rawQuestion)) return []
+
+    const question = rawQuestion as Record<string, unknown>
+    const questionType = typeof question.type === "string" ? question.type.trim().toLowerCase() : ""
+    if (!["single_choice", "single-choice", "multiple_choice", "multiple-choice"].includes(questionType)) {
+      return []
+    }
+
+    const hasAnswerKey =
+      Array.isArray(question.options) &&
+      question.options.some(
+        (rawOption) =>
+          rawOption &&
+          typeof rawOption === "object" &&
+          !Array.isArray(rawOption) &&
+          (rawOption as Record<string, unknown>).isCorrect === true,
+      )
+
+    return hasAnswerKey ? [] : [index + 1]
+  })
+}
+
 function normalizeNullablePositiveInteger(value: unknown, label: string) {
   const parsed = normalizeNullableNumber(value)
   if (parsed === null) return null
@@ -694,6 +720,11 @@ Deno.serve(async (req) => {
         await ensureModuleBelongsToProduct(serviceClient, moduleId, productId)
       }
 
+      const builderPayload = normalizeBuilderPayload(body.builder_payload)
+      const questionsMissingAnswerKey = getQuestionsMissingAnswerKey(builderPayload)
+      const isActive =
+        (body.is_active !== undefined ? Boolean(body.is_active) : true) && questionsMissingAnswerKey.length === 0
+
       const { data, error } = await serviceClient
         .from("product_assessments")
         .insert({
@@ -712,8 +743,8 @@ Deno.serve(async (req) => {
             body.estimated_minutes !== undefined && Number.isFinite(body.estimated_minutes)
               ? body.estimated_minutes
               : 15,
-          is_active: body.is_active !== undefined ? Boolean(body.is_active) : true,
-          builder_payload: normalizeBuilderPayload(body.builder_payload),
+          is_active: isActive,
+          builder_payload: builderPayload,
           created_by: context.user.id,
         })
         .select(assessmentSelect)
@@ -741,7 +772,7 @@ Deno.serve(async (req) => {
       const assessmentId = requireUuid(body.assessmentId, "assessmentId")
       const { data: existingAssessment, error: existingError } = await serviceClient
         .from("product_assessments")
-        .select("id,product_id,module_id,assessment_type,title")
+        .select("id,product_id,module_id,assessment_type,title,is_active,builder_payload")
         .eq("id", assessmentId)
         .maybeSingle()
 
@@ -753,6 +784,12 @@ Deno.serve(async (req) => {
         body.assessment_type !== undefined
           ? normalizeAssessmentType(body.assessment_type)
           : existingAssessment.assessment_type
+      const nextBuilderPayload =
+        body.builder_payload !== undefined
+          ? normalizeBuilderPayload(body.builder_payload)
+          : normalizeBuilderPayload(existingAssessment.builder_payload)
+      const questionsMissingAnswerKey = getQuestionsMissingAnswerKey(nextBuilderPayload)
+      const requestedIsActive = body.is_active !== undefined ? Boolean(body.is_active) : Boolean(existingAssessment.is_active)
 
       if (body.title !== undefined) {
         const title = normalizeNullableText(body.title)
@@ -769,8 +806,12 @@ Deno.serve(async (req) => {
         payload.max_attempts = normalizeNullablePositiveInteger(body.max_attempts, "max_attempts")
       }
       if (body.estimated_minutes !== undefined) payload.estimated_minutes = body.estimated_minutes
-      if (body.is_active !== undefined) payload.is_active = Boolean(body.is_active)
-      if (body.builder_payload !== undefined) payload.builder_payload = normalizeBuilderPayload(body.builder_payload)
+      if (body.builder_payload !== undefined) payload.builder_payload = nextBuilderPayload
+      if (requestedIsActive && questionsMissingAnswerKey.length > 0) {
+        payload.is_active = false
+      } else if (body.is_active !== undefined) {
+        payload.is_active = requestedIsActive
+      }
       if (body.assessment_type !== undefined) payload.assessment_type = nextAssessmentType
 
       if (nextAssessmentType === "module") {
