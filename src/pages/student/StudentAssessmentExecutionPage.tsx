@@ -68,6 +68,7 @@ export function StudentAssessmentExecutionPage() {
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitConfirmationOpen, setIsSubmitConfirmationOpen] = useState(false)
+  const [isNewAttemptConfirmationOpen, setIsNewAttemptConfirmationOpen] = useState(false)
   const [isViewingResult, setIsViewingResult] = useState(false)
   const [submittedAttemptFeedback, setSubmittedAttemptFeedback] = useState<AssessmentAttemptSummary | null>(null)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
@@ -86,6 +87,13 @@ export function StudentAssessmentExecutionPage() {
   const hydratedAttemptIdRef = useRef<string | null>(null)
   const lastSavedSignatureRef = useRef<string>("{}")
   const isSubmittingRef = useRef(false)
+  const quizStartRef = useRef<HTMLElement | null>(null)
+
+  const scrollToQuizStart = () => {
+    window.requestAnimationFrame(() => {
+      quizStartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
 
   const assessment = assessmentQuery.data ?? null
   const module = assessment?.module_id
@@ -250,6 +258,8 @@ export function StudentAssessmentExecutionPage() {
     await startAttempt.mutateAsync(assessment.id)
     await attemptStateQuery.refetch()
     setIsViewingResult(false)
+    setIsNewAttemptConfirmationOpen(false)
+    scrollToQuizStart()
     isSubmittingRef.current = false
     setIsSubmitting(false)
   }
@@ -412,7 +422,7 @@ export function StudentAssessmentExecutionPage() {
             ) : null}
 
             {officialSummary ? (
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-3 [&>div:nth-child(2)]:hidden">
                 <div className="rounded-[1.5rem] border bg-white p-4">
                   <p className="text-sm text-slate-500">Respondidas</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">
@@ -456,7 +466,10 @@ export function StudentAssessmentExecutionPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => setIsViewingResult(true)}
+                  onClick={() => {
+                    setIsViewingResult(true)
+                    scrollToQuizStart()
+                  }}
                 >
                   Ver resultado
                 </Button>
@@ -469,7 +482,7 @@ export function StudentAssessmentExecutionPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => void handleStartOfficialAttempt()}
+                  onClick={() => setIsNewAttemptConfirmationOpen(true)}
                   disabled={startAttempt.isPending}
                 >
                   {startAttempt.isPending ? "A preparar..." : "Iniciar nova tentativa"}
@@ -488,7 +501,7 @@ export function StudentAssessmentExecutionPage() {
         </section>
       ) : null}
 
-      <section className="order-2 rounded-[1.75rem] border bg-white p-6 shadow-sm">
+      <section ref={quizStartRef} className="order-2 rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-950">Perguntas da avaliação</h2>
@@ -613,6 +626,7 @@ export function StudentAssessmentExecutionPage() {
         )}
       </section>
 
+      {/* The response summary is intentionally omitted from quiz execution.
       {questions.length > 0 ? (
         <section className="order-4 rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -651,7 +665,7 @@ export function StudentAssessmentExecutionPage() {
             Perguntas de resposta aberta podem precisar de revisão antes de o resultado ficar disponível.
           </p>
         </section>
-      ) : null}
+      ) : null} */}
 
       <section className="order-5 rounded-[1.75rem] border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -689,7 +703,7 @@ export function StudentAssessmentExecutionPage() {
           </div>
         </div>
 
-        {isViewingResult ? (
+        {false && isViewingResult ? (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
             <p>
               <strong className="text-slate-950">Visualização do resultado.</strong> O gabarito e o feedback aparecem apenas neste modo.
@@ -719,6 +733,17 @@ export function StudentAssessmentExecutionPage() {
         </div>
         {submissionError ? <p className="mt-3 text-sm font-medium text-rose-700">{submissionError}</p> : null}
       </OperationFeedbackModal>
+
+      <OperationFeedbackModal
+        open={isNewAttemptConfirmationOpen}
+        tone="info"
+        title="Iniciar nova tentativa?"
+        message="As respostas desta nova tentativa começam em branco."
+        confirmLabel="Iniciar tentativa"
+        isConfirming={startAttempt.isPending}
+        onClose={() => setIsNewAttemptConfirmationOpen(false)}
+        onConfirm={() => void handleStartOfficialAttempt()}
+      />
 
       <OperationFeedbackModal
         open={Boolean(submittedAttemptFeedback)}
