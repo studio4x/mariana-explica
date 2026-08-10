@@ -306,6 +306,10 @@ function buildAttemptResponse(
   }
 }
 
+function canStartAnotherAttempt(assessment: AssessmentRow, attemptsUsed: number) {
+  return assessment.max_attempts === null || attemptsUsed < assessment.max_attempts
+}
+
 async function fetchAssessmentOrThrow(
   serviceClient: Awaited<ReturnType<typeof requireActiveUser>>["serviceClient"],
   userId: string,
@@ -466,9 +470,7 @@ Deno.serve(async (req) => {
 
       // A completed attempt must never be replaced during a state read.
       // Subsequent attempts are created only through start_attempt.
-      const canStartNewAttempt =
-        (latestAttempt as AttemptRow | null)?.status !== "pending_review" &&
-        (assessment.max_attempts === null || attemptsUsed < assessment.max_attempts)
+      const canStartNewAttempt = canStartAnotherAttempt(assessment, attemptsUsed)
 
       return jsonResponse({
         ...buildAttemptResponse(
@@ -557,8 +559,7 @@ Deno.serve(async (req) => {
             assessment,
             attempt,
             attemptsUsed,
-            attempt.status !== "pending_review" &&
-              (assessment.max_attempts === null || attemptsUsed < assessment.max_attempts),
+            canStartAnotherAttempt(assessment, attemptsUsed),
           ),
           request_id: requestId,
         })
@@ -600,8 +601,7 @@ Deno.serve(async (req) => {
             assessment,
             attempt,
             attemptsUsed,
-            attempt.status !== "pending_review" &&
-              (assessment.max_attempts === null || attemptsUsed < assessment.max_attempts),
+            canStartAnotherAttempt(assessment, attemptsUsed),
           ),
           request_id: requestId,
         })
