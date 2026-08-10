@@ -377,9 +377,9 @@ export function StudentAssessmentExecutionPage() {
                 <p className="text-sm text-slate-500">Resultado</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
                   {officialAttempt.final_score_percent !== null
-                    ? `${officialAttempt.final_score_percent}%/100%`
+                    ? `${officialAttempt.final_score_percent}/100%`
                     : officialAttempt.auto_score_percent !== null
-                      ? `${officialAttempt.auto_score_percent}%/100%`
+                      ? `${officialAttempt.auto_score_percent}/100%`
                       : "--"}
                 </p>
               </div>
@@ -769,7 +769,7 @@ export function StudentAssessmentExecutionPage() {
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nota</p>
             <p className="mt-1 text-2xl font-bold text-slate-950">
-              {submittedScore === null ? "Em revisão" : `${submittedScore}%/100%`}
+              {submittedScore === null ? "Em revisão" : `${submittedScore}/100%`}
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
