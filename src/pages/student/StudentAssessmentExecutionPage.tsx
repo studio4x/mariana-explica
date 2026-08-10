@@ -767,7 +767,7 @@ export function StudentAssessmentExecutionPage() {
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nota</p>
             <p className="mt-1 text-2xl font-bold text-slate-950">
-              {submittedScore === null ? "Em revisão" : `${submittedScore}%`}
+              {submittedScore === null ? "Em revisão" : `${submittedScore}%/100%`}
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
