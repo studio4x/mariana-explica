@@ -59,6 +59,19 @@ function getAttemptSummary(value: Record<string, unknown> | undefined) {
   return value.summary as Record<string, unknown>
 }
 
+function getCorrectAnswerPercentage(summary: Record<string, unknown> | null) {
+  if (!summary) return null
+
+  const totalQuestions = Number(summary.total_questions)
+  const correctQuestions = Number(summary.correct_questions)
+
+  if (!Number.isFinite(totalQuestions) || totalQuestions <= 0 || !Number.isFinite(correctQuestions)) {
+    return null
+  }
+
+  return Math.round((correctQuestions / totalQuestions) * 100)
+}
+
 export function StudentAssessmentExecutionPage() {
   const { assessmentId } = useParams<{ assessmentId: string }>()
   const context = useOutletContext<StudentCoursePlayerContext>()
@@ -120,6 +133,7 @@ export function StudentAssessmentExecutionPage() {
   const canViewResult = !isAdmin && officialAttempt?.status !== "in_progress"
   const shouldShowAnswerFeedback = canViewResult && isViewingResult
   const officialSummary = getAttemptSummary(officialAttempt?.result_payload)
+  const officialCorrectAnswerPercentage = getCorrectAnswerPercentage(officialSummary)
 
   useEffect(() => {
     if (!officialAttempt) return
@@ -264,8 +278,9 @@ export function StudentAssessmentExecutionPage() {
     setIsSubmitting(false)
   }
 
-  const submittedScore =
-    submittedAttemptFeedback?.final_score_percent ?? submittedAttemptFeedback?.auto_score_percent ?? null
+  const submittedCorrectAnswerPercentage = getCorrectAnswerPercentage(
+    getAttemptSummary(submittedAttemptFeedback?.result_payload),
+  )
   const submittedResultTitle =
     submittedAttemptFeedback?.status === "submitted"
       ? "Quiz concluído"
@@ -376,11 +391,7 @@ export function StudentAssessmentExecutionPage() {
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
                 <p className="text-sm text-slate-500">Resultado</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
-                  {officialAttempt.final_score_percent !== null
-                    ? `${officialAttempt.final_score_percent}/100%`
-                    : officialAttempt.auto_score_percent !== null
-                      ? `${officialAttempt.auto_score_percent}/100%`
-                      : "--"}
+                  {officialCorrectAnswerPercentage === null ? "--" : `${officialCorrectAnswerPercentage}/100%`}
                 </p>
               </div>
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
@@ -769,7 +780,7 @@ export function StudentAssessmentExecutionPage() {
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nota</p>
             <p className="mt-1 text-2xl font-bold text-slate-950">
-              {submittedScore === null ? "Em revisão" : `${submittedScore}/100%`}
+              {submittedCorrectAnswerPercentage === null ? "Em revisão" : `${submittedCorrectAnswerPercentage}/100%`}
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3">

@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "357"
-export const BUILD_COMMIT = "quiz-score-display"
+export const BUILD_DEPLOY_NUMBER = "358"
+export const BUILD_COMMIT = "quiz-correct-answer-rate"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
