@@ -109,6 +109,7 @@ export function StudentAssessmentExecutionPage() {
   const officialState = attemptStateQuery.data ?? null
   const officialAttempt = officialState?.attempt ?? null
   const attemptLocked = isAdmin ? false : officialAttempt ? officialAttempt.status !== "in_progress" : true
+  const shouldShowAnswerFeedback = !isAdmin && officialAttempt?.status !== "in_progress"
   const officialSummary = getAttemptSummary(officialAttempt?.result_payload)
 
   useEffect(() => {
@@ -525,15 +526,21 @@ export function StudentAssessmentExecutionPage() {
                         const checked = Array.isArray(currentAnswer)
                           ? currentAnswer.includes(option.value)
                           : currentAnswer === option.value
+                        const isIncorrectSelection = checked && !option.isCorrect
+                        const optionClassName = shouldShowAnswerFeedback
+                          ? option.isCorrect
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-950"
+                            : isIncorrectSelection
+                              ? "border-rose-500 bg-rose-50 text-rose-950"
+                              : "border-slate-200 bg-white text-slate-700"
+                          : checked
+                            ? "border-slate-900 bg-slate-900 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
 
                         return (
                           <label
                             key={option.id}
-                            className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm transition ${
-                              checked
-                                ? "border-slate-900 bg-slate-900 text-white"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
-                            }`}
+                            className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm transition ${optionClassName}`}
                           >
                             <input
                               type={allowsMultiple ? "checkbox" : "radio"}
@@ -548,7 +555,13 @@ export function StudentAssessmentExecutionPage() {
                               }
                               className="mt-1"
                             />
-                            <span>{option.label}</span>
+                            <span className="flex-1">{option.label}</span>
+                            {shouldShowAnswerFeedback && option.isCorrect ? (
+                              <span className="font-semibold text-emerald-700">Resposta correta</span>
+                            ) : null}
+                            {shouldShowAnswerFeedback && isIncorrectSelection ? (
+                              <span className="font-semibold text-rose-700">Resposta incorreta</span>
+                            ) : null}
                           </label>
                         )
                       })}
