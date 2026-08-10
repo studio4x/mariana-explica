@@ -351,6 +351,7 @@ export function CourseModuleDetailPanel() {
           title: assessment.title,
           description: assessment.description,
           isRequired: assessment.is_required,
+          requiresPassingScore: assessment.requires_passing_score,
           passingScore: assessment.passing_score,
           maxAttempts: assessment.max_attempts,
           estimatedMinutes: assessment.estimated_minutes,

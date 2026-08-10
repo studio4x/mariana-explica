@@ -145,6 +145,7 @@ export function AssessmentBuilderWorkspace({
         title: draft.title.trim(),
         description: draft.description.trim() || null,
         isRequired: draft.isRequired,
+        requiresPassingScore: draft.requiresPassingScore,
         passingScore: parseInteger(draft.passingScore, 70),
         maxAttempts: draft.maxAttempts.trim() ? parseInteger(draft.maxAttempts, 1) : null,
         estimatedMinutes: parseInteger(draft.estimatedMinutes, 15),
@@ -175,6 +176,7 @@ export function AssessmentBuilderWorkspace({
           <div className="flex flex-wrap gap-2">
             <StatusBadge label={draft.assessmentType === "final" ? "Final" : "Módulo"} tone={draft.assessmentType === "final" ? "success" : "warning"} />
             {selectedModule ? <StatusBadge label={selectedModule.title} tone="info" /> : null}
+            <StatusBadge label={draft.requiresPassingScore ? "Com aprovação" : "Validação"} tone={draft.requiresPassingScore ? "success" : "neutral"} />
             <StatusBadge label={draft.isActive ? "Ativa" : "Inativa"} tone={draft.isActive ? "success" : "neutral"} />
             <StatusBadge label={`${draft.questions.length} pergunta(s)`} tone="warning" />
           </div>
@@ -232,15 +234,42 @@ export function AssessmentBuilderWorkspace({
               className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
             />
           </label>
-          <label className="space-y-2">
-            <span className="text-sm font-semibold text-slate-800">Nota minima (%)</span>
-            <input
-              value={draft.passingScore}
-              onChange={(event) => setDraft((prev) => ({ ...prev, passingScore: event.target.value }))}
-              placeholder="Nota minima"
-              className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
-            />
-          </label>
+          <fieldset className="space-y-2 md:col-span-2">
+            <legend className="text-sm font-semibold text-slate-800">Objetivo da avaliação</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className={`cursor-pointer rounded-2xl border p-4 text-sm transition ${draft.requiresPassingScore ? "border-sky-500 bg-sky-50" : "bg-slate-50"}`}>
+                <input
+                  type="radio"
+                  name="assessment-scoring-mode"
+                  checked={draft.requiresPassingScore}
+                  onChange={() => setDraft((prev) => ({ ...prev, requiresPassingScore: true }))}
+                />
+                <span className="ml-2 font-semibold text-slate-950">Com pontuação para aprovação</span>
+                <span className="mt-1 block leading-6 text-slate-600">A nota mínima decide se o aluno é aprovado ou reprovado.</span>
+              </label>
+              <label className={`cursor-pointer rounded-2xl border p-4 text-sm transition ${!draft.requiresPassingScore ? "border-sky-500 bg-sky-50" : "bg-slate-50"}`}>
+                <input
+                  type="radio"
+                  name="assessment-scoring-mode"
+                  checked={!draft.requiresPassingScore}
+                  onChange={() => setDraft((prev) => ({ ...prev, requiresPassingScore: false }))}
+                />
+                <span className="ml-2 font-semibold text-slate-950">Apenas validação de conhecimento</span>
+                <span className="mt-1 block leading-6 text-slate-600">Mostra a percentagem e o gabarito, sem aprovação ou reprovação.</span>
+              </label>
+            </div>
+          </fieldset>
+          {draft.requiresPassingScore ? (
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-slate-800">Nota mínima (%)</span>
+              <input
+                value={draft.passingScore}
+                onChange={(event) => setDraft((prev) => ({ ...prev, passingScore: event.target.value }))}
+                placeholder="Nota mínima"
+                className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
+              />
+            </label>
+          ) : null}
           <label className="space-y-2">
             <span className="text-sm font-semibold text-slate-800">Tentativas maximas</span>
             <input

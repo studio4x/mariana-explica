@@ -78,6 +78,7 @@ interface Body {
   lesson_status?: LessonStatus
 
   assessment_type?: AssessmentType
+  requires_passing_score?: boolean
   passing_score?: number
   max_attempts?: number | null
   is_active?: boolean
@@ -151,7 +152,7 @@ const lessonSelect =
   "id,module_id,title,description,position,is_required,lesson_type,youtube_url,text_content,lesson_file_storage_bucket,lesson_file_storage_path,lesson_file_storage_provider,lesson_file_storage_managed,lesson_file_name,lesson_file_mime_type,lesson_file_size_bytes,estimated_minutes,starts_at,ends_at,status,created_at,updated_at"
 
 const assessmentSelect =
-  "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at"
+  "id,product_id,module_id,assessment_type,title,description,is_required,requires_passing_score,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at"
 
 function normalizeAssessmentType(value: unknown): AssessmentType {
   if (value === "module" || value === "final") return value
@@ -702,6 +703,8 @@ Deno.serve(async (req) => {
           title,
           description: normalizeNullableText(body.description),
           is_required: body.is_required !== undefined ? Boolean(body.is_required) : true,
+          requires_passing_score:
+            body.requires_passing_score !== undefined ? Boolean(body.requires_passing_score) : true,
           passing_score:
             body.passing_score !== undefined ? normalizeScore(body.passing_score) : 70,
           max_attempts: normalizeNullablePositiveInteger(body.max_attempts, "max_attempts"),
@@ -758,6 +761,9 @@ Deno.serve(async (req) => {
       }
       if (body.description !== undefined) payload.description = normalizeNullableText(body.description)
       if (body.is_required !== undefined) payload.is_required = Boolean(body.is_required)
+      if (body.requires_passing_score !== undefined) {
+        payload.requires_passing_score = Boolean(body.requires_passing_score)
+      }
       if (body.passing_score !== undefined) payload.passing_score = normalizeScore(body.passing_score)
       if (body.max_attempts !== undefined) {
         payload.max_attempts = normalizeNullablePositiveInteger(body.max_attempts, "max_attempts")

@@ -76,6 +76,7 @@ interface JsonAssessmentRecord {
   title?: unknown
   description?: unknown
   assessment_type?: unknown
+  requires_passing_score?: unknown
   passing_score?: unknown
   max_attempts?: unknown
   estimated_minutes?: unknown
@@ -366,6 +367,7 @@ function normalizeAssessmentFromJson(
       (effectiveType === "final" ? "Avaliação final" : `Quiz do módulo ${index + 1}`),
     description: asNullableText(parsed.description),
     is_required: true,
+    requires_passing_score: asBool(parsed.requires_passing_score, true),
     passing_score: asInt(parsed.passing_score, 70),
     max_attempts:
       parsed.max_attempts === null || parsed.max_attempts === undefined
@@ -566,6 +568,7 @@ function mapAssessmentToJson(assessment: ProductAssessmentSummary) {
     title: assessment.title,
     description: assessment.description ?? "",
     assessment_type: assessment.assessment_type,
+    requires_passing_score: assessment.requires_passing_score,
     passing_score: assessment.passing_score,
     max_attempts: assessment.max_attempts,
     estimated_minutes: assessment.estimated_minutes,
@@ -663,6 +666,7 @@ export function normalizeAssessmentImport(raw: unknown): {
     description: string | null
     assessment_type: "module" | "final"
     module_id: string | null
+    requires_passing_score: boolean
     passing_score: number
     max_attempts: number | null
     estimated_minutes: number
@@ -690,6 +694,7 @@ export function normalizeAssessmentImport(raw: unknown): {
       description: assessmentJson.description,
       assessment_type: assessmentJson.assessment_type,
       module_id: assessmentJson.module_id,
+      requires_passing_score: assessmentJson.requires_passing_score,
       passing_score: assessmentJson.passing_score,
       max_attempts: assessmentJson.max_attempts,
       estimated_minutes: assessmentJson.estimated_minutes,

@@ -257,13 +257,17 @@ export function StudentAssessmentExecutionPage() {
   const submittedScore =
     submittedAttemptFeedback?.final_score_percent ?? submittedAttemptFeedback?.auto_score_percent ?? null
   const submittedResultTitle =
-    submittedAttemptFeedback?.status === "passed"
+    submittedAttemptFeedback?.status === "submitted"
+      ? "Quiz concluído"
+      : submittedAttemptFeedback?.status === "passed"
       ? "Avaliação aprovada"
       : submittedAttemptFeedback?.status === "failed"
         ? "Avaliação concluída"
         : "Avaliação em revisão"
   const submittedResultMessage =
-    submittedAttemptFeedback?.status === "passed"
+    submittedAttemptFeedback?.status === "submitted"
+      ? "A tua submissão foi registada. Consulta a tua percentagem e o gabarito abaixo."
+      : submittedAttemptFeedback?.status === "passed"
       ? "Parabéns! A tua submissão foi registada com sucesso."
       : submittedAttemptFeedback?.status === "failed"
         ? "A tua submissão foi registada. Podes consultar o resultado abaixo e tentar novamente, se estiver disponível."
@@ -346,7 +350,9 @@ export function StudentAssessmentExecutionPage() {
               <div className="rounded-[1.5rem] border bg-slate-50 p-4">
                 <p className="text-sm text-slate-500">Estado da avaliação</p>
                 <p className="mt-2 text-xl font-bold text-slate-950">
-                  {officialAttempt.status === "in_progress"
+                  {officialAttempt.status === "submitted"
+                    ? "Concluída"
+                    : officialAttempt.status === "in_progress"
                     ? "Em andamento"
                     : officialAttempt.status === "passed"
                       ? "Aprovada"
@@ -720,7 +726,9 @@ export function StudentAssessmentExecutionPage() {
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado</p>
             <p className="mt-1 text-sm font-bold text-slate-950">
-              {submittedAttemptFeedback?.status === "passed"
+              {submittedAttemptFeedback?.status === "submitted"
+                ? "Concluída"
+                : submittedAttemptFeedback?.status === "passed"
                 ? "Aprovada"
                 : submittedAttemptFeedback?.status === "failed"
                   ? "Não aprovada"

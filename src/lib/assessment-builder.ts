@@ -26,6 +26,7 @@ export interface AssessmentBuilderDraft {
   assessmentType: ProductAssessmentSummary["assessment_type"]
   moduleId: string | null
   isRequired: boolean
+  requiresPassingScore: boolean
   passingScore: string
   maxAttempts: string
   estimatedMinutes: string
@@ -101,6 +102,7 @@ export function createAssessmentDraft(assessment?: ProductAssessmentSummary | nu
       assessmentType: "module",
       moduleId: null,
       isRequired: true,
+      requiresPassingScore: true,
       passingScore: "70",
       maxAttempts: "",
       estimatedMinutes: "15",
@@ -117,6 +119,7 @@ export function createAssessmentDraft(assessment?: ProductAssessmentSummary | nu
     assessmentType: assessment.assessment_type,
     moduleId: assessment.module_id,
     isRequired: assessment.is_required,
+    requiresPassingScore: assessment.requires_passing_score,
     passingScore: String(assessment.passing_score),
     maxAttempts: assessment.max_attempts === null ? "" : String(assessment.max_attempts),
     estimatedMinutes: String(assessment.estimated_minutes),

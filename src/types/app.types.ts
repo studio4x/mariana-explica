@@ -1182,6 +1182,7 @@ export interface ProductAssessmentSummary {
   title: string
   description: string | null
   is_required: boolean
+  requires_passing_score: boolean
   passing_score: number
   max_attempts: number | null
   estimated_minutes: number
@@ -1200,6 +1201,7 @@ export interface CourseAssessmentNavigationSummary {
   title: string
   description: string | null
   is_required: boolean
+  requires_passing_score: boolean
   passing_score: number
   max_attempts: number | null
   estimated_minutes: number
@@ -1208,7 +1210,7 @@ export interface CourseAssessmentNavigationSummary {
   updated_at: string
   is_locked: boolean
   lock_reason: string | null
-  progress_state: "locked" | "available" | "passed" | "pending_review" | "failed"
+  progress_state: "locked" | "available" | "submitted" | "passed" | "pending_review" | "failed"
 }
 
 export interface AdminAssessmentMutationInput {
@@ -1218,6 +1220,7 @@ export interface AdminAssessmentMutationInput {
   title: string
   description?: string | null
   isRequired?: boolean
+  requiresPassingScore?: boolean
   passingScore?: number
   maxAttempts?: number | null
   estimatedMinutes?: number
@@ -1254,7 +1257,7 @@ export interface AssessmentAttemptSummary {
 export interface AssessmentAttemptState {
   assessment: Pick<
     ProductAssessmentSummary,
-    "id" | "title" | "assessment_type" | "passing_score" | "max_attempts"
+    "id" | "title" | "assessment_type" | "requires_passing_score" | "passing_score" | "max_attempts"
   >
   attempt: AssessmentAttemptSummary | null
   attempts_used: number

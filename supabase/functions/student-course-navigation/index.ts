@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
           .order("position", { ascending: true }),
         context.serviceClient
           .from("product_assessments")
-          .select("id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,created_at,updated_at")
+          .select("id,product_id,module_id,assessment_type,title,description,is_required,requires_passing_score,passing_score,max_attempts,estimated_minutes,is_active,created_at,updated_at")
           .eq("product_id", productId)
           .eq("is_active", true)
           .order("created_at", { ascending: true }),
@@ -262,7 +262,10 @@ Deno.serve(async (req) => {
           }
 
           const latestAttempt = latestAttemptByAssessment.get(candidate.id)
-          return !latestAttempt || !["passed", "pending_review"].includes(latestAttempt.status)
+          const completionStatuses = candidate.requires_passing_score
+            ? ["passed", "pending_review"]
+            : ["submitted", "passed", "pending_review"]
+          return !latestAttempt || !completionStatuses.includes(latestAttempt.status)
         })
 
         if (hasPendingRequiredLesson) {
@@ -279,9 +282,11 @@ Deno.serve(async (req) => {
         ? "locked"
         : latestAttempt?.status === "passed"
           ? "passed"
-          : latestAttempt?.status === "pending_review"
-            ? "pending_review"
-            : latestAttempt?.status === "failed"
+        : latestAttempt?.status === "pending_review"
+          ? "pending_review"
+          : latestAttempt?.status === "submitted"
+            ? "submitted"
+          : latestAttempt?.status === "failed"
               ? "failed"
               : "available"
 

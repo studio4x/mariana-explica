@@ -18,6 +18,7 @@ interface AssessmentRow {
   assessment_type: "module" | "final"
   title: string
   description: string | null
+  requires_passing_score: boolean
   passing_score: number
   max_attempts: number | null
   is_active: boolean
@@ -293,6 +294,7 @@ function buildAttemptResponse(
       id: assessment.id,
       title: assessment.title,
       assessment_type: assessment.assessment_type,
+      requires_passing_score: assessment.requires_passing_score,
       passing_score: assessment.passing_score,
       max_attempts: assessment.max_attempts,
     },
@@ -324,7 +326,7 @@ async function fetchAssessmentOrThrow(
 
   const { data, error } = await serviceClient
     .from("product_assessments")
-    .select("id,product_id,module_id,assessment_type,title,description,passing_score,max_attempts,is_active,builder_payload")
+    .select("id,product_id,module_id,assessment_type,title,description,requires_passing_score,passing_score,max_attempts,is_active,builder_payload")
     .eq("id", assessmentId)
     .maybeSingle()
 
@@ -665,11 +667,16 @@ Deno.serve(async (req) => {
       const finalStatus: AttemptStatus =
         requiresManualReview
           ? "pending_review"
+          : !assessment.requires_passing_score
+            ? "submitted"
           : (autoScorePercent ?? 0) >= assessment.passing_score
             ? "passed"
             : "failed"
       const finalScorePercent = requiresManualReview ? null : autoScorePercent
-      const passed = requiresManualReview ? null : (finalScorePercent ?? 0) >= assessment.passing_score
+      const passed =
+        requiresManualReview || !assessment.requires_passing_score
+          ? null
+          : (finalScorePercent ?? 0) >= assessment.passing_score
       const submittedAt = new Date().toISOString()
 
       const { data: submittedAttempt, error: submitError } = await context.serviceClient

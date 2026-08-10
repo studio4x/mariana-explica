@@ -42,10 +42,12 @@ export function CourseAssessmentsPanel() {
     title: string
     assessmentType: "module" | "final"
     moduleId: string
+    requiresPassingScore: boolean
   }>({
     title: "",
     assessmentType: "module",
     moduleId: "",
+    requiresPassingScore: true,
   })
   const [importJson, setImportJson] = useState("")
   const [importMode, setImportMode] = useState<"create" | "update">("create")
@@ -97,6 +99,7 @@ export function CourseAssessmentsPanel() {
           (createDraft.assessmentType === "final" ? "Avaliação final" : "Novo quiz de módulo"),
         description: null,
         isRequired: true,
+        requiresPassingScore: createDraft.requiresPassingScore,
         passingScore: 70,
         maxAttempts: null,
         estimatedMinutes: 15,
@@ -104,7 +107,7 @@ export function CourseAssessmentsPanel() {
         builderPayload: buildAssessmentPayload([createEmptyQuestionDraft()]),
       })
 
-      setCreateDraft({ title: "", assessmentType: "module", moduleId: "" })
+      setCreateDraft({ title: "", assessmentType: "module", moduleId: "", requiresPassingScore: true })
       setSelectedAssessmentId(created.id)
 
       if (created.assessment_type === "final") {
@@ -149,6 +152,7 @@ export function CourseAssessmentsPanel() {
           title: normalized.assessment.title || selectedAssessment.title,
           description: normalized.assessment.description ?? selectedAssessment.description,
           isRequired: selectedAssessment.is_required,
+          requiresPassingScore: normalized.assessment.requires_passing_score,
           passingScore: normalized.assessment.passing_score ?? selectedAssessment.passing_score,
           maxAttempts: normalized.assessment.max_attempts ?? selectedAssessment.max_attempts,
           estimatedMinutes:
@@ -168,6 +172,7 @@ export function CourseAssessmentsPanel() {
           title: normalized.assessment.title || "Avaliação importada",
           description: normalized.assessment.description ?? null,
           isRequired: true,
+          requiresPassingScore: normalized.assessment.requires_passing_score,
           passingScore: normalized.assessment.passing_score ?? 70,
           maxAttempts: normalized.assessment.max_attempts ?? null,
           estimatedMinutes: normalized.assessment.estimated_minutes ?? 15,
@@ -257,6 +262,27 @@ export function CourseAssessmentsPanel() {
                   <option value="module">Quiz de módulo</option>
                   <option value="final">Avaliação final</option>
                 </select>
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold text-slate-800">Objetivo do quiz</span>
+                  <select
+                    value={createDraft.requiresPassingScore ? "approval" : "validation"}
+                    onChange={(event) =>
+                      setCreateDraft((prev) => ({
+                        ...prev,
+                        requiresPassingScore: event.target.value === "approval",
+                      }))
+                    }
+                    className="h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none focus:border-slate-400"
+                  >
+                    <option value="approval">Com pontuação para aprovação</option>
+                    <option value="validation">Apenas validação de conhecimento</option>
+                  </select>
+                  <span className="block text-xs leading-5 text-slate-500">
+                    {createDraft.requiresPassingScore
+                      ? "A nota mínima define se o aluno é aprovado ou reprovado."
+                      : "A percentagem é mostrada ao aluno, sem aprovação ou reprovação."}
+                  </span>
+                </label>
                 <select
                   value={createDraft.moduleId}
                   disabled={createDraft.assessmentType === "final"}
@@ -355,7 +381,10 @@ export function CourseAssessmentsPanel() {
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {module ? <StatusBadge label={module.title} tone="neutral" /> : null}
-                          <StatusBadge label={`Mínimo ${assessment.passing_score}%`} tone="info" />
+                          <StatusBadge
+                            label={assessment.requires_passing_score ? `Mínimo ${assessment.passing_score}%` : "Validação de conhecimento"}
+                            tone={assessment.requires_passing_score ? "info" : "neutral"}
+                          />
                           <StatusBadge label={assessment.max_attempts ? `${assessment.max_attempts} tentativa(s)` : "Sem limite"} tone="neutral" />
                         </div>
                       </div>

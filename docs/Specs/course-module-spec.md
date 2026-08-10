@@ -265,6 +265,7 @@ Campos principais:
 - `title`
 - `description`
 - `is_required`
+- `requires_passing_score`
 - `passing_score`
 - `max_attempts`
 - `estimated_minutes`
@@ -902,6 +903,7 @@ Recursos:
 - definir pontuacao;
 - definir tentativas;
 - definir nota minima.
+- escolher entre pontuacao para aprovacao e validacao de conhecimento sem aprovacao.
 
 ### 12.3 Tipos de pergunta
 

@@ -579,7 +579,7 @@ export async function fetchProductAssessments(productId: string) {
   const { data, error } = await supabase
     .from("product_assessments")
     .select(
-      "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
+      "id,product_id,module_id,assessment_type,title,description,is_required,requires_passing_score,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
     )
     .eq("product_id", productId)
     .eq("is_active", true)
@@ -596,7 +596,7 @@ export async function fetchAccessibleAssessment(assessmentId: string) {
   const { data, error } = await supabase
     .from("product_assessments")
     .select(
-      "id,product_id,module_id,assessment_type,title,description,is_required,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
+      "id,product_id,module_id,assessment_type,title,description,is_required,requires_passing_score,passing_score,max_attempts,estimated_minutes,is_active,builder_payload,created_by,created_at,updated_at",
     )
     .eq("id", assessmentId)
     .eq("is_active", true)

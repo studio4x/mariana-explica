@@ -126,6 +126,7 @@ const productAssessmentSelect = `
   title,
   description,
   is_required,
+  requires_passing_score,
   passing_score,
   max_attempts,
   estimated_minutes,
