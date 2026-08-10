@@ -65,10 +65,10 @@ export function StudentAssessmentExecutionPage() {
   const { isAdmin } = useAuth()
   const assessmentSummary = context.assessments.find((item) => item.id === assessmentId) ?? null
   const [answers, setAnswers] = useState<Record<string, AssessmentDraftAnswerValue>>({})
-  const [previewRequested, setPreviewRequested] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitConfirmationOpen, setIsSubmitConfirmationOpen] = useState(false)
+  const [isViewingResult, setIsViewingResult] = useState(false)
   const [submittedAttemptFeedback, setSubmittedAttemptFeedback] = useState<AssessmentAttemptSummary | null>(null)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
   const assessmentQuery = useAccessibleAssessment(
@@ -109,7 +109,8 @@ export function StudentAssessmentExecutionPage() {
   const officialState = attemptStateQuery.data ?? null
   const officialAttempt = officialState?.attempt ?? null
   const attemptLocked = isAdmin ? false : officialAttempt ? officialAttempt.status !== "in_progress" : true
-  const shouldShowAnswerFeedback = !isAdmin && officialAttempt?.status !== "in_progress"
+  const canViewResult = !isAdmin && officialAttempt?.status !== "in_progress"
+  const shouldShowAnswerFeedback = canViewResult && isViewingResult
   const officialSummary = getAttemptSummary(officialAttempt?.result_payload)
 
   useEffect(() => {
@@ -120,7 +121,6 @@ export function StudentAssessmentExecutionPage() {
     setAnswers(normalizedAnswers)
     lastSavedSignatureRef.current = JSON.stringify(normalizedAnswers)
     hydratedAttemptIdRef.current = officialAttempt.id
-    setPreviewRequested(Boolean(officialAttempt.submitted_at))
     setAutosaveStatus(officialAttempt.status === "in_progress" ? "saved" : "idle")
   }, [officialAttempt])
 
@@ -230,7 +230,6 @@ export function StudentAssessmentExecutionPage() {
         attemptId: officialAttempt.id,
         answersPayload: answers,
       })
-      setPreviewRequested(true)
       await attemptStateQuery.refetch()
       setIsSubmitConfirmationOpen(false)
       setSubmittedAttemptFeedback(response.attempt)
@@ -250,6 +249,7 @@ export function StudentAssessmentExecutionPage() {
 
     await startAttempt.mutateAsync(assessment.id)
     await attemptStateQuery.refetch()
+    setIsViewingResult(false)
     isSubmittingRef.current = false
     setIsSubmitting(false)
   }
@@ -451,6 +451,16 @@ export function StudentAssessmentExecutionPage() {
                   {submitAttempt.isPending ? "A submeter..." : "Submeter avaliação"}
                 </Button>
               ) : null}
+              {canViewResult ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => setIsViewingResult(true)}
+                >
+                  Ver resultado
+                </Button>
+              ) : null}
               {!officialState?.can_start_new_attempt && officialAttempt.status !== "in_progress" ? (
                 <StatusBadge label="Limite de tentativas atingido" tone="warning" />
               ) : null}
@@ -590,7 +600,7 @@ export function StudentAssessmentExecutionPage() {
                     </div>
                   ) : null}
 
-                  {previewRequested && question.feedback ? (
+                  {shouldShowAnswerFeedback && question.feedback ? (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
                       <p className="font-semibold text-slate-950">Feedback</p>
                       <RichTextContent value={question.feedback} className="mt-1 leading-7" />
@@ -612,9 +622,6 @@ export function StudentAssessmentExecutionPage() {
                 Consulta uma estimativa com base nas respostas que selecionaste.
               </p>
             </div>
-            <Button type="button" className="rounded-full" onClick={() => setPreviewRequested(true)}>
-              Ver estimativa
-            </Button>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-4">
@@ -635,7 +642,7 @@ export function StudentAssessmentExecutionPage() {
             <div className="rounded-[1.5rem] border bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Resultado estimado</p>
               <p className="mt-2 text-3xl font-bold text-slate-950">
-                {previewRequested && draftResult.scorePercent !== null ? `${draftResult.scorePercent}%` : "--"}
+                {shouldShowAnswerFeedback && draftResult.scorePercent !== null ? `${draftResult.scorePercent}%` : "--"}
               </p>
             </div>
           </div>
@@ -681,6 +688,17 @@ export function StudentAssessmentExecutionPage() {
             ) : null}
           </div>
         </div>
+
+        {isViewingResult ? (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-700">
+            <p>
+              <strong className="text-slate-950">Visualização do resultado.</strong> O gabarito e o feedback aparecem apenas neste modo.
+            </p>
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsViewingResult(false)}>
+              Voltar ao quiz
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <OperationFeedbackModal
@@ -714,6 +732,10 @@ export function StudentAssessmentExecutionPage() {
         title={submittedResultTitle}
         message={submittedResultMessage}
         confirmLabel="Ver avaliação"
+        onConfirm={() => {
+          setSubmittedAttemptFeedback(null)
+          setIsViewingResult(true)
+        }}
         onClose={() => setSubmittedAttemptFeedback(null)}
       >
         <div className="grid grid-cols-2 gap-3">
