@@ -474,7 +474,9 @@ export function StudentAssessmentExecutionPage() {
                   Ver resultado
                 </Button>
               ) : null}
-              {!officialState?.can_start_new_attempt && officialAttempt.status !== "in_progress" ? (
+              {officialAttempt.status === "pending_review" ? (
+                <StatusBadge label="A aguardar revisão" tone="warning" />
+              ) : !officialState?.can_start_new_attempt && officialAttempt.status !== "in_progress" ? (
                 <StatusBadge label="Limite de tentativas atingido" tone="warning" />
               ) : null}
               {officialAttempt.status !== "in_progress" && officialState?.can_start_new_attempt ? (
