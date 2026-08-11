@@ -36,6 +36,8 @@ const defaultCreateState: UserFormState = {
   marketingConsent: false,
 }
 
+const USERS_PAGE_SIZE = 10
+
 function roleLabel(role: AdminUserSummary["role"]) {
   if (role === "admin") return "Admin"
   if (role === "affiliate") return "Afiliado"
@@ -129,6 +131,7 @@ export function AdminUsers() {
   const [query, setQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState<UserRoleFilter>("all")
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("all")
+  const [currentPage, setCurrentPage] = useState(1)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AdminUserSummary | null>(null)
@@ -162,6 +165,20 @@ export function AdminUsers() {
       return matchesRole && matchesStatus && matchesQuery
     })
   }, [users, roleFilter, statusFilter, normalizedQuery])
+
+  const pagination = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE))
+    const page = Math.min(Math.max(currentPage, 1), totalPages)
+    const start = (page - 1) * USERS_PAGE_SIZE
+
+    return {
+      currentPage: page,
+      totalPages,
+      start,
+      end: Math.min(start + USERS_PAGE_SIZE, filteredUsers.length),
+      users: filteredUsers.slice(start, start + USERS_PAGE_SIZE),
+    }
+  }, [currentPage, filteredUsers])
 
   const metrics = useMemo(
     () => ({
@@ -401,7 +418,10 @@ export function AdminUsers() {
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm font-semibold text-[#163138] outline-none transition focus:border-[#1398B7] focus:ring-4 focus:ring-[#1398B7]/10"
                   placeholder="Buscar por nome, e-mail, ID ou regra"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value)
+                    setCurrentPage(1)
+                  }}
                 />
               </label>
               <label className="block">
@@ -409,7 +429,10 @@ export function AdminUsers() {
                 <select
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm font-black text-[#163138] outline-none transition focus:border-[#1398B7] focus:ring-4 focus:ring-[#1398B7]/10"
                   value={roleFilter}
-                  onChange={(event) => setRoleFilter(event.target.value as UserRoleFilter)}
+                  onChange={(event) => {
+                    setRoleFilter(event.target.value as UserRoleFilter)
+                    setCurrentPage(1)
+                  }}
                 >
                   <option value="all">Todos os papeis</option>
                   <option value="admin">Admins</option>
@@ -422,7 +445,10 @@ export function AdminUsers() {
                 <select
                   className="h-12 w-full rounded-2xl border border-[#D8E6EB] bg-[#F2F7F9] px-4 text-sm font-black text-[#163138] outline-none transition focus:border-[#1398B7] focus:ring-4 focus:ring-[#1398B7]/10"
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as UserStatusFilter)}
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value as UserStatusFilter)
+                    setCurrentPage(1)
+                  }}
                 >
                   <option value="all">Todos os estados</option>
                   <option value="active">Ativos</option>
@@ -450,7 +476,9 @@ export function AdminUsers() {
 
         <section className="overflow-hidden rounded-[30px] border border-[#D8E6EB] bg-white shadow-sm">
           <div className="border-b border-[#D8E6EB] px-5 py-4">
-            <p className="text-sm font-bold text-[#6d7a80]">{filteredUsers.length} usuário(s) encontrado(s)</p>
+            <p className="text-sm font-bold text-[#6d7a80]">
+              {filteredUsers.length} usuário(s) encontrado(s) · exibindo {pagination.start + 1}-{pagination.end}
+            </p>
           </div>
 
           {filteredUsers.length === 0 ? (
@@ -474,7 +502,7 @@ export function AdminUsers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user) => (
+                  {pagination.users.map((user) => (
                     <tr key={user.id} className="border-t border-[#EDF4F6] align-top transition-colors hover:bg-slate-50/80">
                       <td className="px-4 py-4 text-sm text-[#15323b]">
                         <div className="min-w-[220px] space-y-1">
@@ -578,6 +606,34 @@ export function AdminUsers() {
               </table>
             </div>
           )}
+
+          {filteredUsers.length > 0 ? (
+            <div className="flex flex-col gap-3 border-t border-[#D8E6EB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-[#6d7a80]">
+                Página {pagination.currentPage} de {pagination.totalPages} · 10 usuários por página
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full border-[#D8E6EB] bg-white text-[#15323b] hover:bg-[#F2F7F9]"
+                  disabled={pagination.currentPage <= 1}
+                  onClick={() => setCurrentPage(Math.max(1, pagination.currentPage - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full border-[#D8E6EB] bg-white text-[#15323b] hover:bg-[#F2F7F9]"
+                  disabled={pagination.currentPage >= pagination.totalPages}
+                  onClick={() => setCurrentPage(Math.min(pagination.totalPages, pagination.currentPage + 1))}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </section>
       </section>
 
