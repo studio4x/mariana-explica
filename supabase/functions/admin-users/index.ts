@@ -203,6 +203,7 @@ Deno.serve(async (req) => {
         .select(
           "id,full_name,email,role,is_admin,status,phone,nif,last_login_at,created_at,notifications_enabled,marketing_consent,content_updates_consent",
         )
+        .not("email", "like", "deleted+%@deleted.local")
         .order("created_at", { ascending: false })
 
       if (error) {
