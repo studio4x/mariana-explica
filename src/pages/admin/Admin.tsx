@@ -221,7 +221,7 @@ export function Admin() {
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Utilizadores</p>
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.totalUsers}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Base total sincronizada com o sistema de autenticação.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Contas registadas, sem perfis anonimizados por exclusão.</p>
         </div>
         <div className="rounded-[1.75rem] border bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Materiais publicados</p>

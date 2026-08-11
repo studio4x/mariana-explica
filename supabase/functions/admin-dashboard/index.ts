@@ -32,7 +32,10 @@ Deno.serve(async (req) => {
       emailDeliveries,
       jobRuns,
     ] = await Promise.all([
-      context.serviceClient.from("profiles").select("id", { count: "exact", head: true }),
+      context.serviceClient
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .not("email", "like", "deleted+%@deleted.local"),
       context.serviceClient
         .from("products")
         .select("id", { count: "exact", head: true })
