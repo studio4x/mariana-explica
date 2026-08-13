@@ -138,36 +138,38 @@ export function CourseReviews({ productId }: CourseReviewsProps) {
 
   return (
     <section className="max-w-4xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-700">Reviews</p>
           <h2 className="mt-2 font-display text-3xl font-black text-slate-950">Avaliações dos alunos</h2>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-right shadow-sm">
+        <div className="min-w-[8.75rem] rounded-2xl border border-slate-200 bg-white px-5 py-4 text-right shadow-sm">
           <p className="text-3xl font-black text-slate-950">{Number(stats?.avg_rating ?? 0).toFixed(1)}</p>
           <StarRating value={Number(stats?.avg_rating ?? 0)} readonly size="sm" />
           <p className="mt-1 text-xs font-semibold text-slate-500">{stats?.total_reviews ?? 0} avaliações</p>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-3">
-            {distribution.map((item) => (
-              <div key={item.star} className="grid grid-cols-[44px_1fr_42px] items-center gap-3 text-sm">
-                <span className="font-bold text-slate-700">{item.star} estrelas</span>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-amber-400"
-                    style={{ width: `${ratingDistributionPercent(item.count, stats?.total_reviews ?? 0)}%` }}
-                  />
+      <div className="mt-6 grid gap-5 md:grid-cols-[minmax(15.5rem,17.5rem)_minmax(0,1fr)] md:items-start">
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-3">
+              {distribution.map((item) => (
+                <div key={item.star} className="grid grid-cols-[4.5rem_minmax(0,1fr)_1.25rem] items-center gap-2 text-sm">
+                  <span className="whitespace-nowrap font-bold text-slate-700">{item.star} estrelas</span>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-amber-400"
+                      style={{ width: `${ratingDistributionPercent(item.count, stats?.total_reviews ?? 0)}%` }}
+                    />
+                  </div>
+                  <span className="text-right font-semibold tabular-nums text-slate-500">{item.count}</span>
                 </div>
-                <span className="text-right font-semibold text-slate-500">{item.count}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="mt-6 rounded-lg bg-slate-50 p-4">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-black text-slate-950">
               <MessageSquareText className="h-4 w-4 text-sky-700" />
               Deixar avaliação
