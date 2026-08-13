@@ -334,6 +334,7 @@ export function CourseSettingsPanel() {
       )
 
       const normalizedPricing = normalizeProductPricing(form.productType, priceCents)
+      const isFreeProduct = normalizedPricing.productType === "free"
       const accessExpiresAt = form.accessExpiresAt ? new Date(form.accessExpiresAt).toISOString() : null
       const accessDurationDays = form.accessDurationDays ? Number(form.accessDurationDays) : null
 
@@ -347,7 +348,7 @@ export function CourseSettingsPanel() {
         coverImageStorageProvider: coverStorage.provider,
         shortDescription: shortDescription.trim() || null,
         launchDate: form.launchDate || null,
-        workloadMinutes: Number(form.workloadMinutes || 0),
+        workloadMinutes: isFreeProduct ? 0 : Number(form.workloadMinutes || 0),
         creatorCommissionPercent: form.creatorCommissionPercent ? Number(form.creatorCommissionPercent) : null,
         productType: normalizedPricing.productType,
         status: form.status,
@@ -355,27 +356,27 @@ export function CourseSettingsPanel() {
         priceCents: normalizedPricing.priceCents,
         currency: form.currency.trim().toUpperCase() || "EUR",
         salesPageEnabled: form.salesPageEnabled,
-        requiresAuth: form.requiresAuth,
-        courseChatEnabled: form.courseChatEnabled,
+        requiresAuth: isFreeProduct ? false : form.requiresAuth,
+        courseChatEnabled: isFreeProduct ? false : form.courseChatEnabled,
         isFeatured: form.isFeatured,
-        allowAffiliate: form.allowAffiliate,
+        allowAffiliate: isFreeProduct ? false : form.allowAffiliate,
         sortOrder: Number(form.sortOrder || 0),
         isPublic: form.isPublic,
-        hasLinearProgression: form.hasLinearProgression,
+        hasLinearProgression: isFreeProduct ? false : form.hasLinearProgression,
         quizTypeSettings: {
-          single_choice: form.quizSingleChoice,
+          single_choice: isFreeProduct ? false : form.quizSingleChoice,
           essay_ai: false,
           case_study_ai: false,
         },
         publicPageContent: nextPublicPageContent,
-        accessExpirationMode: form.accessExpirationMode,
-        accessExpiresAt,
-        accessDurationDays,
-        renewalEnabled: form.accessExpirationMode === "lifetime" ? false : form.renewalEnabled,
+        accessExpirationMode: isFreeProduct ? "lifetime" : form.accessExpirationMode,
+        accessExpiresAt: isFreeProduct ? null : accessExpiresAt,
+        accessDurationDays: isFreeProduct ? null : accessDurationDays,
+        renewalEnabled: isFreeProduct || form.accessExpirationMode === "lifetime" ? false : form.renewalEnabled,
         renewalDiscountEnabled:
-          form.accessExpirationMode === "lifetime" ? false : form.renewalEnabled && form.renewalDiscountEnabled,
+          isFreeProduct || form.accessExpirationMode === "lifetime" ? false : form.renewalEnabled && form.renewalDiscountEnabled,
         renewalDiscountPercent:
-          form.accessExpirationMode !== "lifetime" && form.renewalEnabled && form.renewalDiscountEnabled && form.renewalDiscountPercent
+          !isFreeProduct && form.accessExpirationMode !== "lifetime" && form.renewalEnabled && form.renewalDiscountEnabled && form.renewalDiscountPercent
             ? Number(form.renewalDiscountPercent)
             : null,
       })
@@ -701,52 +702,19 @@ export function CourseSettingsPanel() {
           ) : null}
         </section>
 
-        {product.product_type === "free" ? (
-          <section className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50/50 p-5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-700">Material gratuito</p>
-            <h2 className="mt-2 text-lg font-bold text-slate-950">Publicação do material</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              O ficheiro de download é configurado na Visão Geral do Material. Produtos gratuitos não utilizam checkout, alunos, módulos nem avaliações.
-            </p>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Estado do material" helper="O material precisa estar publicado para receber pedidos por e-mail.">
-                <select
-                  value={form.status}
-                  onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as ProductSummary["status"] }))}
-                  className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 text-sm outline-none focus:border-emerald-500"
-                >
-                  <option value="draft">Rascunho</option>
-                  <option value="published">Publicado</option>
-                  <option value="archived">Arquivado</option>
-                </select>
-              </Field>
-              <label className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-4 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={form.isPublic}
-                  onChange={(event) => setForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block font-semibold text-slate-950">Exibir no catálogo público</span>
-                  <span className="mt-1 block text-slate-500">Mantém o material disponível na área comercial.</span>
-                </span>
-              </label>
-            </div>
-          </section>
-        ) : (
-          <>
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Compra e checkout</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">
+              {form.productType === "free" ? "Tipo e publicação" : "Compra e checkout"}
+            </p>
             <h2 className="mt-2 text-lg font-bold text-slate-950">Configuração comercial</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              Estes campos controlam o preço, a visibilidade da página pública e o comportamento do botão de compra.
+              O tipo selecionado controla as funcionalidades disponíveis no builder e o fluxo público deste material.
             </p>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <Field label="Tipo de produto" helper="Pago vai para Stripe; gratuito ativa acesso sem pagamento.">
+            <Field label="Tipo de produto" helper="Pago ativa o builder completo e o Stripe; gratuito ativa a entrega do ficheiro por e-mail.">
               <select
                 value={form.productType}
                 onChange={(event) =>
@@ -773,6 +741,8 @@ export function CourseSettingsPanel() {
                 <option value="archived">Arquivado</option>
               </select>
             </Field>
+            {form.productType !== "free" ? (
+              <>
             <Field label="Preço" helper="Valor em euros. Em produtos pagos, use pelo menos 0.50 para checkout Stripe.">
               <input
                 value={form.price}
@@ -797,6 +767,8 @@ export function CourseSettingsPanel() {
                 className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm uppercase outline-none focus:border-slate-400 focus:bg-white"
               />
             </Field>
+              </>
+            ) : null}
             <Field label="Ordem no catálogo" helper="Números menores aparecem primeiro.">
               <input
                 value={form.sortOrder}
@@ -814,10 +786,17 @@ export function CourseSettingsPanel() {
                   className="mt-1"
                 />
                 <span>
-                  <span className="block font-semibold text-slate-950">Ativar página pública e checkout</span>
-                  <span className="mt-1 block text-slate-500">Permite abrir a página do material e seguir pelo botão de compra.</span>
+                  <span className="block font-semibold text-slate-950">
+                    {form.productType === "free" ? "Ativar página pública" : "Ativar página pública e checkout"}
+                  </span>
+                  <span className="mt-1 block text-slate-500">
+                    {form.productType === "free"
+                      ? "Permite apresentar o material e abrir o formulário de envio por e-mail."
+                      : "Permite abrir a página do material e seguir pelo botão de compra."}
+                  </span>
                 </span>
               </label>
+              {form.productType !== "free" ? (
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -830,6 +809,7 @@ export function CourseSettingsPanel() {
                   <span className="mt-1 block text-slate-500">Mantem a compra vinculada a uma conta de aluno ativa.</span>
                 </span>
               </label>
+              ) : null}
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -842,6 +822,7 @@ export function CourseSettingsPanel() {
                   <span className="mt-1 block text-slate-500">Marca o material como destaque nas Áreas públicas.</span>
                 </span>
               </label>
+              {form.productType !== "free" ? (
               <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -854,9 +835,24 @@ export function CourseSettingsPanel() {
                   <span className="mt-1 block text-slate-500">Mantem o material elegivel para fluxos de afiliados quando ativos.</span>
                 </span>
               </label>
+              ) : (
+                <label className="flex items-start gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.isPublic}
+                    onChange={(event) => setForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-950">Exibir no catálogo público</span>
+                    <span className="mt-1 block text-slate-500">Mantém o material visível na área comercial.</span>
+                  </span>
+                </label>
+              )}
             </div>
           </div>
 
+          {form.productType !== "free" ? (
           <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-800">Término do acesso ao curso</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -971,6 +967,14 @@ export function CourseSettingsPanel() {
               </div>
             ) : null}
           </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-800">Funcionalidades do material gratuito</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Ao guardar como gratuito, o builder fica limitado às configurações, página pública e ficheiro de download. Não há checkout, login, módulos, avaliações ou atribuições.
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5">
@@ -1042,6 +1046,8 @@ export function CourseSettingsPanel() {
           />
         </section>
 
+        {form.productType !== "free" ? (
+          <>
         <section className="rounded-[1.5rem] border border-sky-100 bg-sky-50/60 p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm">
@@ -1112,7 +1118,7 @@ export function CourseSettingsPanel() {
           </label>
         </section>
           </>
-        )}
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>
