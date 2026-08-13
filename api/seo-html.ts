@@ -11,6 +11,7 @@ type NodeResponse = {
 declare const process: { env: Record<string, string | undefined> }
 
 const FALLBACK_ORIGIN = 'https://www.mariana-explica.pt'
+const SUPABASE_URL = 'https://gookhgufsxeplelpdaua.supabase.co'
 
 const PAGE_KEYS: Record<string, string> = {
   '/': 'home',
@@ -58,16 +59,17 @@ function absoluteUrl(baseUrl: string, value: unknown, fallback: string) {
 }
 
 async function readSeoConfig() {
-  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, '')
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!supabaseUrl || !serviceKey) return null
+  // SEO configuration is explicitly public. Use the frontend's public key so
+  // this endpoint does not require a server secret to render crawler metadata.
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim()
+  if (!anonKey) return null
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/site_config?config_key=eq.site_seo&select=config_value&limit=1`,
+    `${SUPABASE_URL}/rest/v1/site_config?config_key=eq.site_seo&select=config_value&limit=1`,
     {
       headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
       },
     }
   )
