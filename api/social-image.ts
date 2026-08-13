@@ -89,7 +89,14 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
     res.statusCode = 200
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Length', String(bytes.length))
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=60')
+    // seo-html versions the public URL with site_config.updated_at. That lets
+    // crawlers cache an image aggressively without keeping an old image after
+    // an administrator changes the configured social image.
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=31536000, s-maxage=31536000, immutable'
+    )
+    res.setHeader('CDN-Cache-Control', 'public, max-age=31536000, immutable')
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.end(req.method === 'HEAD' ? undefined : bytes)
   } catch {

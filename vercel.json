@@ -103,10 +103,11 @@
     { "src": "^/api/public/profile-avatar(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
     { "src": "^/api/public/request-free-download(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/request-free-download" },
     { "src": "^/api/public/redeem-free-download(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/redeem-free-download" },
+    { "src": "^/social-share-image\\.jpg$", "dest": "/api/social-image" },
     { "src": "^/social-image$", "dest": "/api/social-image" },
     { "src": "^/api/(.*)$", "continue": true },
     { "src": "^/index\\.html$", "continue": true },
-    { "src": "^/(?!assets/|api/|favicon$|favicon\\.ico$|index\\.html$|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|sitemap\\.xml$|robots\\.txt$|llms\\.txt$|icons/|social-image$|social-preview-1200x630\\.jpg$).*$", "dest": "/api/seo-html" },
+    { "src": "^/(?!assets/|api/|favicon$|favicon\\.ico$|index\\.html$|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|sitemap\\.xml$|robots\\.txt$|llms\\.txt$|icons/|social-image$|social-share-image\\.jpg$|social-preview-1200x630\\.jpg$).*$", "dest": "/api/seo-html" },
     { "handle": "filesystem" },
     { "src": "^/(.*)$", "dest": "/" }
   ]

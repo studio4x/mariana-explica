@@ -12,6 +12,8 @@ declare const process: { env: Record<string, string | undefined> }
 
 const FALLBACK_ORIGIN = 'https://www.mariana-explica.pt'
 const SUPABASE_URL = 'https://gookhgufsxeplelpdaua.supabase.co'
+const SOCIAL_IMAGE_WIDTH = 1200
+const SOCIAL_IMAGE_HEIGHT = 627
 
 const PAGE_KEYS: Record<string, string> = {
   '/': 'home',
@@ -43,10 +45,6 @@ function replaceMeta(html: string, selector: string, tag: string) {
   return pattern.test(html)
     ? html.replace(pattern, tag)
     : html.replace('</head>', `    ${tag}\n  </head>`)
-}
-
-function removeMeta(html: string, selector: string) {
-  return html.replace(new RegExp(`\\s*<meta ${selector}[^>]*>`, 'gi'), '')
 }
 
 function absoluteUrl(baseUrl: string, value: unknown, fallback: string) {
@@ -143,7 +141,10 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
     const imageVersion = encodeURIComponent(
       configRow?.updated_at?.trim() || 'default'
     )
-    const image = `${baseUrl}/social-image?v=${imageVersion}`
+    // Keep a stable, crawler-facing path outside /api. The configured source
+    // stays editable in the admin, while updated_at changes this versioned URL
+    // whenever that configuration is saved.
+    const image = `${baseUrl}/social-share-image.jpg?v=${imageVersion}`
     const locale = String(config?.locale ?? 'pt_PT')
     const imageAlt = `${title} — ${siteName}`
 
@@ -195,6 +196,16 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
     )
     html = replaceMeta(
       html,
+      'property="og:image:width"',
+      `<meta property="og:image:width" content="${SOCIAL_IMAGE_WIDTH}" />`
+    )
+    html = replaceMeta(
+      html,
+      'property="og:image:height"',
+      `<meta property="og:image:height" content="${SOCIAL_IMAGE_HEIGHT}" />`
+    )
+    html = replaceMeta(
+      html,
       'property="og:image:alt"',
       `<meta property="og:image:alt" content="${escapeHtml(imageAlt)}" />`
     )
@@ -213,8 +224,6 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
       'name="twitter:image"',
       `<meta name="twitter:image" content="${escapeHtml(image)}" />`
     )
-    html = removeMeta(html, 'property="og:image:width"')
-    html = removeMeta(html, 'property="og:image:height"')
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
 
     res.statusCode = 200
