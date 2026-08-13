@@ -108,6 +108,10 @@ import {
   requestLessonFileAccess,
   uploadAdminModulePdf,
   uploadAdminProductCover,
+  uploadAdminFreeProductDownloadFile,
+  fetchAdminFreeProductDownloadFile,
+  saveAdminFreeProductDownloadFile,
+  requestAdminFreeProductDownloadTest,
   uploadAdminWatermarkLogoFile,
   updateAdminAffiliate,
   updateAdminCoupon,
@@ -1251,6 +1255,43 @@ export function useUpdateAdminProductAssessment() {
 export function useDeleteAdminModuleAsset() {
   const invalidate = useAdminInvalidation()
   return useMutation({ mutationFn: deleteAdminModuleAsset, onSuccess: invalidate })
+}
+
+export function useAdminFreeProductDownloadFile(productId: string | undefined) {
+  return useQuery({
+    queryKey: ["admin", "free-product-download-file", productId],
+    queryFn: () => fetchAdminFreeProductDownloadFile(productId ?? ""),
+    enabled: Boolean(productId),
+    ...getAdminQueryOptions(),
+  })
+}
+
+export function useUploadAdminFreeProductDownloadFile() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+  return useMutation({
+    mutationFn: uploadAdminFreeProductDownloadFile,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "free-product-download-file"] })
+      invalidate()
+    },
+  })
+}
+
+export function useSaveAdminFreeProductDownloadFile() {
+  const queryClient = useQueryClient()
+  const invalidate = useAdminInvalidation()
+  return useMutation({
+    mutationFn: saveAdminFreeProductDownloadFile,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "free-product-download-file"] })
+      invalidate()
+    },
+  })
+}
+
+export function useAdminFreeProductDownloadTest() {
+  return useMutation({ mutationFn: requestAdminFreeProductDownloadTest })
 }
 
 export function useUploadAdminLessonFile() {

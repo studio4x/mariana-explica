@@ -15,6 +15,7 @@ import {
   useCreateAdminProductModule,
 } from "@/hooks/useAdmin"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
+import { FreeProductDownloadPanel } from "./FreeProductDownloadPanel"
 
 function formatDuration(totalMinutes: number) {
   if (totalMinutes <= 0) return "0 min"
@@ -26,6 +27,11 @@ function formatDuration(totalMinutes: number) {
 }
 
 export function CourseOverviewPanel() {
+  const { product } = useAdminCourseBuilderContext()
+  return product.product_type === "free" ? <FreeProductDownloadPanel /> : <PaidCourseOverviewPanel />
+}
+
+function PaidCourseOverviewPanel() {
   const { courseId, product, modules, assessments, lessonsByModule, totalLessons } = useAdminCourseBuilderContext()
   const navigate = useNavigate()
   const createModule = useCreateAdminProductModule()

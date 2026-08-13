@@ -1,5 +1,5 @@
 import { useQueries } from "@tanstack/react-query"
-import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom"
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   AlertTriangle,
   BookOpen,
@@ -221,6 +221,17 @@ function AdminCourseBuilderContent() {
         message="Este material não esta disponível no catálogo administrativo."
       />
     )
+  }
+
+  const isFreeProduct = product.product_type === "free"
+  const normalizedPath = location.pathname.replace(/\/$/, "")
+  const freeProductAllowedPaths = [
+    adminCourseBuilderPath(courseId),
+    adminCourseSettingsPath(courseId),
+    adminCoursePublicPagePath(courseId),
+  ]
+  if (isFreeProduct && !freeProductAllowedPaths.includes(normalizedPath)) {
+    return <Navigate to={adminCourseSettingsPath(courseId)} replace />
   }
 
   const assessments = assessmentsQuery.data ?? []
@@ -705,7 +716,7 @@ function AdminCourseBuilderContent() {
               />
             </div>
             <p className="hidden text-xs uppercase tracking-[0.28em] text-slate-500 md:block">
-              Builder do material
+              {isFreeProduct ? "Material gratuito" : "Builder do material"}
             </p>
           </div>
         </div>
@@ -752,6 +763,8 @@ function AdminCourseBuilderContent() {
               </NavLink>
             </nav>
 
+            {!isFreeProduct ? (
+              <>
             <div className={`mt-5 ${isSidebarOpen ? "" : "px-0"}`}>
               <div className="space-y-2">
                 {modules.length === 0 ? (
@@ -990,6 +1003,8 @@ function AdminCourseBuilderContent() {
             {builderError && isSidebarOpen ? (
               <p className="mt-4 text-sm text-rose-700">{builderError}</p>
             ) : null}
+              </>
+            ) : null}
           </div>
 
           <div className="border-t border-slate-100 px-3 py-3">
@@ -1018,6 +1033,8 @@ function AdminCourseBuilderContent() {
                   </>
                 )}
               </NavLink>
+              {!isFreeProduct ? (
+                <>
               <NavLink
                 to={adminCourseReleasesPath(courseId)}
                 className={({ isActive }) => getBuilderMenuLinkClassName(isActive, isSidebarOpen)}
@@ -1068,6 +1085,8 @@ function AdminCourseBuilderContent() {
                 <Sparkles className="h-4 w-4 shrink-0" />
                 {isSidebarOpen ? "Importar Conteúdo (IA)" : null}
               </button>
+                </>
+              ) : null}
             </div>
           </div>
         </aside>

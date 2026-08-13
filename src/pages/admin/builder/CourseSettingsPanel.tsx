@@ -701,6 +701,41 @@ export function CourseSettingsPanel() {
           ) : null}
         </section>
 
+        {product.product_type === "free" ? (
+          <section className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50/50 p-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-700">Material gratuito</p>
+            <h2 className="mt-2 text-lg font-bold text-slate-950">Publicação do material</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              O ficheiro de download é configurado na Visão Geral do Material. Produtos gratuitos não utilizam checkout, alunos, módulos nem avaliações.
+            </p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <Field label="Estado do material" helper="O material precisa estar publicado para receber pedidos por e-mail.">
+                <select
+                  value={form.status}
+                  onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as ProductSummary["status"] }))}
+                  className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-4 text-sm outline-none focus:border-emerald-500"
+                >
+                  <option value="draft">Rascunho</option>
+                  <option value="published">Publicado</option>
+                  <option value="archived">Arquivado</option>
+                </select>
+              </Field>
+              <label className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-4 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.isPublic}
+                  onChange={(event) => setForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-950">Exibir no catálogo público</span>
+                  <span className="mt-1 block text-slate-500">Mantém o material disponível na área comercial.</span>
+                </span>
+              </label>
+            </div>
+          </section>
+        ) : (
+          <>
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Compra e checkout</p>
@@ -1076,6 +1111,8 @@ export function CourseSettingsPanel() {
             </span>
           </label>
         </section>
+          </>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>

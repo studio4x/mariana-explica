@@ -7,6 +7,7 @@ export type StorageUploadKind =
   | "module_pdf"
   | "module_asset"
   | "lesson_file"
+  | "free_product_download"
   | "product_cover"
   | "branding_asset"
   | "watermark_logo"

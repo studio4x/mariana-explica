@@ -27,6 +27,7 @@ type UploadKind =
   | "module_pdf"
   | "module_asset"
   | "lesson_file"
+  | "free_product_download"
   | "product_cover"
   | "branding_asset"
   | "watermark_logo"
@@ -275,6 +276,37 @@ async function resolveLessonFilePathMeta(
   }
 }
 
+async function resolveFreeProductDownloadPathMeta(
+  context: Awaited<ReturnType<typeof requireActiveUser>>,
+  productId: string,
+  fileNameBase: string,
+  extension: string,
+) {
+  const { data: productRow, error } = await context.serviceClient
+    .from("products")
+    .select("id,product_type")
+    .eq("id", productId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!productRow) throw badRequest("Material nao encontrado")
+  if (productRow.product_type !== "free") {
+    throw badRequest("Apenas materiais gratuitos podem receber um ficheiro de download")
+  }
+
+  return {
+    logicalBucket: COURSE_STORAGE_BUCKET,
+    storagePath: `products/${productId}/free-download/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${fileNameBase}${extension ? `.${extension}` : ""}`,
+    publicProxyKind: null as PublicProxyKind | null,
+    auditEntityType: "product",
+    auditEntityId: productId,
+    metadata: {
+      product_id: productId,
+      asset_role: "free_product_download",
+    },
+  }
+}
+
 async function resolveUploadTarget(
   context: Awaited<ReturnType<typeof requireActiveUser>>,
   body: Body,
@@ -322,6 +354,25 @@ async function resolveUploadTarget(
     return {
       ...(await resolveLessonFilePathMeta(context, String(body.entity_id ?? "").trim(), fileNameBase, extension)),
       mimeType: "application/pdf",
+      fileName,
+      fileSizeBytes,
+    }
+  }
+
+  if (uploadKind === "free_product_download") {
+    requireAdminUpload(context)
+    if (!PRIVATE_ASSET_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw badRequest("Formato de ficheiro privado invalido.")
+    }
+
+    return {
+      ...(await resolveFreeProductDownloadPathMeta(
+        context,
+        String(body.entity_id ?? "").trim(),
+        fileNameBase,
+        extension,
+      )),
+      mimeType,
       fileName,
       fileSizeBytes,
     }

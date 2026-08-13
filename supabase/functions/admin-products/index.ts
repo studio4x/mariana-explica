@@ -13,6 +13,7 @@ import {
   writeAuditLog,
 } from "../_shared/mod.ts"
 import type { SupabaseClient } from "../_shared/supabase.ts"
+import { createSignedReadUrl, getSignedGetExpiresSeconds } from "../_shared/storage-provider.ts"
 
 type ProductType = "paid" | "free" | "hybrid" | "external_service"
 type ProductStatus = "draft" | "published" | "archived"
@@ -59,6 +60,52 @@ type AdminProductsInput =
   | { action: "publish"; productId: string }
   | { action: "archive"; productId: string }
   | { action: "delete"; productId: string }
+  | { action: "get_free_download_file"; productId: string }
+  | { action: "get_free_download_test_url"; productId: string }
+  | {
+      action: "upsert_free_download_file"
+      productId: string
+      storageProvider: "supabase" | "r2"
+      storageBucket: string
+      storagePath: string
+      fileName: string
+      mimeType?: string | null
+      fileSizeBytes?: number | null
+    }
+
+type FreeProductDownloadFile = {
+  id: string
+  product_id: string
+  storage_provider: "supabase" | "r2"
+  storage_bucket: string
+  storage_path: string
+  file_name: string
+  mime_type: string | null
+  file_size_bytes: number | null
+  status: "active" | "inactive"
+  created_at: string
+  updated_at: string
+}
+
+function sanitizeFreeDownloadFile(file: FreeProductDownloadFile) {
+  return file
+}
+
+async function requireFreeProduct(serviceClient: SupabaseClient, productId: string) {
+  const { data, error } = await serviceClient
+    .from("products")
+    .select("id,product_type")
+    .eq("id", productId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) throw badRequest("Material nao encontrado")
+  if (data.product_type !== "free") {
+    throw badRequest("Esta acao esta disponivel apenas para materiais gratuitos")
+  }
+
+  return data
+}
 
 function mapPayload(payload: Partial<ProductPayload>) {
   const updates: Record<string, unknown> = {}
@@ -219,6 +266,77 @@ Deno.serve(async (req) => {
     const context = await requireAdmin(req)
     const body = await readJsonBody<AdminProductsInput>(req)
     const auditMeta = extractRequestAuditContext(req)
+
+    if (body.action === "get_free_download_file" || body.action === "get_free_download_test_url") {
+      await requireFreeProduct(context.serviceClient, body.productId)
+      const { data: file, error } = await context.serviceClient
+        .from("product_download_files")
+        .select("id,product_id,storage_provider,storage_bucket,storage_path,file_name,mime_type,file_size_bytes,status,created_at,updated_at")
+        .eq("product_id", body.productId)
+        .eq("status", "active")
+        .maybeSingle<FreeProductDownloadFile>()
+
+      if (error) throw error
+      if (body.action === "get_free_download_file") {
+        return jsonResponse({ success: true, request_id: requestId, file: file ? sanitizeFreeDownloadFile(file) : null })
+      }
+
+      if (!file) throw badRequest("Configure um ficheiro ativo antes de testar o download")
+      const url = await createSignedReadUrl({
+        serviceClient: context.serviceClient,
+        logicalBucket: file.storage_bucket,
+        storagePath: file.storage_path,
+        provider: file.storage_provider,
+        expiresInSeconds: getSignedGetExpiresSeconds(),
+        downloadFileName: file.file_name,
+      })
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.free_product_download_tested",
+        entityType: "product",
+        entityId: body.productId,
+        metadata: { file_id: file.id },
+        ...auditMeta,
+      })
+      return jsonResponse({ success: true, request_id: requestId, url, file_name: file.file_name })
+    }
+
+    if (body.action === "upsert_free_download_file") {
+      await requireFreeProduct(context.serviceClient, body.productId)
+      const storageBucket = body.storageBucket.trim()
+      const storagePath = body.storagePath.trim()
+      const fileName = body.fileName.trim()
+      if (!storageBucket || !storagePath || !fileName || fileName.length > 255) {
+        throw badRequest("Dados do ficheiro de download invalidos")
+      }
+      if (!Number.isFinite(body.fileSizeBytes ?? 0) || (body.fileSizeBytes ?? 0) < 0) {
+        throw badRequest("Tamanho do ficheiro invalido")
+      }
+
+      const { data: file, error } = await context.serviceClient
+        .from("product_download_files")
+        .upsert({
+          product_id: body.productId,
+          storage_provider: body.storageProvider,
+          storage_bucket: storageBucket,
+          storage_path: storagePath,
+          file_name: fileName,
+          mime_type: body.mimeType?.trim() || null,
+          file_size_bytes: body.fileSizeBytes ?? null,
+          status: "active",
+        }, { onConflict: "product_id" })
+        .select("id,product_id,storage_provider,storage_bucket,storage_path,file_name,mime_type,file_size_bytes,status,created_at,updated_at")
+        .single<FreeProductDownloadFile>()
+
+      if (error) throw error
+      await writeAuditLog(context.serviceClient, context, {
+        action: "admin.free_product_download_file_saved",
+        entityType: "product",
+        entityId: body.productId,
+        metadata: { file_id: file.id, file_name: file.file_name, file_size_bytes: file.file_size_bytes },
+        ...auditMeta,
+      })
+      return jsonResponse({ success: true, request_id: requestId, file: sanitizeFreeDownloadFile(file) })
+    }
 
     if (body.action === "create") {
       await requireExistingCategoryId(context.serviceClient, body.categoryId?.trim() || null)

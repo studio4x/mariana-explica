@@ -84,6 +84,20 @@ export interface AdminStorageUploadResult {
   public_url?: string | null
 }
 
+export interface AdminFreeProductDownloadFile {
+  id: string
+  product_id: string
+  storage_provider: "supabase" | "r2"
+  storage_bucket: string
+  storage_path: string
+  file_name: string
+  mime_type: string | null
+  file_size_bytes: number | null
+  status: "active" | "inactive"
+  created_at: string
+  updated_at: string
+}
+
 export interface ExpiredRenewalProductSummary extends ProductSummary {
   grant_id: string
   expires_at: string

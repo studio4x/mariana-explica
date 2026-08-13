@@ -591,7 +591,7 @@ export function AdminProducts() {
       if (editorState.importedStructure) {
         setImportSuccessMessage(`O material "${title}" foi criado e a estrutura JSON foi importada com sucesso.`)
       }
-      navigate(adminCourseBuilderPath(createdCourseId))
+      navigate(productType === "free" ? adminCourseSettingsPath(createdCourseId) : adminCourseBuilderPath(createdCourseId))
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Não foi possível guardar o material.")
     }
@@ -823,7 +823,7 @@ export function AdminProducts() {
                 className={`group relative flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm transition-all duration-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-2xl ${cardAccentClasses[course.status]}`}
               >
                 <Link
-                  to={adminCourseBuilderPath(course.id)}
+                  to={course.product_type === "free" ? adminCourseSettingsPath(course.id) : adminCourseBuilderPath(course.id)}
                   className="relative block w-full overflow-hidden bg-slate-200"
                   style={{ aspectRatio: "4 / 3" }}
                 >
@@ -861,10 +861,10 @@ export function AdminProducts() {
                   </div>
                   <div className="absolute inset-0 z-30 flex items-center justify-center bg-blue-600/90 opacity-0 transition-opacity group-hover:opacity-100">
                     <Link
-                      to={adminCourseBuilderPath(course.id)}
+                      to={course.product_type === "free" ? adminCourseSettingsPath(course.id) : adminCourseBuilderPath(course.id)}
                       className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-6 font-extrabold text-blue-600 shadow-sm transition hover:bg-white"
                     >
-                      Abrir Construtor
+                      {course.product_type === "free" ? "Configurar material" : "Abrir Construtor"}
                     </Link>
                   </div>
                 </Link>
@@ -892,6 +892,8 @@ export function AdminProducts() {
                   />
 
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
+                    {course.product_type !== "free" ? (
+                      <>
                     <Link
                       to={adminCourseStudentsPath(course.id)}
                       className="group/sub flex flex-1 flex-col items-center gap-1 rounded-2xl px-2.5 py-2 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
@@ -916,6 +918,8 @@ export function AdminProducts() {
                     >
                       <ArrowDownToLine className="h-5 w-5" />
                     </Button>
+                      </>
+                    ) : null}
                     <Button
                       asChild
                       variant="ghost"

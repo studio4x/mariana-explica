@@ -69,6 +69,7 @@ import type {
   AdminSiteThemeConfig,
   AdminSiteThemeTextStyle,
   AdminStorageUploadResult,
+  AdminFreeProductDownloadFile,
   SiteThemeTextTransform,
   ProductLessonSummary,
   AdminSupportTicketSummary,
@@ -1486,6 +1487,24 @@ export async function fetchAdminTrackingConfig() {
   }
 
   return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig> | null)
+}
+
+export async function uploadAdminFreeProductDownloadFile(input: {
+  productId: string
+  file: File
+  replacePath?: string | null
+}) {
+  const upload = await uploadStorageFile({
+    upload_kind: "free_product_download",
+    entity_id: input.productId,
+    file: input.file,
+    file_name: input.file.name,
+    mime_type: input.file.type || "application/octet-stream",
+    file_size_bytes: input.file.size,
+    replace_path: input.replacePath ?? null,
+  })
+
+  return upload satisfies AdminStorageUploadResult
 }
 
 export async function fetchAdminSeoConfig() {
@@ -4036,6 +4055,35 @@ export function archiveAdminProduct(productId: string) {
 export function deleteAdminProduct(productId: string) {
   return invokeAdminFunction<{ success: true; productId: string }>("admin-products", {
     action: "delete",
+    productId,
+  })
+}
+
+export function fetchAdminFreeProductDownloadFile(productId: string) {
+  return invokeAdminFunction<{ success: true; file: AdminFreeProductDownloadFile | null }>("admin-products", {
+    action: "get_free_download_file",
+    productId,
+  }).then((response) => response.file)
+}
+
+export function saveAdminFreeProductDownloadFile(input: {
+  productId: string
+  storageProvider: "supabase" | "r2"
+  storageBucket: string
+  storagePath: string
+  fileName: string
+  mimeType?: string | null
+  fileSizeBytes?: number | null
+}) {
+  return invokeAdminFunction<{ success: true; file: AdminFreeProductDownloadFile }>("admin-products", {
+    action: "upsert_free_download_file",
+    ...input,
+  }).then((response) => response.file)
+}
+
+export function requestAdminFreeProductDownloadTest(productId: string) {
+  return invokeAdminFunction<{ success: true; url: string; file_name: string }>("admin-products", {
+    action: "get_free_download_test_url",
     productId,
   })
 }
