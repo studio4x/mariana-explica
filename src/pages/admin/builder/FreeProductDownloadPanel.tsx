@@ -1,15 +1,50 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { Download, FileCheck2, FileUp, Loader2 } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { StatusBadge } from "@/components/common"
+import { MediaLibraryModal, StatusBadge } from "@/components/common"
 import {
   useAdminFreeProductDownloadFile,
   useAdminFreeProductDownloadTest,
   useSaveAdminFreeProductDownloadFile,
   useUploadAdminFreeProductDownloadFile,
 } from "@/hooks/useAdmin"
+import type { AdminR2ListedObject } from "@/services/admin.service"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
+
+const PRIVATE_LIBRARY_PREFIX = "course-assets-private/"
+const FREE_DOWNLOAD_ACCEPT = [
+  "application/pdf",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
+  "video/x-m4v",
+  "image/png",
+  "image/jpeg",
+].join(",")
+
+const LIBRARY_MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  ogg: "video/ogg",
+  ogv: "video/ogg",
+  mov: "video/quicktime",
+  m4v: "video/x-m4v",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+}
+
+function getLibraryObjectName(object: AdminR2ListedObject) {
+  return object.storage_path.split("/").filter(Boolean).pop() || object.key
+}
+
+function getLibraryObjectMimeType(object: AdminR2ListedObject) {
+  const extension = getLibraryObjectName(object).split(".").pop()?.toLowerCase() ?? ""
+  return LIBRARY_MIME_BY_EXTENSION[extension] ?? null
+}
 
 function formatFileSize(bytes: number | null) {
   if (!bytes) return "Tamanho não informado"
@@ -20,11 +55,11 @@ function formatFileSize(bytes: number | null) {
 
 export function FreeProductDownloadPanel() {
   const { product } = useAdminCourseBuilderContext()
-  const inputRef = useRef<HTMLInputElement>(null)
   const fileQuery = useAdminFreeProductDownloadFile(product.id)
   const uploadFile = useUploadAdminFreeProductDownloadFile()
   const saveFile = useSaveAdminFreeProductDownloadFile()
   const testDownload = useAdminFreeProductDownloadTest()
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
 
   const isSaving = uploadFile.isPending || saveFile.isPending
@@ -57,8 +92,37 @@ export function FreeProductDownloadPanel() {
         tone: "error",
         message: error instanceof Error ? error.message : "Não foi possível enviar o ficheiro.",
       })
-    } finally {
-      if (inputRef.current) inputRef.current.value = ""
+      throw error
+    }
+  }
+
+  const handleLibrarySelect = async (object: AdminR2ListedObject) => {
+    const mimeType = getLibraryObjectMimeType(object)
+    if (object.logical_bucket !== "course-assets-private" || !mimeType) {
+      throw new Error("Seleciona um PDF, vídeo ou imagem da biblioteca privada.")
+    }
+
+    setFeedback(null)
+    try {
+      await saveFile.mutateAsync({
+        productId: product.id,
+        storageProvider: "r2",
+        storageBucket: object.logical_bucket,
+        storagePath: object.storage_path,
+        fileName: getLibraryObjectName(object),
+        mimeType,
+        fileSizeBytes: object.size_bytes,
+      })
+      setFeedback({
+        tone: "success",
+        message: "Ficheiro da biblioteca associado ao material. Os links anteriores foram revogados por segurança.",
+      })
+    } catch (error) {
+      setFeedback({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Não foi possível usar este ficheiro da biblioteca.",
+      })
+      throw error
     }
   }
 
@@ -103,20 +167,14 @@ export function FreeProductDownloadPanel() {
             <h3 className="text-lg font-bold text-slate-900">Ficheiro principal</h3>
             <p className="mt-1 text-sm text-slate-500">PDF, vídeo ou imagem em armazenamento privado.</p>
           </div>
-          <input
-            ref={inputRef}
-            type="file"
-            className="sr-only"
-            onChange={(event) => void handleSelectFile(event.target.files?.[0])}
-          />
           <Button
             type="button"
             className="rounded-xl bg-[linear-gradient(180deg,#1788a8_0%,#12596f_100%)] text-white"
-            onClick={() => inputRef.current?.click()}
+            onClick={() => setIsMediaLibraryOpen(true)}
             disabled={isSaving}
           >
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-            {isSaving ? "A enviar..." : file ? "Substituir ficheiro" : "Enviar ficheiro"}
+            {isSaving ? "A guardar..." : file ? "Substituir ou escolher" : "Enviar ou usar biblioteca"}
           </Button>
         </div>
 
@@ -162,6 +220,19 @@ export function FreeProductDownloadPanel() {
           ) : null}
         </div>
       </section>
+
+      <MediaLibraryModal
+        open={isMediaLibraryOpen}
+        title="Configurar ficheiro principal"
+        uploadTabLabel="Fazer novo upload"
+        libraryTabLabel="Usar biblioteca"
+        accept={FREE_DOWNLOAD_ACCEPT}
+        fileType="all"
+        prefix={PRIVATE_LIBRARY_PREFIX}
+        onClose={() => setIsMediaLibraryOpen(false)}
+        onUpload={handleSelectFile}
+        onSelect={handleLibrarySelect}
+      />
     </div>
   )
 }
