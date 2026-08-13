@@ -2196,10 +2196,11 @@ export interface AdminBrevoOverview {
   settings: AdminBrevoSettings
   contacts: AdminBrevoContactSync[]
   events: AdminBrevoEmailEvent[]
+  free_download_leads: { total: number; synchronization_records: number }
 }
 
 export async function fetchAdminBrevoOverview() {
-  const response = await invokeAdminFunction<{ success: true; credentials: AdminBrevoOverview["credentials"]; settings: AdminBrevoSettings; contacts: AdminBrevoContactSync[]; events: AdminBrevoEmailEvent[] }>("admin-brevo", { action: "overview" })
+  const response = await invokeAdminFunction<{ success: true; credentials: AdminBrevoOverview["credentials"]; settings: AdminBrevoSettings; contacts: AdminBrevoContactSync[]; events: AdminBrevoEmailEvent[]; free_download_leads: AdminBrevoOverview["free_download_leads"] }>("admin-brevo", { action: "overview" })
   return response
 }
 
@@ -2208,7 +2209,7 @@ export async function saveAdminBrevoCredentials(apiKey: string) {
   return response.credentials
 }
 
-export async function saveAdminBrevoSettings(input: { enabled: boolean; senderName: string; senderEmail: string; replyTo: string; leadListId: number | null; consentGroupId: number | null; attributeMapping: Record<string, string> }) {
+export async function saveAdminBrevoSettings(input: { enabled: boolean; senderName: string; senderEmail: string; replyTo: string; leadListId: number | null; freeDownloadLeadListId: number | null; consentGroupId: number | null; attributeMapping: Record<string, string> }) {
   const response = await invokeAdminFunction<{ success: true; settings: AdminBrevoSettings }>("admin-brevo", { action: "save_settings", ...input })
   return response.settings
 }

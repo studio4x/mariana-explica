@@ -1413,6 +1413,7 @@ export interface AdminBrevoSettings {
   sender_email: string | null
   reply_to: string | null
   lead_list_id: number | null
+  free_download_lead_list_id: number | null
   consent_group_id: number | null
   attribute_mapping: Record<string, string>
   last_account: Record<string, unknown> | null
@@ -1433,7 +1434,8 @@ export interface AdminBrevoContactSync {
   consent_source: string
   source_product_id: string | null
   source_order_id: string | null
-  status: "queued" | "processing" | "synced" | "failed"
+  source_free_product_lead_id: string | null
+  status: "queued" | "processing" | "synced" | "failed" | "paused"
   last_synced_at: string | null
   last_error: string | null
   remote_snapshot?: Record<string, unknown> | null

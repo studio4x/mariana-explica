@@ -8,7 +8,7 @@ import { formatDateTime } from "@/utils/date"
 
 type Tab = "config" | "history" | "contacts"
 const PAGE_SIZE = 50
-const EMPTY_FORM = { enabled: false, senderName: "", senderEmail: "", replyTo: "", leadListId: "", consentGroupId: "" }
+const EMPTY_FORM = { enabled: false, senderName: "", senderEmail: "", replyTo: "", leadListId: "", freeDownloadLeadListId: "", consentGroupId: "" }
 
 function settingsToForm(settings: {
   enabled: boolean
@@ -16,6 +16,7 @@ function settingsToForm(settings: {
   sender_email: string | null
   reply_to: string | null
   lead_list_id: number | null
+  free_download_lead_list_id: number | null
   consent_group_id: number | null
 } | null | undefined) {
   if (!settings) return EMPTY_FORM
@@ -25,6 +26,7 @@ function settingsToForm(settings: {
     senderEmail: settings.sender_email ?? "",
     replyTo: settings.reply_to ?? "",
     leadListId: settings.lead_list_id ? String(settings.lead_list_id) : "",
+    freeDownloadLeadListId: settings.free_download_lead_list_id ? String(settings.free_download_lead_list_id) : "",
     consentGroupId: settings.consent_group_id ? String(settings.consent_group_id) : "",
   }
 }
@@ -68,10 +70,11 @@ export function AdminBrevo() {
   const consentGroups = catalog.data?.consentGroups ?? []
   const hasUnsavedSettings = JSON.stringify(form) !== savedFormKey
   const hasLeadSettingsChanges = form.leadListId !== savedForm.leadListId || form.consentGroupId !== savedForm.consentGroupId
+  const hasFreeDownloadLeadSettingsChanges = form.freeDownloadLeadListId !== savedForm.freeDownloadLeadListId
   const notify = (message: string) => { setFeedback(message); window.setTimeout(() => setFeedback(null), 5000) }
   const saveSettings = async (successMessage = "Configuracao Brevo guardada.") => {
     try {
-      await mutations.saveSettings.mutateAsync({ enabled: form.enabled, senderName: form.senderName, senderEmail: form.senderEmail, replyTo: form.replyTo, leadListId: form.leadListId ? Number(form.leadListId) : null, consentGroupId: form.consentGroupId ? Number(form.consentGroupId) : null, attributeMapping: settings?.attribute_mapping ?? {} })
+      await mutations.saveSettings.mutateAsync({ enabled: form.enabled, senderName: form.senderName, senderEmail: form.senderEmail, replyTo: form.replyTo, leadListId: form.leadListId ? Number(form.leadListId) : null, freeDownloadLeadListId: form.freeDownloadLeadListId ? Number(form.freeDownloadLeadListId) : null, consentGroupId: form.consentGroupId ? Number(form.consentGroupId) : null, attributeMapping: settings?.attribute_mapping ?? {} })
       notify(successMessage)
     } catch (error) { notify(error instanceof Error ? error.message : "Nao foi possivel guardar.") }
   }
@@ -86,6 +89,45 @@ export function AdminBrevo() {
     {tab === "config" && catalog.isError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Nao foi possivel carregar as listas da Brevo. {catalog.error instanceof Error ? catalog.error.message : "Tente recarregar as listas."}</div> : null}
 
     {tab === "config" ? <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"><section className="space-y-5 rounded-3xl border bg-white p-6 shadow-sm"><div><h2 className="text-xl font-bold">Credencial e remetente</h2><p className="mt-1 text-sm text-slate-500">A API key nunca e devolvida ao navegador. Ao substituir, cole uma nova chave; a existente nao e exibida.</p></div><div className="grid gap-4 md:grid-cols-2"><label className="md:col-span-2 text-sm font-medium">Nova API key<input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={credentials?.configured ? "Chave guardada (nao exibida)" : "xkeysib-..."} className="mt-2 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">Nome do remetente<input value={form.senderName} onChange={(e) => setForm({ ...form, senderName: e.target.value })} className="mt-2 h-11 w-full rounded-xl border px-3" /></label><label className="text-sm font-medium">E-mail do remetente<input type="email" value={form.senderEmail} onChange={(e) => setForm({ ...form, senderEmail: e.target.value })} className="mt-2 h-11 w-full rounded-xl border px-3" /></label><label className="md:col-span-2 text-sm font-medium">Reply-to<input type="email" value={form.replyTo} onChange={(e) => setForm({ ...form, replyTo: e.target.value })} className="mt-2 h-11 w-full rounded-xl border px-3" /></label></div><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />Ativar operacionalmente a Brevo para todos os e-mails</label><div className="flex flex-wrap gap-3"><Button disabled={!apiKey || mutations.saveCredentials.isPending} onClick={() => void mutations.saveCredentials.mutateAsync(apiKey).then(() => { setApiKey(""); notify("API key guardada de forma cifrada.") }).catch((e) => notify(e instanceof Error ? e.message : "Falha ao guardar a chave."))}>{mutations.saveCredentials.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}Guardar chave</Button><Button variant="outline" onClick={() => void saveSettings()} disabled={mutations.saveSettings.isPending || !hasUnsavedSettings}>{mutations.saveSettings.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Salvar definicoes</Button><Button variant="outline" onClick={() => void mutations.checkConnection.mutateAsync().then((account) => notify(`Conexao valida${account.email ? ` para ${String(account.email)}` : ""}.`)).catch((e) => notify(e instanceof Error ? e.message : "Falha na conexao."))}><CheckCircle2 className="mr-2 h-4 w-4" />Validar conexao</Button></div><div className="border-t pt-5"><h3 className="font-semibold">E-mail de teste</h3><div className="mt-3 flex flex-wrap gap-3"><input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="destino@exemplo.pt" className="h-11 min-w-[260px] flex-1 rounded-xl border px-3" /><Button onClick={() => void mutations.sendTest.mutateAsync(testEmail).then((delivery) => { setTestEmail(""); notify(`Teste enviado. messageId: ${delivery.provider_message_id ?? "nao disponivel"}`) }).catch((e) => notify(e instanceof Error ? e.message : "Falha no teste."))} disabled={!testEmail || mutations.sendTest.isPending}><Send className="mr-2 h-4 w-4" />Enviar teste</Button></div></div></section><section className="space-y-5 rounded-3xl border bg-white p-6 shadow-sm"><div><h2 className="text-xl font-bold">Lead e consentimento</h2><p className="mt-1 text-sm text-slate-500">So contatos com checkbox explicito marcado entram nesta lista.</p></div><label className="text-sm font-medium">Lista Brevo<select value={form.leadListId} onChange={(e) => setForm({ ...form, leadListId: e.target.value })} className="mt-2 h-11 w-full rounded-xl border px-3"><option value="">Selecionar lista</option>{lists.map((list) => <option key={String(list.id)} value={String(list.id)}>{String(list.name ?? list.id)}</option>)}</select></label><label className="text-sm font-medium">Consent Group (opcional)<select value={form.consentGroupId} onChange={(e) => setForm({ ...form, consentGroupId: e.target.value })} className="mt-2 h-11 w-full rounded-xl border px-3"><option value="">Nenhum / nao disponivel</option>{consentGroups.map((group) => <option key={String(group.id)} value={String(group.id)}>{String(group.name ?? group.id)}</option>)}</select></label><div className="rounded-2xl border bg-slate-50 p-4"><p className="text-sm font-medium text-slate-900">{hasLeadSettingsChanges ? "Ha alteracoes pendentes na lista de leads." : form.leadListId ? "A lista selecionada ja esta salva." : "Nenhuma lista Brevo salva no momento."}</p><p className="mt-1 text-xs leading-5 text-slate-500">Depois de escolher a lista ou o Consent Group, clique em salvar definicoes para manter a selecao ao recarregar a pagina.</p><Button className="mt-3 w-full" onClick={() => void saveSettings("Definicoes de lead guardadas.")} disabled={mutations.saveSettings.isPending || !hasUnsavedSettings}>{mutations.saveSettings.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Salvar definicoes</Button></div><p className="text-xs leading-5 text-slate-500">Atributos disponiveis: {(catalog.data?.attributes ?? []).slice(0, 12).map((item) => String(item.name ?? item.label ?? "")).filter(Boolean).join(", ") || "atualize o catalogo para consultar"}.</p>{catalog.data?.consentGroupsEnabled === false ? <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">Consent Groups nao estao habilitados nesta conta Brevo.</p> : null}</section></div> : null}
+
+    {tab === "config" ? (
+      <section className="rounded-3xl border border-sky-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">Materiais gratuitos</p>
+            <h2 className="mt-2 text-xl font-bold">Lista de leads de downloads gratuitos</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Cada cadastro feito para receber um material gratuito entra nesta lista pela fila segura da Brevo.
+              Ao guardar uma lista, os cadastros anteriores tambem sao enfileirados automaticamente.
+            </p>
+            <p className="mt-3 text-sm font-medium text-slate-700">
+              {overview.data?.free_download_leads.total ?? 0} lead(s) registado(s) · {overview.data?.free_download_leads.synchronization_records ?? 0} com registo de sincronizacao
+            </p>
+          </div>
+          <div className="w-full max-w-md space-y-3">
+            <label className="text-sm font-medium">
+              Lista Brevo para leads gratuitos
+              <select value={form.freeDownloadLeadListId} onChange={(event) => setForm({ ...form, freeDownloadLeadListId: event.target.value })} className="mt-2 h-11 w-full rounded-xl border px-3">
+                <option value="">Nao sincronizar estes leads</option>
+                {lists.map((list) => <option key={String(list.id)} value={String(list.id)}>{String(list.name ?? list.id)}</option>)}
+              </select>
+            </label>
+            <div className="rounded-2xl border bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">
+                {hasFreeDownloadLeadSettingsChanges ? "Ha uma alteracao pendente." : form.freeDownloadLeadListId ? "A lista especifica esta ativa." : "Nenhuma lista especifica configurada."}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Limpar a selecao pausa novos envios. Contatos ja existentes nao sao removidos da Brevo automaticamente.
+              </p>
+              <Button className="mt-3 w-full" onClick={() => void saveSettings("Lista de leads gratuitos guardada e cadastros enfileirados.")} disabled={mutations.saveSettings.isPending || !hasUnsavedSettings}>
+                {mutations.saveSettings.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Salvar lista de leads gratuitos
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    ) : null}
 
     {tab === "history" ? <section className="rounded-3xl border bg-white p-6 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Historico operacional</h2><p className="text-sm text-slate-500">Eventos oficiais da Brevo sao reconciliados ao abrir esta aba.</p></div><Button variant="outline" onClick={() => void history.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Reconciliar</Button></div><div className="mt-5 flex flex-wrap gap-3"><input value={historyQuery} onChange={(e) => { setHistoryQuery(e.target.value); setHistoryPage(0) }} placeholder="Buscar por e-mail, assunto ou messageId" className="h-10 min-w-[260px] flex-1 rounded-xl border px-3 text-sm" /><select value={historyStatus} onChange={(e) => { setHistoryStatus(e.target.value); setHistoryPage(0) }} className="h-10 rounded-xl border px-3 text-sm"><option value="">Todos os estados</option><option value="queued">queued</option><option value="sent">sent</option><option value="delivered">delivered</option><option value="failed">failed</option><option value="bounced">bounced</option><option value="blocked">blocked</option></select></div>{history.isLoading ? <div className="py-8 text-sm text-slate-500">A carregar historico...</div> : history.isError ? <ErrorState title="Falha no historico" message={history.error instanceof Error ? history.error.message : "Tente novamente."} onRetry={() => void history.refetch()} /> : <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs uppercase text-slate-500"><th className="p-3">Destino</th><th className="p-3">Assunto</th><th className="p-3">Estado</th><th className="p-3">messageId / evento</th><th className="p-3">Data</th></tr></thead><tbody>{(history.data?.rows ?? []).map((row) => <tr key={row.id} className="border-b last:border-0"><td className="p-3">{row.email_to}</td><td className="p-3">{row.subject ?? "-"}<div className="text-xs text-slate-400">{row.template_key}</div></td><td className="p-3"><StatusBadge label={row.status} tone={row.status === "failed" || row.status === "bounced" ? "danger" : row.status === "delivered" ? "success" : "neutral"} /></td><td className="p-3"><span className="font-mono text-xs">{row.provider_message_id ?? "-"}</span><div className="text-xs text-slate-500">{row.last_event ?? "sem evento"}</div></td><td className="p-3">{formatDateTime(row.created_at)}</td></tr>)}</tbody></table>{(history.data?.rows ?? []).length === 0 ? <p className="py-8 text-center text-sm text-slate-500">Nenhum e-mail encontrado.</p> : null}{pageControls(historyPage, history.data?.count ?? 0, setHistoryPage)}</div>}</section> : null}
 

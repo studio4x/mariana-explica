@@ -19,12 +19,19 @@ import {
 } from "../_shared/mod.ts"
 
 type Action = "overview" | "save_credentials" | "save_settings" | "check_connection" | "catalog" | "send_test" | "history" | "contacts" | "retry_contact" | "retry_failed_contacts" | "sync_contact"
-interface Input { action: Action; apiKey?: string; enabled?: boolean; senderName?: string; senderEmail?: string; replyTo?: string; leadListId?: number | null; consentGroupId?: number | null; attributeMapping?: Record<string, string>; emailTo?: string; contactSyncId?: string; query?: string; status?: string; offset?: number; limit?: number; days?: number; event?: string; syncRemote?: boolean }
+interface Input { action: Action; apiKey?: string; enabled?: boolean; senderName?: string; senderEmail?: string; replyTo?: string; leadListId?: number | null; freeDownloadLeadListId?: number | null; consentGroupId?: number | null; attributeMapping?: Record<string, string>; emailTo?: string; contactSyncId?: string; query?: string; status?: string; offset?: number; limit?: number; days?: number; event?: string; syncRemote?: boolean }
 
 function validEmail(value: unknown) {
   const email = typeof value === "string" ? value.trim().toLowerCase() : ""
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest("E-mail inválido")
   return email
+}
+
+function validOptionalId(value: unknown, label: string) {
+  if (value === null || value === undefined || value === "") return null
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw badRequest(`${label} inválido`)
+  return parsed
 }
 
 async function syncEvents(serviceClient: Awaited<ReturnType<typeof requireAdmin>>["serviceClient"], days: number) {
@@ -70,15 +77,30 @@ Deno.serve(async (req) => {
     const action = body.action ?? "overview"
 
     if (action === "overview") {
-      const [credentials, settings, contacts, events] = await Promise.all([
+      const [credentials, settings, contacts, events, freeDownloadLeads, freeDownloadSyncs] = await Promise.all([
         getBrevoCredentialStatus(context.serviceClient),
         fetchBrevoSettings(context.serviceClient),
-        context.serviceClient.from("brevo_contact_syncs").select("id,email,status,brevo_contact_id,list_id,consent_group_id,consent_at,consent_source,source_product_id,source_order_id,last_synced_at,last_error,created_at,updated_at", { count: "exact" }).order("created_at", { ascending: false }).limit(10),
+        context.serviceClient.from("brevo_contact_syncs").select("id,email,status,brevo_contact_id,list_id,consent_group_id,consent_at,consent_source,source_product_id,source_order_id,source_free_product_lead_id,last_synced_at,last_error,created_at,updated_at", { count: "exact" }).order("created_at", { ascending: false }).limit(10),
         context.serviceClient.from("brevo_email_events").select("id,event,message_id,email,subject,reason,event_at,created_at", { count: "exact" }).order("event_at", { ascending: false }).limit(10),
+        context.serviceClient.from("free_product_leads").select("id", { count: "exact", head: true }),
+        context.serviceClient.from("brevo_contact_syncs").select("id", { count: "exact", head: true }).not("source_free_product_lead_id", "is", null),
       ])
       if (contacts.error) throw contacts.error
       if (events.error) throw events.error
-      return jsonResponse({ success: true, request_id: requestId, credentials, settings, contacts: contacts.data ?? [], events: events.data ?? [] })
+      if (freeDownloadLeads.error) throw freeDownloadLeads.error
+      if (freeDownloadSyncs.error) throw freeDownloadSyncs.error
+      return jsonResponse({
+        success: true,
+        request_id: requestId,
+        credentials,
+        settings,
+        contacts: contacts.data ?? [],
+        events: events.data ?? [],
+        free_download_leads: {
+          total: freeDownloadLeads.count ?? 0,
+          synchronization_records: freeDownloadSyncs.count ?? 0,
+        },
+      })
     }
 
     if (action === "save_credentials") {
@@ -92,18 +114,40 @@ Deno.serve(async (req) => {
     }
 
     if (action === "save_settings") {
+      const leadListId = validOptionalId(body.leadListId, "Lista de leads")
+      const freeDownloadLeadListId = validOptionalId(body.freeDownloadLeadListId, "Lista de leads gratuitos")
+      const consentGroupId = validOptionalId(body.consentGroupId, "Consent Group")
+      const previousSettings = await fetchBrevoSettings(context.serviceClient)
       const settings = await saveBrevoSettings(context.serviceClient, {
         enabled: body.enabled === true,
         senderName: body.senderName,
         senderEmail: body.senderEmail,
         replyTo: body.replyTo,
-        leadListId: body.leadListId ?? null,
-        consentGroupId: body.consentGroupId ?? null,
+        leadListId,
+        freeDownloadLeadListId,
+        consentGroupId,
         attributeMapping: body.attributeMapping,
         actorUserId: context.user.id,
       })
-      await writeAuditLog(context.serviceClient, context, { action: "admin.brevo_settings_updated", entityType: "brevo_integration_settings", metadata: { enabled: settings.enabled, lead_list_id: settings.lead_list_id, consent_group_id: settings.consent_group_id, sender_email_configured: Boolean(settings.sender_email) } })
-      return jsonResponse({ success: true, request_id: requestId, settings })
+      let queuedFreeDownloadLeads = 0
+      const shouldQueueFreeDownloadLeads = settings.enabled && settings.free_download_lead_list_id && (
+        !previousSettings.enabled
+        || previousSettings.free_download_lead_list_id !== settings.free_download_lead_list_id
+        || JSON.stringify(previousSettings.attribute_mapping) !== JSON.stringify(settings.attribute_mapping)
+      )
+      if (shouldQueueFreeDownloadLeads) {
+        const { data, error } = await context.serviceClient.rpc("enqueue_all_free_product_leads_for_brevo")
+        if (error) throw error
+        queuedFreeDownloadLeads = Number(data ?? 0)
+      } else if (!settings.enabled || !settings.free_download_lead_list_id) {
+        const { error } = await context.serviceClient
+          .from("brevo_contact_syncs")
+          .update({ list_id: null, status: "paused", last_error: null })
+          .not("source_free_product_lead_id", "is", null)
+        if (error) throw error
+      }
+      await writeAuditLog(context.serviceClient, context, { action: "admin.brevo_settings_updated", entityType: "brevo_integration_settings", metadata: { enabled: settings.enabled, lead_list_id: settings.lead_list_id, free_download_lead_list_id: settings.free_download_lead_list_id, consent_group_id: settings.consent_group_id, sender_email_configured: Boolean(settings.sender_email), queued_free_download_leads: queuedFreeDownloadLeads } })
+      return jsonResponse({ success: true, request_id: requestId, settings, queued_free_download_leads: queuedFreeDownloadLeads })
     }
 
     if (action === "check_connection") {
@@ -167,7 +211,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "contacts") {
-      let query = context.serviceClient.from("brevo_contact_syncs").select("id,user_id,email,brevo_contact_id,list_id,consent_group_id,consent_granted,consent_at,consent_source,source_product_id,source_order_id,status,last_synced_at,last_error,remote_snapshot,created_at,updated_at", { count: "exact" }).order("created_at", { ascending: false })
+      let query = context.serviceClient.from("brevo_contact_syncs").select("id,user_id,email,brevo_contact_id,list_id,consent_group_id,consent_granted,consent_at,consent_source,source_product_id,source_order_id,source_free_product_lead_id,status,last_synced_at,last_error,remote_snapshot,created_at,updated_at", { count: "exact" }).order("created_at", { ascending: false })
       if (body.query?.trim()) query = query.ilike("email", `%${body.query.trim()}%`)
       if (body.status && body.status !== "all") query = query.eq("status", body.status)
       const limit = Math.min(100, Math.max(1, body.limit ?? 50)); const offset = Math.max(0, body.offset ?? 0)
@@ -191,13 +235,13 @@ Deno.serve(async (req) => {
 
     if (action === "sync_contact") {
       if (!body.contactSyncId) throw badRequest("contactSyncId obrigatório")
-      const { data: row, error } = await context.serviceClient.from("brevo_contact_syncs").select("id,user_id,email,source_product_id,source_order_id,consent_at,consent_source,consent_evidence").eq("id", body.contactSyncId).maybeSingle()
+      const { data: row, error } = await context.serviceClient.from("brevo_contact_syncs").select("id,user_id,email,list_id,consent_group_id,source_product_id,source_order_id,source_free_product_lead_id,attributes,consent_at,consent_source,consent_evidence").eq("id", body.contactSyncId).maybeSingle()
       if (error) throw error
       if (!row) throw notFound("Sincronização não encontrada")
       const { data: profile } = row.user_id ? await context.serviceClient.from("profiles").select("full_name,email,nif").eq("id", row.user_id).maybeSingle() : { data: null }
       const { data: product } = row.source_product_id ? await context.serviceClient.from("products").select("title").eq("id", row.source_product_id).maybeSingle() : { data: null }
-      const result = await syncBrevoContact(context.serviceClient, { userId: row.user_id, email: row.email, fullName: profile?.full_name, nif: profile?.nif, product: product?.title, productId: row.source_product_id, orderId: row.source_order_id, source: row.consent_source, consentAt: row.consent_at, consentEvidence: row.consent_evidence })
-      await context.serviceClient.from("brevo_contact_syncs").update({ status: "synced", brevo_contact_id: result.contactId, remote_snapshot: result, last_synced_at: new Date().toISOString(), last_error: null }).eq("id", row.id)
+      const result = await syncBrevoContact(context.serviceClient, { userId: row.user_id, email: row.email, fullName: profile?.full_name, nif: profile?.nif, product: product?.title, productId: row.source_product_id, orderId: row.source_order_id, source: row.consent_source, consentAt: row.consent_at, consentEvidence: row.consent_evidence, targetListId: row.list_id ? Number(row.list_id) : null, targetConsentGroupId: row.consent_group_id ? Number(row.consent_group_id) : null, attributes: (row.attributes ?? {}) as Record<string, unknown> })
+      await context.serviceClient.from("brevo_contact_syncs").update({ status: "synced", brevo_contact_id: result.contactId, list_id: result.listId, consent_group_id: result.consentGroupId, attributes: result.attributes, remote_snapshot: result, last_synced_at: new Date().toISOString(), last_error: null }).eq("id", row.id)
       return jsonResponse({ success: true, request_id: requestId, result })
     }
 

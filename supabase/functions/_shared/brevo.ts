@@ -9,6 +9,7 @@ export interface BrevoSettings {
   sender_email: string | null
   reply_to: string | null
   lead_list_id: number | null
+  free_download_lead_list_id: number | null
   consent_group_id: number | null
   attribute_mapping: Record<string, string>
   last_account: Record<string, unknown> | null
@@ -29,6 +30,9 @@ export interface BrevoContactSyncInput {
   source?: string
   consentAt?: string
   consentEvidence?: Record<string, unknown>
+  targetListId?: number | null
+  targetConsentGroupId?: number | null
+  attributes?: Record<string, unknown>
 }
 
 export interface BrevoContactSyncRow extends BrevoContactSyncInput {
@@ -113,7 +117,7 @@ export async function getBrevoCredentialStatus(client: SupabaseClient) {
 export async function fetchBrevoSettings(client: SupabaseClient): Promise<BrevoSettings> {
   const { data, error } = await client
     .from("brevo_integration_settings")
-    .select("enabled,sender_name,sender_email,reply_to,lead_list_id,consent_group_id,attribute_mapping,last_account,last_connection_check_at,last_connection_error,updated_at")
+    .select("enabled,sender_name,sender_email,reply_to,lead_list_id,free_download_lead_list_id,consent_group_id,attribute_mapping,last_account,last_connection_check_at,last_connection_error,updated_at")
     .eq("singleton_key", true)
     .maybeSingle()
   if (error) throw error
@@ -123,6 +127,7 @@ export async function fetchBrevoSettings(client: SupabaseClient): Promise<BrevoS
     sender_email: data?.sender_email ?? null,
     reply_to: data?.reply_to ?? null,
     lead_list_id: data?.lead_list_id ? Number(data.lead_list_id) : null,
+    free_download_lead_list_id: data?.free_download_lead_list_id ? Number(data.free_download_lead_list_id) : null,
     consent_group_id: data?.consent_group_id ? Number(data.consent_group_id) : null,
     attribute_mapping: (data?.attribute_mapping ?? {}) as Record<string, string>,
     last_account: (data?.last_account ?? null) as Record<string, unknown> | null,
@@ -138,6 +143,7 @@ export async function saveBrevoSettings(client: SupabaseClient, input: {
   senderEmail?: string | null
   replyTo?: string | null
   leadListId?: number | null
+  freeDownloadLeadListId?: number | null
   consentGroupId?: number | null
   attributeMapping?: Record<string, string>
   actorUserId: string
@@ -149,6 +155,7 @@ export async function saveBrevoSettings(client: SupabaseClient, input: {
     sender_email: input.senderEmail?.trim().toLowerCase() || null,
     reply_to: input.replyTo?.trim().toLowerCase() || null,
     lead_list_id: input.leadListId ?? null,
+    free_download_lead_list_id: input.freeDownloadLeadListId ?? null,
     consent_group_id: input.consentGroupId ?? null,
     attribute_mapping: input.attributeMapping ?? {},
     configured_by: input.actorUserId,
@@ -246,13 +253,20 @@ function contactAttributes(settings: BrevoSettings, input: BrevoContactSyncInput
     [settings.attribute_mapping.order_id || "ORDER_ID"]: input.orderId || "",
     [settings.attribute_mapping.payment_environment || "PAYMENT_ENVIRONMENT"]: input.paymentEnvironment || "",
   }
-  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== "" && value !== null))
+  return Object.fromEntries(
+    Object.entries({ ...values, ...(input.attributes ?? {}) })
+      .filter(([, value]) => value !== "" && value !== null && value !== undefined),
+  )
 }
 
 export async function syncBrevoContact(client: SupabaseClient, input: BrevoContactSyncInput) {
   const settings = await fetchBrevoSettings(client)
   if (!settings.enabled) throw new Error("Integração Brevo desativada")
-  if (!settings.lead_list_id) throw new Error("Lista de leads Brevo não configurada")
+  const targetListId = input.targetListId === undefined ? settings.lead_list_id : input.targetListId
+  const targetConsentGroupId = input.targetConsentGroupId === undefined
+    ? settings.consent_group_id
+    : input.targetConsentGroupId
+  if (!targetListId) throw new Error("Lista de destino Brevo não configurada")
   const email = input.email.trim().toLowerCase()
   const attributes = contactAttributes(settings, input)
   const created = await brevoRequest<{ id?: number }>(client, "/contacts", {
@@ -261,7 +275,7 @@ export async function syncBrevoContact(client: SupabaseClient, input: BrevoConta
       email,
       ext_id: input.userId || undefined,
       attributes,
-      listIds: [settings.lead_list_id],
+      listIds: [targetListId],
       emailBlacklisted: false,
       updateEnabled: true,
     }),
@@ -270,20 +284,20 @@ export async function syncBrevoContact(client: SupabaseClient, input: BrevoConta
   // Consent Groups are account-dependent. Import is the documented operation
   // that accepts consentGroupIds; it is deliberately best-effort after the
   // idempotent contact upsert so a disabled account feature does not lose sync.
-  if (settings.consent_group_id) {
+  if (targetConsentGroupId) {
     await brevoRequest(client, "/contacts/import", {
       method: "POST",
       body: JSON.stringify({
         jsonBody: [{ email, attributes }],
-        listIds: [settings.lead_list_id],
-        consentGroupIds: [settings.consent_group_id],
+        listIds: [targetListId],
+        consentGroupIds: [targetConsentGroupId],
         updateExistingContacts: true,
         emailBlacklist: false,
       }),
     })
   }
 
-  return { contactId: created?.id ?? null, attributes, listId: settings.lead_list_id, consentGroupId: settings.consent_group_id }
+  return { contactId: created?.id ?? null, attributes, listId: targetListId, consentGroupId: targetConsentGroupId }
 }
 
 export async function getBrevoContact(client: SupabaseClient, identifier: string) {

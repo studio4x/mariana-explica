@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const limit = batchSize(body.batchSize)
     const { data: rows, error } = await serviceClient
       .from("brevo_contact_syncs")
-      .select("id,user_id,email,source_product_id,source_order_id,attributes,consent_at,consent_source,consent_evidence,status,attempt_count")
+      .select("id,user_id,email,list_id,consent_group_id,source_product_id,source_order_id,source_free_product_lead_id,attributes,consent_at,consent_source,consent_evidence,status,attempt_count")
       .in("status", ["queued", "failed"])
       .lte("next_attempt_at", new Date().toISOString())
       .order("created_at", { ascending: true })
@@ -50,6 +50,9 @@ Deno.serve(async (req) => {
           source: row.consent_source,
           consentAt: row.consent_at,
           consentEvidence: row.consent_evidence,
+          targetListId: row.list_id ? Number(row.list_id) : null,
+          targetConsentGroupId: row.consent_group_id ? Number(row.consent_group_id) : null,
+          attributes: (row.attributes ?? {}) as Record<string, unknown>,
         })
         await serviceClient.from("brevo_contact_syncs").update({
           status: "synced",
