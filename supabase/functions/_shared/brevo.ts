@@ -3,6 +3,9 @@ import { internalError } from "./errors.ts"
 
 const BREVO_API_BASE = "https://api.brevo.com/v3"
 
+export const BREVO_FREE_MATERIALS_ATTRIBUTE = "MATERIAIS_GRATUITOS"
+export const BREVO_PURCHASED_MATERIALS_ATTRIBUTE = "MATERIAIS_COMPRADOS"
+
 export interface BrevoSettings {
   enabled: boolean
   sender_name: string | null
@@ -200,6 +203,81 @@ export async function getBrevoAttributes(client: SupabaseClient) {
   return await brevoRequest<{ attributes?: Array<Record<string, unknown>>; categories?: Array<Record<string, unknown>> }>(client, "/contacts/attributes", { method: "GET" })
 }
 
+function brevoAttributeIsText(attribute: Record<string, unknown>) {
+  return String(attribute.type ?? "").trim().toLowerCase() === "text"
+}
+
+async function ensureBrevoTextAttribute(client: SupabaseClient, name: string) {
+  const findExisting = (attributes: Array<Record<string, unknown>>) => attributes.find((attribute) =>
+    String(attribute.name ?? "").trim().toUpperCase() === name,
+  )
+  const existing = findExisting((await getBrevoAttributes(client)).attributes ?? [])
+  if (existing) {
+    if (!brevoAttributeIsText(existing)) throw new Error(`O atributo Brevo ${name} tem de ser do tipo texto`)
+    return
+  }
+
+  try {
+    await brevoRequest(client, `/contacts/attributes/normal/${encodeURIComponent(name)}`, {
+      method: "POST",
+      body: JSON.stringify({ type: "text" }),
+    })
+  } catch (error) {
+    // Another queue worker may have created the attribute in the meantime.
+    const refreshed = findExisting((await getBrevoAttributes(client)).attributes ?? [])
+    if (refreshed && brevoAttributeIsText(refreshed)) return
+    throw error
+  }
+}
+
+function productTitle(value: unknown) {
+  const product = Array.isArray(value) ? value[0] : value
+  if (!product || typeof product !== "object" || !("title" in product)) return ""
+  return typeof product.title === "string" ? product.title.trim() : ""
+}
+
+function uniqueMaterialTitles(rows: Array<Record<string, unknown>>) {
+  const titles = new Set<string>()
+  return rows
+    .map((row) => productTitle(row.products))
+    .filter((title) => {
+      const key = title.toLocaleLowerCase("pt-PT")
+      if (!title || titles.has(key)) return false
+      titles.add(key)
+      return true
+    })
+}
+
+export async function getBrevoMaterialHistoryAttributes(client: SupabaseClient, input: Pick<BrevoContactSyncInput, "email" | "userId">) {
+  const email = input.email.trim().toLowerCase()
+  const freeMaterialsQuery = client
+    .from("free_product_leads")
+    .select("last_requested_at,products!inner(title)")
+    .eq("normalized_email", email)
+    .order("last_requested_at", { ascending: false })
+
+  const purchasedMaterialsQuery = input.userId
+    ? client
+      .from("orders")
+      .select("paid_at,created_at,products!inner(title,product_type)")
+      .eq("user_id", input.userId)
+      .not("paid_at", "is", null)
+      .in("products.product_type", ["paid", "hybrid"])
+      .order("paid_at", { ascending: false, nullsFirst: false })
+    : Promise.resolve({ data: [], error: null })
+
+  const [freeMaterials, purchasedMaterials] = await Promise.all([freeMaterialsQuery, purchasedMaterialsQuery])
+  if (freeMaterials.error) throw freeMaterials.error
+  if (purchasedMaterials.error) throw purchasedMaterials.error
+
+  const attributes: Record<string, string> = {}
+  const freeTitles = uniqueMaterialTitles((freeMaterials.data ?? []) as Array<Record<string, unknown>>)
+  const purchasedTitles = uniqueMaterialTitles((purchasedMaterials.data ?? []) as Array<Record<string, unknown>>)
+  if (freeTitles.length) attributes[BREVO_FREE_MATERIALS_ATTRIBUTE] = freeTitles.join(" | ")
+  if (purchasedTitles.length) attributes[BREVO_PURCHASED_MATERIALS_ATTRIBUTE] = purchasedTitles.join(" | ")
+  return attributes
+}
+
 export async function getBrevoConsentGroups(client: SupabaseClient) {
   return await brevoRequest<{ consentGroups?: Array<Record<string, unknown>> }>(client, "/contacts/consent-groups?limit=500&offset=0", { method: "GET" })
 }
@@ -268,7 +346,9 @@ export async function syncBrevoContact(client: SupabaseClient, input: BrevoConta
     : input.targetConsentGroupId
   if (!targetListId) throw new Error("Lista de destino Brevo não configurada")
   const email = input.email.trim().toLowerCase()
-  const attributes = contactAttributes(settings, input)
+  const materialHistoryAttributes = await getBrevoMaterialHistoryAttributes(client, { email, userId: input.userId })
+  const attributes = { ...contactAttributes(settings, input), ...materialHistoryAttributes }
+  await Promise.all(Object.keys(materialHistoryAttributes).map((name) => ensureBrevoTextAttribute(client, name)))
   const created = await brevoRequest<{ id?: number }>(client, "/contacts", {
     method: "POST",
     body: JSON.stringify({

@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "381"
-export const BUILD_COMMIT = "turnstile-free-download"
+export const BUILD_DEPLOY_NUMBER = "382"
+export const BUILD_COMMIT = "brevo-material-attributes"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 
