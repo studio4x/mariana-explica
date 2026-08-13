@@ -89,7 +89,7 @@ async function readSeoConfig() {
   if (!anonKey) return null
 
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/site_config?config_key=eq.site_seo&select=config_value&limit=1`,
+    `${SUPABASE_URL}/rest/v1/site_config?config_key=eq.site_seo&select=config_value,updated_at&limit=1`,
     {
       headers: {
         apikey: anonKey,
@@ -101,8 +101,9 @@ async function readSeoConfig() {
 
   const rows = (await response.json()) as Array<{
     config_value?: Record<string, unknown>
+    updated_at?: string | null
   }>
-  return rows[0]?.config_value ?? null
+  return rows[0] ?? null
 }
 
 function shellOrigin() {
@@ -120,7 +121,8 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
     if (!shell.ok) throw new Error(`shell ${shell.status}`)
 
     let html = await shell.text()
-    const config = await readSeoConfig()
+    const configRow = await readSeoConfig()
+    const config = configRow?.config_value ?? null
     const page = (config?.pages?.[pageKey(requestUrl.pathname)] ?? {}) as Record<
       string,
       unknown
@@ -133,11 +135,15 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
       ''
     )
     const canonical = `${baseUrl}${requestUrl.pathname === '/' ? '/' : requestUrl.pathname}`
-    const image = canonicalAssetUrl(
+    const configuredImage = canonicalAssetUrl(
       baseUrl,
       config?.default_og_image_url,
       `${FALLBACK_ORIGIN}/social-preview-1200x630.jpg`
     )
+    const imageVersion = encodeURIComponent(
+      configRow?.updated_at?.trim() || 'default'
+    )
+    const image = `${baseUrl}/social-image?v=${imageVersion}`
     const locale = String(config?.locale ?? 'pt_PT')
     const imageAlt = `${title} — ${siteName}`
 
@@ -185,7 +191,7 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
     html = replaceMeta(
       html,
       'property="og:image:type"',
-      `<meta property="og:image:type" content="${imageMimeType(image)}" />`
+      `<meta property="og:image:type" content="${imageMimeType(configuredImage)}" />`
     )
     html = replaceMeta(
       html,
