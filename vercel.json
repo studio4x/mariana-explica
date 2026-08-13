@@ -94,6 +94,14 @@
     }
   ],
   "rewrites": [
+    { "source": "/", "destination": "/api/seo-html" },
+    { "source": "/materiais", "destination": "/api/seo-html" },
+    { "source": "/suporte", "destination": "/api/seo-html" },
+    { "source": "/explicacoes", "destination": "/api/seo-html" },
+    { "source": "/sobre", "destination": "/api/seo-html" },
+    { "source": "/privacidade", "destination": "/api/seo-html" },
+    { "source": "/cookies", "destination": "/api/seo-html" },
+    { "source": "/termos-de-uso", "destination": "/api/seo-html" },
     { "source": "/sitemap.xml", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=sitemap" },
     { "source": "/robots.txt", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=robots" },
     { "source": "/llms.txt", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=llms" },
@@ -103,6 +111,6 @@
     { "source": "/api/public/profile-avatar", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
     { "source": "/api/public/request-free-download", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/request-free-download" },
     { "source": "/api/public/redeem-free-download", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/redeem-free-download" },
-    { "source": "/((?!assets/|favicon|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
+    { "source": "/((?!api/|assets/|favicon|favicon.ico|index.html|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
   ]
 }
