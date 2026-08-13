@@ -58,6 +58,30 @@ function absoluteUrl(baseUrl: string, value: unknown, fallback: string) {
   }
 }
 
+function canonicalAssetUrl(baseUrl: string, value: unknown, fallback: string) {
+  const absolute = absoluteUrl(baseUrl, value, fallback)
+  try {
+    const base = new URL(baseUrl)
+    const asset = new URL(absolute)
+    const sameSite = asset.hostname.replace(/^www\./i, '') === base.hostname.replace(/^www\./i, '')
+    if (sameSite) {
+      asset.protocol = base.protocol
+      asset.host = base.host
+    }
+    return asset.toString()
+  } catch {
+    return fallback
+  }
+}
+
+function imageMimeType(value: string) {
+  const pathname = new URL(value).pathname.toLowerCase()
+  if (pathname.endsWith('.png')) return 'image/png'
+  if (pathname.endsWith('.webp')) return 'image/webp'
+  if (pathname.endsWith('.svg') || pathname.endsWith('.svgz')) return 'image/svg+xml'
+  return 'image/jpeg'
+}
+
 async function readSeoConfig() {
   // SEO configuration is explicitly public. Use the frontend's public key so
   // this endpoint does not require a server secret to render crawler metadata.
@@ -109,7 +133,7 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
       ''
     )
     const canonical = `${baseUrl}${requestUrl.pathname === '/' ? '/' : requestUrl.pathname}`
-    const image = absoluteUrl(
+    const image = canonicalAssetUrl(
       baseUrl,
       config?.default_og_image_url,
       `${FALLBACK_ORIGIN}/social-preview-1200x630.jpg`
@@ -152,6 +176,16 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
       html,
       'property="og:image"',
       `<meta property="og:image" content="${escapeHtml(image)}" />`
+    )
+    html = replaceMeta(
+      html,
+      'property="og:image:secure_url"',
+      `<meta property="og:image:secure_url" content="${escapeHtml(image)}" />`
+    )
+    html = replaceMeta(
+      html,
+      'property="og:image:type"',
+      `<meta property="og:image:type" content="${imageMimeType(image)}" />`
     )
     html = replaceMeta(
       html,
