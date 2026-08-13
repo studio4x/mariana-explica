@@ -1,9 +1,10 @@
 import { badRequest, corsHeaders, corsResponse, createSignedReadUrl, createServiceClient, getRequestId, notFound } from "../_shared/mod.ts"
 
 async function proxyAssetResponse(url: string, method: "GET" | "HEAD") {
-  // Do not forward Range: crawlers such as Facebook need the complete image
-  // and may otherwise receive a 206 response that they classify as corrupt.
-  const upstream = await fetch(url, { method })
+  // Always read the complete object upstream. Some R2/S3 signed URLs reject
+  // HEAD even though GET is valid; Meta uses HEAD while validating og:image.
+  // We still return an empty body to the caller for HEAD below.
+  const upstream = await fetch(url)
 
   if (!upstream.ok) {
     throw new Error(`Falha ao ler asset publico (${upstream.status})`)
