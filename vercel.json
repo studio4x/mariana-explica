@@ -101,6 +101,8 @@
     { "source": "/api/public/site-asset", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
     { "source": "/api/public/course-media", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media" },
     { "source": "/api/public/profile-avatar", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
+    { "source": "/api/public/request-free-download", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/request-free-download" },
+    { "source": "/api/public/redeem-free-download", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/redeem-free-download" },
     { "source": "/((?!assets/|favicon|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
   ]
 }
