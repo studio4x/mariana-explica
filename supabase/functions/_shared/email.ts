@@ -1400,6 +1400,12 @@ async function buildPlatformManagedEmail(
 
 function renderEmailLayout(input: EmailLayoutInput): EmailContent {
   const ctaUrl = normalizeUrl(input.ctaUrl)
+  // Outlook for Windows uses the Word rendering engine and ignores padding on
+  // links. Keep a reasonably fitted VML fallback for it, while other clients
+  // retain the responsive HTML button below.
+  const ctaVmlWidth = input.ctaLabel
+    ? Math.min(420, Math.max(180, input.ctaLabel.trim().length * 9 + 64))
+    : 180
   const headerLogo =
     input.headerLogoUrl?.trim()
       ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
@@ -1440,10 +1446,18 @@ function renderEmailLayout(input: EmailLayoutInput): EmailContent {
     ctaUrl && input.ctaLabel
       ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
         <tr>
-          <td bgcolor="#242742" style="background-color:#242742;">
-            <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:16px 30px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">
+          <td align="left">
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(ctaUrl)}" style="height:52px;v-text-anchor:middle;width:${ctaVmlWidth}px;" arcsize="12%" stroked="f" fillcolor="#242742">
+              <w:anchorlock/>
+              <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:700;">${escapeHtml(input.ctaLabel)}</center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+            <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background-color:#242742;border:1px solid #242742;border-radius:8px;padding:16px 30px;color:#ffffff;font-size:16px;font-weight:700;line-height:20px;text-decoration:none;font-family:Arial,sans-serif;">
               ${escapeHtml(input.ctaLabel)}
             </a>
+            <!--<![endif]-->
           </td>
         </tr>
       </table>`
