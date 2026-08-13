@@ -110,6 +110,7 @@ $$;
 
 create or replace function public.guard_free_product_content()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare product_kind text;
 begin
   select product_type into strict product_kind from products where id = new.product_id;
   if product_kind = 'free' then raise exception 'produtos gratuitos nao aceitam modulos, aulas ou avaliacoes'; end if;
