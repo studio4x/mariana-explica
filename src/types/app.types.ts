@@ -986,6 +986,7 @@ export interface PublicSitePagePayload {
 export type AdminPlatformEmailTemplateKey =
   | "purchase_confirmed"
   | "free_product_claimed"
+  | "free_lead_download"
   | "support_ticket_created"
   | "support_ticket_replied"
   | "course_chat_message_created"

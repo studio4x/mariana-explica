@@ -43,6 +43,12 @@ verify_jwt = false
 [functions.claim-free-product]
 verify_jwt = false
 
+[functions.request-free-download]
+verify_jwt = false
+
+[functions.redeem-free-download]
+verify_jwt = false
+
 [functions.payment-webhook]
 verify_jwt = false
 

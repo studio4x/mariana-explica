@@ -6,6 +6,7 @@ import { fetchBrevoSettings, sendBrevoTransactionalEmail } from "./brevo.ts"
 export type PlatformTemplateKey =
   | "purchase_confirmed"
   | "free_product_claimed"
+  | "free_lead_download"
   | "support_ticket_created"
   | "support_ticket_replied"
   | "course_chat_message_created"
@@ -237,6 +238,25 @@ const PLATFORM_EMAIL_TEMPLATE_DEFINITIONS: PlatformEmailTemplateDefinition[] = [
       message_preview: "Ja validamos o teu acesso e deixamos um passo a passo no ticket.",
       support_url: "/aluno/suporte/ticket-exemplo",
     },
+  },
+  {
+    key: "free_lead_download",
+    label: "Download de material gratuito",
+    description: "Enviado ao visitante com um link temporario para descarregar um material gratuito.",
+    category: "Captação de leads",
+    availableVariables: ["greeting_name", "product_title", "download_url"],
+    defaultContent: {
+      subject: "O seu material gratuito está pronto | Mariana Explica",
+      eyebrow: "Material gratuito",
+      title: "O seu material está pronto!",
+      greeting: "Olá{{greeting_name}}.",
+      intro: "O material {{product_title}} já está disponível para download.",
+      bullets: ["O link é temporário e serve apenas para descarregar este material."],
+      ctaLabel: "Descarregar material",
+      ctaUrl: "{{download_url}}",
+      footer: "Se não encontrar a mensagem, verifique também a pasta de spam.",
+    },
+    sampleData: { greeting_name: ", Mariana", product_title: "Guia de estudo gratuito", download_url: "/material-gratuito/token-de-exemplo" },
   },
   {
     key: "course_chat_message_created",
@@ -1566,6 +1586,18 @@ export async function buildSupportTicketRepliedEmail(client: SupabaseClient, inp
     ticket_subject: input.subject,
     message_preview: input.messagePreview,
     support_url: input.supportUrl ?? "/aluno/suporte",
+  })
+}
+
+export async function buildFreeLeadDownloadEmail(client: SupabaseClient, input: {
+  fullName?: string | null
+  productTitle: string
+  downloadUrl: string
+}) {
+  return await buildPlatformManagedEmail(client, "free_lead_download", {
+    greeting_name: input.fullName ? `, ${input.fullName}` : "",
+    product_title: input.productTitle,
+    download_url: input.downloadUrl,
   })
 }
 

@@ -13,6 +13,7 @@ export const ROUTES = {
   PRODUCT: "/materiais",
   CHECKOUT: "/checkout",
   CHECKOUT_SUCCESS: "/checkout/confirmacao",
+  FREE_MATERIAL_DOWNLOAD: "/material-gratuito",
   PRIVACY: "/privacidade",
   COOKIES: "/cookies",
   TERMS: "/termos-de-uso",

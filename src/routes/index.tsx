@@ -16,6 +16,7 @@ import { isDynamicImportError, reloadAfterRuntimeCleanup } from "@/lib/runtime-r
 const Home = lazy(() => import("@/pages/public").then((module) => ({ default: module.Home })))
 const Products = lazy(() => import("@/pages/public").then((module) => ({ default: module.Products })))
 const Product = lazy(() => import("@/pages/public").then((module) => ({ default: module.Product })))
+const FreeMaterialDownload = lazy(() => import("@/pages/public").then((module) => ({ default: module.FreeMaterialDownload })))
 const Support = lazy(() => import("@/pages/public").then((module) => ({ default: module.Support })))
 const Explicacoes = lazy(() => import("@/pages/public").then((module) => ({ default: module.Explicacoes })))
 const About = lazy(() => import("@/pages/public").then((module) => ({ default: module.About })))
@@ -299,6 +300,10 @@ export const router = createBrowserRouter(
         {
           path: "checkout/confirmacao",
           element: withSuspense(<CheckoutSuccess />),
+        },
+        {
+          path: "material-gratuito/:token",
+          element: withSuspense(<FreeMaterialDownload />),
         },
         {
           path: "suporte",

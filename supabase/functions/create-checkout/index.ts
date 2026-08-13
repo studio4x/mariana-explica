@@ -270,6 +270,9 @@ Deno.serve(async (req) => {
 
     const product = await getProductByIdentifier(context.serviceClient, identifier)
     assertPaidProduct(product)
+    if (product.product_type === "free") {
+      throw badRequest("Materiais gratuitos são entregues por e-mail e não utilizam checkout")
+    }
 
     const existingGrant = await findActiveGrantForProduct(context.serviceClient, {
       userId: context.user.id,

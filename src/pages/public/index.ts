@@ -1,6 +1,7 @@
 export { Home } from "./Home"
 export { Products } from "./Products"
 export { Product } from "./Product"
+export { FreeMaterialDownload } from "./FreeMaterialDownload"
 export { Checkout } from "./Checkout"
 export { CheckoutSuccess } from "./CheckoutSuccess"
 export { Support } from "./Support"

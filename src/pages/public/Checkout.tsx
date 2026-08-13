@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 import { useProfilePreferences } from "@/hooks/useDashboard"
 import { usePublishedProductBySlug } from "@/hooks/useProducts"
-import { claimFreeProduct, createCheckoutSession, isFreeProduct } from "@/services"
+import { createCheckoutSession } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
 import { openCheckoutUrlInNewTab } from "./checkout-helpers"
@@ -306,17 +306,8 @@ function CheckoutPageContent() {
     setSubmitting(true)
 
     try {
-      if (isFreeProduct(product)) {
-        await claimFreeProduct({
-          productId: product.id,
-          pendingUserId: pendingUserId ?? null,
-          contentUpdatesConsent: draft.contentUpdatesConsent,
-        })
-        clearCheckoutDraft()
-        navigate(
-          `${ROUTES.CHECKOUT_SUCCESS}?product_id=${encodeURIComponent(product.id)}&slug=${encodeURIComponent(checkoutIdentifier)}&mode=free`,
-          { replace: true },
-        )
+      if (product.product_type === "free") {
+        navigate(`${ROUTES.COURSE}/${product.slug}`, { replace: true })
         return
       }
 
@@ -510,6 +501,15 @@ function CheckoutPageContent() {
         title="Material não encontrado"
         message="O item escolhido não esta publicado ou deixou de estar disponível."
       />
+    )
+  }
+
+  if (product.product_type === "free") {
+    return (
+      <div className="container py-16 text-center">
+        <EmptyState title="Este material é recebido por e-mail" message="Não é necessário criar conta nem passar pelo checkout. Volta à página do material para solicitar o download." />
+        <Link to={`${ROUTES.COURSE}/${product.slug}`} className="mt-2 inline-flex font-semibold text-sky-700 underline">Voltar ao material</Link>
+      </div>
     )
   }
 

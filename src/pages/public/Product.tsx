@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import {
   ArrowRight,
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { RichTextContent } from "@/components/common"
 import { CourseReviews } from "@/components/reviews"
+import { FreeDownloadModal } from "@/components/product"
 import { ROUTES } from "@/lib/constants"
 import { useAuth } from "@/hooks/useAuth"
 import { useMyProducts } from "@/hooks/useDashboard"
@@ -27,6 +29,7 @@ import { formatProductPrice } from "@/utils/currency"
 import { buildCoursePublicPageView } from "@/lib/course-public-page"
 
 export function Product() {
+  const [isFreeDownloadOpen, setIsFreeDownloadOpen] = useState(false)
   const { slug } = useParams<{ slug: string }>()
   const { session, isAdmin } = useAuth()
   const publicProductQuery = usePublishedProductBySlug(slug)
@@ -243,12 +246,19 @@ export function Product() {
                   <p className="mt-2 text-sm leading-6 text-slate-600">{page.priceNote}</p>
                 </div>
 
-                <Button asChild className="w-full rounded-md" size="lg">
-                  <Link to={enrolledAction?.to ?? `${ROUTES.CHECKOUT}?slug=${encodeURIComponent(checkoutIdentifier)}`}>
-                    {enrolledAction?.label ?? page.ctaLabel}
+                {product.product_type === "free" ? (
+                  <Button type="button" className="w-full rounded-md" size="lg" onClick={() => setIsFreeDownloadOpen(true)}>
+                    Receber material por e-mail
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                  </Button>
+                ) : (
+                  <Button asChild className="w-full rounded-md" size="lg">
+                    <Link to={enrolledAction?.to ?? `${ROUTES.CHECKOUT}?slug=${encodeURIComponent(checkoutIdentifier)}`}>
+                      {enrolledAction?.label ?? page.ctaLabel}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
 
                 <div className="grid gap-3">
                   {page.sidebarFeatures.map((feature, index) => (
@@ -281,6 +291,7 @@ export function Product() {
           </aside>
         </div>
       </div>
+      {product.product_type === "free" ? <FreeDownloadModal productId={product.id} productTitle={product.title} open={isFreeDownloadOpen} onOpenChange={setIsFreeDownloadOpen} /> : null}
     </div>
   )
 }

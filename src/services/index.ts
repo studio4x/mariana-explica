@@ -1,5 +1,6 @@
 export * from "./admin.service"
 export * from "./checkout.service"
+export * from "./free-download.service"
 export * from "./faq.service"
 export * from "./dashboard.service"
 export * from "./product.service"
