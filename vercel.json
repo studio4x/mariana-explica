@@ -93,24 +93,20 @@
       ]
     }
   ],
-  "rewrites": [
-    { "source": "/", "destination": "/api/seo-html" },
-    { "source": "/materiais", "destination": "/api/seo-html" },
-    { "source": "/suporte", "destination": "/api/seo-html" },
-    { "source": "/explicacoes", "destination": "/api/seo-html" },
-    { "source": "/sobre", "destination": "/api/seo-html" },
-    { "source": "/privacidade", "destination": "/api/seo-html" },
-    { "source": "/cookies", "destination": "/api/seo-html" },
-    { "source": "/termos-de-uso", "destination": "/api/seo-html" },
-    { "source": "/sitemap.xml", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=sitemap" },
-    { "source": "/robots.txt", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=robots" },
-    { "source": "/llms.txt", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=llms" },
-    { "source": "/favicon", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset?branding_role=favicon" },
-    { "source": "/api/public/site-asset", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
-    { "source": "/api/public/course-media", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media" },
-    { "source": "/api/public/profile-avatar", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
-    { "source": "/api/public/request-free-download", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/request-free-download" },
-    { "source": "/api/public/redeem-free-download", "destination": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/redeem-free-download" },
-    { "source": "/((?!api/|assets/|favicon|favicon.ico|index.html|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|llms.txt|icons/|social-preview-1200x630.jpg).*)", "destination": "/" }
+  "routes": [
+    { "src": "^/sitemap\\.xml$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=sitemap" },
+    { "src": "^/robots\\.txt$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=robots" },
+    { "src": "^/llms\\.txt$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=llms" },
+    { "src": "^/favicon$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset?branding_role=favicon" },
+    { "src": "^/api/public/site-asset(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
+    { "src": "^/api/public/course-media(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media" },
+    { "src": "^/api/public/profile-avatar(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
+    { "src": "^/api/public/request-free-download(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/request-free-download" },
+    { "src": "^/api/public/redeem-free-download(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/redeem-free-download" },
+    { "src": "^/api/(.*)$", "continue": true },
+    { "src": "^/index\\.html$", "continue": true },
+    { "src": "^/(?!assets/|api/|favicon$|favicon\\.ico$|index\\.html$|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|sitemap\\.xml$|robots\\.txt$|llms\\.txt$|icons/|social-preview-1200x630\\.jpg$).*$", "dest": "/api/seo-html" },
+    { "handle": "filesystem" },
+    { "src": "^/(.*)$", "dest": "/" }
   ]
 }
