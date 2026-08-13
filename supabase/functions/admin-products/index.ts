@@ -478,6 +478,27 @@ Deno.serve(async (req) => {
     normalizePricingFields(updates, currentProduct ?? undefined)
     normalizeAccessExpirationFields(updates, currentProduct ?? undefined)
 
+    const effectiveProductType = (updates.product_type ?? currentProduct?.product_type) as ProductType | undefined
+    const effectiveStatus = (updates.status ?? currentProduct?.status) as ProductStatus | undefined
+    if (effectiveProductType === "free" && effectiveStatus === "published") {
+      const { data: activeFile, error: activeFileError } = await context.serviceClient
+        .from("product_download_files")
+        .select("id")
+        .eq("product_id", body.productId)
+        .eq("status", "active")
+        .maybeSingle()
+
+      if (activeFileError) throw activeFileError
+      if (!activeFile) {
+        if (currentProduct?.product_type !== "free") {
+          updates.status = "draft"
+          updates.published_at = null
+        } else {
+          throw badRequest("Configure o ficheiro principal antes de publicar o material gratuito")
+        }
+      }
+    }
+
     const { data, error } = await context.serviceClient
       .from("products")
       .update(updates)

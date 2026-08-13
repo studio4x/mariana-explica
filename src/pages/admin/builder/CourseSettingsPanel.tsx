@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui"
 import { MediaLibraryModal, OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge, type RichTextEditorHandle } from "@/components/common"
-import { useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
+import { useAdminFreeProductDownloadFile, useAdminProductCategories, useUpdateAdminProduct, useUploadAdminProductCover } from "@/hooks/useAdmin"
 import { buildCourseCatalogCardView, sanitizeCourseCatalogCardContent } from "@/lib/course-public-page"
 import { ROUTES } from "@/lib/constants"
 import { adminCourseBuilderPath } from "@/lib/routes"
@@ -118,6 +118,10 @@ export function CourseSettingsPanel() {
   const { data: categories = [] } = useAdminProductCategories()
   const updateProduct = useUpdateAdminProduct()
   const uploadCover = useUploadAdminProductCover()
+  const freeDownloadFileQuery = useAdminFreeProductDownloadFile(
+    product.product_type === "free" ? product.id : undefined,
+  )
+  const hasActiveFreeDownloadFile = Boolean(freeDownloadFileQuery.data)
   const shortDescriptionEditorRef = useRef<RichTextEditorHandle | null>(null)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [coverStorage, setCoverStorage] = useState<{
@@ -335,6 +339,19 @@ export function CourseSettingsPanel() {
 
       const normalizedPricing = normalizeProductPricing(form.productType, priceCents)
       const isFreeProduct = normalizedPricing.productType === "free"
+      if (
+        isFreeProduct &&
+        product.product_type === "free" &&
+        form.status === "published" &&
+        freeDownloadFileQuery.isSuccess &&
+        !hasActiveFreeDownloadFile
+      ) {
+        setFeedback({
+          tone: "error",
+          message: "Configure o ficheiro principal na Visão Geral do Material antes de publicar.",
+        })
+        return
+      }
       const accessExpiresAt = form.accessExpiresAt ? new Date(form.accessExpiresAt).toISOString() : null
       const accessDurationDays = form.accessDurationDays ? Number(form.accessDurationDays) : null
 
@@ -717,9 +734,14 @@ export function CourseSettingsPanel() {
             <Field label="Tipo de produto" helper="Pago ativa o builder completo e o Stripe; gratuito ativa a entrega do ficheiro por e-mail.">
               <select
                 value={form.productType}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, productType: event.target.value as typeof form.productType }))
-                }
+                onChange={(event) => {
+                  const productType = event.target.value as typeof form.productType
+                  setForm((prev) => ({
+                    ...prev,
+                    productType,
+                    status: productType === "free" && product.product_type !== "free" ? "draft" : prev.status,
+                  }))
+                }}
                 className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               >
                 <option value="paid">Pago</option>
@@ -737,7 +759,17 @@ export function CourseSettingsPanel() {
                 className="h-11 w-full rounded-xl border bg-slate-50 px-4 text-sm outline-none focus:border-slate-400 focus:bg-white"
               >
                 <option value="draft">Rascunho</option>
-                <option value="published">Publicado</option>
+                <option
+                  value="published"
+                  disabled={
+                    form.productType === "free" &&
+                    product.product_type === "free" &&
+                    freeDownloadFileQuery.isSuccess &&
+                    !hasActiveFreeDownloadFile
+                  }
+                >
+                  Publicado
+                </option>
                 <option value="archived">Arquivado</option>
               </select>
             </Field>
@@ -973,6 +1005,28 @@ export function CourseSettingsPanel() {
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Ao guardar como gratuito, o builder fica limitado às configurações, página pública e ficheiro de download. Não há checkout, login, módulos, avaliações ou atribuições.
               </p>
+              {product.product_type === "free" ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3">
+                  <StatusBadge
+                    label={hasActiveFreeDownloadFile ? "Ficheiro ativo" : "Ficheiro pendente"}
+                    tone={hasActiveFreeDownloadFile ? "success" : "warning"}
+                  />
+                  <p className="min-w-0 flex-1 text-sm text-slate-600">
+                    {hasActiveFreeDownloadFile
+                      ? "Este material já pode ser publicado."
+                      : "Envie o ficheiro principal antes de alterar o estado para Publicado."}
+                  </p>
+                  <Button asChild type="button" variant="outline" className="rounded-full border-emerald-300 text-emerald-700">
+                    <Link to={adminCourseBuilderPath(product.id)}>
+                      {hasActiveFreeDownloadFile ? "Ver ficheiro" : "Configurar ficheiro"}
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  A conversão será guardada primeiro como rascunho. Depois, configure o ficheiro principal e publique o material.
+                </p>
+              )}
             </div>
           )}
         </section>
@@ -1121,7 +1175,11 @@ export function CourseSettingsPanel() {
         ) : null}
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" className="rounded-full" disabled={updateProduct.isPending}>
+          <Button
+            type="submit"
+            className="rounded-full"
+            disabled={updateProduct.isPending || freeDownloadFileQuery.isLoading}
+          >
             {updateProduct.isPending ? "A guardar..." : "Guardar configurações"}
           </Button>
         </div>
