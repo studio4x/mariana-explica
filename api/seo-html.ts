@@ -80,8 +80,10 @@ async function readSeoConfig() {
 }
 
 function shellOrigin() {
-  const deploymentHost = process.env.VERCEL_URL?.trim()
-  return deploymentHost ? `https://${deploymentHost}` : FALLBACK_ORIGIN
+  // The deployment URL is protected on this project. Fetching it from the
+  // serverless function redirects to Vercel's login page, so use the public
+  // canonical domain for the static SPA shell instead.
+  return FALLBACK_ORIGIN
 }
 
 export default async function handler(req: NodeRequest, res: NodeResponse) {
