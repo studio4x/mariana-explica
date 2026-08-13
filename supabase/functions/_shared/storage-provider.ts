@@ -38,6 +38,7 @@ interface UploadObjectInput {
   body: Blob | ArrayBuffer | ArrayBufferView | File | Uint8Array | string
   contentType?: string | null
   cacheControl?: string | null
+  upsert?: boolean
 }
 
 interface DeleteObjectInput {
@@ -423,7 +424,7 @@ export async function uploadStorageObject(input: UploadObjectInput) {
 
   if (provider === "supabase") {
     const upload = await input.serviceClient.storage.from(input.logicalBucket).upload(normalizedStoragePath, input.body, {
-      upsert: false,
+      upsert: input.upsert === true,
       contentType: input.contentType ?? undefined,
       cacheControl: input.cacheControl ?? undefined,
     })

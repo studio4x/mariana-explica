@@ -2,6 +2,7 @@ import { badRequest } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 import { createServiceClient, finishJobRun, requireCronSecret, startJobRun } from "../_shared/mod.ts"
+import { deleteStorageObject } from "../_shared/storage-provider.ts"
 
 const COURSE_STORAGE_BUCKET = "course-assets-private"
 const DERIVED_WATERMARK_ROOT = "derived-watermarks/module-pdfs"
@@ -123,12 +124,38 @@ Deno.serve(async (req) => {
       }
     }
 
+    const { data: expiredFreePdfLicenses, error: expiredFreePdfLicensesError } = await serviceClient
+      .from("free_product_download_licenses")
+      .select("id,storage_provider,storage_bucket,storage_path")
+      .lt("expires_at", new Date().toISOString())
+      .limit(Math.min(1_000, maxUsers * 10))
+    if (expiredFreePdfLicensesError) throw expiredFreePdfLicensesError
+
+    const removedFreePdfLicenseIds: string[] = []
+    for (const license of expiredFreePdfLicenses ?? []) {
+      if (!dryRun) {
+        await deleteStorageObject({
+          serviceClient,
+          logicalBucket: license.storage_bucket,
+          storagePath: license.storage_path,
+          provider: license.storage_provider,
+        })
+        const { error: deleteLicenseError } = await serviceClient
+          .from("free_product_download_licenses")
+          .delete()
+          .eq("id", license.id)
+        if (deleteLicenseError) throw deleteLicenseError
+      }
+      removedFreePdfLicenseIds.push(license.id)
+    }
+
     const result = {
       retention_hours: retentionHours,
       dry_run: dryRun,
       scanned_count: scannedPaths.length,
       removed_count: removedPaths.length,
       removed_paths: removedPaths,
+      free_pdf_licenses_removed_count: removedFreePdfLicenseIds.length,
     }
 
     await finishJobRun(serviceClient, {
