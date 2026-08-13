@@ -207,8 +207,6 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
       'name="twitter:image"',
       `<meta name="twitter:image" content="${escapeHtml(image)}" />`
     )
-    html = removeMeta(html, 'property="og:image:secure_url"')
-    html = removeMeta(html, 'property="og:image:type"')
     html = removeMeta(html, 'property="og:image:width"')
     html = removeMeta(html, 'property="og:image:height"')
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
