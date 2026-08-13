@@ -45,7 +45,7 @@ async function callFreeDownloadFunction<T>(name: string, body: Record<string, st
   return data as T
 }
 
-export function requestFreeDownload(input: { productId: string; name: string; email: string }) {
+export function requestFreeDownload(input: { productId: string; name: string; email: string; turnstileToken: string; website?: string }) {
   return callFreeDownloadFunction<{ success: true; message: string }>("request-free-download", input)
 }
 

@@ -3,10 +3,40 @@ import { badRequest, forbidden } from "../_shared/errors.ts"
 import { corsResponse, errorResponse, getRequestId, jsonResponse, readJsonBody } from "../_shared/http.ts"
 import { logError } from "../_shared/logger.ts"
 
-type Input = { name?: unknown; email?: unknown; productId?: unknown }
+type Input = { name?: unknown; email?: unknown; productId?: unknown; turnstileToken?: unknown; website?: unknown }
+type TurnstileValidation = { success?: unknown; action?: unknown; hostname?: unknown; "error-codes"?: unknown }
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const digest = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)))).map((part) => part.toString(16).padStart(2, "0")).join("")
-const clientIp = (request: Request) => request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+const clientIp = (request: Request) => request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+
+async function validateTurnstile(token: string, request: Request) {
+  const secret = Deno.env.get("TURNSTILE_SECRET_KEY")?.trim()
+  if (!secret) {
+    logError("Turnstile secret is not configured")
+    return false
+  }
+
+  try {
+    const payload = new FormData()
+    payload.set("secret", secret)
+    payload.set("response", token)
+    const ip = clientIp(request)
+    if (ip !== "unknown") payload.set("remoteip", ip)
+
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: payload,
+      signal: AbortSignal.timeout(10_000),
+    })
+    const result = await response.json().catch(() => ({})) as TurnstileValidation
+    const valid = response.ok && result.success === true && result.action === "free_download" && (result.hostname === "mariana-explica.pt" || result.hostname === "www.mariana-explica.pt")
+    if (!valid) logError("Turnstile validation failed", { status: response.status, error_codes: result["error-codes"], action: result.action, hostname: result.hostname })
+    return valid
+  } catch (error) {
+    logError("Turnstile validation request failed", { error: String(error) })
+    return false
+  }
+}
 
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
@@ -14,11 +44,15 @@ Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") throw badRequest("Metodo nao suportado")
     const body = await readJsonBody<Input>(req)
-    if (Object.keys(body).some((key) => !["name", "email", "productId"].includes(key))) throw badRequest("Pedido invalido")
+    if (Object.keys(body).some((key) => !["name", "email", "productId", "turnstileToken", "website"].includes(key))) throw badRequest("Pedido invalido")
     const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : ""
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
     const productId = typeof body.productId === "string" ? body.productId.trim() : ""
+    const turnstileToken = typeof body.turnstileToken === "string" ? body.turnstileToken.trim() : ""
+    const website = typeof body.website === "string" ? body.website.trim() : ""
     if (name.length < 2 || name.length > 120 || !EMAIL.test(email) || email.length > 320 || !productId) throw badRequest("Verifique o nome e o email informados")
+    if (website) return jsonResponse({ success: true, request_id: requestId, message: "Se o endereco estiver correto, recebera o material em breve." })
+    if (!turnstileToken || turnstileToken.length > 2048 || !(await validateTurnstile(turnstileToken, req))) throw badRequest("Confirme a verificacao de seguranca e tente novamente")
     const service = createServiceClient()
     const { data: product, error: productError } = await service.from("products").select("id,title,product_type,status").eq("id", productId).maybeSingle()
     if (productError) throw productError
