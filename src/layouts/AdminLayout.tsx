@@ -25,6 +25,7 @@ import {
   X,
   UserCircle2,
   Users,
+  UserRoundPlus,
 } from "lucide-react"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import {
@@ -81,6 +82,7 @@ const items: AdminNavItem[] = [
   { to: ROUTES.ADMIN_BREVO, label: "Brevo", icon: Send },
   { to: ROUTES.ADMIN_USERS, label: "Usuarios", icon: Users },
   { to: ROUTES.ADMIN_PRODUCTS, label: "Materiais", icon: Package },
+  { to: ROUTES.ADMIN_FREE_PRODUCT_LEADS, label: "Leads gratuitos", icon: UserRoundPlus },
   { to: ROUTES.ADMIN_PAGE_EDITOR, label: "Editor Visual", icon: LayoutTemplate },
   { to: ROUTES.ADMIN_REVIEWS, label: "Reviews", icon: MessageSquareText },
   { to: ROUTES.ADMIN_SUPPORT, label: "Tickets", icon: LifeBuoy },

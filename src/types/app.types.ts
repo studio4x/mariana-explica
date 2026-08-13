@@ -98,6 +98,51 @@ export interface AdminFreeProductDownloadFile {
   updated_at: string
 }
 
+export type AdminFreeProductLeadDeliveryStatus = "queued" | "sent" | "failed"
+
+export interface AdminFreeProductLead {
+  id: string
+  product_id: string
+  name: string
+  email: string
+  delivery_status: AdminFreeProductLeadDeliveryStatus
+  request_count: number
+  source: string
+  first_requested_at: string
+  last_requested_at: string
+  created_at: string
+  updated_at: string
+  product: {
+    id: string
+    title: string
+    slug: string
+    product_type: "free"
+  }
+}
+
+export interface AdminFreeProductLeadMetrics {
+  total: number
+  queued: number
+  sent: number
+  failed: number
+}
+
+export interface AdminFreeProductLeadsQuery {
+  query?: string
+  productId?: string
+  deliveryStatus?: AdminFreeProductLeadDeliveryStatus
+  dateFrom?: string
+  dateTo?: string
+  offset?: number
+  limit?: number
+}
+
+export interface AdminFreeProductLeadsPage {
+  rows: AdminFreeProductLead[]
+  count: number
+  metrics: AdminFreeProductLeadMetrics
+}
+
 export interface ExpiredRenewalProductSummary extends ProductSummary {
   grant_id: string
   expires_at: string

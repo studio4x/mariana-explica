@@ -83,6 +83,9 @@ const AdminAffiliates = lazy(() =>
 const AdminCoupons = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminCoupons })))
 const AdminEmails = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminEmails })))
 const AdminBrevo = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminBrevo })))
+const AdminFreeProductLeads = lazy(() =>
+  import("@/pages/admin").then((module) => ({ default: module.AdminFreeProductLeads })),
+)
 const AdminFaq = lazy(() => import("@/pages/admin").then((module) => ({ default: module.AdminFaq })))
 const AdminNotifications = lazy(() =>
   import("@/pages/admin").then((module) => ({ default: module.AdminNotifications })),
@@ -552,6 +555,10 @@ export const router = createBrowserRouter(
         {
           path: "integracoes/brevo",
           element: withSuspense(<AdminBrevo />),
+        },
+        {
+          path: "leads-materiais-gratuitos",
+          element: withSuspense(<AdminFreeProductLeads />),
         },
         {
           path: "cursos",

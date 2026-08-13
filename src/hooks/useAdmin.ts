@@ -48,6 +48,7 @@ import {
   sendAdminBrevoTestEmail,
   fetchAdminBrevoHistory,
   fetchAdminBrevoContacts,
+  fetchAdminFreeProductLeads,
   retryAdminBrevoContact,
   retryFailedAdminBrevoContacts,
   syncAdminBrevoContact,
@@ -167,6 +168,7 @@ import type {
   ProductAssessmentSummary,
   PublicFormSubmissionSummary,
   SupportTicketMessage,
+  AdminFreeProductLeadsQuery,
 } from "@/types/app.types"
 import type { ProductSummary } from "@/types/product.types"
 
@@ -298,6 +300,14 @@ export function useAdminBrevoHistory(input: { query?: string; status?: string; o
 
 export function useAdminBrevoContacts(input: { query?: string; status?: string; offset?: number; limit?: number } = {}) {
   return useQuery({ queryKey: ["admin", "brevo", "contacts", input], queryFn: () => fetchAdminBrevoContacts(input), ...getAdminQueryOptions() })
+}
+
+export function useAdminFreeProductLeads(input: AdminFreeProductLeadsQuery = {}) {
+  return useQuery({
+    queryKey: ["admin", "free-product-leads", input],
+    queryFn: () => fetchAdminFreeProductLeads(input),
+    ...getAdminQueryOptions(),
+  })
 }
 
 export function useAdminBrevoMutation() {

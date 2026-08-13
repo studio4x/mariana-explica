@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "369"
-export const BUILD_COMMIT = "reviews-layout"
+export const BUILD_DEPLOY_NUMBER = "370"
+export const BUILD_COMMIT = "free-download-leads-admin"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

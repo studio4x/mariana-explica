@@ -70,6 +70,9 @@ import type {
   AdminSiteThemeTextStyle,
   AdminStorageUploadResult,
   AdminFreeProductDownloadFile,
+  AdminFreeProductLead,
+  AdminFreeProductLeadsPage,
+  AdminFreeProductLeadsQuery,
   SiteThemeTextTransform,
   ProductLessonSummary,
   AdminSupportTicketSummary,
@@ -2489,6 +2492,30 @@ export async function updateAdminTrackingConfig(
   }
 
   return normalizeAdminTrackingConfig(data as Partial<AdminTrackingConfig>)
+}
+
+export async function fetchAdminFreeProductLeads(input: AdminFreeProductLeadsQuery = {}) {
+  const response = await invokeAdminFunction<{
+    success: true
+    rows: AdminFreeProductLead[]
+    count: number
+    metrics: AdminFreeProductLeadsPage["metrics"]
+  }>("admin-free-product-leads", { action: "list", ...input })
+
+  return {
+    rows: response.rows,
+    count: response.count,
+    metrics: response.metrics,
+  } satisfies AdminFreeProductLeadsPage
+}
+
+export async function exportAdminFreeProductLeads(input: Omit<AdminFreeProductLeadsQuery, "offset" | "limit"> = {}) {
+  return await invokeAdminFunction<{
+    success: true
+    rows: AdminFreeProductLead[]
+    count: number
+    truncated: boolean
+  }>("admin-free-product-leads", { action: "export", ...input })
 }
 
 export async function updateAdminSeoConfig(input: SeoConfigValue) {
