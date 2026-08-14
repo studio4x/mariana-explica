@@ -104,7 +104,15 @@ Deno.serve(async (req) => {
 
     if (file === 'robots') {
       return response(
-        ['User-agent: *', 'Allow: /', 'Disallow: /api/', '', `Sitemap: ${baseUrl}/sitemap.xml`, ''].join('\n'),
+        [
+          'User-agent: *',
+          'Allow: /',
+          'Allow: /api/public/site-asset',
+          'Disallow: /api/',
+          '',
+          `Sitemap: ${baseUrl}/sitemap.xml`,
+          '',
+        ].join('\n'),
         'text/plain'
       )
     }
