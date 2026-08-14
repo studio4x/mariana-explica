@@ -30,7 +30,7 @@ Base de referencia:
 - [OK] PUB-003 Footer publico aparece e exibe build discreto. | Evidencia: Playwright prod 2026-05-29, `footerVisible=true`, build exibido `bb41402`.
 - [OK] PUB-004 Navbar publica mostra links principais esperados (`/materiais`, `/suporte`, login/conta). | Evidencia: Playwright prod 2026-05-29, links visiveis com `href` `/materiais`, `/suporte`, `/login`.
 - [OK] PUB-005 `CookieConsentBanner` funciona sem quebrar navegacao. | Evidencia: Playwright prod 2026-05-29, banner visivel, acao `Aceitar cookies` fecha banner e navegacao para `/materiais` permanece funcional.
-- [OK] PUB-006 Gate de manutencao publica respeita configuracao do site. | Evidencia: Playwright prod 2026-05-29, `site_maintenance_mode.enabled=false` retornado pela API publica e home renderizada fora da tela de manutencao.
+- [OK] PUB-006 Gate de manutencao publica respeita configuracao do site. Quando ativo, paginas publicas respondem no servidor com `503 Service Unavailable`, `Retry-After` e HTML estatico; `robots.txt`, autenticacao e admin permanecem acessiveis. O React mantem o gate visual como segunda camada.
 
 ### 1.2 Catalogo e pagina de material
 - [OK] PUB-010 Catalogo (`/materiais`) lista materiais publicados. | Evidencia: Playwright prod 2026-05-29, API publica retornou `3` produtos publicados e `3` cards renderizados em `/materiais`.

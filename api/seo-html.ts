@@ -1,4 +1,5 @@
 type NodeRequest = {
+  method?: string
   url?: string
 }
 
@@ -14,6 +15,15 @@ const FALLBACK_ORIGIN = 'https://www.mariana-explica.pt'
 const SUPABASE_URL = 'https://gookhgufsxeplelpdaua.supabase.co'
 const SOCIAL_IMAGE_WIDTH = 1200
 const SOCIAL_IMAGE_HEIGHT = 627
+const MAINTENANCE_RETRY_AFTER_SECONDS = 3600
+
+const MAINTENANCE_BYPASS_PATHS = [
+  '/admin',
+  '/login',
+  '/auth',
+  '/recuperar-senha',
+  '/redefinir-senha',
+]
 
 const PAGE_KEYS: Record<string, string> = {
   '/': 'home',
@@ -80,14 +90,55 @@ function imageMimeType(value: string) {
   return 'image/jpeg'
 }
 
-async function readSeoConfig() {
-  // SEO configuration is explicitly public. Use the frontend's public key so
+function bypassesMaintenance(pathname: string) {
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  return MAINTENANCE_BYPASS_PATHS.some(
+    (path) => normalized === path || normalized.startsWith(`${path}/`)
+  )
+}
+
+function maintenanceHtml(message: unknown) {
+  const maintenanceMessage =
+    String(message ?? '').trim() ||
+    'Estamos em manutenção para melhorar a tua experiência. Voltamos em breve.'
+
+  return `<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#123f59" />
+    <title>Manutenção temporária | Mariana Explica</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #eef7fb; color: #15323b; font-family: Inter, system-ui, sans-serif; }
+      main { width: min(720px, 100%); border: 1px solid #d7e6ee; border-radius: 28px; background: #fff; padding: clamp(28px, 6vw, 52px); box-shadow: 0 24px 70px rgba(18, 63, 89, .12); }
+      .label { color: #24506a; font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+      h1 { margin: 18px 0 0; font-family: Georgia, serif; font-size: clamp(30px, 6vw, 46px); line-height: 1.16; }
+      p { margin: 20px 0 0; color: #456173; font-size: 17px; line-height: 1.7; }
+      a { display: inline-flex; margin-top: 28px; border-radius: 999px; background: #123f59; padding: 12px 22px; color: #fff; font-weight: 700; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="label">Mariana Explica · manutenção temporária</div>
+      <h1>Estamos a preparar melhorias na plataforma</h1>
+      <p>${escapeHtml(maintenanceMessage)}</p>
+      <p>O acesso público regressará automaticamente assim que os trabalhos terminarem.</p>
+      <a href="/login">Acesso administrativo</a>
+    </main>
+  </body>
+</html>`
+}
+
+async function readPublicConfig() {
+  // These configurations are explicitly public. Use the frontend's public key so
   // this endpoint does not require a server secret to render crawler metadata.
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim()
   if (!anonKey) return null
 
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/site_config?config_key=eq.site_seo&select=config_value,updated_at&limit=1`,
+    `${SUPABASE_URL}/rest/v1/site_config?config_key=in.(site_seo,site_maintenance_mode)&select=config_key,config_value,updated_at`,
     {
       headers: {
         apikey: anonKey,
@@ -98,10 +149,14 @@ async function readSeoConfig() {
   if (!response.ok) return null
 
   const rows = (await response.json()) as Array<{
+    config_key?: string
     config_value?: Record<string, unknown>
     updated_at?: string | null
   }>
-  return rows[0] ?? null
+  return {
+    seo: rows.find((row) => row.config_key === 'site_seo') ?? null,
+    maintenance: rows.find((row) => row.config_key === 'site_maintenance_mode') ?? null,
+  }
 }
 
 function shellOrigin() {
@@ -115,11 +170,24 @@ export default async function handler(req: NodeRequest, res: NodeResponse) {
   const requestUrl = new URL(req.url ?? '/', FALLBACK_ORIGIN)
 
   try {
+    const publicConfig = await readPublicConfig()
+    const maintenance = publicConfig?.maintenance?.config_value
+    if (maintenance?.enabled === true && !bypassesMaintenance(requestUrl.pathname)) {
+      const html = maintenanceHtml(maintenance.message)
+      res.statusCode = 503
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store, max-age=0')
+      res.setHeader('Retry-After', String(MAINTENANCE_RETRY_AFTER_SECONDS))
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.end(req.method === 'HEAD' ? undefined : html)
+      return
+    }
+
     const shell = await fetch(`${shellOrigin()}/index.html`)
     if (!shell.ok) throw new Error(`shell ${shell.status}`)
 
     let html = await shell.text()
-    const configRow = await readSeoConfig()
+    const configRow = publicConfig?.seo ?? null
     const config = configRow?.config_value ?? null
     const page = (config?.pages?.[pageKey(requestUrl.pathname)] ?? {}) as Record<
       string,
