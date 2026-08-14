@@ -58,15 +58,13 @@ Arquivos que compoem o PWA nesta base:
   "background_color": "#f8fbfd",
   "icons": [
     {
-      "src": "/icon-app.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/favicon",
+      "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/favicon",
+      "sizes": "512x512",
       "purpose": "maskable"
     }
   ]
@@ -89,12 +87,12 @@ Arquivos que compoem o PWA nesta base:
 
 ### 3.4 Icons
 
-Este projeto usa SVGs no lugar de PNGs:
+O manifesto usa o favicon canonico e dinamico configurado no painel:
 
-- `icon-app.svg` com `purpose: any`
-- `icon-maskable.svg` com `purpose: maskable`
+- `/favicon` com `purpose: any`
+- `/favicon` com `purpose: maskable`
 
-Nao ha, neste momento, variantes PNG 192x192 ou 512x512 no manifesto.
+O asset publicado deve ser quadrado e ter 512x512 px. O formato real e informado pela resposta HTTP.
 
 ## 4. HTML principal
 
@@ -112,22 +110,23 @@ Nao ha, neste momento, variantes PNG 192x192 ou 512x512 no manifesto.
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="description" content="Plataforma de venda e entrega de conteúdos educacionais digitais." />
 <link rel="manifest" href="/manifest.webmanifest" />
-<link rel="apple-touch-icon" href="/icon-app.svg" />
+<link rel="icon" sizes="512x512" href="/favicon" />
+<link rel="apple-touch-icon" sizes="512x512" href="/favicon" />
 ```
 
 ### 4.3 O que nao existe neste HTML
 
 - nao ha `meta` para Open Graph
 - nao ha `meta` para Twitter Cards
-- nao ha `apple-touch-icon` em PNG
 - nao ha splash screens iOS dedicadas
-- nao ha favicon estatico: o `SiteBrandingManager` aplica o asset configurado em `site_config`
+- nao ha favicon estatico: `/favicon` serve o asset configurado em `site_config`
 
 ### 4.4 Favicon dinamico
 
 - fonte: `fetchPublicBrandingConfig()` em `site_config`
 - campo: `config_value.favicon.public_url`
 - aplicacao: `src/components/common/SiteBrandingManager.tsx`
+- URL canonica e estavel: `/favicon`
 - o builder LMS monta o mesmo manager no seu layout proprio
 - quando nao ha asset configurado, os links de favicon sao removidos e nenhum fallback e recriado
 
@@ -153,9 +152,6 @@ const PRECACHE_URLS = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/icon-maskable-512.png",
 ];
 ```
 
@@ -196,9 +192,6 @@ const PRECACHE_URLS = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/icon-maskable-512.png",
 ];
 ```
 
@@ -326,8 +319,8 @@ Essa pagina e o fallback final quando:
 
 ### 10.2 Observacao
 
-O projeto atual usa SVGs para identidade visual do PWA.
-Se o outro projeto exigir maior compatibilidade com algumas lojas ou combinacoes de browser, vale gerar PNGs equivalentes e ajustar o manifesto.
+O favicon e os icones declarados pelo manifesto usam `/favicon`, que reflete o asset publicado no painel administrativo.
+Os arquivos SVG e PNG locais permanecem apenas como assets legados e nao sao a fonte visual ativa.
 
 ## 11. Estrutura recomendada para replicacao
 
@@ -364,7 +357,7 @@ Para criar o mesmo PWA em outro projeto, siga esta ordem:
 
 - o service worker nao cacheia POST
 - o service worker nao tenta proteger ou armazenar URLs assinadas
-- o manifest usa SVGs
+- o manifest usa o favicon dinamico publicado no painel
 - a install experience depende do browser disparar `beforeinstallprompt`
 - a pagina offline e basica e propositalmente simples
 
@@ -380,7 +373,7 @@ Configuracao atual exata:
 - theme color: `#242742`
 - background color: `#f8fbfd`
 - cache version: `mariana-explica-pwa-v2`
-- precache: `/`, `/offline.html`, `/manifest.webmanifest`, `/icon-192.png`, `/icon-512.png`, `/icon-maskable-512.png`
-- favicon: asset `favicon` de `site_config`, aplicado em runtime
-- icon paths: `/icon-app.svg` e `/icon-maskable.svg`
+- precache: `/`, `/offline.html`, `/manifest.webmanifest`
+- favicon: asset `favicon` de `site_config`, servido pela URL canonica `/favicon`
+- icon path do manifesto: `/favicon`
 - runtime cleanup key: `mariana-explica:runtime-version`

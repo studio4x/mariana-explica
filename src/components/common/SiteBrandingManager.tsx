@@ -17,9 +17,10 @@ export function SiteBrandingManager() {
 
   useEffect(() => {
     const branding = brandingConfigQuery.data
+    const configuredFavicon = branding?.config_value.favicon
     applySiteFavicon(
-      branding?.config_value.favicon.public_url,
-      branding?.config_value.favicon.uploaded_at ?? branding?.updated_at ?? null,
+      configuredFavicon?.public_url || configuredFavicon?.path ? "/favicon" : null,
+      configuredFavicon?.uploaded_at ?? branding?.updated_at ?? null,
     )
   }, [brandingConfigQuery.data])
 

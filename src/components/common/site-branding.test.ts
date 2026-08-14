@@ -12,12 +12,12 @@ describe("site favicon", () => {
     expect(document.head.querySelector('link[rel="icon"]')).not.toBeInTheDocument()
   })
 
-  it("applies the favicon configured in site branding", () => {
-    applySiteFavicon("https://cdn.example.com/favicon.png", "2026-07-13T12:00:00.000Z")
+  it("applies the canonical favicon without declaring a potentially incorrect MIME type", () => {
+    applySiteFavicon("/favicon", "2026-07-13T12:00:00.000Z")
 
     const favicon = document.head.querySelector<HTMLLinkElement>('link[data-managed-favicon="true"]')
-    expect(favicon).toHaveAttribute("type", "image/png")
-    expect(favicon?.href).toContain("https://cdn.example.com/favicon.png")
+    expect(favicon).not.toHaveAttribute("type")
+    expect(favicon?.href).toContain("/favicon")
     expect(favicon?.href).toContain("v=2026-07-13T12%3A00%3A00.000Z")
   })
 })

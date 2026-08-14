@@ -27,14 +27,10 @@ function applyFavicon(url: string | null | undefined) {
   }
 
   const faviconLink = ensureManagedFaviconLink()
-  const pathname = new URL(nextUrl, window.location.origin).pathname.toLowerCase()
-  faviconLink.type = pathname.endsWith(".svg")
-    ? "image/svg+xml"
-    : pathname.endsWith(".png")
-      ? "image/png"
-      : pathname.endsWith(".webp")
-        ? "image/webp"
-        : "image/x-icon"
+  // The canonical /favicon endpoint can serve JPEG, PNG, WebP or SVG from
+  // the current admin configuration. Omitting type lets the response's real
+  // Content-Type remain the source of truth.
+  faviconLink.removeAttribute("type")
   faviconLink.href = nextUrl
 }
 
