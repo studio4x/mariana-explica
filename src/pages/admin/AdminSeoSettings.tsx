@@ -231,7 +231,7 @@ export function AdminSeoSettings() {
       ? 'logótipo da organização'
       : 'imagem social'
   const seoImageUrl = (storagePath: string) =>
-    `${baseUrl}/api/public/site-asset?storage_path=${encodeURIComponent(storagePath)}`
+    `${baseUrl}/site-asset?storage_path=${encodeURIComponent(storagePath)}`
   const uploadSeoImage = async (file: File) => {
     if (!imageField) return
     const upload = await uploadAdminBrandingAssetFile({ role: 'logo_light', file })

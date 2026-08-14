@@ -171,7 +171,7 @@ function buildPublicProxyUrl(kind: PublicProxyKind, storagePath: string) {
   const encodedPath = encodeURIComponent(trimPath(storagePath))
 
   if (kind === "site_asset") {
-    return `${baseUrl}/api/public/site-asset?storage_path=${encodedPath}`
+    return `${baseUrl}/site-asset?storage_path=${encodedPath}`
   }
 
   if (kind === "course_media") {

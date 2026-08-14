@@ -99,6 +99,7 @@
     { "src": "^/llms\\.txt$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-seo-files?file=llms" },
     { "src": "^/(favicon\\.ico|favicon\\.svg|icon-192\\.png|icon-512\\.png|icon-maskable-512\\.png|icon-app\\.svg|icon-maskable\\.svg)$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset?branding_role=favicon" },
     { "src": "^/favicon$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset?branding_role=favicon" },
+    { "src": "^/site-asset$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
     { "src": "^/api/public/site-asset(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-site-asset" },
     { "src": "^/api/public/course-media(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-course-media" },
     { "src": "^/api/public/profile-avatar(?:/(.*))?$", "dest": "https://gookhgufsxeplelpdaua.supabase.co/functions/v1/public-profile-avatar" },
@@ -108,7 +109,7 @@
     { "src": "^/social-image$", "dest": "/api/social-image" },
     { "src": "^/api/(.*)$", "continue": true },
     { "src": "^/index\\.html$", "continue": true },
-    { "src": "^/(?!assets/|api/|favicon$|favicon\\.ico$|index\\.html$|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|sitemap\\.xml$|robots\\.txt$|llms\\.txt$|icons/|social-image$|social-share-image\\.jpg$|social-preview-1200x630\\.jpg$).*$", "dest": "/api/seo-html" },
+    { "src": "^/(?!assets/|api/|favicon$|favicon\\.ico$|index\\.html$|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|sitemap\\.xml$|robots\\.txt$|llms\\.txt$|icons/|site-asset$|social-image$|social-share-image\\.jpg$|social-preview-1200x630\\.jpg$).*$", "dest": "/api/seo-html" },
     { "handle": "filesystem" },
     { "src": "^/(.*)$", "dest": "/" }
   ]

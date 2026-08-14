@@ -7,13 +7,23 @@ export function buildVersionedAssetUrl(url: string | null | undefined, version: 
     return null
   }
 
-  const nextVersion = (version ?? "").trim()
-  if (!nextVersion) {
-    return nextUrl
+  const assetUrl = new URL(nextUrl, window.location.origin)
+  if (assetUrl.hostname === "mariana-explica.pt") {
+    assetUrl.protocol = "https:"
+    assetUrl.hostname = "www.mariana-explica.pt"
+  }
+  if (
+    assetUrl.hostname === "www.mariana-explica.pt" &&
+    assetUrl.pathname === "/api/public/site-asset"
+  ) {
+    assetUrl.pathname = "/site-asset"
   }
 
-  const assetUrl = new URL(nextUrl, window.location.origin)
-  assetUrl.searchParams.set("v", nextVersion)
+  const nextVersion = (version ?? "").trim()
+  if (nextVersion) {
+    assetUrl.searchParams.set("v", nextVersion)
+  }
+
   return assetUrl.toString()
 }
 
