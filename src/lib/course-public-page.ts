@@ -377,6 +377,16 @@ export function sanitizeCoursePublicPageContent(
   }
 }
 
+export function mergeCoursePublicPageContent(
+  existingContent: CoursePublicPageContent | null | undefined,
+  content: CoursePublicPageView,
+): CoursePublicPageContent {
+  return {
+    ...(existingContent ?? {}),
+    ...sanitizeCoursePublicPageContent(content),
+  }
+}
+
 export function sanitizeCourseCatalogCardContent(input: CourseCatalogCardView): Pick<
   CoursePublicPageContent,
   "catalogCardMode" | "catalogCardSummary" | "catalogCardItems"

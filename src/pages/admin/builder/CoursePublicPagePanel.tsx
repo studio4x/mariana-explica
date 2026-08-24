@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import { useState, type FormEvent, type ReactNode } from "react"
 import { OperationFeedbackModal, PageHeader, RichTextEditor, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
-import { buildCoursePublicPageView, sanitizeCoursePublicPageContent, type CoursePublicPageView } from "@/lib/course-public-page"
+import { buildCoursePublicPageView, mergeCoursePublicPageContent, type CoursePublicPageView } from "@/lib/course-public-page"
 import { publicCoursePath } from "@/lib/routes"
 import { useUpdateAdminProduct } from "@/hooks/useAdmin"
 import { useAdminCourseBuilderContext } from "./AdminCourseBuilderContext"
@@ -107,7 +107,7 @@ function CoursePublicPageForm() {
     try {
       await updateProduct.mutateAsync({
         productId: product.id,
-        publicPageContent: sanitizeCoursePublicPageContent(form),
+        publicPageContent: mergeCoursePublicPageContent(product.public_page_content, form),
       })
       setFeedback({ tone: "success", message: "Página pública guardada com sucesso." })
     } catch (err) {
