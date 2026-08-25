@@ -634,30 +634,10 @@ export function AdminMoloni() {
     },
   })
   const activationRequirementsMutation = useMutation({
-    mutationFn: async (types: AdminMoloniValidationType[]) => {
-      const failures: string[] = []
-      let passed = 0
-
-      for (const validationType of types) {
-        try {
-          await runAdminMoloniValidation({
-            paymentEnvironment: "live",
-            validationType,
-          })
-          passed += 1
-        } catch (error) {
-          failures.push(`${validationTypeLabels[validationType]}: ${errorMessage(error)}`)
-        }
-      }
-
-      if (failures.length > 0) {
-        throw new Error(failures.join(" "))
-      }
-
-      return passed
-    },
-    onSuccess: (passed) => {
-      succeed(`${passed} requisito(s) live validado(s). O estado da ativação foi atualizado.`)
+    mutationFn: () => syncAdminMoloniAutomaticChecklist("live"),
+    onSuccess: ({ result }) => {
+      setAutomaticSyncResult(result)
+      succeed("Requisitos live validados e checklist automático sincronizado.")
     },
     onError: fail,
   })
@@ -743,6 +723,11 @@ export function AdminMoloni() {
       ? "mappings"
       : null,
   ].filter((type): type is AdminMoloniValidationType => type !== null)
+  const liveAutomaticItemsPending = data.checklist.filter((item) =>
+    item.payment_environment === "live" &&
+    item.is_automatic &&
+    (item.status !== "approved" || Boolean(item.stale_reason)),
+  )
 
   if (!activeTab) return <Navigate to={ROUTES.ADMIN_MOLONI_SETTINGS} replace />
 
@@ -1684,13 +1669,13 @@ export function AdminMoloni() {
                 <ul className="list-disc space-y-1 pl-5 text-sm text-amber-950">
                   {data.activation_gate.missing.map((item) => <li key={item}>{item}</li>)}
                 </ul>
-                {pendingActivationValidationTypes.length > 0 ? (
+                {pendingActivationValidationTypes.length > 0 || liveAutomaticItemsPending.length > 0 ? (
                   <Button
                     type="button"
                     variant="outline"
                     className="rounded-full border-amber-400 bg-white text-amber-950 hover:bg-amber-100"
                     disabled={busy}
-                    onClick={() => activationRequirementsMutation.mutate(pendingActivationValidationTypes)}
+                    onClick={() => activationRequirementsMutation.mutate()}
                   >
                     {activationRequirementsMutation.isPending
                       ? <Loader2 className="h-4 w-4 animate-spin" />

@@ -348,16 +348,10 @@ describe("AdminMoloni", () => {
     const validateButton = screen.getByRole("button", { name: "Validar requisitos pendentes" })
     await user.click(validateButton)
 
-    await waitFor(() => expect(mocks.runValidation).toHaveBeenCalledTimes(2))
-    expect(mocks.runValidation).toHaveBeenNthCalledWith(1, {
-      paymentEnvironment: "live",
-      validationType: "taxes",
-    })
-    expect(mocks.runValidation).toHaveBeenNthCalledWith(2, {
-      paymentEnvironment: "live",
-      validationType: "payment_method",
-    })
-    expect(await screen.findByText("2 requisito(s) live validado(s). O estado da ativação foi atualizado.")).toBeInTheDocument()
+    await waitFor(() => expect(mocks.syncAutomaticChecklist).toHaveBeenCalledWith("live"))
+    expect(mocks.syncAutomaticChecklist).toHaveBeenCalledTimes(1)
+    expect(mocks.runValidation).not.toHaveBeenCalled()
+    expect(await screen.findByText("Requisitos live validados e checklist automático sincronizado.")).toBeInTheDocument()
   })
 
   it("shows a recoverable error state", async () => {
