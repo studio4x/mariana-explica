@@ -8,7 +8,6 @@ import {
   findInvalidMoloniCustomerReferences,
   getMissingMoloniActivationRequirements,
   getMoloniAppCredentialStatus,
-  hasApprovedChecklistItem,
   isDraftHomologationConfirmation,
   isStrongMoloniActivationConfirmation,
   minimalBuyerLabel,
@@ -578,7 +577,13 @@ async function refreshAutomaticChecklistDependencies(
     }
   })
 
-  const [documentSetsValidation, productsValidation, mappingsValidation] = await Promise.all([
+  const [
+    documentSetsValidation,
+    productsValidation,
+    taxesValidation,
+    paymentMethodValidation,
+    mappingsValidation,
+  ] = await Promise.all([
     recordRefreshedValidation("document_sets", async () => {
       await assertCompanyAvailable()
       const rows = await getDocumentSets()
@@ -595,6 +600,31 @@ async function refreshAutomaticChecklistDependencies(
       return {
         summary: `${rows.length} artigo(s) Moloni validado(s).`,
         details: { count: rows.length, company_id: companyId },
+      }
+    }),
+    recordRefreshedValidation("taxes", async () => {
+      await assertCompanyAvailable()
+      const rows = await getTaxes()
+      if (!rows.length) throw conflict("Nenhuma taxa Moloni disponível.")
+      return {
+        summary: `${rows.length} taxa(s) fiscal(is) validada(s).`,
+        details: { count: rows.length, company_id: companyId },
+      }
+    }),
+    recordRefreshedValidation("payment_method", async () => {
+      await assertCompanyAvailable()
+      const rows = await getPaymentMethods()
+      if (!rows.some((item) =>
+        Number(item.payment_method_id) === Number(settings.customer_payment_method_id)
+      )) {
+        throw conflict("O método de pagamento configurado não foi confirmado na Moloni.")
+      }
+      return {
+        summary: "Método de pagamento Stripe confirmado na Moloni.",
+        details: {
+          company_id: companyId,
+          payment_method_id: settings.customer_payment_method_id,
+        },
       }
     }),
     recordRefreshedValidation("mappings", async () => {
@@ -645,7 +675,14 @@ async function refreshAutomaticChecklistDependencies(
     }),
   ])
 
-  return [companyValidation, documentSetsValidation, productsValidation, mappingsValidation]
+  return [
+    companyValidation,
+    documentSetsValidation,
+    productsValidation,
+    taxesValidation,
+    paymentMethodValidation,
+    mappingsValidation,
+  ]
 }
 
 Deno.serve(async (req) => {

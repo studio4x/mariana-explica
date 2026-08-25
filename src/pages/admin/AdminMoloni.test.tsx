@@ -317,6 +317,49 @@ describe("AdminMoloni", () => {
     await waitFor(() => expect(mocks.activate.mock.calls[0]?.[0]).toBe("ATIVAR MOLONI"))
   })
 
+  it("validates server-side requirements that still block live activation", async () => {
+    const user = userEvent.setup()
+    const overview = buildOverview(false)
+    overview.activation_gate.missing = ["Impostos validados", "Método de pagamento validado"]
+    overview.activation_gate.companyValidated = true
+    overview.activation_gate.documentSetsValidated = true
+    overview.activation_gate.productsValidated = true
+    overview.activation_gate.taxesValidated = false
+    overview.activation_gate.paymentMethodValidated = false
+    overview.activation_gate.mappingsValidated = true
+    overview.activation_gate.approvedChecklistItems = overview.activation_gate.requiredChecklistItems
+    overview.activation_gate.draftTestPassed = true
+    mocks.overview.mockResolvedValue(overview)
+    mocks.runValidation.mockImplementation(async ({ validationType }: { validationType: string }) => ({
+      success: true,
+      validation: {
+        id: `validation-${validationType}`,
+        payment_environment: "live",
+        validation_type: validationType,
+        status: "passed",
+        summary: `${validationType} validado`,
+        details: { company_id: 42 },
+        created_at: "2026-08-25T12:00:00.000Z",
+      },
+    }))
+    renderPage()
+
+    expect(await screen.findByText("Para habilitar a ativação, conclua os requisitos pendentes:")).toBeInTheDocument()
+    const validateButton = screen.getByRole("button", { name: "Validar requisitos pendentes" })
+    await user.click(validateButton)
+
+    await waitFor(() => expect(mocks.runValidation).toHaveBeenCalledTimes(2))
+    expect(mocks.runValidation).toHaveBeenNthCalledWith(1, {
+      paymentEnvironment: "live",
+      validationType: "taxes",
+    })
+    expect(mocks.runValidation).toHaveBeenNthCalledWith(2, {
+      paymentEnvironment: "live",
+      validationType: "payment_method",
+    })
+    expect(await screen.findByText("2 requisito(s) live validado(s). O estado da ativação foi atualizado.")).toBeInTheDocument()
+  })
+
   it("shows a recoverable error state", async () => {
     mocks.overview.mockRejectedValue(new Error("Falha simulada"))
     renderPage()

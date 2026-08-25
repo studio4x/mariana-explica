@@ -1847,7 +1847,7 @@ export async function syncAdminMoloniAutomaticChecklist(
     success: true
     result: AdminMoloniAutomaticChecklistResult
     refreshed_validations: Array<{
-      validation_type: "company" | "document_sets" | "products" | "mappings"
+      validation_type: "company" | "document_sets" | "products" | "taxes" | "payment_method" | "mappings"
       status: "passed" | "failed"
     }>
   }>("admin-moloni-configuration", {

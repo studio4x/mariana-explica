@@ -99,6 +99,7 @@ const validationTypes = [
   ["payment_method", "Pagamento"],
   ["mappings", "Mapeamentos"],
 ] as const
+type AdminMoloniValidationType = typeof validationTypes[number][0]
 const validationTypeLabels: Record<string, string> = {
   credentials: "Credenciais",
   oauth: "OAuth",
@@ -632,6 +633,34 @@ export function AdminMoloni() {
       fail(error)
     },
   })
+  const activationRequirementsMutation = useMutation({
+    mutationFn: async (types: AdminMoloniValidationType[]) => {
+      const failures: string[] = []
+      let passed = 0
+
+      for (const validationType of types) {
+        try {
+          await runAdminMoloniValidation({
+            paymentEnvironment: "live",
+            validationType,
+          })
+          passed += 1
+        } catch (error) {
+          failures.push(`${validationTypeLabels[validationType]}: ${errorMessage(error)}`)
+        }
+      }
+
+      if (failures.length > 0) {
+        throw new Error(failures.join(" "))
+      }
+
+      return passed
+    },
+    onSuccess: (passed) => {
+      succeed(`${passed} requisito(s) live validado(s). O estado da ativação foi atualizado.`)
+    },
+    onError: fail,
+  })
   const draftMutation = useMutation({
     mutationFn: createAdminMoloniDraftTest,
     onSuccess: () => {
@@ -697,12 +726,23 @@ export function AdminMoloni() {
     importChecklistAnswersMutation.isPending ||
     automaticChecklistMutation.isPending ||
     validationMutation.isPending ||
+    activationRequirementsMutation.isPending ||
     draftMutation.isPending ||
     activateMutation.isPending ||
     deactivateMutation.isPending ||
     jobMutation.isPending
   const connectionHealthy = connection?.status === "connected"
   const liveSettings = data.settings.find((item) => item.payment_environment === "live")
+  const pendingActivationValidationTypes = [
+    !data.activation_gate.companyValidated ? "company" : null,
+    !data.activation_gate.documentSetsValidated ? "document_sets" : null,
+    !data.activation_gate.productsValidated ? "products" : null,
+    !data.activation_gate.taxesValidated ? "taxes" : null,
+    !data.activation_gate.paymentMethodValidated ? "payment_method" : null,
+    !data.activation_gate.mappingsValidated || data.activation_gate.missingPaidProductMappings > 0
+      ? "mappings"
+      : null,
+  ].filter((type): type is AdminMoloniValidationType => type !== null)
 
   if (!activeTab) return <Navigate to={ROUTES.ADMIN_MOLONI_SETTINGS} replace />
 
@@ -1637,9 +1677,30 @@ export function AdminMoloni() {
               A ativação só afeta novos eventos Stripe live. Pedidos históricos não são reprocessados automaticamente.
             </p>
             {!data.activation_gate.ready ? (
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-amber-950">
-                {data.activation_gate.missing.map((item) => <li key={item}>{item}</li>)}
-              </ul>
+              <div className="mt-3 space-y-3">
+                <p className="text-sm font-semibold text-amber-950">
+                  Para habilitar a ativação, conclua os requisitos pendentes:
+                </p>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-amber-950">
+                  {data.activation_gate.missing.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+                {pendingActivationValidationTypes.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-amber-400 bg-white text-amber-950 hover:bg-amber-100"
+                    disabled={busy}
+                    onClick={() => activationRequirementsMutation.mutate(pendingActivationValidationTypes)}
+                  >
+                    {activationRequirementsMutation.isPending
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <ShieldCheck className="h-4 w-4" />}
+                    {activationRequirementsMutation.isPending
+                      ? "A validar requisitos..."
+                      : "Validar requisitos pendentes"}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
               <label className="text-sm font-medium text-slate-700">
