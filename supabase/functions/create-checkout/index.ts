@@ -180,6 +180,7 @@ async function findReusablePendingCheckout(
     finalPriceCents: number
     paymentEnvironment: "test" | "live"
     accessRenewal: boolean
+    couponId: string | null
   },
 ) {
   const createdAfter = new Date(Date.now() - 30 * 60 * 1000).toISOString()
@@ -194,6 +195,7 @@ async function findReusablePendingCheckout(
     .eq("access_renewal", params.accessRenewal)
     .eq("final_price_cents", params.finalPriceCents)
     .eq("currency", params.currency)
+    .filter("coupon_id", params.couponId ? "eq" : "is", params.couponId)
     .not("checkout_session_id", "is", null)
     .gte("created_at", createdAfter)
     .order("created_at", { ascending: false })
@@ -483,6 +485,7 @@ Deno.serve(async (req) => {
       finalPriceCents: totals.finalPriceCents,
       paymentEnvironment: stripeMode,
       accessRenewal: isRenewal,
+      couponId: coupon?.id ?? null,
     })
 
     if (reusableOrder) {

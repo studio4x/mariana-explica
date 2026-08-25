@@ -8,3 +8,7 @@ export function openCheckoutUrlInNewTab(url: string) {
   checkoutWindow.focus()
   return true
 }
+
+export function normalizeCheckoutCouponCode(value: string) {
+  return value.trim().toUpperCase()
+}

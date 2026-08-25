@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { openCheckoutUrlInNewTab } from "./checkout-helpers"
+import { normalizeCheckoutCouponCode, openCheckoutUrlInNewTab } from "./checkout-helpers"
 
 describe("openCheckoutUrlInNewTab", () => {
   beforeEach(() => {
@@ -25,5 +25,15 @@ describe("openCheckoutUrlInNewTab", () => {
     const opened = openCheckoutUrlInNewTab("https://payments.stripe.com/multibanco/voucher/test_123")
 
     expect(opened).toBe(false)
+  })
+})
+
+describe("normalizeCheckoutCouponCode", () => {
+  it("normaliza o cupom antes de o enviar para validação no backend", () => {
+    expect(normalizeCheckoutCouponCode("  voltaAsAulas-20  ")).toBe("VOLTAASAULAS-20")
+  })
+
+  it("mantém vazio um campo preenchido apenas com espaços", () => {
+    expect(normalizeCheckoutCouponCode("   ")).toBe("")
   })
 })

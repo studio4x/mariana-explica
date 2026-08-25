@@ -7,6 +7,7 @@ import {
   Lock,
   LogIn,
   ShieldCheck,
+  TicketPercent,
   UserPlus,
   X,
 } from "lucide-react"
@@ -24,7 +25,7 @@ import { usePublishedProductBySlug } from "@/hooks/useProducts"
 import { createCheckoutSession } from "@/services"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { useRef } from "react"
-import { openCheckoutUrlInNewTab } from "./checkout-helpers"
+import { normalizeCheckoutCouponCode, openCheckoutUrlInNewTab } from "./checkout-helpers"
 import {
   EditableContainer,
   SiteContentScope,
@@ -46,6 +47,7 @@ interface CheckoutDraft {
   nif: string
   contentUpdatesConsent: boolean
   acceptTerms: boolean
+  couponCode: string
 }
 
 type AuthTab = "login" | "register"
@@ -66,6 +68,7 @@ const emptyDraft: CheckoutDraft = {
   nif: "",
   contentUpdatesConsent: false,
   acceptTerms: false,
+  couponCode: "",
 }
 
 function loadCheckoutDraft() {
@@ -92,6 +95,7 @@ function loadCheckoutDraft() {
       nif: String(parsed.nif ?? ""),
       contentUpdatesConsent: Boolean(parsed.contentUpdatesConsent),
       acceptTerms: Boolean(parsed.acceptTerms),
+      couponCode: String(parsed.couponCode ?? ""),
     }
   } catch {
     return emptyDraft
@@ -318,6 +322,7 @@ function CheckoutPageContent() {
         customerNif: draft.invoiceWithNif ? stripNifDigits(draft.nif) : null,
         invoiceWithNif: draft.invoiceWithNif,
         contentUpdatesConsent: draft.contentUpdatesConsent,
+        couponCode: normalizeCheckoutCouponCode(draft.couponCode) || null,
         successUrl,
         cancelUrl,
       })
@@ -351,6 +356,7 @@ function CheckoutPageContent() {
     checkoutIdentifier,
     draft.acceptTerms,
     draft.contentUpdatesConsent,
+    draft.couponCode,
     draft.confirmEmail,
     draft.email,
     draft.fullName,
@@ -610,6 +616,32 @@ function CheckoutPageContent() {
                     </div>
                     <Lock className="h-10 w-10 text-[#af8962]" />
                   </div>
+
+                  <label className="mb-6 grid gap-2 rounded-2xl border border-white/15 bg-white/5 p-4">
+                    <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-white/65">
+                      <TicketPercent className="h-4 w-4 text-[#e9bf94]" />
+                      Cupom de desconto
+                    </span>
+                    <input
+                      value={draft.couponCode}
+                      onChange={(event) => {
+                        setDraft((current) => ({
+                          ...current,
+                          couponCode: event.target.value.toUpperCase(),
+                        }))
+                        setSubmitError(null)
+                      }}
+                      placeholder="Insere o código do cupom"
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      disabled={submitting}
+                      className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold uppercase tracking-[0.08em] text-white outline-none placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-white/35 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                    <span className="text-xs leading-5 text-white/55">
+                      Opcional. O desconto será validado ao avançares para o pagamento.
+                    </span>
+                  </label>
 
                   {!hasSession ? (
                     <>
