@@ -685,6 +685,23 @@ async function refreshAutomaticChecklistDependencies(
   ]
 }
 
+async function synchronizeAutomaticChecklist(
+  context: Awaited<ReturnType<typeof requireAdmin>>,
+  paymentEnvironment: PaymentEnvironment,
+) {
+  const refreshedValidations = await refreshAutomaticChecklistDependencies(
+    context,
+    paymentEnvironment,
+  )
+  const { data: result, error: syncError } = await context.serviceClient
+    .rpc("sync_moloni_automatic_checklist", {
+      p_payment_environment: paymentEnvironment,
+      p_actor_user_id: context.user.id,
+    })
+  if (syncError) throw syncError
+  return { refreshedValidations, result }
+}
+
 Deno.serve(async (req) => {
   const requestId = getRequestId(req)
   if (req.method === "OPTIONS") return corsResponse()
@@ -808,16 +825,10 @@ Deno.serve(async (req) => {
 
     if (body.action === "sync_automatic_checklist") {
       assertPaymentEnvironment(body.paymentEnvironment)
-      const refreshedValidations = await refreshAutomaticChecklistDependencies(
+      const { refreshedValidations, result } = await synchronizeAutomaticChecklist(
         context,
         body.paymentEnvironment,
       )
-      const { data: result, error: syncError } = await context.serviceClient
-        .rpc("sync_moloni_automatic_checklist", {
-          p_payment_environment: body.paymentEnvironment,
-          p_actor_user_id: context.user.id,
-        })
-      if (syncError) throw syncError
       await writeAuditLog(context.serviceClient, context, {
         action: "admin.moloni_automatic_checklist_synced",
         entityType: "moloni_fiscal_checklist",
@@ -1036,6 +1047,7 @@ Deno.serve(async (req) => {
       if (!isStrongMoloniActivationConfirmation(body.confirmation)) {
         throw conflict("Digite ATIVAR MOLONI para confirmar a ativação.")
       }
+      await synchronizeAutomaticChecklist(context, "live")
       const state = await loadCoreState(context)
       const overview = buildOverview(state)
       if (!overview.activation_gate.ready) {
