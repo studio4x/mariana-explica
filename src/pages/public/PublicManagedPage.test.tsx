@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { PublicManagedPage } from "./PublicManagedPage"
 import { storeSitePagePreview } from "@/lib/site-page-preview"
+import { getDefaultStyleCss } from "@/lib/site-page-builder"
 
 const mockUsePublicSitePage = vi.fn()
 
@@ -106,5 +107,13 @@ describe("PublicManagedPage AI preview", () => {
     const managedPage = container.querySelector("[data-public-managed-page-paint='pending']")
     expect(managedPage).not.toBeNull()
     expect(screen.queryByText("fallback")).not.toBeInTheDocument()
+  })
+
+  it("lets the mobile reviews lead use the full available width", () => {
+    const css = getDefaultStyleCss()
+
+    expect(css).toContain(".me-home-reviews > .me-home-shell > p")
+    expect(css).toContain("margin-left: 0 !important")
+    expect(css).toContain("margin-right: 0 !important")
   })
 })

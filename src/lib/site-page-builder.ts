@@ -2597,6 +2597,12 @@ export function getDefaultStyleCss() {
   .me-home-section {
     padding: 40px 0;
   }
+  .me-home-reviews > .me-home-shell > p {
+    width: 100%;
+    max-width: 760px;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
   .me-home-card,
   .me-home-card-centered,
   .me-home-trust-right {
