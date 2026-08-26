@@ -97,9 +97,9 @@ export function ExplicacoesFormExperience() {
           </label>
 
           <div className="rounded-2xl border border-[#bee0ef] bg-[#eef8fd] p-4 text-sm leading-7 text-[#144d6b]">
-            <p className="font-black">Se o teu pedido for para Explicacoes, indica obrigatoriamente nesta caixa:</p>
-            <p className="mt-1">O Ano Escolar do Aluno (ex: 10.o, 11.o ou 12.o ano)</p>
-            <p>A Disciplina pretendida (Filosofia ou Portugues)</p>
+            <p className="font-black">Se o teu pedido for para Explicações, indica obrigatoriamente nesta caixa:</p>
+            <p className="mt-1">O ano escolar do aluno (10°, 11.º, 12.º ano)</p>
+            <p>A disciplina pretendida (Filosofia ou Português)</p>
           </div>
 
           <div className="flex flex-wrap justify-end gap-3">

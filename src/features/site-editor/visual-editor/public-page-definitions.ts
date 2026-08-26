@@ -361,8 +361,8 @@ export const EXPLICACOES_VISUAL_EDITOR_DEFAULT_DOCUMENT: ExplicacoesVisualEditor
   },
   formNote: {
     title: "Se o teu pedido for para Explica\u00e7\u00f5es, indica obrigatoriamente nesta caixa:",
-    line1: "O Ano Escolar do Aluno (ex: 10.\u00ba, 11.\u00ba ou 12.\u00ba ano)",
-    line2: "A Disciplina pretendida (Filosofia ou Portugu\u00eas)",
+    line1: "O ano escolar do aluno (10\u00b0, 11.\u00ba, 12.\u00ba ano)",
+    line2: "A disciplina pretendida (Filosofia ou Portugu\u00eas)",
   },
   submitCta: {
     label: "Enviar formul\u00e1rio",
