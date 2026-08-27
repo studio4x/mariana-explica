@@ -4,7 +4,13 @@ import { useQueries } from "@tanstack/react-query"
 import { ArrowLeft, FileText } from "lucide-react"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { Button } from "@/components/ui"
-import { LessonContentBlocksRenderer, LessonPrimaryMedia, RichTextContent, StatusBadge } from "@/components/common"
+import {
+  LessonContentBlocksRenderer,
+  LessonPdfViewer,
+  LessonPrimaryMedia,
+  RichTextContent,
+  StatusBadge,
+} from "@/components/common"
 import { useAdminProductModules, useAdminProducts } from "@/hooks/useAdmin"
 import { adminCourseBuilderPath } from "@/lib/routes"
 import { fetchAdminProductLessons } from "@/services"
@@ -167,6 +173,12 @@ export function AdminCoursePreview() {
 
               <div className="mt-6 space-y-4">
                 <LessonPrimaryMedia source={selectedLesson.youtube_url} />
+                <LessonPdfViewer
+                  lessonId={selectedLesson.id}
+                  lessonType={selectedLesson.lesson_type}
+                  storagePath={selectedLesson.lesson_file_storage_path}
+                  fileName={selectedLesson.lesson_file_name}
+                />
                 {selectedLesson.text_content ? (
                   <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
                     <div className="flex items-center gap-2 text-slate-900">
@@ -175,7 +187,7 @@ export function AdminCoursePreview() {
                     </div>
                     <LessonContentBlocksRenderer value={selectedLesson.text_content} className="mt-3" />
                   </div>
-                ) : selectedLesson.lesson_type === "file" ? (
+                ) : selectedLesson.lesson_type === "file" && !selectedLesson.lesson_file_storage_path ? (
                   <div className="rounded-[1.5rem] border bg-slate-50/80 p-5">
                     <div className="flex items-center gap-2 text-slate-900">
                       <FileText className="h-4 w-4" />
