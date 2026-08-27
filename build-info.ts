@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "392"
-export const BUILD_COMMIT = "auth-email-template"
+export const BUILD_DEPLOY_NUMBER = "393"
+export const BUILD_COMMIT = "auth-confirmation-copy"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

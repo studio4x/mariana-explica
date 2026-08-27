@@ -215,7 +215,7 @@ export function AuthCallback() {
 
       window.sessionStorage.setItem(
         "mariana-explica:auth-flash",
-        "Email confirmado com sucesso. JÁ tens acesso ativo ao teu painel.",
+        "Email confirmado com sucesso. Já tens acesso ativo ao teu painel.",
       )
       navigatedRef.current = true
       navigate(
