@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import type { EmailOtpType } from "@supabase/supabase-js"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES } from "@/lib/constants"
@@ -8,6 +9,19 @@ import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
 
 type CallbackStatus = "verifying" | "finalizing" | "error"
+
+const loadingMessages: Record<Exclude<CallbackStatus, "error">, string[]> = {
+  verifying: [
+    "A validar o link de confirmação...",
+    "A confirmar o teu email...",
+    "A criar uma sessão segura...",
+  ],
+  finalizing: [
+    "Email confirmado. A preparar o teu perfil...",
+    "A organizar a tua área do aluno...",
+    "Quase pronto. A entrar automaticamente...",
+  ],
+}
 
 const supportedOtpTypes = new Set<EmailOtpType>([
   "signup",
@@ -79,6 +93,10 @@ export function AuthCallback() {
   const [searchParams] = useSearchParams()
   const { session, profile, loading } = useAuth()
   const [status, setStatus] = useState<CallbackStatus>("verifying")
+  const [loadingProgress, setLoadingProgress] = useState<{
+    status: Exclude<CallbackStatus, "error">
+    index: number
+  }>({ status: "verifying", index: 0 })
   const [error, setError] = useState<string | null>(null)
   const handledRef = useRef(false)
   const navigatedRef = useRef(false)
@@ -92,6 +110,24 @@ export function AuthCallback() {
 
     return next
   }, [searchParams])
+  const loadingMessageIndex =
+    status !== "error" && loadingProgress.status === status ? loadingProgress.index : 0
+
+  useEffect(() => {
+    if (status === "error") {
+      return
+    }
+
+    const messageCount = loadingMessages[status].length
+    const intervalId = window.setInterval(() => {
+      setLoadingProgress((current) => ({
+        status,
+        index: Math.min((current.status === status ? current.index : 0) + 1, messageCount - 1),
+      }))
+    }, 1_800)
+
+    return () => window.clearInterval(intervalId)
+  }, [status])
 
   useEffect(() => {
     if (handledRef.current) {
@@ -251,7 +287,11 @@ export function AuthCallback() {
       <div className="space-y-3">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Verificação da conta</p>
         <h1 className="font-display text-3xl font-bold tracking-tight text-slate-950">
-          {status === "error" ? "Não foi possível concluir a verificação" : "Confirma o teu email"}
+          {status === "error"
+            ? "Não foi possível concluir a verificação"
+            : status === "verifying"
+              ? "Estamos a confirmar o teu email"
+              : "Estamos a preparar o teu acesso"}
         </h1>
         <p className="text-sm leading-7 text-muted-foreground">
           {status === "verifying"
@@ -272,8 +312,43 @@ export function AuthCallback() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50/80 p-5 text-sm leading-7 text-slate-600">
-          Não precisas de fazer login manualmente. Assim que a verificação terminar, vais entrar automaticamente na tua área do aluno.
+        <div
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          className="rounded-[1.75rem] border border-slate-200 bg-slate-50/80 p-5 text-sm text-slate-600"
+        >
+          <div className="flex flex-col items-center">
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full bg-sky-200/70 motion-safe:animate-ping"
+              />
+              <Loader2 aria-hidden="true" className="relative h-7 w-7 motion-safe:animate-spin" />
+            </div>
+
+            <p className="mt-4 font-semibold text-slate-800">
+              {loadingMessages[status][loadingMessageIndex]}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Este processo pode demorar alguns segundos. Mantém esta página aberta.
+            </p>
+
+            <div aria-hidden="true" className="mt-4 flex items-center gap-2">
+              {loadingMessages[status].map((message, index) => (
+                <span
+                  key={message}
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    index <= loadingMessageIndex ? "w-6 bg-sky-600" : "w-1.5 bg-slate-300"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">
+              Não precisas de fazer login manualmente. Quando terminarmos, vais entrar automaticamente na tua área do aluno.
+            </p>
+          </div>
         </div>
       )}
     </div>
