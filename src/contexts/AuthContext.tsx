@@ -40,6 +40,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   isAdmin: boolean
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<UserProfile | null>
   refreshSession: () => Promise<boolean>
 }
 
@@ -409,6 +410,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refreshProfile = useCallback(async () => {
+    const userId = session?.user?.id
+    if (!userId) {
+      return null
+    }
+
+    const requestId = ++requestIdRef.current
+    const userProfile = await fetchProfile(userId)
+
+    if (!mountedRef.current || requestId !== requestIdRef.current) {
+      return null
+    }
+
+    if (userProfile) {
+      setProfile(userProfile)
+    }
+
+    return userProfile
+  }, [session])
+
   const refreshSession = useCallback(async () => {
     try {
       const { data, error } = await supabase.auth.refreshSession()
@@ -436,9 +457,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           profile.status === "active",
       ),
       signOut,
+      refreshProfile,
       refreshSession,
     }),
-    [user, profile, session, loading, signOut, refreshSession],
+    [user, profile, session, loading, signOut, refreshProfile, refreshSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

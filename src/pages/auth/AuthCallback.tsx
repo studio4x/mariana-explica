@@ -7,6 +7,7 @@ import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
+import type { UserProfile } from "@/contexts/AuthContext"
 
 type CallbackStatus = "verifying" | "finalizing" | "error"
 
@@ -65,33 +66,30 @@ function getAuthCallbackParams(searchParams: URLSearchParams) {
   }
 }
 
-async function waitForProfile(userId: string) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id,role,is_admin,status")
-      .eq("id", userId)
-      .maybeSingle()
+async function waitForActiveProfile(
+  refreshProfile: () => Promise<UserProfile | null>,
+) {
+  let latestProfile: UserProfile | null = null
 
-    if (!error && data) {
-      return data as {
-        id: string
-        role: "student" | "affiliate" | "admin"
-        is_admin: boolean
-        status: "active" | "inactive" | "blocked" | "pending_review"
-      }
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    latestProfile = await refreshProfile()
+
+    if (latestProfile?.status === "active" || latestProfile?.status === "blocked") {
+      return latestProfile
     }
 
-    await sleep(500)
+    if (attempt < 9) {
+      await sleep(500)
+    }
   }
 
-  return null
+  return latestProfile
 }
 
 export function AuthCallback() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { session, profile, loading } = useAuth()
+  const { session, loading, refreshProfile } = useAuth()
   const [status, setStatus] = useState<CallbackStatus>("verifying")
   const [loadingProgress, setLoadingProgress] = useState<{
     status: Exclude<CallbackStatus, "error">
@@ -219,7 +217,6 @@ export function AuthCallback() {
       return
     }
 
-    const currentSession = session
     let cancelled = false
 
     async function finalizeAccess() {
@@ -229,9 +226,7 @@ export function AuthCallback() {
         return
       }
 
-      const resolvedProfile =
-        profile ??
-        (await waitForProfile(currentSession.user.id))
+      const resolvedProfile = await waitForActiveProfile(refreshProfile)
 
       if (cancelled || navigatedRef.current) {
         return
@@ -245,7 +240,7 @@ export function AuthCallback() {
 
       if (resolvedProfile.status !== "active") {
         setStatus("error")
-        setError("A tua conta foi validada, mas ainda não esta com acesso ativo. Se precisares, fala com o suporte.")
+        setError("A tua conta foi validada, mas ainda não está com acesso ativo. Se precisares, fala com o suporte.")
         return
       }
 
@@ -267,7 +262,7 @@ export function AuthCallback() {
     return () => {
       cancelled = true
     }
-  }, [loading, navigate, nextPath, profile, session])
+  }, [loading, navigate, nextPath, refreshProfile, session])
 
   useEffect(() => {
     if (!silentMode || status !== "error" || navigatedRef.current) {
