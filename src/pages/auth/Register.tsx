@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui"
+import { buildAuthCallbackUrl } from "@/lib/auth-callback"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
@@ -41,14 +42,6 @@ function resolveRegisterRedirect(state: unknown, searchParams: URLSearchParams) 
   }
 
   return normalizeRedirectPath(searchParams.get("redirect")) ?? ROUTES.DASHBOARD
-}
-
-function buildAuthCallbackUrl(nextPath: string) {
-  const normalizedBase = (import.meta.env.VITE_BASE_URL || "/").replace(/\/$/, "")
-  const callbackPath = `${normalizedBase}${ROUTES.AUTH_CALLBACK}`.replace(/\/{2,}/g, "/")
-  const callbackUrl = new URL(`${window.location.origin}${callbackPath}`)
-  callbackUrl.searchParams.set("next", nextPath)
-  return callbackUrl.toString()
 }
 
 function buildAuthRedirectHref(basePath: string, redirectPath: string) {

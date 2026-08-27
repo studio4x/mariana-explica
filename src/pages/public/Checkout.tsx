@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui"
 import { FooterCopyright } from "@/components/common"
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
+import { buildAuthCallbackUrl } from "@/lib/auth-callback"
 import { mapAuthErrorMessage } from "@/lib/auth-errors"
 import { normalizeCheckoutVisualDocument, resolveCheckoutCopy } from "@/lib/checkout-copy"
 import { ROUTES } from "@/lib/constants"
@@ -108,14 +109,6 @@ function persistCheckoutDraft(draft: CheckoutDraft) {
 
 function clearCheckoutDraft() {
   window.sessionStorage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY)
-}
-
-function buildAuthCallbackUrl(nextPath: string) {
-  const normalizedBase = (import.meta.env.VITE_BASE_URL || "/").replace(/\/$/, "")
-  const callbackPath = `${normalizedBase}${ROUTES.AUTH_CALLBACK}`.replace(/\/{2,}/g, "/")
-  const callbackUrl = new URL(`${window.location.origin}${callbackPath}`)
-  callbackUrl.searchParams.set("next", nextPath)
-  return callbackUrl.toString()
 }
 
 function isValidEmail(value: string) {

@@ -1,5 +1,5 @@
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0"
-import { fetchBrevoSettings, sendBrevoTransactionalEmail, safeBrevoError, createServiceClient } from "../_shared/mod.ts"
+import { buildPlatformEmailLayout, fetchBrevoSettings, sendBrevoTransactionalEmail, safeBrevoError, createServiceClient } from "../_shared/mod.ts"
 import { logError } from "../_shared/logger.ts"
 import { buildAuthEmailMessage, buildAuthVerificationUrl } from "./email-content.ts"
 
@@ -28,7 +28,13 @@ async function sendOne(client: ReturnType<typeof createServiceClient>, settings:
     input.type,
     input.redirectTo,
   )
-  const message = buildAuthEmailMessage(input.type, input.name, link)
+  const authMessage = buildAuthEmailMessage(input.type, input.name, link)
+  const renderedMessage = await buildPlatformEmailLayout(client, authMessage.layout)
+  const message = {
+    subject: authMessage.subject,
+    html: renderedMessage.html,
+    text: renderedMessage.text,
+  }
   let deliveryUserId: string | null = null
   if (input.userId) {
     // During signup, Auth invokes the HTTP hook before its transaction (and the

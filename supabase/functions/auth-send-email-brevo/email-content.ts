@@ -1,16 +1,8 @@
+import type { EmailLayoutInput } from "../_shared/email-layout.ts"
+
 export interface AuthEmailMessage {
   subject: string
-  html: string
-  text: string
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;")
+  layout: Omit<EmailLayoutInput, "headerLogoUrl">
 }
 
 export function buildAuthVerificationUrl(
@@ -31,20 +23,83 @@ export function buildAuthVerificationUrl(
 }
 
 export function buildAuthEmailMessage(type: string, name: string, link: string): AuthEmailMessage {
-  const labels: Record<string, [string, string]> = {
-    signup: ["Confirma a tua conta | Mariana Explica", "Confirma o teu cadastro na Mariana Explica."],
-    recovery: ["Recuperação de senha | Mariana Explica", "Recebemos um pedido para redefinir a tua senha."],
-    invite: ["Convite para a Mariana Explica", "Foste convidado para aceder à Mariana Explica."],
-    magiclink: ["O teu acesso | Mariana Explica", "Usa este link para entrar na Mariana Explica."],
-    email_change: ["Confirmação de alteração de e-mail | Mariana Explica", "Confirma esta alteração segura de e-mail."],
-    reauthentication: ["Confirma a tua identidade | Mariana Explica", "Usa este link para confirmar a tua identidade."],
+  const definitions: Record<string, {
+    subject: string
+    eyebrow: string
+    title: string
+    intro: string
+    ctaLabel: string
+    footer: string
+  }> = {
+    signup: {
+      subject: "Confirma a tua conta | Mariana Explica",
+      eyebrow: "Verificação da conta",
+      title: "Confirma o teu email",
+      intro: "A tua conta na Mariana Explica ficou quase pronta. Clica no botão abaixo para validar o email e entrar automaticamente na tua área do aluno.",
+      ctaLabel: "Validar conta",
+      footer: "Se não foste tu a criar esta conta, podes ignorar este email com segurança.",
+    },
+    recovery: {
+      subject: "Recuperação de senha | Mariana Explica",
+      eyebrow: "Recuperação de acesso",
+      title: "Define uma nova palavra-passe",
+      intro: "Recebemos um pedido para redefinir a palavra-passe da tua conta.",
+      ctaLabel: "Redefinir palavra-passe",
+      footer: "Se não pediste esta alteração, podes ignorar este email com segurança.",
+    },
+    invite: {
+      subject: "Convite para a Mariana Explica",
+      eyebrow: "Convite",
+      title: "Foste convidado para a Mariana Explica",
+      intro: "Confirma o teu email para aceitares o convite e preparares o teu acesso.",
+      ctaLabel: "Aceitar convite",
+      footer: "Se não esperavas este convite, podes ignorar este email com segurança.",
+    },
+    magiclink: {
+      subject: "O teu acesso | Mariana Explica",
+      eyebrow: "Acesso seguro",
+      title: "Entra na Mariana Explica",
+      intro: "Usa o botão abaixo para entrares na tua conta com segurança.",
+      ctaLabel: "Entrar na minha conta",
+      footer: "Se não pediste este acesso, podes ignorar este email com segurança.",
+    },
+    email_change: {
+      subject: "Confirmação de alteração de e-mail | Mariana Explica",
+      eyebrow: "Alteração de email",
+      title: "Confirma o teu novo email",
+      intro: "Confirma esta alteração para manteres os dados de acesso à tua conta atualizados.",
+      ctaLabel: "Confirmar alteração",
+      footer: "Se não pediste esta alteração, entra em contacto com o suporte.",
+    },
+    reauthentication: {
+      subject: "Confirma a tua identidade | Mariana Explica",
+      eyebrow: "Verificação de segurança",
+      title: "Confirma a tua identidade",
+      intro: "Usa o botão abaixo para confirmares a tua identidade e continuares a operação em segurança.",
+      ctaLabel: "Confirmar identidade",
+      footer: "Se não reconheces este pedido, podes ignorar este email com segurança.",
+    },
   }
-  const [subject, intro] = labels[type] ?? ["Ação de segurança | Mariana Explica", "Segue o link para concluir a ação solicitada."]
+  const definition = definitions[type] ?? {
+    subject: "Ação de segurança | Mariana Explica",
+    eyebrow: "Segurança da conta",
+    title: "Confirma esta ação",
+    intro: "Usa o botão abaixo para concluíres a ação solicitada em segurança.",
+    ctaLabel: "Continuar",
+    footer: "Se não reconheces este pedido, podes ignorar este email com segurança.",
+  }
   const greeting = name ? `Olá, ${name}.` : "Olá."
 
   return {
-    subject,
-    html: `<p>${escapeHtml(greeting)}</p><p>${escapeHtml(intro)}</p><p><a href="${escapeHtml(link)}">Continuar</a></p><p>Se não reconheces este pedido, ignora este e-mail.</p>`,
-    text: `${greeting}\n\n${intro}\n\n${link}\n\nSe não reconheces este pedido, ignora este e-mail.`,
+    subject: definition.subject,
+    layout: {
+      eyebrow: definition.eyebrow,
+      title: definition.title,
+      greeting,
+      intro: definition.intro,
+      ctaLabel: definition.ctaLabel,
+      ctaUrl: link,
+      footer: definition.footer,
+    },
   }
 }
