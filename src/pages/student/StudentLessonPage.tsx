@@ -6,6 +6,7 @@ import { Button } from "@/components/ui"
 import {
   LessonAdditionalResources,
   LessonContentBlocksRenderer,
+  LessonPdfViewer,
   LessonPrimaryMedia,
   RichTextContent,
   StatusBadge,
@@ -241,6 +242,12 @@ export function StudentLessonPage() {
               <LessonContentBlocksRenderer value={lesson.text_content} className="mt-3" />
             </div>
           ) : null}
+          <LessonPdfViewer
+            lessonId={lesson.id}
+            lessonType={lesson.lesson_type}
+            storagePath={lesson.lesson_file_storage_path}
+            fileName={lesson.lesson_file_name}
+          />
         </div>
 
         <div className="mt-7 flex flex-wrap items-end gap-3">

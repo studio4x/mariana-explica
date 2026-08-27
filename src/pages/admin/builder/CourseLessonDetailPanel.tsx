@@ -1133,7 +1133,9 @@ export function CourseLessonDetailPanel() {
                     </p>
                     {values.lesson_file_size_bytes ? (
                       <p className="mt-1 text-xs text-emerald-700">
-                        {formatBytes(values.lesson_file_size_bytes)} · disponível para download na visualização da aula
+                        {formatBytes(values.lesson_file_size_bytes)} · {values.lesson_type === "file"
+                          ? "visível no corpo da aula e disponível para download"
+                          : "disponível para download na visualização da aula"}
                       </p>
                     ) : null}
                   </div>

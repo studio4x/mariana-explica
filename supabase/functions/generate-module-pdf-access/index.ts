@@ -13,6 +13,7 @@ const DEFAULT_SITE_NAME = "Mariana Explica"
 interface Input {
   moduleId?: string
   lessonId?: string
+  disposition?: "inline" | "attachment"
 }
 
 interface WatermarkConfigValue {
@@ -176,6 +177,7 @@ Deno.serve(async (req) => {
     const body = await readJsonBody<Input>(req)
     const moduleId = body.moduleId?.trim()
     const lessonId = body.lessonId?.trim()
+    const disposition = body.disposition === "inline" ? "inline" : "attachment"
     const isAdminPreview = isAdminProfile(context.profile)
 
     if (Boolean(moduleId) === Boolean(lessonId)) {
@@ -310,7 +312,7 @@ Deno.serve(async (req) => {
       storagePath: derivedPath,
       provider: "r2",
       expiresInSeconds: 300,
-      downloadFileName: downloadName,
+      downloadFileName: disposition === "attachment" ? downloadName : undefined,
     })
 
     await writeAuditLog(context.serviceClient, context, {
@@ -325,6 +327,7 @@ Deno.serve(async (req) => {
         derived_storage_path: derivedPath,
         file_name: sourceFileName,
         licensed_file_name: downloadName,
+        disposition,
         watermark_site_name: watermarkConfig.site_name,
         watermark_logo_path: watermarkConfig.logo_path,
         storage_provider: sourceStorageProvider ?? "supabase",
@@ -339,6 +342,7 @@ Deno.serve(async (req) => {
       url: signedUrl,
       expires_in_seconds: 300,
       file_name: downloadName,
+      disposition,
     })
   } catch (error) {
     logError("Module PDF access failed", {

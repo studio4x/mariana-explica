@@ -231,7 +231,7 @@ Comportamento de consumo:
 
 1. sempre tenta renderizar `LessonPrimaryMedia` com `lesson.youtube_url`
 2. se `lesson.text_content` existir, renderiza bloco textual
-3. se `lesson_type === "file"` e houver `lesson_file_storage_path`, solicita acesso via `generate-asset-access` e renderiza o leitor de PDF
+3. se `lesson_type === "file"` e houver `lesson_file_storage_path`, solicita acesso inline via `generate-module-pdf-access` e renderiza o leitor de PDF
 4. secao "Materiais da aula" lista:
    - PDF base do modulo (quando houver)
    - recursos adicionais (`module_assets`) do modulo, sem o ficheiro principal da aula

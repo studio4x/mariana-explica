@@ -250,7 +250,8 @@ Regras:
 - O conteudo textual e salvo em `text_content`, com blocos serializados.
 - Quando `youtube_url` armazena `asset:<uuid>`, a aula usa video privado servido por URL assinada temporaria.
 - O PDF base da aula e independente de `lesson_type`: pode existir em aulas de video, texto ou hibridas.
-- Na visualizacao do aluno, o PDF base aparece apenas como botao de download; o download gera copia licenciada com a marca d'agua configurada no painel admin.
+- Na visualizacao do aluno, quando `lesson_type = "file"`, o PDF base aparece como conteudo principal num leitor embutido e mantem o botao de download; nos demais tipos, aparece apenas como botao de download.
+- Tanto a visualizacao como o download geram copia licenciada com a marca d'agua configurada no painel admin.
 
 ### 4.4 Assessment
 
@@ -707,9 +708,10 @@ Regras:
 - o PDF e persistido nos campos `lesson_file_*` de `product_lessons`;
 - o admin pode remover a associacao atual do PDF para substitui-lo por outro arquivo; arquivos gerenciados pela plataforma sao limpos do storage;
 - o PDF nao altera nem depende do tipo pedagogico da aula;
-- na visualizacao da aula existe somente o botao de download do PDF base, quando configurado;
-- o download usa o mesmo fluxo de copia licenciada e a mesma configuracao de marca d'agua do PDF base do modulo;
-- se a aula nao possuir PDF base, nenhum botao de PDF e exibido.
+- quando a aula usa o formato `file`, o PDF e apresentado no corpo da aula por um leitor embutido e o botao de download continua disponivel;
+- nos formatos `video`, `text` e `hybrid`, o PDF base continua disponivel somente pelo botao de download;
+- a visualizacao e o download usam o mesmo fluxo de copia licenciada e a mesma configuracao de marca d'agua do PDF base do modulo;
+- se a aula nao possuir PDF base, nenhum leitor ou botao de PDF e exibido.
 
 ## 10. Editor de Aula
 

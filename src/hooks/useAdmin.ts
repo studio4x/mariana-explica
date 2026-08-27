@@ -1310,7 +1310,7 @@ export function useUploadAdminLessonFile() {
 }
 
 export function useAdminLessonFileAccess() {
-  return useMutation({ mutationFn: requestLessonFileAccess })
+  return useMutation({ mutationFn: (lessonId: string) => requestLessonFileAccess(lessonId) })
 }
 
 export function useDeleteAdminLessonStorageObject() {

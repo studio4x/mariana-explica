@@ -714,7 +714,7 @@ export function useRequestAssetAccess() {
 export function useLessonFileAccess(lessonId: string | undefined) {
   return useQuery({
     queryKey: ["dashboard", "lesson", lessonId, "file-access"],
-    queryFn: () => requestLessonFileAccess(lessonId ?? ""),
+    queryFn: () => requestLessonFileAccess(lessonId ?? "", "inline"),
     enabled: Boolean(lessonId),
     staleTime: 4 * 60_000,
     refetchOnWindowFocus: false,
@@ -723,7 +723,7 @@ export function useLessonFileAccess(lessonId: string | undefined) {
 
 export function useRequestLessonFileAccess() {
   return useMutation({
-    mutationFn: requestLessonFileAccess,
+    mutationFn: (lessonId: string) => requestLessonFileAccess(lessonId),
   })
 }
 

@@ -1116,10 +1116,13 @@ export async function fetchOrderFiscalDocumentUrl(orderId: string) {
   return { signed_url: data.signed_url }
 }
 
-export async function requestLessonFileAccess(lessonId: string) {
+export async function requestLessonFileAccess(
+  lessonId: string,
+  disposition: "inline" | "attachment" = "attachment",
+) {
   const headers = await getFunctionAuthHeaders()
   const { data, error } = await supabase.functions.invoke("generate-module-pdf-access", {
-    body: { lessonId },
+    body: { lessonId, disposition },
     headers,
   })
 
@@ -1133,6 +1136,7 @@ export async function requestLessonFileAccess(lessonId: string) {
     url: string
     file_name: string | null
     expires_in_seconds: number
+    disposition: "inline" | "attachment"
   }
 }
 
