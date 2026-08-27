@@ -498,7 +498,7 @@ export function AdminUsers() {
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Papel</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Status</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Atividade</th>
-                    <th className="w-[240px] px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Ações</th>
+                    <th className="w-[220px] px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#5F7077]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -569,8 +569,8 @@ export function AdminUsers() {
                           <p>ID: {user.id.slice(0, 8)}...</p>
                         </div>
                       </td>
-                      <td className="w-[240px] px-4 py-4 text-right text-sm text-[#15323b]">
-                        <div className="flex min-w-[260px] justify-end gap-2">
+                      <td className="w-[220px] px-4 py-4 text-right text-sm text-[#15323b]">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <Button
                             type="button"
                             variant="outline"
