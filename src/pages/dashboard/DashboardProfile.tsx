@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback"
 import { PageHeader, StatusBadge } from "@/components/common"
 import { Button } from "@/components/ui"
 import { formatNif, isValidNif, stripNifDigits } from "@/lib/nif"
+import { formatProfileRole, formatProfileStatus } from "@/lib/profile-labels"
 import {
   useProfilePreferences,
   useUpdateAccountPassword,
@@ -158,10 +159,10 @@ export function DashboardProfile() {
           </div>
           <div className="mt-5 space-y-3 text-sm text-slate-600">
             <p>Email: {profile.email}</p>
-            <p>Tipo de conta: {profile.role}</p>
+            <p>Tipo de conta: {formatProfileRole(profile.role)}</p>
             <div className="flex items-center gap-3">
               <span>Estado:</span>
-              <StatusBadge label={profile.status} tone={profile.status === "active" ? "success" : "warning"} />
+              <StatusBadge label={formatProfileStatus(profile.status)} tone={profile.status === "active" ? "success" : "warning"} />
             </div>
           </div>
         </section>
