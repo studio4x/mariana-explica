@@ -1,6 +1,7 @@
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0"
 import { fetchBrevoSettings, sendBrevoTransactionalEmail, safeBrevoError, createServiceClient } from "../_shared/mod.ts"
 import { logError } from "../_shared/logger.ts"
+import { buildAuthEmailMessage, buildAuthVerificationUrl } from "./email-content.ts"
 
 interface HookPayload {
   user?: { id?: string; email?: string; new_email?: string; user_metadata?: { full_name?: string } }
@@ -20,36 +21,14 @@ function secret() {
   return (Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "").replace(/^v1,whsec_/, "")
 }
 
-function verificationUrl(siteUrl: string, token: string, tokenHash: string, type: string, redirectTo?: string) {
-  const url = new URL("/auth/v1/verify", siteUrl)
-  url.searchParams.set("token", token)
-  url.searchParams.set("token_hash", tokenHash)
-  url.searchParams.set("type", type)
-  if (redirectTo) url.searchParams.set("redirect_to", redirectTo)
-  return url.toString()
-}
-
-function messageFor(type: string, name: string, link: string, token: string) {
-  const labels: Record<string, [string, string]> = {
-    signup: ["Confirma a tua conta | Mariana Explica", "Confirma o teu cadastro na Mariana Explica."],
-    recovery: ["Recuperação de senha | Mariana Explica", "Recebemos um pedido para redefinir a tua senha."],
-    invite: ["Convite para a Mariana Explica", "Foste convidado para aceder à Mariana Explica."],
-    magiclink: ["O teu acesso | Mariana Explica", "Usa este link para entrar na Mariana Explica."],
-    email_change: ["Confirmação de alteração de e-mail | Mariana Explica", "Confirma esta alteração segura de e-mail."],
-    reauthentication: ["Confirma a tua identidade | Mariana Explica", "Usa este código para confirmar a tua identidade."],
-  }
-  const [subject, intro] = labels[type] ?? ["Ação de segurança | Mariana Explica", "Segue o link para concluir a ação solicitada."]
-  const greeting = name ? `Olá, ${name}.` : "Olá."
-  return {
-    subject,
-    html: `<p>${greeting}</p><p>${intro}</p><p><a href="${link}">Continuar</a></p><p>Se o botão não funcionar, usa este código: <strong>${token}</strong></p><p>Se não reconheces este pedido, ignora este e-mail.</p>`,
-    text: `${greeting}\n\n${intro}\n\n${link}\n\nCódigo: ${token}\n\nSe não reconheces este pedido, ignora este e-mail.`,
-  }
-}
-
 async function sendOne(client: ReturnType<typeof createServiceClient>, settings: Awaited<ReturnType<typeof fetchBrevoSettings>>, input: { to: string; type: string; token: string; tokenHash: string; siteUrl: string; redirectTo?: string; name: string; userId?: string }) {
-  const link = verificationUrl(input.siteUrl, input.token, input.tokenHash, input.type, input.redirectTo)
-  const message = messageFor(input.type, input.name, link, input.token)
+  const link = buildAuthVerificationUrl(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    input.tokenHash,
+    input.type,
+    input.redirectTo,
+  )
+  const message = buildAuthEmailMessage(input.type, input.name, link)
   let deliveryUserId: string | null = null
   if (input.userId) {
     // During signup, Auth invokes the HTTP hook before its transaction (and the

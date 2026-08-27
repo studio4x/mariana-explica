@@ -17,6 +17,10 @@ export function mapAuthErrorMessage(message: string) {
     return "O registo esta temporariamente indisponivel."
   }
 
+  if (normalized.includes("email rate limit exceeded") || normalized.includes("over_email_send_rate_limit")) {
+    return "Foram pedidos vários emails num curto intervalo. Aguarda alguns minutos e tenta novamente."
+  }
+
   if (normalized.includes("password should be at least")) {
     return "A palavra-passe precisa de ter pelo menos 6 caracteres."
   }
