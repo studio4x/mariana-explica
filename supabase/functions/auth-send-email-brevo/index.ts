@@ -50,8 +50,21 @@ function messageFor(type: string, name: string, link: string, token: string) {
 async function sendOne(client: ReturnType<typeof createServiceClient>, settings: Awaited<ReturnType<typeof fetchBrevoSettings>>, input: { to: string; type: string; token: string; tokenHash: string; siteUrl: string; redirectTo?: string; name: string; userId?: string }) {
   const link = verificationUrl(input.siteUrl, input.token, input.tokenHash, input.type, input.redirectTo)
   const message = messageFor(input.type, input.name, link, input.token)
+  let deliveryUserId: string | null = null
+  if (input.userId) {
+    // During signup, Auth invokes the HTTP hook before its transaction (and the
+    // profile trigger) is committed. Referencing that pending profile would
+    // violate email_deliveries_user_id_fkey and abort the account creation.
+    const { data: profile, error: profileError } = await client
+      .from("profiles")
+      .select("id")
+      .eq("id", input.userId)
+      .maybeSingle()
+    if (profileError) throw profileError
+    deliveryUserId = profile?.id ?? null
+  }
   const { data: delivery, error } = await client.from("email_deliveries").insert({
-    user_id: input.userId ?? null,
+    user_id: deliveryUserId,
     email_to: input.to.trim().toLowerCase(),
     template_key: `auth_${input.type}`,
     status: "queued",
