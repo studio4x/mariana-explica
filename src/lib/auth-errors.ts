@@ -1,7 +1,11 @@
+export function isEmailNotConfirmedError(message: string) {
+  return message.trim().toLowerCase().includes("email not confirmed")
+}
+
 export function mapAuthErrorMessage(message: string) {
   const normalized = message.trim().toLowerCase()
 
-  if (normalized === "email not confirmed") {
+  if (isEmailNotConfirmedError(message)) {
     return "O teu email ainda não foi confirmado. Abre o email de validação e clica no botão para ativar a conta."
   }
 

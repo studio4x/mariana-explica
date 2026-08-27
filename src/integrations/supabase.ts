@@ -60,6 +60,7 @@ type SupabaseLike = {
     signOut: () => Promise<{ error: null }>
     signInWithPassword: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
     signUp: (..._args: unknown[]) => Promise<{ data: unknown; error: Error }>
+    resend: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
     resetPasswordForEmail: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
     updateUser: (..._args: unknown[]) => Promise<{ data: unknown; error: Error | null }>
     exchangeCodeForSession: (code: string) => Promise<{ data: unknown; error: Error | null }>
@@ -153,6 +154,10 @@ function createNoopSupabaseClient() {
       }),
       signUp: async () => ({
         data: { session: null, user: null },
+        error: new Error("Supabase não configurado"),
+      }),
+      resend: async () => ({
+        data: null,
         error: new Error("Supabase não configurado"),
       }),
       resetPasswordForEmail: async () => ({

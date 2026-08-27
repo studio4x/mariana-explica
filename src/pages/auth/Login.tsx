@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui"
-import { mapAuthErrorMessage } from "@/lib/auth-errors"
+import { buildAuthCallbackUrl } from "@/lib/auth-callback"
+import { isEmailNotConfirmedError, mapAuthErrorMessage } from "@/lib/auth-errors"
 import { ROUTES, APP_NAME } from "@/lib/constants"
 import { supabase } from "@/integrations/supabase"
 import { useAuth } from "@/hooks/useAuth"
@@ -25,6 +26,9 @@ export function Login() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendFeedback, setResendFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
@@ -42,6 +46,8 @@ export function Login() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
+    setUnconfirmedEmail(null)
+    setResendFeedback(null)
     setLoading(true)
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -53,10 +59,49 @@ export function Login() {
 
     if (error) {
       setError(mapAuthErrorMessage(error.message))
+      if (isEmailNotConfirmedError(error.message)) {
+        setUnconfirmedEmail(email.trim())
+      }
       return
     }
 
     navigate(destinationPath, { replace: true })
+  }
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value)
+    setError(null)
+    setUnconfirmedEmail(null)
+    setResendFeedback(null)
+  }
+
+  const handleResendConfirmation = async () => {
+    if (!unconfirmedEmail || resendLoading || resendFeedback?.tone === "success") {
+      return
+    }
+
+    setResendLoading(true)
+    setResendFeedback(null)
+
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: unconfirmedEmail,
+      options: {
+        emailRedirectTo: buildAuthCallbackUrl(redirectPath),
+      },
+    })
+
+    setResendLoading(false)
+
+    if (resendError) {
+      setResendFeedback({ tone: "error", message: mapAuthErrorMessage(resendError.message) })
+      return
+    }
+
+    setResendFeedback({
+      tone: "success",
+      message: "Enviamos um novo email de ativação. Confirma também a pasta de spam.",
+    })
   }
 
   const handleOpenForgotPassword = () => {
@@ -112,7 +157,7 @@ export function Login() {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => handleEmailChange(event.target.value)}
             placeholder="seu@email.com"
             className="flex h-12 w-full rounded-xl border border-input bg-slate-50 px-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
@@ -133,7 +178,41 @@ export function Login() {
           />
         </div>
 
-        {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
+        {error ? (
+          <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <p>{error}</p>
+            {unconfirmedEmail ? (
+              <div className="mt-3 space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-rose-300 bg-white text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+                  disabled={resendLoading || resendFeedback?.tone === "success"}
+                  onClick={() => void handleResendConfirmation()}
+                >
+                  {resendLoading
+                    ? "A reenviar..."
+                    : resendFeedback?.tone === "success"
+                      ? "Email reenviado"
+                      : "Reenviar email de ativação"}
+                </Button>
+                {resendFeedback ? (
+                  <p
+                    aria-live="polite"
+                    className={
+                      resendFeedback.tone === "success"
+                        ? "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800"
+                        : "rounded-xl border border-rose-200 bg-white px-3 py-2 text-rose-700"
+                    }
+                  >
+                    {resendFeedback.message}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <Button type="submit" className="w-full rounded-full" size="lg" disabled={loading}>
           {loading ? "A entrar..." : "Entrar"}
