@@ -1,6 +1,7 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts"
 import {
   classifyMoloniFailure,
+  extractMoloniCustomerId,
   extractMoloniDataValidationMessage,
   findInvalidMoloniCustomerReferences,
   MoloniClient,
@@ -63,7 +64,7 @@ class ProductCatalogMoloniClient extends MoloniClient {
 
 class AmbiguousInsertMoloniClient extends MoloniClient {
   readonly calls: string[] = []
-  override async post<T>(endpoint: string, _body: Record<string, unknown>, _options?: { retryAfter401?: boolean }) {
+  override async post<T>(endpoint: string) {
     this.calls.push(endpoint)
     if (endpoint === "invoiceReceipts/insert") {
       throw new MoloniError("reautenticado", "TOKEN_REFRESHED_REQUIRES_RECONCILIATION", false, 401)
@@ -74,11 +75,33 @@ class AmbiguousInsertMoloniClient extends MoloniClient {
 
 class MissingDocumentIdMoloniClient extends MoloniClient {
   readonly calls: string[] = []
-  override async post<T>(endpoint: string, _body: Record<string, unknown>, _options?: { retryAfter401?: boolean }) {
+  override async post<T>(endpoint: string) {
     this.calls.push(endpoint)
     if (endpoint === "invoiceReceipts/insert") return { valid: 1 } as T
     if (endpoint === "invoiceReceipts/getOne") return {} as T
     return { document_id: 99 } as T
+  }
+}
+
+class NestedCustomerInsertMoloniClient extends MoloniClient {
+  readonly calls: string[] = []
+
+  override async post<T>(endpoint: string) {
+    this.calls.push(endpoint)
+    return { data: [{ customer_id: "61" }] } as T
+  }
+}
+
+class ReconciledCustomerInsertMoloniClient extends MoloniClient {
+  readonly calls: string[] = []
+
+  override async post<T>(endpoint: string) {
+    this.calls.push(endpoint)
+    if (endpoint === "customers/insert") return { valid: 1 } as T
+    if (endpoint === "customers/getByVat") {
+      return [{ customer_id: 62, vat: "PT 123 456 789" }] as T
+    }
+    throw new Error(`Unexpected Moloni endpoint: ${endpoint}`)
   }
 }
 
@@ -111,6 +134,31 @@ Deno.test("extracts human Moloni data validation errors returned with HTTP 200",
   const rejected = classifyMoloniFailure(200, payload, "invoiceReceipts/insert")
   assertEquals(rejected.code, "MOLONI_REJECTED")
   assertEquals(rejected.retryable, false)
+})
+
+Deno.test("extracts a customer id from direct, array and nested Moloni responses", () => {
+  assertEquals(extractMoloniCustomerId({ valid: 1, customer_id: 41 }), 41)
+  assertEquals(extractMoloniCustomerId([{ valid: 1, customer_id: "42" }]), 42)
+  assertEquals(extractMoloniCustomerId({ data: { customer: { id: 43 } } }), 43)
+  assertEquals(extractMoloniCustomerId([{ code: "name", description: "invalid" }]), null)
+})
+
+Deno.test("accepts a nested customer identifier returned by Moloni insert", async () => {
+  const client = new NestedCustomerInsertMoloniClient({} as never, "draft")
+  assertEquals(await client.createCustomer({ company_id: 42, vat: "123456789" }), {
+    valid: 1,
+    customer_id: 61,
+  })
+  assertEquals(client.calls, ["customers/insert"])
+})
+
+Deno.test("reconciles an ambiguous customer insert by the exact VAT", async () => {
+  const client = new ReconciledCustomerInsertMoloniClient({} as never, "draft")
+  assertEquals(await client.createCustomer({ company_id: 42, vat: "PT123456789" }), {
+    valid: 1,
+    customer_id: 62,
+  })
+  assertEquals(client.calls, ["customers/insert", "customers/getByVat"])
 })
 
 Deno.test("loads countries and languages without a company and maturity dates with company_id", async () => {
@@ -220,7 +268,7 @@ Deno.test("reconciles an ambiguous document insertion before allowing a result",
     your_reference: "mariana:order:sale:v1",
   })
   assertEquals(result.document_id, 88)
-  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne", "invoiceReceipts/getAll"])
+  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne"])
 })
 
 Deno.test("reconciles a successful insert that omitted document_id", async () => {
@@ -230,5 +278,5 @@ Deno.test("reconciles a successful insert that omitted document_id", async () =>
     your_reference: "mariana:order:sale:v1",
   })
   assertEquals(result.document_id, 99)
-  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne"])
+  assertEquals(client.calls, ["invoiceReceipts/insert", "invoiceReceipts/getOne", "invoiceReceipts/getAll"])
 })

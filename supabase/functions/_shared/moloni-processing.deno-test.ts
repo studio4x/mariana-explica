@@ -3,12 +3,30 @@ import {
   buildMoloniDocumentPayload,
   centsToDecimal,
   FiscalProcessingError,
+  getMoloniCustomerVatStrategy,
   resolveMoloniCountryId,
   selectMoloniFiscalRule,
+  shouldCreateMoloniResources,
 } from "./moloni-processing.ts"
 
 Deno.test("converts integer cents without floating point drift", () => {
   assertEquals(centsToDecimal(12345), 123.45)
+})
+
+Deno.test("treats the no-NIF fallback as a shared Moloni customer", () => {
+  assertEquals(getMoloniCustomerVatStrategy(null, "999 999 990"), {
+    effectiveVat: "999999990",
+    usesSharedFallback: true,
+  })
+  assertEquals(getMoloniCustomerVatStrategy("PT 123 456 789", "999999990"), {
+    effectiveVat: "PT123456789",
+    usesSharedFallback: false,
+  })
+})
+
+Deno.test("reconciliation never creates remote Moloni resources", () => {
+  assertEquals(shouldCreateMoloniResources("issue_document"), true)
+  assertEquals(shouldCreateMoloniResources("reconcile_document"), false)
 })
 
 Deno.test("resolves an international buyer country from the fiscal snapshot", async () => {

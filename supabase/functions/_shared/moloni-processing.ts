@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
 import { getOfficialMoloniTax, MoloniClient, MoloniError } from "./moloni.ts"
 import { normalizeIso2, normalizeVatNumber } from "./fiscal.ts"
+import { logError } from "./logger.ts"
 
 type DocumentKind = "invoice" | "invoice_receipt"
 
@@ -25,10 +26,27 @@ interface FiscalDocumentRow {
 interface MoloniJobRow {
   id: string
   fiscal_document_id: string
+  job_type: "issue_document" | "reconcile_document"
   attempt_count: number
   max_attempts: number
   result_uncertain: boolean
   locked_by: string | null
+}
+
+export function getMoloniCustomerVatStrategy(
+  billingVat: string | null,
+  fallbackVat: string | null,
+) {
+  const explicitVat = normalizeVatNumber(billingVat)
+  const normalizedFallbackVat = normalizeVatNumber(fallbackVat)
+  return {
+    effectiveVat: explicitVat ?? normalizedFallbackVat,
+    usesSharedFallback: !explicitVat && Boolean(normalizedFallbackVat),
+  }
+}
+
+export function shouldCreateMoloniResources(jobType: MoloniJobRow["job_type"]) {
+  return jobType === "issue_document"
 }
 
 interface BillingRow {
@@ -376,13 +394,16 @@ async function resolveMoloniCustomer(params: {
   settings: FiscalSettingsRow
   billing: BillingRow
   workerId: string
+  allowCreate: boolean
 }) {
   const { client, moloni, document, settings, billing } = params
   if (!settings.moloni_company_id) {
     throw new FiscalProcessingError("Empresa Moloni não configurada.", "COMPANY_MISSING", false, true)
   }
-  const effectiveVat = normalizeVatNumber(billing.vat_number) ||
-    normalizeVatNumber(settings.customer_without_vat_rule)
+  const { effectiveVat, usesSharedFallback } = getMoloniCustomerVatStrategy(
+    billing.vat_number,
+    settings.customer_without_vat_rule,
+  )
   if (!effectiveVat) {
     throw new FiscalProcessingError(
       "A regra para comprador sem NIF ainda não foi aprovada.",
@@ -410,25 +431,27 @@ async function resolveMoloniCustomer(params: {
   }
 
   try {
-    const { data: link, error: linkError } = await client
-      .from("moloni_customer_links")
-      .select("moloni_customer_id,vat_number_snapshot")
-      .eq("user_id", document.user_id)
-      .eq("environment", moloni.environment)
-      .eq("moloni_company_id", settings.moloni_company_id)
-      .maybeSingle()
-    if (linkError) throw linkError
-    if (link?.moloni_customer_id) {
-      const linkedVat = normalizeVatNumber(link.vat_number_snapshot)
-      if (linkedVat && linkedVat !== effectiveVat) {
-        throw new FiscalProcessingError(
-          "O NIF do vínculo Moloni diverge do snapshot do pedido.",
-          "CUSTOMER_VAT_MISMATCH",
-          false,
-          true,
-        )
+    if (!usesSharedFallback) {
+      const { data: link, error: linkError } = await client
+        .from("moloni_customer_links")
+        .select("moloni_customer_id,vat_number_snapshot")
+        .eq("user_id", document.user_id)
+        .eq("environment", moloni.environment)
+        .eq("moloni_company_id", settings.moloni_company_id)
+        .maybeSingle()
+      if (linkError) throw linkError
+      if (link?.moloni_customer_id) {
+        const linkedVat = normalizeVatNumber(link.vat_number_snapshot)
+        if (linkedVat && linkedVat !== effectiveVat) {
+          throw new FiscalProcessingError(
+            "O NIF do vínculo Moloni diverge do snapshot do pedido.",
+            "CUSTOMER_VAT_MISMATCH",
+            false,
+            true,
+          )
+        }
+        return Number(link.moloni_customer_id)
       }
-      return Number(link.moloni_customer_id)
     }
 
     const byVat = await moloni.getCustomerByVat(settings.moloni_company_id, effectiveVat)
@@ -458,6 +481,14 @@ async function resolveMoloniCustomer(params: {
 
     let customerId = Number(customer?.customer_id ?? 0)
     if (!customerId) {
+      if (!params.allowCreate) {
+        throw new FiscalProcessingError(
+          "Nenhum cliente Moloni foi encontrado para a reconciliação segura.",
+          "CUSTOMER_RECONCILIATION_NOT_FOUND",
+          false,
+          true,
+        )
+      }
       const effectiveCountryId = await resolveMoloniCountryId(
         moloni,
         billing.country_code,
@@ -502,17 +533,19 @@ async function resolveMoloniCustomer(params: {
       }
     }
 
-    const { error: saveError } = await client
-      .from("moloni_customer_links")
-      .upsert({
-        user_id: document.user_id,
-        environment: moloni.environment,
-        moloni_company_id: settings.moloni_company_id,
-        moloni_customer_id: customerId,
-        vat_number_snapshot: effectiveVat,
-        last_synced_at: new Date().toISOString(),
-      }, { onConflict: "user_id,environment,moloni_company_id" })
-    if (saveError) throw saveError
+    if (!usesSharedFallback) {
+      const { error: saveError } = await client
+        .from("moloni_customer_links")
+        .upsert({
+          user_id: document.user_id,
+          environment: moloni.environment,
+          moloni_company_id: settings.moloni_company_id,
+          moloni_customer_id: customerId,
+          vat_number_snapshot: effectiveVat,
+          last_synced_at: new Date().toISOString(),
+        }, { onConflict: "user_id,environment,moloni_company_id" })
+      if (saveError) throw saveError
+    }
     return customerId
   } finally {
     await client.rpc("release_moloni_customer_lock", {
@@ -722,6 +755,7 @@ export async function processMoloniDocumentJob(
       settings,
       billing,
       workerId,
+      allowCreate: shouldCreateMoloniResources(job.job_type),
     })
     const payload = buildMoloniDocumentPayload({
       document,
@@ -757,6 +791,15 @@ export async function processMoloniDocumentJob(
         document.your_reference,
       )
       remote = matches.find((item) => Number(item.document_id) > 0) ?? remote
+    }
+
+    if (!remote?.document_id && !shouldCreateMoloniResources(job.job_type)) {
+      throw new FiscalProcessingError(
+        "Nenhum documento Moloni foi encontrado com a referência segura deste pedido. A reconciliação não criou uma nova fatura.",
+        "DOCUMENT_RECONCILIATION_NOT_FOUND",
+        false,
+        true,
+      )
     }
 
     if (!remote?.document_id) {
@@ -829,6 +872,17 @@ export async function processMoloniDocumentJob(
         ? "failed_retryable"
         : "failed_permanent"
     const backoffMinutes = [1, 5, 15, 60, 360][Math.min(Math.max(job.attempt_count - 1, 0), 4)]
+    logError("Moloni document job failed", {
+      job_id: job.id,
+      fiscal_document_id: job.fiscal_document_id,
+      job_type: job.job_type,
+      attempt_count: job.attempt_count,
+      max_attempts: job.max_attempts,
+      error_code: failure.code,
+      retryable: failure.retryable,
+      blocked: failure.blocked,
+      http_status: failure.httpStatus,
+    })
     await Promise.all([
       client
         .from("fiscal_documents")

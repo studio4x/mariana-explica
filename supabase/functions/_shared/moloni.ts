@@ -529,25 +529,45 @@ function isMoloniTokenFailure(payload: unknown) {
   return /token|access.?token|oauth/.test(text) && /expir|invalid|unauthor|revok/.test(text)
 }
 
-function extractMoloniDocumentId(value: unknown): number | null {
+function extractPositiveMoloniId(
+  value: unknown,
+  idKeys: string[],
+  nestedKeys: string[],
+): number | null {
   if (Array.isArray(value)) {
     for (const item of value) {
-      const documentId = extractMoloniDocumentId(item)
-      if (documentId) return documentId
+      const id = extractPositiveMoloniId(item, idKeys, nestedKeys)
+      if (id) return id
     }
     return null
   }
   if (typeof value !== "object" || value === null) return null
   const record = value as Record<string, unknown>
-  for (const key of ["document_id", "documentId", "id"]) {
+  for (const key of idKeys) {
     const candidate = Number(record[key])
     if (Number.isInteger(candidate) && candidate > 0) return candidate
   }
-  for (const key of ["data", "document", "result"]) {
-    const documentId = extractMoloniDocumentId(record[key])
-    if (documentId) return documentId
+  for (const key of nestedKeys) {
+    const id = extractPositiveMoloniId(record[key], idKeys, nestedKeys)
+    if (id) return id
   }
   return null
+}
+
+export function extractMoloniCustomerId(value: unknown) {
+  return extractPositiveMoloniId(
+    value,
+    ["customer_id", "customerId", "id"],
+    ["data", "customer", "result"],
+  )
+}
+
+function extractMoloniDocumentId(value: unknown) {
+  return extractPositiveMoloniId(
+    value,
+    ["document_id", "documentId", "id"],
+    ["data", "document", "result"],
+  )
 }
 
 export class MoloniClient {
@@ -699,8 +719,38 @@ export class MoloniClient {
     return this.post<{ number: string }>("customers/getNextNumber", { company_id: companyId })
   }
 
-  createCustomer(payload: Record<string, unknown>) {
-    return this.post<{ valid: number; customer_id: number }>("customers/insert", payload)
+  async createCustomer(payload: Record<string, unknown>) {
+    const inserted = await this.post<unknown>("customers/insert", payload)
+    const insertedCustomerId = extractMoloniCustomerId(inserted)
+    if (insertedCustomerId) return { valid: 1, customer_id: insertedCustomerId }
+
+    const companyId = Number(payload.company_id)
+    const vat = String(payload.vat ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "")
+    if (companyId > 0 && vat) {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const candidates = await this.getCustomerByVat(companyId, vat)
+        const customer = candidates.find((item) =>
+          String(item.vat ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "") === vat
+        )
+        const reconciledCustomerId = extractMoloniCustomerId(customer)
+        if (reconciledCustomerId) return { valid: 1, customer_id: reconciledCustomerId }
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
+      }
+    }
+
+    logError("Moloni customer insert omitted customer identifier", {
+      endpoint: "customers/insert",
+      environment: this.environment,
+      response_type: Array.isArray(inserted) ? "array" : typeof inserted,
+      response_keys: typeof inserted === "object" && inserted !== null && !Array.isArray(inserted)
+        ? Object.keys(inserted as Record<string, unknown>)
+        : [],
+    })
+    throw new MoloniError(
+      "A Moloni não devolveu o identificador do cliente e a reconciliação por NIF não o encontrou.",
+      "CUSTOMER_CREATE_INVALID_RESPONSE",
+      true,
+    )
   }
 
   updateCustomer(payload: Record<string, unknown> & { company_id: number; customer_id: number }) {
