@@ -1,6 +1,6 @@
 export const BUILD_VERSION_NUMBER = "1.0.0"
-export const BUILD_DEPLOY_NUMBER = "398"
-export const BUILD_COMMIT = "moloni-fiscal-recovery"
+export const BUILD_DEPLOY_NUMBER = "399"
+export const BUILD_COMMIT = "moloni-manual-link"
 
 export const BUILD_LABEL = `${BUILD_VERSION_NUMBER}-${BUILD_DEPLOY_NUMBER}-${BUILD_COMMIT}`
 

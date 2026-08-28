@@ -4,6 +4,7 @@ import { logError, logInfo } from "../_shared/logger.ts"
 import {
   createServiceClient,
   finishJobRun,
+  inspectManualMoloniDocument,
   processMoloniDocumentJob,
   requireCronSecret,
   startJobRun,
@@ -11,6 +12,13 @@ import {
 
 interface Input {
   batchSize?: number
+  manualDocumentLookup?: {
+    fiscalDocumentId: string
+    documentNumber: number
+    expectedDocumentDate: string
+    expectedBuyerName: string
+    confirmation: string
+  }
 }
 
 Deno.serve(async (req) => {
@@ -21,8 +29,19 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") throw badRequest("Método não suportado")
     requireCronSecret(req)
     const body: Input = await readJsonBody<Input>(req).catch(() => ({}))
-    const batchSize = Math.max(1, Math.min(Number(body.batchSize ?? 10), 25))
     const client = createServiceClient()
+    if (body.manualDocumentLookup) {
+      const manualDocument = await inspectManualMoloniDocument(client, body.manualDocumentLookup)
+      logInfo("Manual Moloni document inspected", {
+        request_id: requestId,
+        fiscal_document_id: manualDocument.fiscalDocumentId,
+        moloni_document_id: manualDocument.moloniDocumentId,
+        document_number: manualDocument.documentNumber,
+      })
+      return jsonResponse({ success: true, request_id: requestId, manual_document: manualDocument })
+    }
+
+    const batchSize = Math.max(1, Math.min(Number(body.batchSize ?? 10), 25))
     const jobRun = await startJobRun(client, {
       jobName: "cron_process_moloni_documents",
       payload: { batch_size: batchSize },

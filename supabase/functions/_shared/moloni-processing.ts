@@ -15,6 +15,9 @@ interface FiscalDocumentRow {
   source_payment_environment: "test" | "live"
   moloni_company_id: number | null
   moloni_customer_id?: number | null
+  moloni_document_set_id?: number | null
+  moloni_document_id?: number | null
+  document_number?: string | null
   currency: string
   net_amount_cents: number
   tax_amount_cents: number
@@ -64,6 +67,131 @@ export function resolveMoloniIssueDate(paidAt: string, now = new Date()) {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? ""
   const currentPortugueseDate = `${part("year")}-${part("month")}-${part("day")}`
   return paidDate > currentPortugueseDate ? paidDate : currentPortugueseDate
+}
+
+export interface ManualMoloniDocumentLookupInput {
+  fiscalDocumentId: string
+  documentNumber: number
+  expectedDocumentDate: string
+  expectedBuyerName: string
+  confirmation: string
+}
+
+export interface ManualMoloniDocumentExpectation {
+  companyId: number
+  documentSetId: number
+  documentNumber: number
+  documentDate: string
+  buyerName: string
+  currency: string
+  netAmountCents: number
+  taxAmountCents: number
+  totalAmountCents: number
+}
+
+function normalizeComparableName(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-PT")
+    .replace(/[^a-z0-9]/g, "")
+}
+
+function normalizeRemoteDocumentDate(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const milliseconds = value > 10_000_000_000 ? value : value * 1000
+    return new Date(milliseconds).toISOString().slice(0, 10)
+  }
+  const text = String(value ?? "").trim()
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+  const portugueseMatch = text.match(/^(\d{2})-(\d{2})-(\d{4})/)
+  return portugueseMatch ? `${portugueseMatch[3]}-${portugueseMatch[2]}-${portugueseMatch[1]}` : ""
+}
+
+export function validateManualMoloniDocument(
+  remote: Record<string, unknown>,
+  expected: ManualMoloniDocumentExpectation,
+) {
+  const moloniDocumentId = Number(remote.document_id ?? 0)
+  const customerId = Number(remote.customer_id ?? 0)
+  const documentSetId = Number(remote.document_set_id ?? 0)
+  const documentNumber = Number(remote.number ?? 0)
+  const documentDate = normalizeRemoteDocumentDate(remote.date)
+  const buyerMatches = normalizeComparableName(remote.entity_name) === normalizeComparableName(expected.buyerName)
+  const remoteCurrencyValue = String(
+    (remote.exchange_currency as Record<string, unknown> | null)?.iso4217 ?? expected.currency,
+  ).trim().toUpperCase()
+  const remoteCurrency = remoteCurrencyValue || expected.currency.toUpperCase()
+
+  if (!moloniDocumentId || !customerId) {
+    throw new FiscalProcessingError(
+      "O documento manual não devolveu identificadores Moloni válidos.",
+      "MANUAL_DOCUMENT_INVALID_RESPONSE",
+      false,
+      true,
+    )
+  }
+  if (
+    Number(remote.company_id ?? expected.companyId) !== expected.companyId ||
+    documentSetId !== expected.documentSetId ||
+    documentNumber !== expected.documentNumber
+  ) {
+    throw new FiscalProcessingError(
+      "A empresa, série ou número do documento manual diverge do pedido informado.",
+      "MANUAL_DOCUMENT_IDENTITY_MISMATCH",
+      false,
+      true,
+    )
+  }
+  if (documentDate !== expected.documentDate) {
+    throw new FiscalProcessingError(
+      "A data do documento manual diverge da confirmação fornecida.",
+      "MANUAL_DOCUMENT_DATE_MISMATCH",
+      false,
+      true,
+    )
+  }
+  if (!buyerMatches) {
+    throw new FiscalProcessingError(
+      "O comprador do documento manual diverge da confirmação fornecida.",
+      "MANUAL_DOCUMENT_BUYER_MISMATCH",
+      false,
+      true,
+    )
+  }
+  if (remoteCurrency !== expected.currency.toUpperCase()) {
+    throw new FiscalProcessingError(
+      "A moeda do documento manual diverge do pedido.",
+      "MANUAL_DOCUMENT_CURRENCY_MISMATCH",
+      false,
+      true,
+    )
+  }
+  if (Number(remote.status ?? 0) !== 1) {
+    throw new FiscalProcessingError(
+      "O documento manual ainda não está fechado no Moloni.",
+      "MANUAL_DOCUMENT_NOT_CLOSED",
+      false,
+      true,
+    )
+  }
+  validateRemoteTotals(remote, {
+    net_amount_cents: expected.netAmountCents,
+    tax_amount_cents: expected.taxAmountCents,
+    total_amount_cents: expected.totalAmountCents,
+  } as FiscalDocumentRow)
+
+  return {
+    moloniDocumentId,
+    moloniCustomerId: customerId,
+    moloniDocumentSetId: documentSetId,
+    documentNumber: String(remote.number),
+    documentDate,
+    remoteStatus: Number(remote.status),
+    buyerMatches,
+    totalsMatch: true,
+  }
 }
 
 interface BillingRow {
@@ -579,6 +707,104 @@ function validateRemoteTotals(remote: Record<string, unknown>, document: FiscalD
       false,
       true,
     )
+  }
+}
+
+export async function inspectManualMoloniDocument(
+  client: SupabaseClient,
+  input: ManualMoloniDocumentLookupInput,
+) {
+  if (input.confirmation !== "VINCULAR DOCUMENTO MANUAL") {
+    throw new FiscalProcessingError(
+      "A confirmação explícita do vínculo manual está ausente.",
+      "MANUAL_DOCUMENT_CONFIRMATION_REQUIRED",
+      false,
+      true,
+    )
+  }
+  if (!Number.isInteger(input.documentNumber) || input.documentNumber <= 0) {
+    throw new FiscalProcessingError("Número de documento manual inválido.", "MANUAL_DOCUMENT_NUMBER_INVALID", false, true)
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.expectedDocumentDate)) {
+    throw new FiscalProcessingError("Data do documento manual inválida.", "MANUAL_DOCUMENT_DATE_INVALID", false, true)
+  }
+  if (!input.expectedBuyerName.trim()) {
+    throw new FiscalProcessingError("Nome do comprador do documento manual ausente.", "MANUAL_DOCUMENT_BUYER_REQUIRED", false, true)
+  }
+
+  const { data: documentData, error: documentError } = await client
+    .from("fiscal_documents")
+    .select("*")
+    .eq("id", input.fiscalDocumentId)
+    .single()
+  if (documentError) throw documentError
+  const document = documentData as FiscalDocumentRow
+  if (document.moloni_document_id || document.status === "issued") {
+    throw new FiscalProcessingError(
+      "O pedido já possui um documento Moloni associado.",
+      "MANUAL_DOCUMENT_ALREADY_LINKED",
+      false,
+      true,
+    )
+  }
+  if (!document.moloni_document_set_id) {
+    throw new FiscalProcessingError(
+      "A série Moloni do pedido não está definida.",
+      "MANUAL_DOCUMENT_SET_MISSING",
+      false,
+      true,
+    )
+  }
+  if (!["invoice", "invoice_receipt"].includes(document.document_kind)) {
+    throw new FiscalProcessingError(
+      "O tipo fiscal do pedido não permite vínculo manual.",
+      "MANUAL_DOCUMENT_KIND_INVALID",
+      false,
+      true,
+    )
+  }
+
+  const { data: settingsData, error: settingsError } = await client
+    .from("moloni_fiscal_settings")
+    .select("*")
+    .eq("payment_environment", document.source_payment_environment)
+    .single()
+  if (settingsError) throw settingsError
+  const settings = settingsData as FiscalSettingsRow
+  if (!settings.moloni_company_id || settings.moloni_environment !== document.environment) {
+    throw new FiscalProcessingError(
+      "A configuração Moloni atual diverge do ambiente do pedido.",
+      "MANUAL_DOCUMENT_ENVIRONMENT_MISMATCH",
+      false,
+      true,
+    )
+  }
+
+  const moloni = new MoloniClient(client, settings.moloni_environment)
+  const remote = await moloni.getDocument(
+    document.document_kind as DocumentKind,
+    settings.moloni_company_id,
+    {
+      document_set_id: document.moloni_document_set_id,
+      number: input.documentNumber,
+    },
+  )
+  const evidence = validateManualMoloniDocument(remote, {
+    companyId: settings.moloni_company_id,
+    documentSetId: document.moloni_document_set_id,
+    documentNumber: input.documentNumber,
+    documentDate: input.expectedDocumentDate,
+    buyerName: input.expectedBuyerName,
+    currency: document.currency,
+    netAmountCents: document.net_amount_cents,
+    taxAmountCents: document.tax_amount_cents,
+    totalAmountCents: document.total_amount_cents,
+  })
+  return {
+    fiscalDocumentId: document.id,
+    environment: settings.moloni_environment,
+    moloniCompanyId: settings.moloni_company_id,
+    ...evidence,
   }
 }
 

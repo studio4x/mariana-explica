@@ -867,7 +867,12 @@ export class MoloniClient {
   getDocument(
     kind: "invoice" | "invoice_receipt",
     companyId: number,
-    search: { document_id?: number; your_reference?: string },
+    search: {
+      document_id?: number
+      document_set_id?: number
+      number?: number
+      your_reference?: string
+    },
   ) {
     const resource = kind === "invoice_receipt" ? "invoiceReceipts" : "invoices"
     return this.post<Record<string, unknown>>(`${resource}/getOne`, {

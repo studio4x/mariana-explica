@@ -8,6 +8,7 @@ import {
   resolveMoloniCountryId,
   selectMoloniFiscalRule,
   shouldCreateMoloniResources,
+  validateManualMoloniDocument,
 } from "./moloni-processing.ts"
 
 Deno.test("converts integer cents without floating point drift", () => {
@@ -34,6 +35,72 @@ Deno.test("uses the Portuguese issue date when a delayed fiscal job cannot be ba
   const currentDate = new Date("2026-08-28T00:30:00.000Z")
   assertEquals(resolveMoloniIssueDate("2026-08-27T14:00:00.000Z", currentDate), "2026-08-28")
   assertEquals(resolveMoloniIssueDate("2026-08-29T00:00:00.000Z", currentDate), "2026-08-29")
+})
+
+Deno.test("validates a manually issued Moloni document before linking it", () => {
+  const result = validateManualMoloniDocument({
+    document_id: 1014560237,
+    company_id: 394142,
+    customer_id: 10000,
+    document_set_id: 956560,
+    number: 2,
+    date: "2026-08-28T09:30:00+01:00",
+    entity_name: "Nelson Ramos",
+    exchange_currency: { iso4217: "EUR" },
+    net_value: 16.5,
+    taxes_value: 0,
+    status: 1,
+  }, {
+    companyId: 394142,
+    documentSetId: 956560,
+    documentNumber: 2,
+    documentDate: "2026-08-28",
+    buyerName: "Nélson Ramos",
+    currency: "EUR",
+    netAmountCents: 1650,
+    taxAmountCents: 0,
+    totalAmountCents: 1650,
+  })
+
+  assertEquals(result, {
+    moloniDocumentId: 1014560237,
+    moloniCustomerId: 10000,
+    moloniDocumentSetId: 956560,
+    documentNumber: "2",
+    documentDate: "2026-08-28",
+    remoteStatus: 1,
+    buyerMatches: true,
+    totalsMatch: true,
+  })
+})
+
+Deno.test("rejects a manual Moloni document with a different buyer", () => {
+  const error = assertThrows(
+    () => validateManualMoloniDocument({
+      document_id: 1014560237,
+      company_id: 394142,
+      customer_id: 10000,
+      document_set_id: 956560,
+      number: 2,
+      date: "2026-08-28",
+      entity_name: "Outra Pessoa",
+      net_value: 16.5,
+      taxes_value: 0,
+      status: 1,
+    }, {
+      companyId: 394142,
+      documentSetId: 956560,
+      documentNumber: 2,
+      documentDate: "2026-08-28",
+      buyerName: "Nelson Ramos",
+      currency: "EUR",
+      netAmountCents: 1650,
+      taxAmountCents: 0,
+      totalAmountCents: 1650,
+    }),
+    FiscalProcessingError,
+  )
+  assertEquals(error.code, "MANUAL_DOCUMENT_BUYER_MISMATCH")
 })
 
 Deno.test("resolves an international buyer country from the fiscal snapshot", async () => {
