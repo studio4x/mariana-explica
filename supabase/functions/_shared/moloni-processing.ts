@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2"
-import { getOfficialMoloniTax, MoloniClient, MoloniError } from "./moloni.ts"
+import { extractMoloniCustomerId, getOfficialMoloniTax, MoloniClient, MoloniError } from "./moloni.ts"
 import { normalizeIso2, normalizeVatNumber } from "./fiscal.ts"
 import { logError } from "./logger.ts"
 
@@ -14,6 +14,7 @@ interface FiscalDocumentRow {
   environment: "draft" | "live"
   source_payment_environment: "test" | "live"
   moloni_company_id: number | null
+  moloni_customer_id?: number | null
   currency: string
   net_amount_cents: number
   tax_amount_cents: number
@@ -47,6 +48,22 @@ export function getMoloniCustomerVatStrategy(
 
 export function shouldCreateMoloniResources(jobType: MoloniJobRow["job_type"]) {
   return jobType === "issue_document"
+}
+
+export function resolveMoloniIssueDate(paidAt: string, now = new Date()) {
+  const paidDate = paidAt.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate) || Number.isNaN(Date.parse(paidAt))) {
+    throw new FiscalProcessingError("A data de pagamento do pedido é inválida.", "PAYMENT_DATE_INVALID", false, true)
+  }
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Lisbon",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? ""
+  const currentPortugueseDate = `${part("year")}-${part("month")}-${part("day")}`
+  return paidDate > currentPortugueseDate ? paidDate : currentPortugueseDate
 }
 
 interface BillingRow {
@@ -235,6 +252,7 @@ export function buildMoloniDocumentPayload(params: {
   settings: FiscalSettingsRow
   customerId: number
   paidAt: string
+  issuedAt?: Date
   items: OrderItemRow[]
   mappings: MappingRow[]
 }) {
@@ -333,7 +351,7 @@ export function buildMoloniDocumentPayload(params: {
   })
 
   const primaryMapping = params.mappings[0]
-  const issueDate = params.paidAt.slice(0, 10)
+  const issueDate = resolveMoloniIssueDate(params.paidAt, params.issuedAt)
   const payload: Record<string, unknown> = {
     company_id: settings.moloni_company_id,
     date: issueDate,
@@ -394,7 +412,6 @@ async function resolveMoloniCustomer(params: {
   settings: FiscalSettingsRow
   billing: BillingRow
   workerId: string
-  allowCreate: boolean
 }) {
   const { client, moloni, document, settings, billing } = params
   if (!settings.moloni_company_id) {
@@ -481,14 +498,6 @@ async function resolveMoloniCustomer(params: {
 
     let customerId = Number(customer?.customer_id ?? 0)
     if (!customerId) {
-      if (!params.allowCreate) {
-        throw new FiscalProcessingError(
-          "Nenhum cliente Moloni foi encontrado para a reconciliação segura.",
-          "CUSTOMER_RECONCILIATION_NOT_FOUND",
-          false,
-          true,
-        )
-      }
       const effectiveCountryId = await resolveMoloniCountryId(
         moloni,
         billing.country_code,
@@ -748,15 +757,10 @@ export async function processMoloniDocumentJob(
         )
       }
     }
-    const customerId = await resolveMoloniCustomer({
-      client,
-      moloni,
-      document,
-      settings,
-      billing,
-      workerId,
-      allowCreate: shouldCreateMoloniResources(job.job_type),
-    })
+    const createResources = shouldCreateMoloniResources(job.job_type)
+    const customerId = createResources
+      ? await resolveMoloniCustomer({ client, moloni, document, settings, billing, workerId })
+      : 0
     const payload = buildMoloniDocumentPayload({
       document,
       settings,
@@ -773,7 +777,7 @@ export async function processMoloniDocumentJob(
         status: "processing",
         environment: settings.moloni_environment,
         moloni_company_id: settings.moloni_company_id,
-        moloni_customer_id: customerId,
+        ...(customerId ? { moloni_customer_id: customerId } : {}),
         moloni_document_set_id: Number(effectiveMappings[0]?.moloni_document_set_id ?? 0) || null,
         last_error_code: null,
         last_error_message: null,
@@ -793,7 +797,7 @@ export async function processMoloniDocumentJob(
       remote = matches.find((item) => Number(item.document_id) > 0) ?? remote
     }
 
-    if (!remote?.document_id && !shouldCreateMoloniResources(job.job_type)) {
+    if (!remote?.document_id && !createResources) {
       throw new FiscalProcessingError(
         "Nenhum documento Moloni foi encontrado com a referência segura deste pedido. A reconciliação não criou uma nova fatura.",
         "DOCUMENT_RECONCILIATION_NOT_FOUND",
@@ -832,6 +836,7 @@ export async function processMoloniDocumentJob(
       .update({
         status: "issued",
         environment: settings.moloni_environment,
+        moloni_customer_id: extractMoloniCustomerId(remote) ?? document.moloni_customer_id,
         moloni_document_id: Number(remote.document_id),
         document_number: documentNumber,
         remote_status: Number(remote.status ?? settings.document_status),

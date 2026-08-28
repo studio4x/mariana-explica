@@ -4,6 +4,7 @@ import {
   centsToDecimal,
   FiscalProcessingError,
   getMoloniCustomerVatStrategy,
+  resolveMoloniIssueDate,
   resolveMoloniCountryId,
   selectMoloniFiscalRule,
   shouldCreateMoloniResources,
@@ -27,6 +28,12 @@ Deno.test("treats the no-NIF fallback as a shared Moloni customer", () => {
 Deno.test("reconciliation never creates remote Moloni resources", () => {
   assertEquals(shouldCreateMoloniResources("issue_document"), true)
   assertEquals(shouldCreateMoloniResources("reconcile_document"), false)
+})
+
+Deno.test("uses the Portuguese issue date when a delayed fiscal job cannot be backdated", () => {
+  const currentDate = new Date("2026-08-28T00:30:00.000Z")
+  assertEquals(resolveMoloniIssueDate("2026-08-27T14:00:00.000Z", currentDate), "2026-08-28")
+  assertEquals(resolveMoloniIssueDate("2026-08-29T00:00:00.000Z", currentDate), "2026-08-29")
 })
 
 Deno.test("resolves an international buyer country from the fiscal snapshot", async () => {
@@ -83,6 +90,7 @@ Deno.test("builds a draft invoice receipt payload from immutable order totals", 
     },
     customerId: 20,
     paidAt: "2026-07-23T10:00:00.000Z",
+    issuedAt: new Date("2026-07-24T10:00:00.000Z"),
     items: [{
       product_id: "product",
       product_title_snapshot: "Curso",
@@ -104,6 +112,9 @@ Deno.test("builds a draft invoice receipt payload from immutable order totals", 
     }],
   })
   assertEquals(payload.status, 0)
+  assertEquals(payload.date, "2026-07-24")
+  assertEquals(payload.expiration_date, "2026-07-24")
+  assertEquals((payload.payments as Array<{ date: string }>)[0].date, "2026-07-23T10:00:00.000Z")
   assertEquals((payload.payments as Array<{ value: number }>)[0].value, 12.3)
 })
 
