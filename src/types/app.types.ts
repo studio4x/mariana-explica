@@ -1638,6 +1638,7 @@ export interface StudentPaymentSummary {
 export interface AdminOrderViewSummary extends AdminOrderSummary {
   user_name: string | null
   user_email: string | null
+  buyer_nif: string | null
   product_title: string | null
   product_type: ProductSummary["product_type"] | null
 }

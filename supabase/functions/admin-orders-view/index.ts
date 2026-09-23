@@ -35,10 +35,12 @@ Deno.serve(async (req) => {
 
     const userIds = [...new Set((orders ?? []).map((order) => order.user_id))]
     const productIds = [...new Set((orders ?? []).map((order) => order.product_id))]
+    const orderIds = (orders ?? []).map((order) => order.id)
 
     const [
       { data: users, error: usersError },
       { data: products, error: productsError },
+      { data: billingDetails, error: billingError },
       { data: fiscalDocuments, error: fiscalError },
     ] = await Promise.all([
       userIds.length
@@ -53,6 +55,12 @@ Deno.serve(async (req) => {
             .select("id,title,product_type")
             .in("id", productIds)
         : Promise.resolve({ data: [], error: null }),
+      orderIds.length
+        ? context.serviceClient
+            .from("order_billing_details")
+            .select("order_id,vat_number")
+            .in("order_id", orderIds)
+        : Promise.resolve({ data: [], error: null }),
       context.serviceClient
         .from("fiscal_documents")
         .select("id,order_id,status,document_kind,environment,remote_status,document_number,issued_at,last_error_code,last_error_message")
@@ -65,6 +73,9 @@ Deno.serve(async (req) => {
 
     if (productsError) {
       throw productsError
+    }
+    if (billingError) {
+      throw billingError
     }
     if (fiscalError) {
       throw fiscalError
@@ -80,6 +91,7 @@ Deno.serve(async (req) => {
 
     const userMap = new Map((users ?? []).map((user) => [user.id, user]))
     const productMap = new Map((products ?? []).map((product) => [product.id, product]))
+    const billingMap = new Map((billingDetails ?? []).map((billing) => [billing.order_id, billing]))
     const fiscalJobMap = new Map((fiscalJobs ?? []).map((job) => [job.fiscal_document_id, job]))
     const fiscalMap = new Map((fiscalDocuments ?? []).map((document) => [
       document.order_id,
@@ -90,6 +102,7 @@ Deno.serve(async (req) => {
       ...order,
       user_name: userMap.get(order.user_id)?.full_name ?? null,
       user_email: userMap.get(order.user_id)?.email ?? null,
+      buyer_nif: billingMap.get(order.id)?.vat_number ?? null,
       product_title: productMap.get(order.product_id)?.title ?? null,
       product_type: productMap.get(order.product_id)?.product_type ?? null,
       fiscal_document: fiscalMap.get(order.id) ?? null,

@@ -976,6 +976,7 @@ export function AdminPayments() {
                   <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.14em] text-slate-500">
                     <tr>
                       <th className="px-4 py-3 font-medium">Cliente</th>
+                      <th className="px-4 py-3 font-medium">NIF</th>
                       <th className="px-4 py-3 font-medium">Comprado</th>
                       <th className="px-4 py-3 font-medium">Data/Hora</th>
                       <th className="px-4 py-3 font-medium">Status</th>
@@ -1002,6 +1003,13 @@ export function AdminPayments() {
                           <td className="px-4 py-4">
                             <p className="font-semibold text-slate-950">{order.user_name ?? "Cliente não identificado"}</p>
                             <p className="mt-1 break-all text-xs text-slate-500">{order.user_email ?? order.user_id}</p>
+                          </td>
+                          <td className="px-4 py-4 text-sm text-slate-600">
+                            {order.buyer_nif ? (
+                              <span className="font-medium text-slate-950">{order.buyer_nif}</span>
+                            ) : (
+                              <span className="text-slate-400">NIF não indicado</span>
+                            )}
                           </td>
                           <td className="px-4 py-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
