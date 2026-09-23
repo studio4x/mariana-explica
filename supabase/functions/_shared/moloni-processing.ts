@@ -245,6 +245,11 @@ interface MappingRow {
   mapping_status?: "valid" | "requires_review"
 }
 
+const MOLONI_DOCUMENT_TYPE_IDS: Record<DocumentKind, number> = {
+  invoice: 1,
+  invoice_receipt: 27,
+}
+
 interface FiscalRuleRow {
   id: string
   product_id: string
@@ -514,6 +519,48 @@ export function buildMoloniDocumentPayload(params: {
   return payload
 }
 
+export function buildMoloniCustomerPayload(params: {
+  companyId: number
+  vat: string
+  number: string
+  name: string | null
+  languageId: number
+  address: string
+  zipCode: string
+  city: string | null
+  countryId: number
+  email: string
+  maturityDateId: number
+  paymentMethodId: number
+  documentKind: DocumentKind
+}) {
+  const documentTypeId = MOLONI_DOCUMENT_TYPE_IDS[params.documentKind]
+
+  return {
+    company_id: params.companyId,
+    vat: params.vat,
+    number: params.number,
+    name: params.name,
+    language_id: params.languageId,
+    address: params.address,
+    zip_code: params.zipCode,
+    city: params.city,
+    country_id: params.countryId,
+    email: params.email,
+    maturity_date_id: params.maturityDateId,
+    payment_method_id: params.paymentMethodId,
+    // Moloni's v1 API expects optional numeric fields as zero, not null/omitted.
+    salesman_id: 0,
+    price_class_id: 0,
+    payment_day: 0,
+    discount: 0,
+    credit_limit: 0,
+    delivery_method_id: 0,
+    document_type_id: documentTypeId,
+    copies: [{ document_type_id: documentTypeId, copies: 1 }],
+  }
+}
+
 function sanitizedError(error: unknown) {
   if (error instanceof FiscalProcessingError || error instanceof MoloniError) {
     return {
@@ -646,20 +693,21 @@ async function resolveMoloniCustomer(params: {
         )
       }
       const nextNumber = await moloni.getNextCustomerNumber(settings.moloni_company_id)
-      const created = await moloni.createCustomer({
-        company_id: settings.moloni_company_id,
+      const created = await moloni.createCustomer(buildMoloniCustomerPayload({
+        companyId: settings.moloni_company_id,
         vat: effectiveVat,
         number: nextNumber.number,
         name: billing.legal_name,
-        language_id: settings.customer_language_id,
+        languageId: settings.customer_language_id,
         address: [billing.address_line1, billing.address_line2].filter(Boolean).join(" "),
-        zip_code: billing.postal_code ?? "",
+        zipCode: billing.postal_code ?? "",
         city: billing.city,
-        country_id: effectiveCountryId,
+        countryId: effectiveCountryId,
         email: billing.email ?? "",
-        maturity_date_id: settings.customer_maturity_date_id,
-        payment_method_id: settings.customer_payment_method_id,
-      })
+        maturityDateId: settings.customer_maturity_date_id,
+        paymentMethodId: settings.customer_payment_method_id,
+        documentKind: settings.document_kind ?? "invoice_receipt",
+      }))
       customerId = Number(created.customer_id)
       if (!customerId) {
         throw new FiscalProcessingError(

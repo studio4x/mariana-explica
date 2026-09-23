@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts"
 import {
+  buildMoloniCustomerPayload,
   buildMoloniDocumentPayload,
   centsToDecimal,
   FiscalProcessingError,
@@ -10,6 +11,32 @@ import {
   shouldCreateMoloniResources,
   validateManualMoloniDocument,
 } from "./moloni-processing.ts"
+
+Deno.test("builds a Moloni customer payload with valid numeric defaults", () => {
+  const payload = buildMoloniCustomerPayload({
+    companyId: 394142,
+    vat: "217663362",
+    number: "C-1",
+    name: "Carla Silva",
+    languageId: 1,
+    address: "Travessa s jose 104",
+    zipCode: "4775-263",
+    city: "Barcelos",
+    countryId: 1,
+    email: "carlarmsilva@gmail.com",
+    maturityDateId: 2597390,
+    paymentMethodId: 3326385,
+    documentKind: "invoice_receipt",
+  })
+
+  assertEquals(payload.salesman_id, 0)
+  assertEquals(payload.payment_day, 0)
+  assertEquals(payload.discount, 0)
+  assertEquals(payload.credit_limit, 0)
+  assertEquals(payload.delivery_method_id, 0)
+  assertEquals(payload.document_type_id, 27)
+  assertEquals(payload.copies, [{ document_type_id: 27, copies: 1 }])
+})
 
 Deno.test("converts integer cents without floating point drift", () => {
   assertEquals(centsToDecimal(12345), 123.45)
